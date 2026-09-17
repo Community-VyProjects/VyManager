@@ -54,17 +54,15 @@ def test_modals_use_shared_mode_helpers():
     assert "lockedIdentity(existing, (p) => p.name, name)" in peer_modal
 
 
-def test_peer_name_uniqueness_is_create_only():
-    """Editing a peer must not fail because its own name is already taken."""
-    peer_modal = (COMP / "PeerModal.tsx").read_text()
-    assert "isCreate && interfaceData?.peers.some((p) => p.name === name.trim())" in peer_modal
+def test_create_and_update_behaviour_is_covered_by_the_tsx_test():
+    """The submit builders and validators live in a module with its own tests.
 
+    Run them with: npx tsx --test src/components/vpn/wireguard-form.test.ts
+    (node --test cannot resolve the extensionless .ts import).
+    """
+    assert (COMP / "wireguard-form.ts").exists()
+    assert (COMP / "wireguard-form.test.ts").exists()
 
-def test_interface_disable_control_is_edit_only():
-    """createInterface has no disable op, so the checkbox only renders on edit."""
-    interface_modal = (COMP / "InterfaceModal.tsx").read_text()
-    checkbox = interface_modal.index('id="wg-disabled"')
-    guard = interface_modal.rindex("{isEdit && (", 0, checkbox)
-    # Nothing but the wrapper div and its className sits between the guard and
-    # the checkbox, so the control cannot render in create mode.
-    assert interface_modal.count("<Checkbox", guard, checkbox) == 1
+    for modal in ("InterfaceModal.tsx", "PeerModal.tsx"):
+        source = (COMP / modal).read_text()
+        assert 'from "./wireguard-form"' in source

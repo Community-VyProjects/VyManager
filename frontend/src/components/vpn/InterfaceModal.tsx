@@ -33,6 +33,13 @@ import {
 } from "@/lib/api/wireguard";
 import { ApiError } from "@/lib/types/api";
 import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
+import {
+  buildInterfaceCreateConfig,
+  buildInterfaceUpdateConfig,
+  interfaceDraftFrom,
+  validateInterfaceCreate,
+  type InterfaceDraft,
+} from "./wireguard-form";
 
 interface InterfaceModalProps {
   open: boolean;
@@ -101,22 +108,17 @@ export function InterfaceModal({
 
   // Populate form from the interface being edited
   const populateForm = (interfaceData: WireGuardInterface) => {
-    setName(interfaceData.name);
-    setDescription(interfaceData.description || "");
-    setAddresses(interfaceData.addresses.join(", "));
-    setPort(interfaceData.port || "");
-    setPrivateKey(interfaceData.private_key || "");
-    setMtu(interfaceData.mtu || "");
-    setPerClientThread(interfaceData.per_client_thread);
-    const mss = interfaceData.mss_clamping || "";
-    if (!mss || mss === "clamp-mss-to-pmtu") {
-      setMssClamping(mss ? "auto" : "off");
-      setMssCustomValue("");
-    } else {
-      setMssClamping("custom");
-      setMssCustomValue(mss);
-    }
-    setDisabled(interfaceData.disabled || false);
+    const draft = interfaceDraftFrom(interfaceData);
+    setName(draft.name);
+    setDescription(draft.description);
+    setAddresses(draft.addresses);
+    setPort(draft.port);
+    setPrivateKey(draft.privateKey);
+    setMtu(draft.mtu);
+    setPerClientThread(draft.perClientThread);
+    setMssClamping(draft.mssClamping);
+    setMssCustomValue(draft.mssCustomValue);
+    setDisabled(draft.disabled);
     setError(null);
     setShowPrivateKey(false);
     setGeneratedPublicKey(null);
@@ -168,120 +170,39 @@ export function InterfaceModal({
     onOpenChange(false);
   };
 
+  // Current form state as the plain draft the submit builders consume.
+  const draft = (): InterfaceDraft => ({
+    name,
+    description,
+    addresses,
+    port,
+    privateKey,
+    mtu,
+    perClientThread,
+    mssClamping,
+    mssCustomValue,
+    disabled,
+  });
+
   // Validate create-only identity rules
-  const validateCreate = (): string | null => {
-    if (!name.trim()) {
-      return "Interface name is required";
-    }
-    if (!/^wg\d+$/.test(name.trim())) {
-      return "Interface name must be in format 'wg0', 'wg1', etc.";
-    }
-    if (existingInterfaces.includes(name.trim())) {
-      return `Interface ${name} already exists`;
-    }
-    if (!privateKey.trim()) {
-      return "Private key is required. Use 'Generate Key' to create one.";
-    }
-    return null;
-  };
+  const validateCreate = (): string | null =>
+    validateInterfaceCreate(draft(), existingInterfaces);
 
   const submitCreate = async () => {
-    const config: Record<string, unknown> = {
-      name: name.trim(),
-      private_key: privateKey.trim(),
-    };
-
-    if (description.trim()) {
-      config.description = description.trim();
-    }
-
-    if (addresses.trim()) {
-      config.addresses = addresses
-        .split(",")
-        .map((a) => a.trim())
-        .filter(Boolean);
-    }
-
-    if (port.trim()) {
-      config.port = port.trim();
-    }
-
-    if (mtu.trim()) {
-      config.mtu = mtu.trim();
-    }
-
-    if (perClientThread && capabilities?.features.per_client_thread.supported) {
-      config.per_client_thread = true;
-    }
-    if (mssClamping === "auto") {
-      config.mss_clamping = "clamp-mss-to-pmtu";
-    } else if (mssClamping === "custom" && mssCustomValue.trim()) {
-      config.mss_clamping = mssCustomValue.trim();
-    }
-
-    return wireguardService.createInterface(
-      config as Parameters<typeof wireguardService.createInterface>[0]
+    const config = buildInterfaceCreateConfig(
+      draft(),
+      !!capabilities?.features.per_client_thread.supported,
     );
+    return wireguardService.createInterface(config);
   };
 
   // Only the fields the operator actually changed are sent, so an untouched
   // leaf is never rewritten and a cleared one is deleted.
   const submitUpdate = async (current: WireGuardInterface, targetName: string) => {
-    const newConfig: Record<string, unknown> = {};
-
-    // Description change
-    if (description.trim() !== (current.description || "")) {
-      newConfig.description = description.trim() || null;
-    }
-
-    // Addresses change
-    const newAddresses = addresses
-      .split(",")
-      .map((a) => a.trim())
-      .filter(Boolean);
-    const currentAddresses = current.addresses || [];
-    if (JSON.stringify(newAddresses) !== JSON.stringify(currentAddresses)) {
-      newConfig.addresses = newAddresses;
-    }
-
-    // Port change
-    if (port.trim() !== (current.port || "")) {
-      newConfig.port = port.trim() || null;
-    }
-
-    // Private key change (only if not masked)
-    if (privateKey !== "***" && privateKey.trim() !== "") {
-      newConfig.private_key = privateKey.trim();
-    }
-
-    // MTU change
-    if (mtu.trim() !== (current.mtu || "")) {
-      newConfig.mtu = mtu.trim() || null;
-    }
-
-    // Per-client thread change
-    if (perClientThread !== current.per_client_thread) {
-      newConfig.per_client_thread = perClientThread;
-    }
-
-    // MSS clamping change
-    const newMss = mssClamping === "auto"
-      ? "clamp-mss-to-pmtu"
-      : mssClamping === "custom"
-        ? mssCustomValue.trim() || null
-        : null;
-    const currentMss = current.mss_clamping || null;
-    if (newMss !== currentMss) {
-      newConfig.mss_clamping = newMss;
-    }
-
-    // Disabled change
-    if (disabled !== (current.disabled || false)) {
-      newConfig.disabled = disabled;
-    }
+    const newConfig = buildInterfaceUpdateConfig(draft(), current);
 
     // Nothing changed: no write to send.
-    if (Object.keys(newConfig).length === 0) {
+    if (newConfig === null) {
       return null;
     }
 

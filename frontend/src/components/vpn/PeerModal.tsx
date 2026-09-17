@@ -31,6 +31,13 @@ import {
 } from "@/lib/api/wireguard";
 import { ApiError } from "@/lib/types/api";
 import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
+import {
+  buildPeerCreateConfig,
+  buildPeerUpdateConfig,
+  peerDraftFrom,
+  validatePeer,
+  type PeerDraft,
+} from "./wireguard-form";
 
 interface PeerModalProps {
   open: boolean;
@@ -85,16 +92,17 @@ export function PeerModal({
 
   // Populate form from the peer being edited
   const populateForm = (peerData: WireGuardPeer) => {
-    setName(peerData.name);
-    setPublicKey(peerData.public_key || "");
-    setAllowedIps(peerData.allowed_ips.join(", "));
-    setPresharedKey(peerData.preshared_key || "");
-    setAddress(peerData.address || "");
-    setPort(peerData.port || "");
-    setPersistentKeepalive(peerData.persistent_keepalive || "");
-    setDescription(peerData.description || "");
-    setDisabled(peerData.disabled || false);
-    setHostName(peerData.host_name || "");
+    const draft = peerDraftFrom(peerData);
+    setName(draft.name);
+    setPublicKey(draft.publicKey);
+    setAllowedIps(draft.allowedIps);
+    setPresharedKey(draft.presharedKey);
+    setAddress(draft.address);
+    setPort(draft.port);
+    setPersistentKeepalive(draft.persistentKeepalive);
+    setDescription(draft.description);
+    setDisabled(draft.disabled);
+    setHostName(draft.hostName);
     setError(null);
     setShowPresharedKey(false);
   };
@@ -131,81 +139,30 @@ export function PeerModal({
     onOpenChange(false);
   };
 
+  // Current form state as the plain draft the submit builders consume.
+  const draft = (): PeerDraft => ({
+    name,
+    publicKey,
+    allowedIps,
+    presharedKey,
+    address,
+    port,
+    persistentKeepalive,
+    description,
+    disabled,
+    hostName,
+  });
+
   // Create checks the identity fields the operator can only set once; both
-  // modes check the fields VyOS requires on a peer. Order matches the
-  // messages the separate create and edit modals used to produce.
-  const validate = (isCreate: boolean): string | null => {
-    if (isCreate) {
-      if (!name.trim()) {
-        return "Peer name is required";
-      }
-      if (/\s/.test(name.trim())) {
-        return "Peer name cannot contain spaces";
-      }
-    }
-    if (!publicKey.trim()) {
-      return "Public key is required";
-    }
-    if (!allowedIps.trim()) {
-      return "At least one allowed IP is required";
-    }
-    if (isCreate && interfaceData?.peers.some((p) => p.name === name.trim())) {
-      return `Peer '${name}' already exists on this interface`;
-    }
-    return null;
-  };
+  // modes check the fields VyOS requires on a peer.
+  const validate = (isCreate: boolean): string | null =>
+    validatePeer(draft(), {
+      isCreate,
+      existingPeerNames: interfaceData?.peers.map((p) => p.name) ?? [],
+    });
 
-  const submitCreate = async (target: WireGuardInterface) => {
-    const config: {
-      name: string;
-      public_key: string;
-      allowed_ips: string[];
-      preshared_key?: string;
-      address?: string;
-      port?: string;
-      persistent_keepalive?: string;
-      description?: string;
-      disabled?: boolean;
-      host_name?: string;
-    } = {
-      name: name.trim(),
-      public_key: publicKey.trim(),
-      allowed_ips: allowedIps
-        .split(",")
-        .map((ip) => ip.trim())
-        .filter(Boolean),
-    };
-
-    if (presharedKey.trim()) {
-      config.preshared_key = presharedKey.trim();
-    }
-
-    if (address.trim()) {
-      config.address = address.trim();
-    }
-
-    if (port.trim()) {
-      config.port = port.trim();
-    }
-
-    if (persistentKeepalive.trim()) {
-      config.persistent_keepalive = persistentKeepalive.trim();
-    }
-
-    if (description.trim()) {
-      config.description = description.trim();
-    }
-
-    if (disabled) {
-      config.disabled = true;
-    }
-
-    if (hostName.trim()) {
-      config.host_name = hostName.trim();
-    }
-
-    return wireguardService.createPeer(target.name, config);
-  };
+  const submitCreate = async (target: WireGuardInterface) =>
+    wireguardService.createPeer(target.name, buildPeerCreateConfig(draft()));
 
   // Only the fields the operator actually changed are sent, so an untouched
   // leaf is never rewritten and a cleared one is deleted.
@@ -214,61 +171,10 @@ export function PeerModal({
     current: WireGuardPeer,
     peerName: string
   ) => {
-    const newConfig: Record<string, unknown> = {};
-
-    // Public key change
-    if (publicKey.trim() !== (current.public_key || "")) {
-      newConfig.public_key = publicKey.trim();
-    }
-
-    // Allowed IPs change
-    const newAllowedIps = allowedIps
-      .split(",")
-      .map((ip) => ip.trim())
-      .filter(Boolean);
-    if (JSON.stringify(newAllowedIps) !== JSON.stringify(current.allowed_ips)) {
-      newConfig.allowed_ips = newAllowedIps;
-    }
-
-    // Preshared key change (only if not masked)
-    if (presharedKey !== "***") {
-      if (presharedKey.trim() !== (current.preshared_key === "***" ? "***" : current.preshared_key || "")) {
-        newConfig.preshared_key = presharedKey.trim() || null;
-      }
-    }
-
-    // Address change
-    if (address.trim() !== (current.address || "")) {
-      newConfig.address = address.trim() || null;
-    }
-
-    // Port change
-    if (port.trim() !== (current.port || "")) {
-      newConfig.port = port.trim() || null;
-    }
-
-    // Persistent keepalive change
-    if (persistentKeepalive.trim() !== (current.persistent_keepalive || "")) {
-      newConfig.persistent_keepalive = persistentKeepalive.trim() || null;
-    }
-
-    // Description change
-    if (description.trim() !== (current.description || "")) {
-      newConfig.description = description.trim() || null;
-    }
-
-    // Disabled change
-    if (disabled !== (current.disabled || false)) {
-      newConfig.disabled = disabled;
-    }
-
-    // Host name change
-    if (hostName.trim() !== (current.host_name || "")) {
-      newConfig.host_name = hostName.trim() || null;
-    }
+    const newConfig = buildPeerUpdateConfig(draft(), current);
 
     // Nothing changed: no write to send.
-    if (Object.keys(newConfig).length === 0) {
+    if (newConfig === null) {
       return null;
     }
 
