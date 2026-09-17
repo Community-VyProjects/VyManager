@@ -11,6 +11,7 @@ sidebar_position: 1
 For the standard Docker deployment you need:
 
 - Docker Engine with the Docker Compose plugin
+- An `x86_64` (amd64) or `arm64` host; the published images carry both
 - About 1 GB of free RAM for the three containers (PostgreSQL, backend, frontend)
 - Open ports on the host: 3000 (frontend), 8000 (backend API), 5432 (PostgreSQL, only exposed by the default compose file)
 
