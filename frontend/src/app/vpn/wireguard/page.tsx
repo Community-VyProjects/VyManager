@@ -70,11 +70,9 @@ function formatHandshakeTime(seconds: number): string {
 }
 
 // Import modals
-import { CreateInterfaceModal } from "@/components/vpn/CreateInterfaceModal";
-import { EditInterfaceModal } from "@/components/vpn/EditInterfaceModal";
+import { InterfaceModal } from "@/components/vpn/InterfaceModal";
 import { DeleteInterfaceModal } from "@/components/vpn/DeleteInterfaceModal";
-import { CreatePeerModal } from "@/components/vpn/CreatePeerModal";
-import { EditPeerModal } from "@/components/vpn/EditPeerModal";
+import { PeerModal } from "@/components/vpn/PeerModal";
 import { DeletePeerModal } from "@/components/vpn/DeletePeerModal";
 import { GenerateClientConfigModal } from "@/components/vpn/GenerateClientConfigModal";
 import { QuickSetupWizard } from "@/components/vpn/QuickSetupWizard";
@@ -822,23 +820,22 @@ export default function WireGuardPage() {
       </div>
 
       {/* Modals */}
-      <CreateInterfaceModal
-        open={showCreateInterface}
-        onOpenChange={setShowCreateInterface}
-        onSuccess={() => fetchConfig(true)}
+      <InterfaceModal
+        open={showCreateInterface || !!editingInterface}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowCreateInterface(false);
+            setEditingInterface(null);
+          }
+        }}
+        onSuccess={() => {
+          setEditingInterface(null);
+          fetchConfig(true);
+        }}
         capabilities={capabilities}
         existingInterfaces={config?.interfaces.map((i) => i.name) || []}
+        existing={editingInterface}
       />
-
-      {editingInterface && (
-        <EditInterfaceModal
-          open={!!editingInterface}
-          onOpenChange={(open) => !open && setEditingInterface(null)}
-          interfaceData={editingInterface}
-          onSuccess={() => fetchConfig(true)}
-          capabilities={capabilities}
-        />
-      )}
 
       {deletingInterface && (
         <DeleteInterfaceModal
@@ -856,22 +853,21 @@ export default function WireGuardPage() {
 
       {currentInterface && (
         <>
-          <CreatePeerModal
-            open={showCreatePeer}
-            onOpenChange={setShowCreatePeer}
+          <PeerModal
+            open={showCreatePeer || !!editingPeer}
+            onOpenChange={(open) => {
+              if (!open) {
+                setShowCreatePeer(false);
+                setEditingPeer(null);
+              }
+            }}
             interfaceData={currentInterface}
-            onSuccess={() => fetchConfig(true)}
+            existing={editingPeer}
+            onSuccess={() => {
+              setEditingPeer(null);
+              fetchConfig(true);
+            }}
           />
-
-          {editingPeer && (
-            <EditPeerModal
-              open={!!editingPeer}
-              onOpenChange={(open) => !open && setEditingPeer(null)}
-              interfaceName={currentInterface.name}
-              peerData={editingPeer}
-              onSuccess={() => fetchConfig(true)}
-            />
-          )}
 
           {deletingPeer && (
             <DeletePeerModal

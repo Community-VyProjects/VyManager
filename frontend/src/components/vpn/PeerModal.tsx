@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertCircle,
   UserPlus,
+  UserCog,
   Loader2,
   Eye,
   EyeOff,
@@ -23,22 +24,31 @@ import {
   Ban,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { wireguardService, WireGuardInterface } from "@/lib/api/wireguard";
+import {
+  wireguardService,
+  WireGuardInterface,
+  WireGuardPeer,
+} from "@/lib/api/wireguard";
 import { ApiError } from "@/lib/types/api";
+import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
 
-interface CreatePeerModalProps {
+interface PeerModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   interfaceData: WireGuardInterface | null;
+  existing?: WireGuardPeer | null;
 }
 
-export function CreatePeerModal({
+export function PeerModal({
   open,
   onOpenChange,
   onSuccess,
   interfaceData,
-}: CreatePeerModalProps) {
+  existing,
+}: PeerModalProps) {
+  const isEdit = modalIsEdit(existing);
+
   // Form state
   const [name, setName] = useState("");
   const [publicKey, setPublicKey] = useState("");
@@ -57,22 +67,6 @@ export function CreatePeerModal({
   const [error, setError] = useState<string | null>(null);
   const [showPresharedKey, setShowPresharedKey] = useState(false);
 
-  // Generate preshared key
-  const handleGeneratePSK = async () => {
-    setGenerating(true);
-    setError(null);
-    try {
-      const result = await wireguardService.generatePSK();
-      if (result.preshared_key) {
-        setPresharedKey(result.preshared_key);
-      }
-    } catch (err) {
-      setError((err as ApiError).message || "Failed to generate preshared key");
-    } finally {
-      setGenerating(false);
-    }
-  };
-
   // Reset form
   const resetForm = () => {
     setName("");
@@ -89,19 +83,65 @@ export function CreatePeerModal({
     setShowPresharedKey(false);
   };
 
+  // Populate form from the peer being edited
+  const populateForm = (peerData: WireGuardPeer) => {
+    setName(peerData.name);
+    setPublicKey(peerData.public_key || "");
+    setAllowedIps(peerData.allowed_ips.join(", "));
+    setPresharedKey(peerData.preshared_key || "");
+    setAddress(peerData.address || "");
+    setPort(peerData.port || "");
+    setPersistentKeepalive(peerData.persistent_keepalive || "");
+    setDescription(peerData.description || "");
+    setDisabled(peerData.disabled || false);
+    setHostName(peerData.host_name || "");
+    setError(null);
+    setShowPresharedKey(false);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    if (existing) {
+      populateForm(existing);
+    } else {
+      resetForm();
+    }
+  }, [open, existing]);
+
+  const lockedName = lockedIdentity(existing, (p) => p.name, name);
+
+  // Generate preshared key
+  const handleGeneratePSK = async () => {
+    setGenerating(true);
+    setError(null);
+    try {
+      const result = await wireguardService.generatePSK();
+      if (result.preshared_key) {
+        setPresharedKey(result.preshared_key);
+      }
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to generate preshared key");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   // Handle close
   const handleClose = () => {
-    resetForm();
     onOpenChange(false);
   };
 
-  // Validate form
-  const validateForm = (): string | null => {
-    if (!name.trim()) {
-      return "Peer name is required";
-    }
-    if (/\s/.test(name.trim())) {
-      return "Peer name cannot contain spaces";
+  // Create checks the identity fields the operator can only set once; both
+  // modes check the fields VyOS requires on a peer. Order matches the
+  // messages the separate create and edit modals used to produce.
+  const validate = (isCreate: boolean): string | null => {
+    if (isCreate) {
+      if (!name.trim()) {
+        return "Peer name is required";
+      }
+      if (/\s/.test(name.trim())) {
+        return "Peer name cannot contain spaces";
+      }
     }
     if (!publicKey.trim()) {
       return "Public key is required";
@@ -109,18 +149,143 @@ export function CreatePeerModal({
     if (!allowedIps.trim()) {
       return "At least one allowed IP is required";
     }
-    // Check if peer name already exists
-    if (interfaceData?.peers.some((p) => p.name === name.trim())) {
+    if (isCreate && interfaceData?.peers.some((p) => p.name === name.trim())) {
       return `Peer '${name}' already exists on this interface`;
     }
     return null;
+  };
+
+  const submitCreate = async (target: WireGuardInterface) => {
+    const config: {
+      name: string;
+      public_key: string;
+      allowed_ips: string[];
+      preshared_key?: string;
+      address?: string;
+      port?: string;
+      persistent_keepalive?: string;
+      description?: string;
+      disabled?: boolean;
+      host_name?: string;
+    } = {
+      name: name.trim(),
+      public_key: publicKey.trim(),
+      allowed_ips: allowedIps
+        .split(",")
+        .map((ip) => ip.trim())
+        .filter(Boolean),
+    };
+
+    if (presharedKey.trim()) {
+      config.preshared_key = presharedKey.trim();
+    }
+
+    if (address.trim()) {
+      config.address = address.trim();
+    }
+
+    if (port.trim()) {
+      config.port = port.trim();
+    }
+
+    if (persistentKeepalive.trim()) {
+      config.persistent_keepalive = persistentKeepalive.trim();
+    }
+
+    if (description.trim()) {
+      config.description = description.trim();
+    }
+
+    if (disabled) {
+      config.disabled = true;
+    }
+
+    if (hostName.trim()) {
+      config.host_name = hostName.trim();
+    }
+
+    return wireguardService.createPeer(target.name, config);
+  };
+
+  // Only the fields the operator actually changed are sent, so an untouched
+  // leaf is never rewritten and a cleared one is deleted.
+  const submitUpdate = async (
+    target: WireGuardInterface,
+    current: WireGuardPeer,
+    peerName: string
+  ) => {
+    const newConfig: Record<string, unknown> = {};
+
+    // Public key change
+    if (publicKey.trim() !== (current.public_key || "")) {
+      newConfig.public_key = publicKey.trim();
+    }
+
+    // Allowed IPs change
+    const newAllowedIps = allowedIps
+      .split(",")
+      .map((ip) => ip.trim())
+      .filter(Boolean);
+    if (JSON.stringify(newAllowedIps) !== JSON.stringify(current.allowed_ips)) {
+      newConfig.allowed_ips = newAllowedIps;
+    }
+
+    // Preshared key change (only if not masked)
+    if (presharedKey !== "***") {
+      if (presharedKey.trim() !== (current.preshared_key === "***" ? "***" : current.preshared_key || "")) {
+        newConfig.preshared_key = presharedKey.trim() || null;
+      }
+    }
+
+    // Address change
+    if (address.trim() !== (current.address || "")) {
+      newConfig.address = address.trim() || null;
+    }
+
+    // Port change
+    if (port.trim() !== (current.port || "")) {
+      newConfig.port = port.trim() || null;
+    }
+
+    // Persistent keepalive change
+    if (persistentKeepalive.trim() !== (current.persistent_keepalive || "")) {
+      newConfig.persistent_keepalive = persistentKeepalive.trim() || null;
+    }
+
+    // Description change
+    if (description.trim() !== (current.description || "")) {
+      newConfig.description = description.trim() || null;
+    }
+
+    // Disabled change
+    if (disabled !== (current.disabled || false)) {
+      newConfig.disabled = disabled;
+    }
+
+    // Host name change
+    if (hostName.trim() !== (current.host_name || "")) {
+      newConfig.host_name = hostName.trim() || null;
+    }
+
+    // Nothing changed: no write to send.
+    if (Object.keys(newConfig).length === 0) {
+      return null;
+    }
+
+    return wireguardService.updatePeer(target.name, peerName, current, newConfig);
   };
 
   // Handle submit
   const handleSubmit = async () => {
     if (!interfaceData) return;
 
-    const validationError = validateForm();
+    const write = modalWriteKind(existing);
+
+    if (write.kind === "update" && !existing) {
+      return;
+    }
+
+    const validationError = validate(write.kind === "create");
     if (validationError) {
       setError(validationError);
       return;
@@ -130,67 +295,26 @@ export function CreatePeerModal({
     setError(null);
 
     try {
-      const config: {
-        name: string;
-        public_key: string;
-        allowed_ips: string[];
-        preshared_key?: string;
-        address?: string;
-        port?: string;
-        persistent_keepalive?: string;
-        description?: string;
-        disabled?: boolean;
-        host_name?: string;
-      } = {
-        name: name.trim(),
-        public_key: publicKey.trim(),
-        allowed_ips: allowedIps
-          .split(",")
-          .map((ip) => ip.trim())
-          .filter(Boolean),
-      };
+      const result =
+        write.kind === "update" && existing
+          ? await submitUpdate(interfaceData, existing, write.name)
+          : await submitCreate(interfaceData);
 
-      if (presharedKey.trim()) {
-        config.preshared_key = presharedKey.trim();
+      if (result === null) {
+        handleClose();
+        return;
       }
-
-      if (address.trim()) {
-        config.address = address.trim();
-      }
-
-      if (port.trim()) {
-        config.port = port.trim();
-      }
-
-      if (persistentKeepalive.trim()) {
-        config.persistent_keepalive = persistentKeepalive.trim();
-      }
-
-      if (description.trim()) {
-        config.description = description.trim();
-      }
-
-      if (disabled) {
-        config.disabled = true;
-      }
-
-      if (hostName.trim()) {
-        config.host_name = hostName.trim();
-      }
-
-      const result = await wireguardService.createPeer(
-        interfaceData.name,
-        config
-      );
 
       if (result.success) {
         handleClose();
         onSuccess();
       } else {
-        setError(result.error || "Failed to add peer");
+        setError(result.error || (isEdit ? "Failed to update peer" : "Failed to add peer"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to add peer");
+      setError(
+        (err as ApiError).message || (isEdit ? "Failed to update peer" : "Failed to add peer")
+      );
     } finally {
       setLoading(false);
     }
@@ -203,11 +327,17 @@ export function CreatePeerModal({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <UserPlus className="h-5 w-5 text-primary" />
-            Add Peer to {interfaceData.name}
+            {isEdit ? (
+              <UserCog className="h-5 w-5 text-primary" />
+            ) : (
+              <UserPlus className="h-5 w-5 text-primary" />
+            )}
+            {isEdit ? `Edit Peer: ${existing.name}` : `Add Peer to ${interfaceData.name}`}
           </DialogTitle>
           <DialogDescription>
-            Configure a new WireGuard peer connection.
+            {isEdit
+              ? `Modify the peer configuration on ${interfaceData.name}. Peer name cannot be changed.`
+              : "Configure a new WireGuard peer connection."}
           </DialogDescription>
         </DialogHeader>
 
@@ -223,23 +353,29 @@ export function CreatePeerModal({
               <Label htmlFor="peer-name">Peer Name</Label>
               <Input
                 id="peer-name"
-                value={name}
+                value={lockedName.value}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="my-laptop"
+                disabled={lockedName.disabled}
+                className={lockedName.disabled ? "bg-muted" : undefined}
               />
               <p className="text-xs text-muted-foreground">
-                A friendly name to identify this peer (no spaces).
+                {isEdit
+                  ? "Peer name cannot be changed."
+                  : "A friendly name to identify this peer (no spaces)."}
               </p>
             </div>
 
             {/* Description */}
             <div className="space-y-2">
-              <Label htmlFor="peer-description">Description (optional)</Label>
+              <Label htmlFor="peer-description">
+                {isEdit ? "Description" : "Description (optional)"}
+              </Label>
               <Input
                 id="peer-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="John's laptop for remote work"
+                placeholder={isEdit ? "Description for this peer" : "John's laptop for remote work"}
               />
               <p className="text-xs text-muted-foreground">
                 A description to help identify this peer.
@@ -253,11 +389,15 @@ export function CreatePeerModal({
                 id="peer-public-key"
                 value={publicKey}
                 onChange={(e) => setPublicKey(e.target.value)}
-                placeholder="Base64 encoded public key from peer"
+                placeholder={
+                  isEdit ? "Base64 encoded public key" : "Base64 encoded public key from peer"
+                }
                 className="font-mono text-sm"
               />
               <p className="text-xs text-muted-foreground">
-                The peer&apos;s WireGuard public key. Get this from the peer device.
+                {isEdit
+                  ? "The peer\u2019s WireGuard public key."
+                  : "The peer\u2019s WireGuard public key. Get this from the peer device."}
               </p>
             </div>
 
@@ -271,14 +411,17 @@ export function CreatePeerModal({
                 placeholder="10.0.0.2/32, 192.168.1.0/24"
               />
               <p className="text-xs text-muted-foreground">
-                Comma-separated IPs/networks this peer can route. Use x.x.x.x/32 for
-                single client or 0.0.0.0/0 for all traffic.
+                {isEdit
+                  ? "Comma-separated IPs/networks this peer can route."
+                  : "Comma-separated IPs/networks this peer can route. Use x.x.x.x/32 for single client or 0.0.0.0/0 for all traffic."}
               </p>
             </div>
 
             {/* Preshared Key */}
             <div className="space-y-2">
-              <Label htmlFor="peer-psk">Preshared Key (optional)</Label>
+              <Label htmlFor="peer-psk">
+                {isEdit ? "Preshared Key" : "Preshared Key (optional)"}
+              </Label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Input
@@ -286,7 +429,11 @@ export function CreatePeerModal({
                     type={showPresharedKey ? "text" : "password"}
                     value={presharedKey}
                     onChange={(e) => setPresharedKey(e.target.value)}
-                    placeholder="Optional additional encryption"
+                    placeholder={
+                      isEdit
+                        ? "Leave as *** to keep current key"
+                        : "Optional additional encryption"
+                    }
                     className="pr-10 font-mono text-sm"
                   />
                   <Button
@@ -315,23 +462,26 @@ export function CreatePeerModal({
                   ) : (
                     <Sparkles className="h-4 w-4" />
                   )}
-                  Generate
+                  {presharedKey === "***" ? "Replace" : "Generate"}
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Adds an extra layer of symmetric encryption for post-quantum
-                security.
+                {isEdit
+                  ? "Keep as \u201c***\u201d to preserve existing key, or generate/enter a new one. Clear to remove."
+                  : "Adds an extra layer of symmetric encryption for post-quantum security."}
               </p>
             </div>
           </TabsContent>
 
           <TabsContent value="endpoint" className="space-y-4 mt-4">
-            <div className="rounded-lg bg-muted/50 border p-3 mb-4">
-              <p className="text-sm text-muted-foreground">
-                Endpoint settings are for connecting to peers that act as servers.
-                Leave these empty if this peer will connect to your VyOS device.
-              </p>
-            </div>
+            {!isEdit && (
+              <div className="rounded-lg bg-muted/50 border p-3 mb-4">
+                <p className="text-sm text-muted-foreground">
+                  Endpoint settings are for connecting to peers that act as servers.
+                  Leave these empty if this peer will connect to your VyOS device.
+                </p>
+              </div>
+            )}
 
             {/* Endpoint Address (IP) */}
             <div className="space-y-2">
@@ -371,9 +521,11 @@ export function CreatePeerModal({
                 onChange={(e) => setPort(e.target.value)}
                 placeholder="51820"
               />
-              <p className="text-xs text-muted-foreground">
-                UDP port on the remote peer. Default: 51820
-              </p>
+              {!isEdit && (
+                <p className="text-xs text-muted-foreground">
+                  UDP port on the remote peer. Default: 51820
+                </p>
+              )}
             </div>
 
             {/* Persistent Keepalive */}
@@ -387,8 +539,9 @@ export function CreatePeerModal({
                 placeholder="25"
               />
               <p className="text-xs text-muted-foreground">
-                Send keepalive packets every N seconds. Useful for NAT traversal
-                (typically 25 seconds).
+                {isEdit
+                  ? "Send keepalive packets every N seconds. Useful for NAT traversal."
+                  : "Send keepalive packets every N seconds. Useful for NAT traversal (typically 25 seconds)."}
               </p>
             </div>
 
@@ -405,7 +558,9 @@ export function CreatePeerModal({
                   Disable Peer
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Create the peer in a disabled state.
+                  {isEdit
+                    ? "Disable this peer connection."
+                    : "Create the peer in a disabled state."}
                 </p>
               </div>
             </div>
@@ -428,8 +583,10 @@ export function CreatePeerModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Adding...
+                {isEdit ? "Saving..." : "Adding..."}
               </>
+            ) : isEdit ? (
+              "Save Changes"
             ) : (
               "Add Peer"
             )}
