@@ -5,6 +5,11 @@ name: Docker Backend Container Build
 # separate terms of service, privacy policy, and support
 # documentation.
 
+# Each platform is built on a native runner and pushed by digest, then a
+# merge job assembles one multi-arch manifest list per tag. Native runners
+# are used instead of QEMU because the emulated frontend build is slow and
+# the two images are published from the same pattern.
+
 on:
   schedule:
     - cron: '41 20 * * *'
@@ -25,25 +30,37 @@ env:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
-      # This is used to complete the identity challenge
-      # with sigstore/fulcio when running outside of PRs.
-      id-token: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Install the cosign tool except on PR
-      # https://github.com/sigstore/cosign-installer
-      - name: Install cosign
-        if: github.event_name != 'pull_request'
-        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 #v3.5.0
-        with:
-          cosign-release: 'v2.2.4'
+      - name: Prepare platform name
+        run: |
+          platform="${{ matrix.platform }}"
+          echo "PLATFORM_PAIR=${platform//\//-}" >> "$GITHUB_ENV"
+
+      # A registry reference must be lowercase, and github.repository is
+      # mixed case for this org. metadata-action lowercases the tags it
+      # generates, but the push-by-digest output name is set by hand.
+      - name: Resolve lowercase image reference
+        id: image
+        env:
+          IMAGE_REF: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        run: echo "ref=${IMAGE_REF,,}" >> "$GITHUB_OUTPUT"
 
       # Set up BuildKit Docker container builder to be able to build
       # multi-platform images and export cache
@@ -67,7 +84,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@96383f45573cb7f253c731d3b3ab81c87ef81934 # v5.0.0
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ steps.image.outputs.ref }}
 
       - name: Read VERSION file
         id: version
@@ -75,31 +92,140 @@ jobs:
 
       # Build and push Docker image with Buildx (don't push on PR)
       # https://github.com/docker/build-push-action
-      - name: Build and push Docker image
+      - name: Build and push Docker image by digest
         id: build-and-push-backend
         uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
         with:
           context: .
           file: ./Dockerfile.backend
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
+          platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          outputs: type=image,name=${{ steps.image.outputs.ref }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
+          # Scoped per platform so the two runners do not overwrite each
+          # other's cache entry.
+          cache-from: type=gha,scope=backend-${{ env.PLATFORM_PAIR }}
+          cache-to: type=gha,mode=max,scope=backend-${{ env.PLATFORM_PAIR }}
           build-args: |
             VYMANAGER_VERSION=${{ steps.version.outputs.version }}
 
-      # Sign the resulting Docker image digest except on PRs.
+      - name: Export digest
+        if: github.event_name != 'pull_request'
+        env:
+          DIGEST: ${{ steps.build-and-push-backend.outputs.digest }}
+        run: |
+          mkdir -p "${{ runner.temp }}/digests"
+          echo "${DIGEST}" > "${{ runner.temp }}/digests/${PLATFORM_PAIR}"
+
+      - name: Upload digest
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: digests-backend-${{ env.PLATFORM_PAIR }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    permissions:
+      contents: read
+      packages: write
+      # This is used to complete the identity challenge
+      # with sigstore/fulcio when running outside of PRs.
+      id-token: write
+
+    steps:
+      # Install the cosign tool
+      # https://github.com/sigstore/cosign-installer
+      - name: Install cosign
+        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 #v3.5.0
+        with:
+          cosign-release: 'v2.2.4'
+
+      - name: Resolve lowercase image reference
+        id: image
+        env:
+          IMAGE_REF: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        run: echo "ref=${IMAGE_REF,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Download digests
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-backend-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 # v3.0.0
+
+      - name: Log into registry ${{ env.REGISTRY }}
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@96383f45573cb7f253c731d3b3ab81c87ef81934 # v5.0.0
+        with:
+          images: ${{ steps.image.outputs.ref }}
+
+      - name: Create manifest list and push
+        id: merge
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          IMAGE: ${{ steps.image.outputs.ref }}
+        run: |
+          tags=()
+          while IFS= read -r tag; do
+            tags+=("-t" "$tag")
+          done < <(jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+
+          refs=()
+          for file in *; do
+            refs+=("${IMAGE}@$(cat "$file")")
+          done
+
+          docker buildx imagetools create \
+            --metadata-file "${{ runner.temp }}/merge.json" \
+            "${tags[@]}" "${refs[@]}"
+
+          digest=$(jq -r '."containerimage.descriptor".digest' "${{ runner.temp }}/merge.json")
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+
+      # Fails the publish instead of silently shipping a single-arch image
+      # if a platform build is ever dropped from the matrix.
+      - name: Published index must carry both platforms
+        env:
+          IMAGE: ${{ steps.image.outputs.ref }}
+          DIGEST: ${{ steps.merge.outputs.digest }}
+        run: |
+          platforms=$(docker buildx imagetools inspect --raw "${IMAGE}@${DIGEST}" \
+            | jq -r '[.manifests[]
+                      | select(.platform.os != "unknown")
+                      | "\(.platform.os)/\(.platform.architecture)"]
+                     | sort | unique | join(",")')
+          echo "published platforms: ${platforms}"
+          if [ "${platforms}" != "linux/amd64,linux/arm64" ]; then
+            echo "expected linux/amd64,linux/arm64" >&2
+            exit 1
+          fi
+
+      # Sign the resulting Docker image digest.
       # This will only write to the public Rekor transparency log when the Docker
       # repository is public to avoid leaking data.  If you would like to publish
       # transparency data even for private images, pass --force to cosign below.
       # https://github.com/sigstore/cosign
       - name: Sign the published Docker image
-        if: ${{ github.event_name != 'pull_request' }}
         env:
           # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
           TAGS: ${{ steps.meta.outputs.tags }}
-          DIGEST: ${{ steps.build-and-push-backend.outputs.digest }}
+          DIGEST: ${{ steps.merge.outputs.digest }}
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
-        run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+        run: echo "${TAGS}" | xargs -I {} cosign sign --yes "{}@${DIGEST}"
