@@ -6,7 +6,7 @@ from routers.show import DeviceDataBroadcaster, _STREAM_INTERESTS
 
 
 def test_stream_interests_allowlist():
-    assert _STREAM_INTERESTS == frozenset({"pppoe-sessions"})
+    assert _STREAM_INTERESTS == frozenset({"pppoe-sessions", "transceiver-health"})
 
 
 def test_has_interest_false_until_a_viewer_subscribes():

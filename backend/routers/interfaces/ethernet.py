@@ -974,9 +974,14 @@ async def get_ethernet_config(http_request: Request) -> EthernetInterfacesConfig
 @router.get("/{interface}/transceiver", response_model=TransceiverStatus)
 async def get_ethernet_transceiver(
     http_request: Request,
-    interface: str = Path(..., pattern=r"^eth\d+(?:\.\d+)?$"),
+    interface: str = Path(..., pattern=r"^eth\d+$"),
 ) -> TransceiverStatus:
-    """Return live SFP/SFP+ DDM diagnostics for one Ethernet interface."""
+    """Return live SFP/SFP+ DDM diagnostics for one physical Ethernet port.
+
+    Only physical ports are accepted. DDM comes from ``ethtool --module-info``,
+    which addresses the NIC itself, so a VLAN sub-interface (``eth0.100``) has no
+    module of its own and the router answers "No such device".
+    """
     await require_read_permission(http_request, FeatureGroup.ETHERNET)
     try:
         service = get_session_vyos_service(http_request)

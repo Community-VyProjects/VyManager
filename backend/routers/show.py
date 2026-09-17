@@ -35,6 +35,12 @@ from vrrp_status import vrrp_configured, vrrp_gql_fields, build_vrrp_status
 from bgp_status import bgp_configured, bgp_gql_fields, build_bgp_status
 from ipsec_status import ipsec_configured, ipsec_gql_fields, build_ipsec_status
 from hardware_status import HardwareSensorsResponse, parse_hardware_sensors, hardware_gql_fields, build_hardware_status
+from transceiver_status import (
+    build_transceiver_status,
+    physical_ethernet_interfaces,
+    transceiver_fetch_timeout,
+    transceiver_gql_fields,
+)
 from pppoe_status import load_pppoe_sessions, pppoe_configured
 import logging
 logger = logging.getLogger(__name__)
@@ -274,6 +280,37 @@ async def _fetch_gql_openvpn_status(service) -> dict:
     except Exception:
         logger.exception("GraphQL OpenVPN status fetch failed")
         return {}
+
+
+async def _fetch_gql_transceivers(service, interfaces: List[str]) -> Optional[dict]:
+    """Fetch DDM diagnostics for the named physical ports in one GraphQL POST.
+
+    Each alias is a separate ``ethtool --module-info`` on the router (~0.42 s per
+    port, measured), so this runs on its own task with a port-count-scaled
+    timeout and never rides the shared dashboard query. Returns ``None`` on any
+    error so the caller keeps showing the previous snapshot instead of blanking
+    the card.
+    """
+    if not interfaces:
+        return {}
+    api_key = str(service.config.apikey)
+    url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
+    fields = transceiver_gql_fields(json.dumps(api_key), interfaces)
+    payload = {"query": "{ " + " ".join(fields) + " }"}
+    try:
+        timeout = transceiver_fetch_timeout(len(interfaces))
+        async with httpx.AsyncClient(verify=service.config.verify, timeout=timeout) as client:
+            resp = await client.post(url, json=payload, auth=("vyos", api_key))
+        if resp.status_code != 200:
+            logger.error("GraphQL transceiver HTTP error %d", resp.status_code)
+            return None
+        body = resp.json()
+        if "errors" in body:
+            logger.warning("GraphQL transceiver field errors: %s", body["errors"])
+        return body.get("data") or {}
+    except Exception:
+        logger.exception("GraphQL transceiver fetch failed")
+        return None
 
 
 def _gql_result(gql: dict, key: str):
@@ -1058,7 +1095,8 @@ _FAST_INTERVAL = 3.0     # seconds between fast cycles (interface counters)
 _SLOW_EVERY = 5          # emit system-info / WG every N fast cycles (= every 15 s)
 _WG_MIN_INTERVAL = 15.0  # minimum seconds between WireGuard status queries
 _OPENVPN_MIN_INTERVAL = 6.0  # minimum seconds between (slow, erratic) OpenVPN status queries
-_STREAM_INTERESTS = frozenset({"pppoe-sessions"})
+_TRANSCEIVER_MIN_INTERVAL = 15.0  # minimum seconds between DDM sweeps (one ethtool per port)
+_STREAM_INTERESTS = frozenset({"pppoe-sessions", "transceiver-health"})
 
 
 class DeviceDataBroadcaster:
@@ -1101,6 +1139,13 @@ class DeviceDataBroadcaster:
         # Whether service pppoe-server is configured (gates the sessions fetch).
         self._pppoe_configured: bool = False
         self._pppoe_task: Optional[asyncio.Task] = None
+        # Transceiver DDM runs on its own task: one ``ethtool --module-info`` per
+        # physical port, so its cost grows with port count and must never ride
+        # the shared query. Interest-gated like PPPoE sessions.
+        self._transceiver_task: Optional[asyncio.Task] = None
+        self._transceiver_interfaces: list[str] = []
+        self._transceiver_pending: list[str] = []
+        self._last_transceiver_query_time: float = 0.0
 
     # ------------------------------------------------------------------
     # Public API
@@ -1128,6 +1173,9 @@ class DeviceDataBroadcaster:
         if not self._has_interest("pppoe-sessions") and self._pppoe_task and not self._pppoe_task.done():
             self._pppoe_task.cancel()
             self._pppoe_task = None
+        if not self._has_interest("transceiver-health") and self._transceiver_task and not self._transceiver_task.done():
+            self._transceiver_task.cancel()
+            self._transceiver_task = None
         if not self._subscribers:
             if self._task and not self._task.done():
                 self._task.cancel()
@@ -1137,6 +1185,8 @@ class DeviceDataBroadcaster:
                 self._openvpn_task.cancel()
             if self._pppoe_task and not self._pppoe_task.done():
                 self._pppoe_task.cancel()
+            if self._transceiver_task and not self._transceiver_task.done():
+                self._transceiver_task.cancel()
             _broadcasters.pop(self._key, None)
 
     def _has_interest(self, name: str) -> bool:
@@ -1258,6 +1308,8 @@ class DeviceDataBroadcaster:
             self._bgp_configured = bgp_configured(cfg)
             self._ipsec_configured = ipsec_configured(cfg)
             self._pppoe_configured = pppoe_configured(cfg)
+            # Physical Ethernet ports only — a VLAN sub-interface has no module.
+            self._transceiver_interfaces = physical_ethernet_interfaces(cfg)
         except Exception:
             logger.exception("Broadcaster: config-state refresh error")
 
@@ -1372,6 +1424,69 @@ class DeviceDataBroadcaster:
             logger.exception("Broadcaster: pppoe-sessions error")
             self._push_to_all({"type": "error", "data": {"channel": "pppoe-sessions", "message": "Failed to fetch"}})
 
+    def _handle_transceiver_cycle(self, *, start: bool) -> None:
+        """Collect a completed DDM sweep and start the next one when due.
+
+        One ``ethtool --module-info`` per physical port makes this cost scale
+        with port count (~0.42 s each, measured), so it runs off the shared query
+        path on its own task, is gated on a subscriber asking for
+        ``transceiver-health``, and re-sweeps at most every
+        ``_TRANSCEIVER_MIN_INTERVAL`` seconds regardless of the 3 s cycle.
+
+        VLAN sub-interfaces are never swept: ``physical_ethernet_interfaces``
+        returns only the top-level ``interfaces ethernet`` keys.
+        """
+        try:
+            if self._transceiver_task is not None and self._transceiver_task.done():
+                swept = self._transceiver_pending
+                try:
+                    result = self._transceiver_task.result()
+                except asyncio.CancelledError:
+                    self._transceiver_task = None
+                    return
+                except Exception:
+                    logger.exception("Broadcaster: transceiver-health fetch error")
+                    result = None
+                self._transceiver_task = None
+                self._last_transceiver_query_time = asyncio.get_event_loop().time()
+                if result is None:
+                    self._push_to_all({
+                        "type": "error",
+                        "data": {"channel": "transceiver-health", "message": "Failed to fetch"},
+                    })
+                else:
+                    self._push_to_all({
+                        "type": "transceiver-health",
+                        "data": build_transceiver_status(result, swept),
+                    })
+
+            if not start:
+                return
+            if not self._has_interest("transceiver-health"):
+                return
+            if self._transceiver_task is not None:
+                return
+            now = asyncio.get_event_loop().time()
+            if (now - self._last_transceiver_query_time) < _TRANSCEIVER_MIN_INTERVAL:
+                return
+            if not self._transceiver_interfaces:
+                # No physical Ethernet ports configured: nothing to sweep.
+                self._push_to_all({
+                    "type": "transceiver-health",
+                    "data": {"interfaces": [], "total": 0},
+                })
+                self._last_transceiver_query_time = now
+                return
+            # Freeze the swept list so the aliases the reply is parsed against
+            # match the query even if config changes mid-flight.
+            self._transceiver_pending = list(self._transceiver_interfaces)
+            self._transceiver_task = asyncio.create_task(
+                _fetch_gql_transceivers(self._service, self._transceiver_pending)
+            )
+        except Exception:
+            logger.exception("Broadcaster: transceiver-health error")
+            self._push_to_all({"type": "error", "data": {"channel": "transceiver-health", "message": "Failed to fetch"}})
+
     def _on_task_done(self, fut: asyncio.Future) -> None:
         """Clean up if _run() exits unexpectedly."""
         if fut.cancelled():
@@ -1386,6 +1501,8 @@ class DeviceDataBroadcaster:
                 self._openvpn_task.cancel()
             if self._pppoe_task and not self._pppoe_task.done():
                 self._pppoe_task.cancel()
+            if self._transceiver_task and not self._transceiver_task.done():
+                self._transceiver_task.cancel()
 
     # ------------------------------------------------------------------
     # Main loop
@@ -1437,6 +1554,10 @@ class DeviceDataBroadcaster:
                 # The in-flight task guard prevents overlapping session queries.
                 self._handle_pppoe_cycle(start=True)
 
+                # Transceiver DDM is one ethtool per physical port, so its own
+                # task re-sweeps on a 15 s floor rather than every cycle.
+                self._handle_transceiver_cycle(start=True)
+
                 cycle += 1
                 await asyncio.sleep(_FAST_INTERVAL)
         except asyncio.CancelledError:
@@ -1448,6 +1569,8 @@ class DeviceDataBroadcaster:
                 self._openvpn_task.cancel()
             if self._pppoe_task and not self._pppoe_task.done():
                 self._pppoe_task.cancel()
+            if self._transceiver_task and not self._transceiver_task.done():
+                self._transceiver_task.cancel()
 
 
 # Global broadcaster registry: instance_id -> DeviceDataBroadcaster
@@ -1487,6 +1610,11 @@ async def dashboard_stream(
     Pass ``interest=pppoe-sessions`` to have the broadcaster fetch PPPoE session
     counters. The fetch is skipped unless pppoe-server is configured and at least
     one current subscriber requested that interest.
+
+    Pass ``interest=transceiver-health`` for physical-port DDM diagnostics. That
+    sweep is one ``ethtool --module-info`` per configured physical Ethernet port
+    (VLAN sub-interfaces have no module and are never swept), so it runs on its
+    own task with a 15 s floor and only while a permitted subscriber asks for it.
     """
     service = get_session_vyos_service(request)
     include_wireguard = await has_permission(request, FeatureGroup.WIREGUARD, PermissionLevel.READ)
@@ -1494,6 +1622,9 @@ async def dashboard_stream(
     include_bgp = await has_permission(request, FeatureGroup.BGP, PermissionLevel.READ)
     include_pppoe = await has_permission(request, FeatureGroup.PPPOE, PermissionLevel.READ)
     include_hardware = await has_permission(request, FeatureGroup.INTERFACES, PermissionLevel.READ)
+    # Same gate as GET /vyos/ethernet/{interface}/transceiver, so the stream
+    # cannot hand out DDM data the REST endpoint would refuse.
+    include_transceiver = await has_permission(request, FeatureGroup.ETHERNET, PermissionLevel.READ)
     broadcaster = _get_broadcaster(service)
 
     instance_id: str = service.config.instance_id
@@ -1501,6 +1632,8 @@ async def dashboard_stream(
     requested = {name for name in (interest or []) if name in _STREAM_INTERESTS}
     if not include_pppoe:
         requested.discard("pppoe-sessions")
+    if not include_transceiver:
+        requested.discard("transceiver-health")
 
     async def event_generator():
         from routers.events import _has_active_session
@@ -1535,6 +1668,8 @@ async def dashboard_stream(
                 if event["type"] == "pppoe-sessions" and not include_pppoe:
                     continue
                 if event["type"] == "hardware-sensors" and not include_hardware:
+                    continue
+                if event["type"] == "transceiver-health" and not include_transceiver:
                     continue
                 yield f'event: {event["type"]}\ndata: {json.dumps(event["data"])}\n\n'
         finally:

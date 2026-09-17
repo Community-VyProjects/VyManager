@@ -32,7 +32,12 @@ def test_frontend_conntrack_helper_is_gone():
 
 def test_stream_no_longer_advertises_or_accepts_the_conntrack_interest():
     text = SHOW.read_text()
-    assert '_STREAM_INTERESTS = frozenset({"pppoe-sessions"})' in text
+    # The removed feature must not come back as a stream interest. Unrelated
+    # channels may be added to the allowlist; conntrack may not.
+    from routers.show import _STREAM_INTERESTS
+
+    assert "pppoe-sessions" in _STREAM_INTERESTS
+    assert not any("conn" in name for name in _STREAM_INTERESTS)
     assert "pppoe-connections" not in text
     assert "conntrack_ip" not in text
 

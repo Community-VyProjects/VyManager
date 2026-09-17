@@ -19,9 +19,8 @@ import {
   Gauge,
 } from "lucide-react";
 import { CardSizeMenu } from "@/components/dashboard/CardSizeMenu";
-import { showService } from "@/lib/api/show";
-import { ethernetService } from "@/lib/api/ethernet";
-import type { TransceiverStatus } from "@/lib/api/types/ethernet";
+import { useDashboardData } from "@/contexts/DashboardDataContext";
+import type { TransceiverHealthData, TransceiverPortData } from "@/hooks/useDashboardSSE";
 
 interface TransceiverHealthCardProps {
   onRemove?: () => void;
@@ -32,26 +31,21 @@ interface TransceiverHealthCardProps {
   config?: Record<string, unknown>;
 }
 
-interface TransceiverEntry {
-  interface: string;
-  status: TransceiverStatus;
-}
-
-function transceiverSeverity(status: TransceiverStatus): "ok" | "warning" | "critical" | "absent" {
-  if (!status.present || !status.transceiver) {
+function transceiverSeverity(port: TransceiverPortData): "ok" | "warning" | "critical" | "absent" {
+  if (!port.present || !port.transceiver) {
     return "absent";
   }
-  if (status.alarms.length > 0) {
+  if (port.alarms.length > 0) {
     return "critical";
   }
-  if (status.warnings.length > 0) {
+  if (port.warnings.length > 0) {
     return "warning";
   }
   return "ok";
 }
 
-function SeverityBadge({ entry }: { entry: TransceiverEntry }) {
-  const severity = transceiverSeverity(entry.status);
+function SeverityBadge({ port }: { port: TransceiverPortData }) {
+  const severity = transceiverSeverity(port);
 
   if (severity === "critical") {
     return (
@@ -96,70 +90,24 @@ export function TransceiverHealthCard({
   onHeightChange,
 }: TransceiverHealthCardProps) {
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [snapshot, setSnapshot] = useState<TransceiverEntry[]>([]);
-
+  const { status: sseStatus, data: sseData } = useDashboardData();
+  // Snapshot the stream so "Paused" freezes the displayed readings.
+  const [snapshot, setSnapshot] = useState<TransceiverHealthData | null>(null);
   useEffect(() => {
-    if (!autoRefresh) {
-      return undefined;
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- freeze the last SSE snapshot for the paused view
+    if (autoRefresh && sseData.transceiverHealth) setSnapshot(sseData.transceiverHealth);
+  }, [autoRefresh, sseData.transceiverHealth]);
 
-    let cancelled = false;
+  // The backend sweeps only physical Ethernet ports; VLAN sub-interfaces have
+  // no transceiver of their own and never appear on this channel.
+  const ports = snapshot?.interfaces ?? [];
+  const isLoading = snapshot === null && autoRefresh;
 
-    const refresh = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const interfaces = await showService.getAllInterfaces();
-        const physicalEthInterfaces = interfaces.interfaces
-          .map((iface) => iface.name)
-          .filter((name) => /^eth\d+(?:\.\d+)?$/.test(name))
-          .sort();
-
-        const results = await Promise.allSettled(
-          physicalEthInterfaces.map(async (iface) => {
-            const status = await ethernetService.getTransceiver(iface);
-            return { interface: iface, status } as TransceiverEntry;
-          })
-        );
-
-        const entries = results.flatMap((result) => {
-          if (result.status === "fulfilled") {
-            return [result.value];
-          }
-          return [];
-        });
-
-        if (!cancelled) {
-          setSnapshot(entries);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Unable to read transceiver health");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void refresh();
-    const timer = window.setInterval(refresh, 15000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [autoRefresh]);
-
-  const overallSeverity = snapshot.some((entry) => transceiverSeverity(entry.status) === "critical")
+  const overallSeverity = ports.some((port) => transceiverSeverity(port) === "critical")
     ? "critical"
-    : snapshot.some((entry) => transceiverSeverity(entry.status) === "warning")
+    : ports.some((port) => transceiverSeverity(port) === "warning")
       ? "warning"
-      : snapshot.some((entry) => transceiverSeverity(entry.status) === "absent")
+      : ports.some((port) => transceiverSeverity(port) === "absent")
         ? "absent"
         : "ok";
 
@@ -175,9 +123,9 @@ export function TransceiverHealthCard({
             variant={autoRefresh ? "default" : "outline"}
             size="sm"
             onClick={() => setAutoRefresh((v) => !v)}
-            title={autoRefresh ? "Live via transceiver poll" : "Paused"}
+            title={autoRefresh ? `Live via dashboard stream (${sseStatus})` : "Paused"}
           >
-            <RefreshCw className={`h-4 w-4 ${autoRefresh ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-4 w-4 ${autoRefresh && sseStatus === "connected" ? "animate-spin" : ""}`} />
           </Button>
           {onSpanChange && (
             <CardSizeMenu
@@ -196,14 +144,12 @@ export function TransceiverHealthCard({
       </CardHeader>
 
       <CardContent className="space-y-4 overflow-y-auto flex-1 min-h-0">
-        {loading && snapshot.length === 0 ? (
+        {isLoading ? (
           <div className="flex items-center gap-2 py-8 text-muted-foreground">
             <Loader2 className="animate-spin" />
             Reading transceiver health...
           </div>
-        ) : error ? (
-          <p className="py-8 text-sm text-muted-foreground">{error}</p>
-        ) : snapshot.length === 0 ? (
+        ) : ports.length === 0 ? (
           <p className="py-8 text-sm text-muted-foreground">
             No ethernet transceiver diagnostics found.
           </p>
@@ -221,38 +167,35 @@ export function TransceiverHealthCard({
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
                 )}
                 <span className="text-sm font-medium">
-                  {snapshot.length} interface{snapshot.length === 1 ? "" : "s"} scanned
+                  {ports.length} interface{ports.length === 1 ? "" : "s"} scanned
                 </span>
               </div>
               <div className="text-xs text-muted-foreground">
-                {snapshot.filter((entry) => transceiverSeverity(entry.status) === "ok").length} OK
+                {ports.filter((port) => transceiverSeverity(port) === "ok").length} OK
               </div>
             </div>
 
             <div className="space-y-2">
-              {snapshot.map((entry) => {
-                const severity = transceiverSeverity(entry.status);
-                return (
-                  <div key={entry.interface} className="flex items-center justify-between rounded-md border p-2 gap-2">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm font-medium break-all">{entry.interface}</span>
-                        <span className="text-xs text-muted-foreground">{entry.status.transceiver || "No part"}</span>
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                        {entry.status.alarms.length > 0 && (
-                          <span className="text-red-600">{entry.status.alarms.length} alarm{entry.status.alarms.length === 1 ? "" : "s"}</span>
-                        )}
-                        {entry.status.warnings.length > 0 && (
-                          <span className="text-yellow-600">{entry.status.warnings.length} warning{entry.status.warnings.length === 1 ? "" : "s"}</span>
-                        )}
-                        {!entry.status.present && <span>No transceiver</span>}
-                      </div>
+              {ports.map((port) => (
+                <div key={port.interface} className="flex items-center justify-between rounded-md border p-2 gap-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm font-medium break-all">{port.interface}</span>
+                      <span className="text-xs text-muted-foreground">{port.transceiver || "No part"}</span>
                     </div>
-                    <SeverityBadge entry={entry} />
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      {port.alarms.length > 0 && (
+                        <span className="text-red-600">{port.alarms.length} alarm{port.alarms.length === 1 ? "" : "s"}</span>
+                      )}
+                      {port.warnings.length > 0 && (
+                        <span className="text-yellow-600">{port.warnings.length} warning{port.warnings.length === 1 ? "" : "s"}</span>
+                      )}
+                      {!port.present && <span>No transceiver</span>}
+                    </div>
                   </div>
-                );
-              })}
+                  <SeverityBadge port={port} />
+                </div>
+              ))}
             </div>
           </div>
         )}

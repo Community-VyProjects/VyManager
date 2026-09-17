@@ -134,6 +134,31 @@ export interface BgpStatusData {
   established_peers: number;
 }
 
+export interface TransceiverMeasurementData {
+  value?: string | null;
+  low_alarm?: string | null;
+  low_warning?: string | null;
+  high_warning?: string | null;
+  high_alarm?: string | null;
+}
+
+export interface TransceiverPortData {
+  interface: string;
+  present: boolean;
+  transceiver?: string | null;
+  vendor?: string | null;
+  part_number?: string | null;
+  serial_number?: string | null;
+  measurements: Record<string, TransceiverMeasurementData>;
+  alarms: string[];
+  warnings: string[];
+}
+
+export interface TransceiverHealthData {
+  interfaces: TransceiverPortData[];
+  total: number;
+}
+
 export interface DashboardSSEData {
   interfaceCounters: InterfaceCountersData | null;
   systemInfo: SystemInfoData | null;
@@ -145,6 +170,7 @@ export interface DashboardSSEData {
   ipsecStatus: IPSecStatus | null;
   pppoeSessions: PPPoESessionsResponse | null;
   hardwareSensors: HardwareSensorsResponse | null;
+  transceiverHealth: TransceiverHealthData | null;
 }
 
 export interface DashboardSSEState {
@@ -176,6 +202,7 @@ export function useDashboardSSE(options?: {
     ipsecStatus: null,
     pppoeSessions: null,
     hardwareSensors: null,
+    transceiverHealth: null,
   });
   const [error, setError] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
@@ -284,6 +311,15 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as HardwareSensorsResponse;
         setData((prev) => ({ ...prev, hardwareSensors: payload }));
+      } catch {
+        // Ignore malformed payloads
+      }
+    });
+
+    es.addEventListener("transceiver-health", (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data) as TransceiverHealthData;
+        setData((prev) => ({ ...prev, transceiverHealth: payload }));
       } catch {
         // Ignore malformed payloads
       }
