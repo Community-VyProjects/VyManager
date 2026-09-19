@@ -260,7 +260,7 @@ function buildVifOps(prefix: "bonding" | "loopback", vif: VppVifInput): VppBatch
 // API Service
 // ============================================================================
 
-class VppService {
+export class VppService {
   async getCapabilities(): Promise<VppCapabilities> {
     return apiClient.get<VppCapabilities>("/vyos/vpp/capabilities");
   }
