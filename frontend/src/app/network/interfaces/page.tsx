@@ -71,8 +71,7 @@ import { CreateVirtualEthernetModal } from "@/components/virtual-ethernet/Create
 import { EditVirtualEthernetModal } from "@/components/virtual-ethernet/EditVirtualEthernetModal";
 import { DeleteVirtualEthernetModal } from "@/components/virtual-ethernet/DeleteVirtualEthernetModal";
 import { vppService, type VppCapabilities, type VppBondingConfig, type VppBridgeConfig, type VppGreConfig, type VppIpipConfig, type VppLoopbackConfig, type VppVxlanConfig, type VppXconnectConfig, type VppSubType, type VppAnyConfig, getVppSubType } from "@/lib/api/vpp";
-import { CreateVppModal } from "@/components/vpp/CreateVppModal";
-import { EditVppModal } from "@/components/vpp/EditVppModal";
+import { VppModal } from "@/components/vpp/VppModal";
 import { DeleteVppModal } from "@/components/vpp/DeleteVppModal";
 import { vtiService, type VtiInterface, type VtiCapabilities } from "@/lib/api/vti";
 import { VtiModal } from "@/components/vti/VtiModal";
@@ -4502,20 +4501,19 @@ function InterfacesPageInner() {
         interfaceData={deletingVirtualEthernet}
       />
       {/* VPP Modals */}
-      <CreateVppModal
-        open={isCreateVppModalOpen}
-        onOpenChange={setIsCreateVppModalOpen}
-        onSuccess={loadData}
+      <VppModal
+        open={isCreateVppModalOpen || !!editingVpp}
+        onOpenChange={(o) => {
+          if (!o) {
+            setIsCreateVppModalOpen(false);
+            setEditingVpp(null);
+          }
+        }}
+        onSuccess={() => { setEditingVpp(null); loadData(); }}
         capabilities={vppCapabilities}
         existingNames={[...vppBonding, ...vppBridge, ...vppGre, ...vppIpip, ...vppLoopback, ...vppVxlanIfaces, ...vppXconnect].map((i) => i.name)}
-      />
-      <EditVppModal
-        open={!!editingVpp}
-        onOpenChange={(o) => !o && setEditingVpp(null)}
-        onSuccess={() => { setEditingVpp(null); loadData(); }}
-        interfaceData={editingVpp?.data ?? null}
-        subType={editingVpp?.subType ?? null}
-        capabilities={vppCapabilities}
+        existing={editingVpp?.data ?? null}
+        existingSubType={editingVpp?.subType ?? null}
       />
       <DeleteVppModal
         open={!!deletingVpp}
