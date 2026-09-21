@@ -37,8 +37,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { CreatePrefixListModal } from "@/components/policies/CreatePrefixListModal";
 import { EditPrefixListModal } from "@/components/policies/EditPrefixListModal";
 import { DeletePrefixListModal } from "@/components/policies/DeletePrefixListModal";
-import { AddPrefixListRuleModal } from "@/components/policies/AddPrefixListRuleModal";
-import { EditPrefixListRuleModal } from "@/components/policies/EditPrefixListRuleModal";
+import { PrefixListRuleModal } from "@/components/policies/PrefixListRuleModal";
 import { DeletePrefixListRuleModal } from "@/components/policies/DeletePrefixListRuleModal";
 import { PrefixListRuleRow } from "@/components/policies/PrefixListRuleRow";
 import { PrefixListReorderBanner } from "@/components/policies/PrefixListReorderBanner";
@@ -588,20 +587,17 @@ function PrefixListPageInner() {
 
       {selectedListData && (
         <>
-          <AddPrefixListRuleModal
-            open={addRuleModalOpen}
-            onOpenChange={setAddRuleModalOpen}
+          <PrefixListRuleModal
+            open={addRuleModalOpen || editingRule !== null}
+            onOpenChange={(open) => {
+              if (!open) {
+                setAddRuleModalOpen(false);
+                setEditingRule(null);
+              }
+            }}
             onSuccess={() => fetchConfig(true)}
             prefixList={selectedListData}
-          />
-
-          <EditPrefixListRuleModal
-            open={editingRule !== null}
-            onOpenChange={(open) => !open && setEditingRule(null)}
-            onSuccess={() => fetchConfig(true)}
-            rule={editingRule}
-            listName={selectedList}
-            listType={selectedListType}
+            existing={editingRule}
           />
 
           <DeletePrefixListRuleModal

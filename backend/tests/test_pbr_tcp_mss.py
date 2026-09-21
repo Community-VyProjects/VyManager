@@ -13,8 +13,8 @@ from routers.route.route import MatchConditions, parse_match_conditions, _recrea
 from vyos_builders.route.route_batch_builder import RouteBatchBuilder
 
 REPO = Path(__file__).resolve().parents[2]
-CREATE = REPO / "frontend/src/components/policies/CreateRouteRuleModal.tsx"
-EDIT = REPO / "frontend/src/components/policies/EditRouteRuleModal.tsx"
+MODAL = REPO / "frontend/src/components/policies/RouteRuleModal.tsx"
+FORM = REPO / "frontend/src/components/policies/route-rule-form.ts"
 API = REPO / "frontend/src/lib/api/route.ts"
 ROW = REPO / "frontend/src/components/policies/RouteRuleRow.tsx"
 
@@ -92,16 +92,14 @@ def test_reorder_recreates_tcp_mss():
 
 
 def test_modals_gate_tcp_mss():
-    create = CREATE.read_text()
-    edit = EDIT.read_text()
-    assert 'id="matchTcpMss"' in create
-    assert "features.tcp_mss_matching" in create
-    assert 'id="edit-matchTcpMss"' in edit
-    assert "features.tcp_mss_matching" in edit
-    for text in (create, edit):
-        assert "VyOS 1." not in text
-        assert "1.5+" not in text
-        assert "1.4 only" not in text
+    modal = MODAL.read_text()
+    form = FORM.read_text()
+    assert 'id="matchTcpMss"' in modal
+    assert "matchTcpMss" in form
+    assert "features.tcp_mss_matching" in modal
+    assert "VyOS 1." not in modal
+    assert "1.5+" not in modal
+    assert "1.4 only" not in modal
 
 
 def test_api_emits_tcp_mss_ops():

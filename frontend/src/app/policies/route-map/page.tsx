@@ -23,8 +23,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { CreateRouteMapModal } from "@/components/policies/CreateRouteMapModal";
 import { EditRouteMapModal } from "@/components/policies/EditRouteMapModal";
 import { DeleteRouteMapModal } from "@/components/policies/DeleteRouteMapModal";
-import { AddRouteMapRuleModal } from "@/components/policies/AddRouteMapRuleModal";
-import { EditRouteMapRuleModal } from "@/components/policies/EditRouteMapRuleModal";
+import { RouteMapRuleModal } from "@/components/policies/RouteMapRuleModal";
 import { DeleteRouteMapRuleModal } from "@/components/policies/DeleteRouteMapRuleModal";
 import { RouteMapRuleRow } from "@/components/policies/RouteMapRuleRow";
 import { RouteMapReorderBanner } from "@/components/policies/RouteMapReorderBanner";
@@ -515,20 +514,18 @@ export default function RouteMapPage() {
 
       {selectedRouteMapData && (
         <>
-          <AddRouteMapRuleModal
-            open={addRuleModalOpen}
-            onOpenChange={setAddRuleModalOpen}
+          <RouteMapRuleModal
+            open={addRuleModalOpen || editingRule !== null}
+            onOpenChange={(open) => {
+              if (!open) {
+                setAddRuleModalOpen(false);
+                setEditingRule(null);
+              }
+            }}
             onSuccess={() => fetchConfig(true)}
             routeMapName={selectedRouteMapData.name}
             existingRules={selectedRouteMapData.rules}
-          />
-
-          <EditRouteMapRuleModal
-            open={editingRule !== null}
-            onOpenChange={(open) => !open && setEditingRule(null)}
-            onSuccess={() => fetchConfig(true)}
-            routeMapName={selectedRouteMapData.name}
-            rule={editingRule}
+            existing={editingRule}
           />
 
           <DeleteRouteMapRuleModal

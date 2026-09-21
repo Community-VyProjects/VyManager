@@ -26,8 +26,7 @@ import { extcommunityListService, ExtCommunityList, ExtCommunityListRule, ExtCom
 import { CreateExtCommunityListModal } from "@/components/policies/CreateExtCommunityListModal";
 import { EditExtCommunityListModal } from "@/components/policies/EditExtCommunityListModal";
 import { DeleteExtCommunityListModal } from "@/components/policies/DeleteExtCommunityListModal";
-import { CreateExtCommunityListRuleModal } from "@/components/policies/CreateExtCommunityListRuleModal";
-import { EditExtCommunityListRuleModal } from "@/components/policies/EditExtCommunityListRuleModal";
+import { ExtCommunityListRuleModal } from "@/components/policies/ExtCommunityListRuleModal";
 import { DeleteExtCommunityListRuleModal } from "@/components/policies/DeleteExtCommunityListRuleModal";
 import { ExtCommunityListReorderBanner } from "@/components/policies/ExtCommunityListReorderBanner";
 import { cn } from "@/lib/utils";
@@ -646,25 +645,22 @@ export default function BGPExtCommunityPage() {
       {/* Rule Modals */}
       {selectedExtCommunityList && (
         <>
-          <CreateExtCommunityListRuleModal
-            open={showCreateRuleModal}
-            onOpenChange={setShowCreateRuleModal}
+          <ExtCommunityListRuleModal
+            open={showCreateRuleModal || (showEditRuleModal && !!selectedRule)}
+            onOpenChange={(open) => {
+              if (!open) {
+                setShowCreateRuleModal(false);
+                setShowEditRuleModal(false);
+              }
+            }}
             onSuccess={() => fetchData(true)}
             extcommunityListName={selectedExtCommunityList}
+            existing={showEditRuleModal ? selectedRule : null}
             capabilities={capabilities}
           />
 
           {selectedRule && (
             <>
-              <EditExtCommunityListRuleModal
-                open={showEditRuleModal}
-                onOpenChange={setShowEditRuleModal}
-                onSuccess={() => fetchData(true)}
-                extcommunityListName={selectedExtCommunityList}
-                rule={selectedRule}
-                capabilities={capabilities}
-              />
-
               <DeleteExtCommunityListRuleModal
                 open={showDeleteRuleModal}
                 onOpenChange={setShowDeleteRuleModal}

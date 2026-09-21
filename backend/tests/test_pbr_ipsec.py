@@ -13,8 +13,8 @@ from routers.route.route import MatchConditions, parse_match_conditions
 from vyos_builders.route.route_batch_builder import RouteBatchBuilder
 
 REPO = Path(__file__).resolve().parents[2]
-CREATE = REPO / "frontend/src/components/policies/CreateRouteRuleModal.tsx"
-EDIT = REPO / "frontend/src/components/policies/EditRouteRuleModal.tsx"
+MODAL = REPO / "frontend/src/components/policies/RouteRuleModal.tsx"
+FORM = REPO / "frontend/src/components/policies/route-rule-form.ts"
 API = REPO / "frontend/src/lib/api/route.ts"
 
 CLASSIC = ["match-ipsec", "match-none"]
@@ -103,18 +103,13 @@ def test_parse_classic_and_directional_ipsec():
 
 
 def test_modals_gate_directional_ipsec():
-    create = CREATE.read_text()
-    edit = EDIT.read_text()
-    assert 'id="ipsecInbound"' in create
-    assert 'id="ipsecOutbound"' in create
-    assert "features.ipsec_directional" in create
-    assert 'id="edit-ipsecInbound"' in edit
-    assert 'id="edit-ipsecOutbound"' in edit
-    assert "features.ipsec_directional" in edit
-    for text in (create, edit):
-        assert "VyOS 1." not in text
-        assert "1.5+" not in text
-        assert "1.4 only" not in text
+    modal = MODAL.read_text()
+    assert 'id="ipsecInbound"' in modal
+    assert 'id="ipsecOutbound"' in modal
+    assert "features.ipsec_directional" in modal
+    assert "VyOS 1." not in modal
+    assert "1.5+" not in modal
+    assert "1.4 only" not in modal
 
 
 def test_api_emits_directional_ipsec_ops():
@@ -123,13 +118,11 @@ def test_api_emits_directional_ipsec_ops():
     assert "ipsec_out" in api
     assert "set_match_ipsec" in api
     assert "delete_match_ipsec_node" in api
-    create = CREATE.read_text()
-    edit = EDIT.read_text()
-    for text in (create, edit):
-        assert 'match.ipsec_in = "match-ipsec-in"' in text
-        assert 'match.ipsec_out = "match-ipsec-out"' in text
-        assert 'match.ipsec_in = "match-none-in"' in text
-        assert 'match.ipsec_out = "match-none-out"' in text
+    form = FORM.read_text()
+    assert 'match.ipsec_in = "match-ipsec-in"' in form
+    assert 'match.ipsec_out = "match-ipsec-out"' in form
+    assert 'match.ipsec_in = "match-none-in"' in form
+    assert 'match.ipsec_out = "match-none-out"' in form
 
 
 def test_reorder_emits_directional_ipsec():

@@ -72,7 +72,7 @@ export interface AccessListBatchRequest {
 // API Service
 // ============================================================================
 
-class AccessListService {
+export class AccessListService {
   /**
    * Get capabilities based on VyOS version
    */

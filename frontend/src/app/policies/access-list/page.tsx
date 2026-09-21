@@ -37,8 +37,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { CreateAccessListModal } from "@/components/policies/CreateAccessListModal";
 import { EditAccessListModal } from "@/components/policies/EditAccessListModal";
 import { DeleteAccessListModal } from "@/components/policies/DeleteAccessListModal";
-import { AddAccessListRuleModal } from "@/components/policies/AddAccessListRuleModal";
-import { EditAccessListRuleModal } from "@/components/policies/EditAccessListRuleModal";
+import { AccessListRuleModal } from "@/components/policies/AccessListRuleModal";
 import { DeleteAccessListRuleModal } from "@/components/policies/DeleteAccessListRuleModal";
 import { AccessListRuleRow } from "@/components/policies/AccessListRuleRow";
 import { AccessListReorderBanner } from "@/components/policies/AccessListReorderBanner";
@@ -594,20 +593,17 @@ function AccessListPageInner() {
 
       {selectedListData && (
         <>
-          <AddAccessListRuleModal
-            open={addRuleModalOpen}
-            onOpenChange={setAddRuleModalOpen}
+          <AccessListRuleModal
+            open={addRuleModalOpen || editingRule !== null}
+            onOpenChange={(open) => {
+              if (!open) {
+                setAddRuleModalOpen(false);
+                setEditingRule(null);
+              }
+            }}
             onSuccess={() => fetchConfig(true)}
             accessList={selectedListData}
-          />
-
-          <EditAccessListRuleModal
-            open={editingRule !== null}
-            onOpenChange={(open) => !open && setEditingRule(null)}
-            onSuccess={() => fetchConfig(true)}
-            rule={editingRule}
-            listNumber={selectedList!}
-            listType={selectedListType}
+            existing={editingRule}
           />
 
           <DeleteAccessListRuleModal

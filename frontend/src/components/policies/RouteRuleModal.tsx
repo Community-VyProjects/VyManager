@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
@@ -11,20 +11,32 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AlertCircle } from "lucide-react";
-import { routeService, PolicyRouteRule, RouteCapabilitiesResponse, MatchConditions, SetActions } from "@/lib/api/route";
+import { routeService, RouteCapabilitiesResponse, type PolicyRouteRule } from "@/lib/api/route";
+import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
+import {
+  emptyRouteRuleDraft,
+  nextRuleNumber,
+  routeRuleDraftFrom,
+  submitRouteRuleCreate,
+  submitRouteRuleUpdate,
+  validateRouteRuleCreate,
+  validateRouteRuleEdit,
+  type AddressDomainType,
+  type RouteRuleDraft,
+} from "./route-rule-form";
 import { firewallGroupsService, FirewallGroup } from "@/lib/api/firewall-groups";
 import { CountryMultiSelect } from "@/components/firewall/CountryMultiSelect";
 
 import { ApiError } from "@/lib/types/api";
 
-interface EditRouteRuleModalProps {
+interface RouteRuleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   policyType: string;
   policyName: string;
-  rule: PolicyRouteRule | null;
   capabilities: RouteCapabilitiesResponse | null;
+  existing?: PolicyRouteRule | null;
 }
 
 const PROTOCOLS = [
@@ -59,20 +71,23 @@ const TCP_FLAGS = ["syn", "ack", "fin", "rst", "urg", "psh"];
 
 const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-export function EditRouteRuleModal({
+export function RouteRuleModal({
   open,
   onOpenChange,
   onSuccess,
   policyType,
   policyName,
-  rule,
   capabilities,
-}: EditRouteRuleModalProps) {
+  existing,
+}: RouteRuleModalProps) {
+  const isEdit = modalIsEdit(existing);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [groups, setGroups] = useState<FirewallGroup[]>([]);
 
   // Basic fields
+  const [ruleNumber, setRuleNumber] = useState<number>(100);
+
   const [description, setDescription] = useState("");
   const [disable, setDisable] = useState(false);
   const [log, setLog] = useState(false);
@@ -172,259 +187,183 @@ export function EditRouteRuleModal({
   const [actionTcpMss, setActionTcpMss] = useState("");
   const [actionVrf, setActionVrf] = useState("");
 
-  const loadRuleData = useCallback(() => {
-    if (!rule) return;
-    const match = rule.match || {};
-    const set = rule.set || {};
+  const collectDraft = (): RouteRuleDraft => ({
+    ruleNumber: ruleNumber,
+    description: description,
+    disable: disable,
+    log: log,
+    sourceAddress: sourceAddress,
+    sourceAddressInvert: sourceAddressInvert,
+    destAddress: destAddress,
+    destAddressInvert: destAddressInvert,
+    sourceMac: sourceMac,
+    sourceMacInvert: sourceMacInvert,
+    destMac: destMac,
+    destMacInvert: destMacInvert,
+    sourceGeoipCountry: sourceGeoipCountry,
+    sourceGeoipInverse: sourceGeoipInverse,
+    destGeoipCountry: destGeoipCountry,
+    destGeoipInverse: destGeoipInverse,
+    sourceAddressDomainType: sourceAddressDomainType as AddressDomainType,
+    sourceAddressDomainValue: sourceAddressDomainValue,
+    sourceGroupInvert: sourceGroupInvert,
+    sourceMacGroup: sourceMacGroup,
+    sourceMacGroupInvert: sourceMacGroupInvert,
+    sourcePortGroup: sourcePortGroup,
+    sourcePortGroupInvert: sourcePortGroupInvert,
+    destAddressDomainType: destAddressDomainType as AddressDomainType,
+    destAddressDomainValue: destAddressDomainValue,
+    destGroupInvert: destGroupInvert,
+    destMacGroup: destMacGroup,
+    destMacGroupInvert: destMacGroupInvert,
+    destPortGroup: destPortGroup,
+    destPortGroupInvert: destPortGroupInvert,
+    sourcePort: sourcePort,
+    destPort: destPort,
+    protocol: protocol,
+    tcpFlags: tcpFlags,
+    matchTcpMss: matchTcpMss,
+    icmpType: icmpType,
+    icmpTypeName: icmpTypeName,
+    icmpCode: icmpCode,
+    icmpv6Type: icmpv6Type,
+    icmpv6TypeName: icmpv6TypeName,
+    icmpv6Code: icmpv6Code,
+    fragment: fragment,
+    packetType: packetType,
+    packetLength: packetLength,
+    packetLengthExclude: packetLengthExclude,
+    dscp: dscp,
+    dscpExclude: dscpExclude,
+    connectionState: connectionState,
+    ipsec: ipsec,
+    ipsecInbound: ipsecInbound,
+    ipsecOutbound: ipsecOutbound,
+    connectionMark: connectionMark,
+    mark: mark,
+    ttlOperator: ttlOperator,
+    ttlValue: ttlValue,
+    hopLimitOperator: hopLimitOperator,
+    hopLimitValue: hopLimitValue,
+    monthdays: monthdays,
+    startDate: startDate,
+    stopDate: stopDate,
+    startTime: startTime,
+    stopTime: stopTime,
+    weekdays: weekdays,
+    utc: utc,
+    limitBurst: limitBurst,
+    limitRate: limitRate,
+    recentCount: recentCount,
+    recentTime: recentTime,
+    actionDrop: actionDrop,
+    actionConnectionMark: actionConnectionMark,
+    actionDscp: actionDscp,
+    actionMark: actionMark,
+    actionTableMode: actionTableMode,
+    actionTable: actionTable,
+    actionTcpMss: actionTcpMss,
+    actionVrf: actionVrf,
+  });
 
-    // Basic
-    setDescription(rule.description || "");
-    setDisable(rule.disable || false);
-    setLog(!!rule.log);
+  const applyDraft = (d: RouteRuleDraft) => {
+    setRuleNumber(d.ruleNumber);
+    setDescription(d.description);
+    setDisable(d.disable);
+    setLog(d.log);
+    setSourceAddress(d.sourceAddress);
+    setSourceAddressInvert(d.sourceAddressInvert);
+    setDestAddress(d.destAddress);
+    setDestAddressInvert(d.destAddressInvert);
+    setSourceMac(d.sourceMac);
+    setSourceMacInvert(d.sourceMacInvert);
+    setDestMac(d.destMac);
+    setDestMacInvert(d.destMacInvert);
+    setSourceGeoipCountry(d.sourceGeoipCountry);
+    setSourceGeoipInverse(d.sourceGeoipInverse);
+    setDestGeoipCountry(d.destGeoipCountry);
+    setDestGeoipInverse(d.destGeoipInverse);
+    setSourceAddressDomainType(d.sourceAddressDomainType);
+    setSourceAddressDomainValue(d.sourceAddressDomainValue);
+    setSourceGroupInvert(d.sourceGroupInvert);
+    setSourceMacGroup(d.sourceMacGroup);
+    setSourceMacGroupInvert(d.sourceMacGroupInvert);
+    setSourcePortGroup(d.sourcePortGroup);
+    setSourcePortGroupInvert(d.sourcePortGroupInvert);
+    setDestAddressDomainType(d.destAddressDomainType);
+    setDestAddressDomainValue(d.destAddressDomainValue);
+    setDestGroupInvert(d.destGroupInvert);
+    setDestMacGroup(d.destMacGroup);
+    setDestMacGroupInvert(d.destMacGroupInvert);
+    setDestPortGroup(d.destPortGroup);
+    setDestPortGroupInvert(d.destPortGroupInvert);
+    setSourcePort(d.sourcePort);
+    setDestPort(d.destPort);
+    setProtocol(d.protocol);
+    setTcpFlags(d.tcpFlags);
+    setMatchTcpMss(d.matchTcpMss);
+    setIcmpType(d.icmpType);
+    setIcmpTypeName(d.icmpTypeName);
+    setIcmpCode(d.icmpCode);
+    setIcmpv6Type(d.icmpv6Type);
+    setIcmpv6TypeName(d.icmpv6TypeName);
+    setIcmpv6Code(d.icmpv6Code);
+    setFragment(d.fragment);
+    setPacketType(d.packetType);
+    setPacketLength(d.packetLength);
+    setPacketLengthExclude(d.packetLengthExclude);
+    setDscp(d.dscp);
+    setDscpExclude(d.dscpExclude);
+    setConnectionState(d.connectionState);
+    setIpsec(d.ipsec);
+    setIpsecInbound(d.ipsecInbound);
+    setIpsecOutbound(d.ipsecOutbound);
+    setConnectionMark(d.connectionMark);
+    setMark(d.mark);
+    setTtlOperator(d.ttlOperator);
+    setTtlValue(d.ttlValue);
+    setHopLimitOperator(d.hopLimitOperator);
+    setHopLimitValue(d.hopLimitValue);
+    setMonthdays(d.monthdays);
+    setStartDate(d.startDate);
+    setStopDate(d.stopDate);
+    setStartTime(d.startTime);
+    setStopTime(d.stopTime);
+    setWeekdays(d.weekdays);
+    setUtc(d.utc);
+    setLimitBurst(d.limitBurst);
+    setLimitRate(d.limitRate);
+    setRecentCount(d.recentCount);
+    setRecentTime(d.recentTime);
+    setActionDrop(d.actionDrop);
+    setActionConnectionMark(d.actionConnectionMark);
+    setActionDscp(d.actionDscp);
+    setActionMark(d.actionMark);
+    setActionTableMode(d.actionTableMode);
+    setActionTable(d.actionTable);
+    setActionTcpMss(d.actionTcpMss);
+    setActionVrf(d.actionVrf);
+  };
 
-    // Match - Address - parse invert prefix (!)
-    const srcAddr = match.source_address || "";
-    if (srcAddr.startsWith("!")) {
-      setSourceAddress(srcAddr.substring(1));
-      setSourceAddressInvert(true);
-    } else {
-      setSourceAddress(srcAddr);
-      setSourceAddressInvert(false);
-    }
-
-    const dstAddr = match.destination_address || "";
-    if (dstAddr.startsWith("!")) {
-      setDestAddress(dstAddr.substring(1));
-      setDestAddressInvert(true);
-    } else {
-      setDestAddress(dstAddr);
-      setDestAddressInvert(false);
-    }
-
-    const srcMac = match.source_mac_address || "";
-    if (srcMac.startsWith("!")) {
-      setSourceMac(srcMac.substring(1));
-      setSourceMacInvert(true);
-    } else {
-      setSourceMac(srcMac);
-      setSourceMacInvert(false);
-    }
-
-    const dstMac = match.destination_mac_address || "";
-    if (dstMac.startsWith("!")) {
-      setDestMac(dstMac.substring(1));
-      setDestMacInvert(true);
-    } else {
-      setDestMac(dstMac);
-      setDestMacInvert(false);
-    }
-
-    // Match - Groups (detect which type is set, strip ! prefix for invert)
-    const parseGroup = (raw: string) => {
-      const inverted = raw.startsWith("!");
-      return { value: inverted ? raw.slice(1) : raw, inverted };
-    };
-
-    if (match.source_group_address) {
-      const { value, inverted } = parseGroup(match.source_group_address);
-      setSourceAddressDomainType("address");
-      setSourceAddressDomainValue(value);
-      setSourceGroupInvert(inverted);
-    } else if (match.source_group_network) {
-      const { value, inverted } = parseGroup(match.source_group_network);
-      setSourceAddressDomainType("network");
-      setSourceAddressDomainValue(value);
-      setSourceGroupInvert(inverted);
-    } else if (match.source_group_domain) {
-      const { value, inverted } = parseGroup(match.source_group_domain);
-      setSourceAddressDomainType("domain");
-      setSourceAddressDomainValue(value);
-      setSourceGroupInvert(inverted);
-    } else {
-      setSourceAddressDomainType("none");
-      setSourceAddressDomainValue("");
-      setSourceGroupInvert(false);
-    }
-
-    const srcMacRaw = match.source_group_mac || "";
-    if (srcMacRaw.startsWith("!")) {
-      setSourceMacGroup(srcMacRaw.slice(1));
-      setSourceMacGroupInvert(true);
-    } else {
-      setSourceMacGroup(srcMacRaw);
-      setSourceMacGroupInvert(false);
-    }
-
-    const srcPortRaw = match.source_group_port || "";
-    if (srcPortRaw.startsWith("!")) {
-      setSourcePortGroup(srcPortRaw.slice(1));
-      setSourcePortGroupInvert(true);
-    } else {
-      setSourcePortGroup(srcPortRaw);
-      setSourcePortGroupInvert(false);
-    }
-
-    if (match.destination_group_address) {
-      const { value, inverted } = parseGroup(match.destination_group_address);
-      setDestAddressDomainType("address");
-      setDestAddressDomainValue(value);
-      setDestGroupInvert(inverted);
-    } else if (match.destination_group_network) {
-      const { value, inverted } = parseGroup(match.destination_group_network);
-      setDestAddressDomainType("network");
-      setDestAddressDomainValue(value);
-      setDestGroupInvert(inverted);
-    } else if (match.destination_group_domain) {
-      const { value, inverted } = parseGroup(match.destination_group_domain);
-      setDestAddressDomainType("domain");
-      setDestAddressDomainValue(value);
-      setDestGroupInvert(inverted);
-    } else {
-      setDestAddressDomainType("none");
-      setDestAddressDomainValue("");
-      setDestGroupInvert(false);
-    }
-
-    const dstMacRaw = match.destination_group_mac || "";
-    if (dstMacRaw.startsWith("!")) {
-      setDestMacGroup(dstMacRaw.slice(1));
-      setDestMacGroupInvert(true);
-    } else {
-      setDestMacGroup(dstMacRaw);
-      setDestMacGroupInvert(false);
-    }
-
-    const dstPortRaw = match.destination_group_port || "";
-    if (dstPortRaw.startsWith("!")) {
-      setDestPortGroup(dstPortRaw.slice(1));
-      setDestPortGroupInvert(true);
-    } else {
-      setDestPortGroup(dstPortRaw);
-      setDestPortGroupInvert(false);
-    }
-
-    setSourceGeoipCountry(match.source_geoip?.country_code || []);
-    setSourceGeoipInverse(!!match.source_geoip?.inverse_match);
-    setDestGeoipCountry(match.destination_geoip?.country_code || []);
-    setDestGeoipInverse(!!match.destination_geoip?.inverse_match);
-
-    // Match - Port
-    setSourcePort(match.source_port || "");
-    setDestPort(match.destination_port || "");
-
-    // Match - Protocol
-    setProtocol(match.protocol || "");
-    setTcpFlags(match.tcp_flags ?? []);
-    setMatchTcpMss(match.tcp_mss || "");
-
-    // Match - ICMP
-    setIcmpType(match.icmp_type || "");
-    setIcmpTypeName(match.icmp_type_name || "");
-    setIcmpCode(match.icmp_code || "");
-    setIcmpv6Type(match.icmpv6_type || "");
-    setIcmpv6TypeName(match.icmpv6_type_name || "");
-    setIcmpv6Code(match.icmpv6_code || "");
-
-    // Match - Packet Characteristics
-    if (match.fragment !== undefined && match.fragment !== null) {
-      // Convert string from backend to boolean for UI
-      setFragment(match.fragment === "match-frag");
-    } else {
-      setFragment(null);
-    }
-    setPacketType(match.packet_type || "");
-    setPacketLength(match.packet_length || "");
-    setPacketLengthExclude(match.packet_length_exclude || "");
-    setDscp(match.dscp || "");
-    setDscpExclude(match.dscp_exclude || "");
-
-    // Match - State & Marks
-    setConnectionState(match.state ? match.state.split(",") : []);
-    if (match.ipsec !== undefined && match.ipsec !== null) {
-      setIpsec(match.ipsec === "match-ipsec");
-    } else {
-      setIpsec(null);
-    }
-    if (match.ipsec_in === "match-ipsec-in") setIpsecInbound("match-ipsec");
-    else if (match.ipsec_in === "match-none-in") setIpsecInbound("match-none");
-    else setIpsecInbound("none");
-    if (match.ipsec_out === "match-ipsec-out") setIpsecOutbound("match-ipsec");
-    else if (match.ipsec_out === "match-none-out") setIpsecOutbound("match-none");
-    else setIpsecOutbound("none");
-    setConnectionMark(match.connection_mark || "");
-    setMark(match.mark || "");
-
-    // Match - TTL/Hop Limit - parse from eq/gt/lt fields
-    if (match.ttl_eq) {
-      setTtlOperator("eq");
-      setTtlValue(match.ttl_eq);
-    } else if (match.ttl_gt) {
-      setTtlOperator("gt");
-      setTtlValue(match.ttl_gt);
-    } else if (match.ttl_lt) {
-      setTtlOperator("lt");
-      setTtlValue(match.ttl_lt);
-    } else {
-      setTtlOperator("");
-      setTtlValue("");
-    }
-
-    if (match.hop_limit_eq) {
-      setHopLimitOperator("eq");
-      setHopLimitValue(match.hop_limit_eq);
-    } else if (match.hop_limit_gt) {
-      setHopLimitOperator("gt");
-      setHopLimitValue(match.hop_limit_gt);
-    } else if (match.hop_limit_lt) {
-      setHopLimitOperator("lt");
-      setHopLimitValue(match.hop_limit_lt);
-    } else {
-      setHopLimitOperator("");
-      setHopLimitValue("");
-    }
-
-    // Match - Time-based
-    setMonthdays(match.time_monthdays || "");
-    setStartDate(match.time_startdate || "");
-    setStopDate(match.time_stopdate || "");
-    setStartTime(match.time_starttime || "");
-    setStopTime(match.time_stoptime || "");
-    setWeekdays(match.time_weekdays ? match.time_weekdays.split(",") : []);
-    setUtc(match.time_utc || false);
-
-    // Match - Rate Limiting
-    setLimitBurst(match.limit_burst || "");
-    setLimitRate(match.limit_rate || "");
-    setRecentCount(match.recent_count || "");
-    setRecentTime(match.recent_time || "");
-
-    // Set Actions
-    setActionDrop(set.action_drop || false);
-    setActionConnectionMark(set.connection_mark || "");
-    setActionDscp(set.dscp || "");
-    setActionMark(set.mark || "");
-    if (set.table === "main") {
-      setActionTableMode("main");
-      setActionTable("");
-    } else if (set.table) {
-      setActionTableMode("custom");
-      setActionTable(set.table);
-    } else {
-      setActionTableMode("none");
-      setActionTable("");
-    }
-    setActionTcpMss(set.tcp_mss || "");
-    setActionVrf(set.vrf || "");
-  }, [rule]);
 
   useEffect(() => {
-    if (open) {
-      loadGroups();
-      if (rule) {
-        loadRuleData();
-      }
+    if (!open) return;
+    loadGroups();
+    if (existing) {
+      applyDraft(routeRuleDraftFrom(existing));
+    } else {
+      applyDraft(emptyRouteRuleDraft());
+      routeService.getConfig().then((config) => {
+        const policies = policyType === "route" ? config.ipv4_policies : config.ipv6_policies;
+        const policy = policies.find((p) => p.name === policyName);
+        setRuleNumber(nextRuleNumber(policy?.rules ?? []));
+      }).catch((err) => {
+        console.error("Failed to calculate next rule number:", err);
+        setRuleNumber(100);
+      });
     }
-  }, [open, rule, loadRuleData]);
+    setError(null);
+  }, [open, existing, policyType, policyName]);
 
   // Protocol validation: must be tcp/udp/tcp_udp when using ports or port-groups
   useEffect(() => {
@@ -455,165 +394,39 @@ export function EditRouteRuleModal({
     }
   };
 
-
   const handleSubmit = async () => {
-    if (!rule) return;
+    const draft = collectDraft();
+    const validationError = isEdit ? validateRouteRuleEdit() : validateRouteRuleCreate(draft);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    const write = modalWriteKind(existing ? { name: String(existing.rule_number) } : null);
+    const directional = capabilities?.features.ipsec_directional?.supported ?? false;
     setLoading(true);
     setError(null);
 
     try {
-      const match: Partial<MatchConditions> = {};
-      const set: Partial<SetActions> = {};
-
-      // Match - Address - prepend ! if invert is checked
-      if (sourceAddress) {
-        match.source_address = sourceAddressInvert ? `!${sourceAddress}` : sourceAddress;
+      const result =
+        write.kind === "update" && existing
+          ? await submitRouteRuleUpdate(policyType, policyName, existing, draft, directional)
+          : await submitRouteRuleCreate(policyType, policyName, draft, directional);
+      if (result && result.success === false) {
+        setError(result.error || "Operation failed");
+        return;
       }
-      if (destAddress) {
-        match.destination_address = destAddressInvert ? `!${destAddress}` : destAddress;
-      }
-      if (sourceMac) {
-        match.source_mac_address = sourceMacInvert ? `!${sourceMac}` : sourceMac;
-      }
-      if (destMac) {
-        match.destination_mac_address = destMacInvert ? `!${destMac}` : destMac;
-      }
-      if (sourceGeoipCountry.length > 0 || sourceGeoipInverse) {
-        match.source_geoip = {
-          country_code: sourceGeoipCountry.length > 0 ? sourceGeoipCountry : undefined,
-          inverse_match: sourceGeoipInverse || undefined,
-        };
-      }
-      if (destGeoipCountry.length > 0 || destGeoipInverse) {
-        match.destination_geoip = {
-          country_code: destGeoipCountry.length > 0 ? destGeoipCountry : undefined,
-          inverse_match: destGeoipInverse || undefined,
-        };
-      }
-
-      // Match - Groups
-      if (sourceAddressDomainType !== "none" && sourceAddressDomainValue) {
-        const srcGrpVal = sourceGroupInvert ? `!${sourceAddressDomainValue}` : sourceAddressDomainValue;
-        if (sourceAddressDomainType === "address") match.source_group_address = srcGrpVal;
-        else if (sourceAddressDomainType === "network") match.source_group_network = srcGrpVal;
-        else if (sourceAddressDomainType === "domain") match.source_group_domain = srcGrpVal;
-      }
-      if (sourceMacGroup) match.source_group_mac = sourceMacGroupInvert ? `!${sourceMacGroup}` : sourceMacGroup;
-      if (sourcePortGroup) match.source_group_port = sourcePortGroupInvert ? `!${sourcePortGroup}` : sourcePortGroup;
-
-      if (destAddressDomainType !== "none" && destAddressDomainValue) {
-        const dstGrpVal = destGroupInvert ? `!${destAddressDomainValue}` : destAddressDomainValue;
-        if (destAddressDomainType === "address") match.destination_group_address = dstGrpVal;
-        else if (destAddressDomainType === "network") match.destination_group_network = dstGrpVal;
-        else if (destAddressDomainType === "domain") match.destination_group_domain = dstGrpVal;
-      }
-      if (destMacGroup) match.destination_group_mac = destMacGroupInvert ? `!${destMacGroup}` : destMacGroup;
-      if (destPortGroup) match.destination_group_port = destPortGroupInvert ? `!${destPortGroup}` : destPortGroup;
-
-      // Match - Port
-      if (sourcePort) match.source_port = sourcePort;
-      if (destPort) match.destination_port = destPort;
-
-      // Match - Protocol
-      if (protocol && protocol !== "all") match.protocol = protocol;
-      if (tcpFlags.length > 0) match.tcp_flags = tcpFlags;
-      if (matchTcpMss.trim()) match.tcp_mss = matchTcpMss.trim();
-
-      // Match - ICMP
-      if (policyType === "route") {
-        if (icmpType) match.icmp_type = icmpType;
-        if (icmpTypeName) match.icmp_type_name = icmpTypeName;
-        if (icmpCode) match.icmp_code = icmpCode;
-      } else {
-        if (icmpv6Type) match.icmpv6_type = icmpv6Type;
-        if (icmpv6TypeName) match.icmpv6_type_name = icmpv6TypeName;
-        if (icmpv6Code) match.icmpv6_code = icmpv6Code;
-      }
-
-      // Match - Packet Characteristics
-      if (fragment !== null) {
-        // Convert boolean to string expected by backend
-        match.fragment = fragment ? "match-frag" : "match-non-frag";
-      }
-      if (packetType) match.packet_type = packetType;
-      if (packetLength) match.packet_length = packetLength;
-      if (packetLengthExclude) match.packet_length_exclude = packetLengthExclude;
-      if (dscp) match.dscp = dscp;
-      if (dscpExclude) match.dscp_exclude = dscpExclude;
-
-      // Match - State & Marks
-      if (connectionState.length > 0) match.state = connectionState.join(",");
-      if (capabilities?.features.ipsec_directional?.supported) {
-        if (ipsecInbound === "match-ipsec") match.ipsec_in = "match-ipsec-in";
-        else if (ipsecInbound === "match-none") match.ipsec_in = "match-none-in";
-        if (ipsecOutbound === "match-ipsec") match.ipsec_out = "match-ipsec-out";
-        else if (ipsecOutbound === "match-none") match.ipsec_out = "match-none-out";
-      } else if (ipsec !== null) {
-        match.ipsec = ipsec ? "match-ipsec" : "match-none";
-      }
-      if (connectionMark) match.connection_mark = connectionMark;
-      if (mark) match.mark = mark;
-
-      // Match - TTL/Hop Limit
-      if (policyType === "route" && ttlOperator && ttlValue) {
-        if (ttlOperator === "eq") match.ttl_eq = ttlValue;
-        else if (ttlOperator === "gt") match.ttl_gt = ttlValue;
-        else if (ttlOperator === "lt") match.ttl_lt = ttlValue;
-      } else if (policyType === "route6" && hopLimitOperator && hopLimitValue) {
-        if (hopLimitOperator === "eq") match.hop_limit_eq = hopLimitValue;
-        else if (hopLimitOperator === "gt") match.hop_limit_gt = hopLimitValue;
-        else if (hopLimitOperator === "lt") match.hop_limit_lt = hopLimitValue;
-      }
-
-      // Match - Time-based
-      if (monthdays) match.time_monthdays = monthdays;
-      if (startDate) match.time_startdate = startDate;
-      if (stopDate) match.time_stopdate = stopDate;
-      if (startTime) match.time_starttime = startTime;
-      if (stopTime) match.time_stoptime = stopTime;
-      if (weekdays.length > 0) match.time_weekdays = weekdays.join(",");
-      if (utc) match.time_utc = true;
-
-      // Match - Rate Limiting
-      if (limitBurst) match.limit_burst = limitBurst;
-      if (limitRate) match.limit_rate = limitRate;
-      if (recentCount) match.recent_count = recentCount;
-      if (recentTime) match.recent_time = recentTime;
-
-      // Set Actions
-      if (actionDrop) set.action_drop = true;
-      if (actionConnectionMark) set.connection_mark = actionConnectionMark;
-      if (actionDscp) set.dscp = actionDscp;
-      if (actionMark) set.mark = actionMark;
-      if (actionTableMode === "main") {
-        set.table = "main";
-      } else if (actionTableMode === "custom" && actionTable) {
-        set.table = actionTable;
-      }
-      if (actionTcpMss) set.tcp_mss = actionTcpMss;
-      if (actionVrf) set.vrf = actionVrf;
-
-      await routeService.updateRule(policyType, policyName, rule.rule_number, {
-        description: description,
-        disable,
-        log: log ? "true" : undefined,
-        match: Object.keys(match).length > 0 ? match : undefined,
-        set: Object.keys(set).length > 0 ? set : undefined,
-        originalMatch: rule.match,
-      });
-
-      handleClose();
+      onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError((err as ApiError).message || "Failed to update rule");
+      setError((err as ApiError).message || (isEdit ? "Failed to update rule" : "Failed to create rule"));
     } finally {
       setLoading(false);
     }
   };
 
   const handleClose = () => {
-    setError(null);
-    onOpenChange(false);
+    if (!loading) onOpenChange(false);
   };
 
   const getGroupsByType = (type: string) => {
@@ -642,9 +455,9 @@ export function EditRouteRuleModal({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Rule {rule?.rule_number} - Policy: {policyName}</DialogTitle>
+          <DialogTitle>{isEdit ? `Edit Rule ${existing.rule_number} - Policy: ${policyName}` : `Create Rule for Policy: ${policyName}`}</DialogTitle>
           <DialogDescription>
-            Update the {policyType === "route" ? "IPv4" : "IPv6"} policy rule
+            {isEdit ? `Update the ${policyType === "route" ? "IPv4" : "IPv6"} policy rule` : `Add a new rule to the ${policyType === "route" ? "IPv4" : "IPv6"} policy`}
           </DialogDescription>
         </DialogHeader>
 
@@ -666,15 +479,20 @@ export function EditRouteRuleModal({
           <TabsContent value="basic" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Rule Number</Label>
+                <Label htmlFor="ruleNumber">Rule Number *</Label>
                 <Input
-                  value={rule?.rule_number}
-                  disabled
-                  className="bg-muted"
+                  id="ruleNumber"
+                  type="number"
+                  value={lockedIdentity(existing, (r) => String(r.rule_number), String(ruleNumber)).value}
+                  onChange={(e) => setRuleNumber(Number(e.target.value))}
+                  disabled={loading || lockedIdentity(existing, (r) => String(r.rule_number), String(ruleNumber)).disabled}
+                  className={isEdit ? "bg-muted" : undefined}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Rule number cannot be changed
-                </p>
+                {isEdit && (
+                  <p className="text-xs text-muted-foreground">
+                    Rule number cannot be changed
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -818,38 +636,38 @@ export function EditRouteRuleModal({
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <CountryMultiSelect
-                      id="edit-sourceGeoipCountry"
+                      id="sourceGeoipCountry"
                       label="Source GeoIP Countries"
                       value={sourceGeoipCountry}
                       onChange={setSourceGeoipCountry}
                     />
                     <div className="flex items-center space-x-2">
                       <Checkbox
-                        id="edit-sourceGeoipInverse"
+                        id="sourceGeoipInverse"
                         checked={sourceGeoipInverse}
                         onCheckedChange={(checked) => setSourceGeoipInverse(checked as boolean)}
                         disabled={loading}
                       />
-                      <Label htmlFor="edit-sourceGeoipInverse" className="text-sm font-normal cursor-pointer">
+                      <Label htmlFor="sourceGeoipInverse" className="text-sm font-normal cursor-pointer">
                         Exclude countries (inverse match)
                       </Label>
                     </div>
                   </div>
                   <div className="space-y-2">
                     <CountryMultiSelect
-                      id="edit-destGeoipCountry"
+                      id="destGeoipCountry"
                       label="Destination GeoIP Countries"
                       value={destGeoipCountry}
                       onChange={setDestGeoipCountry}
                     />
                     <div className="flex items-center space-x-2">
                       <Checkbox
-                        id="edit-destGeoipInverse"
+                        id="destGeoipInverse"
                         checked={destGeoipInverse}
                         onCheckedChange={(checked) => setDestGeoipInverse(checked as boolean)}
                         disabled={loading}
                       />
-                      <Label htmlFor="edit-destGeoipInverse" className="text-sm font-normal cursor-pointer">
+                      <Label htmlFor="destGeoipInverse" className="text-sm font-normal cursor-pointer">
                         Exclude countries (inverse match)
                       </Label>
                     </div>
@@ -871,20 +689,20 @@ export function EditRouteRuleModal({
                       setSourceAddressDomainValue("");
                     }} disabled={loading}>
                       <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="none" id="edit-src-ad-none" />
-                        <Label htmlFor="edit-src-ad-none" className="font-normal cursor-pointer">None</Label>
+                        <RadioGroupItem value="none" id="src-ad-none" />
+                        <Label htmlFor="src-ad-none" className="font-normal cursor-pointer">None</Label>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="address" id="edit-src-address" />
-                        <Label htmlFor="edit-src-address" className="font-normal cursor-pointer">Address Group</Label>
+                        <RadioGroupItem value="address" id="src-address" />
+                        <Label htmlFor="src-address" className="font-normal cursor-pointer">Address Group</Label>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="network" id="edit-src-network" />
-                        <Label htmlFor="edit-src-network" className="font-normal cursor-pointer">Network Group</Label>
+                        <RadioGroupItem value="network" id="src-network" />
+                        <Label htmlFor="src-network" className="font-normal cursor-pointer">Network Group</Label>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="domain" id="edit-src-domain" />
-                        <Label htmlFor="edit-src-domain" className="font-normal cursor-pointer">Domain Group</Label>
+                        <RadioGroupItem value="domain" id="src-domain" />
+                        <Label htmlFor="src-domain" className="font-normal cursor-pointer">Domain Group</Label>
                       </div>
                     </RadioGroup>
 
@@ -910,12 +728,12 @@ export function EditRouteRuleModal({
                         </Select>
                         <div className="flex items-center space-x-2">
                           <Checkbox
-                            id="edit-sourceGroupInvert"
+                            id="sourceGroupInvert"
                             checked={sourceGroupInvert}
                             onCheckedChange={(checked) => setSourceGroupInvert(checked as boolean)}
                             disabled={loading}
                           />
-                          <Label htmlFor="edit-sourceGroupInvert" className="text-sm font-normal cursor-pointer">
+                          <Label htmlFor="sourceGroupInvert" className="text-sm font-normal cursor-pointer">
                             Invert match
                           </Label>
                         </div>
@@ -924,7 +742,7 @@ export function EditRouteRuleModal({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="edit-sourceMacGroup">Source MAC Group (optional)</Label>
+                    <Label htmlFor="sourceMacGroup">Source MAC Group (optional)</Label>
                     <Select value={sourceMacGroup} onValueChange={setSourceMacGroup} disabled={loading}>
                       <SelectTrigger>
                         <SelectValue placeholder="None" />
@@ -940,12 +758,12 @@ export function EditRouteRuleModal({
                     {sourceMacGroup && (
                       <div className="flex items-center space-x-2">
                         <Checkbox
-                          id="edit-sourceMacGroupInvert"
+                          id="sourceMacGroupInvert"
                           checked={sourceMacGroupInvert}
                           onCheckedChange={(checked) => setSourceMacGroupInvert(checked as boolean)}
                           disabled={loading}
                         />
-                        <Label htmlFor="edit-sourceMacGroupInvert" className="text-sm font-normal cursor-pointer">
+                        <Label htmlFor="sourceMacGroupInvert" className="text-sm font-normal cursor-pointer">
                           Invert match
                         </Label>
                       </div>
@@ -953,7 +771,7 @@ export function EditRouteRuleModal({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="edit-sourcePortGroup">Source Port Group (optional)</Label>
+                    <Label htmlFor="sourcePortGroup">Source Port Group (optional)</Label>
                     <Select value={sourcePortGroup} onValueChange={setSourcePortGroup} disabled={loading}>
                       <SelectTrigger>
                         <SelectValue placeholder="None" />
@@ -970,12 +788,12 @@ export function EditRouteRuleModal({
                       <>
                         <div className="flex items-center space-x-2">
                           <Checkbox
-                            id="edit-sourcePortGroupInvert"
+                            id="sourcePortGroupInvert"
                             checked={sourcePortGroupInvert}
                             onCheckedChange={(checked) => setSourcePortGroupInvert(checked as boolean)}
                             disabled={loading}
                           />
-                          <Label htmlFor="edit-sourcePortGroupInvert" className="text-sm font-normal cursor-pointer">
+                          <Label htmlFor="sourcePortGroupInvert" className="text-sm font-normal cursor-pointer">
                             Invert match
                           </Label>
                         </div>
@@ -994,20 +812,20 @@ export function EditRouteRuleModal({
                       setDestAddressDomainValue("");
                     }} disabled={loading}>
                       <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="none" id="edit-dst-ad-none" />
-                        <Label htmlFor="edit-dst-ad-none" className="font-normal cursor-pointer">None</Label>
+                        <RadioGroupItem value="none" id="dst-ad-none" />
+                        <Label htmlFor="dst-ad-none" className="font-normal cursor-pointer">None</Label>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="address" id="edit-dst-address" />
-                        <Label htmlFor="edit-dst-address" className="font-normal cursor-pointer">Address Group</Label>
+                        <RadioGroupItem value="address" id="dst-address" />
+                        <Label htmlFor="dst-address" className="font-normal cursor-pointer">Address Group</Label>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="network" id="edit-dst-network" />
-                        <Label htmlFor="edit-dst-network" className="font-normal cursor-pointer">Network Group</Label>
+                        <RadioGroupItem value="network" id="dst-network" />
+                        <Label htmlFor="dst-network" className="font-normal cursor-pointer">Network Group</Label>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="domain" id="edit-dst-domain" />
-                        <Label htmlFor="edit-dst-domain" className="font-normal cursor-pointer">Domain Group</Label>
+                        <RadioGroupItem value="domain" id="dst-domain" />
+                        <Label htmlFor="dst-domain" className="font-normal cursor-pointer">Domain Group</Label>
                       </div>
                     </RadioGroup>
 
@@ -1033,12 +851,12 @@ export function EditRouteRuleModal({
                         </Select>
                         <div className="flex items-center space-x-2">
                           <Checkbox
-                            id="edit-destGroupInvert"
+                            id="destGroupInvert"
                             checked={destGroupInvert}
                             onCheckedChange={(checked) => setDestGroupInvert(checked as boolean)}
                             disabled={loading}
                           />
-                          <Label htmlFor="edit-destGroupInvert" className="text-sm font-normal cursor-pointer">
+                          <Label htmlFor="destGroupInvert" className="text-sm font-normal cursor-pointer">
                             Invert match
                           </Label>
                         </div>
@@ -1047,7 +865,7 @@ export function EditRouteRuleModal({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="edit-destMacGroup">Destination MAC Group (optional)</Label>
+                    <Label htmlFor="destMacGroup">Destination MAC Group (optional)</Label>
                     <Select value={destMacGroup} onValueChange={setDestMacGroup} disabled={loading}>
                       <SelectTrigger>
                         <SelectValue placeholder="None" />
@@ -1063,12 +881,12 @@ export function EditRouteRuleModal({
                     {destMacGroup && (
                       <div className="flex items-center space-x-2">
                         <Checkbox
-                          id="edit-destMacGroupInvert"
+                          id="destMacGroupInvert"
                           checked={destMacGroupInvert}
                           onCheckedChange={(checked) => setDestMacGroupInvert(checked as boolean)}
                           disabled={loading}
                         />
-                        <Label htmlFor="edit-destMacGroupInvert" className="text-sm font-normal cursor-pointer">
+                        <Label htmlFor="destMacGroupInvert" className="text-sm font-normal cursor-pointer">
                           Invert match
                         </Label>
                       </div>
@@ -1076,7 +894,7 @@ export function EditRouteRuleModal({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="edit-destPortGroup">Destination Port Group (optional)</Label>
+                    <Label htmlFor="destPortGroup">Destination Port Group (optional)</Label>
                     <Select value={destPortGroup} onValueChange={setDestPortGroup} disabled={loading}>
                       <SelectTrigger>
                         <SelectValue placeholder="None" />
@@ -1093,12 +911,12 @@ export function EditRouteRuleModal({
                       <>
                         <div className="flex items-center space-x-2">
                           <Checkbox
-                            id="edit-destPortGroupInvert"
+                            id="destPortGroupInvert"
                             checked={destPortGroupInvert}
                             onCheckedChange={(checked) => setDestPortGroupInvert(checked as boolean)}
                             disabled={loading}
                           />
-                          <Label htmlFor="edit-destPortGroupInvert" className="text-sm font-normal cursor-pointer">
+                          <Label htmlFor="destPortGroupInvert" className="text-sm font-normal cursor-pointer">
                             Invert match
                           </Label>
                         </div>
@@ -1181,9 +999,9 @@ export function EditRouteRuleModal({
 
                 {capabilities?.features.tcp_mss_matching?.supported && (
                   <div className="space-y-2">
-                    <Label htmlFor="edit-matchTcpMss">TCP MSS Match</Label>
+                    <Label htmlFor="matchTcpMss">TCP MSS Match</Label>
                     <Input
-                      id="edit-matchTcpMss"
+                      id="matchTcpMss"
                       placeholder="1400 or 500-1460"
                       value={matchTcpMss}
                       onChange={(e) => setMatchTcpMss(e.target.value)}
@@ -1407,9 +1225,9 @@ export function EditRouteRuleModal({
                   {capabilities?.features.ipsec_directional?.supported ? (
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="edit-ipsecInbound">Inbound</Label>
+                        <Label htmlFor="ipsecInbound">Inbound</Label>
                         <Select value={ipsecInbound} onValueChange={(v: "none" | "match-ipsec" | "match-none") => setIpsecInbound(v)} disabled={loading}>
-                          <SelectTrigger id="edit-ipsecInbound">
+                          <SelectTrigger id="ipsecInbound">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -1420,9 +1238,9 @@ export function EditRouteRuleModal({
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="edit-ipsecOutbound">Outbound</Label>
+                        <Label htmlFor="ipsecOutbound">Outbound</Label>
                         <Select value={ipsecOutbound} onValueChange={(v: "none" | "match-ipsec" | "match-none") => setIpsecOutbound(v)} disabled={loading}>
-                          <SelectTrigger id="edit-ipsecOutbound">
+                          <SelectTrigger id="ipsecOutbound">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -1768,16 +1586,16 @@ export function EditRouteRuleModal({
                     if (value !== "custom") setActionTable("");
                   }} disabled={loading}>
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="none" id="edit-table-none" />
-                      <Label htmlFor="edit-table-none" className="font-normal cursor-pointer">None</Label>
+                      <RadioGroupItem value="none" id="table-none" />
+                      <Label htmlFor="table-none" className="font-normal cursor-pointer">None</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="main" id="edit-table-main" />
-                      <Label htmlFor="edit-table-main" className="font-normal cursor-pointer">Main table</Label>
+                      <RadioGroupItem value="main" id="table-main" />
+                      <Label htmlFor="table-main" className="font-normal cursor-pointer">Main table</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="custom" id="edit-table-custom" />
-                      <Label htmlFor="edit-table-custom" className="font-normal cursor-pointer">Custom table</Label>
+                      <RadioGroupItem value="custom" id="table-custom" />
+                      <Label htmlFor="table-custom" className="font-normal cursor-pointer">Custom table</Label>
                     </div>
                   </RadioGroup>
                   {actionTableMode === "custom" && (
@@ -1836,7 +1654,7 @@ export function EditRouteRuleModal({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Updating..." : "Update Rule"}
+            {loading ? (isEdit ? "Saving..." : "Creating...") : isEdit ? "Save Changes" : "Create Rule"}
           </Button>
         </div>
       </DialogContent>

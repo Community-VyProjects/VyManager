@@ -154,7 +154,7 @@ export interface RouteMapBatchRequest {
 // API Service
 // ============================================================================
 
-class RouteMapService {
+export class RouteMapService {
   /**
    * Get capabilities based on VyOS version
    */

@@ -14,8 +14,8 @@ from routers.route.route import MatchConditions, parse_match_conditions
 from vyos_builders.route.route_batch_builder import RouteBatchBuilder
 
 REPO = Path(__file__).resolve().parents[2]
-CREATE = REPO / "frontend/src/components/policies/CreateRouteRuleModal.tsx"
-EDIT = REPO / "frontend/src/components/policies/EditRouteRuleModal.tsx"
+MODAL = REPO / "frontend/src/components/policies/RouteRuleModal.tsx"
+FORM = REPO / "frontend/src/components/policies/route-rule-form.ts"
 API = REPO / "frontend/src/lib/api/route.ts"
 ROUTER = REPO / "backend/routers/route/route.py"
 
@@ -128,18 +128,15 @@ def test_parse_geoip_absent():
 
 
 def test_modals_gate_geoip():
-    create = CREATE.read_text()
-    edit = EDIT.read_text()
-    assert 'id="sourceGeoipCountry"' in create
-    assert 'id="destGeoipCountry"' in create
-    assert "features.geoip_matching" in create
-    assert 'id="edit-sourceGeoipCountry"' in edit
-    assert 'id="edit-destGeoipCountry"' in edit
-    assert "features.geoip_matching" in edit
-    for text in (create, edit):
-        assert "VyOS 1." not in text
-        assert "1.5+" not in text
-        assert "1.4 only" not in text
+    modal = MODAL.read_text()
+    form = FORM.read_text()
+    assert 'id="sourceGeoipCountry"' in modal
+    assert "source_geoip" in form
+    assert 'id="destGeoipCountry"' in modal
+    assert "features.geoip_matching" in modal
+    assert "VyOS 1." not in modal
+    assert "1.5+" not in modal
+    assert "1.4 only" not in modal
 
 
 def test_api_emits_geoip_ops():

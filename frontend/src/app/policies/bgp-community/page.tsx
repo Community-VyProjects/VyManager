@@ -26,8 +26,7 @@ import { communityListService, CommunityList, CommunityListRule, CommunityListCa
 import { CreateCommunityListModal } from "@/components/policies/CreateCommunityListModal";
 import { EditCommunityListModal } from "@/components/policies/EditCommunityListModal";
 import { DeleteCommunityListModal } from "@/components/policies/DeleteCommunityListModal";
-import { CreateCommunityListRuleModal } from "@/components/policies/CreateCommunityListRuleModal";
-import { EditCommunityListRuleModal } from "@/components/policies/EditCommunityListRuleModal";
+import { CommunityListRuleModal } from "@/components/policies/CommunityListRuleModal";
 import { DeleteCommunityListRuleModal } from "@/components/policies/DeleteCommunityListRuleModal";
 import { CommunityListReorderBanner } from "@/components/policies/CommunityListReorderBanner";
 import { cn } from "@/lib/utils";
@@ -598,25 +597,22 @@ export default function BGPCommunityPage() {
       {/* Rule Modals */}
       {selectedCommunityList && (
         <>
-          <CreateCommunityListRuleModal
-            open={showCreateRuleModal}
-            onOpenChange={setShowCreateRuleModal}
+          <CommunityListRuleModal
+            open={showCreateRuleModal || (showEditRuleModal && !!selectedRule)}
+            onOpenChange={(open) => {
+              if (!open) {
+                setShowCreateRuleModal(false);
+                setShowEditRuleModal(false);
+              }
+            }}
             onSuccess={() => fetchData(true)}
             communityListName={selectedCommunityList}
+            existing={showEditRuleModal ? selectedRule : null}
             capabilities={capabilities}
           />
 
           {selectedRule && (
             <>
-              <EditCommunityListRuleModal
-                open={showEditRuleModal}
-                onOpenChange={setShowEditRuleModal}
-                onSuccess={() => fetchData(true)}
-                communityListName={selectedCommunityList}
-                rule={selectedRule}
-                capabilities={capabilities}
-              />
-
               <DeleteCommunityListRuleModal
                 open={showDeleteRuleModal}
                 onOpenChange={setShowDeleteRuleModal}

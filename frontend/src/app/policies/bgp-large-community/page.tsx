@@ -26,8 +26,7 @@ import { largeCommunityListService, LargeCommunityList, LargeCommunityListRule, 
 import { CreateLargeCommunityListModal } from "@/components/policies/CreateLargeCommunityListModal";
 import { EditLargeCommunityListModal } from "@/components/policies/EditLargeCommunityListModal";
 import { DeleteLargeCommunityListModal } from "@/components/policies/DeleteLargeCommunityListModal";
-import { CreateLargeCommunityListRuleModal } from "@/components/policies/CreateLargeCommunityListRuleModal";
-import { EditLargeCommunityListRuleModal } from "@/components/policies/EditLargeCommunityListRuleModal";
+import { LargeCommunityListRuleModal } from "@/components/policies/LargeCommunityListRuleModal";
 import { DeleteLargeCommunityListRuleModal } from "@/components/policies/DeleteLargeCommunityListRuleModal";
 import { LargeCommunityListReorderBanner } from "@/components/policies/LargeCommunityListReorderBanner";
 import { cn } from "@/lib/utils";
@@ -598,25 +597,22 @@ export default function BGPLargeCommunityPage() {
       {/* Rule Modals */}
       {selectedLargeCommunityList && (
         <>
-          <CreateLargeCommunityListRuleModal
-            open={showCreateRuleModal}
-            onOpenChange={setShowCreateRuleModal}
+          <LargeCommunityListRuleModal
+            open={showCreateRuleModal || (showEditRuleModal && !!selectedRule)}
+            onOpenChange={(open) => {
+              if (!open) {
+                setShowCreateRuleModal(false);
+                setShowEditRuleModal(false);
+              }
+            }}
             onSuccess={() => fetchData(true)}
             largeCommunityListName={selectedLargeCommunityList}
+            existing={showEditRuleModal ? selectedRule : null}
             capabilities={capabilities}
           />
 
           {selectedRule && (
             <>
-              <EditLargeCommunityListRuleModal
-                open={showEditRuleModal}
-                onOpenChange={setShowEditRuleModal}
-                onSuccess={() => fetchData(true)}
-                largeCommunityListName={selectedLargeCommunityList}
-                rule={selectedRule}
-                capabilities={capabilities}
-              />
-
               <DeleteLargeCommunityListRuleModal
                 open={showDeleteRuleModal}
                 onOpenChange={setShowDeleteRuleModal}
