@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TableRow, TableCell } from "@/components/ui/table";
 import type { RouteMapRule } from "@/lib/api/route-map";
+import { routeMapMatchOverviewBadges } from "./route-map-overview";
 
 interface RouteMapRuleRowProps {
   rule: RouteMapRule;
@@ -91,26 +92,11 @@ export function RouteMapRuleRow({ rule, onEdit, onDelete }: RouteMapRuleRowProps
                 {matchCount} condition{matchCount !== 1 ? "s" : ""}
               </Badge>
             )}
-            {rule.match.as_path && (
-              <Badge variant="secondary" className="text-xs">
-                AS Path: {rule.match.as_path}
+            {routeMapMatchOverviewBadges(rule.match).map((badge) => (
+              <Badge key={badge.label} variant="secondary" className="text-xs">
+                {badge.label}: {badge.value}
               </Badge>
-            )}
-            {rule.match.community_list && (
-              <Badge variant="secondary" className="text-xs">
-                Community: {rule.match.community_list}
-              </Badge>
-            )}
-            {rule.match.ip_address_prefix_list && (
-              <Badge variant="secondary" className="text-xs">
-                IP Prefix: {rule.match.ip_address_prefix_list}
-              </Badge>
-            )}
-            {rule.match.protocol && (
-              <Badge variant="secondary" className="text-xs">
-                Protocol: {rule.match.protocol}
-              </Badge>
-            )}
+            ))}
           </div>
         ) : (
           <span className="text-muted-foreground text-sm">—</span>
