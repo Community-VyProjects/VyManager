@@ -67,7 +67,7 @@ export interface PrefixListBatchRequest {
 // API Service
 // ============================================================================
 
-class PrefixListService {
+export class PrefixListService {
   /**
    * Get capabilities based on VyOS version
    */

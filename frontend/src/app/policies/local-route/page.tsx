@@ -14,8 +14,7 @@ import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components
 import { Plus, Search, RefreshCw, Route, AlertCircle } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { localRouteService, type LocalRouteRule, type LocalRouteConfigResponse } from "@/lib/api/local-route";
-import { CreateLocalRouteModal } from "@/components/policies/CreateLocalRouteModal";
-import { EditLocalRouteModal } from "@/components/policies/EditLocalRouteModal";
+import { LocalRouteModal } from "@/components/policies/LocalRouteModal";
 import { DeleteLocalRouteModal } from "@/components/policies/DeleteLocalRouteModal";
 import { LocalRouteReorderBanner } from "@/components/policies/LocalRouteReorderBanner";
 import { LocalRouteRuleRow } from "@/components/policies/LocalRouteRuleRow";
@@ -423,22 +422,18 @@ function LocalRoutePageInner() {
       </div>
 
       {/* Modals */}
-      <CreateLocalRouteModal
-        open={createModalOpen}
-        onOpenChange={setCreateModalOpen}
-        onSuccess={handleRuleCreated}
+      <LocalRouteModal
+        open={createModalOpen || !!editingRule}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCreateModalOpen(false);
+            setEditingRule(null);
+          }
+        }}
+        onSuccess={editingRule ? handleRuleUpdated : handleRuleCreated}
         ruleType={selectedTab}
+        existing={editingRule}
       />
-
-      {editingRule && (
-        <EditLocalRouteModal
-          open={!!editingRule}
-          onOpenChange={(open) => !open && setEditingRule(null)}
-          onSuccess={handleRuleUpdated}
-          rule={editingRule}
-          ruleType={selectedTab}
-        />
-      )}
 
       {deletingRule && (
         <DeleteLocalRouteModal

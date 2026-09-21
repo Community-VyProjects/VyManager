@@ -8,82 +8,85 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AlertCircle, Loader2, Info, Eye } from "lucide-react";
 import { extcommunityListService, type ExtCommunityListCapabilities, type ExtCommunityListRule } from "@/lib/api/extcommunity-list";
+import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
+import {
+  extCommunityRuleDraftFrom,
+  nextRuleNumber,
+  submitExtCommunityRuleCreate,
+  submitExtCommunityRuleUpdate,
+  validateExtCommunityRule,
+  type ExtCommunityRuleDraft,
+} from "./policy-list-rule-form";
 
-interface EditExtCommunityListRuleModalProps {
+interface ExtCommunityListRuleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   extcommunityListName: string;
-  rule: ExtCommunityListRule;
   capabilities: ExtCommunityListCapabilities | null;
+  existing?: ExtCommunityListRule | null;
 }
 
-export function EditExtCommunityListRuleModal({
+export function ExtCommunityListRuleModal({
   open,
   onOpenChange,
   onSuccess,
   extcommunityListName,
-  rule,
-}: EditExtCommunityListRuleModalProps) {
+  existing,
+}: ExtCommunityListRuleModalProps) {
+  const isEdit = modalIsEdit(existing);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Form fields
+  const [ruleNumber, setRuleNumber] = useState<number>(100);
+
   const [description, setDescription] = useState("");
   const [action, setAction] = useState<"permit" | "deny">("permit");
   const [matchType, setMatchType] = useState<"rt" | "soo" | "regex">("rt");
 
   // Separate fields for the three-part format aa:nn:nn
-  const [adminField, setAdminField] = useState("");      // First part (aa) - AS number
+  const [adminField, setAdminField] = useState("");      // First part (aa) - AS number or IP
   const [assignedNum1, setAssignedNum1] = useState("");  // Second part (nn)
   const [assignedNum2, setAssignedNum2] = useState("");  // Third part (nn)
 
   // Raw regex for advanced mode
   const [rawRegex, setRawRegex] = useState("");
 
-  // Parse the existing regex to determine matchType and values (three-part format aa:nn:nn)
-  const parseRegex = (regex: string): { matchType: "rt" | "soo" | "regex"; adminField: string; assignedNum1: string; assignedNum2: string; rawRegex: string } => {
-    if (!regex) {
-      return { matchType: "rt", adminField: "", assignedNum1: "", assignedNum2: "", rawRegex: "" };
-    }
-
-    // Check for rt or soo prefix with three-part format (aa:nn:nn)
-    const rtMatch = regex.match(/^rt\s+(\d+):(\d+):(\d+)$/);
-    if (rtMatch) {
-      return { matchType: "rt", adminField: rtMatch[1], assignedNum1: rtMatch[2], assignedNum2: rtMatch[3], rawRegex: "" };
-    }
-
-    const sooMatch = regex.match(/^soo\s+(\d+):(\d+):(\d+)$/);
-    if (sooMatch) {
-      return { matchType: "soo", adminField: sooMatch[1], assignedNum1: sooMatch[2], assignedNum2: sooMatch[3], rawRegex: "" };
-    }
-
-    // If it doesn't match the standard format, treat as regex
-    return { matchType: "regex", adminField: "", assignedNum1: "", assignedNum2: "", rawRegex: regex };
-  };
-
   useEffect(() => {
-    if (open && rule) {
-      setDescription(rule.description || "");
-      setAction(rule.action as "permit" | "deny");
-
-      const parsed = parseRegex(rule.regex || "");
-      setMatchType(parsed.matchType);
-      setAdminField(parsed.adminField);
-      setAssignedNum1(parsed.assignedNum1);
-      setAssignedNum2(parsed.assignedNum2);
-      setRawRegex(parsed.rawRegex);
-
-      setError(null);
+    if (!open) return;
+    setError(null);
+    if (existing) {
+      const d = extCommunityRuleDraftFrom(existing);
+      setRuleNumber(d.ruleNumber);
+      setDescription(d.description);
+      setAction(d.action);
+      setMatchType(d.matchType);
+      setAdminField(d.adminField);
+      setAssignedNum1(d.assignedNum1);
+      setAssignedNum2(d.assignedNum2);
+      setRawRegex(d.rawRegex);
+    } else {
+      resetForm();
+      extcommunityListService.getConfig().then((config) => {
+        const list = config.extcommunity_lists.find((ecl) => ecl.name === extcommunityListName);
+        setRuleNumber(nextRuleNumber(list?.rules ?? []));
+      }).catch((err) => {
+        console.error("Failed to calculate next rule number:", err);
+        setRuleNumber(100);
+      });
     }
-  }, [open, rule]);
+  }, [open, existing, extcommunityListName]);
 
-  const buildRegexPattern = (): string => {
-    if (matchType === "regex") {
-      return rawRegex.trim();
-    }
-    // For rt and soo, build the pattern in aa:nn:nn format
-    return `${matchType} ${adminField.trim()}:${assignedNum1.trim()}:${assignedNum2.trim()}`;
+  const resetForm = () => {
+    setDescription("");
+    setAction("permit");
+    setMatchType("rt");
+    setAdminField("");
+    setAssignedNum1("");
+    setAssignedNum2("");
+    setRawRegex("");
+    setError(null);
   };
 
   const getPreview = (): string => {
@@ -96,76 +99,56 @@ export function EditExtCommunityListRuleModal({
     return `${matchType} ${admin}:${num1}:${num2}`;
   };
 
-  const handleSubmit = async () => {
-    // Validation
-    if (matchType === "regex") {
-      if (!rawRegex.trim()) {
-        setError("Regex pattern is required");
-        return;
-      }
-    } else {
-      if (!adminField.trim()) {
-        setError("Administrator field (AS Number) is required");
-        return;
-      }
-      if (!assignedNum1.trim()) {
-        setError("Assigned Number 1 is required");
-        return;
-      }
-      if (!assignedNum2.trim()) {
-        setError("Assigned Number 2 is required");
-        return;
-      }
-      // Validate all fields are numeric
-      if (!/^\d+$/.test(adminField.trim())) {
-        setError("Administrator field must be a valid number (e.g., 65000)");
-        return;
-      }
-      if (!/^\d+$/.test(assignedNum1.trim())) {
-        setError("Assigned Number 1 must be a valid number");
-        return;
-      }
-      if (!/^\d+$/.test(assignedNum2.trim())) {
-        setError("Assigned Number 2 must be a valid number");
-        return;
-      }
-    }
+  const collectDraft = (): ExtCommunityRuleDraft => ({
+    ruleNumber,
+    description,
+    action,
+    matchType,
+    adminField,
+    assignedNum1,
+    assignedNum2,
+    rawRegex,
+  });
 
+  const handleSubmit = async () => {
+    const draft = collectDraft();
+    const validationError = validateExtCommunityRule(draft);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+    const write = modalWriteKind(existing ? { name: String(existing.rule_number) } : null);
     setLoading(true);
     setError(null);
-
     try {
-      const regexValue = buildRegexPattern();
-
-      await extcommunityListService.updateRule(extcommunityListName, rule.rule_number, {
-        description: description.trim() || undefined,
-        action,
-        regex: regexValue,
-      });
-
+      const result =
+        write.kind === "update" && existing
+          ? await submitExtCommunityRuleUpdate(extcommunityListName, existing, draft)
+          : await submitExtCommunityRuleCreate(extcommunityListName, draft);
+      if (result && result.success === false) {
+        setError(result.error || "Operation failed");
+        return;
+      }
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update rule");
+      setError(err instanceof Error ? err.message : isEdit ? "Failed to update rule" : "Failed to create rule");
     } finally {
       setLoading(false);
     }
   };
 
   const handleClose = () => {
-    if (!loading) {
-      setError(null);
-      onOpenChange(false);
-    }
+    if (!loading) onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
-          <DialogTitle>Edit Extended Community Rule #{rule.rule_number}</DialogTitle>
+          <DialogTitle>{isEdit ? `Edit Rule #${lockedIdentity(existing, (r) => String(r.rule_number), String(ruleNumber)).value}` : "Add Extended Community Rule"}</DialogTitle>
           <DialogDescription>
-            Editing rule in ExtCommunity list: <span className="font-medium">{extcommunityListName}</span>
+            {isEdit ? `Editing rule in ExtCommunity list: ` : "Add a new rule to ExtCommunity list: "}<span className="font-medium">{extcommunityListName}</span>
           </DialogDescription>
         </DialogHeader>
 
@@ -180,8 +163,8 @@ export function EditExtCommunityListRuleModal({
               disabled={loading}
             >
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="permit" id="edit-permit" />
-                <Label htmlFor="edit-permit" className="font-normal cursor-pointer">
+                <RadioGroupItem value="permit" id="permit" />
+                <Label htmlFor="permit" className="font-normal cursor-pointer">
                   <span className="inline-flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-green-500"></span>
                     Permit
@@ -189,8 +172,8 @@ export function EditExtCommunityListRuleModal({
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="deny" id="edit-deny" />
-                <Label htmlFor="edit-deny" className="font-normal cursor-pointer">
+                <RadioGroupItem value="deny" id="deny" />
+                <Label htmlFor="deny" className="font-normal cursor-pointer">
                   <span className="inline-flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-red-500"></span>
                     Deny
@@ -210,27 +193,27 @@ export function EditExtCommunityListRuleModal({
               disabled={loading}
             >
               <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                <RadioGroupItem value="rt" id="edit-rt" className="mt-0.5" />
+                <RadioGroupItem value="rt" id="rt" className="mt-0.5" />
                 <div className="flex-1">
-                  <Label htmlFor="edit-rt" className="font-medium cursor-pointer">Route Target (RT)</Label>
+                  <Label htmlFor="rt" className="font-medium cursor-pointer">Route Target (RT)</Label>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Used for VPN route distribution between VRFs
                   </p>
                 </div>
               </div>
               <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                <RadioGroupItem value="soo" id="edit-soo" className="mt-0.5" />
+                <RadioGroupItem value="soo" id="soo" className="mt-0.5" />
                 <div className="flex-1">
-                  <Label htmlFor="edit-soo" className="font-medium cursor-pointer">Site of Origin (SoO)</Label>
+                  <Label htmlFor="soo" className="font-medium cursor-pointer">Site of Origin (SoO)</Label>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Used to prevent routing loops in multi-homed sites
                   </p>
                 </div>
               </div>
               <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                <RadioGroupItem value="regex" id="edit-regex" className="mt-0.5" />
+                <RadioGroupItem value="regex" id="regex" className="mt-0.5" />
                 <div className="flex-1">
-                  <Label htmlFor="edit-regex" className="font-medium cursor-pointer">Advanced (Regex Pattern)</Label>
+                  <Label htmlFor="regex" className="font-medium cursor-pointer">Advanced (Regex Pattern)</Label>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Enter a custom regex pattern for complex matching
                   </p>
@@ -248,9 +231,9 @@ export function EditExtCommunityListRuleModal({
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-adminField">AS Number</Label>
+                  <Label htmlFor="adminField">AS Number</Label>
                   <Input
-                    id="edit-adminField"
+                    id="adminField"
                     placeholder="65000"
                     value={adminField}
                     onChange={(e) => setAdminField(e.target.value)}
@@ -264,9 +247,9 @@ export function EditExtCommunityListRuleModal({
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-assignedNum1">Value 1</Label>
+                  <Label htmlFor="assignedNum1">Value 1</Label>
                   <Input
-                    id="edit-assignedNum1"
+                    id="assignedNum1"
                     placeholder="100"
                     value={assignedNum1}
                     onChange={(e) => setAssignedNum1(e.target.value)}
@@ -280,9 +263,9 @@ export function EditExtCommunityListRuleModal({
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-assignedNum2">Value 2</Label>
+                  <Label htmlFor="assignedNum2">Value 2</Label>
                   <Input
-                    id="edit-assignedNum2"
+                    id="assignedNum2"
                     placeholder="200"
                     value={assignedNum2}
                     onChange={(e) => setAssignedNum2(e.target.value)}
@@ -307,9 +290,9 @@ export function EditExtCommunityListRuleModal({
                 Enter a regex pattern to match extended communities
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-rawRegex">Regex Pattern</Label>
+                <Label htmlFor="rawRegex">Regex Pattern</Label>
                 <Input
-                  id="edit-rawRegex"
+                  id="rawRegex"
                   placeholder="e.g., rt 65000:100:200 or soo 65000:.*:.*"
                   value={rawRegex}
                   onChange={(e) => setRawRegex(e.target.value)}
@@ -337,9 +320,9 @@ export function EditExtCommunityListRuleModal({
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="edit-description">Description (Optional)</Label>
+            <Label htmlFor="description">Description (Optional)</Label>
             <Input
-              id="edit-description"
+              id="description"
               placeholder="e.g., Allow route targets from datacenter"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -361,7 +344,7 @@ export function EditExtCommunityListRuleModal({
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {loading ? "Saving..." : "Save Changes"}
+            {loading ? "Creating..." : "Create Rule"}
           </Button>
         </DialogFooter>
       </DialogContent>

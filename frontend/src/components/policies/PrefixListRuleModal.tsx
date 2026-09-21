@@ -7,26 +7,39 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle } from "lucide-react";
-import { prefixListService, type PrefixList } from "@/lib/api/prefix-list";
+import { type PrefixList, type PrefixListRule } from "@/lib/api/prefix-list";
+import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
+import {
+  nextRuleNumber,
+  prefixListRuleDraftFrom,
+  submitPrefixListCreate,
+  submitPrefixListUpdate,
+  validatePrefixListRule,
+  type PrefixListRuleDraft,
+} from "./prefix-list-rule-form";
 
-interface AddPrefixListRuleModalProps {
+interface PrefixListRuleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   prefixList: PrefixList | null;
+  existing?: PrefixListRule | null;
 }
 
-export function AddPrefixListRuleModal({
+export function PrefixListRuleModal({
   open,
   onOpenChange,
   onSuccess,
   prefixList,
-}: AddPrefixListRuleModalProps) {
+  existing,
+}: PrefixListRuleModalProps) {
+  const isEdit = modalIsEdit(existing);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Form fields
   const [ruleNumber, setRuleNumber] = useState(100);
+
   const [action, setAction] = useState<"permit" | "deny">("permit");
   const [ruleDescription, setRuleDescription] = useState("");
   const [prefix, setPrefix] = useState("");
@@ -34,16 +47,21 @@ export function AddPrefixListRuleModal({
   const [le, setLe] = useState("");
 
   useEffect(() => {
-    if (open && prefixList) {
-      // Calculate next rule number
-      const ruleNumbers = prefixList.rules.map(r => r.rule_number);
-      if (ruleNumbers.length === 0) {
-        setRuleNumber(100);
-      } else {
-        setRuleNumber(Math.max(...ruleNumbers) + 1);
-      }
+    if (!open) return;
+    setError(null);
+    if (existing) {
+      const d = prefixListRuleDraftFrom(existing);
+      setRuleNumber(d.ruleNumber);
+      setAction(d.action);
+      setRuleDescription(d.description);
+      setPrefix(d.prefix);
+      setGe(d.ge);
+      setLe(d.le);
+    } else {
+      resetForm();
+      setRuleNumber(nextRuleNumber(prefixList?.rules ?? []));
     }
-  }, [open, prefixList]);
+  }, [open, existing, prefixList]);
 
   const resetForm = () => {
     setRuleNumber(100);
@@ -60,111 +78,39 @@ export function AddPrefixListRuleModal({
     onOpenChange(false);
   };
 
-  // Validate CIDR notation
-  const validateCIDR = (cidr: string): boolean => {
-    if (!cidr) return false;
-
-    const parts = cidr.split('/');
-    if (parts.length !== 2) return false;
-
-    const [ip, prefixLen] = parts;
-    const prefixLength = parseInt(prefixLen, 10);
-
-    if (!prefixList) return false;
-
-    if (prefixList.list_type === "ipv4") {
-      // IPv4 validation
-      const ipParts = ip.split('.');
-      if (ipParts.length !== 4) return false;
-      if (!ipParts.every(part => {
-        const num = parseInt(part, 10);
-        return num >= 0 && num <= 255;
-      })) return false;
-      if (isNaN(prefixLength) || prefixLength < 0 || prefixLength > 32) return false;
-    } else {
-      // IPv6 validation (basic)
-      if (isNaN(prefixLength) || prefixLength < 0 || prefixLength > 128) return false;
-    }
-
-    return true;
-  };
+  const collectDraft = (): PrefixListRuleDraft => ({
+    ruleNumber,
+    action,
+    description: ruleDescription,
+    prefix,
+    ge,
+    le,
+  });
 
   const handleSubmit = async () => {
     if (!prefixList) return;
-
-    // Validation
-    if (!prefix.trim()) {
-      setError("Please enter a prefix in CIDR notation");
+    const draft = collectDraft();
+    const validationError = validatePrefixListRule(draft, prefixList.list_type);
+    if (validationError) {
+      setError(validationError);
       return;
     }
-
-    if (!validateCIDR(prefix)) {
-      setError(`Invalid ${prefixList.list_type.toUpperCase()} CIDR notation. Format: ${prefixList.list_type === "ipv4" ? "192.168.1.0/24" : "2001:db8::/32"}`);
-      return;
-    }
-
-    // Validate ge/le if provided
-    if (ge && isNaN(parseInt(ge, 10))) {
-      setError("GE must be a valid number");
-      return;
-    }
-
-    if (le && isNaN(parseInt(le, 10))) {
-      setError("LE must be a valid number");
-      return;
-    }
-
-    // Get prefix length from CIDR
-    const prefixLength = parseInt(prefix.split('/')[1], 10);
-    const maxLength = prefixList.list_type === "ipv4" ? 32 : 128;
-
-    if (ge) {
-      const geNum = parseInt(ge, 10);
-      if (geNum < prefixLength || geNum > maxLength) {
-        setError(`GE must be between ${prefixLength} (prefix length) and ${maxLength}`);
-        return;
-      }
-    }
-
-    if (le) {
-      const leNum = parseInt(le, 10);
-      if (leNum < prefixLength || leNum > maxLength) {
-        setError(`LE must be between ${prefixLength} (prefix length) and ${maxLength}`);
-        return;
-      }
-    }
-
-    if (ge && le) {
-      const geNum = parseInt(ge, 10);
-      const leNum = parseInt(le, 10);
-      if (geNum > leNum) {
-        setError("GE must be less than or equal to LE");
-        return;
-      }
-    }
-
+    const write = modalWriteKind(existing ? { name: String(existing.rule_number) } : null);
     setLoading(true);
     setError(null);
-
     try {
-      const newRule: Record<string, unknown> = {
-        rule_number: ruleNumber,
-        action,
-        description: ruleDescription || null,
-        prefix: prefix.trim(),
-        ge: ge ? parseInt(ge, 10) : null,
-        le: le ? parseInt(le, 10) : null,
-      };
-
-      await prefixListService.addRule(
-        prefixList.name,
-        prefixList.list_type,
-        newRule
-      );
-      handleClose();
+      const result =
+        write.kind === "update" && existing
+          ? await submitPrefixListUpdate(prefixList.name, prefixList.list_type, existing, draft)
+          : await submitPrefixListCreate(prefixList.name, prefixList.list_type, draft);
+      if (result && result.success === false) {
+        setError(result.error || "Operation failed");
+        return;
+      }
+      onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add rule");
+      setError(err instanceof Error ? err.message : isEdit ? "Failed to update rule" : "Failed to add rule");
     } finally {
       setLoading(false);
     }
@@ -176,9 +122,9 @@ export function AddPrefixListRuleModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Rule to {prefixList.name}</DialogTitle>
+          <DialogTitle>{isEdit ? `Edit Rule #${lockedIdentity(existing, (r) => String(r.rule_number), String(ruleNumber)).value}` : `Add Rule to ${prefixList.name}`}</DialogTitle>
           <DialogDescription>
-            Create a new rule for this prefix list
+            {isEdit ? "Update this prefix list rule" : "Create a new rule for this prefix list"}
           </DialogDescription>
         </DialogHeader>
 

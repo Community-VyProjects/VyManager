@@ -51,7 +51,7 @@ export interface AsPathListBatchRequest {
 // API Service
 // ============================================================================
 
-class AsPathListService {
+export class AsPathListService {
   /**
    * Get capabilities based on VyOS version
    */

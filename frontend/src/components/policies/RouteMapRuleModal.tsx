@@ -8,13 +8,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { AlertCircle, X, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { routeMapService } from "@/lib/api/route-map";
 import type { RouteMapRule, MatchConditions, SetActions } from "@/lib/api/route-map";
+import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
+import {
+  nextRuleNumber,
+  submitRouteMapCreate,
+  submitRouteMapUpdate,
+  type RouteMapRuleDraft,
+} from "./route-map-rule-form";
 import { asPathListService } from "@/lib/api/as-path-list";
 import { communityListService } from "@/lib/api/community-list";
 import { extcommunityListService } from "@/lib/api/extcommunity-list";
@@ -22,23 +29,30 @@ import { largeCommunityListService } from "@/lib/api/large-community-list";
 import { accessListService } from "@/lib/api/access-list";
 import { prefixListService } from "@/lib/api/prefix-list";
 
-interface EditRouteMapRuleModalProps {
+interface RouteMapRuleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   routeMapName: string;
-  rule: RouteMapRule | null;
+  existingRules: RouteMapRule[];
+  existing?: RouteMapRule | null;
 }
 
-export function EditRouteMapRuleModal({
+export function RouteMapRuleModal({
   open,
   onOpenChange,
   onSuccess,
   routeMapName,
-  rule,
-}: EditRouteMapRuleModalProps) {
+  existingRules,
+  existing,
+}: RouteMapRuleModalProps) {
+  const isEdit = modalIsEdit(existing);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Auto-calculated rule number
+  const [ruleNumber, setRuleNumber] = useState<number>(100);
+
 
   // Basic fields
   const [ruleDescription, setRuleDescription] = useState("");
@@ -105,6 +119,7 @@ export function EditRouteMapRuleModal({
   // Community Delete
   const [communityDeleteValues, setCommunityDeleteValues] = useState<string[]>([]);
   const [communityDeleteEnabled, setCommunityDeleteEnabled] = useState(false);
+  const [, setNewCommunityDelete] = useState("");
   // Community Replace
   const [communityReplaceValues, setCommunityReplaceValues] = useState<string[]>([]);
   const [communityReplaceEnabled, setCommunityReplaceEnabled] = useState(false);
@@ -112,7 +127,6 @@ export function EditRouteMapRuleModal({
   // Community Remove All
   const [communityRemoveAll, setCommunityRemoveAll] = useState(false);
 
-  // Large Communities (restructured for multiple actions)
   // Large Community Add
   const [largeCommunityAddValues, setLargeCommunityAddValues] = useState<string[]>([]);
   const [largeCommunityAddEnabled, setLargeCommunityAddEnabled] = useState(false);
@@ -120,13 +134,13 @@ export function EditRouteMapRuleModal({
   // Large Community Delete
   const [largeCommunityDeleteValues, setLargeCommunityDeleteValues] = useState<string[]>([]);
   const [largeCommunityDeleteEnabled, setLargeCommunityDeleteEnabled] = useState(false);
+  const [, setNewLargeCommunityDelete] = useState("");
   // Large Community Replace
   const [largeCommunityReplaceValues, setLargeCommunityReplaceValues] = useState<string[]>([]);
   const [largeCommunityReplaceEnabled, setLargeCommunityReplaceEnabled] = useState(false);
   const [newLargeCommunityReplace, setNewLargeCommunityReplace] = useState("");
   // Large Community Remove All
   const [largeCommunityRemoveAll, setLargeCommunityRemoveAll] = useState(false);
-
   const [setExtcommunityBandwidth, setSetExtcommunityBandwidth] = useState("");
   const [setExtcommunityRt, setSetExtcommunityRt] = useState("");
   const [setExtcommunitySoo, setSetExtcommunitySoo] = useState("");
@@ -206,14 +220,19 @@ export function EditRouteMapRuleModal({
     }
   };
 
-  // Load rule data when modal opens
   useEffect(() => {
-    if (open && rule) {
-      loadRuleData(rule);
+    if (!open) return;
+    if (existing) {
+      loadRuleData(existing);
+    } else {
+      setRuleNumber(nextRuleNumber(existingRules));
     }
-  }, [open, rule]);
+  }, [open, existing, existingRules]);
 
-  // Community action toggle handlers with mutual exclusivity
+  // Community list names are already loaded in communityLists, largeCommunityLists, extcommunityLists
+  // We'll use those directly for the delete dropdowns
+
+  // Community Action Toggle Handlers with Mutual Exclusivity
   const handleCommunityActionToggle = (action: 'add' | 'delete' | 'replace' | 'removeAll') => {
     if (action === 'add') {
       const newState = !communityAddEnabled;
@@ -259,34 +278,6 @@ export function EditRouteMapRuleModal({
     }
   };
 
-  // Community Add handlers
-  const handleAddCommunityAdd = () => {
-    if (newCommunityAdd.trim()) {
-      setCommunityAddValues([...communityAddValues, newCommunityAdd.trim()]);
-      setNewCommunityAdd("");
-    }
-  };
-  const handleRemoveCommunityAdd = (index: number) => {
-    setCommunityAddValues(communityAddValues.filter((_, i) => i !== index));
-  };
-
-  // Community Delete handlers
-  const handleRemoveCommunityDelete = (index: number) => {
-    setCommunityDeleteValues(communityDeleteValues.filter((_, i) => i !== index));
-  };
-
-  // Community Replace handlers
-  const handleAddCommunityReplace = () => {
-    if (newCommunityReplace.trim()) {
-      setCommunityReplaceValues([...communityReplaceValues, newCommunityReplace.trim()]);
-      setNewCommunityReplace("");
-    }
-  };
-  const handleRemoveCommunityReplace = (index: number) => {
-    setCommunityReplaceValues(communityReplaceValues.filter((_, i) => i !== index));
-  };
-
-  // Large Community action toggle handlers with mutual exclusivity
   const handleLargeCommunityActionToggle = (action: 'add' | 'delete' | 'replace' | 'removeAll') => {
     if (action === 'add') {
       const newState = !largeCommunityAddEnabled;
@@ -328,7 +319,32 @@ export function EditRouteMapRuleModal({
     }
   };
 
-  // Large Community Add handlers
+  // Community Add/Remove Handlers
+  const handleAddCommunityAdd = () => {
+    if (newCommunityAdd.trim()) {
+      setCommunityAddValues([...communityAddValues, newCommunityAdd.trim()]);
+      setNewCommunityAdd("");
+    }
+  };
+  const handleRemoveCommunityAdd = (index: number) => {
+    setCommunityAddValues(communityAddValues.filter((_, i) => i !== index));
+  };
+
+  const handleRemoveCommunityDelete = (index: number) => {
+    setCommunityDeleteValues(communityDeleteValues.filter((_, i) => i !== index));
+  };
+
+  const handleAddCommunityReplace = () => {
+    if (newCommunityReplace.trim()) {
+      setCommunityReplaceValues([...communityReplaceValues, newCommunityReplace.trim()]);
+      setNewCommunityReplace("");
+    }
+  };
+  const handleRemoveCommunityReplace = (index: number) => {
+    setCommunityReplaceValues(communityReplaceValues.filter((_, i) => i !== index));
+  };
+
+  // Large Community Add/Remove Handlers
   const handleAddLargeCommunityAdd = () => {
     if (newLargeCommunityAdd.trim()) {
       setLargeCommunityAddValues([...largeCommunityAddValues, newLargeCommunityAdd.trim()]);
@@ -339,12 +355,10 @@ export function EditRouteMapRuleModal({
     setLargeCommunityAddValues(largeCommunityAddValues.filter((_, i) => i !== index));
   };
 
-  // Large Community Delete handlers
   const handleRemoveLargeCommunityDelete = (index: number) => {
     setLargeCommunityDeleteValues(largeCommunityDeleteValues.filter((_, i) => i !== index));
   };
 
-  // Large Community Replace handlers
   const handleAddLargeCommunityReplace = () => {
     if (newLargeCommunityReplace.trim()) {
       setLargeCommunityReplaceValues([...largeCommunityReplaceValues, newLargeCommunityReplace.trim()]);
@@ -353,6 +367,107 @@ export function EditRouteMapRuleModal({
   };
   const handleRemoveLargeCommunityReplace = (index: number) => {
     setLargeCommunityReplaceValues(largeCommunityReplaceValues.filter((_, i) => i !== index));
+  };
+
+  const resetForm = () => {
+    setRuleDescription("");
+    setAction("permit");
+    setCall("");
+    setContinueRule("");
+    setOnMatchGoto("");
+    setOnMatchNext(false);
+
+    // Reset all match conditions
+    setMatchAsPath("");
+    setMatchCommunityList("");
+    setMatchCommunityExact(false);
+    setMatchExtcommunity("");
+    setMatchLargeCommunityList("");
+    setMatchLocalPref("");
+    setMatchMetric("");
+    setMatchOrigin("");
+    setMatchPeer("");
+    setMatchRpki("");
+    setMatchIpAddressAccessList("");
+    setMatchIpAddressPrefixList("");
+    setMatchIpAddressPrefixLen("");
+    setMatchIpv6AddressAccessList("");
+    setMatchIpv6AddressPrefixList("");
+    setMatchIpv6AddressPrefixLen("");
+    setMatchIpNexthopAccessList("");
+    setMatchIpNexthopAddress("");
+    setMatchIpNexthopPrefixLen("");
+    setMatchIpNexthopPrefixList("");
+    setMatchIpNexthopType(false);
+    setMatchIpv6NexthopAccessList("");
+    setMatchIpv6NexthopAddress("");
+    setMatchIpv6NexthopPrefixLen("");
+    setMatchIpv6NexthopPrefixList("");
+    setMatchIpv6NexthopType(false);
+    setMatchIpRouteSourceAccessList("");
+    setMatchIpRouteSourcePrefixList("");
+    setMatchInterface("");
+    setMatchProtocol("");
+    setMatchSourceVrf("");
+    setMatchTag("");
+
+    // Reset all set actions
+    setSetAsPathExclude("");
+    setSetAsPathPrepend("");
+    setSetAsPathPrependLastAs("");
+    // Reset community actions
+    setCommunityAddValues([]);
+    setCommunityAddEnabled(false);
+    setNewCommunityAdd("");
+    setCommunityDeleteValues([]);
+    setCommunityDeleteEnabled(false);
+    setNewCommunityDelete("");
+    setCommunityReplaceValues([]);
+    setCommunityReplaceEnabled(false);
+    setNewCommunityReplace("");
+    setCommunityRemoveAll(false);
+    // Reset large community actions
+    setLargeCommunityAddValues([]);
+    setLargeCommunityAddEnabled(false);
+    setNewLargeCommunityAdd("");
+    setLargeCommunityDeleteValues([]);
+    setLargeCommunityDeleteEnabled(false);
+    setNewLargeCommunityDelete("");
+    setLargeCommunityReplaceValues([]);
+    setLargeCommunityReplaceEnabled(false);
+    setNewLargeCommunityReplace("");
+    setLargeCommunityRemoveAll(false);
+    setSetExtcommunityBandwidth("");
+    setSetExtcommunityRt("");
+    setSetExtcommunitySoo("");
+    setSetExtcommunityNone(false);
+    setSetAtomicAggregate(false);
+    setSetAggregatorAs("");
+    setSetAggregatorIp("");
+    setSetLocalPref("");
+    setSetOrigin("");
+    setSetOriginatorId("");
+    setSetWeight("");
+    setSetIpNexthop("");
+    setSetIpNexthopPeerAddress(false);
+    setSetIpNexthopUnchanged(false);
+    setSetIpv6NexthopGlobal("");
+    setSetIpv6NexthopLocal("");
+    setSetIpv6NexthopPeerAddress(false);
+    setSetIpv6NexthopPreferGlobal(false);
+    setSetDistance("");
+    setSetMetric("");
+    setSetMetricType("");
+    setSetSrc("");
+    setSetTable("");
+    setSetTag("");
+
+    setError(null);
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onOpenChange(false);
   };
 
   const loadRuleData = (ruleData: RouteMapRule) => {
@@ -493,14 +608,7 @@ export function EditRouteMapRuleModal({
 
 
 
-  const handleClose = () => {
-    setError(null);
-    onOpenChange(false);
-  };
-
   const handleSubmit = async () => {
-    if (!rule) return;
-
     setLoading(true);
     setError(null);
 
@@ -545,7 +653,6 @@ export function EditRouteMapRuleModal({
       if (setAsPathExclude.trim()) set.as_path_exclude = setAsPathExclude.trim();
       if (setAsPathPrepend.trim()) set.as_path_prepend = setAsPathPrepend.trim();
       if (setAsPathPrependLastAs.trim()) set.as_path_prepend_last_as = parseInt(setAsPathPrependLastAs);
-
       // Handle communities - send all enabled actions in single payload
       if (communityAddEnabled && communityAddValues.length > 0) {
         set.community_add_values = communityAddValues;
@@ -573,7 +680,6 @@ export function EditRouteMapRuleModal({
       if (largeCommunityRemoveAll) {
         set.large_community_remove_all = true;
       }
-
       if (setExtcommunityBandwidth.trim()) set.extcommunity_bandwidth = setExtcommunityBandwidth.trim();
       if (setExtcommunityRt.trim()) set.extcommunity_rt = setExtcommunityRt.trim();
       if (setExtcommunitySoo.trim()) set.extcommunity_soo = setExtcommunitySoo.trim();
@@ -604,38 +710,42 @@ export function EditRouteMapRuleModal({
       if (setTable.trim()) set.table = parseInt(setTable);
       if (setTag.trim()) set.tag = parseInt(setTag);
 
-      const updatedRule: Record<string, unknown> = {
-        rule_number: rule.rule_number,
-        description: ruleDescription.trim() || null,
+      const draft: RouteMapRuleDraft = {
+        ruleNumber,
+        description: ruleDescription,
         action,
-        call: call.trim() || null,
-        continue_rule: continueRule.trim() ? parseInt(continueRule) : null,
-        on_match_goto: onMatchGoto.trim() ? parseInt(onMatchGoto) : null,
-        on_match_next: onMatchNext,
+        call,
+        continueRule,
+        onMatchGoto,
+        onMatchNext,
         match,
         set,
       };
-
-      await routeMapService.updateRule(routeMapName, rule.rule_number, updatedRule);
-
-      handleClose();
+      const write = modalWriteKind(existing ? { name: String(existing.rule_number) } : null);
+      const result =
+        write.kind === "update" && existing
+          ? await submitRouteMapUpdate(routeMapName, existing, draft)
+          : await submitRouteMapCreate(routeMapName, draft);
+      if (result && result.success === false) {
+        setError(result.error || "Operation failed");
+        return;
+      }
+      onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update rule");
+      setError(err instanceof Error ? err.message : "Failed to add rule");
     } finally {
       setLoading(false);
     }
   };
 
-  if (!rule) return null;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Rule {rule.rule_number} in {routeMapName}</DialogTitle>
+          <DialogTitle>{isEdit ? `Edit Rule #${lockedIdentity(existing, (r) => String(r.rule_number), String(ruleNumber)).value}` : `Add Rule to ${routeMapName}`}</DialogTitle>
           <DialogDescription>
-            Modify match conditions and set actions for this route-map rule
+            Add a new rule with match conditions and set actions to this route-map
           </DialogDescription>
         </DialogHeader>
 
@@ -655,12 +765,12 @@ export function EditRouteMapRuleModal({
                 <Input
                   id="ruleNumber"
                   type="number"
-                  value={rule.rule_number}
+                  value={ruleNumber}
                   disabled
                   className="bg-muted"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Rule number cannot be changed
+                  Auto-calculated as next available number
                 </p>
               </div>
 
@@ -1842,7 +1952,7 @@ export function EditRouteMapRuleModal({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Updating..." : "Update Rule"}
+            {loading ? "Adding..." : "Add Rule"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -8,86 +8,102 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { asPathListService, type AsPathListCapabilities, type AsPathListRule } from "@/lib/api/as-path-list";
+import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
+import {
+  emptyRegexListRuleDraft,
+  nextRuleNumber,
+  regexListRuleDraftFrom,
+  submitAsPathRuleCreate,
+  submitAsPathRuleUpdate,
+  validateRegexListRule,
+  type RegexListRuleDraft,
+} from "./policy-list-rule-form";
 
-interface EditAsPathListRuleModalProps {
+interface AsPathListRuleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   asPathListName: string;
-  rule: AsPathListRule;
+  existing?: AsPathListRule | null;
   capabilities: AsPathListCapabilities | null;
 }
 
-export function EditAsPathListRuleModal({
+export function AsPathListRuleModal({
   open,
   onOpenChange,
   onSuccess,
   asPathListName,
-  rule,
-}: EditAsPathListRuleModalProps) {
+  existing,
+}: AsPathListRuleModalProps) {
+  const isEdit = modalIsEdit(existing);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Form fields
-  const [description, setDescription] = useState("");
-  const [action, setAction] = useState<"permit" | "deny">("permit");
-  const [regex, setRegex] = useState("");
+  const [draft, setDraft] = useState<RegexListRuleDraft>(emptyRegexListRuleDraft());
 
   useEffect(() => {
-    if (open && rule) {
-      setDescription(rule.description || "");
-      setAction(rule.action as "permit" | "deny");
-      setRegex(rule.regex || "");
-      setError(null);
+    if (!open) return;
+    if (existing) {
+      setDraft(regexListRuleDraftFrom(existing));
+    } else {
+      setDraft(emptyRegexListRuleDraft());
+      asPathListService.getConfig().then((config) => {
+        const list = config.as_path_lists.find((apl) => apl.name === asPathListName);
+        setDraft((d) => ({ ...d, ruleNumber: nextRuleNumber(list?.rules ?? []) }));
+      }).catch((err) => {
+        console.error("Failed to calculate next rule number:", err);
+      });
     }
-  }, [open, rule]);
+    setError(null);
+  }, [open, existing, asPathListName]);
+
+  const patch = (fields: Partial<RegexListRuleDraft>) => setDraft((d) => ({ ...d, ...fields }));
+  const lockedRule = lockedIdentity(existing, (r) => String(r.rule_number), String(draft.ruleNumber));
 
   const handleSubmit = async () => {
-    if (!regex.trim()) {
-      setError("Regex pattern is required");
+    const validationError = validateRegexListRule(draft);
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
+    const write = modalWriteKind(existing ? { name: String(existing.rule_number) } : null);
     setLoading(true);
     setError(null);
 
     try {
-      await asPathListService.updateRule(asPathListName, rule.rule_number, {
-        description: description.trim() || undefined,
-        action,
-        regex: regex.trim(),
-      });
-
+      const result =
+        write.kind === "update" && existing
+          ? await submitAsPathRuleUpdate(asPathListName, existing, draft)
+          : await submitAsPathRuleCreate(asPathListName, draft);
+      if (result && result.success === false) {
+        setError(result.error || "Operation failed");
+        return;
+      }
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update rule");
+      setError(err instanceof Error ? err.message : isEdit ? "Failed to update rule" : "Failed to create rule");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleClose = () => {
-    if (!loading) {
-      setError(null);
-      onOpenChange(false);
-    }
-  };
-
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={(next) => { if (!next && !loading) onOpenChange(false); }}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Edit Rule #{rule.rule_number}</DialogTitle>
+          <DialogTitle>{isEdit ? `Edit Rule #${lockedRule.value}` : "Add Rule"}</DialogTitle>
           <DialogDescription>
-            Editing rule in AS path list: {asPathListName}
+            {isEdit
+              ? `Editing rule in AS path list: ${asPathListName}`
+              : `Add a new rule to AS path list: ${asPathListName} (Rule #${draft.ruleNumber})`}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="action">Action *</Label>
-            <Select value={action} onValueChange={(v) => setAction(v as "permit" | "deny")} disabled={loading}>
+            <Select value={draft.action} onValueChange={(v) => patch({ action: v as "permit" | "deny" })} disabled={loading}>
               <SelectTrigger id="action">
                 <SelectValue />
               </SelectTrigger>
@@ -103,8 +119,8 @@ export function EditAsPathListRuleModal({
             <Input
               id="regex"
               placeholder="e.g., ^65000_"
-              value={regex}
-              onChange={(e) => setRegex(e.target.value)}
+              value={draft.regex}
+              onChange={(e) => patch({ regex: e.target.value })}
               disabled={loading}
             />
             <p className="text-xs text-muted-foreground">
@@ -117,8 +133,8 @@ export function EditAsPathListRuleModal({
             <Input
               id="description"
               placeholder="Optional description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              value={draft.description}
+              onChange={(e) => patch({ description: e.target.value })}
               disabled={loading}
             />
           </div>
@@ -132,12 +148,12 @@ export function EditAsPathListRuleModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={loading}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {loading ? "Saving..." : "Save Changes"}
+            {loading ? (isEdit ? "Saving..." : "Creating...") : isEdit ? "Save Changes" : "Create Rule"}
           </Button>
         </DialogFooter>
       </DialogContent>

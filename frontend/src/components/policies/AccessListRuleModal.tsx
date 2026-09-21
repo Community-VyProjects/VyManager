@@ -9,26 +9,39 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle } from "lucide-react";
-import { accessListService, type AccessList } from "@/lib/api/access-list";
+import { type AccessList, type AccessListRule } from "@/lib/api/access-list";
+import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
+import {
+  accessListRuleDraftFrom,
+  nextRuleNumber,
+  submitAccessListCreate,
+  submitAccessListUpdate,
+  validateAccessListRule,
+  type AccessListRuleDraft,
+} from "./access-list-rule-form";
 
-interface AddAccessListRuleModalProps {
+interface AccessListRuleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   accessList: AccessList | null;
+  existing?: AccessListRule | null;
 }
 
-export function AddAccessListRuleModal({
+export function AccessListRuleModal({
   open,
   onOpenChange,
   onSuccess,
   accessList,
-}: AddAccessListRuleModalProps) {
+  existing,
+}: AccessListRuleModalProps) {
+  const isEdit = modalIsEdit(existing);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Form fields
   const [ruleNumber, setRuleNumber] = useState(100);
+
   const [action, setAction] = useState<"permit" | "deny">("permit");
   const [ruleDescription, setRuleDescription] = useState("");
   const [sourceType, setSourceType] = useState<"any" | "host" | "network">("any");
@@ -43,16 +56,37 @@ export function AddAccessListRuleModal({
   const [destinationMask, setDestinationMask] = useState("");
 
   useEffect(() => {
-    if (open && accessList) {
-      // Calculate next rule number
-      const ruleNumbers = accessList.rules.map(r => r.rule_number);
-      if (ruleNumbers.length === 0) {
-        setRuleNumber(100);
-      } else {
-        setRuleNumber(Math.max(...ruleNumbers) + 1);
-      }
+    if (!open) return;
+    setError(null);
+    if (existing && accessList) {
+      const d = accessListRuleDraftFrom(existing, accessList.list_type);
+      setRuleNumber(d.ruleNumber);
+      setAction(d.action);
+      setRuleDescription(d.description);
+      setSourceType((d.sourceType as "any" | "host" | "network") || "any");
+      setSourceAddress(d.sourceAddress);
+      setSourceMask(d.sourceMask);
+      setSourceAny(d.sourceAny);
+      setSourceExactMatch(d.sourceExactMatch);
+      setSourceNetwork(d.sourceNetwork);
+      setDestinationType((d.destinationType as "any" | "host" | "network") || "any");
+      setDestinationAddress(d.destinationAddress);
+      setDestinationMask(d.destinationMask);
+    } else {
+      setAction("permit");
+      setRuleDescription("");
+      setSourceType("any");
+      setSourceAddress("");
+      setSourceMask("");
+      setSourceAny(false);
+      setSourceExactMatch(false);
+      setSourceNetwork("");
+      setDestinationType("any");
+      setDestinationAddress("");
+      setDestinationMask("");
+      setRuleNumber(nextRuleNumber(accessList?.rules ?? []));
     }
-  }, [open, accessList]);
+  }, [open, existing, accessList]);
 
   // Clear source fields when type changes
   useEffect(() => {
@@ -111,114 +145,46 @@ export function AddAccessListRuleModal({
     onOpenChange(false);
   };
 
+  const collectDraft = (): AccessListRuleDraft => ({
+    ruleNumber,
+    action,
+    description: ruleDescription,
+    sourceType,
+    sourceAddress,
+    sourceMask,
+    sourceAny,
+    sourceExactMatch,
+    sourceNetwork,
+    destinationType,
+    destinationAddress,
+    destinationMask,
+  });
+
   const handleSubmit = async () => {
     if (!accessList) return;
-
     const listType = accessList.list_type as "ipv4" | "ipv6";
-
-    // Validation
-    if (listType === "ipv4") {
-      // IPv4 validation
-      if (sourceType === "host" && !sourceAddress.trim()) {
-        setError("Please enter a source address for host type");
-        return;
-      }
-      if (sourceType === "network" && !sourceAddress.trim()) {
-        setError("Please enter a source address for network type");
-        return;
-      }
-      if (sourceType === "network" && !sourceMask.trim()) {
-        setError("Please enter a source mask for network type");
-        return;
-      }
-
-      // Destination validation (IPv4 only)
-      if (destinationType === "host" && !destinationAddress.trim()) {
-        setError("Please enter a destination address for host type");
-        return;
-      }
-      if (destinationType === "network" && !destinationAddress.trim()) {
-        setError("Please enter a destination address for network type");
-        return;
-      }
-      if (destinationType === "network" && !destinationMask.trim()) {
-        setError("Please enter a destination mask for network type");
-        return;
-      }
-    } else {
-      // IPv6 validation
-      if (sourceNetwork.trim()) {
-        // Validate IPv6 CIDR format
-        if (!sourceNetwork.includes('/')) {
-          setError("IPv6 network must be in CIDR format (e.g., 2001:db8::/32)");
-          return;
-        }
-      }
-
-      // At least one option must be selected
-      if (!sourceAny && !sourceExactMatch && !sourceNetwork.trim()) {
-        setError("Please select at least one source option (Any, Exact Match, or Network)");
-        return;
-      }
-
-      // Exact-match and network are mutually exclusive
-      if (sourceExactMatch && sourceNetwork.trim()) {
-        setError("Exact Match and Network cannot be used together");
-        return;
-      }
+    const draft = collectDraft();
+    const validationError = validateAccessListRule(draft, listType);
+    if (validationError) {
+      setError(validationError);
+      return;
     }
-
+    const write = modalWriteKind(existing ? { name: String(existing.rule_number) } : null);
     setLoading(true);
     setError(null);
-
     try {
-      const newRule: Record<string, unknown> = {
-        rule_number: ruleNumber,
-        action,
-        description: ruleDescription || null,
-      };
-
-      if (listType === "ipv4") {
-        // IPv4 rule - map network type to inverse-mask
-        const actualSourceType = sourceType === "network" ? "inverse-mask" : sourceType;
-        const actualDestinationType = destinationType === "network" ? "inverse-mask" : destinationType;
-
-        newRule.source_type = actualSourceType;
-        newRule.source_address = sourceAddress || null;
-        newRule.source_mask = sourceMask || null;
-        newRule.destination_type = actualDestinationType;
-        newRule.destination_address = destinationAddress || null;
-        newRule.destination_mask = destinationMask || null;
-      } else {
-        // IPv6 rule - handle combinations
-        // any can coexist with network or exact-match
-        // exact-match and network are mutually exclusive
-        if (sourceAny) {
-          newRule.source_type = "any";
-        }
-
-        if (sourceNetwork.trim()) {
-          newRule.source_address = sourceNetwork;
-          // If we don't have "any" already set, set source_type to "network"
-          if (!sourceAny) {
-            newRule.source_type = "network";
-          }
-        }
-
-        if (sourceExactMatch) {
-          newRule.source_exact_match = true;
-        }
+      const result =
+        write.kind === "update" && existing
+          ? await submitAccessListUpdate(accessList.number, listType, existing, draft)
+          : await submitAccessListCreate(accessList.number, listType, draft);
+      if (result && result.success === false) {
+        setError(result.error || "Operation failed");
+        return;
       }
-
-      await accessListService.addRule(
-        accessList.number,
-        accessList.list_type,
-        newRule
-      );
-      handleClose();
+      onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add rule");
+      setError(err instanceof Error ? err.message : isEdit ? "Failed to update rule" : "Failed to add rule");
     } finally {
       setLoading(false);
     }
@@ -232,9 +198,9 @@ export function AddAccessListRuleModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Rule to {accessList.number}</DialogTitle>
+          <DialogTitle>{isEdit ? `Edit Rule #${lockedIdentity(existing, (r) => String(r.rule_number), String(ruleNumber)).value}` : `Add Rule to ${accessList.number}`}</DialogTitle>
           <DialogDescription>
-            Create a new rule for this access list
+            {isEdit ? "Update this access list rule" : "Create a new rule for this access list"}
           </DialogDescription>
         </DialogHeader>
 

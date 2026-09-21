@@ -97,7 +97,7 @@ export interface LocalRouteBatchRequest {
 // API Service
 // ============================================================================
 
-class LocalRouteService {
+export class LocalRouteService {
   /**
    * Get capabilities based on VyOS version
    */

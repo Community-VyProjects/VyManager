@@ -21,8 +21,7 @@ import { routeService, PolicyRoute, PolicyRouteRule, RouteCapabilitiesResponse }
 import { CreateRoutePolicyModal } from "@/components/policies/CreateRoutePolicyModal";
 import { EditRoutePolicyModal } from "@/components/policies/EditRoutePolicyModal";
 import { DeleteRoutePolicyModal } from "@/components/policies/DeleteRoutePolicyModal";
-import { CreateRouteRuleModal } from "@/components/policies/CreateRouteRuleModal";
-import { EditRouteRuleModal } from "@/components/policies/EditRouteRuleModal";
+import { RouteRuleModal } from "@/components/policies/RouteRuleModal";
 import { DeleteRouteRuleModal } from "@/components/policies/DeleteRouteRuleModal";
 import { RouteRuleRow } from "@/components/policies/RouteRuleRow";
 import { RouteReorderBanner } from "@/components/policies/RouteReorderBanner";
@@ -714,27 +713,23 @@ function RoutePageInner() {
       {/* Rule Modals */}
       {selectedPolicyName && (
         <>
-          <CreateRouteRuleModal
-            open={showCreateRuleModal}
-            onOpenChange={setShowCreateRuleModal}
+          <RouteRuleModal
+            open={showCreateRuleModal || (showEditRuleModal && !!selectedRule)}
+            onOpenChange={(open) => {
+              if (!open) {
+                setShowCreateRuleModal(false);
+                setShowEditRuleModal(false);
+              }
+            }}
             onSuccess={() => fetchData(true)}
             policyType={selectedPolicyType}
             policyName={selectedPolicyName}
             capabilities={capabilities}
+            existing={showEditRuleModal ? selectedRule : null}
           />
 
           {selectedRule && (
             <>
-              <EditRouteRuleModal
-                open={showEditRuleModal}
-                onOpenChange={setShowEditRuleModal}
-                onSuccess={() => fetchData(true)}
-                policyType={selectedPolicyType}
-                policyName={selectedPolicyName}
-                rule={selectedRule}
-                capabilities={capabilities}
-              />
-
               <DeleteRouteRuleModal
                 open={showDeleteRuleModal}
                 onOpenChange={setShowDeleteRuleModal}

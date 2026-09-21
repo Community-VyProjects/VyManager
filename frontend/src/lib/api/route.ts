@@ -194,7 +194,7 @@ export interface RouteBatchRequest {
 // API Service
 // ============================================================================
 
-class RouteService {
+export class RouteService {
   /**
    * Get capabilities based on VyOS version
    */

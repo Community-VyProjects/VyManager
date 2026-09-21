@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
@@ -8,22 +8,34 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import { AlertCircle } from "lucide-react";
-import { localRouteService, type LocalRouteCapabilitiesResponse } from "@/lib/api/local-route";
+import { localRouteService, type LocalRouteCapabilitiesResponse, type LocalRouteRule } from "@/lib/api/local-route";
+import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
+import {
+  localRouteDraftFrom,
+  nextRuleNumber,
+  submitLocalRouteCreate,
+  submitLocalRouteUpdate,
+  validateLocalRoute,
+  type LocalRouteDraft,
+} from "./local-route-form";
 import { apiClient } from "@/lib/api/client";
 
-interface CreateLocalRouteModalProps {
+interface LocalRouteModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   ruleType: "ipv4" | "ipv6";
+  existing?: LocalRouteRule | null;
 }
 
-export function CreateLocalRouteModal({
+export function LocalRouteModal({
   open,
   onOpenChange,
   onSuccess,
   ruleType,
-}: CreateLocalRouteModalProps) {
+  existing,
+}: LocalRouteModalProps) {
+  const isEdit = modalIsEdit(existing);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [interfaces, setInterfaces] = useState<string[]>([]);
@@ -31,6 +43,7 @@ export function CreateLocalRouteModal({
 
   // Form fields
   const [ruleNumber, setRuleNumber] = useState(100);
+
   const [source, setSource] = useState("");
   const [destination, setDestination] = useState("");
   const [inboundInterface, setInboundInterface] = useState("");
@@ -42,31 +55,35 @@ export function CreateLocalRouteModal({
   const [table, setTable] = useState("");
   const [vrf, setVrf] = useState("");
 
-  const calculateNextRuleNumber = useCallback(async () => {
-    try {
-      const config = await localRouteService.getConfig();
-      const rules = ruleType === "ipv4" ? config.ipv4_rules : config.ipv6_rules;
-
-      if (rules.length === 0) {
-        setRuleNumber(100);
-      } else {
-        const maxNumber = Math.max(...rules.map((r) => r.rule_number));
-        setRuleNumber(maxNumber + 1);
-      }
-    } catch (err) {
-      console.error("Error calculating rule number:", err);
-      setRuleNumber(100);
-    }
-  }, [ruleType]);
-
   useEffect(() => {
-    if (open) {
-      loadCapabilities();
-      loadInterfaces();
-      calculateNextRuleNumber();
+    if (!open) return;
+    loadCapabilities();
+    loadInterfaces();
+    setError(null);
+    if (existing) {
+      const d = localRouteDraftFrom(existing);
+      setRuleNumber(d.ruleNumber);
+      setSource(d.source);
+      setDestination(d.destination);
+      setInboundInterface(d.inboundInterface);
+      setFwmark(d.fwmark);
+      setProtocol(d.protocol);
+      setSourcePort(d.sourcePort);
+      setDestinationPort(d.destinationPort);
+      setRoutingType(d.routingType);
+      setTable(d.table);
+      setVrf(d.vrf);
+    } else {
       resetForm();
+      localRouteService.getConfig().then((config) => {
+        const rules = ruleType === "ipv4" ? config.ipv4_rules : config.ipv6_rules;
+        setRuleNumber(nextRuleNumber(rules));
+      }).catch((err) => {
+        console.error("Error calculating rule number:", err);
+        setRuleNumber(100);
+      });
     }
-  }, [open, ruleType, calculateNextRuleNumber]);
+  }, [open, existing, ruleType]);
 
   const loadCapabilities = async () => {
     try {
@@ -135,147 +152,44 @@ export function CreateLocalRouteModal({
     onOpenChange(false);
   };
 
-  // Validate IPv4 address or CIDR
-  const validateIPv4 = (value: string): boolean => {
-    if (!value) return true; // Optional field
-
-    // Check if it's CIDR notation
-    if (value.includes("/")) {
-      const parts = value.split("/");
-      if (parts.length !== 2) return false;
-
-      const [ip, prefix] = parts;
-      const prefixNum = parseInt(prefix, 10);
-      if (isNaN(prefixNum) || prefixNum < 0 || prefixNum > 32) return false;
-
-      const ipParts = ip.split(".");
-      if (ipParts.length !== 4) return false;
-      return ipParts.every((part) => {
-        const num = parseInt(part, 10);
-        return num >= 0 && num <= 255;
-      });
-    }
-
-    // Plain IP address
-    const ipParts = value.split(".");
-    if (ipParts.length !== 4) return false;
-    return ipParts.every((part) => {
-      const num = parseInt(part, 10);
-      return num >= 0 && num <= 255;
-    });
-  };
-
-  // Validate IPv6 address or CIDR (basic validation)
-  const validateIPv6 = (value: string): boolean => {
-    if (!value) return true; // Optional field
-
-    // Check if it's CIDR notation
-    if (value.includes("/")) {
-      const parts = value.split("/");
-      if (parts.length !== 2) return false;
-
-      const prefixNum = parseInt(parts[1], 10);
-      if (isNaN(prefixNum) || prefixNum < 0 || prefixNum > 128) return false;
-
-      // Basic IPv6 format check
-      return parts[0].includes(":");
-    }
-
-    // Plain IPv6 address
-    return value.includes(":");
-  };
+  const collectDraft = (): LocalRouteDraft => ({
+    ruleNumber,
+    source,
+    destination,
+    inboundInterface,
+    fwmark,
+    protocol,
+    sourcePort,
+    destinationPort,
+    routingType,
+    table,
+    vrf,
+  });
 
   const handleSubmit = async () => {
-    setError(null);
-
-    // Validation based on selected routing type
-    if (routingType === "table") {
-      if (!table) {
-        setError("Table is required. Please enter 'main' or a table number (1-200).");
-        return;
-      }
-      if (table !== "main") {
-        const tableNum = parseInt(table, 10);
-        if (isNaN(tableNum) || tableNum < 1 || tableNum > 200) {
-          setError("Table must be 'main' or a number between 1-200");
-          return;
-        }
-      }
-    } else {
-      // VRF validation
-      if (!vrf) {
-        setError("VRF is required. Please enter a VRF name or 'default'.");
-        return;
-      }
-    }
-
-    // At least one matching criterion must be specified
-    if (!source && !destination && !inboundInterface && !fwmark && !protocol && !sourcePort && !destinationPort) {
-      setError("At least one matching criterion is required (source, destination, interface, protocol, port, or fwmark)");
+    const draft = collectDraft();
+    const validationError = validateLocalRoute(draft, ruleType);
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
-    // Validate source
-    if (source) {
-      const isValid = ruleType === "ipv4" ? validateIPv4(source) : validateIPv6(source);
-      if (!isValid) {
-        setError(`Invalid ${ruleType.toUpperCase()} source address format`);
-        return;
-      }
-    }
-
-    // Validate destination
-    if (destination) {
-      const isValid = ruleType === "ipv4" ? validateIPv4(destination) : validateIPv6(destination);
-      if (!isValid) {
-        setError(`Invalid ${ruleType.toUpperCase()} destination address format`);
-        return;
-      }
-    }
-
-    if (fwmark) {
-      const mark = parseInt(fwmark, 10);
-      if (isNaN(mark) || mark < 1 || mark > 2147483647) {
-        setError("Fwmark must be a number between 1 and 2147483647");
-        return;
-      }
-    }
-
-    if (sourcePort) {
-      const port = parseInt(sourcePort, 10);
-      if (isNaN(port) || port < 1 || port > 65535) {
-        setError("Source port must be a number between 1 and 65535");
-        return;
-      }
-    }
-
-    if (destinationPort) {
-      const port = parseInt(destinationPort, 10);
-      if (isNaN(port) || port < 1 || port > 65535) {
-        setError("Destination port must be a number between 1 and 65535");
-        return;
-      }
-    }
-
+    const write = modalWriteKind(existing ? { name: String(existing.rule_number) } : null);
     setLoading(true);
-
+    setError(null);
     try {
-      await localRouteService.createRule(ruleNumber, ruleType, {
-        source: source || undefined,
-        destination: destination || undefined,
-        inbound_interface: inboundInterface || undefined,
-        fwmark: fwmark || undefined,
-        protocol: protocol.trim() || undefined,
-        source_port: sourcePort || undefined,
-        destination_port: destinationPort || undefined,
-        // Only send the selected routing type
-        table: routingType === "table" ? table : undefined,
-        vrf: routingType === "vrf" ? vrf : undefined,
-      });
-      handleClose();
+      const result =
+        write.kind === "update" && existing
+          ? await submitLocalRouteUpdate(existing, draft, ruleType)
+          : await submitLocalRouteCreate(draft, ruleType);
+      if (result && result.success === false) {
+        setError(result.error || "Operation failed");
+        return;
+      }
+      onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create rule");
+      setError(err instanceof Error ? err.message : isEdit ? "Failed to update rule" : "Failed to create rule");
     } finally {
       setLoading(false);
     }
@@ -285,9 +199,9 @@ export function CreateLocalRouteModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create {ruleType.toUpperCase()} Local Route Rule</DialogTitle>
+          <DialogTitle>{isEdit ? `Edit ${ruleType.toUpperCase()} Local Route Rule #${lockedIdentity(existing, (r) => String(r.rule_number), String(ruleNumber)).value}` : `Create ${ruleType.toUpperCase()} Local Route Rule`}</DialogTitle>
           <DialogDescription>
-            Create a new policy-based routing rule for {ruleType.toUpperCase()} traffic
+            {isEdit ? `Update policy-based routing rule #${existing.rule_number}` : `Create a new policy-based routing rule for ${ruleType.toUpperCase()} traffic`}
           </DialogDescription>
         </DialogHeader>
 
@@ -341,7 +255,7 @@ export function CreateLocalRouteModal({
           <div className="space-y-2">
             <Label htmlFor="inbound-interface">Inbound Interface</Label>
             <InterfaceSelect
-              value={inboundInterface}
+              value={inboundInterface || "__none__"}
               onValueChange={setInboundInterface}
               disabled={loading}
               id="inbound-interface"

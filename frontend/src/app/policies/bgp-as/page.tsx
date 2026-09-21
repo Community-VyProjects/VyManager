@@ -26,8 +26,7 @@ import { asPathListService, AsPathList, AsPathListRule, AsPathListCapabilities }
 import { CreateAsPathListModal } from "@/components/policies/CreateAsPathListModal";
 import { EditAsPathListModal } from "@/components/policies/EditAsPathListModal";
 import { DeleteAsPathListModal } from "@/components/policies/DeleteAsPathListModal";
-import { CreateAsPathListRuleModal } from "@/components/policies/CreateAsPathListRuleModal";
-import { EditAsPathListRuleModal } from "@/components/policies/EditAsPathListRuleModal";
+import { AsPathListRuleModal } from "@/components/policies/AsPathListRuleModal";
 import { DeleteAsPathListRuleModal } from "@/components/policies/DeleteAsPathListRuleModal";
 import { AsPathListReorderBanner } from "@/components/policies/AsPathListReorderBanner";
 import { cn } from "@/lib/utils";
@@ -595,25 +594,22 @@ export default function BGPASPage() {
       {/* Rule Modals */}
       {selectedAsPathList && (
         <>
-          <CreateAsPathListRuleModal
-            open={showCreateRuleModal}
-            onOpenChange={setShowCreateRuleModal}
+          <AsPathListRuleModal
+            open={showCreateRuleModal || (showEditRuleModal && !!selectedRule)}
+            onOpenChange={(open) => {
+              if (!open) {
+                setShowCreateRuleModal(false);
+                setShowEditRuleModal(false);
+              }
+            }}
             onSuccess={() => fetchData(true)}
             asPathListName={selectedAsPathList}
+            existing={showEditRuleModal ? selectedRule : null}
             capabilities={capabilities}
           />
 
           {selectedRule && (
             <>
-              <EditAsPathListRuleModal
-                open={showEditRuleModal}
-                onOpenChange={setShowEditRuleModal}
-                onSuccess={() => fetchData(true)}
-                asPathListName={selectedAsPathList}
-                rule={selectedRule}
-                capabilities={capabilities}
-              />
-
               <DeleteAsPathListRuleModal
                 open={showDeleteRuleModal}
                 onOpenChange={setShowDeleteRuleModal}
