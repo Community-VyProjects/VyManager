@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/tooltip";
 import { type RoutingTable, type StaticRoute } from "@/lib/api/static-routes";
 import { cn } from "@/lib/utils";
-import { CreateTableRouteModal } from "./CreateTableRouteModal";
+import { TableRouteModal } from "./TableRouteModal";
 import { DeleteTableRouteModal } from "./DeleteTableRouteModal";
 
 interface ViewRoutingTableModalProps {
@@ -119,7 +119,7 @@ export function ViewRoutingTableModal({
         </DialogContent>
       </Dialog>
 
-      <CreateTableRouteModal
+      <TableRouteModal
         open={createRouteModalOpen}
         onOpenChange={setCreateRouteModalOpen}
         onSuccess={handleRouteCreated}

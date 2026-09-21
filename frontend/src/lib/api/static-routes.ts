@@ -198,7 +198,7 @@ export interface VyOSResponse {
 // API Service
 // ============================================================================
 
-class StaticRoutesService {
+export class StaticRoutesService {
   /**
    * Get capabilities based on VyOS version
    */
@@ -315,6 +315,26 @@ class StaticRoutesService {
             value: nh.address,
           });
         }
+
+        if (nh.vrf) {
+          operations.push({
+            op: "set_ipv4_route_next_hop_vrf",
+            value: `${nh.address},${nh.vrf}`,
+          });
+        }
+
+        if (nh.bfd_enable) {
+          operations.push({
+            op: "set_ipv4_route_next_hop_bfd",
+            value: nh.address,
+          });
+          if (nh.bfd_profile) {
+            operations.push({
+              op: "set_ipv4_route_next_hop_bfd_profile",
+              value: `${nh.address},${nh.bfd_profile}`,
+            });
+          }
+        }
       }
     }
 
@@ -380,6 +400,15 @@ class StaticRoutesService {
       }
     }
 
+    if (config.dhcp_interfaces && config.dhcp_interfaces.length > 0) {
+      for (const iface of config.dhcp_interfaces) {
+        operations.push({
+          op: "set_ipv4_route_dhcp_interface",
+          value: iface,
+        });
+      }
+    }
+
     return this.batchConfigure({
       destination,
       route_type: "ipv4",
@@ -417,6 +446,33 @@ class StaticRoutesService {
             op: "set_ipv6_route_next_hop_distance",
             value: `${nh.address},${nh.distance}`,
           });
+        }
+
+        if (nh.disable) {
+          operations.push({
+            op: "set_ipv6_route_next_hop_disable",
+            value: nh.address,
+          });
+        }
+
+        if (nh.vrf) {
+          operations.push({
+            op: "set_ipv6_route_next_hop_vrf",
+            value: `${nh.address},${nh.vrf}`,
+          });
+        }
+
+        if (nh.bfd_enable) {
+          operations.push({
+            op: "set_ipv6_route_next_hop_bfd",
+            value: nh.address,
+          });
+          if (nh.bfd_profile) {
+            operations.push({
+              op: "set_ipv6_route_next_hop_bfd_profile",
+              value: `${nh.address},${nh.bfd_profile}`,
+            });
+          }
         }
       }
     }
@@ -617,8 +673,37 @@ class StaticRoutesService {
             value: config.blackhole_distance.toString()
           });
         }
+
+        if (config.blackhole_tag) {
+          operations.push({
+            op: route_type === "ipv4" ? "set_ipv4_route_blackhole_tag" : "set_ipv6_route_blackhole_tag",
+            value: config.blackhole_tag.toString()
+          });
+        }
       } else {
         operations.push({ op: route_type === "ipv4" ? "delete_ipv4_route_blackhole" : "delete_ipv6_route_blackhole" });
+      }
+    }
+
+    if (config.reject !== undefined) {
+      if (config.reject) {
+        operations.push({ op: route_type === "ipv4" ? "set_ipv4_route_reject" : "set_ipv6_route_reject" });
+
+        if (config.reject_distance) {
+          operations.push({
+            op: route_type === "ipv4" ? "set_ipv4_route_reject_distance" : "set_ipv6_route_reject_distance",
+            value: config.reject_distance.toString()
+          });
+        }
+
+        if (config.reject_tag) {
+          operations.push({
+            op: route_type === "ipv4" ? "set_ipv4_route_reject_tag" : "set_ipv6_route_reject_tag",
+            value: config.reject_tag.toString()
+          });
+        }
+      } else {
+        operations.push({ op: route_type === "ipv4" ? "delete_ipv4_route_reject" : "delete_ipv6_route_reject" });
       }
     }
 
