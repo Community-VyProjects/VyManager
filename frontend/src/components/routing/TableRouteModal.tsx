@@ -12,167 +12,129 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
-import { staticRoutesService, type RoutingTable, type StaticRoute } from "@/lib/api/static-routes";
 import { showService, InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
+import type { RoutingTable, StaticRoute } from "@/lib/api/static-routes";
+import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
+import {
+  emptyInterfaceDraft,
+  emptyNextHopDraft,
+  emptyTableRouteDraft,
+  submitTableRouteCreate,
+  submitTableRouteUpdate,
+  tableRouteDraftFrom,
+  validateTableRouteCreate,
+  validateTableRouteEdit,
+  type TableRouteDraft,
+} from "./static-routes-form";
 
-interface EditTableRouteModalProps {
+interface TableRouteModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   table: RoutingTable | null;
-  route: StaticRoute | null;
+  existing?: StaticRoute | null;
 }
 
-interface NextHopEntry {
-  address: string;
-  distance: string;
-  disable: boolean;
-}
-
-interface InterfaceEntry {
-  interface: string;
-  distance: string;
-  disable: boolean;
-}
-
-export function EditTableRouteModal({
+export function TableRouteModal({
   open,
   onOpenChange,
   onSuccess,
   table,
-  route,
-}: EditTableRouteModalProps) {
+  existing,
+}: TableRouteModalProps) {
+  const isEdit = modalIsEdit(existing);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
-
-  const [description, setDescription] = useState("");
-  const [nextHops, setNextHops] = useState<NextHopEntry[]>([]);
-  const [interfaces, setInterfaces] = useState<InterfaceEntry[]>([]);
-  const [isBlackhole, setIsBlackhole] = useState(false);
-  const [blackholeDistance, setBlackholeDistance] = useState("");
-  const [isReject, setIsReject] = useState(false);
-  const [rejectDistance, setRejectDistance] = useState("");
+  const [draft, setDraft] = useState<TableRouteDraft>(emptyTableRouteDraft());
 
   useEffect(() => {
-    if (open && route) {
-      loadInterfaces();
-      populateForm(route);
-    }
-  }, [open, route]);
-
-  const loadInterfaces = async () => {
-    try {
-      const response = await showService.getAllInterfaces();
-      setAvailableInterfaces(response.interfaces);
-    } catch (err) {
+    if (!open) return;
+    showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch((err) => {
       console.error("Failed to load interfaces:", err);
+    });
+    if (existing) {
+      setDraft(tableRouteDraftFrom(existing));
+    } else {
+      setDraft(emptyTableRouteDraft());
     }
-  };
-
-  const populateForm = (r: StaticRoute) => {
-    setDescription(r.description || "");
-    setNextHops(r.next_hops.map((nh) => ({
-      address: nh.address,
-      distance: nh.distance?.toString() || "",
-      disable: nh.disable,
-    })));
-    setInterfaces(r.interfaces.map((iface) => ({
-      interface: iface.interface,
-      distance: iface.distance?.toString() || "",
-      disable: iface.disable,
-    })));
-    setIsBlackhole(r.blackhole);
-    setBlackholeDistance(r.blackhole_distance?.toString() || "");
-    setIsReject(r.reject);
-    setRejectDistance(r.reject_distance?.toString() || "");
     setError(null);
-  };
+  }, [open, existing]);
 
-  const addNextHop = () => setNextHops([...nextHops, { address: "", distance: "", disable: false }]);
-  const removeNextHop = (i: number) => setNextHops(nextHops.filter((_, idx) => idx !== i));
-  const updateNextHop = (i: number, field: keyof NextHopEntry, value: string | boolean) => {
-    const updated = [...nextHops];
-    updated[i] = { ...updated[i], [field]: value };
-    setNextHops(updated);
-  };
-
-  const addInterface = () => setInterfaces([...interfaces, { interface: "", distance: "", disable: false }]);
-  const removeInterface = (i: number) => setInterfaces(interfaces.filter((_, idx) => idx !== i));
-  const updateInterface = (i: number, field: keyof InterfaceEntry, value: string | boolean) => {
-    const updated = [...interfaces];
-    updated[i] = { ...updated[i], [field]: value };
-    setInterfaces(updated);
-  };
+  const patch = (fields: Partial<TableRouteDraft>) => setDraft((d) => ({ ...d, ...fields }));
+  const lockedDestination = lockedIdentity(existing, (r) => r.destination, draft.destination);
 
   const handleSubmit = async () => {
-    if (!table || !route) return;
-    setError(null);
-
-    if (!isBlackhole && !isReject && nextHops.length === 0 && interfaces.length === 0) {
-      setError("At least one next-hop, interface, blackhole, or reject is required");
+    if (!table) return;
+    const validationError = isEdit
+      ? validateTableRouteEdit(draft)
+      : validateTableRouteCreate(draft);
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
+    const write = modalWriteKind(existing ? { name: existing.destination } : null);
     setLoading(true);
+    setError(null);
+
     try {
-      await staticRoutesService.updateTableRoute(
-        table.table_id,
-        route.destination,
-        route.route_type,
-        route,
-        {
-          description: description || undefined,
-          next_hops: nextHops
-            .filter((nh) => nh.address)
-            .map((nh) => ({
-              address: nh.address,
-              distance: nh.distance ? parseInt(nh.distance) : undefined,
-              disable: nh.disable,
-              vrf: null,
-              interface: null,
-              bfd_enable: false,
-              bfd_profile: null,
-              bfd_multi_hop: false,
-              bfd_multi_hop_source: null,
-              segments: null,
-            })),
-          interfaces: interfaces
-            .filter((iface) => iface.interface)
-            .map((iface) => ({
-              interface: iface.interface,
-              distance: iface.distance ? parseInt(iface.distance) : undefined,
-              disable: iface.disable,
-              vrf: null,
-              segments: null,
-            })),
-          blackhole: isBlackhole,
-          blackhole_distance: blackholeDistance ? parseInt(blackholeDistance) : undefined,
-          reject: isReject,
-          reject_distance: rejectDistance ? parseInt(rejectDistance) : undefined,
-        }
-      );
+      const result =
+        write.kind === "update" && existing
+          ? await submitTableRouteUpdate(table.table_id, existing, draft)
+          : await submitTableRouteCreate(table.table_id, draft);
+      if (result && result.success === false) {
+        setError(result.error || "Operation failed");
+        return;
+      }
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update route");
+      setError(err instanceof Error ? err.message : isEdit ? "Failed to update route" : "Failed to create route");
     } finally {
       setLoading(false);
     }
   };
 
-  if (!table || !route) return null;
+  const addNextHop = () => patch({ nextHops: [...draft.nextHops, emptyNextHopDraft()] });
+  const removeNextHop = (index: number) => patch({ nextHops: draft.nextHops.filter((_, i) => i !== index) });
+  const updateNextHop = (index: number, field: "address" | "distance" | "disable", value: string | boolean) => {
+    const nextHops = [...draft.nextHops];
+    nextHops[index] = { ...nextHops[index], [field]: value } as TableRouteDraft["nextHops"][number];
+    patch({ nextHops });
+  };
+
+  const addInterface = () => patch({ interfaces: [...draft.interfaces, emptyInterfaceDraft()] });
+  const removeInterface = (index: number) => patch({ interfaces: draft.interfaces.filter((_, i) => i !== index) });
+  const updateInterface = (index: number, field: "interface" | "distance" | "disable", value: string | boolean) => {
+    const interfaces = [...draft.interfaces];
+    interfaces[index] = { ...interfaces[index], [field]: value } as TableRouteDraft["interfaces"][number];
+    patch({ interfaces });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Route in Table {table.table_id}</DialogTitle>
+          <DialogTitle>
+            {isEdit
+              ? `Edit Route in Table ${table?.table_id ?? ""}`
+              : `Add Route to Table ${table?.table_id ?? ""}`}
+          </DialogTitle>
           <DialogDescription>
-            Modify route {route.destination} ({route.route_type.toUpperCase()})
+            {isEdit
+              ? `Modify route ${existing.destination} (${existing.route_type.toUpperCase()})`
+              : "Create a new static route in this routing table"}
           </DialogDescription>
         </DialogHeader>
 
@@ -184,25 +146,50 @@ export function EditTableRouteModal({
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label>Destination (CIDR)</Label>
-            <Input value={route.destination} disabled className="bg-muted font-mono" />
-            <p className="text-xs text-muted-foreground">
-              Destination cannot be changed. Delete and recreate to change destination.
-            </p>
-          </div>
+          {isEdit ? (
+            <div className="space-y-2">
+              <Label>Destination (CIDR)</Label>
+              <Input value={lockedDestination.value} disabled className="bg-muted font-mono" />
+              <p className="text-xs text-muted-foreground">
+                Destination cannot be changed. Delete and recreate to change destination.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Route Type</Label>
+                <Select value={draft.routeType} onValueChange={(v) => patch({ routeType: v as "ipv4" | "ipv6" })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ipv4">IPv4</SelectItem>
+                    <SelectItem value="ipv6">IPv6</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="destination">Destination (CIDR)</Label>
+                <Input
+                  id="destination"
+                  placeholder={draft.routeType === "ipv4" ? "10.0.0.0/8" : "2001:db8::/32"}
+                  value={draft.destination}
+                  onChange={(e) => patch({ destination: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="description">Description (optional)</Label>
             <Input
               id="description"
               placeholder="Route description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              value={draft.description}
+              onChange={(e) => patch({ description: e.target.value })}
             />
           </div>
 
-          {/* Next Hops */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Next Hops</Label>
@@ -211,7 +198,7 @@ export function EditTableRouteModal({
                 Add
               </Button>
             </div>
-            {nextHops.map((nh, index) => (
+            {draft.nextHops.map((nh, index) => (
               <div key={index} className="border rounded-lg p-3 space-y-2">
                 <div className="flex items-center gap-2">
                   <Input
@@ -245,7 +232,6 @@ export function EditTableRouteModal({
             ))}
           </div>
 
-          {/* Interfaces */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Interfaces</Label>
@@ -254,7 +240,7 @@ export function EditTableRouteModal({
                 Add
               </Button>
             </div>
-            {interfaces.map((iface, index) => (
+            {draft.interfaces.map((iface, index) => (
               <div key={index} className="border rounded-lg p-3 space-y-2">
                 <div className="flex items-center gap-2">
                   <InterfaceSelect
@@ -289,28 +275,26 @@ export function EditTableRouteModal({
             ))}
           </div>
 
-          {/* Blackhole / Reject */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="blackhole"
-                  checked={isBlackhole}
+                  checked={draft.isBlackhole}
                   onCheckedChange={(checked) => {
-                    setIsBlackhole(!!checked);
-                    if (checked) setIsReject(false);
+                    patch({ isBlackhole: !!checked, isReject: checked ? false : draft.isReject });
                   }}
                 />
                 <Label htmlFor="blackhole">Blackhole</Label>
               </div>
-              {isBlackhole && (
+              {draft.isBlackhole && (
                 <Input
                   placeholder="Distance"
                   type="number"
                   min="1"
                   max="255"
-                  value={blackholeDistance}
-                  onChange={(e) => setBlackholeDistance(e.target.value)}
+                  value={draft.blackholeDistance}
+                  onChange={(e) => patch({ blackholeDistance: e.target.value })}
                 />
               )}
             </div>
@@ -318,22 +302,21 @@ export function EditTableRouteModal({
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="reject"
-                  checked={isReject}
+                  checked={draft.isReject}
                   onCheckedChange={(checked) => {
-                    setIsReject(!!checked);
-                    if (checked) setIsBlackhole(false);
+                    patch({ isReject: !!checked, isBlackhole: checked ? false : draft.isBlackhole });
                   }}
                 />
                 <Label htmlFor="reject">Reject</Label>
               </div>
-              {isReject && (
+              {draft.isReject && (
                 <Input
                   placeholder="Distance"
                   type="number"
                   min="1"
                   max="255"
-                  value={rejectDistance}
-                  onChange={(e) => setRejectDistance(e.target.value)}
+                  value={draft.rejectDistance}
+                  onChange={(e) => patch({ rejectDistance: e.target.value })}
                 />
               )}
             </div>
@@ -346,7 +329,7 @@ export function EditTableRouteModal({
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Save Changes
+            {isEdit ? "Save Changes" : "Create Route"}
           </Button>
         </DialogFooter>
       </DialogContent>

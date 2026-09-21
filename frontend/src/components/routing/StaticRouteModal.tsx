@@ -10,232 +10,132 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Plus, Trash2 } from "lucide-react";
-import { staticRoutesService } from "@/lib/api/static-routes";
 import { showService, InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
-import type { StaticRoutesCapabilities } from "@/lib/api/static-routes";
+import { staticRoutesService, type StaticRoute, type StaticRoutesCapabilities } from "@/lib/api/static-routes";
+import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
+import {
+  emptyInterfaceDraft,
+  emptyNextHopDraft,
+  emptyStaticRouteDraft,
+  staticRouteDraftFrom,
+  submitStaticRouteCreate,
+  submitStaticRouteUpdate,
+  validateStaticRouteCreate,
+  validateStaticRouteEdit,
+  type StaticRouteDraft,
+} from "./static-routes-form";
 
-interface CreateStaticRouteModalProps {
+interface StaticRouteModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   routeType: "ipv4" | "ipv6";
+  existing?: StaticRoute | null;
 }
 
-interface NextHopEntry {
-  address: string;
-  distance: string;
-  disable: boolean;
-  vrf: string;
-  bfd_enable: boolean;
-  bfd_profile: string;
-}
-
-interface InterfaceEntry {
-  interface: string;
-  distance: string;
-  disable: boolean;
-}
-
-export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeType }: CreateStaticRouteModalProps) {
+export function StaticRouteModal({
+  open,
+  onOpenChange,
+  onSuccess,
+  routeType,
+  existing,
+}: StaticRouteModalProps) {
+  const isEdit = modalIsEdit(existing);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [capabilities, setCapabilities] = useState<StaticRoutesCapabilities | null>(null);
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
+  const [draft, setDraft] = useState<StaticRouteDraft>(emptyStaticRouteDraft(routeType));
 
-  // Form fields
-  const [destination, setDestination] = useState("");
-  const [description, setDescription] = useState("");
-
-  // Next-hops
-  const [nextHops, setNextHops] = useState<NextHopEntry[]>([]);
-
-  // Interfaces
-  const [interfaces, setInterfaces] = useState<InterfaceEntry[]>([]);
-
-  // Blackhole
-  const [isBlackhole, setIsBlackhole] = useState(false);
-  const [blackholeDistance, setBlackholeDistance] = useState("");
-  const [blackholeTag, setBlackholeTag] = useState("");
-
-  // Reject
-  const [isReject, setIsReject] = useState(false);
-  const [rejectDistance, setRejectDistance] = useState("");
-  const [rejectTag, setRejectTag] = useState("");
-
-  // DHCP Interface (1.4 only)
-  const [dhcpInterface, setDhcpInterface] = useState("");
-
-  // Load capabilities and interfaces on mount
   useEffect(() => {
-    if (open) {
-      loadCapabilities();
-      loadInterfaces();
-    }
-  }, [open]);
-
-  const loadCapabilities = async () => {
-    try {
-      const caps = await staticRoutesService.getCapabilities();
-      setCapabilities(caps);
-    } catch (err) {
+    if (!open) return;
+    staticRoutesService.getCapabilities().then(setCapabilities).catch((err) => {
       console.error("Failed to load capabilities:", err);
-    }
-  };
-
-  const loadInterfaces = async () => {
-    try {
-      const response = await showService.getAllInterfaces();
-      setAvailableInterfaces(response.interfaces);
-    } catch (err) {
+    });
+    showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch((err) => {
       console.error("Failed to load interfaces:", err);
+    });
+    if (existing) {
+      setDraft(staticRouteDraftFrom(existing));
+    } else {
+      setDraft(emptyStaticRouteDraft(routeType));
     }
-  };
-
-  const resetForm = () => {
-    setDestination("");
-    setDescription("");
-    setNextHops([]);
-    setInterfaces([]);
-    setIsBlackhole(false);
-    setBlackholeDistance("");
-    setBlackholeTag("");
-    setIsReject(false);
-    setRejectDistance("");
-    setRejectTag("");
-    setDhcpInterface("");
     setError(null);
-  };
+  }, [open, existing, routeType]);
 
-  const handleClose = () => {
-    resetForm();
-    onOpenChange(false);
-  };
-
-  // Next-hop management
-  const addNextHop = () => {
-    setNextHops([...nextHops, { address: "", distance: "", disable: false, vrf: "", bfd_enable: false, bfd_profile: "" }]);
-  };
-
-  const removeNextHop = (index: number) => {
-    setNextHops(nextHops.filter((_, i) => i !== index));
-  };
-
-  const updateNextHop = <K extends keyof NextHopEntry>(index: number, field: K, value: NextHopEntry[K]) => {
-    const updated = [...nextHops];
-    updated[index] = { ...updated[index], [field]: value };
-    setNextHops(updated);
-  };
-
-  // Interface management
-  const addInterface = () => {
-    setInterfaces([...interfaces, { interface: "", distance: "", disable: false }]);
-  };
-
-  const removeInterface = (index: number) => {
-    setInterfaces(interfaces.filter((_, i) => i !== index));
-  };
-
-  const updateInterface = <K extends keyof InterfaceEntry>(index: number, field: K, value: InterfaceEntry[K]) => {
-    const updated = [...interfaces];
-    updated[index] = { ...updated[index], [field]: value };
-    setInterfaces(updated);
-  };
+  const patch = (fields: Partial<StaticRouteDraft>) => setDraft((d) => ({ ...d, ...fields }));
+  const effectiveType = isEdit ? existing.route_type : routeType;
+  const lockedDestination = lockedIdentity(existing, (r) => r.destination, draft.destination);
 
   const handleSubmit = async () => {
+    const validationError = isEdit
+      ? validateStaticRouteEdit(draft)
+      : validateStaticRouteCreate(draft);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    const write = modalWriteKind(existing ? { name: existing.destination } : null);
     setLoading(true);
     setError(null);
+    const dhcpSupported = capabilities?.features.dhcp_interface.supported ?? false;
 
     try {
-      // Validate destination
-      if (!destination.trim()) {
-        throw new Error("Destination is required");
+      const result =
+        write.kind === "update" && existing
+          ? await submitStaticRouteUpdate(existing, draft, dhcpSupported)
+          : await submitStaticRouteCreate({ ...draft, routeType: effectiveType }, dhcpSupported);
+
+      if (result && result.success === false) {
+        setError(result.error || "Operation failed");
+        return;
       }
-
-      const config: Record<string, unknown> = {};
-
-      if (description.trim()) {
-        config.description = description.trim();
-      }
-
-      // Next-hops
-      const validNextHops = nextHops.filter(nh => nh.address.trim());
-      if (validNextHops.length > 0) {
-        config.next_hops = validNextHops.map(nh => ({
-          address: nh.address.trim(),
-          distance: nh.distance.trim() ? parseInt(nh.distance) : null,
-          disable: nh.disable,
-          vrf: nh.vrf.trim() || null,
-          bfd_enable: nh.bfd_enable,
-          bfd_profile: nh.bfd_profile.trim() || null,
-        }));
-      }
-
-      // Interfaces
-      const validInterfaces = interfaces.filter(iface => iface.interface.trim());
-      if (validInterfaces.length > 0) {
-        config.interfaces = validInterfaces.map(iface => ({
-          interface: iface.interface.trim(),
-          distance: iface.distance.trim() ? parseInt(iface.distance) : null,
-          disable: iface.disable,
-        }));
-      }
-
-      // Blackhole
-      if (isBlackhole) {
-        config.blackhole = true;
-        if (blackholeDistance.trim()) {
-          config.blackhole_distance = parseInt(blackholeDistance);
-        }
-        if (blackholeTag.trim()) {
-          config.blackhole_tag = parseInt(blackholeTag);
-        }
-      }
-
-      // Reject
-      if (isReject) {
-        config.reject = true;
-        if (rejectDistance.trim()) {
-          config.reject_distance = parseInt(rejectDistance);
-        }
-        if (rejectTag.trim()) {
-          config.reject_tag = parseInt(rejectTag);
-        }
-      }
-
-      // Validate at least one routing method (only for IPv4)
-      if (routeType === "ipv4" && !(config.next_hops as unknown[])?.length && !(config.interfaces as unknown[])?.length && !isBlackhole && !isReject) {
-        throw new Error("At least one routing method is required (next-hop, interface, blackhole, or reject)");
-      }
-
-      // DHCP interface (1.4 only)
-      if (dhcpInterface.trim() && capabilities?.features.dhcp_interface.supported) {
-        config.dhcp_interface = dhcpInterface.trim();
-      }
-
-      // Create route
-      if (routeType === "ipv4") {
-        await staticRoutesService.createIPv4Route(destination.trim(), config);
-      } else {
-        await staticRoutesService.createIPv6Route(destination.trim(), config);
-      }
-
-      handleClose();
+      onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create route");
+      setError(err instanceof Error ? err.message : isEdit ? "Failed to update route" : "Failed to create route");
     } finally {
       setLoading(false);
     }
+  };
+
+  const addNextHop = () => patch({ nextHops: [...draft.nextHops, emptyNextHopDraft()] });
+  const removeNextHop = (index: number) => patch({ nextHops: draft.nextHops.filter((_, i) => i !== index) });
+  const updateNextHop = <K extends keyof StaticRouteDraft["nextHops"][number]>(
+    index: number,
+    field: K,
+    value: StaticRouteDraft["nextHops"][number][K],
+  ) => {
+    const nextHops = [...draft.nextHops];
+    nextHops[index] = { ...nextHops[index], [field]: value };
+    patch({ nextHops });
+  };
+
+  const addInterface = () => patch({ interfaces: [...draft.interfaces, emptyInterfaceDraft()] });
+  const removeInterface = (index: number) => patch({ interfaces: draft.interfaces.filter((_, i) => i !== index) });
+  const updateInterface = <K extends keyof StaticRouteDraft["interfaces"][number]>(
+    index: number,
+    field: K,
+    value: StaticRouteDraft["interfaces"][number][K],
+  ) => {
+    const interfaces = [...draft.interfaces];
+    interfaces[index] = { ...interfaces[index], [field]: value };
+    patch({ interfaces });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create {routeType.toUpperCase()} Static Route</DialogTitle>
+          <DialogTitle>
+            {isEdit ? "Edit Static Route" : `Create ${effectiveType.toUpperCase()} Static Route`}
+          </DialogTitle>
           <DialogDescription>
-            Configure a new static route for {routeType === "ipv4" ? "IPv4" : "IPv6"} traffic
+            {isEdit
+              ? `Modify configuration for ${existing.destination}`
+              : `Configure a new static route for ${effectiveType === "ipv4" ? "IPv4" : "IPv6"} traffic`}
           </DialogDescription>
         </DialogHeader>
 
@@ -246,21 +146,26 @@ export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeTyp
             <TabsTrigger value="advanced">Advanced</TabsTrigger>
           </TabsList>
 
-          {/* Basic Tab */}
           <TabsContent value="basic" className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="destination">
-                Destination Network <span className="text-destructive">*</span>
+                Destination Network {isEdit ? null : <span className="text-destructive">*</span>}
               </Label>
               <Input
                 id="destination"
-                placeholder={routeType === "ipv4" ? "e.g., 10.0.0.0/24" : "e.g., 2001:db8::/32"}
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
+                placeholder={effectiveType === "ipv4" ? "e.g., 10.0.0.0/24" : "e.g., 2001:db8::/32"}
+                value={lockedDestination.value}
+                disabled={lockedDestination.disabled}
+                className={lockedDestination.disabled ? "bg-muted" : undefined}
+                onChange={(e) => patch({ destination: e.target.value })}
               />
-              <p className="text-xs text-muted-foreground">
-                Network in CIDR notation
-              </p>
+              {isEdit ? (
+                <p className="text-xs text-muted-foreground">
+                  Destination cannot be changed. Delete and recreate to change destination.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">Network in CIDR notation</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -268,41 +173,29 @@ export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeTyp
               <Textarea
                 id="description"
                 placeholder="Optional description for this route"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                value={draft.description}
+                onChange={(e) => patch({ description: e.target.value })}
                 rows={2}
               />
             </div>
           </TabsContent>
 
-          {/* Routing Tab */}
           <TabsContent value="routing" className="space-y-6">
-            {/* Next-Hops Section */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <Label className="text-base font-semibold">Next-Hops</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addNextHop}
-                >
+                <Button type="button" variant="outline" size="sm" onClick={addNextHop}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Next-Hop
                 </Button>
               </div>
 
-              {nextHops.length > 0 ? (
-                nextHops.map((nh, index) => (
+              {draft.nextHops.length > 0 ? (
+                draft.nextHops.map((nh, index) => (
                   <div key={index} className="border rounded-lg p-4 space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Next-Hop #{index + 1}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeNextHop(index)}
-                      >
+                      <Button type="button" variant="ghost" size="sm" onClick={() => removeNextHop(index)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
@@ -313,12 +206,11 @@ export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeTyp
                           Address <span className="text-destructive">*</span>
                         </Label>
                         <Input
-                          placeholder={routeType === "ipv4" ? "e.g., 192.168.1.1" : "e.g., 2001:db8::1"}
+                          placeholder={effectiveType === "ipv4" ? "e.g., 192.168.1.1" : "e.g., 2001:db8::1"}
                           value={nh.address}
                           onChange={(e) => updateNextHop(index, "address", e.target.value)}
                         />
                       </div>
-
                       <div className="space-y-2">
                         <Label>Distance (Metric)</Label>
                         <Input
@@ -351,7 +243,6 @@ export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeTyp
                           />
                           <Label htmlFor={`bfd-enable-${index}`}>Enable BFD Monitoring</Label>
                         </div>
-
                         {nh.bfd_enable && (
                           <div className="space-y-2 ml-6">
                             <Label>BFD Profile</Label>
@@ -382,36 +273,24 @@ export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeTyp
               )}
             </div>
 
-            {/* Interfaces Section */}
             <div className="space-y-4 border-t pt-4">
               <div className="flex items-center justify-between">
                 <Label className="text-base font-semibold">Interface Routes</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addInterface}
-                >
+                <Button type="button" variant="outline" size="sm" onClick={addInterface}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Interface
                 </Button>
               </div>
 
-              {interfaces.length > 0 ? (
-                interfaces.map((iface, index) => (
+              {draft.interfaces.length > 0 ? (
+                draft.interfaces.map((iface, index) => (
                   <div key={index} className="border rounded-lg p-4 space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Interface #{index + 1}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeInterface(index)}
-                      >
+                      <Button type="button" variant="ghost" size="sm" onClick={() => removeInterface(index)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
-
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
                         <Label>
@@ -424,7 +303,6 @@ export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeTyp
                           placeholder="Select interface"
                         />
                       </div>
-
                       <div className="space-y-2">
                         <Label>Distance (Metric)</Label>
                         <Input
@@ -435,7 +313,6 @@ export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeTyp
                         />
                       </div>
                     </div>
-
                     <div className="flex items-center space-x-2">
                       <Checkbox
                         id={`iface-disable-${index}`}
@@ -453,43 +330,41 @@ export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeTyp
               )}
             </div>
 
-            {/* Blackhole Section */}
             <div className="space-y-4 border-t pt-4">
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="blackhole"
-                  checked={isBlackhole}
-                  onCheckedChange={(checked) => setIsBlackhole(checked as boolean)}
+                  checked={draft.isBlackhole}
+                  onCheckedChange={(checked) =>
+                    patch({ isBlackhole: checked === true, isReject: checked === true ? false : draft.isReject })
+                  }
                 />
                 <Label htmlFor="blackhole" className="text-base font-semibold cursor-pointer">
                   Blackhole Route (Drop silently)
                 </Label>
               </div>
-
-              {isBlackhole && (
+              {draft.isBlackhole && (
                 <div className="ml-6 space-y-4">
                   <p className="text-sm text-muted-foreground">
                     Packets matching this route will be dropped without notification.
                   </p>
-
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
                       <Label>Distance (Metric)</Label>
                       <Input
                         type="number"
                         placeholder="Default: 1"
-                        value={blackholeDistance}
-                        onChange={(e) => setBlackholeDistance(e.target.value)}
+                        value={draft.blackholeDistance}
+                        onChange={(e) => patch({ blackholeDistance: e.target.value })}
                       />
                     </div>
-
                     <div className="space-y-2">
                       <Label>Tag</Label>
                       <Input
                         type="number"
                         placeholder="Optional"
-                        value={blackholeTag}
-                        onChange={(e) => setBlackholeTag(e.target.value)}
+                        value={draft.blackholeTag}
+                        onChange={(e) => patch({ blackholeTag: e.target.value })}
                       />
                     </div>
                   </div>
@@ -497,43 +372,41 @@ export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeTyp
               )}
             </div>
 
-            {/* Reject Section */}
             <div className="space-y-4 border-t pt-4">
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="reject"
-                  checked={isReject}
-                  onCheckedChange={(checked) => setIsReject(checked as boolean)}
+                  checked={draft.isReject}
+                  onCheckedChange={(checked) =>
+                    patch({ isReject: checked === true, isBlackhole: checked === true ? false : draft.isBlackhole })
+                  }
                 />
                 <Label htmlFor="reject" className="text-base font-semibold cursor-pointer">
                   Reject Route (ICMP unreachable)
                 </Label>
               </div>
-
-              {isReject && (
+              {draft.isReject && (
                 <div className="ml-6 space-y-4">
                   <p className="text-sm text-muted-foreground">
                     Packets matching this route will be rejected with ICMP unreachable response.
                   </p>
-
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
                       <Label>Distance (Metric)</Label>
                       <Input
                         type="number"
                         placeholder="Default: 1"
-                        value={rejectDistance}
-                        onChange={(e) => setRejectDistance(e.target.value)}
+                        value={draft.rejectDistance}
+                        onChange={(e) => patch({ rejectDistance: e.target.value })}
                       />
                     </div>
-
                     <div className="space-y-2">
                       <Label>Tag</Label>
                       <Input
                         type="number"
                         placeholder="Optional"
-                        value={rejectTag}
-                        onChange={(e) => setRejectTag(e.target.value)}
+                        value={draft.rejectTag}
+                        onChange={(e) => patch({ rejectTag: e.target.value })}
                       />
                     </div>
                   </div>
@@ -542,15 +415,14 @@ export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeTyp
             </div>
           </TabsContent>
 
-          {/* Advanced Tab */}
           <TabsContent value="advanced" className="space-y-4">
             {capabilities?.features.dhcp_interface.supported && (
               <div className="space-y-2">
                 <Label htmlFor="dhcp-interface">DHCP Interface</Label>
                 <InterfaceSelect
                   id="dhcp-interface"
-                  value={dhcpInterface || "__none__"}
-                  onValueChange={(v) => setDhcpInterface(v === "__none__" ? "" : v)}
+                  value={draft.dhcpInterface || "__none__"}
+                  onValueChange={(v) => patch({ dhcpInterface: v === "__none__" ? "" : v })}
                   interfaces={availableInterfaces}
                   noneOption={{ label: "None", value: "__none__" }}
                   placeholder="Select interface"
@@ -579,11 +451,11 @@ export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeTyp
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={loading}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Creating..." : "Create Route"}
+            {loading ? (isEdit ? "Updating..." : "Creating...") : isEdit ? "Update Route" : "Create Route"}
           </Button>
         </DialogFooter>
       </DialogContent>

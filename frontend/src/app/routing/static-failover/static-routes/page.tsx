@@ -46,17 +46,15 @@ import {
 import { cn } from "@/lib/utils";
 import { staticRouteTabFromSearch } from "@/lib/query-tabs";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { CreateStaticRouteModal } from "@/components/routing/CreateStaticRouteModal";
-import { EditStaticRouteModal } from "@/components/routing/EditStaticRouteModal";
+import { StaticRouteModal } from "@/components/routing/StaticRouteModal";
 import { DeleteStaticRouteModal } from "@/components/routing/DeleteStaticRouteModal";
-import { CreateArpEntryModal } from "@/components/routing/CreateArpEntryModal";
-import { EditArpEntryModal } from "@/components/routing/EditArpEntryModal";
+import { ArpEntryModal } from "@/components/routing/ArpEntryModal";
 import { DeleteArpEntryModal } from "@/components/routing/DeleteArpEntryModal";
 import { CreateMrouteModal } from "@/components/routing/CreateMrouteModal";
 import { DeleteMrouteModal } from "@/components/routing/DeleteMrouteModal";
 import { CreateNeighborProxyModal } from "@/components/routing/CreateNeighborProxyModal";
 import { DeleteNeighborProxyModal } from "@/components/routing/DeleteNeighborProxyModal";
-import { CreateRoutingTableModal } from "@/components/routing/CreateRoutingTableModal";
+import { RoutingTableModal } from "@/components/routing/RoutingTableModal";
 import { RoutingTablesAccordion } from "@/components/routing/RoutingTablesAccordion";
 
 function StaticRoutesPageInner() {
@@ -886,18 +884,17 @@ function StaticRoutesPageInner() {
       </div>
 
       {/* Modals for Static Routes */}
-      <CreateStaticRouteModal
-        open={createModalOpen}
-        onOpenChange={setCreateModalOpen}
+      <StaticRouteModal
+        open={createModalOpen || !!editingRoute}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCreateModalOpen(false);
+            setEditingRoute(null);
+          }
+        }}
         onSuccess={() => fetchConfig(true)}
         routeType={selectedType}
-      />
-
-      <EditStaticRouteModal
-        open={editingRoute !== null}
-        onOpenChange={(open) => !open && setEditingRoute(null)}
-        onSuccess={() => fetchConfig(true)}
-        route={editingRoute}
+        existing={editingRoute}
       />
 
       <DeleteStaticRouteModal
@@ -908,18 +905,16 @@ function StaticRoutesPageInner() {
       />
 
       {/* Modals for Static ARP */}
-      <CreateArpEntryModal
-        open={createArpModalOpen}
-        onOpenChange={setCreateArpModalOpen}
+      <ArpEntryModal
+        open={createArpModalOpen || !!editingArpEntry}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCreateArpModalOpen(false);
+            setEditingArpEntry(null);
+          }
+        }}
         onSuccess={() => fetchConfig(true)}
-      />
-
-      <EditArpEntryModal
-        open={editingArpEntry !== null}
-        onOpenChange={(open) => !open && setEditingArpEntry(null)}
-        onSuccess={() => fetchConfig(true)}
-        interfaceName={editingArpEntry?.interface || ""}
-        entry={editingArpEntry?.entry || null}
+        existing={editingArpEntry}
       />
 
       <DeleteArpEntryModal
@@ -960,7 +955,7 @@ function StaticRoutesPageInner() {
       />
 
       {/* Modals for Routing Tables */}
-      <CreateRoutingTableModal
+      <RoutingTableModal
         open={createTableModalOpen}
         onOpenChange={setCreateTableModalOpen}
         onSuccess={() => fetchConfig(true)}

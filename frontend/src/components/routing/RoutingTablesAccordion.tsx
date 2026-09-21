@@ -37,8 +37,7 @@ import {
   type StaticRoute,
 } from "@/lib/api/static-routes";
 import { cn } from "@/lib/utils";
-import { CreateTableRouteModal } from "./CreateTableRouteModal";
-import { EditTableRouteModal } from "./EditTableRouteModal";
+import { TableRouteModal } from "./TableRouteModal";
 import {
   Tooltip,
   TooltipContent,
@@ -309,26 +308,21 @@ export function RoutingTablesAccordion({
       </Accordion>
 
       {/* Add Route Modal */}
-      <CreateTableRouteModal
-        open={addingRouteToTable !== null}
-        onOpenChange={(open) => !open && setAddingRouteToTable(null)}
+      <TableRouteModal
+        open={addingRouteToTable !== null || editingRoute !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAddingRouteToTable(null);
+            setEditingRoute(null);
+          }
+        }}
         onSuccess={() => {
           setAddingRouteToTable(null);
-          onRefresh();
-        }}
-        table={addingRouteToTable}
-      />
-
-      {/* Edit Route Modal */}
-      <EditTableRouteModal
-        open={editingRoute !== null}
-        onOpenChange={(open) => !open && setEditingRoute(null)}
-        onSuccess={() => {
           setEditingRoute(null);
           onRefresh();
         }}
-        table={editingRoute?.table ?? null}
-        route={editingRoute?.route ?? null}
+        table={editingRoute?.table ?? addingRouteToTable}
+        existing={editingRoute?.route ?? null}
       />
     </>
   );

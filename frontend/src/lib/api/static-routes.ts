@@ -198,7 +198,7 @@ export interface VyOSResponse {
 // API Service
 // ============================================================================
 
-class StaticRoutesService {
+export class StaticRoutesService {
   /**
    * Get capabilities based on VyOS version
    */
