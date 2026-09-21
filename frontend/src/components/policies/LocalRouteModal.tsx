@@ -438,7 +438,7 @@ export function LocalRouteModal({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Creating..." : "Create Rule"}
+            {loading ? (isEdit ? "Saving..." : "Creating...") : isEdit ? "Save Changes" : "Create Rule"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -245,7 +245,7 @@ export function PrefixListRuleModal({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Adding..." : "Add Rule"}
+            {loading ? (isEdit ? "Saving..." : "Adding...") : isEdit ? "Save Changes" : "Add Rule"}
           </Button>
         </DialogFooter>
       </DialogContent>

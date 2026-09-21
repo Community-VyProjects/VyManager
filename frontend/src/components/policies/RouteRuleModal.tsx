@@ -1654,7 +1654,7 @@ export function RouteRuleModal({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Creating..." : "Create Rule"}
+            {loading ? (isEdit ? "Saving..." : "Creating...") : isEdit ? "Save Changes" : "Create Rule"}
           </Button>
         </div>
       </DialogContent>

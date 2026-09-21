@@ -344,7 +344,7 @@ export function ExtCommunityListRuleModal({
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {loading ? "Creating..." : "Create Rule"}
+            {loading ? (isEdit ? "Saving..." : "Creating...") : isEdit ? "Save Changes" : "Create Rule"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -225,6 +225,7 @@ export function RouteMapRuleModal({
     if (existing) {
       loadRuleData(existing);
     } else {
+      resetForm();
       setRuleNumber(nextRuleNumber(existingRules));
     }
   }, [open, existing, existingRules]);
@@ -1952,7 +1953,7 @@ export function RouteMapRuleModal({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Adding..." : "Add Rule"}
+            {loading ? (isEdit ? "Saving..." : "Adding...") : isEdit ? "Save Changes" : "Add Rule"}
           </Button>
         </DialogFooter>
       </DialogContent>
