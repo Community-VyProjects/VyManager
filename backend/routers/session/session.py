@@ -1961,6 +1961,20 @@ def pick_two_factor_policy_org(
     return None
 
 
+def allow_explicit_policy_org(
+    explicit_org_id: Optional[str],
+    *,
+    is_super_admin: bool,
+    is_member: bool,
+) -> Optional[str]:
+    """Drop a client-supplied org id the caller cannot see."""
+    if not explicit_org_id:
+        return None
+    if is_super_admin or is_member:
+        return explicit_org_id
+    return None
+
+
 @router.get("/two-factor-policy", response_model=TwoFactorPolicyResponse)
 async def get_two_factor_policy(
     request: Request,
@@ -1996,7 +2010,22 @@ async def get_two_factor_policy(
         """,
         user["id"],
     )
-    explicit = org_id or getattr(request.state, "acting_org_id", None)
+    can_edit = await is_super_admin(conn, user["id"])
+    requested = org_id or getattr(request.state, "acting_org_id", None)
+    is_member = False
+    if requested and not can_edit:
+        is_member = bool(
+            await conn.fetchval(
+                'SELECT 1 FROM org_memberships WHERE "userId" = $1 AND "orgId" = $2',
+                user["id"],
+                requested,
+            )
+        )
+    explicit = allow_explicit_policy_org(
+        requested,
+        is_super_admin=bool(can_edit),
+        is_member=is_member,
+    )
     memberships: list = []
     if not explicit:
         rows = await conn.fetch(
@@ -2011,7 +2040,6 @@ async def get_two_factor_policy(
             'SELECT "requireTwoFactor" FROM organizations WHERE id = $1',
             display_org,
         )
-    can_edit = await is_super_admin(conn, user["id"])
     return TwoFactorPolicyResponse(
         require_two_factor=bool(required),
         org_require_two_factor=bool(org_required),

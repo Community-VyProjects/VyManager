@@ -3,7 +3,7 @@
 import pytest
 from fastapi import HTTPException
 
-from routers.session.session import pick_two_factor_policy_org
+from routers.session.session import allow_explicit_policy_org, pick_two_factor_policy_org
 
 
 def test_explicit_org_wins_over_memberships():
@@ -32,3 +32,10 @@ def test_write_without_explicit_org_rejects_zero_memberships():
 def test_read_without_explicit_org_does_not_pick_among_many():
     assert pick_two_factor_policy_org(None, ["org-a", "org-b"], write=False) is None
     assert pick_two_factor_policy_org(None, [], write=False) is None
+
+
+def test_explicit_org_is_dropped_unless_admin_or_member():
+    assert allow_explicit_policy_org("org-x", is_super_admin=True, is_member=False) == "org-x"
+    assert allow_explicit_policy_org("org-x", is_super_admin=False, is_member=True) == "org-x"
+    assert allow_explicit_policy_org("org-x", is_super_admin=False, is_member=False) is None
+    assert allow_explicit_policy_org(None, is_super_admin=True, is_member=True) is None
