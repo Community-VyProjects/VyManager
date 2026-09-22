@@ -13,15 +13,17 @@ import { sessionService, AuthSessionInfo } from "@/lib/api/session";
 import { afterLoginPath } from "@/lib/appliance";
 import { ActiveSessionWarningModal } from "@/components/auth/ActiveSessionWarningModal";
 import { TwoFactorChallenge } from "@/components/auth/TwoFactorChallenge";
+import { TwoFactorEnrollForm } from "@/components/auth/TwoFactorEnrollForm";
 import { OAuthProviderConfig } from "@/lib/api/oauth";
 import { ProviderIcon } from "@/components/authentication/ProviderIcon";
 import { WELL_KNOWN_PROVIDERS } from "@/lib/api/oauth";
-import { interpretSignInResult, leftoverPasswordSessions, parseTwoFactorQuery } from "@/lib/two-factor";
+import { interpretSignInResult, leftoverPasswordSessions, mustEnrollTwoFactor, parseTwoFactorQuery } from "@/lib/two-factor";
 
 export default function LoginPage() {
   const router = useRouter();
   const [appliance, setAppliance] = useState<boolean | null>(null);
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
+  const [forceEnroll, setForceEnroll] = useState(false);
 
   // Check if onboarding is needed first
   useEffect(() => {
@@ -40,6 +42,18 @@ export default function LoginPage() {
         setAppliance(applianceMode);
         const existing = await authClient.getSession();
         if (existing.data?.user) {
+          try {
+            const policy = await sessionService.getTwoFactorPolicy();
+            const enrolled = Boolean(
+              (existing.data.user as { twoFactorEnabled?: boolean }).twoFactorEnabled,
+            );
+            if (mustEnrollTwoFactor({ twoFactorEnabled: enrolled, requireTwoFactor: policy.require_two_factor })) {
+              setForceEnroll(true);
+              return;
+            }
+          } catch {
+            /* if policy cannot be read, do not trap them on login */
+          }
           router.replace(afterLoginPath(applianceMode));
           return;
         }
@@ -127,7 +141,20 @@ export default function LoginPage() {
   };
 
   const finishLogin = async (fromTwoFactor = false) => {
-    await authClient.getSession();
+    const sess = await authClient.getSession();
+    try {
+      const policy = await sessionService.getTwoFactorPolicy();
+      const enrolled = Boolean(
+        (sess.data?.user as { twoFactorEnabled?: boolean } | undefined)?.twoFactorEnabled,
+      );
+      if (mustEnrollTwoFactor({ twoFactorEnabled: enrolled, requireTwoFactor: policy.require_two_factor })) {
+        setForceEnroll(true);
+        setIsLoading(false);
+        return;
+      }
+    } catch {
+      /* continue */
+    }
 
     try {
       const sessionsResponse = await sessionService.getActiveSessions();
@@ -258,7 +285,17 @@ export default function LoginPage() {
             </div>
           )}
 
-          {twoFactorMethods ? (
+          {forceEnroll ? (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground text-center">
+                Your administrator requires two-factor authentication before you can continue.
+              </p>
+              <TwoFactorEnrollForm
+                password={formData.password}
+                onDone={() => finishLogin(true)}
+              />
+            </div>
+          ) : twoFactorMethods ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground text-center">
                 Enter a second-factor code to finish signing in.

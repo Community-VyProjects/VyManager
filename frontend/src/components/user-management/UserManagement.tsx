@@ -5,6 +5,7 @@ import { Users, Server, Shield } from "lucide-react";
 import { UsersTab } from "./UsersTab";
 import { InstancesTab } from "./InstancesTab";
 import { TwoFactorSettings } from "@/components/auth/TwoFactorSettings";
+import { TwoFactorPolicyCard } from "@/components/auth/TwoFactorPolicyCard";
 import { useSessionStore } from "@/store/session-store";
 import { hideSiteInventory } from "@/lib/appliance";
 
@@ -81,7 +82,12 @@ export function UserManagement() {
       <div className="py-4">
         {selectedTab === "users" && <UsersTab />}
 
-        {selectedTab === "two-factor" && <TwoFactorSettings />}
+        {selectedTab === "two-factor" && (
+          <div className="space-y-4">
+            <TwoFactorSettings />
+            <TwoFactorPolicyCard />
+          </div>
+        )}
 
         {showInstances && selectedTab === "instances" && <InstancesTab />}
       </div>

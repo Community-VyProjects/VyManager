@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getAuth } from "./lib/auth";
+import { getAuth, userMustEnrollTwoFactor } from "./lib/auth";
 
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -32,6 +32,20 @@ export default async function proxy(request: NextRequest) {
     // (/ or /sites) and sign-in on that URL fails; /login without the
     // query works.
     return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  const enrolled = Boolean(
+    (session.user as { twoFactorEnabled?: boolean }).twoFactorEnabled,
+  );
+  if (!enrolled && (await userMustEnrollTwoFactor(session.user.id, enrolled))) {
+    const allowedWhileEnrolling =
+      pathname === "/login" ||
+      pathname.startsWith("/api/auth") ||
+      pathname === "/api/session/two-factor-policy" ||
+      pathname === "/api/session/logout-auth";
+    if (!allowedWhileEnrolling) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
   }
 
   return NextResponse.next();

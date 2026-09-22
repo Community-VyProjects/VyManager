@@ -6,6 +6,7 @@ import {
   leftoverPasswordSessions,
   parseTwoFactorQuery,
   totpSecretFromUri,
+  mustEnrollTwoFactor,
 } from "./two-factor";
 
 describe("interpretSignInResult", () => {
@@ -49,6 +50,23 @@ describe("challengeMethods", () => {
 
   it("still offers TOTP when the method list is empty", () => {
     assert.deepEqual(challengeMethods([]), ["totp", "backup"]);
+  });
+});
+
+describe("mustEnrollTwoFactor", () => {
+  it("forces setup only when the admin policy is on and the user is not enrolled", () => {
+    assert.equal(
+      mustEnrollTwoFactor({ twoFactorEnabled: false, requireTwoFactor: true }),
+      true,
+    );
+    assert.equal(
+      mustEnrollTwoFactor({ twoFactorEnabled: true, requireTwoFactor: true }),
+      false,
+    );
+    assert.equal(
+      mustEnrollTwoFactor({ twoFactorEnabled: false, requireTwoFactor: false }),
+      false,
+    );
   });
 });
 

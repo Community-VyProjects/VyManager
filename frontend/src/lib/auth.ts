@@ -371,6 +371,21 @@ export function invalidateAuth(): void {
   _initPromise = null;
 }
 
+export async function userMustEnrollTwoFactor(
+  userId: string,
+  twoFactorEnabled: boolean | undefined,
+): Promise<boolean> {
+  if (twoFactorEnabled) return false;
+  const row = await prisma.organization.findFirst({
+    where: {
+      requireTwoFactor: true,
+      memberships: { some: { userId } },
+    },
+    select: { id: true },
+  });
+  return Boolean(row);
+}
+
 // Eager-initialize at module load so the first request isn't slow.
 // Errors are non-fatal here — they'll surface on the first actual request.
 getAuth().catch((err) => {

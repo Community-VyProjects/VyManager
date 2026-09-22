@@ -24,7 +24,7 @@ Personal access tokens for non-browser clients. Each token has a name, optional 
 
 ## Two-factor authentication
 
-Each user can enable an authenticator app from User Management, Two-factor (Site Manager, or Administration on an appliance). Sign-in then asks for a TOTP code, a backup code, or an email one-time code when SMTP is configured (`SMTP_HOST` and `SMTP_FROM`). SSO logins are not challenged. API tokens skip the second factor.
+Each user can enable an authenticator app from User Management, Two-factor (Site Manager, or Administration on an appliance). An administrator can also require it for the organization from a second card on that tab; password users who have not enrolled are sent through setup on the next sign-in. Sign-in then asks for a TOTP code, a backup code, or an email one-time code when SMTP is configured (`SMTP_HOST` and `SMTP_FROM`). SSO logins are not challenged. API tokens skip the second factor.
 
 ## Authentication (SSO)
 

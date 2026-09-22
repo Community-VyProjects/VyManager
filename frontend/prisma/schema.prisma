@@ -175,6 +175,9 @@ model Organization {
   sites       Site[]
   memberships OrgMembership[]
 
+  // Password logins in this org must enroll authenticator 2FA.
+  requireTwoFactor Boolean @default(false)
+
   @@map("organizations")
 }
 

@@ -20,6 +20,8 @@ from vyos_service import VyOSService, VyOSDeviceConfig
 from session_vyos_service import clear_session_cache
 from session_cookie import get_session_cookie, verify_session_cookie
 import appliance_mode
+from fastapi_permissions import require_super_admin
+from rbac_permissions import is_super_admin
 from backup_crypto import (
     encrypt_backup,
     decrypt_backup,
@@ -1922,3 +1924,73 @@ async def logout_auth_session(
             user["id"],
         )
     return ApiResponse(success=True, message="Signed out")
+
+
+class TwoFactorPolicyResponse(BaseModel):
+    require_two_factor: bool
+    org_require_two_factor: bool
+    can_edit: bool
+
+
+class TwoFactorPolicyUpdate(BaseModel):
+    require_two_factor: bool
+
+
+@router.get("/two-factor-policy", response_model=TwoFactorPolicyResponse)
+async def get_two_factor_policy(
+    request: Request, conn: asyncpg.Connection = Depends(org_conn_admin)
+):
+    """Whether this user must enroll 2FA, and the acting org's admin toggle."""
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    required = await conn.fetchval(
+        """
+        SELECT EXISTS (
+            SELECT 1
+            FROM organizations o
+            JOIN org_memberships m ON m."orgId" = o.id
+            WHERE m."userId" = $1 AND o."requireTwoFactor" = true
+        )
+        """,
+        user["id"],
+    )
+    org_id = getattr(request.state, "acting_org_id", None)
+    org_required = False
+    if org_id:
+        org_required = await conn.fetchval(
+            'SELECT "requireTwoFactor" FROM organizations WHERE id = $1',
+            org_id,
+        )
+    can_edit = await is_super_admin(conn, user["id"])
+    return TwoFactorPolicyResponse(
+        require_two_factor=bool(required),
+        org_require_two_factor=bool(org_required),
+        can_edit=bool(can_edit),
+    )
+
+
+@router.patch("/two-factor-policy", response_model=TwoFactorPolicyResponse)
+async def set_two_factor_policy(
+    body: TwoFactorPolicyUpdate,
+    request: Request,
+    conn: asyncpg.Connection = Depends(org_conn_admin),
+):
+    """Admin toggle: password users in this org must enroll 2FA."""
+    await require_super_admin(request)
+    org_id = getattr(request.state, "acting_org_id", None)
+    if not org_id:
+        raise HTTPException(
+            status_code=400,
+            detail="You belong to multiple organizations; pass org_id",
+        )
+    await conn.execute(
+        """
+        UPDATE organizations
+        SET "requireTwoFactor" = $2, "updatedAt" = NOW()
+        WHERE id = $1
+        """,
+        org_id,
+        body.require_two_factor,
+    )
+    return await get_two_factor_policy(request, conn)

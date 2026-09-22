@@ -43,6 +43,14 @@ export function totpSecretFromUri(uri: string): string | null {
   }
 }
 
+/** Admin policy is on. This password user has no authenticator yet. */
+export function mustEnrollTwoFactor(opts: {
+  twoFactorEnabled: boolean;
+  requireTwoFactor: boolean;
+}): boolean {
+  return opts.requireTwoFactor && !opts.twoFactorEnabled;
+}
+
 /** Password sign-in creates a session that 2FA then replaces. If that
  *  row is still present, login would ask to close a "other session"
  *  that is this same attempt. */
