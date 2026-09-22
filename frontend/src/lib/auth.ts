@@ -372,24 +372,25 @@ export function invalidateAuth(): void {
 }
 
 export async function userMustEnrollTwoFactor(
-  userId: string,
   twoFactorEnabled: boolean | undefined,
+  cookieHeader: string | null,
 ): Promise<boolean> {
   if (twoFactorEnabled) return false;
-  const [org, credential] = await Promise.all([
-    prisma.organization.findFirst({
-      where: {
-        requireTwoFactor: true,
-        memberships: { some: { userId } },
-      },
-      select: { id: true },
-    }),
-    prisma.account.findFirst({
-      where: { userId, providerId: "credential" },
-      select: { id: true },
-    }),
-  ]);
-  return Boolean(org && credential);
+  if (!cookieHeader) return false;
+  const backendUrl = (process.env.BACKEND_URL || "http://localhost:8000").replace(
+    /\/$/,
+    "",
+  );
+  try {
+    const res = await fetch(`${backendUrl}/session/two-factor-policy`, {
+      headers: { Cookie: cookieHeader },
+    });
+    if (!res.ok) return false;
+    const data = (await res.json()) as { require_two_factor?: boolean };
+    return Boolean(data.require_two_factor);
+  } catch {
+    return false;
+  }
 }
 
 // Eager-initialize at module load so the first request isn't slow.

@@ -37,7 +37,7 @@ export default async function proxy(request: NextRequest) {
   const enrolled = Boolean(
     (session.user as { twoFactorEnabled?: boolean }).twoFactorEnabled,
   );
-  if (!enrolled && (await userMustEnrollTwoFactor(session.user.id, enrolled))) {
+  if (!enrolled && (await userMustEnrollTwoFactor(enrolled, request.headers.get("cookie")))) {
     const allowedWhileEnrolling =
       pathname === "/login" ||
       pathname.startsWith("/api/auth") ||
