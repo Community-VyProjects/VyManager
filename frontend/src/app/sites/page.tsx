@@ -47,11 +47,9 @@ import { InstanceTableView } from "@/components/sites/InstanceTableView";
 import { SiteUpdatesPanel } from "@/components/sites/SiteUpdatesPanel";
 import { useSiteUpdates } from "@/hooks/useSiteUpdates";
 import { reachabilityOf } from "@/lib/api/system-updates";
-import { CreateSiteModal } from "@/components/sites/CreateSiteModal";
-import { EditSiteModal } from "@/components/sites/EditSiteModal";
+import { SiteModal } from "@/components/sites/SiteModal";
 import { DeleteSiteModal } from "@/components/sites/DeleteSiteModal";
-import { CreateInstanceModal } from "@/components/sites/CreateInstanceModal";
-import { EditInstanceModal } from "@/components/sites/EditInstanceModal";
+import { InstanceModal } from "@/components/sites/InstanceModal";
 import { MoveInstanceModal } from "@/components/sites/MoveInstanceModal";
 import { DeleteInstanceModal } from "@/components/sites/DeleteInstanceModal";
 import { BackupRestoreModal } from "@/components/session/BackupRestoreModal";
@@ -114,7 +112,6 @@ export default function SitesPage() {
 
   // Modal states
   const [createSiteOpen, setCreateSiteOpen] = useState(false);
-  const [editSiteOpen, setEditSiteOpen] = useState(false);
   const [deleteSiteOpen, setDeleteSiteOpen] = useState(false);
   const [siteToEdit, setSiteToEdit] = useState<Site | null>(null);
   const [siteToDelete, setSiteToDelete] = useState<Site | null>(null);
@@ -200,8 +197,8 @@ export default function SitesPage() {
   };
 
   const handleEditSite = (site: Site) => {
+    setCreateSiteOpen(false);
     setSiteToEdit(site);
-    setEditSiteOpen(true);
   };
 
   const handleDeleteSite = async (site: Site) => {
@@ -525,7 +522,10 @@ export default function SitesPage() {
               {/* Add Site Button */}
               <Button
                 className="w-full mt-3 gap-2"
-                onClick={() => setCreateSiteOpen(true)}
+                onClick={() => {
+                  setSiteToEdit(null);
+                  setCreateSiteOpen(true);
+                }}
               >
                 <Plus className="h-4 w-4" />
                 Add Site
@@ -844,16 +844,16 @@ export default function SitesPage() {
         </div>
 
       {/* Site Modals */}
-      <CreateSiteModal
-        open={createSiteOpen}
-        onOpenChange={setCreateSiteOpen}
+      <SiteModal
+        open={createSiteOpen || !!siteToEdit}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCreateSiteOpen(false);
+            setSiteToEdit(null);
+          }
+        }}
         onSuccess={handleSiteSuccess}
-      />
-      <EditSiteModal
-        open={editSiteOpen}
-        onOpenChange={setEditSiteOpen}
-        onSuccess={handleSiteSuccess}
-        site={siteToEdit}
+        existing={siteToEdit}
       />
       <DeleteSiteModal
         open={deleteSiteOpen}
@@ -866,17 +866,17 @@ export default function SitesPage() {
       {/* Instance Modals */}
       {selectedSite && (
         <>
-          <CreateInstanceModal
-            open={createInstanceOpen}
-            onOpenChange={setCreateInstanceOpen}
+          <InstanceModal
+            open={createInstanceOpen || editInstanceOpen}
+            onOpenChange={(open) => {
+              if (!open) {
+                setCreateInstanceOpen(false);
+                setEditInstanceOpen(false);
+              }
+            }}
             onSuccess={handleInstanceSuccess}
+            existing={editInstanceOpen ? selectedInstance : null}
             site={selectedSite}
-          />
-          <EditInstanceModal
-            open={editInstanceOpen}
-            onOpenChange={setEditInstanceOpen}
-            onSuccess={handleInstanceSuccess}
-            instance={selectedInstance}
             sites={sites}
           />
           <MoveInstanceModal

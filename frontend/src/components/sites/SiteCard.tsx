@@ -14,8 +14,7 @@ import {
 import { Site, Instance, sessionService } from "@/lib/api/session";
 import { InstanceCard } from "./InstanceCard";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { CreateInstanceModal } from "./CreateInstanceModal";
-import { EditInstanceModal } from "./EditInstanceModal";
+import { InstanceModal } from "./InstanceModal";
 import { MoveInstanceModal } from "./MoveInstanceModal";
 import { DeleteInstanceModal } from "./DeleteInstanceModal";
 import { ApiError } from "@/lib/types/api";
@@ -230,17 +229,17 @@ export function SiteCard({
       </Collapsible>
 
       {/* Instance Modals */}
-      <CreateInstanceModal
-        open={createInstanceOpen}
-        onOpenChange={setCreateInstanceOpen}
+      <InstanceModal
+        open={createInstanceOpen || editInstanceOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCreateInstanceOpen(false);
+            setEditInstanceOpen(false);
+          }
+        }}
         onSuccess={handleInstanceSuccess}
+        existing={editInstanceOpen ? selectedInstance : null}
         site={site}
-      />
-      <EditInstanceModal
-        open={editInstanceOpen}
-        onOpenChange={setEditInstanceOpen}
-        onSuccess={handleInstanceSuccess}
-        instance={selectedInstance}
         sites={allSites}
       />
       <MoveInstanceModal

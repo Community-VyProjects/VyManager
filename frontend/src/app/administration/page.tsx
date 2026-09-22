@@ -17,7 +17,7 @@ import { UserManagement } from "@/components/user-management/UserManagement";
 import { AuthenticationSettings } from "@/components/authentication/AuthenticationSettings";
 import { ApiTokensPanel } from "@/components/tokens/ApiTokensPanel";
 import { BackupRestoreModal } from "@/components/session/BackupRestoreModal";
-import { EditInstanceModal } from "@/components/sites/EditInstanceModal";
+import { InstanceModal } from "@/components/sites/InstanceModal";
 
 function AdministrationPageInner() {
   const router = useRouter();
@@ -172,13 +172,13 @@ function AdministrationPageInner() {
           </TabsContent>
         </Tabs>
 
-        <EditInstanceModal
+        <InstanceModal
           open={editOpen}
           onOpenChange={setEditOpen}
           onSuccess={() => {
             void loadInstance();
           }}
-          instance={instance}
+          existing={instance}
           sites={sites}
         />
         <BackupRestoreModal
