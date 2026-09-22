@@ -1963,13 +1963,24 @@ async def get_two_factor_policy(
     required = await conn.fetchval(
         """
         SELECT EXISTS (
-            SELECT 1
-            FROM organizations o
-            JOIN org_memberships m ON m."orgId" = o.id
-            JOIN accounts a ON a."userId" = m."userId"
-            WHERE m."userId" = $1
-              AND o."requireTwoFactor" = true
-              AND a."providerId" = 'credential'
+            SELECT 1 FROM accounts a
+            WHERE a."userId" = $1 AND a."providerId" = 'credential'
+        )
+        AND (
+            EXISTS (
+                SELECT 1
+                FROM organizations o
+                JOIN org_memberships m ON m."orgId" = o.id
+                WHERE m."userId" = $1 AND o."requireTwoFactor" = true
+            )
+            OR (
+                NOT EXISTS (
+                    SELECT 1 FROM org_memberships WHERE "userId" = $1
+                )
+                AND EXISTS (
+                    SELECT 1 FROM organizations WHERE "requireTwoFactor" = true
+                )
+            )
         )
         """,
         user["id"],
