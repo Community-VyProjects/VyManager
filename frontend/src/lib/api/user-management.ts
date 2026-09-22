@@ -249,7 +249,7 @@ export enum FeatureGroup {
 // User Management Service
 // ============================================================================
 
-class UserManagementService {
+export class UserManagementService {
   // ==========================================================================
   // Permissions Endpoint (available to all authenticated users)
   // ==========================================================================

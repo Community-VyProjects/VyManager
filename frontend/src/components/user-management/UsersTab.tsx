@@ -30,8 +30,7 @@ import {
   Shield,
 } from "lucide-react";
 import { userManagementService, UserListItem } from "@/lib/api/user-management";
-import { CreateUserModal } from "./CreateUserModal";
-import { EditUserModal } from "./EditUserModal";
+import { UserModal } from "./UserModal";
 import { DeleteUserModal } from "./DeleteUserModal";
 import { ManageUserAccessView } from "./ManageUserAccessView";
 import { ApiError } from "@/lib/types/api";
@@ -272,29 +271,25 @@ export function UsersTab() {
       </div>
 
       {/* Modals */}
-      <CreateUserModal
-        open={createUserOpen}
-        onOpenChange={setCreateUserOpen}
+      <UserModal
+        open={createUserOpen || editUserOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCreateUserOpen(false);
+            setEditUserOpen(false);
+          }
+        }}
         onSuccess={handleSuccess}
+        existing={editUserOpen ? selectedUser : null}
       />
 
       {selectedUser && (
-        <>
-          <EditUserModal
-            open={editUserOpen}
-            onOpenChange={setEditUserOpen}
-            user={selectedUser}
-            onSuccess={handleSuccess}
-          />
-
-          <DeleteUserModal
-            open={deleteUserOpen}
-            onOpenChange={setDeleteUserOpen}
-            user={selectedUser}
-            onSuccess={handleSuccess}
-          />
-
-        </>
+        <DeleteUserModal
+          open={deleteUserOpen}
+          onOpenChange={setDeleteUserOpen}
+          user={selectedUser}
+          onSuccess={handleSuccess}
+        />
       )}
     </>
   );
