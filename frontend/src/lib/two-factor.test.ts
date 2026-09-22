@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   challengeMethods,
   interpretSignInResult,
+  leftoverPasswordSessions,
   parseTwoFactorQuery,
   totpSecretFromUri,
 } from "./two-factor";
@@ -60,6 +61,29 @@ describe("totpSecretFromUri", () => {
 
   it("returns null for junk", () => {
     assert.equal(totpSecretFromUri("not a uri"), null);
+  });
+});
+
+describe("leftoverPasswordSessions", () => {
+  it("treats a seconds-old other session as this login attempt", () => {
+    const now = Date.parse("2026-09-22T12:00:00Z");
+    const ghosts = leftoverPasswordSessions(
+      [{ created_at: "2026-09-22T11:59:30Z", token: "a" }],
+      now,
+    );
+    assert.deepEqual(ghosts.map((s) => s.token), ["a"]);
+  });
+
+  it("keeps an older session so another device still prompts", () => {
+    const now = Date.parse("2026-09-22T12:00:00Z");
+    const ghosts = leftoverPasswordSessions(
+      [
+        { created_at: "2026-09-22T11:59:30Z", token: "ghost" },
+        { created_at: "2026-09-22T10:00:00Z", token: "other" },
+      ],
+      now,
+    );
+    assert.deepEqual(ghosts.map((s) => s.token), ["ghost"]);
   });
 });
 

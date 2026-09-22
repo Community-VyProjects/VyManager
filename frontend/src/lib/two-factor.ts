@@ -43,6 +43,25 @@ export function totpSecretFromUri(uri: string): string | null {
   }
 }
 
+/** Password sign-in creates a session that 2FA then replaces. If that
+ *  row is still present, login would ask to close a "other session"
+ *  that is this same attempt. */
+export function leftoverPasswordSessions<T extends { created_at: string | Date }>(
+  others: T[],
+  nowMs = Date.now(),
+  maxAgeMs = 2 * 60 * 1000,
+): T[] {
+  return others.filter((session) => {
+    const created = new Date(session.created_at).getTime();
+    return Number.isFinite(created) && nowMs - created >= 0 && nowMs - created <= maxAgeMs;
+  });
+}
+
+export const TRUST_DEVICE_COOKIE_NAMES = [
+  "better-auth.trust_device",
+  "__Secure-better-auth.trust_device",
+] as const;
+
 export function parseTwoFactorQuery(search: string): {
   challenge: boolean;
   methods: string[];

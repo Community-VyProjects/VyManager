@@ -27,8 +27,26 @@ export function TwoFactorSettings() {
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [trustCleared, setTrustCleared] = useState(false);
 
   const secret = totpURI ? totpSecretFromUri(totpURI) : null;
+
+  const forgetTrustedDevice = async () => {
+    setError("");
+    setBusy(true);
+    try {
+      const res = await fetch("/api/auth/trust-device", { method: "POST" });
+      if (!res.ok) {
+        setError("Could not clear the trusted-device cookie");
+        return;
+      }
+      setTrustCleared(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not clear the trusted-device cookie");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const enable = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -224,6 +242,19 @@ export function TwoFactorSettings() {
                   <li key={c}>{c}</li>
                 ))}
               </ul>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => void forgetTrustedDevice()}
+            >
+              Require a code on this browser next time
+            </Button>
+            {trustCleared && (
+              <p className="text-xs text-muted-foreground">
+                This browser will ask for a second factor on the next sign-in.
+              </p>
             )}
           </div>
         )}

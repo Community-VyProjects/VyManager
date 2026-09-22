@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Users, Server } from "lucide-react";
+import { Users, Server, Shield } from "lucide-react";
 import { UsersTab } from "./UsersTab";
 import { InstancesTab } from "./InstancesTab";
+import { TwoFactorSettings } from "@/components/auth/TwoFactorSettings";
 import { useSessionStore } from "@/store/session-store";
 import { hideSiteInventory } from "@/lib/appliance";
 
-type UserManagementTab = "users" | "instances";
+type UserManagementTab = "users" | "two-factor" | "instances";
 
 export function UserManagement() {
   const { appliance } = useSessionStore();
@@ -20,7 +21,7 @@ export function UserManagement() {
       <div>
         <h2 className="text-2xl font-bold text-foreground">User Management</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Manage users and instance access permissions
+          Manage users, two-factor, and instance access permissions
         </p>
       </div>
 
@@ -40,6 +41,21 @@ export function UserManagement() {
           >
             <Users className="h-4 w-4" />
             <span>Users</span>
+          </button>
+
+          <button
+            onClick={() => setSelectedTab("two-factor")}
+            className={`
+              flex items-center gap-2 px-1 py-3 text-sm font-medium border-b-2 transition-colors
+              ${
+                selectedTab === "two-factor"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+              }
+            `}
+          >
+            <Shield className="h-4 w-4" />
+            <span>Two-factor</span>
           </button>
 
           {showInstances && (
@@ -64,6 +80,8 @@ export function UserManagement() {
       {/* Tab Content */}
       <div className="py-4">
         {selectedTab === "users" && <UsersTab />}
+
+        {selectedTab === "two-factor" && <TwoFactorSettings />}
 
         {showInstances && selectedTab === "instances" && <InstancesTab />}
       </div>

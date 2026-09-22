@@ -8,14 +8,13 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Pencil, Server, Users, KeyRound, Key, Download, Shield } from "lucide-react";
+import { Loader2, Pencil, Server, Users, KeyRound, Key, Download } from "lucide-react";
 import { administrationTabFromSearch, type AdministrationTab } from "@/lib/query-tabs";
 import { hideSiteInventory } from "@/lib/appliance";
 import { useSessionStore } from "@/store/session-store";
 import { sessionService, type Instance, type Site } from "@/lib/api/session";
 import { UserManagement } from "@/components/user-management/UserManagement";
 import { AuthenticationSettings } from "@/components/authentication/AuthenticationSettings";
-import { TwoFactorSettings } from "@/components/auth/TwoFactorSettings";
 import { ApiTokensPanel } from "@/components/tokens/ApiTokensPanel";
 import { BackupRestoreModal } from "@/components/session/BackupRestoreModal";
 import { InstanceModal } from "@/components/sites/InstanceModal";
@@ -103,10 +102,6 @@ function AdministrationPageInner() {
               <KeyRound className="h-4 w-4" />
               Authentication
             </TabsTrigger>
-            <TabsTrigger value="security" className="flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              Security
-            </TabsTrigger>
             <TabsTrigger value="tokens" className="flex items-center gap-2">
               <Key className="h-4 w-4" />
               API Tokens
@@ -155,9 +150,6 @@ function AdministrationPageInner() {
           </TabsContent>
           <TabsContent value="authentication">
             <AuthenticationSettings />
-          </TabsContent>
-          <TabsContent value="security">
-            <TwoFactorSettings />
           </TabsContent>
           <TabsContent value="tokens">
             <ApiTokensPanel />

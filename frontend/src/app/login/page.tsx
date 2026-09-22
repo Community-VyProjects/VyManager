@@ -16,7 +16,7 @@ import { TwoFactorChallenge } from "@/components/auth/TwoFactorChallenge";
 import { OAuthProviderConfig } from "@/lib/api/oauth";
 import { ProviderIcon } from "@/components/authentication/ProviderIcon";
 import { WELL_KNOWN_PROVIDERS } from "@/lib/api/oauth";
-import { interpretSignInResult, parseTwoFactorQuery } from "@/lib/two-factor";
+import { interpretSignInResult, leftoverPasswordSessions, parseTwoFactorQuery } from "@/lib/two-factor";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -126,17 +126,32 @@ export default function LoginPage() {
     }
   };
 
-  const finishLogin = async () => {
+  const finishLogin = async (fromTwoFactor = false) => {
     await authClient.getSession();
 
     try {
       const sessionsResponse = await sessionService.getActiveSessions();
 
       if (sessionsResponse.has_other_sessions) {
-        setOtherSessions(sessionsResponse.other_sessions);
-        setShowSessionWarning(true);
-        setIsLoading(false);
-        return;
+        let others = sessionsResponse.other_sessions;
+        if (fromTwoFactor) {
+          const ghosts = leftoverPasswordSessions(others);
+          for (const session of ghosts) {
+            try {
+              await sessionService.revokeSession(session.token);
+            } catch {
+              /* still prompt on whatever remains */
+            }
+          }
+          const ghostTokens = new Set(ghosts.map((s) => s.token));
+          others = others.filter((s) => !ghostTokens.has(s.token));
+        }
+        if (others.length > 0) {
+          setOtherSessions(others);
+          setShowSessionWarning(true);
+          setIsLoading(false);
+          return;
+        }
       }
     } catch (err) {
       console.error("Failed to check active sessions:", err);
@@ -250,7 +265,7 @@ export default function LoginPage() {
               </p>
               <TwoFactorChallenge
                 methods={twoFactorMethods}
-                onVerified={finishLogin}
+                onVerified={() => finishLogin(true)}
               />
               <Button
                 type="button"
