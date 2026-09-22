@@ -506,23 +506,33 @@ async def disconnect_from_instance(request: Request, conn: asyncpg.Connection = 
 async def list_user_organizations(request: Request, conn: asyncpg.Connection = Depends(org_conn_self)):
     """The caller's organization memberships.
 
-    Backs the frontend's org UI: the grouping header and switcher render only
-    when the caller belongs to more than one organization (org_ui_visible),
-    so single-team deployments never see the org layer.
+    Super-admins (users.role = ADMIN) see every organization, matching
+    GET /session/sites. Everyone else sees memberships only. The frontend
+    org switcher renders when org_ui_visible (more than one org).
     """
     if not hasattr(request.state, "user") or not request.state.user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    rows = await conn.fetch(
-        """
-        SELECT o.id, o.name, m."orgRole" AS org_role
-        FROM org_memberships m
-        JOIN organizations o ON o.id = m."orgId"
-        WHERE m."userId" = $1
-        ORDER BY o.name
-        """,
-        request.state.user["id"],
-    )
+    user = request.state.user
+    if await is_super_admin(conn, user["id"]):
+        rows = await conn.fetch(
+            """
+            SELECT o.id, o.name, 'ADMIN'::text AS org_role
+            FROM organizations o
+            ORDER BY o.name
+            """
+        )
+    else:
+        rows = await conn.fetch(
+            """
+            SELECT o.id, o.name, m."orgRole" AS org_role
+            FROM org_memberships m
+            JOIN organizations o ON o.id = m."orgId"
+            WHERE m."userId" = $1
+            ORDER BY o.name
+            """,
+            user["id"],
+        )
     orgs = [
         OrganizationMembership(id=r["id"], name=r["name"], org_role=r["org_role"])
         for r in rows
@@ -2028,11 +2038,17 @@ async def get_two_factor_policy(
     )
     memberships: list = []
     if not explicit:
-        rows = await conn.fetch(
-            'SELECT "orgId" FROM org_memberships WHERE "userId" = $1 ORDER BY "orgId" LIMIT 2',
-            user["id"],
-        )
-        memberships = [row["orgId"] for row in rows]
+        if can_edit:
+            rows = await conn.fetch(
+                "SELECT id FROM organizations ORDER BY name LIMIT 2"
+            )
+            memberships = [row["id"] for row in rows]
+        else:
+            rows = await conn.fetch(
+                'SELECT "orgId" FROM org_memberships WHERE "userId" = $1 ORDER BY "orgId" LIMIT 2',
+                user["id"],
+            )
+            memberships = [row["orgId"] for row in rows]
     display_org = pick_two_factor_policy_org(explicit, memberships, write=False)
     org_required = False
     if display_org:

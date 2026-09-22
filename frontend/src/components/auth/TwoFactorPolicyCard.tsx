@@ -20,6 +20,7 @@ export function TwoFactorPolicyCard() {
   const [loading, setLoading] = useState(true);
 
   const loadOrganizations = useOrgStore((s) => s.loadOrganizations);
+  const activeOrgId = useOrgStore((s) => s.activeOrgId);
 
   const load = useCallback(async () => {
     setError("");
@@ -36,7 +37,7 @@ export function TwoFactorPolicyCard() {
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, activeOrgId]);
 
   if (loading) {
     return (
