@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Loader2, Shield } from "lucide-react";
 import { sessionService, type TwoFactorPolicy } from "@/lib/api/session";
+import { useOrgStore } from "@/store/org-store";
 
 export function TwoFactorPolicyCard() {
   const [policy, setPolicy] = useState<TwoFactorPolicy | null>(null);
@@ -18,9 +19,12 @@ export function TwoFactorPolicyCard() {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const loadOrganizations = useOrgStore((s) => s.loadOrganizations);
+
   const load = useCallback(async () => {
     setError("");
     try {
+      await loadOrganizations();
       setPolicy(await sessionService.getTwoFactorPolicy());
     } catch (err) {
       setPolicy(null);
@@ -28,7 +32,7 @@ export function TwoFactorPolicyCard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadOrganizations]);
 
   useEffect(() => {
     void load();

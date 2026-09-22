@@ -1936,6 +1936,22 @@ class TwoFactorPolicyUpdate(BaseModel):
     require_two_factor: bool
 
 
+async def _policy_org_id(request: Request, conn: asyncpg.Connection) -> Optional[str]:
+    org_id = getattr(request.state, "acting_org_id", None)
+    if org_id:
+        return org_id
+    user = getattr(request.state, "user", None)
+    if not user:
+        return None
+    org_id = await conn.fetchval(
+        'SELECT "orgId" FROM org_memberships WHERE "userId" = $1 ORDER BY "orgId" LIMIT 1',
+        user["id"],
+    )
+    if org_id:
+        return org_id
+    return await conn.fetchval("SELECT id FROM organizations ORDER BY id LIMIT 1")
+
+
 @router.get("/two-factor-policy", response_model=TwoFactorPolicyResponse)
 async def get_two_factor_policy(
     request: Request, conn: asyncpg.Connection = Depends(org_conn_admin)
@@ -1958,7 +1974,7 @@ async def get_two_factor_policy(
         """,
         user["id"],
     )
-    org_id = getattr(request.state, "acting_org_id", None)
+    org_id = await _policy_org_id(request, conn)
     org_required = False
     if org_id:
         org_required = await conn.fetchval(
@@ -1981,7 +1997,7 @@ async def set_two_factor_policy(
 ):
     """Admin toggle: password users in this org must enroll 2FA."""
     await require_super_admin(request)
-    org_id = getattr(request.state, "acting_org_id", None)
+    org_id = await _policy_org_id(request, conn)
     if not org_id:
         raise HTTPException(
             status_code=400,

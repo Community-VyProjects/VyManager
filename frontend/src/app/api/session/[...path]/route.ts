@@ -32,6 +32,10 @@ export async function PUT(request: NextRequest, { params }: Ctx) {
   return handle(request, params, "PUT");
 }
 
+export async function PATCH(request: NextRequest, { params }: Ctx) {
+  return handle(request, params, "PATCH");
+}
+
 export async function DELETE(request: NextRequest, { params }: Ctx) {
   return handle(request, params, "DELETE");
 }
