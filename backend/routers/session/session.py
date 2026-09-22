@@ -5,7 +5,7 @@ API endpoints for managing user sessions with VyOS instances.
 Handles connect/disconnect operations and instance selection.
 """
 
-from fastapi import Depends, APIRouter, HTTPException, Request, UploadFile, File, Form
+from fastapi import Depends, APIRouter, HTTPException, Query, Request, UploadFile, File, Form
 import org_scope
 from org_scope import assert_row_in_acting_org, org_conn_admin, org_conn_self, org_unit_of_work
 from starlette.concurrency import run_in_threadpool
@@ -1936,25 +1936,36 @@ class TwoFactorPolicyUpdate(BaseModel):
     require_two_factor: bool
 
 
-async def _policy_org_id(request: Request, conn: asyncpg.Connection) -> Optional[str]:
-    org_id = getattr(request.state, "acting_org_id", None)
-    if org_id:
-        return org_id
-    user = getattr(request.state, "user", None)
-    if not user:
-        return None
-    org_id = await conn.fetchval(
-        'SELECT "orgId" FROM org_memberships WHERE "userId" = $1 ORDER BY "orgId" LIMIT 1',
-        user["id"],
-    )
-    if org_id:
-        return org_id
+def pick_two_factor_policy_org(
+    explicit_org_id: Optional[str],
+    membership_org_ids: list,
+    *,
+    write: bool,
+) -> Optional[str]:
+    """Choose the org whose requireTwoFactor flag the admin card shows or writes.
+
+    An explicit org (query param or acting_org_id) always wins. Otherwise a
+    sole membership is used so appliance / single-org installs need no org_id.
+    Two or more memberships with no explicit org: writes 400, reads return
+    None so GET never displays or implies a random org.
+    """
+    if explicit_org_id:
+        return explicit_org_id
+    if len(membership_org_ids) == 1:
+        return membership_org_ids[0]
+    if write:
+        raise HTTPException(
+            status_code=400,
+            detail="You belong to multiple organizations; pass org_id",
+        )
     return None
 
 
 @router.get("/two-factor-policy", response_model=TwoFactorPolicyResponse)
 async def get_two_factor_policy(
-    request: Request, conn: asyncpg.Connection = Depends(org_conn_self)
+    request: Request,
+    org_id: Optional[str] = Query(None),
+    conn: asyncpg.Connection = Depends(org_conn_self),
 ):
     """Whether this user must enroll 2FA, and the acting org's admin toggle."""
     user = getattr(request.state, "user", None)
@@ -1985,12 +1996,20 @@ async def get_two_factor_policy(
         """,
         user["id"],
     )
-    org_id = await _policy_org_id(request, conn)
+    explicit = org_id or getattr(request.state, "acting_org_id", None)
+    memberships: list = []
+    if not explicit:
+        rows = await conn.fetch(
+            'SELECT "orgId" FROM org_memberships WHERE "userId" = $1 ORDER BY "orgId" LIMIT 2',
+            user["id"],
+        )
+        memberships = [row["orgId"] for row in rows]
+    display_org = pick_two_factor_policy_org(explicit, memberships, write=False)
     org_required = False
-    if org_id:
+    if display_org:
         org_required = await conn.fetchval(
             'SELECT "requireTwoFactor" FROM organizations WHERE id = $1',
-            org_id,
+            display_org,
         )
     can_edit = await is_super_admin(conn, user["id"])
     return TwoFactorPolicyResponse(
@@ -2008,12 +2027,11 @@ async def set_two_factor_policy(
 ):
     """Admin toggle: password users in this org must enroll 2FA."""
     await require_super_admin(request)
-    org_id = await _policy_org_id(request, conn)
-    if not org_id:
-        raise HTTPException(
-            status_code=400,
-            detail="You belong to multiple organizations; pass org_id",
-        )
+    org_id = pick_two_factor_policy_org(
+        getattr(request.state, "acting_org_id", None),
+        [],
+        write=True,
+    )
     await conn.execute(
         """
         UPDATE organizations
@@ -2023,4 +2041,4 @@ async def set_two_factor_policy(
         org_id,
         body.require_two_factor,
     )
-    return await get_two_factor_policy(request, conn)
+    return await get_two_factor_policy(request, org_id=org_id, conn=conn)
