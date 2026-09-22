@@ -321,6 +321,7 @@ export const navigation: NavItem[] = [
       { id: "instance", title: "This router", href: "/administration", description: "Local instance settings", searchParams: { section: "instance" } },
       { id: "users", title: "Users", href: "/administration", description: "VyManager users", searchParams: { section: "users" } },
       { id: "authentication", title: "Authentication", href: "/administration", description: "OIDC and login", searchParams: { section: "authentication" } },
+      { id: "security", title: "Security", href: "/administration", description: "Two-factor authentication", searchParams: { section: "security" } },
       { id: "tokens", title: "API Tokens", href: "/administration", description: "API tokens", searchParams: { section: "tokens" } },
       { id: "backup", title: "Backup", href: "/administration", description: "Backup and restore", searchParams: { section: "backup" } },
     ],

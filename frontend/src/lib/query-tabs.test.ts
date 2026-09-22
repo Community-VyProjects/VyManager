@@ -84,6 +84,7 @@ describe("administrationTabFromSearch", () => {
     assert.equal(administrationTabFromSearch(params({ section: "users" })), "users");
     assert.equal(administrationTabFromSearch(params({ section: "instance" })), "instance");
     assert.equal(administrationTabFromSearch(params({ section: "backup" })), "backup");
+    assert.equal(administrationTabFromSearch(params({ section: "security" })), "security");
   });
 
   it("maps Site Manager aliases", () => {
@@ -93,6 +94,7 @@ describe("administrationTabFromSearch", () => {
 
   it("falls back to tab when section is absent", () => {
     assert.equal(administrationTabFromSearch(params({ tab: "authentication" })), "authentication");
+    assert.equal(administrationTabFromSearch(params({ tab: "security" })), "security");
   });
 
   it("ignores unknown values", () => {

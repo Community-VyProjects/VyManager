@@ -12,9 +12,11 @@ import { Shield, Loader2, AlertCircle } from "lucide-react";
 import { sessionService, AuthSessionInfo } from "@/lib/api/session";
 import { afterLoginPath } from "@/lib/appliance";
 import { ActiveSessionWarningModal } from "@/components/auth/ActiveSessionWarningModal";
+import { TwoFactorChallenge } from "@/components/auth/TwoFactorChallenge";
 import { OAuthProviderConfig } from "@/lib/api/oauth";
 import { ProviderIcon } from "@/components/authentication/ProviderIcon";
 import { WELL_KNOWN_PROVIDERS } from "@/lib/api/oauth";
+import { interpretSignInResult, parseTwoFactorQuery } from "@/lib/two-factor";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -54,6 +56,8 @@ export default function LoginPage() {
 
   // Read search params on the client only so we don't call
   // `useSearchParams` during prerendering (avoids Next build error).
+  const [twoFactorMethods, setTwoFactorMethods] = useState<string[] | null>(null);
+
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -63,6 +67,10 @@ export default function LoginPage() {
           "Single sign-on was denied. Your account may not be a member of a " +
             "group permitted to access VyManager. Contact your administrator."
         );
+      }
+      const twoFactor = parseTwoFactorQuery(window.location.search);
+      if (twoFactor.challenge) {
+        setTwoFactorMethods(twoFactor.methods);
       }
     } catch {
       // ignore
@@ -94,42 +102,47 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // Sign in
       const result = await signIn.email({
         email: formData.email,
         password: formData.password,
       });
 
-      if (result.error) {
-        setError(result.error.message || "Login failed");
+      const outcome = interpretSignInResult(result);
+      if (outcome.kind === "error") {
+        setError(outcome.message);
+        setIsLoading(false);
+        return;
+      }
+      if (outcome.kind === "twoFactor") {
+        setTwoFactorMethods(outcome.methods);
         setIsLoading(false);
         return;
       }
 
-      await authClient.getSession();
-
-      try {
-        const sessionsResponse = await sessionService.getActiveSessions();
-
-        if (sessionsResponse.has_other_sessions) {
-          // Show the active session warning modal
-          setOtherSessions(sessionsResponse.other_sessions);
-          setShowSessionWarning(true);
-          setIsLoading(false);
-          return;
-        }
-      } catch (err) {
-        console.error("Failed to check active sessions:", err);
-        // Continue with login even if session check fails
-        // This shouldn't block the login process
-      }
-
-      // No other sessions, proceed to redirect
-      router.push(afterLoginPath(appliance));
+      await finishLogin();
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
       setIsLoading(false);
     }
+  };
+
+  const finishLogin = async () => {
+    await authClient.getSession();
+
+    try {
+      const sessionsResponse = await sessionService.getActiveSessions();
+
+      if (sessionsResponse.has_other_sessions) {
+        setOtherSessions(sessionsResponse.other_sessions);
+        setShowSessionWarning(true);
+        setIsLoading(false);
+        return;
+      }
+    } catch (err) {
+      console.error("Failed to check active sessions:", err);
+    }
+
+    router.push(afterLoginPath(appliance));
   };
 
   const handleContinueAndRevokeOtherSessions = async () => {
@@ -230,7 +243,28 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Login form */}
+          {twoFactorMethods ? (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground text-center">
+                Enter a second-factor code to finish signing in.
+              </p>
+              <TwoFactorChallenge
+                methods={twoFactorMethods}
+                onVerified={finishLogin}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                onClick={() => {
+                  setTwoFactorMethods(null);
+                  setError("");
+                }}
+              >
+                Back to password
+              </Button>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label
@@ -290,9 +324,10 @@ export default function LoginPage() {
             </Button>
 
           </form>
+          )}
 
           {/* OAuth provider buttons */}
-          {oauthProviders.length > 0 && (
+          {oauthProviders.length > 0 && !twoFactorMethods && (
             <>
               <div className="relative my-4">
                 <div className="absolute inset-0 flex items-center">

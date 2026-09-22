@@ -1,7 +1,8 @@
 import { betterAuth } from "better-auth";
-import { genericOAuth } from "better-auth/plugins";
+import { genericOAuth, twoFactor } from "better-auth/plugins";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { PrismaClient } from "@prisma/client";
+import { sendTwoFactorOtp, smtpConfigured } from "./two-factor-smtp";
 import {
   extractClaimValues,
   resolveRoleMapping,
@@ -272,6 +273,7 @@ async function buildAuth() {
   }));
 
   return betterAuth({
+    appName: "VyManager",
     database: prismaAdapter(prisma, {
       provider: "postgresql",
     }),
@@ -341,6 +343,12 @@ async function buildAuth() {
     plugins: [
       genericOAuth({
         config: oauthConfig,
+      }),
+      twoFactor({
+        issuer: "VyManager",
+        ...(smtpConfigured()
+          ? { otpOptions: { sendOTP: sendTwoFactorOtp } }
+          : {}),
       }),
     ],
   } as Parameters<typeof betterAuth>[0]);
