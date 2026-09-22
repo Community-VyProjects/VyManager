@@ -13,8 +13,12 @@ function encodeAuthPlain(user: string, pass: string): string {
   return Buffer.from(`\0${user}\0${pass}`).toString("base64");
 }
 
+function headerSafe(value: string): string {
+  return value.replace(/[\r\n<>]/g, "");
+}
+
 function quoteAddress(value: string): string {
-  return `<${value.replace(/[<>\r\n]/g, "")}>`;
+  return `<${headerSafe(value)}>`;
 }
 
 class SmtpSession {
@@ -96,8 +100,8 @@ export async function sendTwoFactorOtp(data: {
     await session.cmd(`RCPT TO:${quoteAddress(to)}`, 250);
     await session.cmd("DATA", 354);
     const body = [
-      `From: ${from}`,
-      `To: ${to}`,
+      `From: ${headerSafe(from)}`,
+      `To: ${headerSafe(to)}`,
       "Subject: VyManager sign-in code",
       "Content-Type: text/plain; charset=utf-8",
       "",

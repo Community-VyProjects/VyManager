@@ -371,12 +371,21 @@ export function invalidateAuth(): void {
   _initPromise = null;
 }
 
+const enrollGateCache = new Map<string, { value: boolean; expiresAt: number }>();
+const ENROLL_GATE_TTL_MS = 30_000;
+
 export async function userMustEnrollTwoFactor(
   twoFactorEnabled: boolean | undefined,
   cookieHeader: string | null,
+  userId?: string,
 ): Promise<boolean> {
   if (twoFactorEnabled) return false;
   if (!cookieHeader) return false;
+  const now = Date.now();
+  if (userId) {
+    const cached = enrollGateCache.get(userId);
+    if (cached && cached.expiresAt > now) return cached.value;
+  }
   const backendUrl = (process.env.BACKEND_URL || "http://localhost:8000").replace(
     /\/$/,
     "",
@@ -387,7 +396,9 @@ export async function userMustEnrollTwoFactor(
     });
     if (!res.ok) return false;
     const data = (await res.json()) as { require_two_factor?: boolean };
-    return Boolean(data.require_two_factor);
+    const value = Boolean(data.require_two_factor);
+    if (userId) enrollGateCache.set(userId, { value, expiresAt: now + ENROLL_GATE_TTL_MS });
+    return value;
   } catch {
     return false;
   }

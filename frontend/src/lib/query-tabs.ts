@@ -95,7 +95,6 @@ const ADMINISTRATION_TAB_FROM_NAV: Record<string, AdministrationTab> = {
   users: "users",
   "user-management": "users",
   authentication: "authentication",
-  security: "users",
   tokens: "tokens",
   "api-tokens": "tokens",
   backup: "backup",

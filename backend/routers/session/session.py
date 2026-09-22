@@ -1949,12 +1949,12 @@ async def _policy_org_id(request: Request, conn: asyncpg.Connection) -> Optional
     )
     if org_id:
         return org_id
-    return await conn.fetchval("SELECT id FROM organizations ORDER BY id LIMIT 1")
+    return None
 
 
 @router.get("/two-factor-policy", response_model=TwoFactorPolicyResponse)
 async def get_two_factor_policy(
-    request: Request, conn: asyncpg.Connection = Depends(org_conn_admin)
+    request: Request, conn: asyncpg.Connection = Depends(org_conn_self)
 ):
     """Whether this user must enroll 2FA, and the acting org's admin toggle."""
     user = getattr(request.state, "user", None)

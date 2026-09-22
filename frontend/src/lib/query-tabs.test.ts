@@ -89,7 +89,6 @@ describe("administrationTabFromSearch", () => {
   it("maps Site Manager aliases", () => {
     assert.equal(administrationTabFromSearch(params({ section: "user-management" })), "users");
     assert.equal(administrationTabFromSearch(params({ section: "api-tokens" })), "tokens");
-    assert.equal(administrationTabFromSearch(params({ section: "security" })), "users");
   });
 
   it("falls back to tab when section is absent", () => {
