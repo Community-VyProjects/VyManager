@@ -125,7 +125,7 @@ export interface InstanceUpdateRequest {
   is_active?: boolean;
   site_id?: string; // For moving instance to different site
   ssh_port?: number;
-  ssh_username?: string;
+  ssh_username?: string | null;
   commit_confirm_enabled?: boolean;
   commit_confirm_minutes?: number;
   timeout?: number;
@@ -175,7 +175,7 @@ export interface RestoreSummary {
 // Session Service
 // ============================================================================
 
-class SessionService {
+export class SessionService {
   async getOnboardingStatus(): Promise<OnboardingStatus> {
     return apiClient.get<OnboardingStatus>("/session/onboarding-status");
   }

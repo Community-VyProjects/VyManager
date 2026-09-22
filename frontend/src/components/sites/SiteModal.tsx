@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -14,60 +14,81 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertCircle, Loader2, Building2 } from "lucide-react";
-import { sessionService } from "@/lib/api/session";
+import type { Site } from "@/lib/api/session";
 import { ApiError } from "@/lib/types/api";
+import { modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
+import {
+  emptySiteDraft,
+  siteDraftFrom,
+  submitSiteCreate,
+  submitSiteUpdate,
+  validateSiteDraft,
+  type SiteDraft,
+} from "./sites-form";
 
-interface CreateSiteModalProps {
+interface SiteModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  existing?: Site | null;
 }
 
-export function CreateSiteModal({
+export function SiteModal({
   open,
   onOpenChange,
   onSuccess,
-}: CreateSiteModalProps) {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+  existing,
+}: SiteModalProps) {
+  const isEdit = modalIsEdit(existing);
+  const [draft, setDraft] = useState<SiteDraft>(emptySiteDraft());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleClose = () => {
-    setName("");
-    setDescription("");
+  useEffect(() => {
+    if (!open) return;
+    if (existing) {
+      setDraft(siteDraftFrom(existing));
+    } else {
+      setDraft(emptySiteDraft());
+    }
     setError(null);
-    onOpenChange(false);
-  };
+  }, [open, existing]);
+
+  const patch = (fields: Partial<SiteDraft>) => setDraft((d) => ({ ...d, ...fields }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!name.trim()) {
-      setError("Site name is required");
+    const validationError = validateSiteDraft(draft);
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
+    const write = modalWriteKind(existing ? { name: existing.id } : null);
     setLoading(true);
     setError(null);
 
     try {
-      await sessionService.createSite({
-        name: name.trim(),
-        description: description.trim() || null,
-      });
-
-      handleClose();
+      if (write.kind === "update" && existing) {
+        await submitSiteUpdate(existing, draft);
+      } else {
+        await submitSiteCreate(draft);
+      }
       onSuccess();
+      onOpenChange(false);
     } catch (err) {
-      setError((err as ApiError).message || "Failed to create site");
+      setError(
+        (err as ApiError).message ||
+          (isEdit ? "Failed to update site" : "Failed to create site"),
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <div className="flex items-center gap-2">
@@ -75,9 +96,11 @@ export function CreateSiteModal({
               <Building2 className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <DialogTitle>Create New Site</DialogTitle>
+              <DialogTitle>{isEdit ? "Edit Site" : "Create New Site"}</DialogTitle>
               <DialogDescription>
-                Create a new site to organize your VyOS instances
+                {isEdit
+                  ? "Update site information"
+                  : "Create a new site to organize your VyOS instances"}
               </DialogDescription>
             </div>
           </div>
@@ -85,7 +108,6 @@ export function CreateSiteModal({
 
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
-            {/* Error Display */}
             {error && (
               <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3">
                 <div className="flex items-start gap-2">
@@ -95,31 +117,31 @@ export function CreateSiteModal({
               </div>
             )}
 
-            {/* Site Name */}
             <div className="space-y-2">
               <Label htmlFor="name" className="required">
                 Site Name
               </Label>
               <Input
                 id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={draft.name}
+                onChange={(e) => patch({ name: e.target.value })}
                 placeholder="e.g., Main Office, Data Center 1"
                 disabled={loading}
                 required
               />
-              <p className="text-xs text-muted-foreground">
-                A descriptive name for this site
-              </p>
+              {!isEdit && (
+                <p className="text-xs text-muted-foreground">
+                  A descriptive name for this site
+                </p>
+              )}
             </div>
 
-            {/* Description */}
             <div className="space-y-2">
               <Label htmlFor="description">Description (Optional)</Label>
               <Textarea
                 id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                value={draft.description}
+                onChange={(e) => patch({ description: e.target.value })}
                 placeholder="Additional information about this site..."
                 rows={3}
                 disabled={loading}
@@ -131,7 +153,7 @@ export function CreateSiteModal({
             <Button
               type="button"
               variant="outline"
-              onClick={handleClose}
+              onClick={() => onOpenChange(false)}
               disabled={loading}
             >
               Cancel
@@ -140,8 +162,10 @@ export function CreateSiteModal({
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating...
+                  {isEdit ? "Saving..." : "Creating..."}
                 </>
+              ) : isEdit ? (
+                "Save Changes"
               ) : (
                 "Create Site"
               )}
