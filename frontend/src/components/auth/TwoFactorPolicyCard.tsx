@@ -16,19 +16,36 @@ export function TwoFactorPolicyCard() {
   const [policy, setPolicy] = useState<TwoFactorPolicy | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setError("");
     try {
       setPolicy(await sessionService.getTwoFactorPolicy());
     } catch (err) {
+      setPolicy(null);
       setError(err instanceof Error ? err.message : "Could not load 2FA policy");
+    } finally {
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  if (loading) {
+    return (
+      <p className="text-sm text-muted-foreground flex items-center gap-2">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading organization 2FA policy...
+      </p>
+    );
+  }
+
+  if (error && !policy) {
+    return <p className="text-sm text-destructive">{error}</p>;
+  }
 
   if (!policy?.can_edit) return null;
 

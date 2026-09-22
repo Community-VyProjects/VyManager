@@ -376,14 +376,20 @@ export async function userMustEnrollTwoFactor(
   twoFactorEnabled: boolean | undefined,
 ): Promise<boolean> {
   if (twoFactorEnabled) return false;
-  const row = await prisma.organization.findFirst({
-    where: {
-      requireTwoFactor: true,
-      memberships: { some: { userId } },
-    },
-    select: { id: true },
-  });
-  return Boolean(row);
+  const [org, credential] = await Promise.all([
+    prisma.organization.findFirst({
+      where: {
+        requireTwoFactor: true,
+        memberships: { some: { userId } },
+      },
+      select: { id: true },
+    }),
+    prisma.account.findFirst({
+      where: { userId, providerId: "credential" },
+      select: { id: true },
+    }),
+  ]);
+  return Boolean(org && credential);
 }
 
 // Eager-initialize at module load so the first request isn't slow.

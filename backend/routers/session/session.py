@@ -1950,7 +1950,10 @@ async def get_two_factor_policy(
             SELECT 1
             FROM organizations o
             JOIN org_memberships m ON m."orgId" = o.id
-            WHERE m."userId" = $1 AND o."requireTwoFactor" = true
+            JOIN accounts a ON a."userId" = m."userId"
+            WHERE m."userId" = $1
+              AND o."requireTwoFactor" = true
+              AND a."providerId" = 'credential'
         )
         """,
         user["id"],
