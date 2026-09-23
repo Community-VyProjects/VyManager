@@ -83,32 +83,40 @@ describe("totpSecretFromUri", () => {
 });
 
 describe("leftoverPasswordSessions", () => {
+  const now = Date.parse("2026-09-22T12:00:00Z");
+  const ua = "Mozilla/5.0 VyManagerTest";
+
   it("treats a seconds-old other session as this login attempt", () => {
-    const now = Date.parse("2026-09-22T12:00:00Z");
     const ghosts = leftoverPasswordSessions(
-      [{ created_at: "2026-09-22T11:59:30Z", token: "a" }],
-      now,
+      [{ created_at: "2026-09-22T11:59:30Z", token: "a", user_agent: ua }],
+      { nowMs: now, currentUserAgent: ua },
     );
     assert.deepEqual(ghosts.map((s) => s.token), ["a"]);
   });
 
   it("treats a minutes-old password step as this login attempt", () => {
-    const now = Date.parse("2026-09-22T12:00:00Z");
     const ghosts = leftoverPasswordSessions(
-      [{ created_at: "2026-09-22T11:50:00Z", token: "a" }],
-      now,
+      [{ created_at: "2026-09-22T11:50:00Z", token: "a", user_agent: ua }],
+      { nowMs: now, currentUserAgent: ua },
     );
     assert.deepEqual(ghosts.map((s) => s.token), ["a"]);
   });
 
+  it("does not revoke a recent session from another browser", () => {
+    const ghosts = leftoverPasswordSessions(
+      [{ created_at: "2026-09-22T11:59:30Z", token: "other", user_agent: "OtherBrowser/1.0" }],
+      { nowMs: now, currentUserAgent: ua },
+    );
+    assert.deepEqual(ghosts.map((s) => s.token), []);
+  });
+
   it("keeps an older session so another device still prompts", () => {
-    const now = Date.parse("2026-09-22T12:00:00Z");
     const ghosts = leftoverPasswordSessions(
       [
-        { created_at: "2026-09-22T11:59:30Z", token: "ghost" },
-        { created_at: "2026-09-22T10:00:00Z", token: "other" },
+        { created_at: "2026-09-22T11:59:30Z", token: "ghost", user_agent: ua },
+        { created_at: "2026-09-22T10:00:00Z", token: "other", user_agent: ua },
       ],
-      now,
+      { nowMs: now, currentUserAgent: ua },
     );
     assert.deepEqual(ghosts.map((s) => s.token), ["ghost"]);
   });

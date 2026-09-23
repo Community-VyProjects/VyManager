@@ -154,6 +154,7 @@ export interface AuthSessionInfo {
 export interface ActiveSessionsResponse {
   has_other_sessions: boolean;
   current_session_token: string;
+  current_user_agent?: string | null;
   other_sessions: AuthSessionInfo[];
 }
 

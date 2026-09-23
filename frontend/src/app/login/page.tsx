@@ -162,7 +162,9 @@ export default function LoginPage() {
       if (sessionsResponse.has_other_sessions) {
         let others = sessionsResponse.other_sessions;
         if (fromTwoFactor) {
-          const ghosts = leftoverPasswordSessions(others);
+          const ghosts = leftoverPasswordSessions(others, {
+            currentUserAgent: sessionsResponse.current_user_agent,
+          });
           for (const session of ghosts) {
             try {
               await sessionService.revokeSession(session.token);

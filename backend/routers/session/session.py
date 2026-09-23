@@ -1805,6 +1805,7 @@ class ActiveSessionsResponse(BaseModel):
 
     has_other_sessions: bool
     current_session_token: str
+    current_user_agent: Optional[str] = None
     other_sessions: List[AuthSessionInfo]
 
 
@@ -1848,10 +1849,12 @@ async def get_active_auth_sessions(request: Request, conn: asyncpg.Connection = 
 
         now = datetime.now(timezone.utc)
         other_sessions = []
+        current_user_agent = None
         for session in sessions:
             session_token = session["token"]
             is_current = session_token == current_token
             if is_current:
+                current_user_agent = session["userAgent"]
                 continue
             if not auth_session_is_live(
                 session["expiresAt"],
@@ -1873,6 +1876,7 @@ async def get_active_auth_sessions(request: Request, conn: asyncpg.Connection = 
         return ActiveSessionsResponse(
             has_other_sessions=len(other_sessions) > 0,
             current_session_token=current_token or "",
+            current_user_agent=current_user_agent,
             other_sessions=other_sessions,
         )
 

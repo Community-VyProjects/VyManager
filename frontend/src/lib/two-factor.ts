@@ -54,14 +54,27 @@ export function mustEnrollTwoFactor(opts: {
 /** Password sign-in creates a session that 2FA then replaces. If that
  *  row is still present, login would ask to close a "other session"
  *  that is this same attempt. */
-export function leftoverPasswordSessions<T extends { created_at: string | Date }>(
+export function leftoverPasswordSessions<T extends {
+  created_at: string | Date;
+  user_agent?: string | null;
+}>(
   others: T[],
-  nowMs = Date.now(),
-  maxAgeMs = 15 * 60 * 1000,
+  opts: {
+    nowMs?: number;
+    maxAgeMs?: number;
+    currentUserAgent?: string | null;
+  } = {},
 ): T[] {
+  const nowMs = opts.nowMs ?? Date.now();
+  const maxAgeMs = opts.maxAgeMs ?? 15 * 60 * 1000;
+  const currentUserAgent = opts.currentUserAgent;
+  if (!currentUserAgent) return [];
   return others.filter((session) => {
     const created = new Date(session.created_at).getTime();
-    return Number.isFinite(created) && nowMs - created >= 0 && nowMs - created <= maxAgeMs;
+    if (!(Number.isFinite(created) && nowMs - created >= 0 && nowMs - created <= maxAgeMs)) {
+      return false;
+    }
+    return (session.user_agent ?? "") === currentUserAgent;
   });
 }
 
