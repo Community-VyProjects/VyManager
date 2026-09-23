@@ -43,6 +43,8 @@ def _on_notify(connection, pid, channel, payload) -> None:
 async def start(pool: asyncpg.Pool) -> None:
     """Open the dedicated LISTEN connection for this worker."""
     global _listen_conn, _pool
+    if _listen_conn is not None:
+        await stop()
     _pool = pool
     _listen_conn = await pool.acquire()
     await _listen_conn.add_listener(CHANNEL, _on_notify)

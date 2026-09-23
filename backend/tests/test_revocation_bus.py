@@ -41,10 +41,13 @@ def test_delivery_and_transaction_coupling():
                 async with c.transaction():
                     await revocation_bus.emit(c, "user", "u_x")
             assert await asyncio.wait_for(q.get(), timeout=3) == "user:u_x"
+            while True:
+                try:
+                    extra = await asyncio.wait_for(q.get(), timeout=0.2)
+                except asyncio.TimeoutError:
+                    break
+                assert extra == "user:u_x"
 
-            # Rolled-back emit is not delivered (pg_notify fires on commit).
-            while not q.empty():
-                q.get_nowait()
             async with pool.acquire() as c:
                 tx = c.transaction()
                 await tx.start()
