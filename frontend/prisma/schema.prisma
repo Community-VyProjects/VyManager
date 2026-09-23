@@ -62,7 +62,7 @@ model Session {
   token          String   @unique
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  lastActivityAt DateTime @default(now()) @updatedAt // Track last activity for inactivity timeout
+  lastActivityAt DateTime @default(now())
   ipAddress      String?
   userAgent      String?
 

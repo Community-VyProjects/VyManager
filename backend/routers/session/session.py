@@ -12,7 +12,7 @@ from starlette.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import asyncpg
 import json
 import os
@@ -32,6 +32,28 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/session", tags=["session"])
+
+AUTH_SESSION_IDLE_MINUTES = int(os.getenv("SESSION_INACTIVITY_TIMEOUT", "30"))
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def auth_session_is_live(
+    expires_at: datetime,
+    last_activity_at: Optional[datetime],
+    now: datetime,
+    idle_minutes: int = AUTH_SESSION_IDLE_MINUTES,
+) -> bool:
+    """True if the row should still count as another signed-in device."""
+    now_utc = _as_utc(now)
+    if _as_utc(expires_at) <= now_utc:
+        return False
+    activity = last_activity_at if last_activity_at is not None else expires_at
+    return _as_utc(activity) > now_utc - timedelta(minutes=idle_minutes)
 
 
 # ============================================================================
@@ -1816,7 +1838,7 @@ async def get_active_auth_sessions(request: Request, conn: asyncpg.Connection = 
         # Get all active sessions for this user from better-auth's session table
         sessions = await conn.fetch(
             """
-            SELECT token, "createdAt", "expiresAt", "ipAddress", "userAgent"
+            SELECT token, "createdAt", "expiresAt", "lastActivityAt", "ipAddress", "userAgent"
             FROM sessions
             WHERE "userId" = $1 AND "expiresAt" > NOW()
             ORDER BY "createdAt" DESC
@@ -1824,21 +1846,29 @@ async def get_active_auth_sessions(request: Request, conn: asyncpg.Connection = 
             user_id,
         )
 
+        now = datetime.now(timezone.utc)
         other_sessions = []
         for session in sessions:
             session_token = session["token"]
             is_current = session_token == current_token
-            if not is_current:
-                other_sessions.append(
-                    AuthSessionInfo(
-                        token=session["token"],
-                        created_at=session["createdAt"],
-                        expires_at=session["expiresAt"],
-                        ip_address=session["ipAddress"],
-                        user_agent=session["userAgent"],
-                        is_current=False,
-                    )
+            if is_current:
+                continue
+            if not auth_session_is_live(
+                session["expiresAt"],
+                session["lastActivityAt"],
+                now,
+            ):
+                continue
+            other_sessions.append(
+                AuthSessionInfo(
+                    token=session["token"],
+                    created_at=session["createdAt"],
+                    expires_at=session["expiresAt"],
+                    ip_address=session["ipAddress"],
+                    user_agent=session["userAgent"],
+                    is_current=False,
                 )
+            )
 
         return ActiveSessionsResponse(
             has_other_sessions=len(other_sessions) > 0,

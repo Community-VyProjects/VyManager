@@ -57,7 +57,7 @@ export function mustEnrollTwoFactor(opts: {
 export function leftoverPasswordSessions<T extends { created_at: string | Date }>(
   others: T[],
   nowMs = Date.now(),
-  maxAgeMs = 2 * 60 * 1000,
+  maxAgeMs = 15 * 60 * 1000,
 ): T[] {
   return others.filter((session) => {
     const created = new Date(session.created_at).getTime();

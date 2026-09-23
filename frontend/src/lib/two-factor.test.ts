@@ -92,6 +92,15 @@ describe("leftoverPasswordSessions", () => {
     assert.deepEqual(ghosts.map((s) => s.token), ["a"]);
   });
 
+  it("treats a minutes-old password step as this login attempt", () => {
+    const now = Date.parse("2026-09-22T12:00:00Z");
+    const ghosts = leftoverPasswordSessions(
+      [{ created_at: "2026-09-22T11:50:00Z", token: "a" }],
+      now,
+    );
+    assert.deepEqual(ghosts.map((s) => s.token), ["a"]);
+  });
+
   it("keeps an older session so another device still prompts", () => {
     const now = Date.parse("2026-09-22T12:00:00Z");
     const ghosts = leftoverPasswordSessions(
