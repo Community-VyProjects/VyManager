@@ -16,6 +16,8 @@ The frontend owns login. Better Auth authenticates users against the `users` tab
 
 The backend does not call the frontend to validate requests. It verifies the cookie signature itself with the shared `BETTER_AUTH_SECRET` (`session_cookie.py`), then loads the session row from PostgreSQL and checks expiry. This is why the secret must be identical in both services.
 
+Email and password sign-in can require a second factor. Better Auth's twoFactor plugin stores an encrypted TOTP secret and backup codes on `twoFactor`, plus `users.twoFactorEnabled`. After a correct password the session is withheld until the user submits an authenticator code, an email OTP (only when `SMTP_HOST` and `SMTP_FROM` are set), or a backup code. Enrollment is self-service under User Management, Two-factor. An admin can require it for the organization; password users who are not enrolled must finish setup on login. API tokens are not challenged.
+
 ## Backend middleware chain
 
 Requests pass through three middlewares, in this order:

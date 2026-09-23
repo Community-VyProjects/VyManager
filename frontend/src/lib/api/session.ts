@@ -37,6 +37,12 @@ export interface OrganizationsResponse {
   org_ui_visible: boolean;
 }
 
+export interface TwoFactorPolicy {
+  require_two_factor: boolean;
+  org_require_two_factor: boolean;
+  can_edit: boolean;
+}
+
 export interface Instance {
   id: string;
   site_id: string;
@@ -148,6 +154,7 @@ export interface AuthSessionInfo {
 export interface ActiveSessionsResponse {
   has_other_sessions: boolean;
   current_session_token: string;
+  current_user_agent?: string | null;
   other_sessions: AuthSessionInfo[];
 }
 
@@ -221,6 +228,16 @@ export class SessionService {
    */
   async listOrganizations(): Promise<OrganizationsResponse> {
     return apiClient.get<OrganizationsResponse>("/session/organizations");
+  }
+
+  async getTwoFactorPolicy(): Promise<TwoFactorPolicy> {
+    return apiClient.get<TwoFactorPolicy>(`/session/two-factor-policy${orgQuery()}`);
+  }
+
+  async setTwoFactorPolicy(requireTwoFactor: boolean): Promise<TwoFactorPolicy> {
+    return apiClient.patch<TwoFactorPolicy>(`/session/two-factor-policy${orgQuery()}`, {
+      require_two_factor: requireTwoFactor,
+    });
   }
 
   /**

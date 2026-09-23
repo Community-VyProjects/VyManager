@@ -5,14 +5,14 @@ API endpoints for managing user sessions with VyOS instances.
 Handles connect/disconnect operations and instance selection.
 """
 
-from fastapi import Depends, APIRouter, HTTPException, Request, UploadFile, File, Form
+from fastapi import Depends, APIRouter, HTTPException, Query, Request, UploadFile, File, Form
 import org_scope
 from org_scope import assert_row_in_acting_org, org_conn_admin, org_conn_self, org_unit_of_work
 from starlette.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import asyncpg
 import json
 import os
@@ -20,6 +20,8 @@ from vyos_service import VyOSService, VyOSDeviceConfig
 from session_vyos_service import clear_session_cache
 from session_cookie import get_session_cookie, verify_session_cookie
 import appliance_mode
+from fastapi_permissions import require_super_admin
+from rbac_permissions import is_super_admin
 from backup_crypto import (
     encrypt_backup,
     decrypt_backup,
@@ -30,6 +32,28 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/session", tags=["session"])
+
+AUTH_SESSION_IDLE_MINUTES = int(os.getenv("SESSION_INACTIVITY_TIMEOUT", "30"))
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def auth_session_is_live(
+    expires_at: datetime,
+    last_activity_at: Optional[datetime],
+    now: datetime,
+    idle_minutes: int = AUTH_SESSION_IDLE_MINUTES,
+) -> bool:
+    """True if the row should still count as another signed-in device."""
+    now_utc = _as_utc(now)
+    if _as_utc(expires_at) <= now_utc:
+        return False
+    activity = last_activity_at if last_activity_at is not None else expires_at
+    return _as_utc(activity) > now_utc - timedelta(minutes=idle_minutes)
 
 
 # ============================================================================
@@ -504,23 +528,33 @@ async def disconnect_from_instance(request: Request, conn: asyncpg.Connection = 
 async def list_user_organizations(request: Request, conn: asyncpg.Connection = Depends(org_conn_self)):
     """The caller's organization memberships.
 
-    Backs the frontend's org UI: the grouping header and switcher render only
-    when the caller belongs to more than one organization (org_ui_visible),
-    so single-team deployments never see the org layer.
+    Super-admins (users.role = ADMIN) see every organization, matching
+    GET /session/sites. Everyone else sees memberships only. The frontend
+    org switcher renders when org_ui_visible (more than one org).
     """
     if not hasattr(request.state, "user") or not request.state.user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    rows = await conn.fetch(
-        """
-        SELECT o.id, o.name, m."orgRole" AS org_role
-        FROM org_memberships m
-        JOIN organizations o ON o.id = m."orgId"
-        WHERE m."userId" = $1
-        ORDER BY o.name
-        """,
-        request.state.user["id"],
-    )
+    user = request.state.user
+    if await is_super_admin(conn, user["id"]):
+        rows = await conn.fetch(
+            """
+            SELECT o.id, o.name, 'ADMIN'::text AS org_role
+            FROM organizations o
+            ORDER BY o.name
+            """
+        )
+    else:
+        rows = await conn.fetch(
+            """
+            SELECT o.id, o.name, m."orgRole" AS org_role
+            FROM org_memberships m
+            JOIN organizations o ON o.id = m."orgId"
+            WHERE m."userId" = $1
+            ORDER BY o.name
+            """,
+            user["id"],
+        )
     orgs = [
         OrganizationMembership(id=r["id"], name=r["name"], org_role=r["org_role"])
         for r in rows
@@ -1771,6 +1805,7 @@ class ActiveSessionsResponse(BaseModel):
 
     has_other_sessions: bool
     current_session_token: str
+    current_user_agent: Optional[str] = None
     other_sessions: List[AuthSessionInfo]
 
 
@@ -1804,7 +1839,7 @@ async def get_active_auth_sessions(request: Request, conn: asyncpg.Connection = 
         # Get all active sessions for this user from better-auth's session table
         sessions = await conn.fetch(
             """
-            SELECT token, "createdAt", "expiresAt", "ipAddress", "userAgent"
+            SELECT token, "createdAt", "expiresAt", "lastActivityAt", "ipAddress", "userAgent"
             FROM sessions
             WHERE "userId" = $1 AND "expiresAt" > NOW()
             ORDER BY "createdAt" DESC
@@ -1812,25 +1847,36 @@ async def get_active_auth_sessions(request: Request, conn: asyncpg.Connection = 
             user_id,
         )
 
+        now = datetime.now(timezone.utc)
         other_sessions = []
+        current_user_agent = None
         for session in sessions:
             session_token = session["token"]
             is_current = session_token == current_token
-            if not is_current:
-                other_sessions.append(
-                    AuthSessionInfo(
-                        token=session["token"],
-                        created_at=session["createdAt"],
-                        expires_at=session["expiresAt"],
-                        ip_address=session["ipAddress"],
-                        user_agent=session["userAgent"],
-                        is_current=False,
-                    )
+            if is_current:
+                current_user_agent = session["userAgent"]
+                continue
+            if not auth_session_is_live(
+                session["expiresAt"],
+                session["lastActivityAt"],
+                now,
+            ):
+                continue
+            other_sessions.append(
+                AuthSessionInfo(
+                    token=session["token"],
+                    created_at=session["createdAt"],
+                    expires_at=session["expiresAt"],
+                    ip_address=session["ipAddress"],
+                    user_agent=session["userAgent"],
+                    is_current=False,
                 )
+            )
 
         return ActiveSessionsResponse(
             has_other_sessions=len(other_sessions) > 0,
             current_session_token=current_token or "",
+            current_user_agent=current_user_agent,
             other_sessions=other_sessions,
         )
 
@@ -1922,3 +1968,155 @@ async def logout_auth_session(
             user["id"],
         )
     return ApiResponse(success=True, message="Signed out")
+
+
+class TwoFactorPolicyResponse(BaseModel):
+    require_two_factor: bool
+    org_require_two_factor: bool
+    can_edit: bool
+
+
+class TwoFactorPolicyUpdate(BaseModel):
+    require_two_factor: bool
+
+
+def pick_two_factor_policy_org(
+    explicit_org_id: Optional[str],
+    membership_org_ids: list,
+    *,
+    write: bool,
+) -> Optional[str]:
+    """Choose the org whose requireTwoFactor flag the admin card shows or writes.
+
+    An explicit org (query param or acting_org_id) always wins. Otherwise a
+    sole membership is used so appliance / single-org installs need no org_id.
+    Two or more memberships with no explicit org: writes 400, reads return
+    None so GET never displays or implies a random org.
+    """
+    if explicit_org_id:
+        return explicit_org_id
+    if len(membership_org_ids) == 1:
+        return membership_org_ids[0]
+    if write:
+        raise HTTPException(
+            status_code=400,
+            detail="You belong to multiple organizations; pass org_id",
+        )
+    return None
+
+
+def allow_explicit_policy_org(
+    explicit_org_id: Optional[str],
+    *,
+    is_super_admin: bool,
+    is_member: bool,
+) -> Optional[str]:
+    """Drop a client-supplied org id the caller cannot see."""
+    if not explicit_org_id:
+        return None
+    if is_super_admin or is_member:
+        return explicit_org_id
+    return None
+
+
+@router.get("/two-factor-policy", response_model=TwoFactorPolicyResponse)
+async def get_two_factor_policy(
+    request: Request,
+    org_id: Optional[str] = Query(None),
+    conn: asyncpg.Connection = Depends(org_conn_self),
+):
+    """Whether this user must enroll 2FA, and the acting org's admin toggle."""
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    required = await conn.fetchval(
+        """
+        SELECT EXISTS (
+            SELECT 1 FROM accounts a
+            WHERE a."userId" = $1 AND a."providerId" = 'credential'
+        )
+        AND (
+            EXISTS (
+                SELECT 1
+                FROM organizations o
+                JOIN org_memberships m ON m."orgId" = o.id
+                WHERE m."userId" = $1 AND o."requireTwoFactor" = true
+            )
+            OR (
+                NOT EXISTS (
+                    SELECT 1 FROM org_memberships WHERE "userId" = $1
+                )
+                AND EXISTS (
+                    SELECT 1 FROM organizations WHERE "requireTwoFactor" = true
+                )
+            )
+        )
+        """,
+        user["id"],
+    )
+    can_edit = await is_super_admin(conn, user["id"])
+    requested = org_id or getattr(request.state, "acting_org_id", None)
+    is_member = False
+    if requested and not can_edit:
+        is_member = bool(
+            await conn.fetchval(
+                'SELECT 1 FROM org_memberships WHERE "userId" = $1 AND "orgId" = $2',
+                user["id"],
+                requested,
+            )
+        )
+    explicit = allow_explicit_policy_org(
+        requested,
+        is_super_admin=bool(can_edit),
+        is_member=is_member,
+    )
+    memberships: list = []
+    if not explicit:
+        if can_edit:
+            rows = await conn.fetch(
+                "SELECT id FROM organizations ORDER BY name LIMIT 2"
+            )
+            memberships = [row["id"] for row in rows]
+        else:
+            rows = await conn.fetch(
+                'SELECT "orgId" FROM org_memberships WHERE "userId" = $1 ORDER BY "orgId" LIMIT 2',
+                user["id"],
+            )
+            memberships = [row["orgId"] for row in rows]
+    display_org = pick_two_factor_policy_org(explicit, memberships, write=False)
+    org_required = False
+    if display_org:
+        org_required = await conn.fetchval(
+            'SELECT "requireTwoFactor" FROM organizations WHERE id = $1',
+            display_org,
+        )
+    return TwoFactorPolicyResponse(
+        require_two_factor=bool(required),
+        org_require_two_factor=bool(org_required),
+        can_edit=bool(can_edit),
+    )
+
+
+@router.patch("/two-factor-policy", response_model=TwoFactorPolicyResponse)
+async def set_two_factor_policy(
+    body: TwoFactorPolicyUpdate,
+    request: Request,
+    conn: asyncpg.Connection = Depends(org_conn_admin),
+):
+    """Admin toggle: password users in this org must enroll 2FA."""
+    await require_super_admin(request)
+    org_id = pick_two_factor_policy_org(
+        getattr(request.state, "acting_org_id", None),
+        [],
+        write=True,
+    )
+    await conn.execute(
+        """
+        UPDATE organizations
+        SET "requireTwoFactor" = $2, "updatedAt" = NOW()
+        WHERE id = $1
+        """,
+        org_id,
+        body.require_two_factor,
+    )
+    return await get_two_factor_policy(request, org_id=org_id, conn=conn)

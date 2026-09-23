@@ -12,14 +12,18 @@ import { Shield, Loader2, AlertCircle } from "lucide-react";
 import { sessionService, AuthSessionInfo } from "@/lib/api/session";
 import { afterLoginPath } from "@/lib/appliance";
 import { ActiveSessionWarningModal } from "@/components/auth/ActiveSessionWarningModal";
+import { TwoFactorChallenge } from "@/components/auth/TwoFactorChallenge";
+import { TwoFactorEnrollForm } from "@/components/auth/TwoFactorEnrollForm";
 import { OAuthProviderConfig } from "@/lib/api/oauth";
 import { ProviderIcon } from "@/components/authentication/ProviderIcon";
 import { WELL_KNOWN_PROVIDERS } from "@/lib/api/oauth";
+import { interpretSignInResult, leftoverPasswordSessions, mustEnrollTwoFactor, parseTwoFactorQuery } from "@/lib/two-factor";
 
 export default function LoginPage() {
   const router = useRouter();
   const [appliance, setAppliance] = useState<boolean | null>(null);
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
+  const [forceEnroll, setForceEnroll] = useState(false);
 
   // Check if onboarding is needed first
   useEffect(() => {
@@ -38,6 +42,18 @@ export default function LoginPage() {
         setAppliance(applianceMode);
         const existing = await authClient.getSession();
         if (existing.data?.user) {
+          try {
+            const policy = await sessionService.getTwoFactorPolicy();
+            const enrolled = Boolean(
+              (existing.data.user as { twoFactorEnabled?: boolean }).twoFactorEnabled,
+            );
+            if (mustEnrollTwoFactor({ twoFactorEnabled: enrolled, requireTwoFactor: policy.require_two_factor })) {
+              setForceEnroll(true);
+              return;
+            }
+          } catch {
+            /* if policy cannot be read, do not trap them on login */
+          }
           router.replace(afterLoginPath(applianceMode));
           return;
         }
@@ -54,6 +70,8 @@ export default function LoginPage() {
 
   // Read search params on the client only so we don't call
   // `useSearchParams` during prerendering (avoids Next build error).
+  const [twoFactorMethods, setTwoFactorMethods] = useState<string[] | null>(null);
+
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -63,6 +81,10 @@ export default function LoginPage() {
           "Single sign-on was denied. Your account may not be a member of a " +
             "group permitted to access VyManager. Contact your administrator."
         );
+      }
+      const twoFactor = parseTwoFactorQuery(window.location.search);
+      if (twoFactor.challenge) {
+        setTwoFactorMethods(twoFactor.methods);
       }
     } catch {
       // ignore
@@ -94,42 +116,70 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // Sign in
       const result = await signIn.email({
         email: formData.email,
         password: formData.password,
       });
 
-      if (result.error) {
-        setError(result.error.message || "Login failed");
+      const outcome = interpretSignInResult(result);
+      if (outcome.kind === "error") {
+        setError(outcome.message);
+        setIsLoading(false);
+        return;
+      }
+      if (outcome.kind === "twoFactor") {
+        setTwoFactorMethods(outcome.methods);
         setIsLoading(false);
         return;
       }
 
-      await authClient.getSession();
-
-      try {
-        const sessionsResponse = await sessionService.getActiveSessions();
-
-        if (sessionsResponse.has_other_sessions) {
-          // Show the active session warning modal
-          setOtherSessions(sessionsResponse.other_sessions);
-          setShowSessionWarning(true);
-          setIsLoading(false);
-          return;
-        }
-      } catch (err) {
-        console.error("Failed to check active sessions:", err);
-        // Continue with login even if session check fails
-        // This shouldn't block the login process
-      }
-
-      // No other sessions, proceed to redirect
-      router.push(afterLoginPath(appliance));
+      await finishLogin();
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
       setIsLoading(false);
     }
+  };
+
+  const finishLogin = async (fromTwoFactor = false) => {
+    const sess = await authClient.getSession();
+    try {
+      const policy = await sessionService.getTwoFactorPolicy();
+      const enrolled = Boolean(
+        (sess.data?.user as { twoFactorEnabled?: boolean } | undefined)?.twoFactorEnabled,
+      );
+      if (mustEnrollTwoFactor({ twoFactorEnabled: enrolled, requireTwoFactor: policy.require_two_factor })) {
+        setForceEnroll(true);
+        setIsLoading(false);
+        return;
+      }
+    } catch {
+      /* continue */
+    }
+
+    try {
+      const sessionsResponse = await sessionService.getActiveSessions();
+
+      if (sessionsResponse.has_other_sessions) {
+        let others = sessionsResponse.other_sessions;
+        if (fromTwoFactor) {
+          const ghosts = leftoverPasswordSessions(others, {
+            currentUserAgent: sessionsResponse.current_user_agent,
+          });
+          const ghostTokens = new Set(ghosts.map((s) => s.token));
+          others = others.filter((s) => !ghostTokens.has(s.token));
+        }
+        if (others.length > 0) {
+          setOtherSessions(others);
+          setShowSessionWarning(true);
+          setIsLoading(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.error("Failed to check active sessions:", err);
+    }
+
+    router.push(afterLoginPath(appliance));
   };
 
   const handleContinueAndRevokeOtherSessions = async () => {
@@ -230,7 +280,38 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Login form */}
+          {forceEnroll ? (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground text-center">
+                Your administrator requires two-factor authentication before you can continue.
+              </p>
+              <TwoFactorEnrollForm
+                password={formData.password}
+                onDone={() => finishLogin(true)}
+              />
+            </div>
+          ) : twoFactorMethods ? (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground text-center">
+                Enter a second-factor code to finish signing in.
+              </p>
+              <TwoFactorChallenge
+                methods={twoFactorMethods}
+                onVerified={() => finishLogin(true)}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                onClick={() => {
+                  setTwoFactorMethods(null);
+                  setError("");
+                }}
+              >
+                Back to password
+              </Button>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label
@@ -290,9 +371,10 @@ export default function LoginPage() {
             </Button>
 
           </form>
+          )}
 
           {/* OAuth provider buttons */}
-          {oauthProviders.length > 0 && (
+          {oauthProviders.length > 0 && !twoFactorMethods && (
             <>
               <div className="relative my-4">
                 <div className="absolute inset-0 flex items-center">

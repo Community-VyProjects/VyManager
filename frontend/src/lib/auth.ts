@@ -1,7 +1,8 @@
 import { betterAuth } from "better-auth";
-import { genericOAuth } from "better-auth/plugins";
+import { genericOAuth, twoFactor } from "better-auth/plugins";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { PrismaClient } from "@prisma/client";
+import { sendTwoFactorOtp, smtpConfigured } from "./two-factor-smtp";
 import {
   extractClaimValues,
   resolveRoleMapping,
@@ -272,6 +273,7 @@ async function buildAuth() {
   }));
 
   return betterAuth({
+    appName: "VyManager",
     database: prismaAdapter(prisma, {
       provider: "postgresql",
     }),
@@ -342,6 +344,12 @@ async function buildAuth() {
       genericOAuth({
         config: oauthConfig,
       }),
+      twoFactor({
+        issuer: "VyManager",
+        ...(smtpConfigured()
+          ? { otpOptions: { sendOTP: sendTwoFactorOtp } }
+          : {}),
+      }),
     ],
   } as Parameters<typeof betterAuth>[0]);
 }
@@ -361,6 +369,64 @@ export async function getAuth(): Promise<ReturnType<typeof betterAuth>> {
 export function invalidateAuth(): void {
   _authInstance = null;
   _initPromise = null;
+}
+
+const enrollGateCache = new Map<string, { value: boolean; expiresAt: number }>();
+const ENROLL_GATE_TTL_MS = 30_000;
+const ENROLL_GATE_MAX = 256;
+
+function enrollGateGet(userId: string, now: number): boolean | undefined {
+  const cached = enrollGateCache.get(userId);
+  if (!cached) return undefined;
+  if (cached.expiresAt <= now) {
+    enrollGateCache.delete(userId);
+    return undefined;
+  }
+  return cached.value;
+}
+
+function enrollGateSet(userId: string, value: boolean, now: number): void {
+  if (enrollGateCache.size >= ENROLL_GATE_MAX) {
+    for (const [id, entry] of enrollGateCache) {
+      if (entry.expiresAt <= now) enrollGateCache.delete(id);
+    }
+    while (enrollGateCache.size >= ENROLL_GATE_MAX) {
+      const oldest = enrollGateCache.keys().next().value;
+      if (oldest === undefined) break;
+      enrollGateCache.delete(oldest);
+    }
+  }
+  enrollGateCache.set(userId, { value, expiresAt: now + ENROLL_GATE_TTL_MS });
+}
+
+export async function userMustEnrollTwoFactor(
+  twoFactorEnabled: boolean | undefined,
+  cookieHeader: string | null,
+  userId?: string,
+): Promise<boolean> {
+  if (twoFactorEnabled) return false;
+  if (!cookieHeader) return false;
+  const now = Date.now();
+  if (userId) {
+    const cached = enrollGateGet(userId, now);
+    if (cached !== undefined) return cached;
+  }
+  const backendUrl = (process.env.BACKEND_URL || "http://localhost:8000").replace(
+    /\/$/,
+    "",
+  );
+  try {
+    const res = await fetch(`${backendUrl}/session/two-factor-policy`, {
+      headers: { Cookie: cookieHeader },
+    });
+    if (!res.ok) return false;
+    const data = (await res.json()) as { require_two_factor?: boolean };
+    const value = Boolean(data.require_two_factor);
+    if (userId) enrollGateSet(userId, value, now);
+    return value;
+  } catch {
+    return false;
+  }
 }
 
 // Eager-initialize at module load so the first request isn't slow.

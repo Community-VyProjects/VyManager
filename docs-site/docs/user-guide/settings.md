@@ -22,6 +22,10 @@ See [RBAC and permissions](../architecture/rbac) for how the roles are enforced.
 
 Personal access tokens for non-browser clients. Each token has a name, optional expiry (30/90/365 days or never), a read-only flag (default on), and an access restriction: all your instances, specific sites, or specific instances. The token value is shown once at creation. Tokens act as you and never exceed your own permissions; they can be revoked at any time. Usage details are in [Sessions and authentication](../architecture/sessions-and-auth#api-tokens).
 
+## Two-factor authentication
+
+Each user can enable an authenticator app from User Management, Two-factor (Site Manager, or Administration on an appliance). An administrator can also require it for the organization from a second card on that tab; password users who have not enrolled are sent through setup on the next sign-in. Sign-in then asks for a TOTP code, a backup code, or an email one-time code when SMTP is configured (`SMTP_HOST` and `SMTP_FROM`). SSO logins are not challenged. API tokens skip the second factor.
+
 ## Authentication (SSO)
 
 External OAuth/OIDC login providers: add from a list of known providers or configure a custom one, set the client credentials, and enable or disable per provider. The login page picks up enabled providers automatically.
