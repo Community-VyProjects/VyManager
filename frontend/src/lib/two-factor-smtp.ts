@@ -64,6 +64,17 @@ class SmtpSession {
   }
 }
 
+async function upgradeStartTls(session: SmtpSession, host: string): Promise<SmtpSession> {
+  await session.cmd("STARTTLS", 220);
+  const socket = await new Promise<tls.TLSSocket>((resolve, reject) => {
+    const s = tls.connect({ socket: session.socket, servername: host, host }, () => resolve(s));
+    s.once("error", reject);
+  });
+  const next = new SmtpSession(socket);
+  await next.cmd("EHLO vymanager", 250);
+  return next;
+}
+
 async function connectSmtp(): Promise<SmtpSession> {
   const host = env("SMTP_HOST");
   const port = Number(env("SMTP_PORT", "587"));
@@ -74,9 +85,12 @@ async function connectSmtp(): Promise<SmtpSession> {
       : net.connect({ host, port }, () => resolve(s));
     s.once("error", reject);
   });
-  const session = new SmtpSession(socket);
+  let session = new SmtpSession(socket);
   await session.read(220);
   await session.cmd(`EHLO vymanager`, 250);
+  if (!secure) {
+    session = await upgradeStartTls(session, host);
+  }
   const user = env("SMTP_USER");
   const pass = env("SMTP_PASS");
   if (user) {
