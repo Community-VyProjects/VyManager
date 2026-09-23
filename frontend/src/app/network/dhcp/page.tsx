@@ -51,15 +51,13 @@ import { ClickableSubnet } from "@/components/ui/clickable-items";
 import { CreateDHCPServerModal } from "@/components/services/CreateDHCPServerModal";
 import { EditDHCPServerModal } from "@/components/services/EditDHCPServerModal";
 import { DeleteDHCPModal } from "@/components/services/DeleteDHCPModal";
-import { EditStaticMappingModal } from "@/components/services/EditStaticMappingModal";
 import { DeleteStaticMappingModal } from "@/components/services/DeleteStaticMappingModal";
 import { AddLeaseToStaticMappingModal } from "@/components/services/AddLeaseToStaticMappingModal";
-import { AddRangeModal } from "@/components/services/AddRangeModal";
-import { AddStaticMappingModal } from "@/components/services/AddStaticMappingModal";
+import { RangeModal } from "@/components/services/RangeModal";
+import { StaticMappingModal } from "@/components/services/StaticMappingModal";
 import { DHCPServerSettingsModal } from "@/components/services/DHCPServerSettingsModal";
 import { DHCPFailoverModal } from "@/components/services/DHCPFailoverModal";
 import { DHCPDdnsModal } from "@/components/services/DHCPDdnsModal";
-import { EditRangeModal } from "@/components/services/EditRangeModal";
 import { ChevronRight } from "lucide-react";
 
 function formatLease(seconds: string): string {
@@ -1408,17 +1406,24 @@ function DHCPPageInner() {
         )}
 
         {/* Static Mapping Modals */}
-        {editingStaticMapping && (
-          <EditStaticMappingModal
-            open={!!editingStaticMapping}
-            onOpenChange={(open) => !open && setEditingStaticMapping(null)}
-            networkName={editingStaticMapping.network}
-            subnet={editingStaticMapping.subnet}
-            mapping={editingStaticMapping.mapping}
+        {currentNetwork && (
+          <StaticMappingModal
+            open={addingStaticMapping || !!editingStaticMapping}
+            onOpenChange={(open) => {
+              if (!open) {
+                setAddingStaticMapping(false);
+                setEditingStaticMapping(null);
+              }
+            }}
+            network={currentNetwork}
+            existing={editingStaticMapping}
             capabilities={capabilities}
             onSuccess={() => {
               fetchConfig(true);
               fetchLeases();
+              if (!editingStaticMapping) {
+                setActiveTab("static");
+              }
             }}
           />
         )}
@@ -1453,44 +1458,20 @@ function DHCPPageInner() {
           />
         )}
 
-        {/* Add Range Modal */}
         {currentNetwork && (
-          <AddRangeModal
-            open={addingRange}
-            onOpenChange={setAddingRange}
+          <RangeModal
+            open={addingRange || !!editingRange}
+            onOpenChange={(open) => {
+              if (!open) {
+                setAddingRange(false);
+                setEditingRange(null);
+              }
+            }}
             network={currentNetwork}
+            existing={editingRange}
             onSuccess={() => {
               fetchConfig(true);
             }}
-          />
-        )}
-
-        {/* Edit Range Modal */}
-        {editingRange && currentNetwork && (
-          <EditRangeModal
-            open={!!editingRange}
-            onOpenChange={(open) => !open && setEditingRange(null)}
-            networkName={currentNetwork.name}
-            subnet={editingRange.subnet}
-            range={editingRange.range}
-            onSuccess={() => {
-              fetchConfig(true);
-            }}
-          />
-        )}
-
-        {/* Add Static Mapping Modal */}
-        {currentNetwork && (
-          <AddStaticMappingModal
-            open={addingStaticMapping}
-            onOpenChange={setAddingStaticMapping}
-            network={currentNetwork}
-            onSuccess={() => {
-              fetchConfig(true);
-              // Switch to Static Mappings tab to show the new mapping
-              setActiveTab("static");
-            }}
-            capabilities={capabilities}
           />
         )}
 

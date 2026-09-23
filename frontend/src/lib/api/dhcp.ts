@@ -281,7 +281,7 @@ export interface UpdateSubnetConfig {
 // API Service
 // ============================================================================
 
-class DHCPService {
+export class DHCPService {
   /**
    * Get DHCP server capabilities based on VyOS version
    */
