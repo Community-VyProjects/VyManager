@@ -53,7 +53,9 @@ export function mustEnrollTwoFactor(opts: {
 
 /** Password sign-in creates a session that 2FA then replaces. If that
  *  row is still present, login would ask to close a "other session"
- *  that is this same attempt. */
+ *  that is this same attempt. Callers must not revoke these rows: a
+ *  second device with the same user-agent in this window is a real
+ *  session. Hide them from the warning only. */
 export function leftoverPasswordSessions<T extends {
   created_at: string | Date;
   user_agent?: string | null;

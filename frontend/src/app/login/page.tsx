@@ -165,13 +165,6 @@ export default function LoginPage() {
           const ghosts = leftoverPasswordSessions(others, {
             currentUserAgent: sessionsResponse.current_user_agent,
           });
-          for (const session of ghosts) {
-            try {
-              await sessionService.revokeSession(session.token);
-            } catch {
-              /* still prompt on whatever remains */
-            }
-          }
           const ghostTokens = new Set(ghosts.map((s) => s.token));
           others = others.filter((s) => !ghostTokens.has(s.token));
         }

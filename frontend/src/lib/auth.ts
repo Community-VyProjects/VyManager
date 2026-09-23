@@ -373,6 +373,31 @@ export function invalidateAuth(): void {
 
 const enrollGateCache = new Map<string, { value: boolean; expiresAt: number }>();
 const ENROLL_GATE_TTL_MS = 30_000;
+const ENROLL_GATE_MAX = 256;
+
+function enrollGateGet(userId: string, now: number): boolean | undefined {
+  const cached = enrollGateCache.get(userId);
+  if (!cached) return undefined;
+  if (cached.expiresAt <= now) {
+    enrollGateCache.delete(userId);
+    return undefined;
+  }
+  return cached.value;
+}
+
+function enrollGateSet(userId: string, value: boolean, now: number): void {
+  if (enrollGateCache.size >= ENROLL_GATE_MAX) {
+    for (const [id, entry] of enrollGateCache) {
+      if (entry.expiresAt <= now) enrollGateCache.delete(id);
+    }
+    while (enrollGateCache.size >= ENROLL_GATE_MAX) {
+      const oldest = enrollGateCache.keys().next().value;
+      if (oldest === undefined) break;
+      enrollGateCache.delete(oldest);
+    }
+  }
+  enrollGateCache.set(userId, { value, expiresAt: now + ENROLL_GATE_TTL_MS });
+}
 
 export async function userMustEnrollTwoFactor(
   twoFactorEnabled: boolean | undefined,
@@ -383,8 +408,8 @@ export async function userMustEnrollTwoFactor(
   if (!cookieHeader) return false;
   const now = Date.now();
   if (userId) {
-    const cached = enrollGateCache.get(userId);
-    if (cached && cached.expiresAt > now) return cached.value;
+    const cached = enrollGateGet(userId, now);
+    if (cached !== undefined) return cached;
   }
   const backendUrl = (process.env.BACKEND_URL || "http://localhost:8000").replace(
     /\/$/,
@@ -397,7 +422,7 @@ export async function userMustEnrollTwoFactor(
     if (!res.ok) return false;
     const data = (await res.json()) as { require_two_factor?: boolean };
     const value = Boolean(data.require_two_factor);
-    if (userId) enrollGateCache.set(userId, { value, expiresAt: now + ENROLL_GATE_TTL_MS });
+    if (userId) enrollGateSet(userId, value, now);
     return value;
   } catch {
     return false;
