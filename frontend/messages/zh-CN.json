@@ -1,0 +1,65 @@
+{
+  "common": {
+    "actions": "操作",
+    "add": "添加",
+    "cancel": "取消",
+    "close": "关闭",
+    "default": "默认",
+    "delete": "删除",
+    "deleting": "正在删除...",
+    "description": "描述",
+    "disabled": "已禁用",
+    "edit": "编辑",
+    "enabled": "已启用",
+    "loading": "加载中...",
+    "name": "名称",
+    "none": "无",
+    "notSet": "未设置",
+    "operationFailed": "操作失败",
+    "optional": "可选",
+    "refresh": "刷新",
+    "retry": "重试",
+    "save": "保存",
+    "saving": "正在保存...",
+    "status": "状态"
+  },
+  "language": {
+    "title": "语言",
+    "description": "选择 VyManager 在此浏览器上的显示语言。",
+    "browserDefault": "跟随浏览器",
+    "browserDefaultHint": "使用浏览器的语言设置"
+  },
+  "sidebar": {
+    "subtitle": "VyOS 管理",
+    "reportBug": "报告问题",
+    "connected": "已连接",
+    "disconnectInstance": "断开实例连接",
+    "connectToInstance": "连接到实例",
+    "userFallback": "用户",
+    "logout": "退出登录"
+  },
+  "login": {
+    "subtitle": "专业的 VyOS 管理平台",
+    "email": "邮箱",
+    "password": "密码",
+    "passwordPlaceholder": "请输入密码",
+    "signIn": "登录",
+    "signingIn": "正在登录...",
+    "orContinueWith": "或使用以下方式登录",
+    "secureAccess": "安全访问",
+    "encryptionNotice": "受企业级加密保护",
+    "systemName": "VyOS 路由器管理系统",
+    "termsNotice": "登录即表示您同意我们的服务条款和隐私政策",
+    "twoFactorRequired": "管理员要求启用双重验证后才能继续。",
+    "twoFactorPrompt": "请输入第二重验证码以完成登录。",
+    "backToPassword": "返回密码登录",
+    "errors": {
+      "ssoDenied": "单点登录被拒绝。您的账号可能不属于允许访问 VyManager 的用户组，请联系管理员。",
+      "generic": "发生错误",
+      "oauthFailed": "OAuth 登录失败",
+      "revokeFailed": "注销其他会话失败",
+      "loginCancelledRetry": "已取消登录。请在另一台设备上重试，或选择继续。",
+      "loginCancelled": "已取消登录"
+    }
+  }
+}
