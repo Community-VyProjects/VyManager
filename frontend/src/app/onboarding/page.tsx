@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { LanguageSelector } from "@/components/ui/language-selector";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,6 +26,7 @@ import { postLoginPath } from "@/lib/appliance";
 import { BackupRestoreModal } from "@/components/session/BackupRestoreModal";
 
 export default function OnboardingPage() {
+  const t = useTranslations("onboarding");
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [restoreOpen, setRestoreOpen] = useState(false);
@@ -92,23 +95,23 @@ export default function OnboardingPage() {
 
     // Validation only - don't create anything yet
     if (adminData.password !== adminData.confirmPassword) {
-      setError("Passwords do not match");
+      setError(t("errors.passwordMismatch"));
       return;
     }
 
     if (adminData.password.length < 8) {
-      setError("Password must be at least 8 characters");
+      setError(t("errors.passwordTooShort"));
       return;
     }
 
     if (!adminData.name.trim() || !adminData.email.trim()) {
-      setError("Name and email are required");
+      setError(t("errors.nameEmailRequired"));
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(adminData.email)) {
-      setError("Please enter a valid email address (e.g., admin@example.com)");
+      setError(t("errors.invalidEmail"));
       return;
     }
 
@@ -126,7 +129,7 @@ export default function OnboardingPage() {
 
     // Validation only - don't create anything yet
     if (!siteData.name.trim()) {
-      setError("Site name is required");
+      setError(t("errors.siteNameRequired"));
       return;
     }
 
@@ -140,7 +143,7 @@ export default function OnboardingPage() {
 
     // Validate instance data
     if (!instanceData.name.trim() || !instanceData.host.trim() || !instanceData.apiKey.trim()) {
-      setError("Instance name, host, and API key are required");
+      setError(t("errors.instanceFieldsRequired"));
       return;
     }
 
@@ -162,7 +165,7 @@ export default function OnboardingPage() {
       console.log("[Onboarding] Validating onboarding is still needed...");
       const statusData = await sessionService.getOnboardingStatus();
       if (!statusData.needs_onboarding) {
-        setError("Onboarding has already been completed by another user. Please log in.");
+        setError(t("errors.alreadyCompleted"));
         setLoading(false);
         setIsSubmitting(false);
         setTimeout(() => router.push("/login"), 2000);
@@ -178,7 +181,7 @@ export default function OnboardingPage() {
       });
 
       if (signUpResult.error) {
-        setError(signUpResult.error.message || "Failed to create admin account");
+        setError(signUpResult.error.message || t("errors.createAccountFailed"));
         setLoading(false);
         setIsSubmitting(false);
         return;
@@ -194,7 +197,7 @@ export default function OnboardingPage() {
       });
 
       if (signInResult.error) {
-        setError("Account created but failed to sign in. Please go to login page.");
+        setError(t("errors.signInFailed"));
         setLoading(false);
         setIsSubmitting(false);
         return;
@@ -252,7 +255,7 @@ export default function OnboardingPage() {
       router.refresh();
     } catch (err) {
       console.error("[Onboarding] Error:", err);
-      setError((err as ApiError).message || "Failed to complete setup. Please try again.");
+      setError((err as ApiError).message || t("errors.setupFailed"));
       setIsSubmitting(false); // Allow user to go back and fix issues
     } finally {
       setLoading(false);
@@ -265,14 +268,17 @@ export default function OnboardingPage() {
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-4">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Verifying access...</p>
+          <p className="text-sm text-muted-foreground">{t("verifyingAccess")}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-4">
+    <div className="relative min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-4">
+      <div className="absolute top-4 right-4">
+        <LanguageSelector compact />
+      </div>
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
@@ -287,9 +293,9 @@ export default function OnboardingPage() {
               />
             </div>
           </div>
-          <CardTitle className="text-3xl">Welcome to VyManager</CardTitle>
+          <CardTitle className="text-3xl">{t("welcome")}</CardTitle>
           <CardDescription>
-            Let&apos;s set up your VyOS management system
+            {t("intro")}
           </CardDescription>
         </CardHeader>
 
@@ -326,25 +332,25 @@ export default function OnboardingPage() {
           {step === 1 && (
             <form onSubmit={handleStep1} className="space-y-4">
               <div className="text-center mb-6">
-                <h3 className="text-xl font-semibold mb-2">Step 1: Create Admin Account</h3>
+                <h3 className="text-xl font-semibold mb-2">{t("admin.title")}</h3>
                 <p className="text-sm text-muted-foreground">
-                  You&apos;ll be the owner with full access to everything
+                  {t("admin.subtitle")}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="name">{t("admin.fullName")}</Label>
                 <Input
                   id="name"
                   value={adminData.name}
                   onChange={(e) => setAdminData({ ...adminData, name: e.target.value })}
-                  placeholder="John Doe"
+                  placeholder={t("admin.fullNamePlaceholder")}
                   required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">{t("admin.email")}</Label>
                 <Input
                   id="email"
                   type="email"
@@ -356,7 +362,7 @@ export default function OnboardingPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t("admin.password")}</Label>
                 <Input
                   id="password"
                   type="password"
@@ -366,12 +372,12 @@ export default function OnboardingPage() {
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Must be at least 8 characters
+                  {t("admin.passwordHint")}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Label htmlFor="confirmPassword">{t("admin.confirmPassword")}</Label>
                 <Input
                   id="confirmPassword"
                   type="password"
@@ -386,24 +392,24 @@ export default function OnboardingPage() {
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Creating Account...
+                    {t("admin.creating")}
                   </>
                 ) : appliance ? (
-                  "Finish"
+                  t("finish")
                 ) : (
-                  "Continue"
+                  t("continue")
                 )}
               </Button>
 
               <div className="pt-2 text-center">
                 <p className="text-xs text-muted-foreground">
-                  Already have a VyManager backup?{" "}
+                  {t("admin.haveBackup")}{" "}
                   <button
                     type="button"
                     onClick={() => setRestoreOpen(true)}
                     className="font-medium text-primary hover:underline"
                   >
-                    Restore from backup
+                    {t("admin.restoreBackup")}
                   </button>
                 </p>
               </div>
@@ -414,30 +420,30 @@ export default function OnboardingPage() {
           {step === 2 && (
             <form onSubmit={handleStep2} className="space-y-4">
               <div className="text-center mb-6">
-                <h3 className="text-xl font-semibold mb-2">Step 2: Create Your First Site</h3>
+                <h3 className="text-xl font-semibold mb-2">{t("site.title")}</h3>
                 <p className="text-sm text-muted-foreground">
-                  A site is a logical grouping of VyOS instances
+                  {t("site.subtitle")}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="siteName">Site Name</Label>
+                <Label htmlFor="siteName">{t("site.name")}</Label>
                 <Input
                   id="siteName"
                   value={siteData.name}
                   onChange={(e) => setSiteData({ ...siteData, name: e.target.value })}
-                  placeholder="Headquarters"
+                  placeholder={t("site.namePlaceholder")}
                   required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="siteDescription">Description (Optional)</Label>
+                <Label htmlFor="siteDescription">{t("descriptionOptional")}</Label>
                 <Textarea
                   id="siteDescription"
                   value={siteData.description}
                   onChange={(e) => setSiteData({ ...siteData, description: e.target.value })}
-                  placeholder="Main datacenter location"
+                  placeholder={t("site.descriptionPlaceholder")}
                   rows={3}
                 />
               </div>
@@ -450,16 +456,16 @@ export default function OnboardingPage() {
                   className="flex-1"
                   disabled={isSubmitting}
                 >
-                  Back
+                  {t("back")}
                 </Button>
                 <Button type="submit" className="flex-1" disabled={loading || isSubmitting}>
                   {loading ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Creating Site...
+                      {t("site.creating")}
                     </>
                   ) : (
-                    "Continue"
+                    t("continue")
                   )}
                 </Button>
               </div>
@@ -470,21 +476,21 @@ export default function OnboardingPage() {
           {step === 3 && (
             <form onSubmit={handleStep3} className="space-y-4">
               <div className="text-center mb-6">
-                <h3 className="text-xl font-semibold mb-2">Step 3: Add Your First VyOS Instance</h3>
+                <h3 className="text-xl font-semibold mb-2">{t("instance.title")}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Connect to your VyOS router
+                  {t("instance.subtitle")}
                 </p>
               </div>
 
               <Tabs defaultValue="basic">
                 <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="basic">Basic Info</TabsTrigger>
-                  <TabsTrigger value="connection">Connection</TabsTrigger>
+                  <TabsTrigger value="basic">{t("instance.basicTab")}</TabsTrigger>
+                  <TabsTrigger value="connection">{t("instance.connectionTab")}</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="basic" className="space-y-4 mt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="instanceName">Instance Name</Label>
+                    <Label htmlFor="instanceName">{t("instance.name")}</Label>
                     <Input
                       id="instanceName"
                       value={instanceData.name}
@@ -495,18 +501,18 @@ export default function OnboardingPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="instanceDescription">Description (Optional)</Label>
+                    <Label htmlFor="instanceDescription">{t("descriptionOptional")}</Label>
                     <Textarea
                       id="instanceDescription"
                       value={instanceData.description}
                       onChange={(e) => setInstanceData({ ...instanceData, description: e.target.value })}
-                      placeholder="Main gateway router"
+                      placeholder={t("instance.descriptionPlaceholder")}
                       rows={2}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="vyosVersion">VyOS Version</Label>
+                    <Label htmlFor="vyosVersion">{t("instance.version")}</Label>
                     <Select
                       value={instanceData.vyosVersion}
                       onValueChange={(value) => setInstanceData({ ...instanceData, vyosVersion: value })}
@@ -524,19 +530,19 @@ export default function OnboardingPage() {
 
                 <TabsContent value="connection" className="space-y-4 mt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="host">Host / IP Address</Label>
+                    <Label htmlFor="host">{t("instance.host")}</Label>
                     <Input
                       id="host"
                       value={instanceData.host}
                       onChange={(e) => setInstanceData({ ...instanceData, host: e.target.value })}
-                      placeholder="192.168.1.1, 2001:db8::1, or vyos.example.com"
+                      placeholder={t("instance.hostPlaceholder")}
                       required
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="protocol">Protocol</Label>
+                      <Label htmlFor="protocol">{t("instance.protocol")}</Label>
                       <Select
                         value={instanceData.protocol}
                         onValueChange={(value) => setInstanceData({ ...instanceData, protocol: value })}
@@ -552,7 +558,7 @@ export default function OnboardingPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="port">Port</Label>
+                      <Label htmlFor="port">{t("instance.port")}</Label>
                       <Input
                         id="port"
                         type="number"
@@ -564,17 +570,17 @@ export default function OnboardingPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="apiKey">API Key</Label>
+                    <Label htmlFor="apiKey">{t("instance.apiKey")}</Label>
                     <Input
                       id="apiKey"
                       type="password"
                       value={instanceData.apiKey}
                       onChange={(e) => setInstanceData({ ...instanceData, apiKey: e.target.value })}
-                      placeholder="Your VyOS API key"
+                      placeholder={t("instance.apiKeyPlaceholder")}
                       required
                     />
                     <p className="text-xs text-muted-foreground">
-                      Set in VyOS with: set service https api keys id KEY key VALUE
+                      {t("instance.apiKeyHint", { command: "set service https api keys id KEY key VALUE" })}
                     </p>
                   </div>
                 </TabsContent>
@@ -588,16 +594,16 @@ export default function OnboardingPage() {
                   className="flex-1"
                   disabled={isSubmitting}
                 >
-                  Back
+                  {t("back")}
                 </Button>
                 <Button type="submit" className="flex-1" disabled={loading || isSubmitting}>
                   {loading ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Completing Setup...
+                      {t("instance.completing")}
                     </>
                   ) : (
-                    "Complete Setup"
+                    t("instance.complete")
                   )}
                 </Button>
               </div>
@@ -610,10 +616,10 @@ export default function OnboardingPage() {
                   onClick={handleSkipInstance}
                   disabled={loading || isSubmitting}
                 >
-                  Skip for now
+                  {t("instance.skip")}
                 </Button>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Your account and site are still created. You can add a router later in Site Manager.
+                  {t("instance.skipHint")}
                 </p>
               </div>
             </form>
