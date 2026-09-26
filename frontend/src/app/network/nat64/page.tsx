@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -41,6 +42,8 @@ import { FeatureGroup } from "@/lib/api/user-management";
 
 export default function NAT64Page() {
   const { canRead, canWrite, isLoading: permissionsLoading } = usePermissions();
+  const t = useTranslations("nat64");
+  const tc = useTranslations("common");
   const [config, setConfig] = useState<NAT64ConfigResponse | null>(null);
   const [selectedRule, setSelectedRule] = useState<NAT64SourceRule | null>(null);
   const [loading, setLoading] = useState(true);
@@ -72,11 +75,11 @@ export default function NAT64Page() {
         setSelectedRule(updated || null);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load NAT64 configuration");
+      setError(err instanceof Error ? err.message : t("page.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [selectedRule]);
+  }, [selectedRule, t]);
 
   useEffect(() => {
     fetchConfig();
@@ -109,9 +112,9 @@ export default function NAT64Page() {
         <div className="flex h-full items-center justify-center">
           <div className="text-center max-w-md">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+            <h2 className="text-xl font-semibold mb-2">{t("page.accessDenied")}</h2>
             <p className="text-muted-foreground">
-              You do not have permission to view NAT64 configurations. Please contact your administrator for access.
+              {t("page.accessDeniedMessage")}
             </p>
           </div>
         </div>
@@ -129,7 +132,7 @@ export default function NAT64Page() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">NAT64</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {rules.length} {rules.length === 1 ? "rule" : "rules"}
+                  {t("page.ruleCount", { count: rules.length })}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -154,7 +157,7 @@ export default function NAT64Page() {
                 }}
               >
                 <Plus className="h-4 w-4" />
-                Add Rule
+                {t("page.addRule")}
               </Button>
             )}
           </div>
@@ -170,12 +173,12 @@ export default function NAT64Page() {
               <div className="p-4">
                 <div className="flex items-center gap-2 text-destructive text-sm">
                   <AlertCircle className="h-4 w-4" />
-                  <span>Failed to load</span>
+                  <span>{t("page.failedToLoad")}</span>
                 </div>
               </div>
             ) : rules.length === 0 ? (
               <div className="p-6 text-center text-muted-foreground text-sm">
-                No NAT64 rules configured. Add a rule to get started.
+                {t("page.noRulesSidebar")}
               </div>
             ) : (
               <div className="space-y-1 py-3">
@@ -211,7 +214,7 @@ export default function NAT64Page() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-1">
                           <span className="font-medium text-sm">
-                            Rule {rule.rule_number}
+                            {t("page.ruleTitle", { number: String(rule.rule_number) })}
                           </span>
                           <div className="flex items-center gap-1.5">
                             {rule.disable && (
@@ -219,7 +222,7 @@ export default function NAT64Page() {
                                 variant="outline"
                                 className="text-xs h-5 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20"
                               >
-                                disabled
+                                {t("page.disabledBadge")}
                               </Badge>
                             )}
                             {selectedRule?.rule_number === rule.rule_number && (
@@ -234,8 +237,7 @@ export default function NAT64Page() {
                             </span>
                           )}
                           <span className="text-xs text-muted-foreground">
-                            {rule.translation_pools.length}{" "}
-                            {rule.translation_pools.length === 1 ? "pool" : "pools"}
+                            {t("page.poolCount", { count: rule.translation_pools.length })}
                           </span>
                         </div>
                       </div>
@@ -257,14 +259,14 @@ export default function NAT64Page() {
                   <div>
                     <div className="flex items-center gap-3 mb-2">
                       <h1 className="text-2xl font-bold text-foreground">
-                        Rule {selectedRule.rule_number}
+                        {t("page.ruleTitle", { number: String(selectedRule.rule_number) })}
                       </h1>
                       {selectedRule.disable && (
                         <Badge
                           variant="outline"
                           className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20"
                         >
-                          Disabled
+                          {tc("disabled")}
                         </Badge>
                       )}
                     </div>
@@ -289,13 +291,13 @@ export default function NAT64Page() {
                             .then(() => fetchConfig(true))
                             .catch((err) =>
                               setError(
-                                err instanceof Error ? err.message : "Toggle failed"
+                                err instanceof Error ? err.message : t("page.toggleFailed")
                               )
                             )
                         }
                       >
                         <Power className="h-4 w-4" />
-                        {selectedRule.disable ? "Enable" : "Disable"}
+                        {selectedRule.disable ? t("page.enable") : t("page.disable")}
                       </Button>
                       <Button
                         variant="outline"
@@ -307,7 +309,7 @@ export default function NAT64Page() {
                         }}
                       >
                         <Pencil className="h-4 w-4" />
-                        Edit
+                        {tc("edit")}
                       </Button>
                       <Button
                         variant="outline"
@@ -319,7 +321,7 @@ export default function NAT64Page() {
                         }}
                       >
                         <Trash2 className="h-4 w-4" />
-                        Delete
+                        {tc("delete")}
                       </Button>
                     </div>
                   )}
@@ -329,24 +331,24 @@ export default function NAT64Page() {
                 <div className="grid grid-cols-3 gap-4">
                   <Card>
                     <CardContent className="pt-6">
-                      <p className="text-xs text-muted-foreground mb-1">Source Prefix</p>
+                      <p className="text-xs text-muted-foreground mb-1">{t("page.sourcePrefix")}</p>
                       <code className="text-sm font-mono bg-muted/50 px-2 py-1 rounded">
-                        {selectedRule.source_prefix || "not set"}
+                        {selectedRule.source_prefix || t("page.notSet")}
                       </code>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="pt-6">
-                      <p className="text-xs text-muted-foreground mb-1">Match Mark</p>
+                      <p className="text-xs text-muted-foreground mb-1">{t("page.matchMark")}</p>
                       <code className="text-sm font-mono bg-muted/50 px-2 py-1 rounded">
-                        {selectedRule.match_mark || "none"}
+                        {selectedRule.match_mark || t("page.none")}
                       </code>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="pt-6">
                       <p className="text-xs text-muted-foreground mb-1">
-                        Translation Pools
+                        {t("page.translationPools")}
                       </p>
                       <p className="text-2xl font-bold">
                         {selectedRule.translation_pools.length}
@@ -359,7 +361,7 @@ export default function NAT64Page() {
               {/* Translation Pools Table */}
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-base font-semibold">Translation Pools</h3>
+                  <h3 className="text-base font-semibold">{t("page.translationPools")}</h3>
                   {hasWriteAccess && (
                     <Button
                       size="sm"
@@ -369,7 +371,7 @@ export default function NAT64Page() {
                       }}
                     >
                       <Plus className="h-4 w-4 mr-1" />
-                      Add Pool
+                      {t("page.addPool")}
                     </Button>
                   )}
                 </div>
@@ -377,12 +379,12 @@ export default function NAT64Page() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[80px]">Pool #</TableHead>
-                        <TableHead>Address</TableHead>
-                        <TableHead>Port</TableHead>
-                        <TableHead>Protocol</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead className="w-[100px]">Status</TableHead>
+                        <TableHead className="w-[80px]">{t("page.poolNumber")}</TableHead>
+                        <TableHead>{t("page.address")}</TableHead>
+                        <TableHead>{t("page.port")}</TableHead>
+                        <TableHead>{t("page.protocol")}</TableHead>
+                        <TableHead>{tc("description")}</TableHead>
+                        <TableHead className="w-[100px]">{tc("status")}</TableHead>
                         {hasWriteAccess && (
                           <TableHead className="w-[100px]" />
                         )}
@@ -395,7 +397,7 @@ export default function NAT64Page() {
                             colSpan={hasWriteAccess ? 7 : 6}
                             className="text-center text-muted-foreground py-8"
                           >
-                            No translation pools configured
+                            {t("page.noPools")}
                           </TableCell>
                         </TableRow>
                       ) : (
@@ -435,7 +437,7 @@ export default function NAT64Page() {
                                   !pool.protocol?.udp &&
                                   !pool.protocol?.icmp && (
                                     <span className="text-muted-foreground text-sm">
-                                      all
+                                      {t("page.protocolAll")}
                                     </span>
                                   )}
                               </div>
@@ -449,14 +451,14 @@ export default function NAT64Page() {
                                   variant="outline"
                                   className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20"
                                 >
-                                  disabled
+                                  {t("page.disabledBadge")}
                                 </Badge>
                               ) : (
                                 <Badge
                                   variant="outline"
                                   className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20"
                                 >
-                                  enabled
+                                  {t("page.enabledBadge")}
                                 </Badge>
                               )}
                             </TableCell>
@@ -505,12 +507,12 @@ export default function NAT64Page() {
               <div className="text-center max-w-sm">
                 <Globe className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-foreground mb-2">
-                  NAT64 Translation
+                  {t("page.emptyTitle")}
                 </h3>
                 <p className="text-sm text-muted-foreground">
                   {rules.length === 0
-                    ? "No rules configured. Add a NAT64 source rule to translate IPv6 traffic to IPv4 destinations."
-                    : "Select a rule from the sidebar to view its details and translation pools."}
+                    ? t("page.emptyNoRules")
+                    : t("page.emptySelect")}
                 </p>
               </div>
             </div>

@@ -1,1 +1,64 @@
-{}
+{
+  "page": {
+    "loadFailed": "加载 NAT64 配置失败",
+    "accessDenied": "访问被拒绝",
+    "accessDeniedMessage": "你没有查看 NAT64 配置的权限。请联系管理员获取访问权限。",
+    "ruleCount": "{count, plural, other {# 条规则}}",
+    "addRule": "添加规则",
+    "failedToLoad": "加载失败",
+    "noRulesSidebar": "尚未配置 NAT64 规则。添加一条规则以开始使用。",
+    "ruleTitle": "规则 {number}",
+    "disabledBadge": "已禁用",
+    "enabledBadge": "已启用",
+    "poolCount": "{count, plural, other {# 个地址池}}",
+    "toggleFailed": "切换状态失败",
+    "enable": "启用",
+    "disable": "禁用",
+    "sourcePrefix": "源前缀",
+    "notSet": "未设置",
+    "matchMark": "匹配标记",
+    "none": "无",
+    "translationPools": "转换地址池",
+    "addPool": "添加地址池",
+    "poolNumber": "地址池编号",
+    "address": "地址",
+    "port": "端口",
+    "protocol": "协议",
+    "protocolAll": "全部",
+    "noPools": "尚未配置转换地址池",
+    "emptyTitle": "NAT64 转换",
+    "emptyNoRules": "尚未配置规则。添加一条 NAT64 源规则，将 IPv6 流量转换到 IPv4 目标。",
+    "emptySelect": "从侧边栏选择一条规则，查看其详情和转换地址池。"
+  },
+  "ruleDialog": {
+    "editTitle": "编辑规则 {number}",
+    "createTitle": "创建 NAT64 规则",
+    "description": "配置 IPv6 到 IPv4 的源 NAT64 转换规则。",
+    "ruleNumber": "规则编号",
+    "autoAssigned": "（自动分配）",
+    "descriptionPlaceholder": "IPv6 到 IPv4 转换",
+    "sourcePrefix": "源前缀",
+    "matchMark": "匹配标记",
+    "matchMarkPlaceholder": "可选的防火墙标记",
+    "disableRule": "禁用规则"
+  },
+  "poolDialog": {
+    "editTitle": "编辑地址池 {pool}（规则 {rule}）",
+    "addTitle": "向规则 {rule} 添加地址池",
+    "description": "为 NAT64 地址映射配置 IPv4 转换地址池。",
+    "poolNumber": "地址池编号",
+    "autoAssigned": "（自动分配）",
+    "address": "地址",
+    "descriptionPlaceholder": "转换地址池描述",
+    "port": "端口",
+    "protocol": "协议",
+    "disablePool": "禁用地址池"
+  },
+  "deleteDialog": {
+    "deleteFailed": "删除失败",
+    "ruleTitle": "删除规则 {number}",
+    "poolTitle": "删除地址池 {number}",
+    "ruleMessage": "这将永久删除规则 {rule}{pools, plural, =0 {} other {及其 # 个转换地址池}}。其余规则将从 100 开始重新编号。",
+    "poolMessage": "这将永久删除规则 {rule} 中的地址池 {pool}。此操作无法撤销。"
+  }
+}

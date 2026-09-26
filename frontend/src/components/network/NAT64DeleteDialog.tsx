@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,8 @@ export function NAT64DeleteDialog({
   target,
   onSuccess,
 }: NAT64DeleteDialogProps) {
+  const t = useTranslations("nat64");
+  const tc = useTranslations("common");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,7 +56,7 @@ export function NAT64DeleteDialog({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed");
+      setError(err instanceof Error ? err.message : t("deleteDialog.deleteFailed"));
     } finally {
       setSaving(false);
     }
@@ -63,8 +66,8 @@ export function NAT64DeleteDialog({
 
   const isRule = target.type === "rule";
   const title = isRule
-    ? `Delete Rule ${target.rule.rule_number}`
-    : `Delete Pool ${target.pool?.pool_number}`;
+    ? t("deleteDialog.ruleTitle", { number: String(target.rule.rule_number) })
+    : t("deleteDialog.poolTitle", { number: String(target.pool?.pool_number) });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -72,21 +75,15 @@ export function NAT64DeleteDialog({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            {isRule ? (
-              <>
-                This will permanently delete Rule {target.rule.rule_number}
-                {target.rule.translation_pools.length > 0 && (
-                  <> and its {target.rule.translation_pools.length} translation{" "}
-                    {target.rule.translation_pools.length === 1 ? "pool" : "pools"}</>
-                )}
-                . Remaining rules will be renumbered starting from 100.
-              </>
-            ) : (
-              <>
-                This will permanently delete Pool {target.pool?.pool_number} from
-                Rule {target.rule.rule_number}. This action cannot be undone.
-              </>
-            )}
+            {isRule
+              ? t("deleteDialog.ruleMessage", {
+                  rule: String(target.rule.rule_number),
+                  pools: target.rule.translation_pools.length,
+                })
+              : t("deleteDialog.poolMessage", {
+                  pool: String(target.pool?.pool_number ?? ""),
+                  rule: String(target.rule.rule_number),
+                })}
           </DialogDescription>
         </DialogHeader>
 
@@ -103,10 +100,10 @@ export function NAT64DeleteDialog({
             onClick={() => onOpenChange(false)}
             disabled={saving}
           >
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={saving}>
-            {saving ? "Deleting..." : "Delete"}
+            {saving ? tc("deleting") : tc("delete")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +33,8 @@ export function NAT66DeleteDialog({
   ruleType,
   onSuccess,
 }: NAT66DeleteDialogProps) {
+  const t = useTranslations("nat66");
+  const tc = useTranslations("common");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,7 +51,7 @@ export function NAT66DeleteDialog({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed");
+      setError(err instanceof Error ? err.message : t("deleteDialog.deleteFailed"));
     } finally {
       setSaving(false);
     }
@@ -61,12 +64,15 @@ export function NAT66DeleteDialog({
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>
-            Delete {ruleType === "source" ? "Source" : "Destination"} Rule {rule.rule_number}
+            {t("deleteDialog.title", { type: ruleType, number: String(rule.rule_number) })}
           </DialogTitle>
           <DialogDescription>
-            This will permanently delete Rule {rule.rule_number}
-            {rule.description && <> ({rule.description})</>}.
-            Remaining rules will be renumbered starting from 100.
+            {rule.description
+              ? t("deleteDialog.messageWithDescription", {
+                  number: String(rule.rule_number),
+                  description: rule.description,
+                })
+              : t("deleteDialog.message", { number: String(rule.rule_number) })}
           </DialogDescription>
         </DialogHeader>
 
@@ -83,10 +89,10 @@ export function NAT66DeleteDialog({
             onClick={() => onOpenChange(false)}
             disabled={saving}
           >
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={saving}>
-            {saving ? "Deleting..." : "Delete Rule"}
+            {saving ? tc("deleting") : t("deleteDialog.deleteRule")}
           </Button>
         </DialogFooter>
       </DialogContent>

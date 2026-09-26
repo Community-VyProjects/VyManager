@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,8 @@ export function NAT64PoolDialog({
   nextPoolNumber,
   onSuccess,
 }: NAT64PoolDialogProps) {
+  const t = useTranslations("nat64");
+  const tc = useTranslations("common");
   const isEditing = !!pool;
   const [address, setAddress] = useState("");
   const [description, setDescription] = useState("");
@@ -94,7 +97,7 @@ export function NAT64PoolDialog({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSaving(false);
     }
@@ -106,25 +109,25 @@ export function NAT64PoolDialog({
         <DialogHeader>
           <DialogTitle>
             {isEditing
-              ? `Edit Pool ${pool.pool_number} (Rule ${ruleNumber})`
-              : `Add Pool to Rule ${ruleNumber}`}
+              ? t("poolDialog.editTitle", { pool: String(pool.pool_number), rule: String(ruleNumber) })
+              : t("poolDialog.addTitle", { rule: String(ruleNumber) })}
           </DialogTitle>
           <DialogDescription>
-            Configure an IPv4 translation pool for NAT64 address mapping.
+            {t("poolDialog.description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label>Pool Number</Label>
+            <Label>{t("poolDialog.poolNumber")}</Label>
             <div className="flex items-center h-10 px-3 rounded-md border bg-muted/50 font-mono text-sm">
               {isEditing ? pool.pool_number : nextPoolNumber}
-              <span className="ml-2 text-muted-foreground text-xs">(auto-assigned)</span>
+              <span className="ml-2 text-muted-foreground text-xs">{t("poolDialog.autoAssigned")}</span>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="nat64-pool-addr">Address</Label>
+            <Label htmlFor="nat64-pool-addr">{t("poolDialog.address")}</Label>
             <Input
               id="nat64-pool-addr"
               value={address}
@@ -135,17 +138,17 @@ export function NAT64PoolDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="nat64-pool-desc">Description</Label>
+            <Label htmlFor="nat64-pool-desc">{tc("description")}</Label>
             <Input
               id="nat64-pool-desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Translation pool description"
+              placeholder={t("poolDialog.descriptionPlaceholder")}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="nat64-pool-port">Port</Label>
+            <Label htmlFor="nat64-pool-port">{t("poolDialog.port")}</Label>
             <Input
               id="nat64-pool-port"
               value={port}
@@ -156,7 +159,7 @@ export function NAT64PoolDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Protocol</Label>
+            <Label>{t("poolDialog.protocol")}</Label>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Checkbox
@@ -198,7 +201,7 @@ export function NAT64PoolDialog({
               onCheckedChange={(checked) => setDisable(checked === true)}
             />
             <Label htmlFor="nat64-pool-disable" className="cursor-pointer">
-              Disable pool
+              {t("poolDialog.disablePool")}
             </Label>
           </div>
         </div>
@@ -212,10 +215,10 @@ export function NAT64PoolDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save"}
+            {saving ? tc("saving") : tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>
