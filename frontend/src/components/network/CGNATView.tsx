@@ -40,6 +40,7 @@ import {
   Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import {
   natService,
   type CGNATConfig,
@@ -87,6 +88,8 @@ interface DeleteTarget {
 // ==================== Component ====================
 
 export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewProps) {
+  const t = useTranslations("nat");
+  const tc = useTranslations("common");
   const [activeTab, setActiveTab] = useState<TabValue>("pools");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -137,12 +140,12 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
       await fn();
       onRefresh();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Operation failed";
+      const message = err instanceof Error ? err.message : tc("operationFailed");
       setError(message);
     } finally {
       setSaving(false);
     }
-  }, [onRefresh]);
+  }, [onRefresh, tc]);
 
   // ==================== Log Allocation ====================
 
@@ -184,7 +187,7 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
   const handleSaveExternalPool = useCallback(() => {
     const name = extPoolForm.name.trim();
     if (!name) {
-      setError("Pool name is required");
+      setError(t("cgnat.poolNameRequired"));
       return;
     }
 
@@ -215,7 +218,7 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
       }
       setExternalPoolOpen(false);
     });
-  }, [extPoolForm, editingExternalPool, withSaving]);
+  }, [extPoolForm, editingExternalPool, withSaving, t]);
 
   // ==================== Internal Pool Handlers ====================
 
@@ -239,7 +242,7 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
   const handleSaveInternalPool = useCallback(() => {
     const name = intPoolForm.name.trim();
     if (!name) {
-      setError("Pool name is required");
+      setError(t("cgnat.poolNameRequired"));
       return;
     }
 
@@ -256,7 +259,7 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
       }
       setInternalPoolOpen(false);
     });
-  }, [intPoolForm, editingInternalPool, withSaving]);
+  }, [intPoolForm, editingInternalPool, withSaving, t]);
 
   // ==================== Rule Handlers ====================
 
@@ -346,7 +349,7 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
             )}
           >
             <Server className="h-4 w-4" />
-            Pools
+            {t("cgnat.pools")}
           </button>
           <button
             onClick={() => setActiveTab("rules")}
@@ -358,7 +361,7 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
             )}
           >
             <Layers className="h-4 w-4" />
-            Rules
+            {t("cgnat.rules")}
           </button>
         </div>
 
@@ -373,7 +376,7 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
             htmlFor="cgnat-log-allocation"
             className="text-sm font-medium cursor-pointer select-none"
           >
-            Log Allocation
+            {t("cgnat.logAllocation")}
           </Label>
         </div>
       </div>
@@ -393,11 +396,11 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-semibold">External Pools</h3>
+                <h3 className="text-base font-semibold">{t("cgnat.externalPools")}</h3>
                 {canWrite && (
                   <Button size="sm" onClick={openCreateExternalPool} disabled={loading}>
                     <Plus className="h-4 w-4 mr-1" />
-                    Add Pool
+                    {t("cgnat.addPool")}
                   </Button>
                 )}
               </div>
@@ -405,10 +408,10 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>IP Ranges</TableHead>
-                      <TableHead>Port Range</TableHead>
-                      <TableHead>Per-User Port Limit</TableHead>
+                      <TableHead>{tc("name")}</TableHead>
+                      <TableHead>{t("cgnat.ipRanges")}</TableHead>
+                      <TableHead>{t("cgnat.portRange")}</TableHead>
+                      <TableHead>{t("cgnat.perUserPortLimit")}</TableHead>
                       <TableHead className="w-[80px]" />
                     </TableRow>
                   </TableHeader>
@@ -416,7 +419,7 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
                     {externalPools.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                          No external pools configured
+                          {t("cgnat.noExternalPools")}
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -481,11 +484,11 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-semibold">Internal Pools</h3>
+                <h3 className="text-base font-semibold">{t("cgnat.internalPools")}</h3>
                 {canWrite && (
                   <Button size="sm" onClick={openCreateInternalPool} disabled={loading}>
                     <Plus className="h-4 w-4 mr-1" />
-                    Add Pool
+                    {t("cgnat.addPool")}
                   </Button>
                 )}
               </div>
@@ -493,8 +496,8 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>IP Ranges</TableHead>
+                      <TableHead>{tc("name")}</TableHead>
+                      <TableHead>{t("cgnat.ipRanges")}</TableHead>
                       <TableHead className="w-[80px]" />
                     </TableRow>
                   </TableHeader>
@@ -502,7 +505,7 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
                     {internalPools.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
-                          No internal pools configured
+                          {t("cgnat.noInternalPools")}
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -559,11 +562,11 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-semibold">CGNAT Rules</h3>
+              <h3 className="text-base font-semibold">{t("cgnat.rulesTitle")}</h3>
               {canWrite && (
                 <Button size="sm" onClick={openCreateRule} disabled={loading}>
                   <Plus className="h-4 w-4 mr-1" />
-                  Add Rule
+                  {t("page.addRule")}
                 </Button>
               )}
             </div>
@@ -571,9 +574,9 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[100px]">Rule #</TableHead>
-                    <TableHead>Source Pool</TableHead>
-                    <TableHead>Translation Pool</TableHead>
+                    <TableHead className="w-[100px]">{t("table.ruleNumber")}</TableHead>
+                    <TableHead>{t("cgnat.sourcePool")}</TableHead>
+                    <TableHead>{t("cgnat.translationPool")}</TableHead>
                     <TableHead className="w-[80px]" />
                   </TableRow>
                 </TableHeader>
@@ -581,7 +584,7 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
                   {rules.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                        No CGNAT rules configured
+                        {t("cgnat.noRules")}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -618,7 +621,7 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
                                 onClick={() =>
                                   openDelete({
                                     type: "rule",
-                                    name: `Rule ${rule.rule_number}`,
+                                    name: t("cgnat.ruleName", { number: String(rule.rule_number) }),
                                     ruleNumber: rule.rule_number,
                                   })
                                 }
@@ -643,16 +646,16 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {editingExternalPool ? "Edit External Pool" : "Create External Pool"}
+              {editingExternalPool ? t("cgnat.editExternalPool") : t("cgnat.createExternalPool")}
             </DialogTitle>
             <DialogDescription>
-              Configure an external IP pool for CGNAT with port allocation settings.
+              {t("cgnat.externalPoolDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="ext-pool-name">Pool Name</Label>
+              <Label htmlFor="ext-pool-name">{t("cgnat.poolName")}</Label>
               <Input
                 id="ext-pool-name"
                 value={extPoolForm.name}
@@ -664,7 +667,7 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="ext-port-range">External Port Range</Label>
+                <Label htmlFor="ext-port-range">{t("cgnat.externalPortRange")}</Label>
                 <Input
                   id="ext-port-range"
                   value={extPoolForm.external_port_range}
@@ -674,7 +677,7 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ext-per-user-limit">Per-User Port Limit</Label>
+                <Label htmlFor="ext-per-user-limit">{t("cgnat.perUserPortLimit")}</Label>
                 <Input
                   id="ext-per-user-limit"
                   value={extPoolForm.per_user_limit_port}
@@ -687,7 +690,7 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>IP Ranges</Label>
+                <Label>{t("cgnat.ipRanges")}</Label>
                 <Button
                   type="button"
                   variant="ghost"
@@ -700,7 +703,7 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
                   }
                 >
                   <Plus className="h-3.5 w-3.5 mr-1" />
-                  Add Range
+                  {t("cgnat.addRange")}
                 </Button>
               </div>
               <div className="space-y-2">
@@ -713,7 +716,7 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
                         updated[idx] = { ...updated[idx], range: e.target.value };
                         setExtPoolForm((f) => ({ ...f, ranges: updated }));
                       }}
-                      placeholder="203.0.113.0/24 or 203.0.113.1-203.0.113.10"
+                      placeholder={t("cgnat.externalRangePlaceholder")}
                       className="font-mono text-sm"
                     />
                     <Input
@@ -757,10 +760,10 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setExternalPoolOpen(false)} disabled={saving}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button onClick={handleSaveExternalPool} disabled={saving}>
-              {saving ? "Saving..." : "Save"}
+              {saving ? tc("saving") : tc("save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -771,16 +774,16 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {editingInternalPool ? "Edit Internal Pool" : "Create Internal Pool"}
+              {editingInternalPool ? t("cgnat.editInternalPool") : t("cgnat.createInternalPool")}
             </DialogTitle>
             <DialogDescription>
-              Configure an internal IP pool for CGNAT source address matching.
+              {t("cgnat.internalPoolDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="int-pool-name">Pool Name</Label>
+              <Label htmlFor="int-pool-name">{t("cgnat.poolName")}</Label>
               <Input
                 id="int-pool-name"
                 value={intPoolForm.name}
@@ -792,7 +795,7 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>IP Ranges</Label>
+                <Label>{t("cgnat.ipRanges")}</Label>
                 <Button
                   type="button"
                   variant="ghost"
@@ -802,7 +805,7 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
                   }
                 >
                   <Plus className="h-3.5 w-3.5 mr-1" />
-                  Add Range
+                  {t("cgnat.addRange")}
                 </Button>
               </div>
               <div className="space-y-2">
@@ -815,7 +818,7 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
                         updated[idx] = e.target.value;
                         setIntPoolForm((f) => ({ ...f, ranges: updated }));
                       }}
-                      placeholder="100.64.0.0/24 or 100.64.0.1-100.64.0.254"
+                      placeholder={t("cgnat.internalRangePlaceholder")}
                       className="font-mono text-sm"
                     />
                     {intPoolForm.ranges.length > 1 && (
@@ -849,10 +852,10 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setInternalPoolOpen(false)} disabled={saving}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button onClick={handleSaveInternalPool} disabled={saving}>
-              {saving ? "Saving..." : "Save"}
+              {saving ? tc("saving") : tc("save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -863,30 +866,30 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {editingRule ? "Edit CGNAT Rule" : "Create CGNAT Rule"}
+              {editingRule ? t("cgnat.editRule") : t("cgnat.createRule")}
             </DialogTitle>
             <DialogDescription>
-              Map an internal pool to an external pool for carrier-grade NAT translation.
+              {t("cgnat.ruleDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>Rule Number</Label>
+              <Label>{t("fields.ruleNumber")}</Label>
               <div className="flex items-center h-10 px-3 rounded-md border bg-muted/50 font-mono text-sm">
                 {editingRule ? editingRule.rule_number : getNextCGNATRuleNumber()}
-                <span className="ml-2 text-muted-foreground text-xs">(auto-assigned)</span>
+                <span className="ml-2 text-muted-foreground text-xs">{t("cgnat.autoAssigned")}</span>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="source-pool">Source Pool (Internal)</Label>
+              <Label htmlFor="source-pool">{t("cgnat.sourcePoolInternal")}</Label>
               <Select
                 value={ruleForm.source_pool}
                 onValueChange={(value) => setRuleForm((f) => ({ ...f, source_pool: value }))}
               >
                 <SelectTrigger id="source-pool">
-                  <SelectValue placeholder="Select internal pool" />
+                  <SelectValue placeholder={t("cgnat.selectInternalPool")} />
                 </SelectTrigger>
                 <SelectContent>
                   {internalPools.map((pool) => (
@@ -899,13 +902,13 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="translation-pool">Translation Pool (External)</Label>
+              <Label htmlFor="translation-pool">{t("cgnat.translationPoolExternal")}</Label>
               <Select
                 value={ruleForm.translation_pool}
                 onValueChange={(value) => setRuleForm((f) => ({ ...f, translation_pool: value }))}
               >
                 <SelectTrigger id="translation-pool">
-                  <SelectValue placeholder="Select external pool" />
+                  <SelectValue placeholder={t("cgnat.selectExternalPool")} />
                 </SelectTrigger>
                 <SelectContent>
                   {externalPools.map((pool) => (
@@ -927,10 +930,10 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setRuleDialogOpen(false)} disabled={saving}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button onClick={handleSaveRule} disabled={saving}>
-              {saving ? "Saving..." : "Save"}
+              {saving ? tc("saving") : tc("save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -940,11 +943,12 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogTitle>{t("cgnat.confirmDeletion")}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete{" "}
-              <span className="font-semibold text-foreground">{deleteTarget?.name}</span>?
-              This action cannot be undone.
+              {t.rich("cgnat.deleteConfirm", {
+                name: deleteTarget?.name ?? "",
+                strong: (chunks) => <span className="font-semibold text-foreground">{chunks}</span>,
+              })}
             </DialogDescription>
           </DialogHeader>
 
@@ -957,10 +961,10 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={saving}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button variant="destructive" onClick={handleDelete} disabled={saving}>
-              {saving ? "Deleting..." : "Delete"}
+              {saving ? tc("deleting") : tc("delete")}
             </Button>
           </DialogFooter>
         </DialogContent>

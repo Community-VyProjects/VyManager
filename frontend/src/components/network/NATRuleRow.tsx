@@ -3,6 +3,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Pencil, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
@@ -112,6 +113,7 @@ export function NATRuleRow({ rule, ruleType, onEdit, onDelete, isDragging, canWr
 }
 
 function GroupTooltipBadge({ name, inv, members, isPort }: { name: string; inv: boolean; members: string[]; isPort?: boolean }) {
+  const t = useTranslations("nat");
   return (
     <TooltipProvider>
       <Tooltip>
@@ -129,7 +131,7 @@ function GroupTooltipBadge({ name, inv, members, isPort }: { name: string; inv: 
         </TooltipTrigger>
         <TooltipContent>
           <div className="max-w-xs">
-            <p className="font-semibold text-xs mb-2">{inv ? `NOT ${name}` : name}</p>
+            <p className="font-semibold text-xs mb-2">{inv ? t("ruleRow.not", { name }) : name}</p>
             {members.length > 0 ? (
               <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
                 {members.map((m, i) => (
@@ -137,7 +139,7 @@ function GroupTooltipBadge({ name, inv, members, isPort }: { name: string; inv: 
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground">No members</p>
+              <p className="text-xs text-muted-foreground">{t("ruleRow.noMembers")}</p>
             )}
           </div>
         </TooltipContent>
@@ -154,12 +156,13 @@ interface NATEndpointCellProps {
 }
 
 function NATEndpointCell({ address, port, group, getGroupMembers }: NATEndpointCellProps) {
+  const t = useTranslations("nat");
   const addressGroups = group ? Object.entries(group).filter(([t]) => t !== "port-group") : [];
   const portGroupEntry = group?.["port-group"];
   const hasAnything = address || addressGroups.length > 0 || port || portGroupEntry;
 
   if (!hasAnything) {
-    return <span className="text-sm text-muted-foreground">any</span>;
+    return <span className="text-sm text-muted-foreground">{t("values.any")}</span>;
   }
 
   return (
@@ -185,6 +188,7 @@ function NATEndpointCell({ address, port, group, getGroupMembers }: NATEndpointC
 }
 
 function SourceNATContent({ rule, groups }: { rule: SourceNATRule; groups: FirewallGroup[] }) {
+  const t = useTranslations("nat");
   const isMasquerade = rule.translation?.address === "masquerade";
 
   const getGroupMembers = (groupName: string): string[] => {
@@ -200,7 +204,7 @@ function SourceNATContent({ rule, groups }: { rule: SourceNATRule; groups: Firew
             {rule.protocol}
           </span>
         ) : (
-          <span className="text-sm text-muted-foreground">all</span>
+          <span className="text-sm text-muted-foreground">{t("values.all")}</span>
         )}
       </TableCell>
       <TableCell>
@@ -241,7 +245,7 @@ function SourceNATContent({ rule, groups }: { rule: SourceNATRule; groups: Firew
           })()
         ) : (
           <Badge variant="outline" className="font-mono text-xs">
-            {rule.outbound_interface?.name || "any"}
+            {rule.outbound_interface?.name || t("values.any")}
           </Badge>
         )}
       </TableCell>
@@ -259,7 +263,7 @@ function SourceNATContent({ rule, groups }: { rule: SourceNATRule; groups: Firew
               : "bg-green-500/10 text-green-500 border-green-500/20"
           }
         >
-          {rule.disable ? "disabled" : "enabled"}
+          {rule.disable ? t("ruleRow.disabled") : t("ruleRow.enabled")}
         </Badge>
       </TableCell>
     </>
@@ -267,6 +271,7 @@ function SourceNATContent({ rule, groups }: { rule: SourceNATRule; groups: Firew
 }
 
 function DestinationNATContent({ rule, groups }: { rule: DestinationNATRule; groups: FirewallGroup[] }) {
+  const t = useTranslations("nat");
   const getGroupMembers = (groupName: string): string[] => {
     const cleanName = groupName.startsWith("!") ? groupName.substring(1) : groupName;
     return groups.find((g) => g.name === cleanName)?.members || [];
@@ -280,7 +285,7 @@ function DestinationNATContent({ rule, groups }: { rule: DestinationNATRule; gro
             {rule.protocol}
           </span>
         ) : (
-          <span className="text-sm text-muted-foreground">all</span>
+          <span className="text-sm text-muted-foreground">{t("values.all")}</span>
         )}
       </TableCell>
       <TableCell>
@@ -315,7 +320,7 @@ function DestinationNATContent({ rule, groups }: { rule: DestinationNATRule; gro
           })()
         ) : (
           <Badge variant="outline" className="font-mono text-xs">
-            {rule.inbound_interface?.name || "any"}
+            {rule.inbound_interface?.name || t("values.any")}
           </Badge>
         )}
       </TableCell>
@@ -333,7 +338,7 @@ function DestinationNATContent({ rule, groups }: { rule: DestinationNATRule; gro
               : "bg-green-500/10 text-green-500 border-green-500/20"
           }
         >
-          {rule.disable ? "disabled" : "enabled"}
+          {rule.disable ? t("ruleRow.disabled") : t("ruleRow.enabled")}
         </Badge>
       </TableCell>
     </>
@@ -341,6 +346,7 @@ function DestinationNATContent({ rule, groups }: { rule: DestinationNATRule; gro
 }
 
 function StaticNATContent({ rule }: { rule: StaticNATRule }) {
+  const t = useTranslations("nat");
   return (
     <>
       <TableCell>
@@ -355,7 +361,7 @@ function StaticNATContent({ rule }: { rule: StaticNATRule }) {
       </TableCell>
       <TableCell>
         <Badge variant="outline" className="font-mono text-xs">
-          {rule.inbound_interface || "any"}
+          {rule.inbound_interface || t("values.any")}
         </Badge>
       </TableCell>
       <TableCell>
