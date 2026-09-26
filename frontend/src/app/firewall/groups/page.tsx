@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Plus, RefreshCw, AlertCircle, Search, Shield, Pencil, Trash2, Link2 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { firewallGroupsService } from "@/lib/api/firewall-groups";
 import type { FirewallGroup, GroupsConfigResponse, FirewallGroupsCapabilities, GroupType } from "@/lib/api/types/firewall-groups";
 import { CreateGroupModal } from "@/components/firewall/CreateGroupModal";
@@ -72,7 +73,21 @@ const GROUP_TYPE_CLASSES_FALLBACK = {
   badge: "bg-gray-500/10 text-gray-500 border-gray-500/20",
 };
 
+// Message keys for group type labels (the config values stay untranslated).
+const GROUP_TYPE_KEYS = {
+  "address-group": "addressGroup",
+  "ipv6-address-group": "ipv6AddressGroup",
+  "network-group": "networkGroup",
+  "ipv6-network-group": "ipv6NetworkGroup",
+  "port-group": "portGroup",
+  "interface-group": "interfaceGroup",
+  "mac-group": "macGroup",
+  "domain-group": "domainGroup",
+  "remote-group": "remoteGroup",
+} as const satisfies Record<GroupType, string>;
+
 export default function FirewallGroupsPage() {
+  const t = useTranslations("firewallGroups");
   const [groups, setGroups] = useState<GroupsConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<FirewallGroupsCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
@@ -96,7 +111,7 @@ export default function FirewallGroupsPage() {
       setGroups(configData);
       setCapabilities(capabilitiesData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load firewall groups");
+      setError(err instanceof Error ? err.message : t("page.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -104,6 +119,7 @@ export default function FirewallGroupsPage() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount; loadData only reads the stable t() for its fallback
   }, []);
 
   // Modal handlers
@@ -150,18 +166,8 @@ export default function FirewallGroupsPage() {
   });
 
   const getGroupTypeLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      "address-group": "IPv4 Address",
-      "ipv6-address-group": "IPv6 Address",
-      "network-group": "IPv4 Network",
-      "ipv6-network-group": "IPv6 Network",
-      "port-group": "Port",
-      "interface-group": "Interface",
-      "mac-group": "MAC Address",
-      "domain-group": "Domain",
-      "remote-group": "Remote",
-    };
-    return labels[type] || type;
+    const key = GROUP_TYPE_KEYS[type as GroupType];
+    return key ? t(`typesShort.${key}`) : type;
   };
 
   if (loading) {
@@ -181,9 +187,9 @@ export default function FirewallGroupsPage() {
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Firewall Groups</h1>
+            <h1 className="text-3xl font-bold text-foreground">{t("page.title")}</h1>
             <p className="text-muted-foreground mt-1">
-              Manage firewall groups for use in firewall rules
+              {t("page.subtitle")}
             </p>
           </div>
         </div>
@@ -198,7 +204,7 @@ export default function FirewallGroupsPage() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-foreground">{groups?.total || 0}</p>
-                  <p className="text-xs text-muted-foreground">Total Groups</p>
+                  <p className="text-xs text-muted-foreground">{t("page.totalGroups")}</p>
                 </div>
               </div>
             </CardContent>
@@ -214,7 +220,7 @@ export default function FirewallGroupsPage() {
                   <p className="text-2xl font-bold text-foreground">
                     {(groups?.by_type["address-group"] || 0) + (groups?.by_type["ipv6-address-group"] || 0)}
                   </p>
-                  <p className="text-xs text-muted-foreground">Address Groups</p>
+                  <p className="text-xs text-muted-foreground">{t("page.addressGroups")}</p>
                 </div>
               </div>
             </CardContent>
@@ -230,7 +236,7 @@ export default function FirewallGroupsPage() {
                   <p className="text-2xl font-bold text-foreground">
                     {(groups?.by_type["network-group"] || 0) + (groups?.by_type["ipv6-network-group"] || 0)}
                   </p>
-                  <p className="text-xs text-muted-foreground">Network Groups</p>
+                  <p className="text-xs text-muted-foreground">{t("page.networkGroups")}</p>
                 </div>
               </div>
             </CardContent>
@@ -244,7 +250,7 @@ export default function FirewallGroupsPage() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-foreground">{groups?.by_type["port-group"] || 0}</p>
-                  <p className="text-xs text-muted-foreground">Port Groups</p>
+                  <p className="text-xs text-muted-foreground">{t("page.portGroups")}</p>
                 </div>
               </div>
             </CardContent>
@@ -256,11 +262,11 @@ export default function FirewallGroupsPage() {
           <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
             <div className="flex-1">
-              <h3 className="font-semibold text-destructive">Failed to load firewall groups</h3>
+              <h3 className="font-semibold text-destructive">{t("page.loadFailed")}</h3>
               <p className="text-sm text-destructive/90 mt-1">{error}</p>
               <Button variant="outline" size="sm" onClick={loadData} className="mt-3">
                 <RefreshCw className="h-3.5 w-3.5 mr-2" />
-                Try Again
+                {t("page.tryAgain")}
               </Button>
             </div>
           </div>
@@ -272,7 +278,7 @@ export default function FirewallGroupsPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search by name, description, or members..."
+                placeholder={t("page.searchPlaceholder")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -285,7 +291,7 @@ export default function FirewallGroupsPage() {
                 size="sm"
                 onClick={() => setTypeFilter("all")}
               >
-                All ({allGroups.length})
+                {t("page.filterAll", { count: String(allGroups.length) })}
               </Button>
               {capabilities && Object.entries(capabilities.group_types).map(([key, info]) => {
                 if (!info.supported) return null;
@@ -298,7 +304,7 @@ export default function FirewallGroupsPage() {
                     size="sm"
                     onClick={() => setTypeFilter(type)}
                   >
-                    {getGroupTypeLabel(type)} ({count})
+                    {t("page.filterType", { label: getGroupTypeLabel(type), count: String(count) })}
                   </Button>
                 );
               })}
@@ -306,7 +312,7 @@ export default function FirewallGroupsPage() {
 
             <Button onClick={() => setCreateModalOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
-              Create Group
+              {t("page.createGroup")}
             </Button>
           </div>
         )}
@@ -321,8 +327,8 @@ export default function FirewallGroupsPage() {
                     <Shield className="h-12 w-12 text-muted-foreground/30" />
                     <p className="text-muted-foreground">
                       {searchQuery || typeFilter !== "all"
-                        ? "No groups found matching your filters"
-                        : "No firewall groups configured"}
+                        ? t("page.noMatches")
+                        : t("page.noGroups")}
                     </p>
                   </div>
                 </CardContent>
@@ -347,13 +353,13 @@ export default function FirewallGroupsPage() {
                                   {group.name}
                                 </code>
                                 <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
-                                  <span>{group.members.length} member{group.members.length !== 1 ? "s" : ""}</span>
+                                  <span>{t("memberCount", { count: group.members.length, n: String(group.members.length) })}</span>
                                   {group.included_groups && group.included_groups.length > 0 && (
                                     <>
                                       <span className="text-muted-foreground/50">•</span>
                                       <span className="flex items-center gap-1">
                                         <Link2 className="h-2.5 w-2.5 inline" />
-                                        {group.included_groups.length} included
+                                        {t("page.includedCount", { count: String(group.included_groups.length) })}
                                       </span>
                                     </>
                                   )}
@@ -400,7 +406,7 @@ export default function FirewallGroupsPage() {
                             {group.members.length > 0 && (
                               <div className="pt-1">
                                 <div className="text-xs text-muted-foreground mb-1.5 font-medium">
-                                  Members ({group.members.length})
+                                  {t("page.members", { count: String(group.members.length) })}
                                 </div>
                                 <div className="flex flex-wrap gap-1.5">
                                   {group.members.slice(0, 3).map((member, idx) => (
@@ -415,12 +421,12 @@ export default function FirewallGroupsPage() {
                                     <Tooltip>
                                       <TooltipTrigger asChild>
                                         <Badge variant="secondary" className="text-xs px-1.5 py-0 cursor-help">
-                                          +{group.members.length - 3} more
+                                          {t("page.more", { count: String(group.members.length - 3) })}
                                         </Badge>
                                       </TooltipTrigger>
                                       <TooltipContent side="bottom" className="max-w-md">
                                         <div className="space-y-1">
-                                          <p className="font-semibold text-xs mb-2">All Members ({group.members.length}):</p>
+                                          <p className="font-semibold text-xs mb-2">{t("page.allMembers", { count: String(group.members.length) })}</p>
                                           <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
                                             {group.members.map((member, idx) => (
                                               <code
@@ -444,7 +450,7 @@ export default function FirewallGroupsPage() {
                               <div className="pt-1">
                                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5 font-medium">
                                   <Link2 className="h-3 w-3" />
-                                  <span>Includes ({group.included_groups.length})</span>
+                                  <span>{t("page.includes", { count: String(group.included_groups.length) })}</span>
                                 </div>
                                 <div className="flex flex-wrap gap-1.5">
                                   {group.included_groups.slice(0, 3).map((includedGroup, idx) => (
@@ -464,14 +470,14 @@ export default function FirewallGroupsPage() {
                                           variant="outline"
                                           className="text-xs px-1.5 py-0 border-dashed bg-muted/30 cursor-help"
                                         >
-                                          +{group.included_groups.length - 3} more
+                                          {t("page.more", { count: String(group.included_groups.length - 3) })}
                                         </Badge>
                                       </TooltipTrigger>
                                       <TooltipContent side="bottom" className="max-w-md">
                                         <div className="space-y-1">
                                           <p className="font-semibold text-xs mb-2 flex items-center gap-1">
                                             <Link2 className="h-3 w-3" />
-                                            All Included Groups ({group.included_groups.length}):
+                                            {t("page.allIncluded", { count: String(group.included_groups.length) })}
                                           </p>
                                           <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
                                             {group.included_groups.map((includedGroup, idx) => (
@@ -499,7 +505,11 @@ export default function FirewallGroupsPage() {
                   })}
                 </div>
                 <p className="text-sm text-muted-foreground text-center">
-                  Showing {filteredGroups.length} of {allGroups.length} group{allGroups.length !== 1 ? "s" : ""}
+                  {t("page.showing", {
+                    shown: String(filteredGroups.length),
+                    total: String(allGroups.length),
+                    count: allGroups.length,
+                  })}
                 </p>
               </>
             )}
