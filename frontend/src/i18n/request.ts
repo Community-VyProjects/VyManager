@@ -1,5 +1,6 @@
 import { cookies, headers } from "next/headers";
 import { getRequestConfig } from "next-intl/server";
+import english from "../../messages/en";
 import { defaultLocale, isLocale, LOCALE_COOKIE, matchAcceptLanguage, type Locale } from "./config";
 
 type Messages = Record<string, unknown>;
@@ -31,13 +32,26 @@ function withFallback(base: Messages, override: Messages): Messages {
   return result;
 }
 
+// Load messages/<locale>/<namespace>.json for every English namespace. A
+// namespace that has no file for this locale yet stays English.
+async function loadLocale(locale: Locale): Promise<Messages> {
+  const entries = await Promise.all(
+    Object.keys(english).map(async (namespace) => {
+      try {
+        const file = await import(`../../messages/${locale}/${namespace}.json`);
+        return [namespace, file.default as Messages] as const;
+      } catch {
+        return null;
+      }
+    })
+  );
+  return Object.fromEntries(entries.filter((e) => e !== null));
+}
+
 export default getRequestConfig(async () => {
   const locale = await resolveLocale();
-  const english = (await import("../../messages/en.json")).default as Messages;
   const messages =
-    locale === defaultLocale
-      ? english
-      : withFallback(english, (await import(`../../messages/${locale}.json`)).default);
+    locale === defaultLocale ? english : withFallback(english, await loadLocale(locale));
 
   return { locale, messages };
 });
