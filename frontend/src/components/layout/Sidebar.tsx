@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import {
   Collapsible,
@@ -19,13 +20,17 @@ import { useSessionStore } from "@/store/session-store";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import { ThemeSelector } from "@/components/ui/theme-selector";
+import { LanguageSelector } from "@/components/ui/language-selector";
 import { SearchCommand } from "@/components/search/SearchCommand";
 import { BugReportModal } from "@/components/bug-report/BugReportModal";
 
 import { getSidebarNavigation, type NavItem, type NavChild } from "@/lib/navigation";
+import { useNavTitle } from "@/i18n/nav-title";
 
 
 export function Sidebar() {
+  const t = useTranslations("sidebar");
+  const navTitle = useNavTitle();
   const pathname = usePathname();
   const router = useRouter();
   const [openItems, setOpenItems] = useState<string[]>([]);
@@ -210,7 +215,7 @@ export function Sidebar() {
           </div>
           <div>
             <h1 className="text-lg font-semibold text-foreground glow-text">VyManager</h1>
-            <p className="text-xs text-muted-foreground">VyOS Management</p>
+            <p className="text-xs text-muted-foreground">{t("subtitle")}</p>
           </div>
         </div>
       </div>
@@ -245,7 +250,7 @@ export function Sidebar() {
                       <span className={cn(
                         "transition-colors",
                         isActive ? "text-foreground" : "text-muted-foreground group-hover:text-foreground/80"
-                      )}>{item.title}</span>
+                      )}>{navTitle(item.title)}</span>
                     </div>
                     <ChevronDown
                       className={cn(
@@ -284,7 +289,7 @@ export function Sidebar() {
                               )}
                             />
                           )}
-                          {child.title}
+                          {navTitle(child.title)}
                         </Link>
                       );
                     })}
@@ -308,7 +313,7 @@ export function Sidebar() {
                   "h-4 w-4 transition-colors",
                   isActive ? "text-primary glow-text" : "text-muted-foreground group-hover:text-primary/70"
                 )} />
-                {item.title}
+                {navTitle(item.title)}
               </Link>
             );
           })}
@@ -325,12 +330,13 @@ export function Sidebar() {
           className="w-full justify-center gap-2 text-xs text-muted-foreground hover:text-foreground"
         >
           <Bug className="h-3.5 w-3.5" />
-          Report a Bug
+          {t("reportBug")}
         </Button>
         <BugReportModal open={bugReportOpen} onOpenChange={setBugReportOpen} />
 
-        {/* Theme Selector */}
+        {/* Theme & Language */}
         <ThemeSelector />
+        <LanguageSelector />
 
         {/* Active Instance Indicator */}
         {activeSession ? (
@@ -346,7 +352,7 @@ export function Sidebar() {
             </div>
             <span
               className="h-2 w-2 rounded-full bg-primary animate-pulse glow-primary-subtle shrink-0"
-              title="Connected"
+              title={t("connected")}
             />
             {!appliance && (
             <Button
@@ -357,7 +363,7 @@ export function Sidebar() {
               variant="ghost"
               size="icon"
               className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
-              title="Disconnect instance"
+              title={t("disconnectInstance")}
             >
               <PowerOff className="h-3.5 w-3.5" />
             </Button>
@@ -371,7 +377,7 @@ export function Sidebar() {
             className="w-full justify-center gap-2 text-xs"
           >
             <Power className="h-3 w-3" />
-            Connect to Instance
+            {t("connectToInstance")}
           </Button>
         )}
 
@@ -379,14 +385,14 @@ export function Sidebar() {
         <div className="flex items-center gap-2 rounded-lg bg-muted/30 border border-border/50 px-2.5 py-1.5">
           <User className="h-4 w-4 text-primary glow-text shrink-0" />
           <span className="flex-1 min-w-0 truncate text-xs font-semibold text-foreground">
-            {session?.user?.name || session?.user?.email || "User"}
+            {session?.user?.name || session?.user?.email || t("userFallback")}
           </span>
           <Button
             onClick={handleLogout}
             variant="ghost"
             size="icon"
             className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
-            title="Logout"
+            title={t("logout")}
           >
             <LogOut className="h-3.5 w-3.5" />
           </Button>
