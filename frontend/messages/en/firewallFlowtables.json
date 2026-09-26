@@ -1,1 +1,54 @@
-{}
+{
+  "createFlowtable": "Create Flowtable",
+  "interfaces": "Interfaces",
+  "offloadType": "Offload Type",
+  "page": {
+    "title": "Flowtables",
+    "subtitle": "Manage fast-path packet offloading for established connections",
+    "searchPlaceholder": "Search flowtables...",
+    "count": "{count, plural, =1 {{n} flowtable} other {{n} flowtables}}",
+    "hwOffload": "HW Offload",
+    "loading": "Loading flowtables configuration...",
+    "loadFailed": "Failed to load flowtables configuration",
+    "errorTitle": "Error Loading Configuration",
+    "tryAgain": "Try Again",
+    "noMatching": "No matching flowtables",
+    "noConfigured": "No flowtables configured",
+    "adjustSearch": "Try adjusting your search query",
+    "emptyDescription": "Flowtables enable fast-path packet processing by offloading established connections to hardware or software acceleration.",
+    "createFirst": "Create Your First Flowtable",
+    "noDescription": "No description",
+    "noInterfaces": "No interfaces"
+  },
+  "modal": {
+    "nameRequired": "Name is required",
+    "nameInvalid": "Name must start with a letter and contain only letters, numbers, hyphens, and underscores",
+    "nameExists": "A flowtable with this name already exists",
+    "interfaceRequired": "At least one interface is required",
+    "updateFailed": "Failed to update flowtable",
+    "createFailed": "Failed to create flowtable",
+    "editTitle": "Edit Flowtable: {name}",
+    "editDescription": "Modify the flowtable configuration.",
+    "createDescription": "Create a new flowtable for fast-path packet offloading.",
+    "namePlaceholder": "e.g., FT_LAN",
+    "nameHintEdit": "Flowtable name cannot be changed. Delete and recreate to rename.",
+    "nameHintCreate": "Must start with a letter. Use letters, numbers, hyphens, and underscores.",
+    "descriptionPlaceholder": "Optional description",
+    "selectInterface": "Select interface",
+    "interfacesHint": "Select the network interfaces to include in this flowtable.",
+    "offloadSoftware": "Software (kernel-based)",
+    "offloadHardware": "Hardware (NIC-based)",
+    "offloadHint": "Software offload uses the kernel for processing. Hardware offload uses the NIC (requires compatible hardware).",
+    "creating": "Creating...",
+    "saveChanges": "Save Changes"
+  },
+  "delete": {
+    "title": "Delete Flowtable",
+    "failed": "Failed to delete flowtable",
+    "confirm": "Are you sure you want to delete the flowtable <b>{name}</b>? This action cannot be undone.",
+    "willRemove": "This will remove:",
+    "removeConfig": "Flowtable configuration for {name}",
+    "removeBindings": "Interface bindings: {interfaces}",
+    "removeOffload": "Offload type: {offload}"
+  }
+}

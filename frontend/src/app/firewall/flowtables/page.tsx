@@ -32,6 +32,7 @@ import {
   HardDrive,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   flowtablesService,
   type Flowtable,
@@ -44,6 +45,8 @@ import { FlowtableModal } from "@/components/firewall/FlowtableModal";
 import { DeleteFlowtableModal } from "@/components/firewall/DeleteFlowtableModal";
 
 export default function FlowtablesPage() {
+  const t = useTranslations("firewallFlowtables");
+  const tc = useTranslations("common");
   // Data state
   const [config, setConfig] = useState<FlowtablesConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<FlowtablesCapabilities | null>(null);
@@ -63,7 +66,7 @@ export default function FlowtablesPage() {
       const data = await flowtablesService.getConfig(refresh);
       setConfig(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load flowtables configuration");
+      setError(err instanceof Error ? err.message : t("page.loadFailed"));
       console.error("Error fetching flowtables config:", err);
     } finally {
       setLoading(false);
@@ -82,6 +85,7 @@ export default function FlowtablesPage() {
   useEffect(() => {
     fetchConfig();
     fetchCapabilities();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount; a language switch re-renders via router.refresh()
   }, []);
 
   const flowtables = config?.flowtables || [];
@@ -123,9 +127,9 @@ export default function FlowtablesPage() {
                 <Zap className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-foreground">Flowtables</h1>
+                <h1 className="text-2xl font-bold text-foreground">{t("page.title")}</h1>
                 <p className="text-sm text-muted-foreground">
-                  Manage fast-path packet offloading for established connections
+                  {t("page.subtitle")}
                 </p>
               </div>
             </div>
@@ -140,7 +144,7 @@ export default function FlowtablesPage() {
               </Button>
               <Button onClick={() => setCreateModalOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
-                Create Flowtable
+                {t("createFlowtable")}
               </Button>
             </div>
           </div>
@@ -150,21 +154,24 @@ export default function FlowtablesPage() {
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search flowtables..."
+                placeholder={t("page.searchPlaceholder")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
               />
             </div>
             <div className="text-sm text-muted-foreground">
-              {filteredFlowtables.length} flowtable{filteredFlowtables.length !== 1 ? "s" : ""}
+              {t("page.count", {
+                count: filteredFlowtables.length,
+                n: String(filteredFlowtables.length),
+              })}
             </div>
             {capabilities && (
               <div className="ml-auto flex items-center gap-2">
                 {capabilities.features.hardware_offload.supported && (
                   <Badge variant="outline" className="gap-1 bg-purple-500/10 text-purple-500 border-purple-500/20">
                     <Cpu className="h-3 w-3" />
-                    HW Offload
+                    {t("page.hwOffload")}
                   </Badge>
                 )}
               </div>
@@ -175,18 +182,18 @@ export default function FlowtablesPage() {
         {/* Content */}
         <div className="flex-1 overflow-auto p-6">
           {loading ? (
-            <LoadingSpinner message="Loading flowtables configuration..." />
+            <LoadingSpinner message={t("page.loading")} />
           ) : error ? (
             <div className="flex items-center justify-center h-full">
               <Card className="border-destructive max-w-md">
                 <CardContent className="flex items-center gap-4 py-8">
                   <AlertCircle className="h-8 w-8 text-destructive" />
                   <div className="flex-1">
-                    <h3 className="font-semibold text-destructive">Error Loading Configuration</h3>
+                    <h3 className="font-semibold text-destructive">{t("page.errorTitle")}</h3>
                     <p className="text-sm text-muted-foreground mt-1">{error}</p>
                   </div>
                   <Button onClick={() => fetchConfig(true)} variant="outline">
-                    Try Again
+                    {t("page.tryAgain")}
                   </Button>
                 </CardContent>
               </Card>
@@ -199,17 +206,17 @@ export default function FlowtablesPage() {
                     <Zap className="h-8 w-8 text-muted-foreground" />
                   </div>
                   <h3 className="text-lg font-semibold text-foreground">
-                    {searchQuery ? "No matching flowtables" : "No flowtables configured"}
+                    {searchQuery ? t("page.noMatching") : t("page.noConfigured")}
                   </h3>
                   <p className="text-sm text-muted-foreground mt-2 mb-6">
                     {searchQuery
-                      ? "Try adjusting your search query"
-                      : "Flowtables enable fast-path packet processing by offloading established connections to hardware or software acceleration."}
+                      ? t("page.adjustSearch")
+                      : t("page.emptyDescription")}
                   </p>
                   {!searchQuery && (
                     <Button onClick={() => setCreateModalOpen(true)}>
                       <Plus className="h-4 w-4 mr-2" />
-                      Create Your First Flowtable
+                      {t("page.createFirst")}
                     </Button>
                   )}
                 </CardContent>
@@ -220,11 +227,11 @@ export default function FlowtablesPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="w-[200px]">Name</TableHead>
-                    <TableHead className="w-[300px]">Description</TableHead>
-                    <TableHead>Interfaces</TableHead>
-                    <TableHead className="w-[150px]">Offload Type</TableHead>
-                    <TableHead className="w-[100px] text-right">Actions</TableHead>
+                    <TableHead className="w-[200px]">{tc("name")}</TableHead>
+                    <TableHead className="w-[300px]">{tc("description")}</TableHead>
+                    <TableHead>{t("interfaces")}</TableHead>
+                    <TableHead className="w-[150px]">{t("offloadType")}</TableHead>
+                    <TableHead className="w-[100px] text-right">{tc("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -237,7 +244,7 @@ export default function FlowtablesPage() {
                         {ft.description ? (
                           <span className="text-muted-foreground">{ft.description}</span>
                         ) : (
-                          <span className="text-muted-foreground/50 italic">No description</span>
+                          <span className="text-muted-foreground/50 italic">{t("page.noDescription")}</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -249,7 +256,7 @@ export default function FlowtablesPage() {
                               </Badge>
                             ))
                           ) : (
-                            <span className="text-muted-foreground/50 italic">No interfaces</span>
+                            <span className="text-muted-foreground/50 italic">{t("page.noInterfaces")}</span>
                           )}
                         </div>
                       </TableCell>
@@ -272,14 +279,14 @@ export default function FlowtablesPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => setEditingFlowtable(ft)}>
                               <Pencil className="h-4 w-4 mr-2" />
-                              Edit
+                              {tc("edit")}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => setDeletingFlowtable(ft)}
                               className="text-destructive focus:text-destructive"
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
+                              {tc("delete")}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
