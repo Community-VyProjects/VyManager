@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 
 import {
   Sheet,
@@ -134,6 +135,8 @@ export function ZoneRulePanel({
   capabilities,
   canEdit,
 }: ZoneRulePanelProps) {
+  const t = useTranslations("firewallZones");
+  const tc = useTranslations("common");
   // Zone pair selection (only used in create mode when no pair pre-selected)
   const [selectedSrc, setSelectedSrc] = useState(sourceZone ?? "");
   const [selectedDst, setSelectedDst] = useState(destZone ?? "");
@@ -700,7 +703,7 @@ export function ZoneRulePanel({
   // ── Save handler ──────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!resolvedChain) {
-      setError("Select source and destination zones to determine the firewall chain.");
+      setError(t("rulePanel.selectZonesError"));
       return;
     }
 
@@ -945,7 +948,7 @@ export function ZoneRulePanel({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save rule");
+      setError(err instanceof Error ? err.message : t("rulePanel.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -988,7 +991,7 @@ export function ZoneRulePanel({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete rule");
+      setError(err instanceof Error ? err.message : t("rulePanel.deleteFailed"));
     } finally {
       setDeleteLoading(false);
       setConfirmingDelete(false);
@@ -1000,19 +1003,19 @@ export function ZoneRulePanel({
   const supportsDynamicAddressGroup = capabilities?.features.dynamic_address_group?.supported ?? false;
   const addrGroupTypeOptions = isV6
     ? [
-        { value: "ipv6-address-group", label: "IPv6 Address Group" },
-        { value: "ipv6-network-group", label: "IPv6 Network Group" },
-        { value: "domain-group", label: "Domain Group" },
-        ...(supportsRemoteGroup ? [{ value: "remote-group", label: "Remote Group" }] : []),
-        ...(supportsDynamicAddressGroup ? [{ value: "dynamic-address-group", label: "Dynamic Address Group" }] : []),
+        { value: "ipv6-address-group", label: t("rulePanel.groupTypes.ipv6AddressGroup") },
+        { value: "ipv6-network-group", label: t("rulePanel.groupTypes.ipv6NetworkGroup") },
+        { value: "domain-group", label: t("rulePanel.groupTypes.domainGroup") },
+        ...(supportsRemoteGroup ? [{ value: "remote-group", label: t("rulePanel.groupTypes.remoteGroup") }] : []),
+        ...(supportsDynamicAddressGroup ? [{ value: "dynamic-address-group", label: t("rulePanel.groupTypes.dynamicAddressGroup") }] : []),
       ]
     : [
-        { value: "address-group", label: "Address Group" },
-        { value: "network-group", label: "Network Group" },
-        { value: "domain-group", label: "Domain Group" },
-        { value: "mac-group", label: "MAC Group" },
-        ...(supportsRemoteGroup ? [{ value: "remote-group", label: "Remote Group" }] : []),
-        ...(supportsDynamicAddressGroup ? [{ value: "dynamic-address-group", label: "Dynamic Address Group" }] : []),
+        { value: "address-group", label: t("rulePanel.groupTypes.addressGroup") },
+        { value: "network-group", label: t("rulePanel.groupTypes.networkGroup") },
+        { value: "domain-group", label: t("rulePanel.groupTypes.domainGroup") },
+        { value: "mac-group", label: t("rulePanel.groupTypes.macGroup") },
+        ...(supportsRemoteGroup ? [{ value: "remote-group", label: t("rulePanel.groupTypes.remoteGroup") }] : []),
+        ...(supportsDynamicAddressGroup ? [{ value: "dynamic-address-group", label: t("rulePanel.groupTypes.dynamicAddressGroup") }] : []),
       ];
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -1024,10 +1027,10 @@ export function ZoneRulePanel({
           <SheetHeader>
             <SheetTitle className="text-base">
               {mode === "edit"
-                ? `Edit Rule #${rule?.rule_number}`
+                ? t("rulePanel.editTitle", { number: String(rule?.rule_number) })
                 : cloneRule
-                  ? `Clone Rule ${cloneRule.rule_number}`
-                  : "New Firewall Rule"}
+                  ? t("rulePanel.cloneTitle", { number: String(cloneRule.rule_number) })
+                  : t("rulePanel.newTitle")}
             </SheetTitle>
           </SheetHeader>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
@@ -1043,7 +1046,7 @@ export function ZoneRulePanel({
                 <div className="flex items-center gap-2 w-full">
                   <Select value={selectedSrc} onValueChange={setSelectedSrc}>
                     <SelectTrigger className="h-7 text-xs flex-1">
-                      <SelectValue placeholder="Source zone" />
+                      <SelectValue placeholder={t("rulePanel.sourceZone")} />
                     </SelectTrigger>
                     <SelectContent>
                       {nonLocalZones.map((z) => (
@@ -1054,7 +1057,7 @@ export function ZoneRulePanel({
                   <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
                   <Select value={selectedDst} onValueChange={setSelectedDst}>
                     <SelectTrigger className="h-7 text-xs flex-1">
-                      <SelectValue placeholder="Dest zone" />
+                      <SelectValue placeholder={t("rulePanel.destZone")} />
                     </SelectTrigger>
                     <SelectContent>
                       {nonLocalZones.map((z) => (
@@ -1069,7 +1072,7 @@ export function ZoneRulePanel({
               <Badge variant="secondary" className="font-mono text-xs">{resolvedChain}</Badge>
             )}
             {selectedSrc && selectedDst && !resolvedChain && (
-              <p className="text-xs text-destructive">No chain found for this zone pair</p>
+              <p className="text-xs text-destructive">{t("rulePanel.noChain")}</p>
             )}
 
           </div>
@@ -1089,12 +1092,12 @@ export function ZoneRulePanel({
               {/* ── BASIC ─────────────────────────────────────────────────── */}
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Basic</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("zoneForm.basic")}</p>
                   <div className="flex-1 h-px bg-border" />
                 </div>
                 {/* Action */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Action</Label>
+                  <Label className="text-xs">{t("table.action")}</Label>
                   <Select value={action} onValueChange={setAction} disabled={!canEdit}>
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue />
@@ -1110,10 +1113,10 @@ export function ZoneRulePanel({
                 {/* Jump target */}
                 {action === "jump" && (
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Jump Target</Label>
+                    <Label className="text-xs">{t("rulePanel.jumpTarget")}</Label>
                     <Select value={jumpTarget} onValueChange={setJumpTarget} disabled={!canEdit}>
                       <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Select chain" />
+                        <SelectValue placeholder={t("rulePanel.selectChain")} />
                       </SelectTrigger>
                       <SelectContent>
                         {customChains.map((c) => (
@@ -1127,10 +1130,10 @@ export function ZoneRulePanel({
                 {/* Offload target */}
                 {action === "offload" && (
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Offload Target (Flowtable)</Label>
+                    <Label className="text-xs">{t("rulePanel.offloadTarget")}</Label>
                     <Select value={offloadTarget} onValueChange={setOffloadTarget} disabled={!canEdit}>
                       <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Select flowtable" />
+                        <SelectValue placeholder={t("rulePanel.selectFlowtable")} />
                       </SelectTrigger>
                       <SelectContent>
                         {flowtables.map((ft) => (
@@ -1143,7 +1146,7 @@ export function ZoneRulePanel({
 
                 {/* Protocol */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Protocol</Label>
+                  <Label className="text-xs">{t("table.protocol")}</Label>
                   <div className="flex items-center gap-2">
                     <Select value={ruleProtocol} onValueChange={setRuleProtocol} disabled={!canEdit}>
                       <SelectTrigger className="h-8 text-xs flex-1">
@@ -1162,18 +1165,18 @@ export function ZoneRulePanel({
                         disabled={!canEdit}
                         className="h-3.5 w-3.5"
                       />
-                      Invert
+                      {t("rulePanel.invert")}
                     </label>
                   </div>
                 </div>
 
                 {/* Description */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Description</Label>
+                  <Label className="text-xs">{tc("description")}</Label>
                   <Input
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Optional description"
+                    placeholder={t("zoneForm.descriptionPlaceholder")}
                     className="h-8 text-xs"
                     disabled={!canEdit}
                   />
@@ -1183,11 +1186,11 @@ export function ZoneRulePanel({
                 <div className="flex items-center gap-6">
                   <label className="flex items-center gap-2 text-xs cursor-pointer">
                     <Checkbox checked={log} onCheckedChange={(c) => setLog(!!c)} disabled={!canEdit} className="h-3.5 w-3.5" />
-                    Enable logging
+                    {t("rulePanel.enableLogging")}
                   </label>
                   <label className="flex items-center gap-2 text-xs cursor-pointer">
                     <Checkbox checked={disable} onCheckedChange={(c) => setDisable(!!c)} disabled={!canEdit} className="h-3.5 w-3.5" />
-                    Disable rule
+                    {t("rulePanel.disableRule")}
                   </label>
                 </div>
               </div>
@@ -1195,11 +1198,11 @@ export function ZoneRulePanel({
               {/* ── SOURCE ────────────────────────────────────────────────── */}
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Source</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("table.source")}</p>
                   <div className="flex-1 h-px bg-border" />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs">Source Match</Label>
+                  <Label className="text-xs">{t("rulePanel.sourceMatch")}</Label>
                   <RadioGroup
                     value={srcMode}
                     onValueChange={(v) => setSrcMode(v as SrcMode)}
@@ -1209,7 +1212,7 @@ export function ZoneRulePanel({
                     {(["any", "address", "fqdn", "group", "geoip", "mac"] as SrcMode[]).map((m) => (
                       <label key={m} className="flex items-center gap-1.5 text-xs cursor-pointer">
                         <RadioGroupItem value={m} className="h-3.5 w-3.5" />
-                        {m === "fqdn" ? "FQDN" : m.charAt(0).toUpperCase() + m.slice(1)}
+                        {m === "fqdn" ? "FQDN" : m === "mac" ? "Mac" : t(`rulePanel.modes.${m}`)}
                       </label>
                     ))}
                   </RadioGroup>
@@ -1220,20 +1223,20 @@ export function ZoneRulePanel({
                         <Input
                           value={srcAddress}
                           onChange={(e) => setSrcAddress(e.target.value)}
-                          placeholder="IP / CIDR / range"
+                          placeholder={t("rulePanel.addressPlaceholder")}
                           className={cn("h-8 text-xs flex-1", srcAddressError && "border-destructive")}
                           disabled={!canEdit}
                         />
                         <label className="flex items-center gap-1 text-xs whitespace-nowrap cursor-pointer">
                           <Checkbox checked={srcAddressInvert} onCheckedChange={(c) => setSrcAddressInvert(!!c)} disabled={!canEdit} className="h-3.5 w-3.5" />
-                          Invert
+                          {t("rulePanel.invert")}
                         </label>
                       </div>
                       {srcAddressError && <p className="text-xs text-destructive">{srcAddressError}</p>}
                       <Input
                         value={srcAddressMask}
                         onChange={(e) => setSrcAddressMask(e.target.value)}
-                        placeholder="Address mask (optional)"
+                        placeholder={t("rulePanel.addressMaskPlaceholder")}
                         className="h-8 text-xs"
                         disabled={!canEdit}
                       />
@@ -1267,14 +1270,14 @@ export function ZoneRulePanel({
                           <Input
                             value={srcGroupName}
                             onChange={(e) => setSrcGroupName(e.target.value)}
-                            placeholder="Dynamic group name"
+                            placeholder={t("rulePanel.dynamicGroupPlaceholder")}
                             className="h-8 text-xs flex-1"
                             disabled={!canEdit}
                           />
                         ) : (
                           <Select value={srcGroupName} onValueChange={setSrcGroupName} disabled={!canEdit}>
                             <SelectTrigger className="h-8 text-xs flex-1">
-                              <SelectValue placeholder="Select group" />
+                              <SelectValue placeholder={t("rulePanel.selectGroup")} />
                             </SelectTrigger>
                             <SelectContent>
                               {groupsByType(srcGroupType).map((g) => (
@@ -1286,17 +1289,17 @@ export function ZoneRulePanel({
                       </div>
                       <label className="flex items-center gap-1 text-xs whitespace-nowrap cursor-pointer">
                         <Checkbox checked={srcGroupInvert} onCheckedChange={(c) => setSrcGroupInvert(!!c)} disabled={!canEdit} className="h-3.5 w-3.5" />
-                        Invert (match packets NOT in this group)
+                        {t("rulePanel.invertGroup")}
                       </label>
                     </div>
                   )}
 
                   {srcMode === "geoip" && (
                     <div className="space-y-1">
-                      <CountryMultiSelect value={srcGeoip} onChange={setSrcGeoip} label="Countries" id="src-geoip" />
+                      <CountryMultiSelect value={srcGeoip} onChange={setSrcGeoip} label={t("table.countries")} id="src-geoip" />
                       <label className="flex items-center gap-2 text-xs cursor-pointer">
                         <Checkbox checked={srcGeoipInverse} onCheckedChange={(c) => setSrcGeoipInverse(!!c)} disabled={!canEdit} className="h-3.5 w-3.5" />
-                        Exclude selected countries
+                        {t("rulePanel.excludeCountries")}
                       </label>
                     </div>
                   )}
@@ -1318,12 +1321,12 @@ export function ZoneRulePanel({
                 <Separator />
 
                 <div className="space-y-2">
-                  <Label className="text-xs">Source Port</Label>
+                  <Label className="text-xs">{t("rulePanel.sourcePort")}</Label>
                   <RadioGroup value={srcPortMode} onValueChange={(v) => setSrcPortMode(v as PortMode)} className="flex gap-4" disabled={!canEdit}>
                     {(["any", "port", "group"] as PortMode[]).map((m) => (
                       <label key={m} className="flex items-center gap-1.5 text-xs cursor-pointer">
                         <RadioGroupItem value={m} className="h-3.5 w-3.5" />
-                        {m.charAt(0).toUpperCase() + m.slice(1)}
+                        {t(`rulePanel.modes.${m}`)}
                       </label>
                     ))}
                   </RadioGroup>
@@ -1337,7 +1340,7 @@ export function ZoneRulePanel({
                     <div className="space-y-1">
                       <Select value={srcPortGroup} onValueChange={setSrcPortGroup} disabled={!canEdit}>
                         <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Select port group" />
+                          <SelectValue placeholder={t("rulePanel.selectPortGroup")} />
                         </SelectTrigger>
                         <SelectContent>
                           {portGroups.map((g) => (
@@ -1347,7 +1350,7 @@ export function ZoneRulePanel({
                       </Select>
                       <label className="flex items-center gap-1 text-xs whitespace-nowrap cursor-pointer">
                         <Checkbox checked={srcPortGroupInvert} onCheckedChange={(c) => setSrcPortGroupInvert(!!c)} disabled={!canEdit} className="h-3.5 w-3.5" />
-                        Invert (match packets NOT in this group)
+                        {t("rulePanel.invertGroup")}
                       </label>
                     </div>
                   )}
@@ -1357,16 +1360,16 @@ export function ZoneRulePanel({
               {/* ── DESTINATION ───────────────────────────────────────────── */}
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Destination</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("table.destination")}</p>
                   <div className="flex-1 h-px bg-border" />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs">Destination Match</Label>
+                  <Label className="text-xs">{t("rulePanel.destinationMatch")}</Label>
                   <RadioGroup value={dstMode} onValueChange={(v) => setDstMode(v as DstMode)} className="flex flex-wrap gap-x-4 gap-y-1" disabled={!canEdit}>
                     {(["any", "address", "fqdn", "group", "geoip", "mac"] as DstMode[]).map((m) => (
                       <label key={m} className="flex items-center gap-1.5 text-xs cursor-pointer">
                         <RadioGroupItem value={m} className="h-3.5 w-3.5" />
-                        {m === "fqdn" ? "FQDN" : m === "mac" ? "MAC" : m.charAt(0).toUpperCase() + m.slice(1)}
+                        {m === "fqdn" ? "FQDN" : m === "mac" ? "MAC" : t(`rulePanel.modes.${m}`)}
                       </label>
                     ))}
                   </RadioGroup>
@@ -1377,20 +1380,20 @@ export function ZoneRulePanel({
                         <Input
                           value={dstAddress}
                           onChange={(e) => setDstAddress(e.target.value)}
-                          placeholder="IP / CIDR / range"
+                          placeholder={t("rulePanel.addressPlaceholder")}
                           className={cn("h-8 text-xs flex-1", dstAddressError && "border-destructive")}
                           disabled={!canEdit}
                         />
                         <label className="flex items-center gap-1 text-xs whitespace-nowrap cursor-pointer">
                           <Checkbox checked={dstAddressInvert} onCheckedChange={(c) => setDstAddressInvert(!!c)} disabled={!canEdit} className="h-3.5 w-3.5" />
-                          Invert
+                          {t("rulePanel.invert")}
                         </label>
                       </div>
                       {dstAddressError && <p className="text-xs text-destructive">{dstAddressError}</p>}
                       <Input
                         value={dstAddressMask}
                         onChange={(e) => setDstAddressMask(e.target.value)}
-                        placeholder="Address mask (optional)"
+                        placeholder={t("rulePanel.addressMaskPlaceholder")}
                         className="h-8 text-xs"
                         disabled={!canEdit}
                       />
@@ -1434,14 +1437,14 @@ export function ZoneRulePanel({
                           <Input
                             value={dstGroupName}
                             onChange={(e) => setDstGroupName(e.target.value)}
-                            placeholder="Dynamic group name"
+                            placeholder={t("rulePanel.dynamicGroupPlaceholder")}
                             className="h-8 text-xs flex-1"
                             disabled={!canEdit}
                           />
                         ) : (
                           <Select value={dstGroupName} onValueChange={setDstGroupName} disabled={!canEdit}>
                             <SelectTrigger className="h-8 text-xs flex-1">
-                              <SelectValue placeholder="Select group" />
+                              <SelectValue placeholder={t("rulePanel.selectGroup")} />
                             </SelectTrigger>
                             <SelectContent>
                               {groupsByType(dstGroupType).map((g) => (
@@ -1453,17 +1456,17 @@ export function ZoneRulePanel({
                       </div>
                       <label className="flex items-center gap-1 text-xs whitespace-nowrap cursor-pointer">
                         <Checkbox checked={dstGroupInvert} onCheckedChange={(c) => setDstGroupInvert(!!c)} disabled={!canEdit} className="h-3.5 w-3.5" />
-                        Invert (match packets NOT in this group)
+                        {t("rulePanel.invertGroup")}
                       </label>
                     </div>
                   )}
 
                   {dstMode === "geoip" && (
                     <div className="space-y-1">
-                      <CountryMultiSelect value={dstGeoip} onChange={setDstGeoip} label="Countries" id="dst-geoip" />
+                      <CountryMultiSelect value={dstGeoip} onChange={setDstGeoip} label={t("table.countries")} id="dst-geoip" />
                       <label className="flex items-center gap-2 text-xs cursor-pointer">
                         <Checkbox checked={dstGeoipInverse} onCheckedChange={(c) => setDstGeoipInverse(!!c)} disabled={!canEdit} className="h-3.5 w-3.5" />
-                        Exclude selected countries
+                        {t("rulePanel.excludeCountries")}
                       </label>
                     </div>
                   )}
@@ -1472,12 +1475,12 @@ export function ZoneRulePanel({
                 <Separator />
 
                 <div className="space-y-2">
-                  <Label className="text-xs">Destination Port</Label>
+                  <Label className="text-xs">{t("rulePanel.destinationPort")}</Label>
                   <RadioGroup value={dstPortMode} onValueChange={(v) => setDstPortMode(v as PortMode)} className="flex gap-4" disabled={!canEdit}>
                     {(["any", "port", "group"] as PortMode[]).map((m) => (
                       <label key={m} className="flex items-center gap-1.5 text-xs cursor-pointer">
                         <RadioGroupItem value={m} className="h-3.5 w-3.5" />
-                        {m.charAt(0).toUpperCase() + m.slice(1)}
+                        {t(`rulePanel.modes.${m}`)}
                       </label>
                     ))}
                   </RadioGroup>
@@ -1491,7 +1494,7 @@ export function ZoneRulePanel({
                     <div className="space-y-1">
                       <Select value={dstPortGroup} onValueChange={setDstPortGroup} disabled={!canEdit}>
                         <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Select port group" />
+                          <SelectValue placeholder={t("rulePanel.selectPortGroup")} />
                         </SelectTrigger>
                         <SelectContent>
                           {portGroups.map((g) => (
@@ -1501,7 +1504,7 @@ export function ZoneRulePanel({
                       </Select>
                       <label className="flex items-center gap-1 text-xs whitespace-nowrap cursor-pointer">
                         <Checkbox checked={dstPortGroupInvert} onCheckedChange={(c) => setDstPortGroupInvert(!!c)} disabled={!canEdit} className="h-3.5 w-3.5" />
-                        Invert (match packets NOT in this group)
+                        {t("rulePanel.invertGroup")}
                       </label>
                     </div>
                   )}
@@ -1511,17 +1514,17 @@ export function ZoneRulePanel({
               {/* ── STATE ─────────────────────────────────────────────────── */}
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">State</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("rulePanel.state")}</p>
                   <div className="flex-1 h-px bg-border" />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs">Connection State</Label>
+                  <Label className="text-xs">{t("rulePanel.connectionState")}</Label>
                   <div className="grid grid-cols-2 gap-2">
                     {[
-                      { id: "established", label: "Established", val: stateEstablished, set: setStateEstablished },
-                      { id: "new", label: "New", val: stateNew, set: setStateNew },
-                      { id: "related", label: "Related", val: stateRelated, set: setStateRelated },
-                      { id: "invalid", label: "Invalid", val: stateInvalid, set: setStateInvalid },
+                      { id: "established", label: t("rulePanel.states.established"), val: stateEstablished, set: setStateEstablished },
+                      { id: "new", label: t("rulePanel.states.new"), val: stateNew, set: setStateNew },
+                      { id: "related", label: t("rulePanel.states.related"), val: stateRelated, set: setStateRelated },
+                      { id: "invalid", label: t("rulePanel.states.invalid"), val: stateInvalid, set: setStateInvalid },
                     ].map(({ id, label, val, set }) => (
                       <label key={id} className="flex items-center gap-2 text-xs cursor-pointer">
                         <Checkbox checked={val} onCheckedChange={(c) => set(!!c)} disabled={!canEdit} className="h-3.5 w-3.5" />
@@ -1538,24 +1541,24 @@ export function ZoneRulePanel({
                     {capabilities?.features.ipsec_directional?.supported ? (
                       <div className="grid grid-cols-2 gap-2">
                         <div className="space-y-1">
-                          <Label className="text-[11px] text-muted-foreground">Inbound</Label>
+                          <Label className="text-[11px] text-muted-foreground">{t("rulePanel.inbound")}</Label>
                           <Select value={ipsecInbound} onValueChange={(v: "none" | "match-ipsec" | "match-none") => setIpsecInbound(v)} disabled={!canEdit}>
                             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="none" className="text-xs">No match</SelectItem>
-                              <SelectItem value="match-ipsec" className="text-xs">Match IPsec</SelectItem>
-                              <SelectItem value="match-none" className="text-xs">Match non-IPsec</SelectItem>
+                              <SelectItem value="none" className="text-xs">{t("rulePanel.ipsecNoMatch")}</SelectItem>
+                              <SelectItem value="match-ipsec" className="text-xs">{t("rulePanel.ipsecMatch")}</SelectItem>
+                              <SelectItem value="match-none" className="text-xs">{t("rulePanel.ipsecMatchNon")}</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[11px] text-muted-foreground">Outbound</Label>
+                          <Label className="text-[11px] text-muted-foreground">{t("rulePanel.outbound")}</Label>
                           <Select value={ipsecOutbound} onValueChange={(v: "none" | "match-ipsec" | "match-none") => setIpsecOutbound(v)} disabled={!canEdit}>
                             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="none" className="text-xs">No match</SelectItem>
-                              <SelectItem value="match-ipsec" className="text-xs">Match IPsec</SelectItem>
-                              <SelectItem value="match-none" className="text-xs">Match non-IPsec</SelectItem>
+                              <SelectItem value="none" className="text-xs">{t("rulePanel.ipsecNoMatch")}</SelectItem>
+                              <SelectItem value="match-ipsec" className="text-xs">{t("rulePanel.ipsecMatch")}</SelectItem>
+                              <SelectItem value="match-none" className="text-xs">{t("rulePanel.ipsecMatchNon")}</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -1563,9 +1566,9 @@ export function ZoneRulePanel({
                     ) : (
                       <RadioGroup value={ipsecMode} onValueChange={(v: "none" | "match-ipsec" | "match-none") => setIpsecMode(v)} className="flex gap-4" disabled={!canEdit}>
                         {([
-                          { value: "none", label: "None" },
-                          { value: "match-ipsec", label: "Match IPsec" },
-                          { value: "match-none", label: "Match non-IPsec" },
+                          { value: "none", label: tc("none") },
+                          { value: "match-ipsec", label: t("rulePanel.ipsecMatch") },
+                          { value: "match-none", label: t("rulePanel.ipsecMatchNon") },
                         ] as const).map((o) => (
                           <label key={o.value} className="flex items-center gap-1.5 text-xs cursor-pointer">
                             <RadioGroupItem value={o.value} className="h-3.5 w-3.5" />
@@ -1582,14 +1585,14 @@ export function ZoneRulePanel({
               {/* ── ADVANCED ──────────────────────────────────────────────── */}
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Advanced</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("rulePanel.advanced")}</p>
                   <div className="flex-1 h-px bg-border" />
                 </div>
                 {/* TCP Flags */}
                 <div className="space-y-2">
-                  <Label className="text-xs">TCP Flags</Label>
+                  <Label className="text-xs">{t("rulePanel.tcpFlags")}</Label>
                   {ruleProtocol !== "tcp" && ruleProtocol !== "tcp_udp" && (
-                    <p className="text-xs text-muted-foreground">Set protocol to TCP to configure flags.</p>
+                    <p className="text-xs text-muted-foreground">{t("rulePanel.tcpFlagsHint")}</p>
                   )}
                   <div className="grid grid-cols-2 gap-2">
                     {TCP_FLAGS.map((flag) => (
@@ -1604,9 +1607,9 @@ export function ZoneRulePanel({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="disabled" className="text-xs">Off</SelectItem>
-                            <SelectItem value="enabled" className="text-xs">Match Set</SelectItem>
-                            <SelectItem value="not" className="text-xs">Match NOT Set</SelectItem>
+                            <SelectItem value="disabled" className="text-xs">{t("rulePanel.flagOff")}</SelectItem>
+                            <SelectItem value="enabled" className="text-xs">{t("rulePanel.flagSet")}</SelectItem>
+                            <SelectItem value="not" className="text-xs">{t("rulePanel.flagNotSet")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -1618,9 +1621,9 @@ export function ZoneRulePanel({
 
                 {/* ICMP Type */}
                 <div className="space-y-2">
-                  <Label className="text-xs">ICMP Type</Label>
+                  <Label className="text-xs">{t("rulePanel.icmpType")}</Label>
                   {!["icmp", "icmpv6", "ipv6-icmp"].includes(ruleProtocol) && (
-                    <p className="text-xs text-muted-foreground">Set protocol to ICMP to configure type.</p>
+                    <p className="text-xs text-muted-foreground">{t("rulePanel.icmpTypeHint")}</p>
                   )}
                   <div className="flex items-center gap-2">
                     <Select
@@ -1639,7 +1642,7 @@ export function ZoneRulePanel({
                     </Select>
                     {icmpTypeName && (
                       <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => setIcmpTypeName("")} disabled={!canEdit}>
-                        Clear
+                        {t("rulePanel.clear")}
                       </Button>
                     )}
                   </div>
@@ -1649,11 +1652,11 @@ export function ZoneRulePanel({
 
                 {/* Packet mods */}
                 <div className="space-y-2">
-                  <Label className="text-xs">Packet Modifications</Label>
+                  <Label className="text-xs">{t("rulePanel.packetMods")}</Label>
                   <div className="grid grid-cols-3 gap-2">
                     {[
                       { label: "DSCP (0-63)", val: dscp, set: setDscp, ph: "0-63" },
-                      { label: "Mark", val: mark, set: setMark, ph: "value" },
+                      { label: t("rulePanel.mark"), val: mark, set: setMark, ph: t("rulePanel.valuePlaceholder") },
                       { label: "TTL (0-255)", val: ttl, set: setTtl, ph: "0-255" },
                     ].map(({ label, val, set, ph }) => (
                       <div key={label} className="space-y-1">
@@ -1668,7 +1671,7 @@ export function ZoneRulePanel({
               {/* ── MATCHING OPTIONS (Collapsible) ───────────────────────── */}
               <Collapsible open={matchingOpen} onOpenChange={setMatchingOpen}>
                 <CollapsibleTrigger className="flex items-center gap-3 w-full group">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Matching Options</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("rulePanel.matchingOptions")}</p>
                   {(connectionMark || connectionStatusNat || conntrackHelper || dscpMatch || dscpExclude || fragmentMatchFrag || fragmentMatchNonFrag || greKey || greVersion || greInnerProto || markMatch || packetLength || packetLengthExclude || packetType || tcpMssMatch || ttlEq || ttlGt || ttlLt) && (
                     <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
                   )}
@@ -1678,27 +1681,27 @@ export function ZoneRulePanel({
                 <CollapsibleContent className="space-y-4 pt-3">
                   {/* Connection Mark / Status */}
                   <div className="space-y-2">
-                    <Label className="text-xs">Connection Mark / Status</Label>
+                    <Label className="text-xs">{t("rulePanel.connMarkStatus")}</Label>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Connection Mark</Label>
-                        <Input value={connectionMark} onChange={(e) => setConnectionMark(e.target.value)} placeholder="e.g. 100" className="h-8 text-xs" disabled={!canEdit} />
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.connMark")}</Label>
+                        <Input value={connectionMark} onChange={(e) => setConnectionMark(e.target.value)} placeholder={t("rulePanel.eg", { value: "100" })} className="h-8 text-xs" disabled={!canEdit} />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Connection Status NAT</Label>
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.connStatusNat")}</Label>
                         <Select value={connectionStatusNat || "__none__"} onValueChange={(v) => setConnectionStatusNat(v === "__none__" ? "" : v)} disabled={!canEdit}>
-                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Any" /></SelectTrigger>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder={t("table.any")} /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="__none__" className="text-xs">Any</SelectItem>
-                            <SelectItem value="destination" className="text-xs">Destination NAT</SelectItem>
-                            <SelectItem value="source" className="text-xs">Source NAT</SelectItem>
+                            <SelectItem value="__none__" className="text-xs">{t("table.any")}</SelectItem>
+                            <SelectItem value="destination" className="text-xs">{t("rulePanel.destinationNat")}</SelectItem>
+                            <SelectItem value="source" className="text-xs">{t("rulePanel.sourceNat")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[11px] text-muted-foreground">Conntrack Helper</Label>
-                      <Input value={conntrackHelper} onChange={(e) => setConntrackHelper(e.target.value)} placeholder="e.g. ftp, h323, pptp, sip, tftp" className="h-8 text-xs" disabled={!canEdit} />
+                      <Label className="text-[11px] text-muted-foreground">{t("rulePanel.conntrackHelper")}</Label>
+                      <Input value={conntrackHelper} onChange={(e) => setConntrackHelper(e.target.value)} placeholder={t("rulePanel.eg", { value: "ftp, h323, pptp, sip, tftp" })} className="h-8 text-xs" disabled={!canEdit} />
                     </div>
                   </div>
 
@@ -1706,15 +1709,15 @@ export function ZoneRulePanel({
 
                   {/* DSCP Matching */}
                   <div className="space-y-2">
-                    <Label className="text-xs">DSCP Matching</Label>
+                    <Label className="text-xs">{t("rulePanel.dscpMatching")}</Label>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">DSCP Match</Label>
-                        <Input value={dscpMatch} onChange={(e) => setDscpMatch(e.target.value)} placeholder="0-63 or CS0-CS7, AF11-AF43, EF" className="h-8 text-xs" disabled={!canEdit} />
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.dscpMatch")}</Label>
+                        <Input value={dscpMatch} onChange={(e) => setDscpMatch(e.target.value)} placeholder={t("rulePanel.dscpPlaceholder")} className="h-8 text-xs" disabled={!canEdit} />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">DSCP Exclude</Label>
-                        <Input value={dscpExclude} onChange={(e) => setDscpExclude(e.target.value)} placeholder="0-63 or CS0-CS7, AF11-AF43, EF" className="h-8 text-xs" disabled={!canEdit} />
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.dscpExclude")}</Label>
+                        <Input value={dscpExclude} onChange={(e) => setDscpExclude(e.target.value)} placeholder={t("rulePanel.dscpPlaceholder")} className="h-8 text-xs" disabled={!canEdit} />
                       </div>
                     </div>
                   </div>
@@ -1723,15 +1726,15 @@ export function ZoneRulePanel({
 
                   {/* Fragment Matching */}
                   <div className="space-y-2">
-                    <Label className="text-xs">Fragment Matching</Label>
+                    <Label className="text-xs">{t("rulePanel.fragmentMatching")}</Label>
                     <div className="flex gap-4">
                       <label className="flex items-center gap-2 text-xs cursor-pointer">
                         <Checkbox checked={fragmentMatchFrag} onCheckedChange={(c) => setFragmentMatchFrag(!!c)} disabled={!canEdit} className="h-3.5 w-3.5" />
-                        Match fragmented
+                        {t("rulePanel.matchFragmented")}
                       </label>
                       <label className="flex items-center gap-2 text-xs cursor-pointer">
                         <Checkbox checked={fragmentMatchNonFrag} onCheckedChange={(c) => setFragmentMatchNonFrag(!!c)} disabled={!canEdit} className="h-3.5 w-3.5" />
-                        Match non-fragmented
+                        {t("rulePanel.matchNonFragmented")}
                       </label>
                     </div>
                   </div>
@@ -1741,40 +1744,40 @@ export function ZoneRulePanel({
                     <>
                       <Separator />
                       <div className="space-y-2">
-                        <Label className="text-xs">GRE Matching (1.5+)</Label>
+                        <Label className="text-xs">{t("rulePanel.greMatching")}</Label>
                         <div className="grid grid-cols-3 gap-2">
                           <div className="space-y-1">
-                            <Label className="text-[11px] text-muted-foreground">GRE Key</Label>
-                            <Input value={greKey} onChange={(e) => setGreKey(e.target.value)} placeholder="Key value" className="h-8 text-xs" disabled={!canEdit} />
+                            <Label className="text-[11px] text-muted-foreground">{t("rulePanel.greKey")}</Label>
+                            <Input value={greKey} onChange={(e) => setGreKey(e.target.value)} placeholder={t("rulePanel.keyValue")} className="h-8 text-xs" disabled={!canEdit} />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-[11px] text-muted-foreground">GRE Version</Label>
+                            <Label className="text-[11px] text-muted-foreground">{t("rulePanel.greVersion")}</Label>
                             <Select value={greVersion || "__none__"} onValueChange={(v) => setGreVersion(v === "__none__" ? "" : v)} disabled={!canEdit}>
-                              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Any" /></SelectTrigger>
+                              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder={t("table.any")} /></SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="__none__" className="text-xs">Any</SelectItem>
+                                <SelectItem value="__none__" className="text-xs">{t("table.any")}</SelectItem>
                                 <SelectItem value="0" className="text-xs">GREv0</SelectItem>
                                 <SelectItem value="1" className="text-xs">GREv1</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-[11px] text-muted-foreground">Inner Protocol</Label>
-                            <Input value={greInnerProto} onChange={(e) => setGreInnerProto(e.target.value)} placeholder="Protocol number" className="h-8 text-xs" disabled={!canEdit} />
+                            <Label className="text-[11px] text-muted-foreground">{t("rulePanel.innerProtocol")}</Label>
+                            <Input value={greInnerProto} onChange={(e) => setGreInnerProto(e.target.value)} placeholder={t("rulePanel.protocolNumber")} className="h-8 text-xs" disabled={!canEdit} />
                           </div>
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[11px] text-muted-foreground">GRE Flags</Label>
+                          <Label className="text-[11px] text-muted-foreground">{t("rulePanel.greFlags")}</Label>
                           <div className="grid grid-cols-3 gap-2">
                             {["checksum", "key", "sequence"].map((flag) => (
                               <div key={flag} className="space-y-1">
                                 <label className="flex items-center gap-1.5 text-xs cursor-pointer">
                                   <Checkbox checked={!!greFlags[flag]} onCheckedChange={(c) => setGreFlags(prev => ({ ...prev, [flag]: !!c, [`${flag}_unset`]: false }))} disabled={!canEdit} className="h-3.5 w-3.5" />
-                                  <span className="capitalize">{flag} set</span>
+                                  <span className="capitalize">{t("rulePanel.greFlagSet", { flag })}</span>
                                 </label>
                                 <label className="flex items-center gap-1.5 text-xs cursor-pointer">
                                   <Checkbox checked={!!greFlags[`${flag}_unset`]} onCheckedChange={(c) => setGreFlags(prev => ({ ...prev, [`${flag}_unset`]: !!c, [flag]: false }))} disabled={!canEdit} className="h-3.5 w-3.5" />
-                                  <span className="capitalize">{flag} unset</span>
+                                  <span className="capitalize">{t("rulePanel.greFlagUnset", { flag })}</span>
                                 </label>
                               </div>
                             ))}
@@ -1788,34 +1791,34 @@ export function ZoneRulePanel({
 
                   {/* Mark / Packet Length / Type */}
                   <div className="space-y-2">
-                    <Label className="text-xs">Mark / Packet Length / Type</Label>
+                    <Label className="text-xs">{t("rulePanel.markLengthType")}</Label>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Mark Match</Label>
-                        <Input value={markMatch} onChange={(e) => setMarkMatch(e.target.value)} placeholder="e.g. 100" className="h-8 text-xs" disabled={!canEdit} />
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.markMatch")}</Label>
+                        <Input value={markMatch} onChange={(e) => setMarkMatch(e.target.value)} placeholder={t("rulePanel.eg", { value: "100" })} className="h-8 text-xs" disabled={!canEdit} />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Packet Type</Label>
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.packetType")}</Label>
                         <Select value={packetType || "__none__"} onValueChange={(v) => setPacketType(v === "__none__" ? "" : v)} disabled={!canEdit}>
-                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Any" /></SelectTrigger>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder={t("table.any")} /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="__none__" className="text-xs">Any</SelectItem>
-                            <SelectItem value="broadcast" className="text-xs">Broadcast</SelectItem>
-                            <SelectItem value="host" className="text-xs">Host</SelectItem>
-                            <SelectItem value="multicast" className="text-xs">Multicast</SelectItem>
-                            <SelectItem value="other" className="text-xs">Other</SelectItem>
+                            <SelectItem value="__none__" className="text-xs">{t("table.any")}</SelectItem>
+                            <SelectItem value="broadcast" className="text-xs">{t("rulePanel.packetTypes.broadcast")}</SelectItem>
+                            <SelectItem value="host" className="text-xs">{t("rulePanel.packetTypes.host")}</SelectItem>
+                            <SelectItem value="multicast" className="text-xs">{t("rulePanel.packetTypes.multicast")}</SelectItem>
+                            <SelectItem value="other" className="text-xs">{t("rulePanel.packetTypes.other")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Packet Length</Label>
-                        <Input value={packetLength} onChange={(e) => setPacketLength(e.target.value)} placeholder="e.g. 128 or 64-1500" className="h-8 text-xs" disabled={!canEdit} />
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.packetLength")}</Label>
+                        <Input value={packetLength} onChange={(e) => setPacketLength(e.target.value)} placeholder={t("rulePanel.packetLengthPlaceholder")} className="h-8 text-xs" disabled={!canEdit} />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Packet Length Exclude</Label>
-                        <Input value={packetLengthExclude} onChange={(e) => setPacketLengthExclude(e.target.value)} placeholder="e.g. 1500" className="h-8 text-xs" disabled={!canEdit} />
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.packetLengthExclude")}</Label>
+                        <Input value={packetLengthExclude} onChange={(e) => setPacketLengthExclude(e.target.value)} placeholder={t("rulePanel.eg", { value: "1500" })} className="h-8 text-xs" disabled={!canEdit} />
                       </div>
                     </div>
                   </div>
@@ -1824,22 +1827,22 @@ export function ZoneRulePanel({
 
                   {/* TCP MSS / TTL Match */}
                   <div className="space-y-2">
-                    <Label className="text-xs">TCP MSS / TTL Match</Label>
+                    <Label className="text-xs">{t("rulePanel.mssTtlMatch")}</Label>
                     <div className="space-y-1">
-                      <Label className="text-[11px] text-muted-foreground">TCP MSS Match</Label>
-                      <Input value={tcpMssMatch} onChange={(e) => setTcpMssMatch(e.target.value)} placeholder="e.g. 500-1460" className="h-8 text-xs" disabled={!canEdit} />
+                      <Label className="text-[11px] text-muted-foreground">{t("rulePanel.tcpMssMatch")}</Label>
+                      <Input value={tcpMssMatch} onChange={(e) => setTcpMssMatch(e.target.value)} placeholder={t("rulePanel.eg", { value: "500-1460" })} className="h-8 text-xs" disabled={!canEdit} />
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">TTL Equal</Label>
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.ttlEqual")}</Label>
                         <Input value={ttlEq} onChange={(e) => setTtlEq(e.target.value)} placeholder="0-255" className="h-8 text-xs" disabled={!canEdit} />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">TTL Greater Than</Label>
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.ttlGreater")}</Label>
                         <Input value={ttlGt} onChange={(e) => setTtlGt(e.target.value)} placeholder="0-255" className="h-8 text-xs" disabled={!canEdit} />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">TTL Less Than</Label>
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.ttlLess")}</Label>
                         <Input value={ttlLt} onChange={(e) => setTtlLt(e.target.value)} placeholder="0-255" className="h-8 text-xs" disabled={!canEdit} />
                       </div>
                     </div>
@@ -1850,7 +1853,7 @@ export function ZoneRulePanel({
               {/* ── RATE LIMITS & TIME (Collapsible) ─────────────────────── */}
               <Collapsible open={limitsOpen} onOpenChange={setLimitsOpen}>
                 <CollapsibleTrigger className="flex items-center gap-3 w-full group">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Rate Limits & Time</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("rulePanel.limitsTime")}</p>
                   {(limitRate || limitBurst || recentCount || recentTime || timeStartdate || timeStarttime || timeStopdate || timeStoptime || timeWeekdays) && (
                     <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
                   )}
@@ -1860,15 +1863,15 @@ export function ZoneRulePanel({
                 <CollapsibleContent className="space-y-4 pt-3">
                   {/* Rate Limiting */}
                   <div className="space-y-2">
-                    <Label className="text-xs">Rate Limiting</Label>
+                    <Label className="text-xs">{t("rulePanel.rateLimiting")}</Label>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Rate</Label>
-                        <Input value={limitRate} onChange={(e) => setLimitRate(e.target.value)} placeholder="e.g. 10/second" className="h-8 text-xs" disabled={!canEdit} />
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.rate")}</Label>
+                        <Input value={limitRate} onChange={(e) => setLimitRate(e.target.value)} placeholder={t("rulePanel.eg", { value: "10/second" })} className="h-8 text-xs" disabled={!canEdit} />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Burst</Label>
-                        <Input value={limitBurst} onChange={(e) => setLimitBurst(e.target.value)} placeholder="e.g. 20" className="h-8 text-xs" disabled={!canEdit} />
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.burst")}</Label>
+                        <Input value={limitBurst} onChange={(e) => setLimitBurst(e.target.value)} placeholder={t("rulePanel.eg", { value: "20" })} className="h-8 text-xs" disabled={!canEdit} />
                       </div>
                     </div>
                   </div>
@@ -1877,15 +1880,15 @@ export function ZoneRulePanel({
 
                   {/* Recent Connection Tracking */}
                   <div className="space-y-2">
-                    <Label className="text-xs">Recent Connection Tracking</Label>
+                    <Label className="text-xs">{t("rulePanel.recentTracking")}</Label>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Count</Label>
-                        <Input value={recentCount} onChange={(e) => setRecentCount(e.target.value)} placeholder="e.g. 5" className="h-8 text-xs" disabled={!canEdit} />
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.count")}</Label>
+                        <Input value={recentCount} onChange={(e) => setRecentCount(e.target.value)} placeholder={t("rulePanel.eg", { value: "5" })} className="h-8 text-xs" disabled={!canEdit} />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Time (seconds)</Label>
-                        <Input value={recentTime} onChange={(e) => setRecentTime(e.target.value)} placeholder="e.g. 60" className="h-8 text-xs" disabled={!canEdit} />
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.timeSeconds")}</Label>
+                        <Input value={recentTime} onChange={(e) => setRecentTime(e.target.value)} placeholder={t("rulePanel.eg", { value: "60" })} className="h-8 text-xs" disabled={!canEdit} />
                       </div>
                     </div>
                   </div>
@@ -1894,29 +1897,29 @@ export function ZoneRulePanel({
 
                   {/* Time-Based Rules */}
                   <div className="space-y-2">
-                    <Label className="text-xs">Time-Based Rules</Label>
+                    <Label className="text-xs">{t("rulePanel.timeBased")}</Label>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Start Date</Label>
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.startDate")}</Label>
                         <Input type="date" value={timeStartdate} onChange={(e) => setTimeStartdate(e.target.value)} className="h-8 text-xs" disabled={!canEdit} />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Stop Date</Label>
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.stopDate")}</Label>
                         <Input type="date" value={timeStopdate} onChange={(e) => setTimeStopdate(e.target.value)} className="h-8 text-xs" disabled={!canEdit} />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Start Time</Label>
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.startTime")}</Label>
                         <Input type="time" value={timeStarttime} onChange={(e) => setTimeStarttime(e.target.value)} className="h-8 text-xs" disabled={!canEdit} />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Stop Time</Label>
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.stopTime")}</Label>
                         <Input type="time" value={timeStoptime} onChange={(e) => setTimeStoptime(e.target.value)} className="h-8 text-xs" disabled={!canEdit} />
                       </div>
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[11px] text-muted-foreground">Weekdays</Label>
+                      <Label className="text-[11px] text-muted-foreground">{t("rulePanel.weekdays")}</Label>
                       <Input value={timeWeekdays} onChange={(e) => setTimeWeekdays(e.target.value)} placeholder="Monday,Tuesday,Wednesday" className="h-8 text-xs" disabled={!canEdit} />
                     </div>
                   </div>
@@ -1926,7 +1929,7 @@ export function ZoneRulePanel({
               {/* ── ACTIONS & MODIFICATIONS (Collapsible) ────────────────── */}
               <Collapsible open={actionsOpen} onOpenChange={setActionsOpen}>
                 <CollapsibleTrigger className="flex items-center gap-3 w-full group">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Actions & Modifications</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("rulePanel.actionsMods")}</p>
                   {(logOptionsGroup || logOptionsLevel || logOptionsQueueThreshold || logOptionsSnapshotLength || queueNumber || queueOptions || synproxyTcpMss || synproxyTcpWindowScale || modSetConnectionMark || modSetTcpMss || addAddrToGroupSrcGroup || addAddrToGroupDstGroup) && (
                     <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
                   )}
@@ -1937,38 +1940,38 @@ export function ZoneRulePanel({
                   {/* Log Options (when log is enabled) */}
                   {log && (
                     <div className="space-y-2">
-                      <Label className="text-xs">Log Options</Label>
+                      <Label className="text-xs">{t("rulePanel.logOptions")}</Label>
                       <div className="grid grid-cols-2 gap-2">
                         <div className="space-y-1">
-                          <Label className="text-[11px] text-muted-foreground">Log Group</Label>
-                          <Input value={logOptionsGroup} onChange={(e) => setLogOptionsGroup(e.target.value)} placeholder="Group number" className="h-8 text-xs" disabled={!canEdit} />
+                          <Label className="text-[11px] text-muted-foreground">{t("rulePanel.logGroup")}</Label>
+                          <Input value={logOptionsGroup} onChange={(e) => setLogOptionsGroup(e.target.value)} placeholder={t("rulePanel.groupNumber")} className="h-8 text-xs" disabled={!canEdit} />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[11px] text-muted-foreground">Log Level</Label>
+                          <Label className="text-[11px] text-muted-foreground">{t("rulePanel.logLevel")}</Label>
                           <Select value={logOptionsLevel || "__none__"} onValueChange={(v) => setLogOptionsLevel(v === "__none__" ? "" : v)} disabled={!canEdit}>
-                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Default" /></SelectTrigger>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder={tc("default")} /></SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="__none__" className="text-xs">Default</SelectItem>
-                              <SelectItem value="emerg" className="text-xs">Emergency</SelectItem>
-                              <SelectItem value="alert" className="text-xs">Alert</SelectItem>
-                              <SelectItem value="crit" className="text-xs">Critical</SelectItem>
-                              <SelectItem value="err" className="text-xs">Error</SelectItem>
-                              <SelectItem value="warn" className="text-xs">Warning</SelectItem>
-                              <SelectItem value="notice" className="text-xs">Notice</SelectItem>
-                              <SelectItem value="info" className="text-xs">Info</SelectItem>
-                              <SelectItem value="debug" className="text-xs">Debug</SelectItem>
+                              <SelectItem value="__none__" className="text-xs">{tc("default")}</SelectItem>
+                              <SelectItem value="emerg" className="text-xs">{t("rulePanel.logLevels.emerg")}</SelectItem>
+                              <SelectItem value="alert" className="text-xs">{t("rulePanel.logLevels.alert")}</SelectItem>
+                              <SelectItem value="crit" className="text-xs">{t("rulePanel.logLevels.crit")}</SelectItem>
+                              <SelectItem value="err" className="text-xs">{t("rulePanel.logLevels.err")}</SelectItem>
+                              <SelectItem value="warn" className="text-xs">{t("rulePanel.logLevels.warn")}</SelectItem>
+                              <SelectItem value="notice" className="text-xs">{t("rulePanel.logLevels.notice")}</SelectItem>
+                              <SelectItem value="info" className="text-xs">{t("rulePanel.logLevels.info")}</SelectItem>
+                              <SelectItem value="debug" className="text-xs">{t("rulePanel.logLevels.debug")}</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div className="space-y-1">
-                          <Label className="text-[11px] text-muted-foreground">Queue Threshold</Label>
-                          <Input value={logOptionsQueueThreshold} onChange={(e) => setLogOptionsQueueThreshold(e.target.value)} placeholder="Threshold" className="h-8 text-xs" disabled={!canEdit} />
+                          <Label className="text-[11px] text-muted-foreground">{t("rulePanel.queueThreshold")}</Label>
+                          <Input value={logOptionsQueueThreshold} onChange={(e) => setLogOptionsQueueThreshold(e.target.value)} placeholder={t("rulePanel.threshold")} className="h-8 text-xs" disabled={!canEdit} />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[11px] text-muted-foreground">Snapshot Length</Label>
-                          <Input value={logOptionsSnapshotLength} onChange={(e) => setLogOptionsSnapshotLength(e.target.value)} placeholder="Length" className="h-8 text-xs" disabled={!canEdit} />
+                          <Label className="text-[11px] text-muted-foreground">{t("rulePanel.snapshotLength")}</Label>
+                          <Input value={logOptionsSnapshotLength} onChange={(e) => setLogOptionsSnapshotLength(e.target.value)} placeholder={t("rulePanel.length")} className="h-8 text-xs" disabled={!canEdit} />
                         </div>
                       </div>
                     </div>
@@ -1977,20 +1980,20 @@ export function ZoneRulePanel({
                   {/* Queue Config (when action is queue) */}
                   {action === "queue" && (
                     <div className="space-y-2">
-                      <Label className="text-xs">Queue Configuration</Label>
+                      <Label className="text-xs">{t("rulePanel.queueConfig")}</Label>
                       <div className="grid grid-cols-2 gap-2">
                         <div className="space-y-1">
-                          <Label className="text-[11px] text-muted-foreground">Queue Number</Label>
+                          <Label className="text-[11px] text-muted-foreground">{t("rulePanel.queueNumber")}</Label>
                           <Input value={queueNumber} onChange={(e) => setQueueNumber(e.target.value)} placeholder="0-65535" className="h-8 text-xs" disabled={!canEdit} />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[11px] text-muted-foreground">Queue Options</Label>
+                          <Label className="text-[11px] text-muted-foreground">{t("rulePanel.queueOptions")}</Label>
                           <Select value={queueOptions || "__none__"} onValueChange={(v) => setQueueOptions(v === "__none__" ? "" : v)} disabled={!canEdit}>
-                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="None" /></SelectTrigger>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder={tc("none")} /></SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="__none__" className="text-xs">None</SelectItem>
-                              <SelectItem value="bypass" className="text-xs">Bypass</SelectItem>
-                              <SelectItem value="fanout" className="text-xs">Fanout</SelectItem>
+                              <SelectItem value="__none__" className="text-xs">{tc("none")}</SelectItem>
+                              <SelectItem value="bypass" className="text-xs">{t("rulePanel.queueBypass")}</SelectItem>
+                              <SelectItem value="fanout" className="text-xs">{t("rulePanel.queueFanout")}</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -2001,15 +2004,15 @@ export function ZoneRulePanel({
                   {/* Synproxy Config (when action is synproxy) */}
                   {action === "synproxy" && (
                     <div className="space-y-2">
-                      <Label className="text-xs">Synproxy Configuration</Label>
+                      <Label className="text-xs">{t("rulePanel.synproxyConfig")}</Label>
                       <div className="grid grid-cols-2 gap-2">
                         <div className="space-y-1">
                           <Label className="text-[11px] text-muted-foreground">TCP MSS</Label>
-                          <Input value={synproxyTcpMss} onChange={(e) => setSynproxyTcpMss(e.target.value)} placeholder="MSS value" className="h-8 text-xs" disabled={!canEdit} />
+                          <Input value={synproxyTcpMss} onChange={(e) => setSynproxyTcpMss(e.target.value)} placeholder={t("rulePanel.mssValue")} className="h-8 text-xs" disabled={!canEdit} />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[11px] text-muted-foreground">TCP Window Scale</Label>
-                          <Input value={synproxyTcpWindowScale} onChange={(e) => setSynproxyTcpWindowScale(e.target.value)} placeholder="Window scale" className="h-8 text-xs" disabled={!canEdit} />
+                          <Label className="text-[11px] text-muted-foreground">{t("rulePanel.tcpWindowScale")}</Label>
+                          <Input value={synproxyTcpWindowScale} onChange={(e) => setSynproxyTcpWindowScale(e.target.value)} placeholder={t("rulePanel.windowScale")} className="h-8 text-xs" disabled={!canEdit} />
                         </div>
                       </div>
                     </div>
@@ -2017,15 +2020,15 @@ export function ZoneRulePanel({
 
                   {/* Set Connection Mark / TCP MSS */}
                   <div className="space-y-2">
-                    <Label className="text-xs">Packet Modifications</Label>
+                    <Label className="text-xs">{t("rulePanel.packetMods")}</Label>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Set Connection Mark</Label>
-                        <Input value={modSetConnectionMark} onChange={(e) => setModSetConnectionMark(e.target.value)} placeholder="Mark value" className="h-8 text-xs" disabled={!canEdit} />
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.setConnMark")}</Label>
+                        <Input value={modSetConnectionMark} onChange={(e) => setModSetConnectionMark(e.target.value)} placeholder={t("rulePanel.markValue")} className="h-8 text-xs" disabled={!canEdit} />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Set TCP MSS</Label>
-                        <Input value={modSetTcpMss} onChange={(e) => setModSetTcpMss(e.target.value)} placeholder="MSS value" className="h-8 text-xs" disabled={!canEdit} />
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.setTcpMss")}</Label>
+                        <Input value={modSetTcpMss} onChange={(e) => setModSetTcpMss(e.target.value)} placeholder={t("rulePanel.mssValue")} className="h-8 text-xs" disabled={!canEdit} />
                       </div>
                     </div>
                   </div>
@@ -2034,26 +2037,26 @@ export function ZoneRulePanel({
 
                   {/* Add Address to Group */}
                   <div className="space-y-2">
-                    <Label className="text-xs">Add Address to Group</Label>
-                    <p className="text-[11px] text-muted-foreground">Dynamically add source/destination addresses to firewall groups</p>
+                    <Label className="text-xs">{t("rulePanel.addToGroup")}</Label>
+                    <p className="text-[11px] text-muted-foreground">{t("rulePanel.addToGroupHelp")}</p>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Source Address Group</Label>
-                        <Input value={addAddrToGroupSrcGroup} onChange={(e) => setAddAddrToGroupSrcGroup(e.target.value)} placeholder="Group name" className="h-8 text-xs" disabled={!canEdit} />
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.srcAddressGroup")}</Label>
+                        <Input value={addAddrToGroupSrcGroup} onChange={(e) => setAddAddrToGroupSrcGroup(e.target.value)} placeholder={t("rulePanel.groupName")} className="h-8 text-xs" disabled={!canEdit} />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Source Timeout</Label>
-                        <Input value={addAddrToGroupSrcTimeout} onChange={(e) => setAddAddrToGroupSrcTimeout(e.target.value)} placeholder="e.g. 300" className="h-8 text-xs" disabled={!canEdit} />
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.srcTimeout")}</Label>
+                        <Input value={addAddrToGroupSrcTimeout} onChange={(e) => setAddAddrToGroupSrcTimeout(e.target.value)} placeholder={t("rulePanel.eg", { value: "300" })} className="h-8 text-xs" disabled={!canEdit} />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Dest Address Group</Label>
-                        <Input value={addAddrToGroupDstGroup} onChange={(e) => setAddAddrToGroupDstGroup(e.target.value)} placeholder="Group name" className="h-8 text-xs" disabled={!canEdit} />
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.dstAddressGroup")}</Label>
+                        <Input value={addAddrToGroupDstGroup} onChange={(e) => setAddAddrToGroupDstGroup(e.target.value)} placeholder={t("rulePanel.groupName")} className="h-8 text-xs" disabled={!canEdit} />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Dest Timeout</Label>
-                        <Input value={addAddrToGroupDstTimeout} onChange={(e) => setAddAddrToGroupDstTimeout(e.target.value)} placeholder="e.g. 300" className="h-8 text-xs" disabled={!canEdit} />
+                        <Label className="text-[11px] text-muted-foreground">{t("rulePanel.dstTimeout")}</Label>
+                        <Input value={addAddrToGroupDstTimeout} onChange={(e) => setAddAddrToGroupDstTimeout(e.target.value)} placeholder={t("rulePanel.eg", { value: "300" })} className="h-8 text-xs" disabled={!canEdit} />
                       </div>
                     </div>
                   </div>
@@ -2067,12 +2070,12 @@ export function ZoneRulePanel({
         <div className="px-6 py-3 border-t bg-background shrink-0">
           {confirmingDelete ? (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-destructive flex-1">Delete rule #{rule?.rule_number}?</span>
+              <span className="text-xs text-destructive flex-1">{t("rulePanel.deleteConfirm", { number: String(rule?.rule_number) })}</span>
               <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setConfirmingDelete(false)} disabled={deleteLoading}>
-                Cancel
+                {tc("cancel")}
               </Button>
               <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={handleDelete} disabled={deleteLoading}>
-                {deleteLoading ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Confirm Delete"}
+                {deleteLoading ? <RefreshCw className="h-3 w-3 animate-spin" /> : t("editZone.confirmDelete")}
               </Button>
             </div>
           ) : (
@@ -2089,7 +2092,7 @@ export function ZoneRulePanel({
               )}
               <div className="flex items-center gap-2 ml-auto">
                 <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => onOpenChange(false)}>
-                  {canEdit ? "Cancel" : "Close"}
+                  {canEdit ? tc("cancel") : tc("close")}
                 </Button>
                 {canEdit && (
                   <Button
@@ -2099,7 +2102,7 @@ export function ZoneRulePanel({
                     disabled={loading || !resolvedChain}
                   >
                     {loading && <RefreshCw className="h-3 w-3 animate-spin mr-1" />}
-                    {mode === "create" ? "Create Rule" : "Save Changes"}
+                    {mode === "create" ? t("rulePanel.createRule") : t("editZone.saveChanges")}
                   </Button>
                 )}
               </div>

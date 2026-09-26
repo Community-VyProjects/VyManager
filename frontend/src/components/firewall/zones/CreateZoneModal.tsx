@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -39,6 +40,8 @@ export function CreateZoneModal({
   capabilities,
   existingZones,
 }: CreateZoneModalProps) {
+  const t = useTranslations("firewallZones");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,21 +101,21 @@ export function CreateZoneModal({
 
   const handleSubmit = async () => {
     if (!zoneName.trim()) {
-      setError("Zone name is required");
+      setError(t("zoneForm.nameRequired"));
       return;
     }
     if (!ZONE_NAME_RE.test(zoneName)) {
       setError(
-        "Zone name must start with alphanumeric and contain only letters, numbers, hyphens, underscores, or dots"
+        t("zoneForm.nameInvalid")
       );
       return;
     }
     if (interfaces.length === 0) {
-      setError("At least one interface must be selected");
+      setError(t("zoneForm.interfaceRequired"));
       return;
     }
     if (existingZones.some((z) => z.name === zoneName)) {
-      setError(`Zone "${zoneName}" already exists`);
+      setError(t("createZone.alreadyExists", { name: zoneName }));
       return;
     }
 
@@ -134,7 +137,7 @@ export function CreateZoneModal({
       );
       setDone(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create zone");
+      setError(err instanceof Error ? err.message : t("createZone.createFailed"));
     } finally {
       setLoading(false);
     }
@@ -150,24 +153,29 @@ export function CreateZoneModal({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-              Zone Created
+              {t("createZone.createdTitle")}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-3 py-2">
             <p className="text-sm">
-              Zone <span className="font-mono font-semibold">{zoneName}</span> was provisioned successfully.
+              {t.rich("createZone.createdMessage", {
+                name: zoneName,
+                code: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+              })}
             </p>
 
             {isFirstZone && (
               <p className="text-sm text-muted-foreground">
-                A <span className="font-mono">LOCAL</span> zone was automatically created for the router&apos;s own traffic.
+                {t.rich("createZone.localCreated", {
+                  code: (chunks) => <span className="font-mono">{chunks}</span>,
+                })}
               </p>
             )}
 
             {nonLocalPeers.length > 0 && (
               <div className="space-y-1">
-                <p className="text-sm font-medium">Auto-provisioned firewall chains:</p>
+                <p className="text-sm font-medium">{t("createZone.autoChains")}</p>
                 <div className="flex flex-wrap gap-1">
                   <Badge variant="secondary" className="font-mono text-xs">
                     {zoneName}-{zoneName}
@@ -190,28 +198,28 @@ export function CreateZoneModal({
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  IPv4 chains and -V6 IPv6 variants created for all pairs. Each chain has rule 10 accept-all — delete it to start restricting traffic.
+                  {t("createZone.autoChainsHelp")}
                 </p>
               </div>
             )}
 
             {isFirstZone && (
               <div className="space-y-1">
-                <p className="text-sm font-medium">Provisioned chains:</p>
+                <p className="text-sm font-medium">{t("createZone.provisionedChains")}</p>
                 <div className="flex flex-wrap gap-1">
                   <Badge variant="secondary" className="font-mono text-xs">{zoneName}-{zoneName}</Badge>
                   <Badge variant="secondary" className="font-mono text-xs">LOCAL-{zoneName}</Badge>
                   <Badge variant="secondary" className="font-mono text-xs">{zoneName}-LOCAL</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Each chain has rule 10 accept-all. Delete rule 10 to restrict traffic.
+                  {t("createZone.provisionedChainsHelp")}
                 </p>
               </div>
             )}
           </div>
 
           <DialogFooter>
-            <Button onClick={handleClose}>Done</Button>
+            <Button onClick={handleClose}>{t("createZone.done")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -222,10 +230,10 @@ export function CreateZoneModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Firewall Zone</DialogTitle>
+          <DialogTitle>{t("createZone.title")}</DialogTitle>
           <DialogDescription>
-            Firewall policy chains are automatically provisioned for all zone pairs.
-            {isFirstZone && " A LOCAL zone will also be created for the router's own traffic."}
+            {t("createZone.description")}
+            {isFirstZone && t("createZone.descriptionFirst")}
           </DialogDescription>
         </DialogHeader>
 
@@ -239,52 +247,52 @@ export function CreateZoneModal({
 
           {/* Basic */}
           <div className="space-y-4">
-            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Basic</p>
+            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t("zoneForm.basic")}</p>
 
             <div className="space-y-2">
               <Label htmlFor="zone-name">
-                Zone Name <span className="text-destructive">*</span>
+                {t("zoneTable.zoneName")} <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="zone-name"
                 value={zoneName}
                 onChange={(e) => setZoneName(e.target.value)}
-                placeholder="e.g., LAN, WAN, DMZ"
+                placeholder={t("zoneForm.namePlaceholder")}
                 className="font-mono"
                 disabled={loading}
               />
               <p className="text-xs text-muted-foreground">
-                Letters, numbers, hyphens, underscores, dots. Must start with alphanumeric.
+                {t("zoneForm.nameHelp")}
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{tc("description")}</Label>
               <Input
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional description"
+                placeholder={t("zoneForm.descriptionPlaceholder")}
                 disabled={loading}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="default-action">Default Action</Label>
+                <Label htmlFor="default-action">{t("zoneForm.defaultAction")}</Label>
                 <Select value={defaultAction} onValueChange={setDefaultAction} disabled={loading}>
                   <SelectTrigger id="default-action">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="drop">Drop</SelectItem>
-                    <SelectItem value="reject">Reject</SelectItem>
+                    <SelectItem value="drop">{t("zoneForm.drop")}</SelectItem>
+                    <SelectItem value="reject">{t("zoneForm.reject")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label>Default Log</Label>
+                <Label>{t("zoneForm.defaultLog")}</Label>
                 <div className="flex items-center gap-2 h-10">
                   <Checkbox
                     id="default-log"
@@ -293,7 +301,7 @@ export function CreateZoneModal({
                     disabled={loading}
                   />
                   <label htmlFor="default-log" className="text-sm cursor-pointer">
-                    Log default-action packets
+                    {t("zoneForm.logDefault")}
                   </label>
                 </div>
               </div>
@@ -302,14 +310,14 @@ export function CreateZoneModal({
 
           {/* Interfaces */}
           <div className="space-y-3">
-            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Interfaces</p>
+            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t("zoneForm.interfaces")}</p>
 
             <div className="space-y-2">
-              <Label>Member Interfaces</Label>
+              <Label>{t("zoneForm.memberInterfaces")}</Label>
               {loadingInterfaces ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading interfaces…
+                  {t("zoneForm.loadingInterfaces")}
                 </div>
               ) : availableInterfaces.filter((i) => !usedInterfaces.has(i.name)).length > 0 ? (
                 <div className="border rounded-md max-h-44 overflow-y-auto p-2 space-y-1">
@@ -336,8 +344,8 @@ export function CreateZoneModal({
               ) : (
                 <p className="text-sm text-muted-foreground">
                   {availableInterfaces.length > 0
-                    ? "All interfaces are already assigned to a zone"
-                    : "No interfaces found"}
+                    ? t("zoneForm.allAssigned")
+                    : t("zoneForm.noInterfaces")}
                 </p>
               )}
 
@@ -358,7 +366,7 @@ export function CreateZoneModal({
 
             {supportsVrf && (
               <div className="space-y-2">
-                <Label>Member VRFs</Label>
+                <Label>{t("zoneForm.memberVrfs")}</Label>
                 <VrfSelect
                   value=""
                   onValueChange={(v) => {
@@ -366,7 +374,7 @@ export function CreateZoneModal({
                   }}
                   filter={(v) => !vrfs.includes(v.name)}
                   includeNone={false}
-                  placeholder="Add VRF"
+                  placeholder={t("zoneForm.addVrf")}
                   className="font-mono"
                   disabled={loading}
                 />
@@ -391,7 +399,7 @@ export function CreateZoneModal({
           {(nonLocalPeers.length > 0 || isFirstZone) && zoneName && (
             <div className="rounded-lg border bg-muted/20 p-4 space-y-2">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Will be provisioned
+                {t("createZone.willProvision")}
               </p>
               <div className="flex flex-wrap gap-1">
                 <Badge variant="outline" className="font-mono text-xs">{zoneName}-{zoneName}</Badge>
@@ -409,7 +417,7 @@ export function CreateZoneModal({
                 <Badge variant="outline" className="font-mono text-xs">{zoneName}-LOCAL</Badge>
               </div>
               <p className="text-xs text-muted-foreground">
-                IPv4 chains and -V6 IPv6 variants · Rule 10 accept-all in each chain · Delete rule 10 to start restricting
+                {t("createZone.willProvisionHelp")}
               </p>
             </div>
           )}
@@ -417,16 +425,16 @@ export function CreateZoneModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Provisioning…
+                {t("createZone.provisioning")}
               </>
             ) : (
-              "Create Zone"
+              t("zoneTable.createZone")
             )}
           </Button>
         </DialogFooter>
