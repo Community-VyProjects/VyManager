@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -69,6 +70,8 @@ export function FirewallRuleModal({
   cloneRule,
   existing,
 }: FirewallRuleModalProps) {
+  const t = useTranslations("firewallRuleModal");
+  const tc = useTranslations("common");
   const isEdit = !!existing;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1219,7 +1222,7 @@ export function FirewallRuleModal({
       handleClose();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update rule");
+      setError(err instanceof Error ? err.message : t("dialog.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -1585,7 +1588,7 @@ export function FirewallRuleModal({
       handleClose();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create rule");
+      setError(err instanceof Error ? err.message : t("dialog.createFailed"));
     } finally {
       setLoading(false);
     }
@@ -1629,17 +1632,17 @@ export function FirewallRuleModal({
         <DialogHeader>
           <DialogTitle>
             {isEdit
-              ? `Edit Firewall Rule ${existing?.rule_number} - ${(existing?.chain || chain).charAt(0).toUpperCase() + (existing?.chain || chain).slice(1)} Chain`
+              ? t("dialog.titleEdit", { number: String(existing?.rule_number), chain: (existing?.chain || chain).charAt(0).toUpperCase() + (existing?.chain || chain).slice(1) })
               : cloneRule
-              ? `Clone Rule ${cloneRule.rule_number} - ${chain.charAt(0).toUpperCase() + chain.slice(1)} Chain`
-              : `Create Firewall Rule - ${chain.charAt(0).toUpperCase() + chain.slice(1)} Chain`}
+              ? t("dialog.titleClone", { number: String(cloneRule.rule_number), chain: chain.charAt(0).toUpperCase() + chain.slice(1) })
+              : t("dialog.titleCreate", { chain: chain.charAt(0).toUpperCase() + chain.slice(1) })}
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? `Modify the configuration for rule ${existing?.rule_number}`
+              ? t("dialog.descriptionEdit", { number: String(existing?.rule_number) })
               : cloneRule
-              ? `Cloning rule ${cloneRule.rule_number}. A new rule will be created with the next available number.`
-              : `Configure a new firewall rule for the ${chain} chain`}
+              ? t("dialog.descriptionClone", { number: String(cloneRule.rule_number) })
+              : t("dialog.descriptionCreate", { chain })}
           </DialogDescription>
         </DialogHeader>
 
@@ -1647,7 +1650,7 @@ export function FirewallRuleModal({
           <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
             <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-destructive">Error</p>
+              <p className="text-sm font-medium text-destructive">{t("dialog.error")}</p>
               <p className="text-sm text-destructive/90">{error}</p>
             </div>
           </div>
@@ -1655,20 +1658,20 @@ export function FirewallRuleModal({
 
         <Tabs defaultValue="basic" className="w-full">
           <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="basic">Basic</TabsTrigger>
-            <TabsTrigger value="source">Source</TabsTrigger>
-            <TabsTrigger value="destination">Dest</TabsTrigger>
-            <TabsTrigger value="state">State</TabsTrigger>
-            <TabsTrigger value="matching">Matching</TabsTrigger>
-            <TabsTrigger value="limits">Limits</TabsTrigger>
-            <TabsTrigger value="actions">Actions</TabsTrigger>
+            <TabsTrigger value="basic">{t("tabs.basic")}</TabsTrigger>
+            <TabsTrigger value="source">{t("tabs.source")}</TabsTrigger>
+            <TabsTrigger value="destination">{t("tabs.destination")}</TabsTrigger>
+            <TabsTrigger value="state">{t("tabs.state")}</TabsTrigger>
+            <TabsTrigger value="matching">{t("tabs.matching")}</TabsTrigger>
+            <TabsTrigger value="limits">{t("tabs.limits")}</TabsTrigger>
+            <TabsTrigger value="actions">{t("tabs.actions")}</TabsTrigger>
           </TabsList>
 
           {/* Basic Tab */}
           <TabsContent value="basic" className="space-y-4">
             {isEdit ? (
               <div className="space-y-2">
-                <Label htmlFor="ruleNumber">Rule Number</Label>
+                <Label htmlFor="ruleNumber">{t("basic.ruleNumber")}</Label>
                 <Input
                   id="ruleNumber"
                   type="number"
@@ -1677,12 +1680,12 @@ export function FirewallRuleModal({
                   className="bg-muted"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Rule number cannot be changed
+                  {t("basic.ruleNumberLocked")}
                 </p>
               </div>
             ) : !cloneRule ? (
               <div className="space-y-2">
-                <Label htmlFor="ruleNumber">Rule Number</Label>
+                <Label htmlFor="ruleNumber">{t("basic.ruleNumber")}</Label>
                 <Input
                   id="ruleNumber"
                   type="number"
@@ -1690,38 +1693,38 @@ export function FirewallRuleModal({
                   onChange={(e) => setRuleNumber(parseInt(e.target.value) || 100)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Auto-calculated based on existing rules
+                  {t("basic.ruleNumberAuto")}
                 </p>
               </div>
             ) : null}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="action">Action *</Label>
+                <Label htmlFor="action">{t("basic.action")}</Label>
                 <Select value={action} onValueChange={setAction}>
                   <SelectTrigger id="action">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="accept">Accept</SelectItem>
-                    <SelectItem value="drop">Drop</SelectItem>
-                    <SelectItem value="reject">Reject</SelectItem>
-                    <SelectItem value="continue">Continue</SelectItem>
-                    <SelectItem value="return">Return</SelectItem>
-                    <SelectItem value="jump">Jump</SelectItem>
-                    <SelectItem value="offload">Offload</SelectItem>
-                    <SelectItem value="queue">Queue</SelectItem>
-                    <SelectItem value="synproxy">Synproxy</SelectItem>
+                    <SelectItem value="accept">{t("basic.actions.accept")}</SelectItem>
+                    <SelectItem value="drop">{t("basic.actions.drop")}</SelectItem>
+                    <SelectItem value="reject">{t("basic.actions.reject")}</SelectItem>
+                    <SelectItem value="continue">{t("basic.actions.continue")}</SelectItem>
+                    <SelectItem value="return">{t("basic.actions.return")}</SelectItem>
+                    <SelectItem value="jump">{t("basic.actions.jump")}</SelectItem>
+                    <SelectItem value="offload">{t("basic.actions.offload")}</SelectItem>
+                    <SelectItem value="queue">{t("basic.actions.queue")}</SelectItem>
+                    <SelectItem value="synproxy">{t("basic.actions.synproxy")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               {action === "jump" && (
                 <div className="space-y-2">
-                  <Label htmlFor="jumpTarget">Jump Target *</Label>
+                  <Label htmlFor="jumpTarget">{t("basic.jumpTarget")}</Label>
                   <Select value={jumpTarget} onValueChange={setJumpTarget}>
                     <SelectTrigger id="jumpTarget">
-                      <SelectValue placeholder="Select custom chain" />
+                      <SelectValue placeholder={t("basic.selectCustomChain")} />
                     </SelectTrigger>
                     <SelectContent>
                       {customChains.map((chainName) => (
@@ -1736,10 +1739,10 @@ export function FirewallRuleModal({
 
               {action === "offload" && (
                 <div className="space-y-2">
-                  <Label htmlFor="offloadTarget">Flowtable *</Label>
+                  <Label htmlFor="offloadTarget">{t("basic.flowtable")}</Label>
                   <Select value={offloadTarget} onValueChange={setOffloadTarget}>
                     <SelectTrigger id="offloadTarget">
-                      <SelectValue placeholder="Select flowtable" />
+                      <SelectValue placeholder={t("basic.selectFlowtable")} />
                     </SelectTrigger>
                     <SelectContent>
                       {flowtables.map((ft) => (
@@ -1759,20 +1762,20 @@ export function FirewallRuleModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{tc("description")}</Label>
               <Input
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Brief description of this rule"
+                placeholder={t("basic.descriptionPlaceholder")}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="protocol">Protocol</Label>
+              <Label htmlFor="protocol">{t("basic.protocol")}</Label>
               <Select value={ruleProtocol} onValueChange={setRuleProtocol}>
                 <SelectTrigger id="protocol">
-                  <SelectValue placeholder="Any protocol" />
+                  <SelectValue placeholder={t("basic.anyProtocol")} />
                 </SelectTrigger>
                 {(sourcePort.trim() || destPort.trim() || sourcePortGroup.trim() || destPortGroup.trim()) ? (
                   <SelectContent>
@@ -1782,7 +1785,7 @@ export function FirewallRuleModal({
                   </SelectContent>
                 ) : (
                   <SelectContent className="max-h-[300px]">
-                    <SelectItem value="all">All (default)</SelectItem>
+                    <SelectItem value="all">{t("basic.allDefault")}</SelectItem>
                     <SelectItem value="tcp_udp">TCP & UDP</SelectItem>
                     <SelectItem value="tcp">TCP</SelectItem>
                     <SelectItem value="udp">UDP</SelectItem>
@@ -1846,7 +1849,7 @@ export function FirewallRuleModal({
               </Select>
               {(sourcePort.trim() || destPort.trim() || sourcePortGroup.trim() || destPortGroup.trim()) && (
                 <p className="text-xs text-muted-foreground text-orange-600 dark:text-orange-400">
-                  Only TCP/UDP protocols are available when using ports or port groups
+                  {t("basic.portProtocolHint")}
                 </p>
               )}
               {ruleProtocol && ruleProtocol !== "all" && (
@@ -1857,7 +1860,7 @@ export function FirewallRuleModal({
                     onCheckedChange={(checked) => setProtocolInvert(checked as boolean)}
                   />
                   <Label htmlFor="protocolInvert" className="cursor-pointer font-normal">
-                    Invert match (match everything except this protocol)
+                    {t("basic.protocolInvert")}
                   </Label>
                 </div>
               )}
@@ -1871,7 +1874,7 @@ export function FirewallRuleModal({
                   onCheckedChange={(checked) => setDisable(checked as boolean)}
                 />
                 <Label htmlFor="disable" className="cursor-pointer">
-                  Disable rule
+                  {t("basic.disableRule")}
                 </Label>
               </div>
 
@@ -1882,7 +1885,7 @@ export function FirewallRuleModal({
                   onCheckedChange={(checked) => setLog(checked as boolean)}
                 />
                 <Label htmlFor="log" className="cursor-pointer">
-                  Enable logging
+                  {t("basic.enableLogging")}
                 </Label>
               </div>
             </div>
@@ -1892,42 +1895,42 @@ export function FirewallRuleModal({
           <TabsContent value="source" className="space-y-4">
             {/* Mode Selection */}
             <div className="space-y-3">
-              <Label>Source Match Type</Label>
+              <Label>{t("source.matchType")}</Label>
               <RadioGroup value={sourceMode} onValueChange={(value: "any" | "address" | "group" | "geoip" | "mac" | "fqdn") => setSourceMode(value)}>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="any" id="source-any-mode" />
                   <Label htmlFor="source-any-mode" className="cursor-pointer font-normal">
-                    Any (no source restriction)
+                    {t("source.any")}
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="address" id="source-address-mode" />
                   <Label htmlFor="source-address-mode" className="cursor-pointer font-normal">
-                    Address (IP, CIDR, or range)
+                    {t("match.modeAddress")}
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="fqdn" id="source-fqdn-mode" />
                   <Label htmlFor="source-fqdn-mode" className="cursor-pointer font-normal">
-                    FQDN (domain name)
+                    {t("match.modeFqdn")}
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="group" id="source-group-mode" />
                   <Label htmlFor="source-group-mode" className="cursor-pointer font-normal">
-                    Firewall Group
+                    {t("match.modeGroup")}
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="geoip" id="source-geoip-mode" />
                   <Label htmlFor="source-geoip-mode" className="cursor-pointer font-normal">
-                    GeoIP (country codes)
+                    {t("match.modeGeoip")}
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="mac" id="source-mac-mode" />
                   <Label htmlFor="source-mac-mode" className="cursor-pointer font-normal">
-                    MAC Address
+                    {t("match.modeMac")}
                   </Label>
                 </div>
               </RadioGroup>
@@ -1937,7 +1940,7 @@ export function FirewallRuleModal({
             {sourceMode === "address" && (
               <div className="space-y-4 pl-6 border-l-2 border-primary/20">
                 <div className="space-y-2">
-                  <Label htmlFor="sourceAddress">Source Address</Label>
+                  <Label htmlFor="sourceAddress">{t("source.address")}</Label>
                   <Input
                     id="sourceAddress"
                     value={sourceAddress}
@@ -1945,7 +1948,7 @@ export function FirewallRuleModal({
                       setSourceAddress(e.target.value);
                       setSourceAddressError(null);
                     }}
-                    placeholder={protocol === "ipv4" ? "192.168.1.0/24 or 192.168.1.10" : "2001:db8::/32 or 2001:db8::1"}
+                    placeholder={protocol === "ipv4" ? t("match.addressPlaceholderIpv4") : t("match.addressPlaceholderIpv6")}
                     className={sourceAddressError ? "border-destructive" : ""}
                   />
                   {sourceAddressError ? (
@@ -1956,8 +1959,8 @@ export function FirewallRuleModal({
                   ) : (
                     <p className="text-xs text-muted-foreground">
                       {protocol === "ipv4"
-                        ? "IPv4 address, CIDR (x.x.x.x/x), or range (x.x.x.x-x.x.x.x)"
-                        : "IPv6 address, CIDR (xxxx:xxxx::/x), or range"
+                        ? t("match.addressHintIpv4")
+                        : t("match.addressHintIpv6")
                       }
                     </p>
                   )}
@@ -1970,12 +1973,12 @@ export function FirewallRuleModal({
                     onCheckedChange={(checked) => setSourceAddressInvert(checked as boolean)}
                   />
                   <Label htmlFor="sourceAddressInvert" className="cursor-pointer font-normal">
-                    Invert match (match everything except this address)
+                    {t("match.addressInvert")}
                   </Label>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="sourceAddressMask">Address Mask (optional)</Label>
+                  <Label htmlFor="sourceAddressMask">{t("match.addressMask")}</Label>
                   <Input
                     id="sourceAddressMask"
                     value={sourceAddressMask}
@@ -1983,7 +1986,7 @@ export function FirewallRuleModal({
                     placeholder={protocol === "ipv4" ? "255.255.255.0" : ""}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Optional netmask for address matching
+                    {t("match.addressMaskHint")}
                   </p>
                 </div>
               </div>
@@ -1993,7 +1996,7 @@ export function FirewallRuleModal({
             {sourceMode === "fqdn" && (
               <div className="space-y-4 pl-6 border-l-2 border-primary/20">
                 <div className="space-y-2">
-                  <Label htmlFor="sourceFqdn">Source FQDN</Label>
+                  <Label htmlFor="sourceFqdn">{t("source.fqdn")}</Label>
                   <Input
                     id="sourceFqdn"
                     value={sourceFqdn}
@@ -2001,7 +2004,7 @@ export function FirewallRuleModal({
                     placeholder="example.com"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Fully qualified domain name to match
+                    {t("match.fqdnHint")}
                   </p>
                 </div>
               </div>
@@ -2012,34 +2015,34 @@ export function FirewallRuleModal({
               <div className="space-y-4 pl-6 border-l-2 border-primary/20">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="sourceGroupType">Group Type</Label>
+                    <Label htmlFor="sourceGroupType">{t("match.groupType")}</Label>
                     <Select value={sourceGroupType} onValueChange={setSourceGroupType}>
                       <SelectTrigger id="sourceGroupType">
-                        <SelectValue placeholder="Select type" />
+                        <SelectValue placeholder={t("match.selectType")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="address-group">Address Group</SelectItem>
-                        <SelectItem value="network-group">Network Group</SelectItem>
-                        <SelectItem value="domain-group">Domain Group</SelectItem>
-                        <SelectItem value="mac-group">MAC Group</SelectItem>
+                        <SelectItem value="address-group">{t("match.groupTypes.addressGroup")}</SelectItem>
+                        <SelectItem value="network-group">{t("match.groupTypes.networkGroup")}</SelectItem>
+                        <SelectItem value="domain-group">{t("match.groupTypes.domainGroup")}</SelectItem>
+                        <SelectItem value="mac-group">{t("match.groupTypes.macGroup")}</SelectItem>
                         {capabilities?.features.remote_group?.supported && (
-                          <SelectItem value="remote-group">Remote Group</SelectItem>
+                          <SelectItem value="remote-group">{t("match.groupTypes.remoteGroup")}</SelectItem>
                         )}
                         {capabilities?.features.dynamic_address_group?.supported && (
-                          <SelectItem value="dynamic-address-group">Dynamic Address Group</SelectItem>
+                          <SelectItem value="dynamic-address-group">{t("match.groupTypes.dynamicAddressGroup")}</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="sourceGroupName">Group Name</Label>
+                    <Label htmlFor="sourceGroupName">{t("match.groupName")}</Label>
                     {sourceGroupType === "dynamic-address-group" ? (
                       <Input
                         id="sourceGroupName"
                         value={sourceGroupName}
                         onChange={(e) => setSourceGroupName(e.target.value)}
-                        placeholder="Dynamic group name"
+                        placeholder={t("match.dynamicGroupName")}
                       />
                     ) : (
                     <Select
@@ -2048,7 +2051,7 @@ export function FirewallRuleModal({
                       disabled={!sourceGroupType}
                     >
                       <SelectTrigger id="sourceGroupName">
-                        <SelectValue placeholder="Select group" />
+                        <SelectValue placeholder={t("match.selectGroup")} />
                       </SelectTrigger>
                       <SelectContent>
                         {sourceGroupType === "address-group" &&
@@ -2088,7 +2091,7 @@ export function FirewallRuleModal({
                   <div className="flex items-center space-x-2">
                     <Checkbox id="sourceGroupInvert" checked={sourceGroupInvert} onCheckedChange={(c) => setSourceGroupInvert(!!c)} />
                     <Label htmlFor="sourceGroupInvert" className="cursor-pointer font-normal text-sm">
-                      Invert (match packets NOT in this group)
+                      {t("match.groupInvert")}
                     </Label>
                   </div>
                 </div>
@@ -2100,7 +2103,7 @@ export function FirewallRuleModal({
               <div className="space-y-4 pl-6 border-l-2 border-primary/20">
                 <CountryMultiSelect
                   id="sourceGeoipCountry"
-                  label="Source GeoIP Countries"
+                  label={t("source.geoipCountries")}
                   value={sourceGeoipCountry}
                   onChange={setSourceGeoipCountry}
                 />
@@ -2111,7 +2114,7 @@ export function FirewallRuleModal({
                     onCheckedChange={(checked) => setSourceGeoipInverse(checked as boolean)}
                   />
                   <Label htmlFor="sourceGeoipInverse" className="text-sm font-normal cursor-pointer">
-                    Exclude countries (inverse match)
+                    {t("match.geoipExclude")}
                   </Label>
                 </div>
               </div>
@@ -2121,7 +2124,7 @@ export function FirewallRuleModal({
             {sourceMode === "mac" && (
               <div className="space-y-4 pl-6 border-l-2 border-primary/20">
                 <div className="space-y-2">
-                  <Label htmlFor="sourceMac">Source MAC Address</Label>
+                  <Label htmlFor="sourceMac">{t("source.macAddress")}</Label>
                   <Input
                     id="sourceMac"
                     value={sourceMac}
@@ -2139,7 +2142,7 @@ export function FirewallRuleModal({
                     </p>
                   ) : (
                     <p className="text-xs text-muted-foreground">
-                      Format: aa:bb:cc:dd:ee:ff
+                      {t("match.macFormat")}
                     </p>
                   )}
                 </div>
@@ -2148,24 +2151,24 @@ export function FirewallRuleModal({
 
             {/* Port Selection (available for all modes) */}
             <div className="space-y-3 pt-4 border-t">
-              <Label>Source Port</Label>
+              <Label>{t("source.port")}</Label>
               <RadioGroup value={sourcePortMode} onValueChange={(value: "any" | "port" | "group") => setSourcePortMode(value)}>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="any" id="source-port-any-mode" />
                   <Label htmlFor="source-port-any-mode" className="cursor-pointer font-normal">
-                    Any (no port restriction)
+                    {t("match.portAny")}
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="port" id="source-port-mode" />
                   <Label htmlFor="source-port-mode" className="cursor-pointer font-normal">
-                    Port Number/Range
+                    {t("match.portNumber")}
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="group" id="source-port-group-mode" />
                   <Label htmlFor="source-port-group-mode" className="cursor-pointer font-normal">
-                    Port Group
+                    {t("match.portGroup")}
                   </Label>
                 </div>
               </RadioGroup>
@@ -2189,7 +2192,7 @@ export function FirewallRuleModal({
                     </p>
                   ) : (
                     <p className="text-xs text-muted-foreground">
-                      Port number, range, service name, or comma-separated list (e.g., 80,443,telnet,8080-8090)
+                      {t("match.portHint", { example: "80,443,telnet,8080-8090" })}
                     </p>
                   )}
                 </div>
@@ -2199,7 +2202,7 @@ export function FirewallRuleModal({
                 <div className="pl-6 border-l-2 border-primary/20 space-y-2">
                   <Select value={sourcePortGroup} onValueChange={setSourcePortGroup}>
                     <SelectTrigger id="sourcePortGroup">
-                      <SelectValue placeholder="Select port group" />
+                      <SelectValue placeholder={t("match.selectPortGroup")} />
                     </SelectTrigger>
                     <SelectContent>
                       {portGroups.map((g) => (
@@ -2212,7 +2215,7 @@ export function FirewallRuleModal({
                   <div className="flex items-center space-x-2">
                     <Checkbox id="sourcePortGroupInvert" checked={sourcePortGroupInvert} onCheckedChange={(c) => setSourcePortGroupInvert(!!c)} />
                     <Label htmlFor="sourcePortGroupInvert" className="cursor-pointer font-normal text-sm">
-                      Invert (match packets NOT in this group)
+                      {t("match.groupInvert")}
                     </Label>
                   </div>
                 </div>
@@ -2220,7 +2223,7 @@ export function FirewallRuleModal({
 
               {(sourcePortMode === "port" || sourcePortMode === "group") && (
                 <p className="text-xs text-muted-foreground">
-                  Port specification requires TCP/UDP protocol
+                  {t("match.portRequiresTcpUdp")}
                 </p>
               )}
             </div>
@@ -2230,42 +2233,42 @@ export function FirewallRuleModal({
           <TabsContent value="destination" className="space-y-4">
             {/* Mode Selection */}
             <div className="space-y-3">
-              <Label>Destination Match Type</Label>
+              <Label>{t("destination.matchType")}</Label>
               <RadioGroup value={destMode} onValueChange={(value: "any" | "address" | "group" | "geoip" | "fqdn" | "mac") => setDestMode(value)}>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="any" id="dest-any-mode" />
                   <Label htmlFor="dest-any-mode" className="cursor-pointer font-normal">
-                    Any (no destination restriction)
+                    {t("destination.any")}
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="address" id="dest-address-mode" />
                   <Label htmlFor="dest-address-mode" className="cursor-pointer font-normal">
-                    Address (IP, CIDR, or range)
+                    {t("match.modeAddress")}
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="fqdn" id="dest-fqdn-mode" />
                   <Label htmlFor="dest-fqdn-mode" className="cursor-pointer font-normal">
-                    FQDN (domain name)
+                    {t("match.modeFqdn")}
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="group" id="dest-group-mode" />
                   <Label htmlFor="dest-group-mode" className="cursor-pointer font-normal">
-                    Firewall Group
+                    {t("match.modeGroup")}
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="geoip" id="dest-geoip-mode" />
                   <Label htmlFor="dest-geoip-mode" className="cursor-pointer font-normal">
-                    GeoIP (country codes)
+                    {t("match.modeGeoip")}
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="mac" id="dest-mac-mode" />
                   <Label htmlFor="dest-mac-mode" className="cursor-pointer font-normal">
-                    MAC Address
+                    {t("match.modeMac")}
                   </Label>
                 </div>
               </RadioGroup>
@@ -2275,7 +2278,7 @@ export function FirewallRuleModal({
             {destMode === "address" && (
               <div className="space-y-4 pl-6 border-l-2 border-primary/20">
                 <div className="space-y-2">
-                  <Label htmlFor="destAddress">Destination Address</Label>
+                  <Label htmlFor="destAddress">{t("destination.address")}</Label>
                   <Input
                     id="destAddress"
                     value={destAddress}
@@ -2283,7 +2286,7 @@ export function FirewallRuleModal({
                       setDestAddress(e.target.value);
                       setDestAddressError(null);
                     }}
-                    placeholder={protocol === "ipv4" ? "192.168.1.0/24 or 192.168.1.10" : "2001:db8::/32 or 2001:db8::1"}
+                    placeholder={protocol === "ipv4" ? t("match.addressPlaceholderIpv4") : t("match.addressPlaceholderIpv6")}
                     className={destAddressError ? "border-destructive" : ""}
                   />
                   {destAddressError ? (
@@ -2294,8 +2297,8 @@ export function FirewallRuleModal({
                   ) : (
                     <p className="text-xs text-muted-foreground">
                       {protocol === "ipv4"
-                        ? "IPv4 address, CIDR (x.x.x.x/x), or range (x.x.x.x-x.x.x.x)"
-                        : "IPv6 address, CIDR (xxxx:xxxx::/x), or range"
+                        ? t("match.addressHintIpv4")
+                        : t("match.addressHintIpv6")
                       }
                     </p>
                   )}
@@ -2308,12 +2311,12 @@ export function FirewallRuleModal({
                     onCheckedChange={(checked) => setDestAddressInvert(checked as boolean)}
                   />
                   <Label htmlFor="destAddressInvert" className="cursor-pointer font-normal">
-                    Invert match (match everything except this address)
+                    {t("match.addressInvert")}
                   </Label>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="destAddressMask">Address Mask (optional)</Label>
+                  <Label htmlFor="destAddressMask">{t("match.addressMask")}</Label>
                   <Input
                     id="destAddressMask"
                     value={destAddressMask}
@@ -2321,7 +2324,7 @@ export function FirewallRuleModal({
                     placeholder={protocol === "ipv4" ? "255.255.255.0" : ""}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Optional netmask for address matching
+                    {t("match.addressMaskHint")}
                   </p>
                 </div>
               </div>
@@ -2331,7 +2334,7 @@ export function FirewallRuleModal({
             {destMode === "fqdn" && (
               <div className="space-y-4 pl-6 border-l-2 border-primary/20">
                 <div className="space-y-2">
-                  <Label htmlFor="destFqdn">Destination FQDN</Label>
+                  <Label htmlFor="destFqdn">{t("destination.fqdn")}</Label>
                   <Input
                     id="destFqdn"
                     value={destFqdn}
@@ -2339,7 +2342,7 @@ export function FirewallRuleModal({
                     placeholder="example.com"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Fully qualified domain name to match
+                    {t("match.fqdnHint")}
                   </p>
                 </div>
               </div>
@@ -2350,34 +2353,34 @@ export function FirewallRuleModal({
               <div className="space-y-4 pl-6 border-l-2 border-primary/20">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="destGroupType">Group Type</Label>
+                    <Label htmlFor="destGroupType">{t("match.groupType")}</Label>
                     <Select value={destGroupType} onValueChange={setDestGroupType}>
                       <SelectTrigger id="destGroupType">
-                        <SelectValue placeholder="Select type" />
+                        <SelectValue placeholder={t("match.selectType")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="address-group">Address Group</SelectItem>
-                        <SelectItem value="network-group">Network Group</SelectItem>
-                        <SelectItem value="domain-group">Domain Group</SelectItem>
-                        <SelectItem value="mac-group">MAC Group</SelectItem>
+                        <SelectItem value="address-group">{t("match.groupTypes.addressGroup")}</SelectItem>
+                        <SelectItem value="network-group">{t("match.groupTypes.networkGroup")}</SelectItem>
+                        <SelectItem value="domain-group">{t("match.groupTypes.domainGroup")}</SelectItem>
+                        <SelectItem value="mac-group">{t("match.groupTypes.macGroup")}</SelectItem>
                         {capabilities?.features.remote_group?.supported && (
-                          <SelectItem value="remote-group">Remote Group</SelectItem>
+                          <SelectItem value="remote-group">{t("match.groupTypes.remoteGroup")}</SelectItem>
                         )}
                         {capabilities?.features.dynamic_address_group?.supported && (
-                          <SelectItem value="dynamic-address-group">Dynamic Address Group</SelectItem>
+                          <SelectItem value="dynamic-address-group">{t("match.groupTypes.dynamicAddressGroup")}</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="destGroupName">Group Name</Label>
+                    <Label htmlFor="destGroupName">{t("match.groupName")}</Label>
                     {destGroupType === "dynamic-address-group" ? (
                       <Input
                         id="destGroupName"
                         value={destGroupName}
                         onChange={(e) => setDestGroupName(e.target.value)}
-                        placeholder="Dynamic group name"
+                        placeholder={t("match.dynamicGroupName")}
                       />
                     ) : (
                     <Select
@@ -2386,7 +2389,7 @@ export function FirewallRuleModal({
                       disabled={!destGroupType}
                     >
                       <SelectTrigger id="destGroupName">
-                        <SelectValue placeholder="Select group" />
+                        <SelectValue placeholder={t("match.selectGroup")} />
                       </SelectTrigger>
                       <SelectContent>
                         {destGroupType === "address-group" &&
@@ -2426,7 +2429,7 @@ export function FirewallRuleModal({
                   <div className="flex items-center space-x-2">
                     <Checkbox id="destGroupInvert" checked={destGroupInvert} onCheckedChange={(c) => setDestGroupInvert(!!c)} />
                     <Label htmlFor="destGroupInvert" className="cursor-pointer font-normal text-sm">
-                      Invert (match packets NOT in this group)
+                      {t("match.groupInvert")}
                     </Label>
                   </div>
                 </div>
@@ -2438,7 +2441,7 @@ export function FirewallRuleModal({
               <div className="space-y-4 pl-6 border-l-2 border-primary/20">
                 <CountryMultiSelect
                   id="destGeoipCountry"
-                  label="Destination GeoIP Countries"
+                  label={t("destination.geoipCountries")}
                   value={destGeoipCountry}
                   onChange={setDestGeoipCountry}
                 />
@@ -2449,7 +2452,7 @@ export function FirewallRuleModal({
                     onCheckedChange={(checked) => setDestGeoipInverse(checked as boolean)}
                   />
                   <Label htmlFor="destGeoipInverse" className="text-sm font-normal cursor-pointer">
-                    Exclude countries (inverse match)
+                    {t("match.geoipExclude")}
                   </Label>
                 </div>
               </div>
@@ -2459,7 +2462,7 @@ export function FirewallRuleModal({
             {destMode === "mac" && (
               <div className="space-y-4 pl-6 border-l-2 border-primary/20">
                 <div className="space-y-2">
-                  <Label htmlFor="destMacAddress">Destination MAC Address</Label>
+                  <Label htmlFor="destMacAddress">{t("destination.macAddress")}</Label>
                   <Input
                     id="destMacAddress"
                     value={destMacAddress}
@@ -2467,7 +2470,7 @@ export function FirewallRuleModal({
                     placeholder="aa:bb:cc:dd:ee:ff"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Format: aa:bb:cc:dd:ee:ff
+                    {t("match.macFormat")}
                   </p>
                 </div>
               </div>
@@ -2475,24 +2478,24 @@ export function FirewallRuleModal({
 
             {/* Port Selection (available for all modes) */}
             <div className="space-y-3 pt-4 border-t">
-              <Label>Destination Port</Label>
+              <Label>{t("destination.port")}</Label>
               <RadioGroup value={destPortMode} onValueChange={(value: "any" | "port" | "group") => setDestPortMode(value)}>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="any" id="dest-port-any-mode" />
                   <Label htmlFor="dest-port-any-mode" className="cursor-pointer font-normal">
-                    Any (no port restriction)
+                    {t("match.portAny")}
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="port" id="dest-port-mode" />
                   <Label htmlFor="dest-port-mode" className="cursor-pointer font-normal">
-                    Port Number/Range
+                    {t("match.portNumber")}
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="group" id="dest-port-group-mode" />
                   <Label htmlFor="dest-port-group-mode" className="cursor-pointer font-normal">
-                    Port Group
+                    {t("match.portGroup")}
                   </Label>
                 </div>
               </RadioGroup>
@@ -2516,7 +2519,7 @@ export function FirewallRuleModal({
                     </p>
                   ) : (
                     <p className="text-xs text-muted-foreground">
-                      Port number, range, service name, or comma-separated list (e.g., 443,https,8080-8090)
+                      {t("match.portHint", { example: "443,https,8080-8090" })}
                     </p>
                   )}
                 </div>
@@ -2526,7 +2529,7 @@ export function FirewallRuleModal({
                 <div className="pl-6 border-l-2 border-primary/20 space-y-2">
                   <Select value={destPortGroup} onValueChange={setDestPortGroup}>
                     <SelectTrigger id="destPortGroup">
-                      <SelectValue placeholder="Select port group" />
+                      <SelectValue placeholder={t("match.selectPortGroup")} />
                     </SelectTrigger>
                     <SelectContent>
                       {portGroups.map((g) => (
@@ -2539,7 +2542,7 @@ export function FirewallRuleModal({
                   <div className="flex items-center space-x-2">
                     <Checkbox id="destPortGroupInvert" checked={destPortGroupInvert} onCheckedChange={(c) => setDestPortGroupInvert(!!c)} />
                     <Label htmlFor="destPortGroupInvert" className="cursor-pointer font-normal text-sm">
-                      Invert (match packets NOT in this group)
+                      {t("match.groupInvert")}
                     </Label>
                   </div>
                 </div>
@@ -2547,7 +2550,7 @@ export function FirewallRuleModal({
 
               {(destPortMode === "port" || destPortMode === "group") && (
                 <p className="text-xs text-muted-foreground">
-                  Port specification requires TCP/UDP protocol
+                  {t("match.portRequiresTcpUdp")}
                 </p>
               )}
             </div>
@@ -2556,9 +2559,9 @@ export function FirewallRuleModal({
           {/* State Tab */}
           <TabsContent value="state" className="space-y-4">
             <div className="space-y-4">
-              <Label>Connection State Matching</Label>
+              <Label>{t("state.title")}</Label>
               <p className="text-sm text-muted-foreground">
-                Match packets based on their connection tracking state
+                {t("state.description")}
               </p>
 
               <div className="space-y-3">
@@ -2569,7 +2572,7 @@ export function FirewallRuleModal({
                     onCheckedChange={(checked) => setStateEstablished(checked as boolean)}
                   />
                   <Label htmlFor="stateEstablished" className="cursor-pointer">
-                    Established - Match established connections
+                    {t("state.established")}
                   </Label>
                 </div>
 
@@ -2580,7 +2583,7 @@ export function FirewallRuleModal({
                     onCheckedChange={(checked) => setStateNew(checked as boolean)}
                   />
                   <Label htmlFor="stateNew" className="cursor-pointer">
-                    New - Match new connections
+                    {t("state.new")}
                   </Label>
                 </div>
 
@@ -2591,7 +2594,7 @@ export function FirewallRuleModal({
                     onCheckedChange={(checked) => setStateRelated(checked as boolean)}
                   />
                   <Label htmlFor="stateRelated" className="cursor-pointer">
-                    Related - Match related connections
+                    {t("state.related")}
                   </Label>
                 </div>
 
@@ -2602,65 +2605,65 @@ export function FirewallRuleModal({
                     onCheckedChange={(checked) => setStateInvalid(checked as boolean)}
                   />
                   <Label htmlFor="stateInvalid" className="cursor-pointer">
-                    Invalid - Match invalid packets
+                    {t("state.invalid")}
                   </Label>
                 </div>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="inboundInterface">Inbound Interface</Label>
+              <Label htmlFor="inboundInterface">{t("state.inboundInterface")}</Label>
               <InterfaceSelect
                 value={inboundInterface}
                 onValueChange={setInboundInterface}
                 id="inboundInterface"
                 interfaces={interfaces.map((i) => ({ name: i.name, type: "", description: i.description ?? null }))}
-                noneOption={{ label: "Any", value: "any" }}
-                placeholder="Any interface"
+                noneOption={{ label: t("state.any"), value: "any" }}
+                placeholder={t("state.anyInterface")}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="outboundInterface">Outbound Interface</Label>
+              <Label htmlFor="outboundInterface">{t("state.outboundInterface")}</Label>
               <InterfaceSelect
                 value={outboundInterface}
                 onValueChange={setOutboundInterface}
                 id="outboundInterface"
                 interfaces={interfaces.map((i) => ({ name: i.name, type: "", description: i.description ?? null }))}
-                noneOption={{ label: "Any", value: "any" }}
-                placeholder="Any interface"
+                noneOption={{ label: t("state.any"), value: "any" }}
+                placeholder={t("state.anyInterface")}
               />
             </div>
 
             {/* IPsec Matching */}
             {capabilities?.features.ipsec_matching?.supported && (
               <div className="space-y-4 pt-4 border-t">
-                <Label className="text-base font-semibold">IPsec Matching</Label>
+                <Label className="text-base font-semibold">{t("state.ipsecTitle")}</Label>
                 {capabilities?.features.ipsec_directional?.supported ? (
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="ipsecInbound">Inbound</Label>
+                      <Label htmlFor="ipsecInbound">{t("state.inbound")}</Label>
                       <Select value={ipsecInbound} onValueChange={(v: "none" | "match-ipsec" | "match-none") => setIpsecInbound(v)}>
                         <SelectTrigger id="ipsecInbound">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">No match</SelectItem>
-                          <SelectItem value="match-ipsec">Match IPsec</SelectItem>
-                          <SelectItem value="match-none">Match non-IPsec</SelectItem>
+                          <SelectItem value="none">{t("state.ipsecNoMatch")}</SelectItem>
+                          <SelectItem value="match-ipsec">{t("state.ipsecMatch")}</SelectItem>
+                          <SelectItem value="match-none">{t("state.ipsecMatchNone")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="ipsecOutbound">Outbound</Label>
+                      <Label htmlFor="ipsecOutbound">{t("state.outbound")}</Label>
                       <Select value={ipsecOutbound} onValueChange={(v: "none" | "match-ipsec" | "match-none") => setIpsecOutbound(v)}>
                         <SelectTrigger id="ipsecOutbound">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">No match</SelectItem>
-                          <SelectItem value="match-ipsec">Match IPsec</SelectItem>
-                          <SelectItem value="match-none">Match non-IPsec</SelectItem>
+                          <SelectItem value="none">{t("state.ipsecNoMatch")}</SelectItem>
+                          <SelectItem value="match-ipsec">{t("state.ipsecMatch")}</SelectItem>
+                          <SelectItem value="match-none">{t("state.ipsecMatchNone")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -2670,15 +2673,15 @@ export function FirewallRuleModal({
                     <RadioGroup value={ipsecMode} onValueChange={(v: "none" | "match-ipsec" | "match-none") => setIpsecMode(v)}>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="none" id="ipsec-none" />
-                        <Label htmlFor="ipsec-none" className="cursor-pointer font-normal">No IPsec match</Label>
+                        <Label htmlFor="ipsec-none" className="cursor-pointer font-normal">{t("state.ipsecNone")}</Label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="match-ipsec" id="ipsec-match" />
-                        <Label htmlFor="ipsec-match" className="cursor-pointer font-normal">Match IPsec traffic</Label>
+                        <Label htmlFor="ipsec-match" className="cursor-pointer font-normal">{t("state.ipsecMatchTraffic")}</Label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="match-none" id="ipsec-match-none" />
-                        <Label htmlFor="ipsec-match-none" className="cursor-pointer font-normal">Match non-IPsec traffic</Label>
+                        <Label htmlFor="ipsec-match-none" className="cursor-pointer font-normal">{t("state.ipsecMatchNoneTraffic")}</Label>
                       </div>
                     </RadioGroup>
                   </div>
@@ -2692,48 +2695,48 @@ export function FirewallRuleModal({
             <Accordion type="multiple" className="w-full">
               <AccordionItem value="connection">
                 <AccordionTrigger>
-                  Connection Mark / Status
-                  {(connectionMark || connectionStatusNat || conntrackHelper) && <Badge variant="secondary" className="ml-2">Set</Badge>}
+                  {t("matching.connectionTitle")}
+                  {(connectionMark || connectionStatusNat || conntrackHelper) && <Badge variant="secondary" className="ml-2">{t("matching.set")}</Badge>}
                 </AccordionTrigger>
                 <AccordionContent className="space-y-4 pt-2">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="connectionMark">Connection Mark</Label>
-                      <Input id="connectionMark" value={connectionMark} onChange={(e) => setConnectionMark(e.target.value)} placeholder="e.g. 100" />
+                      <Label htmlFor="connectionMark">{t("matching.connectionMark")}</Label>
+                      <Input id="connectionMark" value={connectionMark} onChange={(e) => setConnectionMark(e.target.value)} placeholder={t("form.eg", { value: "100" })} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="connectionStatusNat">Connection Status NAT</Label>
+                      <Label htmlFor="connectionStatusNat">{t("matching.connectionStatusNat")}</Label>
                       <Select value={connectionStatusNat || "__none__"} onValueChange={(v) => setConnectionStatusNat(v === "__none__" ? "" : v)}>
-                        <SelectTrigger id="connectionStatusNat"><SelectValue placeholder="Any" /></SelectTrigger>
+                        <SelectTrigger id="connectionStatusNat"><SelectValue placeholder={t("matching.any")} /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="__none__">Any</SelectItem>
-                          <SelectItem value="destination">Destination NAT</SelectItem>
-                          <SelectItem value="source">Source NAT</SelectItem>
+                          <SelectItem value="__none__">{t("matching.any")}</SelectItem>
+                          <SelectItem value="destination">{t("matching.destinationNat")}</SelectItem>
+                          <SelectItem value="source">{t("matching.sourceNat")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="conntrackHelper">Conntrack Helper</Label>
-                    <Input id="conntrackHelper" value={conntrackHelper} onChange={(e) => setConntrackHelper(e.target.value)} placeholder="e.g. ftp, h323, pptp, sip, tftp" />
+                    <Label htmlFor="conntrackHelper">{t("matching.conntrackHelper")}</Label>
+                    <Input id="conntrackHelper" value={conntrackHelper} onChange={(e) => setConntrackHelper(e.target.value)} placeholder={t("form.eg", { value: "ftp, h323, pptp, sip, tftp" })} />
                   </div>
                 </AccordionContent>
               </AccordionItem>
 
               <AccordionItem value="dscp">
                 <AccordionTrigger>
-                  DSCP Matching
-                  {(dscpMatch || dscpExclude) && <Badge variant="secondary" className="ml-2">Set</Badge>}
+                  {t("matching.dscpTitle")}
+                  {(dscpMatch || dscpExclude) && <Badge variant="secondary" className="ml-2">{t("matching.set")}</Badge>}
                 </AccordionTrigger>
                 <AccordionContent className="space-y-4 pt-2">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="dscpMatch">DSCP Match</Label>
-                      <Input id="dscpMatch" value={dscpMatch} onChange={(e) => setDscpMatch(e.target.value)} placeholder="0-63 or CS0-CS7, AF11-AF43, EF" />
+                      <Label htmlFor="dscpMatch">{t("matching.dscpMatch")}</Label>
+                      <Input id="dscpMatch" value={dscpMatch} onChange={(e) => setDscpMatch(e.target.value)} placeholder={t("matching.dscpPlaceholder")} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="dscpExclude">DSCP Exclude</Label>
-                      <Input id="dscpExclude" value={dscpExclude} onChange={(e) => setDscpExclude(e.target.value)} placeholder="0-63 or CS0-CS7, AF11-AF43, EF" />
+                      <Label htmlFor="dscpExclude">{t("matching.dscpExclude")}</Label>
+                      <Input id="dscpExclude" value={dscpExclude} onChange={(e) => setDscpExclude(e.target.value)} placeholder={t("matching.dscpPlaceholder")} />
                     </div>
                   </div>
                 </AccordionContent>
@@ -2741,17 +2744,17 @@ export function FirewallRuleModal({
 
               <AccordionItem value="fragment">
                 <AccordionTrigger>
-                  Fragment Matching
-                  {(fragmentMatchFrag || fragmentMatchNonFrag) && <Badge variant="secondary" className="ml-2">Set</Badge>}
+                  {t("matching.fragmentTitle")}
+                  {(fragmentMatchFrag || fragmentMatchNonFrag) && <Badge variant="secondary" className="ml-2">{t("matching.set")}</Badge>}
                 </AccordionTrigger>
                 <AccordionContent className="space-y-3 pt-2">
                   <div className="flex items-center space-x-2">
                     <Checkbox id="fragmentMatchFrag" checked={fragmentMatchFrag} onCheckedChange={(c) => setFragmentMatchFrag(!!c)} />
-                    <Label htmlFor="fragmentMatchFrag" className="cursor-pointer font-normal">Match fragmented packets</Label>
+                    <Label htmlFor="fragmentMatchFrag" className="cursor-pointer font-normal">{t("matching.matchFrag")}</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Checkbox id="fragmentMatchNonFrag" checked={fragmentMatchNonFrag} onCheckedChange={(c) => setFragmentMatchNonFrag(!!c)} />
-                    <Label htmlFor="fragmentMatchNonFrag" className="cursor-pointer font-normal">Match non-fragmented packets</Label>
+                    <Label htmlFor="fragmentMatchNonFrag" className="cursor-pointer font-normal">{t("matching.matchNonFrag")}</Label>
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -2759,43 +2762,43 @@ export function FirewallRuleModal({
               {capabilities?.features.gre_matching?.supported && (
                 <AccordionItem value="gre">
                   <AccordionTrigger>
-                    GRE Matching (1.5+)
-                    {(greKey || greVersion || greInnerProto) && <Badge variant="secondary" className="ml-2">Set</Badge>}
+                    {t("matching.greTitle")}
+                    {(greKey || greVersion || greInnerProto) && <Badge variant="secondary" className="ml-2">{t("matching.set")}</Badge>}
                   </AccordionTrigger>
                   <AccordionContent className="space-y-4 pt-2">
                     <div className="grid grid-cols-3 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="greKey">GRE Key</Label>
-                        <Input id="greKey" value={greKey} onChange={(e) => setGreKey(e.target.value)} placeholder="Key value" />
+                        <Label htmlFor="greKey">{t("matching.greKey")}</Label>
+                        <Input id="greKey" value={greKey} onChange={(e) => setGreKey(e.target.value)} placeholder={t("matching.keyValue")} />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="greVersion">GRE Version</Label>
+                        <Label htmlFor="greVersion">{t("matching.greVersion")}</Label>
                         <Select value={greVersion || "__none__"} onValueChange={(v) => setGreVersion(v === "__none__" ? "" : v)}>
-                          <SelectTrigger id="greVersion"><SelectValue placeholder="Any" /></SelectTrigger>
+                          <SelectTrigger id="greVersion"><SelectValue placeholder={t("matching.any")} /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="__none__">Any</SelectItem>
+                            <SelectItem value="__none__">{t("matching.any")}</SelectItem>
                             <SelectItem value="0">GREv0</SelectItem>
                             <SelectItem value="1">GREv1</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="greInnerProto">Inner Protocol</Label>
-                        <Input id="greInnerProto" value={greInnerProto} onChange={(e) => setGreInnerProto(e.target.value)} placeholder="Protocol number" />
+                        <Label htmlFor="greInnerProto">{t("matching.innerProtocol")}</Label>
+                        <Input id="greInnerProto" value={greInnerProto} onChange={(e) => setGreInnerProto(e.target.value)} placeholder={t("matching.protocolNumber")} />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label>GRE Flags</Label>
+                      <Label>{t("matching.greFlags")}</Label>
                       <div className="grid grid-cols-3 gap-2">
                         {["checksum", "key", "sequence"].map((flag) => (
                           <div key={flag} className="space-y-1">
                             <div className="flex items-center space-x-2">
                               <Checkbox id={`gre-flag-${flag}`} checked={!!greFlags[flag]} onCheckedChange={(c) => setGreFlags(prev => ({ ...prev, [flag]: !!c, [`${flag}_unset`]: false }))} />
-                              <Label htmlFor={`gre-flag-${flag}`} className="cursor-pointer font-normal capitalize">{flag} set</Label>
+                              <Label htmlFor={`gre-flag-${flag}`} className="cursor-pointer font-normal capitalize">{t("matching.greFlagSet", { flag })}</Label>
                             </div>
                             <div className="flex items-center space-x-2">
                               <Checkbox id={`gre-flag-${flag}-unset`} checked={!!greFlags[`${flag}_unset`]} onCheckedChange={(c) => setGreFlags(prev => ({ ...prev, [`${flag}_unset`]: !!c, [flag]: false }))} />
-                              <Label htmlFor={`gre-flag-${flag}-unset`} className="cursor-pointer font-normal capitalize">{flag} unset</Label>
+                              <Label htmlFor={`gre-flag-${flag}-unset`} className="cursor-pointer font-normal capitalize">{t("matching.greFlagUnset", { flag })}</Label>
                             </div>
                           </div>
                         ))}
@@ -2807,37 +2810,37 @@ export function FirewallRuleModal({
 
               <AccordionItem value="mark-packet">
                 <AccordionTrigger>
-                  Mark / Packet Length / Type
-                  {(markMatch || packetLength || packetLengthExclude || packetType) && <Badge variant="secondary" className="ml-2">Set</Badge>}
+                  {t("matching.markTitle")}
+                  {(markMatch || packetLength || packetLengthExclude || packetType) && <Badge variant="secondary" className="ml-2">{t("matching.set")}</Badge>}
                 </AccordionTrigger>
                 <AccordionContent className="space-y-4 pt-2">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="markMatch">Mark Match</Label>
-                      <Input id="markMatch" value={markMatch} onChange={(e) => setMarkMatch(e.target.value)} placeholder="e.g. 100" />
+                      <Label htmlFor="markMatch">{t("matching.markMatch")}</Label>
+                      <Input id="markMatch" value={markMatch} onChange={(e) => setMarkMatch(e.target.value)} placeholder={t("form.eg", { value: "100" })} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="packetType">Packet Type</Label>
+                      <Label htmlFor="packetType">{t("matching.packetType")}</Label>
                       <Select value={packetType || "__none__"} onValueChange={(v) => setPacketType(v === "__none__" ? "" : v)}>
-                        <SelectTrigger id="packetType"><SelectValue placeholder="Any" /></SelectTrigger>
+                        <SelectTrigger id="packetType"><SelectValue placeholder={t("matching.any")} /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="__none__">Any</SelectItem>
-                          <SelectItem value="broadcast">Broadcast</SelectItem>
-                          <SelectItem value="host">Host</SelectItem>
-                          <SelectItem value="multicast">Multicast</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
+                          <SelectItem value="__none__">{t("matching.any")}</SelectItem>
+                          <SelectItem value="broadcast">{t("matching.packetTypes.broadcast")}</SelectItem>
+                          <SelectItem value="host">{t("matching.packetTypes.host")}</SelectItem>
+                          <SelectItem value="multicast">{t("matching.packetTypes.multicast")}</SelectItem>
+                          <SelectItem value="other">{t("matching.packetTypes.other")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="packetLength">Packet Length</Label>
-                      <Input id="packetLength" value={packetLength} onChange={(e) => setPacketLength(e.target.value)} placeholder="e.g. 128 or 64-1500" />
+                      <Label htmlFor="packetLength">{t("matching.packetLength")}</Label>
+                      <Input id="packetLength" value={packetLength} onChange={(e) => setPacketLength(e.target.value)} placeholder={t("matching.packetLengthPlaceholder")} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="packetLengthExclude">Packet Length Exclude</Label>
-                      <Input id="packetLengthExclude" value={packetLengthExclude} onChange={(e) => setPacketLengthExclude(e.target.value)} placeholder="e.g. 1500" />
+                      <Label htmlFor="packetLengthExclude">{t("matching.packetLengthExclude")}</Label>
+                      <Input id="packetLengthExclude" value={packetLengthExclude} onChange={(e) => setPacketLengthExclude(e.target.value)} placeholder={t("form.eg", { value: "1500" })} />
                     </div>
                   </div>
                 </AccordionContent>
@@ -2845,26 +2848,26 @@ export function FirewallRuleModal({
 
               <AccordionItem value="tcp-ttl">
                 <AccordionTrigger>
-                  TCP MSS / TTL Match
-                  {(tcpMssMatch || ttlEq || ttlGt || ttlLt) && <Badge variant="secondary" className="ml-2">Set</Badge>}
+                  {t("matching.tcpTtlTitle")}
+                  {(tcpMssMatch || ttlEq || ttlGt || ttlLt) && <Badge variant="secondary" className="ml-2">{t("matching.set")}</Badge>}
                 </AccordionTrigger>
                 <AccordionContent className="space-y-4 pt-2">
                   <div className="space-y-2">
-                    <Label htmlFor="tcpMssMatch">TCP MSS Match</Label>
-                    <Input id="tcpMssMatch" value={tcpMssMatch} onChange={(e) => setTcpMssMatch(e.target.value)} placeholder="e.g. 500-1460" />
-                    <p className="text-xs text-muted-foreground">Match TCP MSS value or range</p>
+                    <Label htmlFor="tcpMssMatch">{t("matching.tcpMssMatch")}</Label>
+                    <Input id="tcpMssMatch" value={tcpMssMatch} onChange={(e) => setTcpMssMatch(e.target.value)} placeholder={t("form.eg", { value: "500-1460" })} />
+                    <p className="text-xs text-muted-foreground">{t("matching.tcpMssHint")}</p>
                   </div>
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="ttlEq">TTL Equal</Label>
+                      <Label htmlFor="ttlEq">{t("matching.ttlEq")}</Label>
                       <Input id="ttlEq" value={ttlEq} onChange={(e) => setTtlEq(e.target.value)} placeholder="0-255" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="ttlGt">TTL Greater Than</Label>
+                      <Label htmlFor="ttlGt">{t("matching.ttlGt")}</Label>
                       <Input id="ttlGt" value={ttlGt} onChange={(e) => setTtlGt(e.target.value)} placeholder="0-255" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="ttlLt">TTL Less Than</Label>
+                      <Label htmlFor="ttlLt">{t("matching.ttlLt")}</Label>
                       <Input id="ttlLt" value={ttlLt} onChange={(e) => setTtlLt(e.target.value)} placeholder="0-255" />
                     </div>
                   </div>
@@ -2876,63 +2879,63 @@ export function FirewallRuleModal({
           {/* Limits & Time Tab */}
           <TabsContent value="limits" className="space-y-4">
             <div className="space-y-4">
-              <Label className="text-base font-semibold">Rate Limiting</Label>
+              <Label className="text-base font-semibold">{t("limits.rateTitle")}</Label>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="limitRate">Rate</Label>
-                  <Input id="limitRate" value={limitRate} onChange={(e) => setLimitRate(e.target.value)} placeholder="e.g. 10/second, 100/minute" />
-                  <p className="text-xs text-muted-foreground">Format: number/unit (second, minute, hour, day)</p>
+                  <Label htmlFor="limitRate">{t("limits.rate")}</Label>
+                  <Input id="limitRate" value={limitRate} onChange={(e) => setLimitRate(e.target.value)} placeholder={t("form.eg", { value: "10/second, 100/minute" })} />
+                  <p className="text-xs text-muted-foreground">{t("limits.rateHint")}</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="limitBurst">Burst</Label>
-                  <Input id="limitBurst" value={limitBurst} onChange={(e) => setLimitBurst(e.target.value)} placeholder="e.g. 20" />
-                  <p className="text-xs text-muted-foreground">Maximum burst before rate limiting kicks in</p>
+                  <Label htmlFor="limitBurst">{t("limits.burst")}</Label>
+                  <Input id="limitBurst" value={limitBurst} onChange={(e) => setLimitBurst(e.target.value)} placeholder={t("form.eg", { value: "20" })} />
+                  <p className="text-xs text-muted-foreground">{t("limits.burstHint")}</p>
                 </div>
               </div>
             </div>
 
             <div className="space-y-4 pt-4 border-t">
-              <Label className="text-base font-semibold">Recent Connection Tracking</Label>
+              <Label className="text-base font-semibold">{t("limits.recentTitle")}</Label>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="recentCount">Count</Label>
-                  <Input id="recentCount" value={recentCount} onChange={(e) => setRecentCount(e.target.value)} placeholder="e.g. 5" />
-                  <p className="text-xs text-muted-foreground">Number of recent connections to match</p>
+                  <Label htmlFor="recentCount">{t("limits.count")}</Label>
+                  <Input id="recentCount" value={recentCount} onChange={(e) => setRecentCount(e.target.value)} placeholder={t("form.eg", { value: "5" })} />
+                  <p className="text-xs text-muted-foreground">{t("limits.countHint")}</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="recentTime">Time (seconds)</Label>
-                  <Input id="recentTime" value={recentTime} onChange={(e) => setRecentTime(e.target.value)} placeholder="e.g. 60" />
-                  <p className="text-xs text-muted-foreground">Time window in seconds</p>
+                  <Label htmlFor="recentTime">{t("limits.time")}</Label>
+                  <Input id="recentTime" value={recentTime} onChange={(e) => setRecentTime(e.target.value)} placeholder={t("form.eg", { value: "60" })} />
+                  <p className="text-xs text-muted-foreground">{t("limits.timeHint")}</p>
                 </div>
               </div>
             </div>
 
             <div className="space-y-4 pt-4 border-t">
-              <Label className="text-base font-semibold">Time-Based Rules</Label>
+              <Label className="text-base font-semibold">{t("limits.timeTitle")}</Label>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="timeStartdate">Start Date</Label>
+                  <Label htmlFor="timeStartdate">{t("limits.startDate")}</Label>
                   <Input id="timeStartdate" type="date" value={timeStartdate} onChange={(e) => setTimeStartdate(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="timeStopdate">Stop Date</Label>
+                  <Label htmlFor="timeStopdate">{t("limits.stopDate")}</Label>
                   <Input id="timeStopdate" type="date" value={timeStopdate} onChange={(e) => setTimeStopdate(e.target.value)} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="timeStarttime">Start Time</Label>
+                  <Label htmlFor="timeStarttime">{t("limits.startTime")}</Label>
                   <Input id="timeStarttime" type="time" value={timeStarttime} onChange={(e) => setTimeStarttime(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="timeStoptime">Stop Time</Label>
+                  <Label htmlFor="timeStoptime">{t("limits.stopTime")}</Label>
                   <Input id="timeStoptime" type="time" value={timeStoptime} onChange={(e) => setTimeStoptime(e.target.value)} />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="timeWeekdays">Weekdays</Label>
+                <Label htmlFor="timeWeekdays">{t("limits.weekdays")}</Label>
                 <Input id="timeWeekdays" value={timeWeekdays} onChange={(e) => setTimeWeekdays(e.target.value)} placeholder="Monday,Tuesday,Wednesday" />
-                <p className="text-xs text-muted-foreground">Comma-separated days: Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday</p>
+                <p className="text-xs text-muted-foreground">{t("limits.weekdaysHint")}</p>
               </div>
             </div>
           </TabsContent>
@@ -2941,15 +2944,15 @@ export function FirewallRuleModal({
           <TabsContent value="actions" className="space-y-4">
             <div className="space-y-4">
               <div>
-                <Label className="text-base font-semibold">TCP Flags</Label>
+                <Label className="text-base font-semibold">{t("actions.tcpFlags")}</Label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Set individual TCP flag matching rules (requires TCP protocol only)
+                  {t("actions.tcpFlagsHint")}
                 </p>
               </div>
               {ruleProtocol !== "tcp" && (
                 <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
                   <p className="text-sm text-blue-600 dark:text-blue-400">
-                    TCP flags can only be used with TCP protocol (not TCP & UDP). Set the protocol to TCP in the Basic tab to enable TCP flags.
+                    {t("actions.tcpFlagsTcpOnly")}
                   </p>
                 </div>
               )}
@@ -2974,9 +2977,9 @@ export function FirewallRuleModal({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="disabled">Disabled</SelectItem>
-                        <SelectItem value="enabled">Match Set</SelectItem>
-                        <SelectItem value="not">Match NOT Set</SelectItem>
+                        <SelectItem value="disabled">{tc("disabled")}</SelectItem>
+                        <SelectItem value="enabled">{t("actions.matchSet")}</SelectItem>
+                        <SelectItem value="not">{t("actions.matchNotSet")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -2986,15 +2989,15 @@ export function FirewallRuleModal({
 
             <div className="space-y-2">
               <div>
-                <Label htmlFor="icmpTypeName" className="text-base font-semibold">ICMP Type</Label>
+                <Label htmlFor="icmpTypeName" className="text-base font-semibold">{t("actions.icmpType")}</Label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Select ICMP type name to match (requires ICMP protocol)
+                  {t("actions.icmpTypeHint")}
                 </p>
               </div>
               {ruleProtocol !== "icmp" && ruleProtocol !== "ipv6-icmp" && (
                 <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
                   <p className="text-sm text-blue-600 dark:text-blue-400">
-                    ICMP type can only be used with ICMP protocol. Set the protocol to ICMP in the Basic tab to enable ICMP type.
+                    {t("actions.icmpTypeIcmpOnly")}
                   </p>
                 </div>
               )}
@@ -3012,7 +3015,7 @@ export function FirewallRuleModal({
                   disabled={ruleProtocol !== "icmp" && ruleProtocol !== "ipv6-icmp"}
                 >
                   <SelectTrigger id="icmpTypeName" className="flex-1">
-                    <SelectValue placeholder="Select ICMP type..." />
+                    <SelectValue placeholder={t("actions.selectIcmpType")} />
                   </SelectTrigger>
                   <SelectContent className="max-h-[300px]">
                     {icmpTypeOptions.map((type) => (
@@ -3033,7 +3036,7 @@ export function FirewallRuleModal({
                     }}
                     disabled={ruleProtocol !== "icmp" && ruleProtocol !== "ipv6-icmp"}
                     className="shrink-0"
-                    title="Clear ICMP type"
+                    title={t("actions.clearIcmpType")}
                   >
                     ×
                   </Button>
@@ -3042,7 +3045,7 @@ export function FirewallRuleModal({
             </div>
 
             <div className="space-y-4">
-              <Label>Packet Modifications</Label>
+              <Label>{t("actions.packetMods")}</Label>
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
@@ -3056,12 +3059,12 @@ export function FirewallRuleModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="mark">Mark</Label>
+                  <Label htmlFor="mark">{t("actions.mark")}</Label>
                   <Input
                     id="mark"
                     value={mark}
                     onChange={(e) => setMark(e.target.value)}
-                    placeholder="Packet mark"
+                    placeholder={t("actions.packetMark")}
                   />
                 </div>
 
@@ -3078,12 +3081,12 @@ export function FirewallRuleModal({
 
               <div className="grid grid-cols-2 gap-4 pt-2">
                 <div className="space-y-2">
-                  <Label htmlFor="modSetConnectionMark">Set Connection Mark</Label>
-                  <Input id="modSetConnectionMark" value={modSetConnectionMark} onChange={(e) => setModSetConnectionMark(e.target.value)} placeholder="Mark value" />
+                  <Label htmlFor="modSetConnectionMark">{t("actions.setConnectionMark")}</Label>
+                  <Input id="modSetConnectionMark" value={modSetConnectionMark} onChange={(e) => setModSetConnectionMark(e.target.value)} placeholder={t("actions.markValue")} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="modSetTcpMss">Set TCP MSS</Label>
-                  <Input id="modSetTcpMss" value={modSetTcpMss} onChange={(e) => setModSetTcpMss(e.target.value)} placeholder="MSS value" />
+                  <Label htmlFor="modSetTcpMss">{t("actions.setTcpMss")}</Label>
+                  <Input id="modSetTcpMss" value={modSetTcpMss} onChange={(e) => setModSetTcpMss(e.target.value)} placeholder={t("actions.mssValue")} />
                 </div>
               </div>
             </div>
@@ -3091,38 +3094,38 @@ export function FirewallRuleModal({
             {/* Log Options (shown when log is enabled) */}
             {log && (
               <div className="space-y-4 pt-4 border-t">
-                <Label className="text-base font-semibold">Log Options</Label>
+                <Label className="text-base font-semibold">{t("actions.logOptions")}</Label>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="logOptionsGroup">Log Group</Label>
-                    <Input id="logOptionsGroup" value={logOptionsGroup} onChange={(e) => setLogOptionsGroup(e.target.value)} placeholder="Group number" />
+                    <Label htmlFor="logOptionsGroup">{t("actions.logGroup")}</Label>
+                    <Input id="logOptionsGroup" value={logOptionsGroup} onChange={(e) => setLogOptionsGroup(e.target.value)} placeholder={t("actions.groupNumber")} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="logOptionsLevel">Log Level</Label>
+                    <Label htmlFor="logOptionsLevel">{t("actions.logLevel")}</Label>
                     <Select value={logOptionsLevel || "__none__"} onValueChange={(v) => setLogOptionsLevel(v === "__none__" ? "" : v)}>
-                      <SelectTrigger id="logOptionsLevel"><SelectValue placeholder="Default" /></SelectTrigger>
+                      <SelectTrigger id="logOptionsLevel"><SelectValue placeholder={tc("default")} /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__none__">Default</SelectItem>
-                        <SelectItem value="emerg">Emergency</SelectItem>
-                        <SelectItem value="alert">Alert</SelectItem>
-                        <SelectItem value="crit">Critical</SelectItem>
-                        <SelectItem value="err">Error</SelectItem>
-                        <SelectItem value="warn">Warning</SelectItem>
-                        <SelectItem value="notice">Notice</SelectItem>
-                        <SelectItem value="info">Info</SelectItem>
-                        <SelectItem value="debug">Debug</SelectItem>
+                        <SelectItem value="__none__">{tc("default")}</SelectItem>
+                        <SelectItem value="emerg">{t("actions.logLevels.emerg")}</SelectItem>
+                        <SelectItem value="alert">{t("actions.logLevels.alert")}</SelectItem>
+                        <SelectItem value="crit">{t("actions.logLevels.crit")}</SelectItem>
+                        <SelectItem value="err">{t("actions.logLevels.err")}</SelectItem>
+                        <SelectItem value="warn">{t("actions.logLevels.warn")}</SelectItem>
+                        <SelectItem value="notice">{t("actions.logLevels.notice")}</SelectItem>
+                        <SelectItem value="info">{t("actions.logLevels.info")}</SelectItem>
+                        <SelectItem value="debug">{t("actions.logLevels.debug")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="logOptionsQueueThreshold">Queue Threshold</Label>
-                    <Input id="logOptionsQueueThreshold" value={logOptionsQueueThreshold} onChange={(e) => setLogOptionsQueueThreshold(e.target.value)} placeholder="Threshold" />
+                    <Label htmlFor="logOptionsQueueThreshold">{t("actions.queueThreshold")}</Label>
+                    <Input id="logOptionsQueueThreshold" value={logOptionsQueueThreshold} onChange={(e) => setLogOptionsQueueThreshold(e.target.value)} placeholder={t("actions.threshold")} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="logOptionsSnapshotLength">Snapshot Length</Label>
-                    <Input id="logOptionsSnapshotLength" value={logOptionsSnapshotLength} onChange={(e) => setLogOptionsSnapshotLength(e.target.value)} placeholder="Length" />
+                    <Label htmlFor="logOptionsSnapshotLength">{t("actions.snapshotLength")}</Label>
+                    <Input id="logOptionsSnapshotLength" value={logOptionsSnapshotLength} onChange={(e) => setLogOptionsSnapshotLength(e.target.value)} placeholder={t("actions.length")} />
                   </div>
                 </div>
               </div>
@@ -3131,20 +3134,20 @@ export function FirewallRuleModal({
             {/* Queue Config (shown when action is queue) */}
             {action === "queue" && (
               <div className="space-y-4 pt-4 border-t">
-                <Label className="text-base font-semibold">Queue Configuration</Label>
+                <Label className="text-base font-semibold">{t("actions.queueConfig")}</Label>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="queueNumber">Queue Number</Label>
+                    <Label htmlFor="queueNumber">{t("actions.queueNumber")}</Label>
                     <Input id="queueNumber" value={queueNumber} onChange={(e) => setQueueNumber(e.target.value)} placeholder="0-65535" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="queueOptions">Queue Options</Label>
+                    <Label htmlFor="queueOptions">{t("actions.queueOptions")}</Label>
                     <Select value={queueOptions || "__none__"} onValueChange={(v) => setQueueOptions(v === "__none__" ? "" : v)}>
-                      <SelectTrigger id="queueOptions"><SelectValue placeholder="None" /></SelectTrigger>
+                      <SelectTrigger id="queueOptions"><SelectValue placeholder={tc("none")} /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__none__">None</SelectItem>
-                        <SelectItem value="bypass">Bypass</SelectItem>
-                        <SelectItem value="fanout">Fanout</SelectItem>
+                        <SelectItem value="__none__">{tc("none")}</SelectItem>
+                        <SelectItem value="bypass">{t("actions.queueBypass")}</SelectItem>
+                        <SelectItem value="fanout">{t("actions.queueFanout")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -3155,15 +3158,15 @@ export function FirewallRuleModal({
             {/* Synproxy Config (shown when action is synproxy) */}
             {action === "synproxy" && (
               <div className="space-y-4 pt-4 border-t">
-                <Label className="text-base font-semibold">Synproxy Configuration</Label>
+                <Label className="text-base font-semibold">{t("actions.synproxyConfig")}</Label>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="synproxyTcpMss">TCP MSS</Label>
-                    <Input id="synproxyTcpMss" value={synproxyTcpMss} onChange={(e) => setSynproxyTcpMss(e.target.value)} placeholder="MSS value" />
+                    <Input id="synproxyTcpMss" value={synproxyTcpMss} onChange={(e) => setSynproxyTcpMss(e.target.value)} placeholder={t("actions.mssValue")} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="synproxyTcpWindowScale">TCP Window Scale</Label>
-                    <Input id="synproxyTcpWindowScale" value={synproxyTcpWindowScale} onChange={(e) => setSynproxyTcpWindowScale(e.target.value)} placeholder="Window scale" />
+                    <Label htmlFor="synproxyTcpWindowScale">{t("actions.tcpWindowScale")}</Label>
+                    <Input id="synproxyTcpWindowScale" value={synproxyTcpWindowScale} onChange={(e) => setSynproxyTcpWindowScale(e.target.value)} placeholder={t("actions.windowScale")} />
                   </div>
                 </div>
               </div>
@@ -3171,26 +3174,26 @@ export function FirewallRuleModal({
 
             {/* Add Address to Group */}
             <div className="space-y-4 pt-4 border-t">
-              <Label className="text-base font-semibold">Add Address to Group</Label>
-              <p className="text-xs text-muted-foreground">Dynamically add source/destination addresses to firewall groups</p>
+              <Label className="text-base font-semibold">{t("actions.addToGroup")}</Label>
+              <p className="text-xs text-muted-foreground">{t("actions.addToGroupHint")}</p>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="addAddrToGroupSrcGroup">Source Address Group</Label>
-                  <Input id="addAddrToGroupSrcGroup" value={addAddrToGroupSrcGroup} onChange={(e) => setAddAddrToGroupSrcGroup(e.target.value)} placeholder="Group name" />
+                  <Label htmlFor="addAddrToGroupSrcGroup">{t("actions.srcAddressGroup")}</Label>
+                  <Input id="addAddrToGroupSrcGroup" value={addAddrToGroupSrcGroup} onChange={(e) => setAddAddrToGroupSrcGroup(e.target.value)} placeholder={t("actions.groupName")} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="addAddrToGroupSrcTimeout">Source Timeout</Label>
-                  <Input id="addAddrToGroupSrcTimeout" value={addAddrToGroupSrcTimeout} onChange={(e) => setAddAddrToGroupSrcTimeout(e.target.value)} placeholder="e.g. 300" />
+                  <Label htmlFor="addAddrToGroupSrcTimeout">{t("actions.srcTimeout")}</Label>
+                  <Input id="addAddrToGroupSrcTimeout" value={addAddrToGroupSrcTimeout} onChange={(e) => setAddAddrToGroupSrcTimeout(e.target.value)} placeholder={t("form.eg", { value: "300" })} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="addAddrToGroupDstGroup">Destination Address Group</Label>
-                  <Input id="addAddrToGroupDstGroup" value={addAddrToGroupDstGroup} onChange={(e) => setAddAddrToGroupDstGroup(e.target.value)} placeholder="Group name" />
+                  <Label htmlFor="addAddrToGroupDstGroup">{t("actions.dstAddressGroup")}</Label>
+                  <Input id="addAddrToGroupDstGroup" value={addAddrToGroupDstGroup} onChange={(e) => setAddAddrToGroupDstGroup(e.target.value)} placeholder={t("actions.groupName")} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="addAddrToGroupDstTimeout">Destination Timeout</Label>
-                  <Input id="addAddrToGroupDstTimeout" value={addAddrToGroupDstTimeout} onChange={(e) => setAddAddrToGroupDstTimeout(e.target.value)} placeholder="e.g. 300" />
+                  <Label htmlFor="addAddrToGroupDstTimeout">{t("actions.dstTimeout")}</Label>
+                  <Input id="addAddrToGroupDstTimeout" value={addAddrToGroupDstTimeout} onChange={(e) => setAddAddrToGroupDstTimeout(e.target.value)} placeholder={t("form.eg", { value: "300" })} />
                 </div>
               </div>
             </div>
@@ -3199,18 +3202,18 @@ export function FirewallRuleModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? "Updating..." : "Creating..."}
+                {isEdit ? t("dialog.updating") : t("dialog.creating")}
               </>
             ) : isEdit ? (
-              "Update Rule"
+              t("dialog.updateRule")
             ) : (
-              "Create Rule"
+              t("dialog.createRule")
             )}
           </Button>
         </DialogFooter>
