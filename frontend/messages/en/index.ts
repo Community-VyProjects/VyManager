@@ -8,6 +8,7 @@ import navigation from "./navigation.json";
 import onboarding from "./onboarding.json";
 import search from "./search.json";
 import sidebar from "./sidebar.json";
+import sites from "./sites.json";
 
 const messages = {
   common,
@@ -17,6 +18,7 @@ const messages = {
   onboarding,
   search,
   sidebar,
+  sites,
 };
 
 export default messages;
