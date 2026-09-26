@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,8 @@ interface RebootModalProps {
 }
 
 export function RebootModal({ open, onOpenChange, onSuccess }: RebootModalProps) {
+  const t = useTranslations("power");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [action, setAction] = useState<"now" | "at" | "in">("now");
@@ -33,14 +36,14 @@ export function RebootModal({ open, onOpenChange, onSuccess }: RebootModalProps)
 
       if (action === "at") {
         if (!timeValue.trim()) {
-          setError("Please enter a time (HH:MM)");
+          setError(t("modal.enterTime"));
           setLoading(false);
           return;
         }
         value = timeValue;
       } else if (action === "in") {
         if (!minutesValue.trim()) {
-          setError("Please enter number of minutes");
+          setError(t("modal.enterMinutes"));
           setLoading(false);
           return;
         }
@@ -52,7 +55,7 @@ export function RebootModal({ open, onOpenChange, onSuccess }: RebootModalProps)
       handleClose();
       onSuccess();
     } catch (err) {
-      setError((err as ApiError).message || "Failed to execute reboot");
+      setError((err as ApiError).message || t("reboot.failed"));
     } finally {
       setLoading(false);
     }
@@ -72,10 +75,10 @@ export function RebootModal({ open, onOpenChange, onSuccess }: RebootModalProps)
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Power className="h-5 w-5 text-orange-500" />
-            Reboot System
+            {t("reboot.title")}
           </DialogTitle>
           <DialogDescription>
-            Schedule or immediately reboot the VyOS system. The system will restart and reload its configuration.
+            {t("reboot.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -92,26 +95,26 @@ export function RebootModal({ open, onOpenChange, onSuccess }: RebootModalProps)
 
           {/* Reboot Options */}
           <div className="space-y-4">
-            <Label>Reboot Options</Label>
+            <Label>{t("reboot.options")}</Label>
             <RadioGroup value={action} onValueChange={(value) => setAction(value as "now" | "at" | "in")}>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="now" id="now" />
                 <Label htmlFor="now" className="font-normal cursor-pointer">
-                  Reboot now (immediately without confirmation)
+                  {t("reboot.now")}
                 </Label>
               </div>
 
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="at" id="at" />
                 <Label htmlFor="at" className="font-normal cursor-pointer">
-                  Reboot at specific time
+                  {t("reboot.at")}
                 </Label>
               </div>
 
               {action === "at" && (
                 <div className="ml-6 mt-2">
                   <Label htmlFor="time" className="text-sm text-muted-foreground">
-                    Time (HH:MM)
+                    {t("modal.timeLabel")}
                   </Label>
                   <Input
                     id="time"
@@ -121,7 +124,7 @@ export function RebootModal({ open, onOpenChange, onSuccess }: RebootModalProps)
                     className="mt-1"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    24-hour format. Hours: 00-23 (e.g., 19:30, 00:00 for midnight)
+                    {t("modal.timeHint")}
                   </p>
                 </div>
               )}
@@ -129,14 +132,14 @@ export function RebootModal({ open, onOpenChange, onSuccess }: RebootModalProps)
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="in" id="in" />
                 <Label htmlFor="in" className="font-normal cursor-pointer">
-                  Reboot in X minutes
+                  {t("reboot.in")}
                 </Label>
               </div>
 
               {action === "in" && (
                 <div className="ml-6 mt-2">
                   <Label htmlFor="minutes" className="text-sm text-muted-foreground">
-                    Minutes
+                    {t("modal.minutesLabel")}
                   </Label>
                   <Input
                     id="minutes"
@@ -157,11 +160,11 @@ export function RebootModal({ open, onOpenChange, onSuccess }: RebootModalProps)
             <div className="flex items-start gap-2">
               <AlertCircle className="h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5" />
               <div className="text-sm text-orange-800 dark:text-orange-200">
-                <p className="font-medium">Warning</p>
+                <p className="font-medium">{t("reboot.warning")}</p>
                 <p className="mt-1">
                   {action === "now"
-                    ? "The system will reboot immediately. All active connections will be lost."
-                    : "The system will reboot at the scheduled time. All active connections will be lost during the reboot."}
+                    ? t("reboot.warningNow")
+                    : t("reboot.warningScheduled")}
                 </p>
               </div>
             </div>
@@ -170,10 +173,10 @@ export function RebootModal({ open, onOpenChange, onSuccess }: RebootModalProps)
           {/* Actions */}
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button type="submit" variant="destructive" disabled={loading}>
-              {loading ? "Scheduling..." : action === "now" ? "Reboot Now" : "Schedule Reboot"}
+              {loading ? t("modal.scheduling") : action === "now" ? t("reboot.submitNow") : t("reboot.submitSchedule")}
             </Button>
           </div>
         </form>

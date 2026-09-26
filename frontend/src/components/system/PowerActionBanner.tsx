@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Power, PowerOff, X } from "lucide-react";
 import { powerService, PowerStatusResponse } from "@/lib/api/power";
@@ -10,6 +11,8 @@ interface PowerActionBannerProps {
 }
 
 export function PowerActionBanner({ powerStatus }: PowerActionBannerProps) {
+  const t = useTranslations("power.banner");
+  const tc = useTranslations("common");
   const [status, setStatus] = useState<PowerStatusResponse | null>(null);
   const [countdown, setCountdown] = useState<string>("");
   const [cancelling, setCancelling] = useState(false);
@@ -44,7 +47,7 @@ export function PowerActionBanner({ powerStatus }: PowerActionBannerProps) {
       const diff = scheduledTime.getTime() - now.getTime();
 
       if (diff <= 0) {
-        setCountdown("Executing now...");
+        setCountdown(t("executingNow"));
         return;
       }
 
@@ -53,11 +56,11 @@ export function PowerActionBanner({ powerStatus }: PowerActionBannerProps) {
       const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
       if (hours > 0) {
-        setCountdown(`${hours}h ${minutes}m ${seconds}s`);
+        setCountdown(t("countdownHours", { hours, minutes, seconds }));
       } else if (minutes > 0) {
-        setCountdown(`${minutes}m ${seconds}s`);
+        setCountdown(t("countdownMinutes", { minutes, seconds }));
       } else {
-        setCountdown(`${seconds}s`);
+        setCountdown(t("countdownSeconds", { seconds }));
       }
     };
 
@@ -65,7 +68,7 @@ export function PowerActionBanner({ powerStatus }: PowerActionBannerProps) {
     const interval = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(interval);
-  }, [status]);
+  }, [status, t]);
 
   const handleCancel = async () => {
     if (!status?.action_type) return;
@@ -108,10 +111,10 @@ export function PowerActionBanner({ powerStatus }: PowerActionBannerProps) {
               <Power className="h-5 w-5 text-green-600 dark:text-green-400" />
               <div>
                 <p className="text-sm font-medium text-green-900 dark:text-green-100">
-                  {status.action_type === "reboot" ? "Reboot" : "Poweroff"} Cancelled
+                  {status.action_type === "reboot" ? t("rebootCancelled") : t("poweroffCancelled")}
                 </p>
                 <p className="text-xs text-green-700 dark:text-green-300">
-                  Cancelled by {status.cancelled_by_name || "Unknown"}
+                  {t("cancelledBy", { name: status.cancelled_by_name || t("unknown") })}
                 </p>
               </div>
             </div>
@@ -158,11 +161,11 @@ export function PowerActionBanner({ powerStatus }: PowerActionBannerProps) {
             <div>
               <p className={`text-sm font-medium ${textColor}`}>
                 <AlertTriangle className="h-4 w-4 inline mr-1" />
-                System {isReboot ? "Reboot" : "Poweroff"} Scheduled
+                {isReboot ? t("rebootScheduled") : t("poweroffScheduled")}
               </p>
               <p className={`text-xs ${subtextColor}`}>
-                {countdown && `In ${countdown} • `}
-                Scheduled by {status?.scheduled_by_name || "Unknown"}
+                {countdown && t("inCountdown", { countdown })}
+                {t("scheduledBy", { name: status?.scheduled_by_name || t("unknown") })}
                 {status?.scheduled_time &&
                   ` • ${new Date(status.scheduled_time).toLocaleString()}`}
               </p>
@@ -176,7 +179,7 @@ export function PowerActionBanner({ powerStatus }: PowerActionBannerProps) {
             disabled={cancelling}
             className="border-current"
           >
-            {cancelling ? "Cancelling..." : "Cancel"}
+            {cancelling ? t("cancelling") : tc("cancel")}
           </Button>
         </div>
       </div>

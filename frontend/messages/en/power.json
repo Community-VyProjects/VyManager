@@ -1,1 +1,53 @@
-{}
+{
+  "banner": {
+    "executingNow": "Executing now...",
+    "countdownHours": "{hours}h {minutes}m {seconds}s",
+    "countdownMinutes": "{minutes}m {seconds}s",
+    "countdownSeconds": "{seconds}s",
+    "rebootCancelled": "Reboot Cancelled",
+    "poweroffCancelled": "Poweroff Cancelled",
+    "cancelledBy": "Cancelled by {name}",
+    "unknown": "Unknown",
+    "rebootScheduled": "System Reboot Scheduled",
+    "poweroffScheduled": "System Poweroff Scheduled",
+    "inCountdown": "In {countdown} • ",
+    "scheduledBy": "Scheduled by {name}",
+    "cancelling": "Cancelling..."
+  },
+  "modal": {
+    "enterTime": "Please enter a time (HH:MM)",
+    "enterMinutes": "Please enter number of minutes",
+    "timeLabel": "Time (HH:MM)",
+    "timeHint": "24-hour format. Hours: 00-23 (e.g., 19:30, 00:00 for midnight)",
+    "minutesLabel": "Minutes",
+    "scheduling": "Scheduling..."
+  },
+  "reboot": {
+    "failed": "Failed to execute reboot",
+    "title": "Reboot System",
+    "description": "Schedule or immediately reboot the VyOS system. The system will restart and reload its configuration.",
+    "options": "Reboot Options",
+    "now": "Reboot now (immediately without confirmation)",
+    "at": "Reboot at specific time",
+    "in": "Reboot in X minutes",
+    "warning": "Warning",
+    "warningNow": "The system will reboot immediately. All active connections will be lost.",
+    "warningScheduled": "The system will reboot at the scheduled time. All active connections will be lost during the reboot.",
+    "submitNow": "Reboot Now",
+    "submitSchedule": "Schedule Reboot"
+  },
+  "poweroff": {
+    "failed": "Failed to execute poweroff",
+    "title": "Poweroff System",
+    "description": "Schedule or immediately power off the VyOS system. The system will shut down completely and require manual power-on to restart.",
+    "options": "Poweroff Options",
+    "now": "Poweroff now (immediately without confirmation)",
+    "at": "Poweroff at specific time",
+    "in": "Poweroff in X minutes",
+    "warning": "Critical Warning",
+    "warningNow": "The system will power off immediately. All connections will be lost and the system will require manual power-on.",
+    "warningScheduled": "The system will power off at the scheduled time. All connections will be lost and the system will require manual power-on.",
+    "submitNow": "Poweroff Now",
+    "submitSchedule": "Schedule Poweroff"
+  }
+}

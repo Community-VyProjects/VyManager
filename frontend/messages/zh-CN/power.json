@@ -1,1 +1,53 @@
-{}
+{
+  "banner": {
+    "executingNow": "正在执行...",
+    "countdownHours": "{hours} 小时 {minutes} 分 {seconds} 秒",
+    "countdownMinutes": "{minutes} 分 {seconds} 秒",
+    "countdownSeconds": "{seconds} 秒",
+    "rebootCancelled": "重启已取消",
+    "poweroffCancelled": "关机已取消",
+    "cancelledBy": "由 {name} 取消",
+    "unknown": "未知",
+    "rebootScheduled": "已计划系统重启",
+    "poweroffScheduled": "已计划系统关机",
+    "inCountdown": "{countdown} 后 • ",
+    "scheduledBy": "由 {name} 计划",
+    "cancelling": "正在取消..."
+  },
+  "modal": {
+    "enterTime": "请输入时间（HH:MM）",
+    "enterMinutes": "请输入分钟数",
+    "timeLabel": "时间（HH:MM）",
+    "timeHint": "24 小时制。小时：00-23（例如 19:30，00:00 表示午夜）",
+    "minutesLabel": "分钟",
+    "scheduling": "正在计划..."
+  },
+  "reboot": {
+    "failed": "执行重启失败",
+    "title": "重启系统",
+    "description": "计划或立即重启 VyOS 系统。系统将重新启动并重新加载配置。",
+    "options": "重启选项",
+    "now": "立即重启（无需确认）",
+    "at": "在指定时间重启",
+    "in": "X 分钟后重启",
+    "warning": "警告",
+    "warningNow": "系统将立即重启。所有活动连接都将断开。",
+    "warningScheduled": "系统将在计划时间重启。重启期间所有活动连接都将断开。",
+    "submitNow": "立即重启",
+    "submitSchedule": "计划重启"
+  },
+  "poweroff": {
+    "failed": "执行关机失败",
+    "title": "关闭系统",
+    "description": "计划或立即关闭 VyOS 系统。系统将完全关机，需要手动开机才能重新启动。",
+    "options": "关机选项",
+    "now": "立即关机（无需确认）",
+    "at": "在指定时间关机",
+    "in": "X 分钟后关机",
+    "warning": "严重警告",
+    "warningNow": "系统将立即关机。所有连接都将断开，且需要手动开机。",
+    "warningScheduled": "系统将在计划时间关机。所有连接都将断开，且需要手动开机。",
+    "submitNow": "立即关机",
+    "submitSchedule": "计划关机"
+  }
+}
