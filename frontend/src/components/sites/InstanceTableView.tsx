@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -45,24 +46,26 @@ export function InstanceTableView({
   onMove,
   onDelete,
 }: InstanceTableViewProps) {
+  const t = useTranslations("sites");
+  const tc = useTranslations("common");
   return (
     <div className="rounded-lg border border-border">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Host</TableHead>
-            <TableHead>Port</TableHead>
-            <TableHead>Version</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+            <TableHead>{tc("name")}</TableHead>
+            <TableHead>{t("host")}</TableHead>
+            <TableHead>{t("port")}</TableHead>
+            <TableHead>{t("instanceTable.version")}</TableHead>
+            <TableHead>{tc("status")}</TableHead>
+            <TableHead className="text-right">{tc("actions")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {instances.length === 0 ? (
             <TableRow>
               <TableCell colSpan={6} className="text-center text-muted-foreground">
-                No instances found
+                {t("instanceTable.noInstancesFound")}
               </TableCell>
             </TableRow>
           ) : (
@@ -93,7 +96,7 @@ export function InstanceTableView({
                         <>
                           <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
                           <span className="text-xs font-medium text-green-600 dark:text-green-400">
-                            Connected
+                            {t("connected")}
                           </span>
                         </>
                       ) : instance.is_active ? (
@@ -104,7 +107,7 @@ export function InstanceTableView({
                       ) : (
                         <>
                           <div className="h-2 w-2 rounded-full bg-destructive" />
-                          <span className="text-xs text-destructive">Inactive</span>
+                          <span className="text-xs text-destructive">{t("inactive")}</span>
                         </>
                       )}
                     </div>
@@ -120,7 +123,7 @@ export function InstanceTableView({
                           className="gap-2"
                         >
                           <PowerOff className="h-3 w-3" />
-                          Disconnect
+                          {t("disconnect")}
                         </Button>
                       ) : (
                         <Button
@@ -131,7 +134,7 @@ export function InstanceTableView({
                           className="gap-2"
                         >
                           <Power className="h-3 w-3" />
-                          Connect
+                          {t("connect")}
                         </Button>
                       )}
 
@@ -146,11 +149,11 @@ export function InstanceTableView({
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => onEdit(instance)}>
                               <Pencil className="h-4 w-4 mr-2" />
-                              Edit
+                              {tc("edit")}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => onMove(instance)}>
                               <MoveRight className="h-4 w-4 mr-2" />
-                              Move to Site
+                              {t("moveToSite")}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
@@ -158,7 +161,7 @@ export function InstanceTableView({
                               className="text-destructive focus:text-destructive"
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
+                              {tc("delete")}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>

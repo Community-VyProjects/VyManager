@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -54,6 +55,8 @@ export function InstanceModal({
   site,
   sites = [],
 }: InstanceModalProps) {
+  const t = useTranslations("sites");
+  const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
   const [draft, setDraft] = useState<InstanceDraft>(emptyInstanceDraft());
   const [loading, setLoading] = useState(false);
@@ -80,7 +83,7 @@ export function InstanceModal({
         ? validateInstanceCreate(draft, site?.id)
         : validateInstanceShared(draft);
     if (validationError) {
-      setError(validationError);
+      setError(t(`validation.${validationError}`));
       return;
     }
 
@@ -96,7 +99,7 @@ export function InstanceModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      const fallback = isEdit ? "Failed to update instance" : "Failed to create instance";
+      const fallback = isEdit ? t("instanceModal.updateFailed") : t("instanceModal.createFailed");
       const message =
         err instanceof Error
           ? err.message
@@ -120,11 +123,13 @@ export function InstanceModal({
               <Server className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <DialogTitle>{isEdit ? "Edit Instance" : "Create New Instance"}</DialogTitle>
+              <DialogTitle>{isEdit ? t("instanceModal.editTitle") : t("instanceModal.createTitle")}</DialogTitle>
               <DialogDescription>
                 {isEdit
-                  ? "Update instance configuration"
-                  : `Add a new VyOS instance${site ? ` to ${site.name}` : ""}`}
+                  ? t("instanceModal.editDescription")
+                  : site
+                    ? t("instanceModal.createDescriptionToSite", { site: site.name })
+                    : t("instanceModal.createDescription")}
               </DialogDescription>
             </div>
           </div>
@@ -133,9 +138,9 @@ export function InstanceModal({
         <form onSubmit={handleSubmit}>
           <Tabs defaultValue="basic" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="basic">Basic Info</TabsTrigger>
-              <TabsTrigger value="connection">Connection</TabsTrigger>
-              <TabsTrigger value="ssh">SSH / Monitoring</TabsTrigger>
+              <TabsTrigger value="basic">{t("instanceModal.tabBasic")}</TabsTrigger>
+              <TabsTrigger value="connection">{t("instanceModal.tabConnection")}</TabsTrigger>
+              <TabsTrigger value="ssh">{t("instanceModal.tabSsh")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="basic" className="space-y-4 mt-4">
@@ -150,25 +155,25 @@ export function InstanceModal({
 
               <div className="space-y-2">
                 <Label htmlFor="name" className="required">
-                  Instance Name
+                  {t("instanceModal.nameLabel")}
                 </Label>
                 <Input
                   id="name"
                   value={draft.name}
                   onChange={(e) => patch({ name: e.target.value })}
-                  placeholder="e.g., vyos-router-01"
+                  placeholder={t("instanceModal.namePlaceholder")}
                   disabled={loading}
                   required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description (Optional)</Label>
+                <Label htmlFor="description">{t("descriptionOptional")}</Label>
                 <Textarea
                   id="description"
                   value={draft.description}
                   onChange={(e) => patch({ description: e.target.value })}
-                  placeholder="Additional information..."
+                  placeholder={t("instanceModal.descriptionPlaceholder")}
                   rows={2}
                   disabled={loading}
                 />
@@ -176,7 +181,7 @@ export function InstanceModal({
 
               {canMoveSite && existing && (
                 <div className="space-y-2">
-                  <Label htmlFor="siteId">Site</Label>
+                  <Label htmlFor="siteId">{t("instanceModal.site")}</Label>
                   <Select
                     value={draft.siteId}
                     onValueChange={(value) => patch({ siteId: value })}
@@ -191,21 +196,21 @@ export function InstanceModal({
                         .map((s) => (
                           <SelectItem key={s.id} value={s.id}>
                             {s.name}
-                            {s.id === existing.site_id ? " (Current)" : ""}
+                            {s.id === existing.site_id ? t("instanceModal.current") : ""}
                           </SelectItem>
                         ))}
                     </SelectContent>
                   </Select>
                   {draft.siteId !== existing.site_id && (
                     <p className="text-xs text-warning">
-                      ⚠️ Moving to a different site
+                      {t("instanceModal.movingWarning")}
                     </p>
                   )}
                 </div>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="vyosVersion">VyOS Version</Label>
+                <Label htmlFor="vyosVersion">{t("instanceModal.vyosVersion")}</Label>
                 <Select
                   value={draft.vyosVersion}
                   onValueChange={(value) => patch({ vyosVersion: value })}
@@ -229,7 +234,7 @@ export function InstanceModal({
                   disabled={loading}
                 />
                 <Label htmlFor="isActive" className="cursor-pointer">
-                  Instance is active
+                  {t("instanceModal.isActive")}
                 </Label>
               </div>
 
@@ -245,19 +250,19 @@ export function InstanceModal({
                   />
                   <div>
                     <Label htmlFor="commitConfirmEnabled" className="cursor-pointer">
-                      Enable Commit-Confirm
+                      {t("instanceModal.commitConfirmEnable")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
                       {draft.vyosVersion === "1.4"
-                        ? "Not supported on this version"
-                        : "All changes will require confirmation or VyOS will auto-revert"}
+                        ? t("instanceModal.commitConfirmUnsupported")
+                        : t("instanceModal.commitConfirmHint")}
                     </p>
                   </div>
                 </div>
                 {draft.commitConfirmEnabled && (
                   <div className="flex items-center gap-3 pl-6">
                     <Label htmlFor="commitConfirmMinutes" className="whitespace-nowrap text-sm">
-                      Confirm window
+                      {t("instanceModal.confirmWindow")}
                     </Label>
                     <Input
                       id="commitConfirmMinutes"
@@ -269,7 +274,7 @@ export function InstanceModal({
                       disabled={loading}
                       className="w-20"
                     />
-                    <span className="text-sm text-muted-foreground">minutes</span>
+                    <span className="text-sm text-muted-foreground">{t("instanceModal.minutes")}</span>
                   </div>
                 )}
               </div>
@@ -287,23 +292,23 @@ export function InstanceModal({
 
               <div className="space-y-2">
                 <Label htmlFor="host" className="required">
-                  Host
+                  {t("host")}
                 </Label>
                 <Input
                   id="host"
                   value={draft.host}
                   onChange={(e) => patch({ host: e.target.value })}
-                  placeholder="192.168.1.1, 2001:db8::1, or vyos.example.com"
+                  placeholder={t("instanceModal.hostPlaceholder")}
                   disabled={loading}
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  IP address (IPv4 or IPv6) or hostname of the VyOS device
+                  {t("instanceModal.hostHint")}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="port">{isEdit ? "API Port" : "Port"}</Label>
+                <Label htmlFor="port">{isEdit ? t("instanceModal.apiPort") : t("port")}</Label>
                 <Input
                   id="port"
                   type="number"
@@ -318,13 +323,13 @@ export function InstanceModal({
 
               {isEdit ? (
                 <div className="rounded-lg border border-border bg-muted/50 p-4 space-y-3">
-                  <p className="text-sm font-medium">Update API Credentials (Optional)</p>
+                  <p className="text-sm font-medium">{t("instanceModal.updateCredentials")}</p>
                   <p className="text-xs text-muted-foreground">
-                    Leave blank to keep existing credentials
+                    {t("instanceModal.keepCredentialsHint")}
                   </p>
 
                   <div className="space-y-2">
-                    <Label htmlFor="protocol">Protocol</Label>
+                    <Label htmlFor="protocol">{t("instanceModal.protocol")}</Label>
                     <Select
                       value={draft.protocol}
                       onValueChange={(value) => patch({ protocol: value })}
@@ -341,13 +346,13 @@ export function InstanceModal({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="apiKey">New API Key</Label>
+                    <Label htmlFor="apiKey">{t("instanceModal.newApiKey")}</Label>
                     <Input
                       id="apiKey"
                       type="password"
                       value={draft.apiKey}
                       onChange={(e) => patch({ apiKey: e.target.value })}
-                      placeholder="Leave blank to keep existing"
+                      placeholder={t("instanceModal.apiKeyKeepPlaceholder")}
                       disabled={loading}
                     />
                   </div>
@@ -360,14 +365,14 @@ export function InstanceModal({
                       disabled={loading}
                     />
                     <Label htmlFor="verifySsl" className="cursor-pointer">
-                      Verify SSL certificate
+                      {t("instanceModal.verifySsl")}
                     </Label>
                   </div>
                 </div>
               ) : (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="protocol">Protocol</Label>
+                    <Label htmlFor="protocol">{t("instanceModal.protocol")}</Label>
                     <Select
                       value={draft.protocol}
                       onValueChange={(value) => patch({ protocol: value })}
@@ -385,19 +390,19 @@ export function InstanceModal({
 
                   <div className="space-y-2">
                     <Label htmlFor="apiKey" className="required">
-                      API Key
+                      {t("instanceModal.apiKey")}
                     </Label>
                     <Input
                       id="apiKey"
                       type="password"
                       value={draft.apiKey}
                       onChange={(e) => patch({ apiKey: e.target.value })}
-                      placeholder="VyOS API key"
+                      placeholder={t("instanceModal.apiKeyPlaceholder")}
                       disabled={loading}
                       required
                     />
                     <p className="text-xs text-muted-foreground">
-                      API key from VyOS configuration
+                      {t("instanceModal.apiKeyHint")}
                     </p>
                   </div>
 
@@ -409,14 +414,14 @@ export function InstanceModal({
                       disabled={loading}
                     />
                     <Label htmlFor="verifySsl" className="cursor-pointer">
-                      Verify SSL certificate
+                      {t("instanceModal.verifySsl")}
                     </Label>
                   </div>
                 </>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="timeout">API Timeout (seconds)</Label>
+                <Label htmlFor="timeout">{t("instanceModal.timeout")}</Label>
                 <Input
                   id="timeout"
                   type="number"
@@ -428,7 +433,7 @@ export function InstanceModal({
                   disabled={loading}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Timeout for API requests to the VyOS device (1-300 seconds)
+                  {t("instanceModal.timeoutHint")}
                 </p>
               </div>
             </TabsContent>
@@ -436,7 +441,7 @@ export function InstanceModal({
             <TabsContent value="ssh" className="space-y-4 mt-4">
               <div className={isEdit ? "grid grid-cols-2 gap-4" : "space-y-4"}>
                 <div className="space-y-2">
-                  <Label htmlFor="sshUsername">SSH Username</Label>
+                  <Label htmlFor="sshUsername">{t("instanceModal.sshUsername")}</Label>
                   <Input
                     id="sshUsername"
                     value={draft.sshUsername}
@@ -446,12 +451,12 @@ export function InstanceModal({
                   />
                   {!isEdit && (
                     <p className="text-xs text-muted-foreground">
-                      SSH username for monitoring connections (defaults to &quot;vyos&quot;)
+                      {t("instanceModal.sshUsernameHint")}
                     </p>
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="sshPort">SSH Port</Label>
+                  <Label htmlFor="sshPort">{t("instanceModal.sshPort")}</Label>
                   <Input
                     id="sshPort"
                     type="number"
@@ -467,17 +472,16 @@ export function InstanceModal({
 
               {!isEdit && (
                 <p className="text-xs text-muted-foreground">
-                  SSH settings are used for real-time monitoring features. You can
-                  configure SSH keys after creating the instance.
+                  {t("instanceModal.sshHint")}
                 </p>
               )}
 
               {isEdit && existing && (
                 isAdmin ? (
                   <div className="border-t pt-4">
-                    <p className="text-sm font-medium mb-1">SSH Key</p>
+                    <p className="text-sm font-medium mb-1">{t("instanceModal.sshKey")}</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      Generate an SSH keypair. This device installs the public key over the API.
+                      {t("instanceModal.sshKeyHint")}
                     </p>
                     <SSHKeySetup
                       instanceId={existing.id}
@@ -487,7 +491,7 @@ export function InstanceModal({
                 ) : (
                   <div className="rounded-lg border bg-muted/50 p-3 border-t mt-2">
                     <p className="text-sm text-muted-foreground">
-                      SSH key management requires site Admin access.
+                      {t("instanceModal.sshKeyAdminOnly")}
                     </p>
                   </div>
                 )
@@ -502,18 +506,18 @@ export function InstanceModal({
               onClick={() => onOpenChange(false)}
               disabled={loading}
             >
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button type="submit" disabled={loading}>
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  {isEdit ? "Saving..." : "Creating..."}
+                  {isEdit ? tc("saving") : t("creating")}
                 </>
               ) : isEdit ? (
-                "Save Changes"
+                t("saveChanges")
               ) : (
-                "Create Instance"
+                t("instanceModal.createButton")
               )}
             </Button>
           </DialogFooter>

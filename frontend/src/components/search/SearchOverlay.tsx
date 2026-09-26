@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Search, X, Star, ArrowRight, Command, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import { SearchResultIcon } from "@/lib/search/icon-resolver";
 import type { SearchResult, SearchEntityKind, SearchFilters, SearchColumn } from "@/lib/search/types";
 import { getResultTypeLabel, humanizeKind } from "@/lib/search/labels";
 import { getUnifiedViewSelection } from "@/lib/search/unified-view";
+import { useNavTitle } from "@/i18n/nav-title";
 
 const FEATURE_COLORS: Record<string, string> = {
   Firewall: "bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/25",
@@ -72,6 +74,8 @@ interface SearchOverlayProps {
 }
 
 export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
+  const t = useTranslations("search");
+  const navTitle = useNavTitle();
   const router = useRouter();
   const { openUnifiedView } = useUnifiedView();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -188,7 +192,7 @@ export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
                 setQuery(e.target.value);
                 setSelectedIndex(-1);
               }}
-              placeholder="Search pages, rules, interfaces, NAT, BGP, HAProxy…"
+              placeholder={t("placeholder")}
               className="border-0 bg-transparent text-base shadow-none focus-visible:ring-0 h-11 px-0"
             />
             {isIndexing && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground shrink-0" />}
@@ -203,7 +207,7 @@ export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
           {/* Filters */}
           <div className="scrollbar-themed flex shrink-0 flex-wrap items-center gap-2 px-4 py-2 border-b border-border/40 bg-muted/30 max-h-24 overflow-y-auto">
             <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mr-1">
-              Filter
+              {t("filter")}
             </span>
             <button
               type="button"
@@ -215,7 +219,7 @@ export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
                   : "border-border hover:bg-accent"
               )}
             >
-              All
+              {t("all")}
             </button>
             {facets.features.map((f) => (
               <button
@@ -229,7 +233,7 @@ export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
                     : "border-border hover:bg-accent"
                 )}
               >
-                {f}
+                {navTitle(f)}
               </button>
             ))}
 
@@ -238,7 +242,7 @@ export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
               onChange={(e) => setKindFilter((e.target.value || null) as SearchEntityKind | null)}
               className="ml-auto h-7 rounded-md border border-border bg-background px-2 text-xs"
             >
-              <option value="">All types</option>
+              <option value="">{t("allTypes")}</option>
               {facets.kinds.map((k) => (
                 <option key={k} value={k}>
                   {humanizeKind(k)}
@@ -249,7 +253,7 @@ export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
 
           {/* Column toggles */}
           <div className="flex shrink-0 flex-wrap gap-1.5 px-4 py-1.5 border-b border-border/30 text-[11px]">
-            <span className="text-muted-foreground mr-1 self-center">Columns:</span>
+            <span className="text-muted-foreground mr-1 self-center">{t("columnsLabel")}</span>
             {(["title", "context", "kind", "description"] as SearchColumn[]).map((col) => (
               <button
                 key={col}
@@ -262,7 +266,7 @@ export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                {col}
+                {t(`columns.${col}`)}
               </button>
             ))}
           </div>
@@ -272,20 +276,20 @@ export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
             {!indexReady ? (
               <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Building search index…
+                {t("buildingIndex")}
               </div>
             ) : displayResults.length === 0 ? (
               <div className="py-12 text-center text-sm text-muted-foreground">
                 {query.trim()
-                  ? "No results found"
-                  : "Start typing to find what you are looking for"}
+                  ? t("noResults")
+                  : t("startTyping")}
               </div>
             ) : (
               <div className="p-2">
                 {!query.trim() && (
                   <p className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-muted-foreground">
                     <Star className="h-3.5 w-3.5 text-amber-400" />
-                    Starred
+                    {t("starred")}
                   </p>
                 )}
                 {displayResults.map((result, index) => {
@@ -311,7 +315,9 @@ export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
                       <div className="min-w-0 flex-1 grid gap-0.5">
                         <div className="flex flex-wrap items-center gap-2">
                           {visibleColumns.has("title") && (
-                            <span className="text-sm font-medium leading-tight">{result.title}</span>
+                            <span className="text-sm font-medium leading-tight">
+                              {result.kind === "page" ? navTitle(result.title) : result.title}
+                            </span>
                           )}
                           {visibleColumns.has("context") && result.subtitle && (
                             <span className="text-xs text-muted-foreground truncate max-w-[280px]">
@@ -322,7 +328,7 @@ export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
                             variant="outline"
                             className={cn("text-[10px] px-1.5 py-0 h-5 border", color)}
                           >
-                            {result.feature}
+                            {navTitle(result.feature)}
                           </Badge>
                           {visibleColumns.has("kind") && (
                             <span className="text-[10px] text-muted-foreground">
@@ -346,7 +352,7 @@ export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
                             e.stopPropagation();
                             toggleFavorite(result.id);
                           }}
-                          aria-label={result.starred ? "Remove favorite" : "Add favorite"}
+                          aria-label={result.starred ? t("removeFavorite") : t("addFavorite")}
                         >
                           <Star
                             className={cn(
@@ -368,13 +374,13 @@ export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
 
           <div className="flex shrink-0 items-center justify-between border-t border-border/40 px-4 py-2 text-[11px] text-muted-foreground bg-muted/20">
             <span className="flex items-center gap-1">
-              <Command className="h-3 w-3" />K to open
+              <Command className="h-3 w-3" />{t("toOpen")}
             </span>
             <span>
               {displayResults.length > 0 && query.trim()
-                ? `${displayResults.length} result${displayResults.length === 1 ? "" : "s"} · `
+                ? t("resultCount", { count: displayResults.length })
                 : ""}
-              ↑↓ navigate · Enter open · ★ save
+              {t("shortcuts")}
             </span>
           </div>
         </div>

@@ -1,0 +1,6 @@
+{
+  "title": "语言",
+  "description": "选择 VyManager 在此浏览器上的显示语言。",
+  "browserDefault": "跟随浏览器",
+  "browserDefaultHint": "使用浏览器的语言设置"
+}
