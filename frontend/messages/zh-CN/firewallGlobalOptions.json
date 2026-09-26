@@ -1,1 +1,94 @@
-{}
+{
+  "title": "全局选项",
+  "subtitle": "配置防火墙全局设置",
+  "reset": "重置",
+  "saveChanges": "保存更改",
+  "unsavedChanges": "你有未保存的更改",
+  "loadFailed": "加载全局选项失败",
+  "saveSuccess": "配置已保存",
+  "saveFailed": "保存配置失败",
+  "options": {
+    "notSetDefault": "未设置（默认）",
+    "notSet": "未设置",
+    "enable": "启用",
+    "disable": "禁用",
+    "accept": "接受",
+    "drop": "丢弃",
+    "reject": "拒绝",
+    "strict": "严格",
+    "loose": "宽松",
+    "emerg": "紧急",
+    "alert": "警报",
+    "crit": "严重",
+    "err": "错误",
+    "warn": "警告",
+    "notice": "通知",
+    "info": "信息",
+    "debug": "调试"
+  },
+  "icmp": {
+    "title": "ICMP 设置",
+    "allPing": "全部 Ping",
+    "allPingDesc": "接受/拒绝所有 IPv4 ICMP 回显请求",
+    "broadcastPing": "广播 Ping",
+    "broadcastPingDesc": "接受/拒绝广播 Ping"
+  },
+  "sourceRouting": {
+    "title": "源路由",
+    "ipv4": "IPv4 源路由",
+    "ipv6": "IPv6 源路由"
+  },
+  "redirects": {
+    "title": "ICMP 重定向",
+    "receiveIpv4": "接收重定向（IPv4）",
+    "receiveIpv6": "接收重定向（IPv6）",
+    "send": "发送重定向"
+  },
+  "security": {
+    "title": "安全选项",
+    "logMartians": "记录火星包",
+    "logMartiansDesc": "记录地址不可能存在的数据包",
+    "sourceValidation": "源地址验证",
+    "sourceValidationDesc": "反向路径过滤模式",
+    "synCookies": "SYN Cookies",
+    "synCookiesDesc": "SYN 洪泛防护",
+    "twaHazards": "TWA 风险防护",
+    "twaHazardsDesc": "RFC1337 TIME-WAIT 防护"
+  },
+  "dns": {
+    "title": "DNS 解析器",
+    "resolverCache": "解析器缓存",
+    "resolverCacheDesc": "域名解析失败时保留上次解析结果",
+    "resolverInterval": "解析器间隔（秒）",
+    "resolverIntervalDesc": "域名解析器更新间隔（10-3600，默认 300）"
+  },
+  "statePolicies": {
+    "title": "状态策略",
+    "established": "已建立",
+    "invalid": "无效",
+    "related": "相关",
+    "action": "动作",
+    "logLevel": "日志级别",
+    "log": "记录日志"
+  },
+  "bridged": {
+    "title": "桥接流量",
+    "ipv4": "应用于 IPv4 桥接流量",
+    "ipv6": "应用于 IPv6 桥接流量"
+  },
+  "timeouts": {
+    "title": "连接超时",
+    "icmp": "ICMP（秒）",
+    "other": "其他（秒）",
+    "established": "已建立",
+    "close": "关闭",
+    "closeWait": "Close Wait",
+    "finWait": "FIN Wait",
+    "lastAck": "Last ACK",
+    "synRecv": "SYN Recv",
+    "synSent": "SYN Sent",
+    "timeWait": "TIME Wait",
+    "stream": "流",
+    "udpOther": "其他"
+  }
+}
