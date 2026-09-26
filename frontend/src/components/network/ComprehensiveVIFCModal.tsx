@@ -26,6 +26,7 @@ import { ethernetService } from "@/lib/api/ethernet";
 import type { EthernetCapabilities, VIFConfig, BatchOperation, VlanBatchService, VlanParentInterface } from "@/lib/api/types/ethernet";
 import { Loader2, X } from "lucide-react";
 import { InterfaceSelect } from "@/components/ui/interface-select";
+import { useTranslations } from "next-intl";
 
 interface VIFCWithParent extends VIFConfig {
   parentInterface: string;
@@ -55,6 +56,8 @@ export function ComprehensiveVIFCModal({
   mode,
   service = ethernetService,
 }: ComprehensiveVIFCModalProps) {
+  const t = useTranslations("vlan");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -402,23 +405,23 @@ export function ComprehensiveVIFCModal({
 
     try {
       if (mode === "create") {
-        if (!parentInterface.trim()) throw new Error("Parent interface is required");
-        if (!sVlanId.trim()) throw new Error("Parent S-VLAN is required");
-        if (!cVlanId.trim()) throw new Error("Customer VLAN ID is required");
+        if (!parentInterface.trim()) throw new Error(t("errors.parentRequired"));
+        if (!sVlanId.trim()) throw new Error(t("vifC.sVlanRequired"));
+        if (!cVlanId.trim()) throw new Error(t("vifC.cVlanIdRequired"));
         const cVidNum = parseInt(cVlanId);
-        if (isNaN(cVidNum) || cVidNum < 1 || cVidNum > 4094) throw new Error("Customer VLAN ID must be between 1 and 4094");
+        if (isNaN(cVidNum) || cVidNum < 1 || cVidNum > 4094) throw new Error(t("vifC.cVlanIdRange"));
         const operations = buildOperations();
         await service.batchConfigure({ interface: parentInterface, operations });
       } else {
         const operations = buildOperations();
-        if (operations.length === 0) { setError("No changes detected"); setLoading(false); return; }
+        if (operations.length === 0) { setError(t("errors.noChanges")); setLoading(false); return; }
         await service.batchConfigure({ interface: vlan!.parentInterface, operations });
       }
       await service.refreshConfig();
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : `Failed to ${mode} VIF-C`);
+      setError(err instanceof Error ? err.message : (mode === "create" ? t("vifC.createFailed") : t("vifC.editFailed")));
     } finally {
       setLoading(false);
     }
@@ -431,12 +434,12 @@ export function ComprehensiveVIFCModal({
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {mode === "create" ? "Create QinQ Customer VLAN (VIF-C)" : `Edit VIF-C: ${vlan?.fullName}`}
+            {mode === "create" ? t("vifC.createTitle") : t("vifC.editTitle", { name: vlan?.fullName ?? "" })}
           </DialogTitle>
           <DialogDescription>
             {mode === "create"
-              ? "Configure a new QinQ customer VLAN sub-interface under an existing service VLAN"
-              : "Modify the configuration of this QinQ customer VLAN"}
+              ? t("vifC.createDescription")
+              : t("vifC.editDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -447,8 +450,8 @@ export function ComprehensiveVIFCModal({
 
           <Tabs defaultValue="basic" className="w-full">
             <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="basic">Basic</TabsTrigger>
-              <TabsTrigger value="advanced">Advanced</TabsTrigger>
+              <TabsTrigger value="basic">{t("tabs.basic")}</TabsTrigger>
+              <TabsTrigger value="advanced">{t("tabs.advanced")}</TabsTrigger>
               <TabsTrigger value="ip">IP</TabsTrigger>
               <TabsTrigger value="ipv6">IPv6</TabsTrigger>
               <TabsTrigger value="dhcp">DHCP</TabsTrigger>
@@ -459,19 +462,19 @@ export function ComprehensiveVIFCModal({
               {mode === "create" && (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="parent-interface">Parent Interface <span className="text-destructive">*</span></Label>
+                    <Label htmlFor="parent-interface">{t("fields.parentInterface")} <span className="text-destructive">*</span></Label>
                     <InterfaceSelect
                       value={parentInterface}
                       onValueChange={(v) => { setParentInterface(v); setSVlanId(""); }}
                       id="parent-interface"
                       interfaces={interfaces.map((i) => ({ name: i.name, type: "", description: i.description ?? null }))}
-                      placeholder="Select parent interface"
+                      placeholder={t("fields.selectParentInterface")}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="s-vlan">Parent S-VLAN <span className="text-destructive">*</span></Label>
+                    <Label htmlFor="s-vlan">{t("vifC.parentSVlan")} <span className="text-destructive">*</span></Label>
                     <Select value={sVlanId || undefined} onValueChange={setSVlanId} disabled={!parentInterface}>
-                      <SelectTrigger id="s-vlan"><SelectValue placeholder={parentInterface ? "Select S-VLAN" : "Select parent interface first"} /></SelectTrigger>
+                      <SelectTrigger id="s-vlan"><SelectValue placeholder={parentInterface ? t("vifC.selectSVlan") : t("vifC.selectParentFirst")} /></SelectTrigger>
                       <SelectContent>
                         {availableSVlans.map((sv) => (
                           <SelectItem key={sv.vlan_id} value={sv.vlan_id}>
@@ -481,47 +484,47 @@ export function ComprehensiveVIFCModal({
                       </SelectContent>
                     </Select>
                     {parentInterface && availableSVlans.length === 0 && (
-                      <p className="text-xs text-muted-foreground text-amber-600">No VIF-S found on {parentInterface}. Create a service VLAN first.</p>
+                      <p className="text-xs text-muted-foreground text-amber-600">{t("vifC.noVifS", { parent: parentInterface })}</p>
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="c-vlan-id">Customer VLAN ID <span className="text-destructive">*</span></Label>
+                    <Label htmlFor="c-vlan-id">{t("vifC.customerVlanId")} <span className="text-destructive">*</span></Label>
                     <Input id="c-vlan-id" type="number" min="1" max="4094" placeholder="200" value={cVlanId} onChange={(e) => setCVlanId(e.target.value)} required />
-                    <p className="text-xs text-muted-foreground">Valid range: 1-4094</p>
+                    <p className="text-xs text-muted-foreground">{t("fields.validRange")}</p>
                   </div>
                 </>
               )}
               {mode === "edit" && (
                 <div className="space-y-2">
-                  <Label>VIF-C Interface</Label>
+                  <Label>{t("vifC.interface")}</Label>
                   <Input value={vlan?.fullName} disabled className="font-mono" />
-                  <p className="text-xs text-muted-foreground">Parent: {vlan?.parentInterface} | S-VLAN: {vlan?.sVlanId} | C-VLAN: {vlan?.vlan_id}</p>
+                  <p className="text-xs text-muted-foreground">{t("vifC.parentInfo", { parent: vlan?.parentInterface ?? "", sVlan: vlan?.sVlanId ?? "", cVlan: vlan?.vlan_id ?? "" })}</p>
                 </div>
               )}
               {feat?.vif_description && (
                 <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Input id="description" placeholder="Customer VLAN" value={description} onChange={(e) => setDescription(e.target.value)} />
+                  <Label htmlFor="description">{tc("description")}</Label>
+                  <Input id="description" placeholder={t("vifC.descriptionPlaceholder")} value={description} onChange={(e) => setDescription(e.target.value)} />
                 </div>
               )}
               {feat?.vif_address && (
                 <div className="space-y-2">
-                  <Label>IP Addresses</Label>
+                  <Label>{t("fields.ipAddresses")}</Label>
                   {addresses.map((address, index) => (
                     <div key={index} className="flex gap-2">
-                      <Input placeholder="10.0.0.1/24 or 2001:db8::1/64" value={address} onChange={(e) => handleAddressChange(index, e.target.value)} />
+                      <Input placeholder={t("fields.addressPlaceholder")} value={address} onChange={(e) => handleAddressChange(index, e.target.value)} />
                       {addresses.length > 0 && (
                         <Button type="button" variant="outline" size="sm" onClick={() => handleRemoveAddress(index)}><X className="h-4 w-4" /></Button>
                       )}
                     </div>
                   ))}
-                  <Button type="button" variant="outline" size="sm" onClick={handleAddAddress}>Add Address</Button>
+                  <Button type="button" variant="outline" size="sm" onClick={handleAddAddress}>{t("fields.addAddress")}</Button>
                 </div>
               )}
               {feat?.vif_disable && (
                 <div className="flex items-center space-x-2">
                   <Checkbox id="disable" checked={disabled} onCheckedChange={(checked) => setDisabled(checked as boolean)} />
-                  <Label htmlFor="disable" className="cursor-pointer">Administratively disable VIF-C</Label>
+                  <Label htmlFor="disable" className="cursor-pointer">{t("vifC.disable")}</Label>
                 </div>
               )}
             </TabsContent>
@@ -537,7 +540,7 @@ export function ComprehensiveVIFCModal({
                 )}
                 {feat?.vif_mac && (
                   <div className="space-y-2">
-                    <Label htmlFor="mac">MAC Address</Label>
+                    <Label htmlFor="mac">{t("fields.macAddress")}</Label>
                     <Input id="mac" placeholder="00:11:22:33:44:55" value={mac} onChange={(e) => setMac(e.target.value)} />
                   </div>
                 )}
@@ -549,22 +552,22 @@ export function ComprehensiveVIFCModal({
                 )}
                 {feat?.vif_redirect && (
                   <div className="space-y-2">
-                    <Label htmlFor="redirect">Redirect</Label>
+                    <Label htmlFor="redirect">{t("fields.redirect")}</Label>
                     <Input id="redirect" placeholder="eth1" value={redirect} onChange={(e) => setRedirect(e.target.value)} />
-                    <p className="text-xs text-muted-foreground">Redirect traffic to another interface</p>
+                    <p className="text-xs text-muted-foreground">{t("fields.redirectHelp")}</p>
                   </div>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 {(feat?.vif_c_egress_qos ?? feat?.vif_egress_qos) && (
                   <div className="space-y-2">
-                    <Label htmlFor="egress-qos">Egress QoS</Label>
+                    <Label htmlFor="egress-qos">{t("fields.egressQos")}</Label>
                     <Input id="egress-qos" placeholder="0:0 1:1 2:2" value={egressQos} onChange={(e) => setEgressQos(e.target.value)} />
                   </div>
                 )}
                 {(feat?.vif_c_ingress_qos ?? feat?.vif_ingress_qos) && (
                   <div className="space-y-2">
-                    <Label htmlFor="ingress-qos">Ingress QoS</Label>
+                    <Label htmlFor="ingress-qos">{t("fields.ingressQos")}</Label>
                     <Input id="ingress-qos" placeholder="0:0 1:1 2:2" value={ingressQos} onChange={(e) => setIngressQos(e.target.value)} />
                   </div>
                 )}
@@ -572,11 +575,11 @@ export function ComprehensiveVIFCModal({
               {feat?.vif_mirror && (
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="mirror-ingress">Mirror Ingress</Label>
+                    <Label htmlFor="mirror-ingress">{t("fields.mirrorIngress")}</Label>
                     <Input id="mirror-ingress" placeholder="eth1" value={mirrorIngress} onChange={(e) => setMirrorIngress(e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="mirror-egress">Mirror Egress</Label>
+                    <Label htmlFor="mirror-egress">{t("fields.mirrorEgress")}</Label>
                     <Input id="mirror-egress" placeholder="eth1" value={mirrorEgress} onChange={(e) => setMirrorEgress(e.target.value)} />
                   </div>
                 </div>
@@ -584,7 +587,7 @@ export function ComprehensiveVIFCModal({
               {feat?.vif_disable_link_detect && (
                 <div className="flex items-center space-x-2">
                   <Checkbox id="disable-link-detect" checked={disableLinkDetect} onCheckedChange={(checked) => setDisableLinkDetect(checked as boolean)} />
-                  <Label htmlFor="disable-link-detect" className="cursor-pointer">Disable link detection</Label>
+                  <Label htmlFor="disable-link-detect" className="cursor-pointer">{t("fields.disableLinkDetect")}</Label>
                 </div>
               )}
             </TabsContent>
@@ -593,79 +596,79 @@ export function ComprehensiveVIFCModal({
             <TabsContent value="ip" className="space-y-4">
               {feat?.vif_ip && (
                 <>
-                  <h3 className="text-sm font-semibold">IPv4 Settings</h3>
+                  <h3 className="text-sm font-semibold">{t("fields.ipv4Settings")}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     {feat?.vif_ip_adjust_mss && (
                       <div className="space-y-2">
-                        <Label htmlFor="ip-adjust-mss">Adjust MSS</Label>
-                        <Input id="ip-adjust-mss" placeholder="1400 or clamp-mss-to-pmtu" value={ipAdjustMss} onChange={(e) => setIpAdjustMss(e.target.value)} />
+                        <Label htmlFor="ip-adjust-mss">{t("fields.adjustMss")}</Label>
+                        <Input id="ip-adjust-mss" placeholder={t("fields.adjustMssPlaceholder")} value={ipAdjustMss} onChange={(e) => setIpAdjustMss(e.target.value)} />
                       </div>
                     )}
                     {feat?.vif_ip_arp_cache_timeout && (
                       <div className="space-y-2">
-                        <Label htmlFor="ip-arp-cache-timeout">ARP Cache Timeout</Label>
+                        <Label htmlFor="ip-arp-cache-timeout">{t("fields.arpCacheTimeout")}</Label>
                         <Input id="ip-arp-cache-timeout" type="number" placeholder="30" value={ipArpCacheTimeout} onChange={(e) => setIpArpCacheTimeout(e.target.value)} />
                       </div>
                     )}
                     {feat?.vif_ip_source_validation && (
                       <div className="space-y-2">
-                        <Label htmlFor="ip-source-validation">Source Validation</Label>
+                        <Label htmlFor="ip-source-validation">{t("fields.sourceValidation")}</Label>
                         <Select value={ipSourceValidation || "__none__"} onValueChange={(v) => setIpSourceValidation(v === "__none__" ? "" : v)}>
-                          <SelectTrigger id="ip-source-validation"><SelectValue placeholder="Select mode" /></SelectTrigger>
+                          <SelectTrigger id="ip-source-validation"><SelectValue placeholder={t("fields.selectMode")} /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="__none__">None</SelectItem>
-                            <SelectItem value="strict">Strict</SelectItem>
-                            <SelectItem value="loose">Loose</SelectItem>
-                            <SelectItem value="disable">Disable</SelectItem>
+                            <SelectItem value="__none__">{tc("none")}</SelectItem>
+                            <SelectItem value="strict">{t("fields.strict")}</SelectItem>
+                            <SelectItem value="loose">{t("fields.loose")}</SelectItem>
+                            <SelectItem value="disable">{t("fields.disable")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                     )}
                   </div>
                   <div className="space-y-3">
-                    <h4 className="text-sm font-medium text-muted-foreground">ARP / Forwarding Flags</h4>
+                    <h4 className="text-sm font-medium text-muted-foreground">{t("fields.arpForwardingFlags")}</h4>
                     <div className="grid grid-cols-2 gap-3">
                       {feat?.vif_ip_disable_arp_filter && (
                         <div className="flex items-center space-x-2">
                           <Checkbox id="ip-disable-arp-filter" checked={ipDisableArpFilter} onCheckedChange={(c) => setIpDisableArpFilter(c as boolean)} />
-                          <Label htmlFor="ip-disable-arp-filter" className="cursor-pointer text-sm">Disable ARP Filter</Label>
+                          <Label htmlFor="ip-disable-arp-filter" className="cursor-pointer text-sm">{t("fields.disableArpFilter")}</Label>
                         </div>
                       )}
                       <div className="flex items-center space-x-2">
                         <Checkbox id="ip-disable-forwarding" checked={ipDisableForwarding} onCheckedChange={(c) => setIpDisableForwarding(c as boolean)} />
-                        <Label htmlFor="ip-disable-forwarding" className="cursor-pointer text-sm">Disable Forwarding</Label>
+                        <Label htmlFor="ip-disable-forwarding" className="cursor-pointer text-sm">{t("fields.disableForwarding")}</Label>
                       </div>
                       {feat?.vif_ip_enable_arp_accept && (
                         <div className="flex items-center space-x-2">
                           <Checkbox id="ip-enable-arp-accept" checked={ipEnableArpAccept} onCheckedChange={(c) => setIpEnableArpAccept(c as boolean)} />
-                          <Label htmlFor="ip-enable-arp-accept" className="cursor-pointer text-sm">Enable ARP Accept</Label>
+                          <Label htmlFor="ip-enable-arp-accept" className="cursor-pointer text-sm">{t("fields.enableArpAccept")}</Label>
                         </div>
                       )}
                       {feat?.vif_ip_enable_arp_announce && (
                         <div className="flex items-center space-x-2">
                           <Checkbox id="ip-enable-arp-announce" checked={ipEnableArpAnnounce} onCheckedChange={(c) => setIpEnableArpAnnounce(c as boolean)} />
-                          <Label htmlFor="ip-enable-arp-announce" className="cursor-pointer text-sm">Enable ARP Announce</Label>
+                          <Label htmlFor="ip-enable-arp-announce" className="cursor-pointer text-sm">{t("fields.enableArpAnnounce")}</Label>
                         </div>
                       )}
                       {feat?.vif_ip_enable_arp_ignore && (
                         <div className="flex items-center space-x-2">
                           <Checkbox id="ip-enable-arp-ignore" checked={ipEnableArpIgnore} onCheckedChange={(c) => setIpEnableArpIgnore(c as boolean)} />
-                          <Label htmlFor="ip-enable-arp-ignore" className="cursor-pointer text-sm">Enable ARP Ignore</Label>
+                          <Label htmlFor="ip-enable-arp-ignore" className="cursor-pointer text-sm">{t("fields.enableArpIgnore")}</Label>
                         </div>
                       )}
                       {feat?.vif_ip_enable_directed_broadcast && (
                         <div className="flex items-center space-x-2">
                           <Checkbox id="ip-enable-directed-broadcast" checked={ipEnableDirectedBroadcast} onCheckedChange={(c) => setIpEnableDirectedBroadcast(c as boolean)} />
-                          <Label htmlFor="ip-enable-directed-broadcast" className="cursor-pointer text-sm">Enable Directed Broadcast</Label>
+                          <Label htmlFor="ip-enable-directed-broadcast" className="cursor-pointer text-sm">{t("fields.enableDirectedBroadcast")}</Label>
                         </div>
                       )}
                       <div className="flex items-center space-x-2">
                         <Checkbox id="ip-enable-proxy-arp" checked={ipEnableProxyArp} onCheckedChange={(c) => setIpEnableProxyArp(c as boolean)} />
-                        <Label htmlFor="ip-enable-proxy-arp" className="cursor-pointer text-sm">Enable Proxy ARP</Label>
+                        <Label htmlFor="ip-enable-proxy-arp" className="cursor-pointer text-sm">{t("fields.enableProxyArp")}</Label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Checkbox id="ip-proxy-arp-pvlan" checked={ipProxyArpPvlan} onCheckedChange={(c) => setIpProxyArpPvlan(c as boolean)} />
-                        <Label htmlFor="ip-proxy-arp-pvlan" className="cursor-pointer text-sm">Proxy ARP Private VLAN</Label>
+                        <Label htmlFor="ip-proxy-arp-pvlan" className="cursor-pointer text-sm">{t("fields.proxyArpPvlan")}</Label>
                       </div>
                     </div>
                   </div>
@@ -677,72 +680,72 @@ export function ComprehensiveVIFCModal({
             <TabsContent value="ipv6" className="space-y-4">
               {feat?.vif_ipv6 && (
                 <>
-                  <h3 className="text-sm font-semibold">IPv6 Settings</h3>
+                  <h3 className="text-sm font-semibold">{t("fields.ipv6Settings")}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="ipv6-eui64">EUI-64 Prefix</Label>
+                      <Label htmlFor="ipv6-eui64">{t("fields.eui64Prefix")}</Label>
                       <Input id="ipv6-eui64" placeholder="2001:db8::/64" value={ipv6Eui64} onChange={(e) => setIpv6Eui64(e.target.value)} />
                     </div>
                     {feat?.vif_ipv6_adjust_mss && (
                       <div className="space-y-2">
-                        <Label htmlFor="ipv6-adjust-mss">Adjust MSS</Label>
-                        <Input id="ipv6-adjust-mss" placeholder="1400 or clamp-mss-to-pmtu" value={ipv6AdjustMss} onChange={(e) => setIpv6AdjustMss(e.target.value)} />
+                        <Label htmlFor="ipv6-adjust-mss">{t("fields.adjustMss")}</Label>
+                        <Input id="ipv6-adjust-mss" placeholder={t("fields.adjustMssPlaceholder")} value={ipv6AdjustMss} onChange={(e) => setIpv6AdjustMss(e.target.value)} />
                       </div>
                     )}
                     {feat?.vif_ipv6_accept_dad && (
                       <div className="space-y-2">
-                        <Label htmlFor="ipv6-accept-dad">Accept DAD</Label>
+                        <Label htmlFor="ipv6-accept-dad">{t("fields.acceptDad")}</Label>
                         <Input id="ipv6-accept-dad" type="number" placeholder="0-2" value={ipv6AcceptDad} onChange={(e) => setIpv6AcceptDad(e.target.value)} />
                       </div>
                     )}
                     {feat?.vif_ipv6_base_reachable_time && (
                       <div className="space-y-2">
-                        <Label htmlFor="ipv6-base-reachable-time">Base Reachable Time</Label>
+                        <Label htmlFor="ipv6-base-reachable-time">{t("fields.baseReachableTime")}</Label>
                         <Input id="ipv6-base-reachable-time" type="number" placeholder="30" value={ipv6BaseReachableTime} onChange={(e) => setIpv6BaseReachableTime(e.target.value)} />
                       </div>
                     )}
                     {feat?.vif_ipv6_dup_addr_detect_transmits && (
                       <div className="space-y-2">
-                        <Label htmlFor="ipv6-dad-transmits">DAD Transmits</Label>
+                        <Label htmlFor="ipv6-dad-transmits">{t("fields.dadTransmits")}</Label>
                         <Input id="ipv6-dad-transmits" type="number" placeholder="1" value={ipv6DupAddrDetectTransmits} onChange={(e) => setIpv6DupAddrDetectTransmits(e.target.value)} />
                       </div>
                     )}
                     {feat?.vif_ipv6_source_validation && (
                       <div className="space-y-2">
-                        <Label htmlFor="ipv6-source-validation">Source Validation</Label>
+                        <Label htmlFor="ipv6-source-validation">{t("fields.sourceValidation")}</Label>
                         <Select value={ipv6SourceValidation || "__none__"} onValueChange={(v) => setIpv6SourceValidation(v === "__none__" ? "" : v)}>
-                          <SelectTrigger id="ipv6-source-validation"><SelectValue placeholder="Select mode" /></SelectTrigger>
+                          <SelectTrigger id="ipv6-source-validation"><SelectValue placeholder={t("fields.selectMode")} /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="__none__">None</SelectItem>
-                            <SelectItem value="strict">Strict</SelectItem>
-                            <SelectItem value="loose">Loose</SelectItem>
-                            <SelectItem value="disable">Disable</SelectItem>
+                            <SelectItem value="__none__">{tc("none")}</SelectItem>
+                            <SelectItem value="strict">{t("fields.strict")}</SelectItem>
+                            <SelectItem value="loose">{t("fields.loose")}</SelectItem>
+                            <SelectItem value="disable">{t("fields.disable")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                     )}
                     {feat?.vif_ipv6_address_interface_identifier && (
                       <div className="space-y-2">
-                        <Label htmlFor="ipv6-interface-id">Interface Identifier</Label>
+                        <Label htmlFor="ipv6-interface-id">{t("fields.interfaceIdentifier")}</Label>
                         <Input id="ipv6-interface-id" placeholder="::1" value={ipv6InterfaceIdentifier} onChange={(e) => setIpv6InterfaceIdentifier(e.target.value)} />
                       </div>
                     )}
                   </div>
                   <div className="space-y-3">
-                    <h4 className="text-sm font-medium text-muted-foreground">IPv6 Flags</h4>
+                    <h4 className="text-sm font-medium text-muted-foreground">{t("fields.ipv6Flags")}</h4>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="flex items-center space-x-2">
                         <Checkbox id="ipv6-autoconf" checked={ipv6Autoconf} onCheckedChange={(c) => setIpv6Autoconf(c as boolean)} />
-                        <Label htmlFor="ipv6-autoconf" className="cursor-pointer text-sm">Enable Autoconfig (SLAAC)</Label>
+                        <Label htmlFor="ipv6-autoconf" className="cursor-pointer text-sm">{t("fields.enableAutoconf")}</Label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Checkbox id="ipv6-disable-forwarding" checked={ipv6DisableForwarding} onCheckedChange={(c) => setIpv6DisableForwarding(c as boolean)} />
-                        <Label htmlFor="ipv6-disable-forwarding" className="cursor-pointer text-sm">Disable Forwarding</Label>
+                        <Label htmlFor="ipv6-disable-forwarding" className="cursor-pointer text-sm">{t("fields.disableForwarding")}</Label>
                       </div>
                       {feat?.vif_ipv6_address_no_default_link_local && (
                         <div className="flex items-center space-x-2">
                           <Checkbox id="ipv6-no-default-link-local" checked={ipv6NoDefaultLinkLocal} onCheckedChange={(c) => setIpv6NoDefaultLinkLocal(c as boolean)} />
-                          <Label htmlFor="ipv6-no-default-link-local" className="cursor-pointer text-sm">No Default Link-Local</Label>
+                          <Label htmlFor="ipv6-no-default-link-local" className="cursor-pointer text-sm">{t("fields.noDefaultLinkLocal")}</Label>
                         </div>
                       )}
                     </div>
@@ -755,39 +758,39 @@ export function ComprehensiveVIFCModal({
             <TabsContent value="dhcp" className="space-y-4">
               {feat?.vif_dhcp_options && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-semibold">DHCP Options</h3>
+                  <h3 className="text-sm font-semibold">{t("fields.dhcpOptions")}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="dhcp-client-id">Client ID</Label>
+                      <Label htmlFor="dhcp-client-id">{t("fields.clientId")}</Label>
                       <Input id="dhcp-client-id" placeholder="client-identifier" value={dhcpClientId} onChange={(e) => setDhcpClientId(e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="dhcp-hostname">Host Name</Label>
+                      <Label htmlFor="dhcp-hostname">{t("fields.hostName")}</Label>
                       <Input id="dhcp-hostname" placeholder="my-host" value={dhcpHostName} onChange={(e) => setDhcpHostName(e.target.value)} />
                     </div>
                     {feat?.vif_dhcp_options_default_route_distance && (
                       <div className="space-y-2">
-                        <Label htmlFor="dhcp-default-route-distance">Default Route Distance</Label>
+                        <Label htmlFor="dhcp-default-route-distance">{t("fields.defaultRouteDistance")}</Label>
                         <Input id="dhcp-default-route-distance" type="number" placeholder="210" value={dhcpDefaultRouteDistance} onChange={(e) => setDhcpDefaultRouteDistance(e.target.value)} />
                       </div>
                     )}
                     {feat?.vif_dhcp_options_vendor_class_id && (
                       <div className="space-y-2">
-                        <Label htmlFor="dhcp-vendor-class-id">Vendor Class ID</Label>
+                        <Label htmlFor="dhcp-vendor-class-id">{t("fields.vendorClassId")}</Label>
                         <Input id="dhcp-vendor-class-id" placeholder="vendor-class" value={dhcpVendorClassId} onChange={(e) => setDhcpVendorClassId(e.target.value)} />
                       </div>
                     )}
                     {feat?.vif_dhcp_options_user_class && (
                       <div className="space-y-2">
-                        <Label htmlFor="dhcp-user-class">User Class</Label>
+                        <Label htmlFor="dhcp-user-class">{t("fields.userClass")}</Label>
                         <Input id="dhcp-user-class" placeholder="user-class" value={dhcpUserClass} onChange={(e) => setDhcpUserClass(e.target.value)} />
                       </div>
                     )}
                     {feat?.vif_dhcp_options_reject && (
                       <div className="space-y-2">
-                        <Label htmlFor="dhcp-reject">Reject Addresses</Label>
+                        <Label htmlFor="dhcp-reject">{t("fields.rejectAddresses")}</Label>
                         <Input id="dhcp-reject" placeholder="192.168.1.1,10.0.0.1" value={dhcpReject} onChange={(e) => setDhcpReject(e.target.value)} />
-                        <p className="text-xs text-muted-foreground">Comma-separated IP addresses to reject</p>
+                        <p className="text-xs text-muted-foreground">{t("fields.rejectHelp")}</p>
                       </div>
                     )}
                   </div>
@@ -795,13 +798,13 @@ export function ComprehensiveVIFCModal({
                     {feat?.vif_dhcp_options_mtu && (
                       <div className="flex items-center space-x-2">
                         <Checkbox id="dhcp-mtu" checked={dhcpMtu} onCheckedChange={(c) => setDhcpMtu(c as boolean)} />
-                        <Label htmlFor="dhcp-mtu" className="cursor-pointer text-sm">Use DHCP-provided MTU</Label>
+                        <Label htmlFor="dhcp-mtu" className="cursor-pointer text-sm">{t("fields.useDhcpMtu")}</Label>
                       </div>
                     )}
                     {feat?.vif_dhcp_options_no_default_route && (
                       <div className="flex items-center space-x-2">
                         <Checkbox id="dhcp-no-default-route" checked={dhcpNoDefaultRoute} onCheckedChange={(c) => setDhcpNoDefaultRoute(c as boolean)} />
-                        <Label htmlFor="dhcp-no-default-route" className="cursor-pointer text-sm">No Default Route</Label>
+                        <Label htmlFor="dhcp-no-default-route" className="cursor-pointer text-sm">{t("fields.noDefaultRoute")}</Label>
                       </div>
                     )}
                   </div>
@@ -809,40 +812,40 @@ export function ComprehensiveVIFCModal({
               )}
               {feat?.vif_dhcpv6_options && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-semibold">DHCPv6 Options</h3>
+                  <h3 className="text-sm font-semibold">{t("fields.dhcpv6Options")}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="dhcpv6-duid">DUID</Label>
-                      <Input id="dhcpv6-duid" placeholder="DUID string" value={dhcpv6Duid} onChange={(e) => setDhcpv6Duid(e.target.value)} />
+                      <Input id="dhcpv6-duid" placeholder={t("fields.duidPlaceholder")} value={dhcpv6Duid} onChange={(e) => setDhcpv6Duid(e.target.value)} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex items-center space-x-2">
                       <Checkbox id="dhcpv6-no-release" checked={dhcpv6NoRelease} onCheckedChange={(c) => setDhcpv6NoRelease(c as boolean)} />
-                      <Label htmlFor="dhcpv6-no-release" className="cursor-pointer text-sm">No Release</Label>
+                      <Label htmlFor="dhcpv6-no-release" className="cursor-pointer text-sm">{t("fields.noRelease")}</Label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Checkbox id="dhcpv6-parameters-only" checked={dhcpv6ParametersOnly} onCheckedChange={(c) => setDhcpv6ParametersOnly(c as boolean)} />
-                      <Label htmlFor="dhcpv6-parameters-only" className="cursor-pointer text-sm">Parameters Only</Label>
+                      <Label htmlFor="dhcpv6-parameters-only" className="cursor-pointer text-sm">{t("fields.parametersOnly")}</Label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Checkbox id="dhcpv6-rapid-commit" checked={dhcpv6RapidCommit} onCheckedChange={(c) => setDhcpv6RapidCommit(c as boolean)} />
-                      <Label htmlFor="dhcpv6-rapid-commit" className="cursor-pointer text-sm">Rapid Commit</Label>
+                      <Label htmlFor="dhcpv6-rapid-commit" className="cursor-pointer text-sm">{t("fields.rapidCommit")}</Label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Checkbox id="dhcpv6-temporary" checked={dhcpv6Temporary} onCheckedChange={(c) => setDhcpv6Temporary(c as boolean)} />
-                      <Label htmlFor="dhcpv6-temporary" className="cursor-pointer text-sm">Temporary Address</Label>
+                      <Label htmlFor="dhcpv6-temporary" className="cursor-pointer text-sm">{t("fields.temporaryAddress")}</Label>
                     </div>
                     {feat?.vif_dhcpv6_options_no_request_dns && (
                       <div className="flex items-center space-x-2">
                         <Checkbox id="dhcpv6-no-request-dns" checked={dhcpv6NoRequestDns} onCheckedChange={(c) => setDhcpv6NoRequestDns(c as boolean)} />
-                        <Label htmlFor="dhcpv6-no-request-dns" className="cursor-pointer text-sm">No Request DNS</Label>
+                        <Label htmlFor="dhcpv6-no-request-dns" className="cursor-pointer text-sm">{t("fields.noRequestDns")}</Label>
                       </div>
                     )}
                     {feat?.vif_dhcpv6_options_no_request_domain_name && (
                       <div className="flex items-center space-x-2">
                         <Checkbox id="dhcpv6-no-request-domain-name" checked={dhcpv6NoRequestDomainName} onCheckedChange={(c) => setDhcpv6NoRequestDomainName(c as boolean)} />
-                        <Label htmlFor="dhcpv6-no-request-domain-name" className="cursor-pointer text-sm">No Request Domain</Label>
+                        <Label htmlFor="dhcpv6-no-request-domain-name" className="cursor-pointer text-sm">{t("fields.noRequestDomain")}</Label>
                       </div>
                     )}
                   </div>
@@ -852,10 +855,10 @@ export function ComprehensiveVIFCModal({
           </Tabs>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {mode === "create" ? "Create VIF-C" : "Save Changes"}
+              {mode === "create" ? t("vifC.create") : t("saveChanges")}
             </Button>
           </DialogFooter>
         </form>
