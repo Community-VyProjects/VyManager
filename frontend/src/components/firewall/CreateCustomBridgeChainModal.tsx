@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,8 @@ export function CreateCustomBridgeChainModal({
   onOpenChange,
   onSuccess,
 }: CreateCustomBridgeChainModalProps) {
+  const t = useTranslations("firewallBridge");
+  const tc = useTranslations("common");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,17 +53,17 @@ export function CreateCustomBridgeChainModal({
 
   const validateChainName = (name: string): string | null => {
     if (!name) {
-      return "Chain name is required";
+      return t("createChain.nameRequired");
     }
     if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(name)) {
-      return "Chain name must start with a letter and contain only letters, numbers, underscores, and hyphens";
+      return t("createChain.nameInvalid");
     }
     if (name.length > 28) {
-      return "Chain name must be 28 characters or less";
+      return t("createChain.nameTooLong");
     }
     const reserved = ["forward", "input", "output", "prerouting"];
     if (reserved.includes(name.toLowerCase())) {
-      return "Cannot use reserved chain names (forward, input, output, prerouting)";
+      return t("createChain.nameReserved");
     }
     return null;
   };
@@ -85,10 +88,10 @@ export function CreateCustomBridgeChainModal({
         resetForm();
         onSuccess();
       } else {
-        setError(response.error || "Failed to create custom chain");
+        setError(response.error || t("createChain.createFailed"));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create custom chain");
+      setError(err instanceof Error ? err.message : t("createChain.createFailed"));
     } finally {
       setSaving(false);
     }
@@ -98,9 +101,9 @@ export function CreateCustomBridgeChainModal({
     <Dialog open={open} onOpenChange={(o) => { if (!o) resetForm(); onOpenChange(o); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Create Custom Chain</DialogTitle>
+          <DialogTitle>{t("createChain.title")}</DialogTitle>
           <DialogDescription>
-            Create a new custom bridge firewall chain. Custom chains can be used as jump targets from base chains.
+            {t("createChain.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -113,38 +116,38 @@ export function CreateCustomBridgeChainModal({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="chainName">Chain Name *</Label>
+            <Label htmlFor="chainName">{t("createChain.chainName")}</Label>
             <Input
               id="chainName"
-              placeholder="e.g., my-custom-chain"
+              placeholder={t("createChain.chainNamePlaceholder")}
               value={chainName}
               onChange={(e) => setChainName(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Must start with a letter. Only letters, numbers, underscores, and hyphens allowed.
+              {t("createChain.chainNameHelp")}
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{tc("description")}</Label>
             <Input
               id="description"
-              placeholder="Optional description"
+              placeholder={t("createChain.descriptionPlaceholder")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="defaultAction">Default Action</Label>
+            <Label htmlFor="defaultAction">{t("createChain.defaultAction")}</Label>
             <Select value={defaultAction} onValueChange={setDefaultAction}>
               <SelectTrigger>
-                <SelectValue placeholder="Not Set" />
+                <SelectValue placeholder={t("actionOptions.notSet")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="_none_">Not Set</SelectItem>
-                <SelectItem value="accept">Accept</SelectItem>
-                <SelectItem value="drop">Drop</SelectItem>
+                <SelectItem value="_none_">{t("actionOptions.notSet")}</SelectItem>
+                <SelectItem value="accept">{t("actionOptions.accept")}</SelectItem>
+                <SelectItem value="drop">{t("actionOptions.drop")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -152,16 +155,16 @@ export function CreateCustomBridgeChainModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={saving}>
             {saving ? (
               <>
                 <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" />
-                Creating...
+                {t("creating")}
               </>
             ) : (
-              "Create Chain"
+              t("createChain.createChain")
             )}
           </Button>
         </DialogFooter>

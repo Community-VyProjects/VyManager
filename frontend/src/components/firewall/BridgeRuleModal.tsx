@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -46,22 +47,34 @@ interface BridgeRuleModalProps {
 
 // Rate limit units
 const RATE_UNITS = [
-  { value: "second", label: "/second" },
-  { value: "minute", label: "/minute" },
-  { value: "hour", label: "/hour" },
-  { value: "day", label: "/day" },
-];
+  { value: "second" },
+  { value: "minute" },
+  { value: "hour" },
+  { value: "day" },
+] as const;
 
 // Weekday options - VyOS requires full names
 const WEEKDAYS = [
-  { value: "Monday", label: "Mon" },
-  { value: "Tuesday", label: "Tue" },
-  { value: "Wednesday", label: "Wed" },
-  { value: "Thursday", label: "Thu" },
-  { value: "Friday", label: "Fri" },
-  { value: "Saturday", label: "Sat" },
-  { value: "Sunday", label: "Sun" },
-];
+  { value: "Monday" },
+  { value: "Tuesday" },
+  { value: "Wednesday" },
+  { value: "Thursday" },
+  { value: "Friday" },
+  { value: "Saturday" },
+  { value: "Sunday" },
+] as const;
+
+// 802.1p priority code point names, indexed by priority 0-7
+const PCP_KEYS = [
+  "bestEffort",
+  "background",
+  "spare",
+  "excellentEffort",
+  "controlledLoad",
+  "video",
+  "voice",
+  "networkControl",
+] as const;
 
 const parseRateLimit = (rate: string | null | undefined): { value: string; unit: string } => {
   if (!rate) return { value: "", unit: "minute" };
@@ -100,6 +113,8 @@ export function BridgeRuleModal({
   onSuccess,
   existing,
 }: BridgeRuleModalProps) {
+  const t = useTranslations("firewallBridge");
+  const tc = useTranslations("common");
   const isEdit = !!existing;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -394,10 +409,10 @@ export function BridgeRuleModal({
       if (response.success) {
         onSuccess();
       } else {
-        setError(response.error || "Failed to update rule");
+        setError(response.error || t("ruleModal.updateFailed"));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update rule");
+      setError(err instanceof Error ? err.message : t("ruleModal.updateFailed"));
     } finally {
       setSaving(false);
     }
@@ -464,10 +479,10 @@ export function BridgeRuleModal({
         resetForm();
         onSuccess();
       } else {
-        setError(response.error || "Failed to create rule");
+        setError(response.error || t("ruleModal.createFailed"));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create rule");
+      setError(err instanceof Error ? err.message : t("ruleModal.createFailed"));
     } finally {
       setSaving(false);
     }
@@ -477,11 +492,11 @@ export function BridgeRuleModal({
     <Dialog open={open} onOpenChange={(o) => { if (!o) resetForm(); onOpenChange(o); }}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Bridge Firewall Rule" : "Create Bridge Firewall Rule"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("ruleModal.editTitle") : t("ruleModal.createTitle")}</DialogTitle>
           <DialogDescription>
             {isEdit
-              ? `Edit rule ${existing.rule_number} in the ${chain} chain`
-              : `Add a new rule to the ${chain} chain`}
+              ? t("ruleModal.editDescription", { number: String(existing.rule_number), chain })
+              : t("ruleModal.createDescription", { chain })}
           </DialogDescription>
         </DialogHeader>
 
@@ -494,11 +509,11 @@ export function BridgeRuleModal({
 
         <Tabs defaultValue="basic" className="w-full">
           <TabsList className="w-full flex-wrap h-auto">
-            <TabsTrigger value="basic" className="flex-1">Basic</TabsTrigger>
-            <TabsTrigger value="match" className="flex-1">Match</TabsTrigger>
-            {showIpPorts && <TabsTrigger value="ip" className="flex-1">IP/Ports</TabsTrigger>}
-            {showProtocol && <TabsTrigger value="protocol" className="flex-1">Protocol</TabsTrigger>}
-            {showAdvanced && <TabsTrigger value="advanced" className="flex-1">Advanced</TabsTrigger>}
+            <TabsTrigger value="basic" className="flex-1">{t("ruleModal.tabs.basic")}</TabsTrigger>
+            <TabsTrigger value="match" className="flex-1">{t("ruleModal.tabs.match")}</TabsTrigger>
+            {showIpPorts && <TabsTrigger value="ip" className="flex-1">{t("ruleModal.tabs.ipPorts")}</TabsTrigger>}
+            {showProtocol && <TabsTrigger value="protocol" className="flex-1">{t("ruleModal.tabs.protocol")}</TabsTrigger>}
+            {showAdvanced && <TabsTrigger value="advanced" className="flex-1">{t("ruleModal.tabs.advanced")}</TabsTrigger>}
           </TabsList>
 
           {/* Basic Tab */}
@@ -507,40 +522,46 @@ export function BridgeRuleModal({
               <p className="text-sm text-muted-foreground">
                 {isEdit ? (
                   <>
-                    Editing rule <span className="font-mono font-semibold text-foreground">#{existing.rule_number}</span>
-                    <span className="sr-only">Rule number cannot be changed</span>
+                    {t.rich("ruleModal.editingRule", {
+                      number: String(existing.rule_number),
+                      num: (chunks) => <span className="font-mono font-semibold text-foreground">{chunks}</span>,
+                    })}
+                    <span className="sr-only">{t("ruleModal.ruleNumberFixed")}</span>
                   </>
                 ) : (
                   <>
-                    Rule will be created as <span className="font-mono font-semibold text-foreground">#{getNextRuleNumber()}</span>
+                    {t.rich("ruleModal.willBeCreatedAs", {
+                      number: String(getNextRuleNumber()),
+                      num: (chunks) => <span className="font-mono font-semibold text-foreground">{chunks}</span>,
+                    })}
                   </>
                 )}
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="action">Action *</Label>
+              <Label htmlFor="action">{t("ruleModal.actionRequired")}</Label>
               <Select value={action} onValueChange={setAction}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="accept">Accept</SelectItem>
-                  <SelectItem value="drop">Drop</SelectItem>
+                  <SelectItem value="accept">{t("actionOptions.accept")}</SelectItem>
+                  <SelectItem value="drop">{t("actionOptions.drop")}</SelectItem>
                   {firewallActionSupported(capabilities, "continue") && (
-                    <SelectItem value="continue">Continue</SelectItem>
+                    <SelectItem value="continue">{t("actionOptions.continue")}</SelectItem>
                   )}
                   {firewallActionSupported(capabilities, "jump") && (
-                    <SelectItem value="jump">Jump</SelectItem>
+                    <SelectItem value="jump">{t("actionOptions.jump")}</SelectItem>
                   )}
                   {firewallActionSupported(capabilities, "return") && (
-                    <SelectItem value="return">Return</SelectItem>
+                    <SelectItem value="return">{t("actionOptions.return")}</SelectItem>
                   )}
                   {firewallActionSupported(capabilities, "queue") && (
-                    <SelectItem value="queue">Queue</SelectItem>
+                    <SelectItem value="queue">{t("actionOptions.queue")}</SelectItem>
                   )}
                   {firewallActionSupported(capabilities, "notrack") && (
-                    <SelectItem value="notrack">No Track</SelectItem>
+                    <SelectItem value="notrack">{t("actionOptions.notrack")}</SelectItem>
                   )}
                 </SelectContent>
               </Select>
@@ -548,10 +569,10 @@ export function BridgeRuleModal({
 
             {action === "jump" && (
               <div className="space-y-2">
-                <Label htmlFor="jumpTarget">Jump Target Chain *</Label>
+                <Label htmlFor="jumpTarget">{t("ruleModal.jumpTarget")}</Label>
                 <Input
                   id="jumpTarget"
-                  placeholder="Custom chain name"
+                  placeholder={t("ruleModal.jumpTargetPlaceholder")}
                   value={jumpTarget}
                   onChange={(e) => setJumpTarget(e.target.value)}
                 />
@@ -560,10 +581,10 @@ export function BridgeRuleModal({
 
             {action === "queue" && firewallActionSupported(capabilities, "queue") && (
               <div className="space-y-2">
-                <Label htmlFor="queue">Queue Number</Label>
+                <Label htmlFor="queue">{t("ruleModal.queueNumber")}</Label>
                 <Input
                   id="queue"
-                  placeholder="Queue number (0-65535)"
+                  placeholder={t("ruleModal.queuePlaceholder")}
                   value={queue}
                   onChange={(e) => setQueue(e.target.value)}
                 />
@@ -571,10 +592,10 @@ export function BridgeRuleModal({
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{tc("description")}</Label>
               <Input
                 id="description"
-                placeholder="Rule description"
+                placeholder={t("ruleModal.descriptionPlaceholder")}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
@@ -587,7 +608,7 @@ export function BridgeRuleModal({
                   checked={log}
                   onCheckedChange={(c) => setLog(c === true)}
                 />
-                <Label htmlFor="log" className="font-normal">Enable logging</Label>
+                <Label htmlFor="log" className="font-normal">{t("ruleModal.enableLogging")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox
@@ -595,7 +616,7 @@ export function BridgeRuleModal({
                   checked={disabled}
                   onCheckedChange={(c) => setDisabled(c === true)}
                 />
-                <Label htmlFor="disabled" className="font-normal">{isEdit ? "Disabled" : "Create disabled"}</Label>
+                <Label htmlFor="disabled" className="font-normal">{isEdit ? tc("disabled") : t("ruleModal.createDisabled")}</Label>
               </div>
             </div>
           </TabsContent>
@@ -603,22 +624,22 @@ export function BridgeRuleModal({
           {/* Match Tab - Layer 2 matching */}
           <TabsContent value="match" className="space-y-4 mt-4">
             <div className="space-y-4">
-              <h4 className="text-sm font-medium">MAC Address</h4>
+              <h4 className="text-sm font-medium">{t("ruleModal.macAddress")}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="sourceMac">Source MAC</Label>
+                  <Label htmlFor="sourceMac">{t("ruleModal.sourceMac")}</Label>
                   <Input
                     id="sourceMac"
-                    placeholder="e.g., 00:11:22:33:44:55"
+                    placeholder={t("ruleModal.macPlaceholder")}
                     value={sourceMac}
                     onChange={(e) => setSourceMac(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="destinationMac">Destination MAC</Label>
+                  <Label htmlFor="destinationMac">{t("ruleModal.destinationMac")}</Label>
                   <Input
                     id="destinationMac"
-                    placeholder="e.g., 00:11:22:33:44:55"
+                    placeholder={t("ruleModal.macPlaceholder")}
                     value={destinationMac}
                     onChange={(e) => setDestinationMac(e.target.value)}
                   />
@@ -640,7 +661,7 @@ export function BridgeRuleModal({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="vlanPriority">VLAN Priority</Label>
+                  <Label htmlFor="vlanPriority">{t("ruleModal.vlanPriority")}</Label>
                   <Input
                     id="vlanPriority"
                     type="number"
@@ -653,32 +674,32 @@ export function BridgeRuleModal({
             </div>
 
             <div className="space-y-4">
-              <h4 className="text-sm font-medium">Interface</h4>
+              <h4 className="text-sm font-medium">{t("ruleModal.interface")}</h4>
               {loadingInterfaces ? (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm">Loading interfaces...</span>
+                  <span className="text-sm">{t("ruleModal.loadingInterfaces")}</span>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="inboundInterface">Inbound Interface</Label>
+                    <Label htmlFor="inboundInterface">{t("ruleModal.inboundInterface")}</Label>
                     <InterfaceSelect
                       value={inboundInterface || "_none_"}
                       onValueChange={(v) => setInboundInterface(v === "_none_" ? "" : v)}
                       interfaces={availableInterfaces.map((i) => ({ name: i.name, type: "", description: i.description ?? null }))}
-                      noneOption={{ label: "None", value: "_none_" }}
-                      placeholder="None"
+                      noneOption={{ label: tc("none"), value: "_none_" }}
+                      placeholder={tc("none")}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="outboundInterface">Outbound Interface</Label>
+                    <Label htmlFor="outboundInterface">{t("ruleModal.outboundInterface")}</Label>
                     <InterfaceSelect
                       value={outboundInterface || "_none_"}
                       onValueChange={(v) => setOutboundInterface(v === "_none_" ? "" : v)}
                       interfaces={availableInterfaces.map((i) => ({ name: i.name, type: "", description: i.description ?? null }))}
-                      noneOption={{ label: "None", value: "_none_" }}
-                      placeholder="None"
+                      noneOption={{ label: tc("none"), value: "_none_" }}
+                      placeholder={tc("none")}
                     />
                   </div>
                 </div>
@@ -687,13 +708,13 @@ export function BridgeRuleModal({
 
             {showEthernetType && (
               <div className="space-y-2">
-                <Label htmlFor="ethernetType">Ethernet Type</Label>
+                <Label htmlFor="ethernetType">{t("ruleModal.ethernetType")}</Label>
                 <Select value={ethernetType || "_any_"} onValueChange={(v) => setEthernetType(v === "_any_" ? "" : v)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Any" />
+                    <SelectValue placeholder={t("any")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="_any_">Any</SelectItem>
+                    <SelectItem value="_any_">{t("any")}</SelectItem>
                     <SelectItem value="arp">ARP</SelectItem>
                     <SelectItem value="ipv4">IPv4</SelectItem>
                     <SelectItem value="ipv6">IPv6</SelectItem>
@@ -707,14 +728,14 @@ export function BridgeRuleModal({
           {showIpPorts && (
             <TabsContent value="ip" className="space-y-4 mt-4">
               <div className="space-y-4">
-                <h4 className="text-sm font-medium">Source</h4>
+                <h4 className="text-sm font-medium">{t("ruleModal.source")}</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="sourceAddress">IP Address/Network</Label>
+                    <Label htmlFor="sourceAddress">{t("ruleModal.ipAddressNetwork")}</Label>
                     <div className="flex gap-2">
                       <Input
                         id="sourceAddress"
-                        placeholder="e.g., 192.168.1.0/24"
+                        placeholder={t("ruleModal.ipPlaceholder")}
                         value={sourceAddress}
                         onChange={(e) => setSourceAddress(e.target.value)}
                         className="flex-1"
@@ -727,15 +748,15 @@ export function BridgeRuleModal({
                         onCheckedChange={(c) => setSourceAddressNegate(c === true)}
                       />
                       <Label htmlFor="sourceAddressNegate" className="text-xs font-normal text-muted-foreground">
-                        Negate (match everything EXCEPT this address)
+                        {t("ruleModal.negate")}
                       </Label>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="sourcePort">Port(s)</Label>
+                    <Label htmlFor="sourcePort">{t("ruleModal.ports")}</Label>
                     <Input
                       id="sourcePort"
-                      placeholder="e.g., 80 or 80,443 or 1000-2000"
+                      placeholder={t("ruleModal.portPlaceholder")}
                       value={sourcePort}
                       onChange={(e) => setSourcePort(e.target.value)}
                     />
@@ -744,14 +765,14 @@ export function BridgeRuleModal({
               </div>
 
               <div className="space-y-4">
-                <h4 className="text-sm font-medium">Destination</h4>
+                <h4 className="text-sm font-medium">{t("ruleModal.destination")}</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="destinationAddress">IP Address/Network</Label>
+                    <Label htmlFor="destinationAddress">{t("ruleModal.ipAddressNetwork")}</Label>
                     <div className="flex gap-2">
                       <Input
                         id="destinationAddress"
-                        placeholder="e.g., 192.168.1.0/24"
+                        placeholder={t("ruleModal.ipPlaceholder")}
                         value={destinationAddress}
                         onChange={(e) => setDestinationAddress(e.target.value)}
                         className="flex-1"
@@ -764,15 +785,15 @@ export function BridgeRuleModal({
                         onCheckedChange={(c) => setDestinationAddressNegate(c === true)}
                       />
                       <Label htmlFor="destinationAddressNegate" className="text-xs font-normal text-muted-foreground">
-                        Negate (match everything EXCEPT this address)
+                        {t("ruleModal.negate")}
                       </Label>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="destinationPort">Port(s)</Label>
+                    <Label htmlFor="destinationPort">{t("ruleModal.ports")}</Label>
                     <Input
                       id="destinationPort"
-                      placeholder="e.g., 80 or 80,443 or 1000-2000"
+                      placeholder={t("ruleModal.portPlaceholder")}
                       value={destinationPort}
                       onChange={(e) => setDestinationPort(e.target.value)}
                     />
@@ -785,13 +806,13 @@ export function BridgeRuleModal({
           {showProtocol && (
             <TabsContent value="protocol" className="space-y-4 mt-4">
               <div className="space-y-2">
-                <Label htmlFor="protocol">Protocol</Label>
+                <Label htmlFor="protocol">{t("ruleModal.protocol")}</Label>
                 <Select value={protocol || "_any_"} onValueChange={(v) => setProtocol(v === "_any_" ? "" : v)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Any" />
+                    <SelectValue placeholder={t("any")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="_any_">Any</SelectItem>
+                    <SelectItem value="_any_">{t("any")}</SelectItem>
                     <SelectItem value="tcp">TCP</SelectItem>
                     <SelectItem value="udp">UDP</SelectItem>
                     <SelectItem value="icmp">ICMP</SelectItem>
@@ -807,8 +828,8 @@ export function BridgeRuleModal({
               {/* TCP Flags */}
               {(protocol === "tcp" || protocol === "tcp_udp") && (
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">TCP Flags</Label>
-                  <p className="text-xs text-muted-foreground mb-2">Match packets with these TCP flags set</p>
+                  <Label className="text-sm font-medium">{t("ruleModal.tcpFlags")}</Label>
+                  <p className="text-xs text-muted-foreground mb-2">{t("ruleModal.tcpFlagsHelp")}</p>
                   <div className="flex flex-wrap gap-4">
                     <div className="flex items-center gap-2">
                       <Checkbox id="tcpSyn" checked={tcpFlagsSyn} onCheckedChange={(c) => setTcpFlagsSyn(c === true)} />
@@ -834,24 +855,24 @@ export function BridgeRuleModal({
               {(protocol === "icmp" || protocol === "icmpv6") && (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="icmpTypeName">ICMP Type Name</Label>
+                    <Label htmlFor="icmpTypeName">{t("ruleModal.icmpTypeName")}</Label>
                     <Select value={icmpTypeName || "_any_"} onValueChange={(v) => setIcmpTypeName(v === "_any_" ? "" : v)}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Any" />
+                        <SelectValue placeholder={t("any")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="_any_">Any</SelectItem>
-                        <SelectItem value="echo-request">Echo Request (ping)</SelectItem>
-                        <SelectItem value="echo-reply">Echo Reply</SelectItem>
-                        <SelectItem value="destination-unreachable">Destination Unreachable</SelectItem>
-                        <SelectItem value="time-exceeded">Time Exceeded</SelectItem>
-                        <SelectItem value="parameter-problem">Parameter Problem</SelectItem>
+                        <SelectItem value="_any_">{t("any")}</SelectItem>
+                        <SelectItem value="echo-request">{t("ruleModal.icmpTypes.echoRequest")}</SelectItem>
+                        <SelectItem value="echo-reply">{t("ruleModal.icmpTypes.echoReply")}</SelectItem>
+                        <SelectItem value="destination-unreachable">{t("ruleModal.icmpTypes.destinationUnreachable")}</SelectItem>
+                        <SelectItem value="time-exceeded">{t("ruleModal.icmpTypes.timeExceeded")}</SelectItem>
+                        <SelectItem value="parameter-problem">{t("ruleModal.icmpTypes.parameterProblem")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="icmpType">ICMP Type (numeric)</Label>
+                      <Label htmlFor="icmpType">{t("ruleModal.icmpTypeNumeric")}</Label>
                       <Input
                         id="icmpType"
                         type="number"
@@ -861,7 +882,7 @@ export function BridgeRuleModal({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="icmpCode">ICMP Code</Label>
+                      <Label htmlFor="icmpCode">{t("ruleModal.icmpCode")}</Label>
                       <Input
                         id="icmpCode"
                         type="number"
@@ -876,24 +897,24 @@ export function BridgeRuleModal({
 
               {/* Connection Status */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Connection Status</Label>
-                <p className="text-xs text-muted-foreground mb-2">Match packets based on connection tracking state</p>
+                <Label className="text-sm font-medium">{t("ruleModal.connectionStatus")}</Label>
+                <p className="text-xs text-muted-foreground mb-2">{t("ruleModal.connectionStatusHelp")}</p>
                 <div className="flex flex-wrap gap-4">
                   <div className="flex items-center gap-2">
                     <Checkbox id="connNew" checked={connStatusNew} onCheckedChange={(c) => setConnStatusNew(c === true)} />
-                    <Label htmlFor="connNew" className="font-normal">New</Label>
+                    <Label htmlFor="connNew" className="font-normal">{t("ruleModal.connNew")}</Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <Checkbox id="connEstablished" checked={connStatusEstablished} onCheckedChange={(c) => setConnStatusEstablished(c === true)} />
-                    <Label htmlFor="connEstablished" className="font-normal">Established</Label>
+                    <Label htmlFor="connEstablished" className="font-normal">{t("ruleModal.connEstablished")}</Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <Checkbox id="connRelated" checked={connStatusRelated} onCheckedChange={(c) => setConnStatusRelated(c === true)} />
-                    <Label htmlFor="connRelated" className="font-normal">Related</Label>
+                    <Label htmlFor="connRelated" className="font-normal">{t("ruleModal.connRelated")}</Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <Checkbox id="connInvalid" checked={connStatusInvalid} onCheckedChange={(c) => setConnStatusInvalid(c === true)} />
-                    <Label htmlFor="connInvalid" className="font-normal">Invalid</Label>
+                    <Label htmlFor="connInvalid" className="font-normal">{t("ruleModal.connInvalid")}</Label>
                   </div>
                 </div>
               </div>
@@ -904,15 +925,15 @@ export function BridgeRuleModal({
             <TabsContent value="advanced" className="space-y-4 mt-4">
               {/* Rate Limiting */}
               <div className="space-y-4">
-                <h4 className="text-sm font-medium">Rate Limiting</h4>
+                <h4 className="text-sm font-medium">{t("ruleModal.rateLimiting")}</h4>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2 col-span-2">
-                    <Label htmlFor="limitRate">Rate Limit</Label>
+                    <Label htmlFor="limitRate">{t("ruleModal.rateLimit")}</Label>
                     <div className="flex gap-2">
                       <Input
                         id="limitRateValue"
                         type="number"
-                        placeholder="Number"
+                        placeholder={t("ruleModal.numberPlaceholder")}
                         min="1"
                         value={limitRateValue}
                         onChange={(e) => setLimitRateValue(e.target.value)}
@@ -925,16 +946,16 @@ export function BridgeRuleModal({
                         <SelectContent>
                           {RATE_UNITS.map((unit) => (
                             <SelectItem key={unit.value} value={unit.value}>
-                              {unit.label}
+                              {t(`ruleModal.rateUnits.${unit.value}`)}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
-                    <p className="text-xs text-muted-foreground">Maximum packets to match per time period</p>
+                    <p className="text-xs text-muted-foreground">{t("ruleModal.rateLimitHelp")}</p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="limitBurst">Burst Size</Label>
+                    <Label htmlFor="limitBurst">{t("ruleModal.burstSize")}</Label>
                     <Input
                       id="limitBurst"
                       type="number"
@@ -943,17 +964,17 @@ export function BridgeRuleModal({
                       value={limitBurst}
                       onChange={(e) => setLimitBurst(e.target.value)}
                     />
-                    <p className="text-xs text-muted-foreground">Burst allowance</p>
+                    <p className="text-xs text-muted-foreground">{t("ruleModal.burstHelp")}</p>
                   </div>
                 </div>
               </div>
 
               {/* Time-based Rules */}
               <div className="space-y-4">
-                <h4 className="text-sm font-medium">Time-based Rules</h4>
+                <h4 className="text-sm font-medium">{t("ruleModal.timeBasedRules")}</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="timeStarttime">Start Time</Label>
+                    <Label htmlFor="timeStarttime">{t("ruleModal.startTime")}</Label>
                     <Input
                       id="timeStarttime"
                       type="time"
@@ -962,7 +983,7 @@ export function BridgeRuleModal({
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="timeStoptime">Stop Time</Label>
+                    <Label htmlFor="timeStoptime">{t("ruleModal.stopTime")}</Label>
                     <Input
                       id="timeStoptime"
                       type="time"
@@ -972,7 +993,7 @@ export function BridgeRuleModal({
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Active Days</Label>
+                  <Label>{t("ruleModal.activeDays")}</Label>
                   <div className="flex flex-wrap gap-2">
                     {WEEKDAYS.map((day) => (
                       <Button
@@ -983,27 +1004,27 @@ export function BridgeRuleModal({
                         className="w-12"
                         onClick={() => toggleWeekday(day.value)}
                       >
-                        {day.label}
+                        {t(`ruleModal.weekdays.${day.value}`)}
                       </Button>
                     ))}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {selectedWeekdays.length === 0
-                      ? "No days selected (rule active every day)"
+                      ? t("ruleModal.noDaysSelected")
                       : selectedWeekdays.length === 7
-                        ? "Active every day"
-                        : `Active on: ${selectedWeekdays.join(", ")}`}
+                        ? t("ruleModal.activeEveryDay")
+                        : t("ruleModal.activeOn", { days: selectedWeekdays.join(", ") })}
                   </p>
                 </div>
               </div>
 
               {/* Packet Modifications */}
               <div className="space-y-4">
-                <h4 className="text-sm font-medium">Packet Modifications</h4>
-                <p className="text-xs text-muted-foreground">Modify packet fields when the rule matches</p>
+                <h4 className="text-sm font-medium">{t("ruleModal.packetModifications")}</h4>
+                <p className="text-xs text-muted-foreground">{t("ruleModal.packetModificationsHelp")}</p>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="modifyDscp">Set DSCP</Label>
+                    <Label htmlFor="modifyDscp">{t("ruleModal.setDscp")}</Label>
                     <Input
                       id="modifyDscp"
                       type="number"
@@ -1015,49 +1036,49 @@ export function BridgeRuleModal({
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="modifyMark">Set Mark</Label>
+                    <Label htmlFor="modifyMark">{t("ruleModal.setMark")}</Label>
                     <Input
                       id="modifyMark"
-                      placeholder="Packet mark value"
+                      placeholder={t("ruleModal.markPlaceholder")}
                       value={modifyMark}
                       onChange={(e) => setModifyMark(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="modifyVlanPriority">Set VLAN Priority</Label>
+                    <Label htmlFor="modifyVlanPriority">{t("ruleModal.setVlanPriority")}</Label>
                     <Select
                       value={modifyVlanPriority || "_none_"}
                       onValueChange={(v) => setModifyVlanPriority(v === "_none_" ? "" : v)}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="None" />
+                        <SelectValue placeholder={tc("none")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="_none_">None</SelectItem>
+                        <SelectItem value="_none_">{tc("none")}</SelectItem>
                         {[0, 1, 2, 3, 4, 5, 6, 7].map((p) => (
                           <SelectItem key={p} value={p.toString()}>
-                            {p} - {p === 0 ? "Best Effort" : p === 1 ? "Background" : p === 2 ? "Spare" : p === 3 ? "Excellent Effort" : p === 4 ? "Controlled Load" : p === 5 ? "Video" : p === 6 ? "Voice" : "Network Control"}
+                            {p} - {t(`ruleModal.pcp.${PCP_KEYS[p]}`)}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="modifyTcpMss">Set TCP MSS</Label>
+                    <Label htmlFor="modifyTcpMss">{t("ruleModal.setTcpMss")}</Label>
                     <Select
                       value={modifyTcpMss || "_none_"}
                       onValueChange={(v) => setModifyTcpMss(v === "_none_" ? "" : v)}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="None" />
+                        <SelectValue placeholder={tc("none")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="_none_">None</SelectItem>
-                        <SelectItem value="clamp-mss-to-pmtu">Clamp to PMTU (Recommended)</SelectItem>
-                        <SelectItem value="1460">1460 (Standard Ethernet)</SelectItem>
+                        <SelectItem value="_none_">{tc("none")}</SelectItem>
+                        <SelectItem value="clamp-mss-to-pmtu">{t("ruleModal.mssClamp")}</SelectItem>
+                        <SelectItem value="1460">{t("ruleModal.mss1460")}</SelectItem>
                         <SelectItem value="1440">1440 (PPPoE)</SelectItem>
-                        <SelectItem value="1400">1400 (VPN/Tunnels)</SelectItem>
-                        <SelectItem value="1360">1360 (Double Encapsulation)</SelectItem>
+                        <SelectItem value="1400">{t("ruleModal.mss1400")}</SelectItem>
+                        <SelectItem value="1360">{t("ruleModal.mss1360")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1069,18 +1090,18 @@ export function BridgeRuleModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={saving}>
             {saving ? (
               <>
                 <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" />
-                {isEdit ? "Saving..." : "Creating..."}
+                {isEdit ? tc("saving") : t("creating")}
               </>
             ) : isEdit ? (
-              "Save Changes"
+              t("ruleModal.saveChanges")
             ) : (
-              "Create Rule"
+              t("ruleModal.createRule")
             )}
           </Button>
         </DialogFooter>

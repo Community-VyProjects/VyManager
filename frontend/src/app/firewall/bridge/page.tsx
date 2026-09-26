@@ -32,6 +32,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import {
   DndContext,
   closestCenter,
@@ -86,6 +87,8 @@ const BRIDGE_COLUMNS: ColumnDef[] = [
 ];
 
 export default function BridgeFirewallPage() {
+  const t = useTranslations("firewallBridge");
+  const tc = useTranslations("common");
   const [config, setConfig] = useState<BridgeConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<BridgeCapabilities | null>(null);
   const [groups, setGroups] = useState<FirewallGroup[]>([]);
@@ -116,6 +119,23 @@ export default function BridgeFirewallPage() {
   // Column visibility
   const { visibleColumns, toggleColumn, visibleColumnCount, orderedColumns, visibleOrderedColumns, reorderColumns, resetToDefault } =
     useColumnVisibility("firewall-bridge-columns", BRIDGE_COLUMNS);
+  const columnLabels: Record<string, string> = {
+    source: t("columns.source"),
+    destination: t("columns.destination"),
+    protocol: t("columns.protocol"),
+    interface: t("columns.interface"),
+    description: t("columns.description"),
+    status: t("columns.status"),
+    log: t("columns.log"),
+    vlan: t("columns.vlan"),
+    ethernetType: t("columns.ethernetType"),
+    connectionState: t("columns.connectionState"),
+    limit: t("columns.limit"),
+    time: t("columns.time"),
+    icmpType: t("columns.icmpType"),
+    tcpFlags: t("columns.tcpFlags"),
+  };
+  const translatedOrderedColumns = orderedColumns.map((c) => ({ ...c, label: columnLabels[c.id] ?? c.label }));
 
   // DnD sensors
   const sensors = useSensors(
@@ -153,11 +173,11 @@ export default function BridgeFirewallPage() {
       setReorderedRules([]);
       setOriginalRules([]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load bridge firewall configuration");
+      setError(err instanceof Error ? err.message : t("page.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -234,14 +254,14 @@ export default function BridgeFirewallPage() {
     try {
       const response = await bridgeFirewallService.setChainDefaultAction(selectedChain, action);
       if (response.success) {
-        setSuccessMessage("Default action updated");
+        setSuccessMessage(t("page.defaultActionUpdated"));
         await loadData(true);
         setTimeout(() => setSuccessMessage(null), 3000);
       } else {
-        setError(response.error || "Failed to update default action");
+        setError(response.error || t("page.updateDefaultActionFailed"));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update default action");
+      setError(err instanceof Error ? err.message : t("page.updateDefaultActionFailed"));
     } finally {
       setSavingDefaultAction(false);
     }
@@ -249,28 +269,28 @@ export default function BridgeFirewallPage() {
 
   const handleCreateSuccess = () => {
     setCreateModalOpen(false);
-    setSuccessMessage("Rule created successfully");
+    setSuccessMessage(t("page.ruleCreated"));
     loadData(true);
     setTimeout(() => setSuccessMessage(null), 3000);
   };
 
   const handleEditSuccess = () => {
     setEditingRule(null);
-    setSuccessMessage("Rule updated successfully");
+    setSuccessMessage(t("page.ruleUpdated"));
     loadData(true);
     setTimeout(() => setSuccessMessage(null), 3000);
   };
 
   const handleDeleteSuccess = () => {
     setDeletingRule(null);
-    setSuccessMessage("Rule deleted successfully");
+    setSuccessMessage(t("page.ruleDeleted"));
     loadData(true);
     setTimeout(() => setSuccessMessage(null), 3000);
   };
 
   const handleCreateChainSuccess = () => {
     setCreateChainModalOpen(false);
-    setSuccessMessage("Custom chain created successfully");
+    setSuccessMessage(t("page.chainCreated"));
     loadData(true);
     setTimeout(() => setSuccessMessage(null), 3000);
   };
@@ -280,7 +300,7 @@ export default function BridgeFirewallPage() {
     // Switch to forward chain since the current chain was deleted
     setSelectedChain("forward");
     setIsCustomChain(false);
-    setSuccessMessage("Custom chain deleted successfully");
+    setSuccessMessage(t("page.chainDeleted"));
     loadData(true);
     setTimeout(() => setSuccessMessage(null), 3000);
   };
@@ -337,17 +357,17 @@ export default function BridgeFirewallPage() {
       const response = await bridgeFirewallService.reorderRules(selectedChain, rules);
 
       if (response.success) {
-        setSuccessMessage("Rules reordered successfully");
+        setSuccessMessage(t("page.rulesReordered"));
         setHasChanges(false);
         setReorderedRules([]);
         setOriginalRules([]);
         await loadData(true);
         setTimeout(() => setSuccessMessage(null), 3000);
       } else {
-        setError(response.error || "Failed to reorder rules");
+        setError(response.error || t("page.reorderFailed"));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to reorder rules");
+      setError(err instanceof Error ? err.message : t("page.reorderFailed"));
     } finally {
       setSavingReorder(false);
     }
@@ -383,9 +403,9 @@ export default function BridgeFirewallPage() {
                 <Network className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-foreground">Bridge Firewall</h1>
+                <h1 className="text-lg font-semibold text-foreground">{t("page.title")}</h1>
                 <p className="text-xs text-muted-foreground">
-                  {totalRules} rule{totalRules !== 1 ? "s" : ""} total
+                  {t("page.totalRules", { count: totalRules })}
                 </p>
               </div>
             </div>
@@ -395,7 +415,7 @@ export default function BridgeFirewallPage() {
             <ScrollArea className="flex-1">
               <div className="space-y-1 py-3">
                 <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1 mb-2">
-                  Base Chains
+                  {t("page.baseChains")}
                 </div>
 
                 {/* Forward chain - always available */}
@@ -511,14 +531,14 @@ export default function BridgeFirewallPage() {
                     <Separator className="my-4" />
                     <div className="flex items-center justify-between px-2 py-1 mb-2">
                       <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Custom Chains
+                        {t("page.customChains")}
                       </div>
                       <Button
                         variant="ghost"
                         size="sm"
                         className="h-6 w-6 p-0"
                         onClick={() => setCreateChainModalOpen(true)}
-                        title="Create custom chain"
+                        title={t("page.createCustomChain")}
                       >
                         <Plus className="h-4 w-4" />
                       </Button>
@@ -526,14 +546,14 @@ export default function BridgeFirewallPage() {
 
                     {customChains.length === 0 ? (
                       <div className="px-2 py-4 text-center">
-                        <p className="text-xs text-muted-foreground">No custom chains</p>
+                        <p className="text-xs text-muted-foreground">{t("page.noCustomChains")}</p>
                         <Button
                           variant="link"
                           size="sm"
                           className="text-xs mt-1"
                           onClick={() => setCreateChainModalOpen(true)}
                         >
-                          Create one
+                          {t("page.createOne")}
                         </Button>
                       </div>
                     ) : (
@@ -574,7 +594,7 @@ export default function BridgeFirewallPage() {
                                   e.stopPropagation();
                                   setDeletingChain(chain);
                                 }}
-                                title="Delete chain"
+                                title={t("page.deleteChain")}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
@@ -607,21 +627,21 @@ export default function BridgeFirewallPage() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                  <span>Firewall</span>
+                  <span>{t("page.breadcrumbFirewall")}</span>
                   <ChevronRight className="h-4 w-4" />
-                  <span>Bridge</span>
+                  <span>{t("page.breadcrumbBridge")}</span>
                   <ChevronRight className="h-4 w-4" />
                   <span className="text-foreground font-medium capitalize">
                     {selectedChain}
                   </span>
                   {isCustomChain && (
                     <Badge variant="outline" className="ml-2">
-                      Custom Chain
+                      {t("page.customChainBadge")}
                     </Badge>
                   )}
                 </div>
                 <h2 className="text-2xl font-bold text-foreground capitalize">
-                  {selectedChain} Chain
+                  {t("page.chainTitle", { chain: selectedChain })}
                 </h2>
               </div>
               <div className="flex items-center gap-2">
@@ -634,7 +654,7 @@ export default function BridgeFirewallPage() {
                   <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
                 </Button>
                 <ColumnToggleButton
-                  columns={orderedColumns}
+                  columns={translatedOrderedColumns}
                   visibleColumns={visibleColumns}
                   onToggle={toggleColumn}
                   onReorder={reorderColumns}
@@ -642,7 +662,7 @@ export default function BridgeFirewallPage() {
                 />
                 <Button onClick={() => setCreateModalOpen(true)} disabled={hasChanges}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Rule
+                  {t("page.addRule")}
                 </Button>
               </div>
             </div>
@@ -664,7 +684,7 @@ export default function BridgeFirewallPage() {
                   className="ml-auto h-6 px-2"
                   onClick={() => setError(null)}
                 >
-                  Dismiss
+                  {t("page.dismiss")}
                 </Button>
               </div>
             )}
@@ -674,29 +694,29 @@ export default function BridgeFirewallPage() {
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search rules..."
+                  placeholder={t("page.searchPlaceholder")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
                 />
               </div>
               <div className="text-sm text-muted-foreground">
-                {filteredRules.length} rule{filteredRules.length !== 1 ? "s" : ""}
+                {t("page.ruleCount", { count: filteredRules.length })}
               </div>
               <div className="flex items-center gap-2 ml-auto">
-                <span className="text-sm text-muted-foreground">Default Action:</span>
+                <span className="text-sm text-muted-foreground">{t("page.defaultActionLabel")}</span>
                 <Select
                   value={currentChain?.default_action || "not_set"}
                   onValueChange={handleDefaultActionChange}
                   disabled={savingDefaultAction || hasChanges}
                 >
                   <SelectTrigger className="w-[120px]">
-                    <SelectValue placeholder="Not Set" />
+                    <SelectValue placeholder={t("actionOptions.notSet")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="not_set">Not Set</SelectItem>
-                    <SelectItem value="accept">Accept</SelectItem>
-                    <SelectItem value="drop">Drop</SelectItem>
+                    <SelectItem value="not_set">{t("actionOptions.notSet")}</SelectItem>
+                    <SelectItem value="accept">{t("actionOptions.accept")}</SelectItem>
+                    <SelectItem value="drop">{t("actionOptions.drop")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -717,7 +737,7 @@ export default function BridgeFirewallPage() {
                     <TableRow className="hover:bg-transparent">
                       <TableHead className="w-10"></TableHead>
                       <TableHead className="w-14">#</TableHead>
-                      <TableHead className="w-24">Action</TableHead>
+                      <TableHead className="w-24">{t("page.tableAction")}</TableHead>
                       {visibleOrderedColumns.map((col) => {
                         if (col.id === "protocol" && !showProtocol) return null;
                         const widths: Record<string, string> = {
@@ -735,11 +755,11 @@ export default function BridgeFirewallPage() {
                         };
                         return (
                           <TableHead key={col.id} className={widths[col.id] ?? ""}>
-                            {col.label}
+                            {columnLabels[col.id] ?? col.label}
                           </TableHead>
                         );
                       })}
-                      <TableHead className="w-28 text-right">Actions</TableHead>
+                      <TableHead className="w-28 text-right">{tc("actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -749,10 +769,10 @@ export default function BridgeFirewallPage() {
                           <div className="flex flex-col items-center justify-center text-center">
                             <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
                             <p className="text-sm font-medium text-foreground">
-                              {searchQuery ? "No matching rules" : "No rules configured"}
+                              {searchQuery ? t("page.noMatchingRules") : t("page.noRulesConfigured")}
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
-                              {searchQuery ? "Try adjusting your search" : "Add a rule to get started"}
+                              {searchQuery ? t("page.tryAdjustingSearch") : t("page.addRuleToStart")}
                             </p>
                           </div>
                         </TableCell>
