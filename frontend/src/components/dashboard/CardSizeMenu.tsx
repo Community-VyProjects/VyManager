@@ -1,6 +1,7 @@
 "use client";
 
 import { Settings } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,10 +13,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DEFAULT_HEIGHT, HEIGHT_PRESETS } from "@/lib/dashboard-layout";
 
-const WIDTH_PRESETS: { label: string; value: number }[] = [
-  { label: "Small (1 column)", value: 1 },
-  { label: "Medium (2 columns)", value: 2 },
-  { label: "Large (3 columns)", value: 3 },
+const WIDTH_PRESETS: { id: "small" | "medium" | "large"; value: number }[] = [
+  { id: "small", value: 1 },
+  { id: "medium", value: 2 },
+  { id: "large", value: 3 },
 ];
 
 interface CardSizeMenuProps {
@@ -35,6 +36,7 @@ export function CardSizeMenu({
   height = DEFAULT_HEIGHT,
   onHeightChange,
 }: CardSizeMenuProps) {
+  const t = useTranslations("dashboard.sizeMenu");
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -43,12 +45,12 @@ export function CardSizeMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Card Width</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("cardWidth")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {WIDTH_PRESETS.map((preset) => (
           <DropdownMenuItem key={preset.value} onClick={() => onSpanChange(preset.value)}>
             <div className="flex items-center justify-between w-full">
-              <span>{preset.label}</span>
+              <span>{t(preset.id)}</span>
               {span === preset.value && <span className="ml-2 text-primary">✓</span>}
             </div>
           </DropdownMenuItem>
@@ -57,12 +59,12 @@ export function CardSizeMenu({
         {onHeightChange && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel>Card Height</DropdownMenuLabel>
+            <DropdownMenuLabel>{t("cardHeight")}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {HEIGHT_PRESETS.map((preset) => (
               <DropdownMenuItem key={preset.value} onClick={() => onHeightChange(preset.value)}>
                 <div className="flex items-center justify-between w-full">
-                  <span>{preset.label}</span>
+                  <span>{t(preset.id)}</span>
                   {height === preset.value && <span className="ml-2 text-primary">✓</span>}
                 </div>
               </DropdownMenuItem>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,7 @@ function StateBadge({ state }: { state: string | null }) {
 }
 
 function GroupRow({ group }: { group: VrrpGroupData }) {
+  const t = useTranslations("dashboard");
   return (
     <div className="flex items-center gap-2 px-3 py-2 text-sm border-b last:border-0">
       <span className="font-mono font-medium truncate shrink-0 max-w-[10rem]" title={group.name}>
@@ -53,12 +55,12 @@ function GroupRow({ group }: { group: VrrpGroupData }) {
       )}
       <div className="flex-1" />
       {group.priority != null && (
-        <span className="text-[11px] text-muted-foreground shrink-0 tabular-nums" title="priority">
-          prio {group.priority}
+        <span className="text-[11px] text-muted-foreground shrink-0 tabular-nums" title={t("vrrp.priority")}>
+          {t("vrrp.prio", { priority: String(group.priority) })}
         </span>
       )}
       {group.last_transition && (
-        <span className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0" title="last transition">
+        <span className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0" title={t("vrrp.lastTransition")}>
           <Clock className="h-3 w-3" />
           {group.last_transition}
         </span>
@@ -68,6 +70,7 @@ function GroupRow({ group }: { group: VrrpGroupData }) {
 }
 
 export function VrrpStatusCard({ onRemove, span = 1, onSpanChange, height, onHeightChange }: VrrpStatusCardProps) {
+  const t = useTranslations("dashboard");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const { status: sseStatus, data: sseData } = useDashboardData();
   // Snapshot the stream so "Paused" freezes the displayed status.
@@ -86,17 +89,17 @@ export function VrrpStatusCard({ onRemove, span = 1, onSpanChange, height, onHei
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 shrink-0">
         <div className="flex items-center gap-2">
           <Network className="h-5 w-5 text-primary" />
-          <CardTitle className="text-lg font-medium">VRRP / High Availability</CardTitle>
+          <CardTitle className="text-lg font-medium">{t("vrrp.title")}</CardTitle>
         </div>
         <div className="flex items-center gap-1.5">
           <Button
             variant={autoRefresh ? "default" : "outline"}
             size="sm"
             onClick={() => setAutoRefresh((v) => !v)}
-            title={autoRefresh ? `Live via dashboard stream (${sseStatus})` : "Paused"}
+            title={autoRefresh ? t("stream.liveVia", { status: sseStatus }) : t("stream.paused")}
           >
             <RefreshCw className={`h-4 w-4 mr-1 ${autoRefresh && sseStatus === "connected" ? "animate-spin" : ""}`} />
-            {autoRefresh ? "Live" : "Paused"}
+            {autoRefresh ? t("stream.live") : t("stream.paused")}
           </Button>
           {onSpanChange && (
             <CardSizeMenu
@@ -116,10 +119,10 @@ export function VrrpStatusCard({ onRemove, span = 1, onSpanChange, height, onHei
 
       <CardContent className="flex flex-col flex-1 min-h-0 p-0">
         {loading ? (
-          <div className="px-4 py-6 text-center text-muted-foreground text-sm">Loading…</div>
+          <div className="px-4 py-6 text-center text-muted-foreground text-sm">{t("stream.loading")}</div>
         ) : groups.length === 0 ? (
           <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-muted-foreground">
-            No active VRRP groups.
+            {t("vrrp.noGroups")}
           </div>
         ) : (
           <div className="flex-1 min-h-0 overflow-y-auto">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Activity, Pause, Play, RefreshCw, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,8 @@ function pointFromSessions(response: PPPoESessionsResponse, now: number): PPPoES
 }
 
 export function PppoeStatsCard({ onRemove, span = 1, onSpanChange, height, onHeightChange }: PppoeStatsCardProps) {
+  const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   const { data } = useDashboardData();
   const [points, setPoints] = useState<PPPoEStatsPoint[]>([]);
   const [sessionCount, setSessionCount] = useState(0);
@@ -80,22 +83,22 @@ export function PppoeStatsCard({ onRemove, span = 1, onSpanChange, height, onHei
         <div className="flex items-center gap-2">
           <Activity className="h-5 w-5 text-primary" />
           <div>
-            <CardTitle className="text-lg font-medium">PPPoE Statistics</CardTitle>
-            <p className="text-xs text-muted-foreground">{sessionCount} active sessions</p>
+            <CardTitle className="text-lg font-medium">{t("pppoe.title")}</CardTitle>
+            <p className="text-xs text-muted-foreground">{t("pppoe.activeSessions", { count: sessionCount })}</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setPaused((value) => !value)} title={paused ? "Resume" : "Pause"}>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setPaused((value) => !value)} title={paused ? t("pppoe.resume") : t("pppoe.pause")}>
             {paused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => void fetchStats()} disabled={loading} title="Refresh">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => void fetchStats()} disabled={loading} title={tc("refresh")}>
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
           </Button>
           {onSpanChange && (
             <CardSizeMenu span={span} onSpanChange={onSpanChange} height={height} onHeightChange={onHeightChange} />
           )}
           {onRemove && (
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onRemove} title="Remove card">
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onRemove} title={t("pppoe.removeCard")}>
               <X className="h-3.5 w-3.5" />
             </Button>
           )}

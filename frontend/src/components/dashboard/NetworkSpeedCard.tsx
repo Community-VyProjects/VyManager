@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import {
   AreaChart,
   Area,
@@ -86,8 +87,8 @@ function formatSpeed(bps: number): string {
   return `${Math.round(bps)} bps`;
 }
 
-function xTickFormatter(secsAgo: number): string {
-  if (secsAgo === 0) return "now";
+function xTickFormatter(secsAgo: number, nowLabel: string): string {
+  if (secsAgo === 0) return nowLabel;
   const abs = Math.abs(secsAgo);
   if (abs < 60) return `${abs}s`;
   const m = Math.floor(abs / 60);
@@ -120,11 +121,12 @@ interface CustomTooltipProps {
 }
 
 function SpeedTooltip({ active, payload, label }: CustomTooltipProps) {
+  const t = useTranslations("dashboard");
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-background border rounded-lg shadow-lg px-3 py-2 text-xs space-y-1">
       <p className="text-muted-foreground font-medium mb-1">
-        {typeof label === "number" ? xTickFormatter(label) : ""}
+        {typeof label === "number" ? xTickFormatter(label, t("networkSpeed.now")) : ""}
       </p>
       {payload.map((p) => (
         <div key={p.dataKey} className="flex items-center gap-2">
@@ -133,7 +135,7 @@ function SpeedTooltip({ active, payload, label }: CustomTooltipProps) {
             style={{ backgroundColor: p.color }}
           />
           <span className="text-muted-foreground">
-            {p.dataKey === "rx" ? "↓ Download" : "↑ Upload"}:
+            {p.dataKey === "rx" ? t("networkSpeed.download") : t("networkSpeed.upload")}:
           </span>
           <span className="font-semibold tabular-nums" style={{ color: p.color }}>
             {formatSpeed(p.value)}
@@ -157,6 +159,7 @@ export function NetworkSpeedCard({
   config,
   onConfigChange,
 }: NetworkSpeedCardProps) {
+  const t = useTranslations("dashboard");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const { status: sseStatus, data: sseData } = useDashboardData();
   const [ethernetConfig, setEthernetConfig] = useState<EthernetConfigResponse | null>(null);
@@ -277,7 +280,7 @@ export function NetworkSpeedCard({
         <div className="flex flex-col min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-primary shrink-0" />
-            <CardTitle className="text-lg font-medium shrink-0">Network Speed</CardTitle>
+            <CardTitle className="text-lg font-medium shrink-0">{t("networkSpeed.title")}</CardTitle>
 
             {/* Interface selector — always visible, interactive when onConfigChange provided */}
             {onConfigChange ? (
@@ -287,19 +290,19 @@ export function NetworkSpeedCard({
                     variant="outline"
                     size="sm"
                     className="h-6 text-xs px-2 font-mono max-w-[120px] truncate"
-                    title={selectedIface || "Select interface"}
+                    title={selectedIface || t("networkSpeed.selectInterfaceTitle")}
                   >
                     <Network className="h-3 w-3 mr-1 shrink-0" />
                     <span className="truncate">
-                      {selectedIface || "Select…"}
+                      {selectedIface || t("networkSpeed.selectShort")}
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
-                  <DropdownMenuLabel>Select Interface</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("networkSpeed.selectInterface")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {availableInterfaces.length === 0 ? (
-                    <DropdownMenuItem disabled>No interfaces available</DropdownMenuItem>
+                    <DropdownMenuItem disabled>{t("networkSpeed.noInterfacesAvailable")}</DropdownMenuItem>
                   ) : (
                     availableInterfaces.map((name) => {
                       const desc = getIfaceDescription(name);
@@ -355,12 +358,12 @@ export function NetworkSpeedCard({
             variant={autoRefresh ? "default" : "outline"}
             size="sm"
             onClick={() => setAutoRefresh((v) => !v)}
-            title={autoRefresh ? `Streaming (${sseStatus})` : "Paused"}
+            title={autoRefresh ? t("stream.streaming", { status: sseStatus }) : t("stream.paused")}
           >
             <RefreshCw
               className={`h-4 w-4 mr-1 ${autoRefresh && isConnected ? "animate-spin" : ""}`}
             />
-            {autoRefresh ? "Live" : "Paused"}
+            {autoRefresh ? t("stream.live") : t("stream.paused")}
           </Button>
 
           {onSpanChange && (
@@ -383,19 +386,19 @@ export function NetworkSpeedCard({
       <CardContent className="flex flex-col flex-1 min-h-0 px-4 pb-4">
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-            Connecting...
+            {t("stream.connecting")}
           </div>
         ) : !selectedIface ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center">
             <Network className="h-10 w-10 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">No interface selected</p>
+            <p className="text-sm text-muted-foreground">{t("networkSpeed.noInterfaceSelected")}</p>
             {onConfigChange ? (
               <p className="text-xs text-muted-foreground">
-                Use the dropdown above to pick an interface
+                {t("networkSpeed.useDropdown")}
               </p>
             ) : (
               <p className="text-xs text-muted-foreground">
-                Enter edit mode to select an interface
+                {t("networkSpeed.enterEditMode")}
               </p>
             )}
           </div>
@@ -408,10 +411,10 @@ export function NetworkSpeedCard({
                 <span className="text-sm font-semibold tabular-nums text-blue-500">
                   {formatSpeed(currentRx)}
                 </span>
-                <span className="text-xs text-muted-foreground">down</span>
+                <span className="text-xs text-muted-foreground">{t("networkSpeed.down")}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">up</span>
+                <span className="text-xs text-muted-foreground">{t("networkSpeed.up")}</span>
                 <span className="text-sm font-semibold tabular-nums text-orange-500">
                   {formatSpeed(currentTx)}
                 </span>
@@ -444,7 +447,7 @@ export function NetworkSpeedCard({
                     type="number"
                     domain={[-120, 0]}
                     ticks={[-120, -90, -60, -30, 0]}
-                    tickFormatter={xTickFormatter}
+                    tickFormatter={(value: number) => xTickFormatter(value, t("networkSpeed.now"))}
                     tick={{ fontSize: 10 }}
                     axisLine={false}
                     tickLine={false}
@@ -497,11 +500,11 @@ export function NetworkSpeedCard({
             <div className="flex items-center justify-center gap-4 mt-2 shrink-0">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <span className="inline-block h-2.5 w-4 rounded-sm bg-blue-500 opacity-80" />
-                Download (RX)
+                {t("networkSpeed.legendDownload")}
               </div>
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <span className="inline-block h-2.5 w-4 rounded-sm bg-orange-500 opacity-80" />
-                Upload (TX)
+                {t("networkSpeed.legendUpload")}
               </div>
             </div>
           </>

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Loader2, Plus, Save, Edit3, X } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -98,6 +99,7 @@ function DroppableColumnOverlay({
   hasCards: boolean;
   isDragging: boolean;
 }) {
+  const t = useTranslations("dashboard");
   const { setNodeRef, isOver } = useDroppable({ id: columnId });
 
   if (!editMode) return null;
@@ -118,14 +120,16 @@ function DroppableColumnOverlay({
       <div className={`flex flex-col items-center justify-center h-full text-lg font-bold pointer-events-none ${
         isDragging ? "opacity-100 text-primary" : "opacity-30 text-muted-foreground"
       }`}>
-        <div>Column {columnNumber}</div>
-        {isDragging && <div className="text-sm font-normal mt-2">Drop here</div>}
+        <div>{t("page.column", { number: columnNumber })}</div>
+        {isDragging && <div className="text-sm font-normal mt-2">{t("page.dropHere")}</div>}
       </div>
     </div>
   );
 }
 
 export default function Home() {
+  const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   const router = useRouter();
   const [isChecking, setIsChecking] = useState(true);
   const { data: session, isPending } = useSession();
@@ -283,7 +287,7 @@ export default function Home() {
         <AppLayout allowWithoutInstance>
           <div className="flex min-h-[60vh] items-center justify-center p-8">
             <p className="text-sm text-muted-foreground text-center max-w-md">
-              {sessionError || "This router is unreachable. Check the API and try again."}
+              {sessionError || t("routerUnreachable")}
             </p>
           </div>
         </AppLayout>
@@ -517,9 +521,9 @@ export default function Home() {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+              <h1 className="text-3xl font-bold text-foreground">{t("page.title")}</h1>
               <p className="text-muted-foreground mt-2">
-                Welcome to VyManager - Professional VyOS Management Interface
+                {t("page.subtitle")}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -529,18 +533,18 @@ export default function Home() {
                     <>
                       <Button variant="outline" onClick={handleCancel} disabled={saving}>
                         <X className="h-4 w-4 mr-2" />
-                        Cancel
+                        {tc("cancel")}
                       </Button>
                       <Button onClick={handleSave} disabled={saving}>
                         <Save className="h-4 w-4 mr-2" />
-                        {saving ? "Saving..." : "Save Layout"}
+                        {saving ? tc("saving") : t("page.saveLayout")}
                       </Button>
                     </>
                   )}
                   {editMode && (
                     <Button onClick={() => setAddCardModalOpen(true)}>
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Card
+                      {t("page.addCard")}
                     </Button>
                   )}
                   <Button
@@ -550,12 +554,12 @@ export default function Home() {
                     {editMode ? (
                       <>
                         <X className="h-4 w-4 mr-2" />
-                        Exit Edit
+                        {t("page.exitEdit")}
                       </>
                     ) : (
                       <>
                         <Edit3 className="h-4 w-4 mr-2" />
-                        Edit Dashboard
+                        {t("page.editDashboard")}
                       </>
                     )}
                   </Button>
@@ -570,7 +574,7 @@ export default function Home() {
             <div className="relative p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="h-4 w-4 text-primary" />
-                <span className="text-sm font-semibold text-primary">Open Beta</span>
+                <span className="text-sm font-semibold text-primary">{t("page.openBeta")}</span>
               </div>
 
               <div className="flex flex-wrap gap-4 text-sm">
@@ -596,13 +600,13 @@ export default function Home() {
                     className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-medium transition-colors"
                   >
                     <ArrowUpCircle className="h-4 w-4" />
-                    v{versionInfo.latest_version} available
+                    {t("page.updateAvailable", { version: versionInfo.latest_version ?? "" })}
                   </a>
                 )}
 
                 <div className="flex items-center gap-2">
                   <Github className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Development by</span>
+                  <span className="text-muted-foreground">{t("page.developmentBy")}</span>
                   <a
                     href="https://github.com/Community-VyProjects/"
                     target="_blank"
@@ -621,13 +625,13 @@ export default function Home() {
                     rel="noopener noreferrer"
                     className="text-primary hover:text-primary/80 font-medium transition-colors underline decoration-primary/30 hover:decoration-primary/60"
                   >
-                    Website
+                    {t("page.website")}
                   </a>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <MessageCircle className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Join our</span>
+                  <span className="text-muted-foreground">{t("page.joinOur")}</span>
                   <a
                     href="https://discord.gg/4mE6QsZtKm"
                     target="_blank"
@@ -648,8 +652,8 @@ export default function Home() {
           <div className="text-center py-12">
             <p className="text-muted-foreground mb-4">
               {canEditDashboard
-                ? "Your dashboard is empty. Click \"Edit Dashboard\" to add cards."
-                : "Your dashboard is empty."}
+                ? t("page.emptyEditable")
+                : t("page.empty")}
             </p>
           </div>
         ) : (

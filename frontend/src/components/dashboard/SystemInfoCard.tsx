@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -87,6 +88,7 @@ export function SystemInfoCard({
   height,
   onHeightChange,
 }: SystemInfoCardProps) {
+  const t = useTranslations("dashboard");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const { status: sseStatus, data: sseData } = useDashboardData();
 
@@ -109,19 +111,19 @@ export function SystemInfoCard({
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 shrink-0">
         <div className="flex items-center gap-2">
           <Server className="h-5 w-5 text-primary" />
-          <CardTitle className="text-lg font-medium">System Information</CardTitle>
+          <CardTitle className="text-lg font-medium">{t("systemInfo.title")}</CardTitle>
         </div>
         <div className="flex items-center gap-2">
           <Button
             variant={autoRefresh ? "default" : "outline"}
             size="sm"
             onClick={() => setAutoRefresh((v) => !v)}
-            title={autoRefresh ? `Streaming (${sseStatus})` : "Paused"}
+            title={autoRefresh ? t("stream.streaming", { status: sseStatus }) : t("stream.paused")}
           >
             <RefreshCw
               className={`h-4 w-4 mr-1 ${autoRefresh && isConnected ? "animate-spin" : ""}`}
             />
-            {autoRefresh ? "Live" : "Paused"}
+            {autoRefresh ? t("stream.live") : t("stream.paused")}
           </Button>
           {onSpanChange && (
             <CardSizeMenu
@@ -142,7 +144,7 @@ export function SystemInfoCard({
       <CardContent className="space-y-5 overflow-y-auto flex-1 min-h-0">
         {isLoading ? (
           <div className="text-center text-muted-foreground py-6 text-sm">
-            Connecting...
+            {t("stream.connecting")}
           </div>
         ) : (
           <>
@@ -168,7 +170,7 @@ export function SystemInfoCard({
                 )}
                 {version.built_on && (
                   <p className="text-xs text-muted-foreground">
-                    Built: {version.built_on}
+                    {t("systemInfo.built", { date: version.built_on })}
                   </p>
                 )}
               </div>
@@ -179,18 +181,18 @@ export function SystemInfoCard({
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-1.5">
                   <Activity className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Load Average</span>
+                  <span className="text-sm font-medium">{t("systemInfo.loadAverage")}</span>
                 </div>
                 {load.uptime && (
-                  <span className="text-xs text-muted-foreground">Uptime {load.uptime}</span>
+                  <span className="text-xs text-muted-foreground">{t("systemInfo.uptime", { value: load.uptime })}</span>
                 )}
               </div>
               {load.load_1min !== null ? (
                 <div className="space-y-2">
                   {([
-                    { label: "1 min",  value: load.load_1min },
-                    { label: "5 min",  value: load.load_5min },
-                    { label: "15 min", value: load.load_15min },
+                    { label: t("systemInfo.minutes", { count: 1 }),  value: load.load_1min },
+                    { label: t("systemInfo.minutes", { count: 5 }),  value: load.load_5min },
+                    { label: t("systemInfo.minutes", { count: 15 }), value: load.load_15min },
                   ] as { label: string; value: number | null }[]).map(({ label, value }) => (
                     <div key={label}>
                       <div className="flex justify-between text-xs text-muted-foreground mb-0.5">
@@ -207,7 +209,7 @@ export function SystemInfoCard({
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground italic">No data</p>
+                <p className="text-xs text-muted-foreground italic">{t("stream.noData")}</p>
               )}
             </div>
 
@@ -215,13 +217,13 @@ export function SystemInfoCard({
             <div className="space-y-1.5">
               <div className="flex items-center gap-1.5 mb-1">
                 <MemoryStick className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Memory</span>
+                <span className="text-sm font-medium">{t("systemInfo.memory")}</span>
               </div>
               {memory.total ? (
                 <>
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>
-                      Used: <span className="text-foreground font-medium">{memory.used}</span>
+                      {t("systemInfo.used")} <span className="text-foreground font-medium">{memory.used}</span>
                     </span>
                     <span className="font-medium">{memPct.toFixed(1)}%</span>
                   </div>
@@ -232,12 +234,12 @@ export function SystemInfoCard({
                     />
                   </div>
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Free: {memory.free}</span>
-                    <span>Total: {memory.total}</span>
+                    <span>{t("systemInfo.free", { value: memory.free ?? "" })}</span>
+                    <span>{t("systemInfo.total", { value: memory.total })}</span>
                   </div>
                 </>
               ) : (
-                <p className="text-xs text-muted-foreground italic">No data</p>
+                <p className="text-xs text-muted-foreground italic">{t("stream.noData")}</p>
               )}
             </div>
 
@@ -245,10 +247,10 @@ export function SystemInfoCard({
             <div className="space-y-2">
               <div className="flex items-center gap-1.5 mb-1">
                 <HardDrive className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Disk Usage</span>
+                <span className="text-sm font-medium">{t("systemInfo.diskUsage")}</span>
               </div>
               {disk.length === 0 ? (
-                <p className="text-xs text-muted-foreground italic">No data</p>
+                <p className="text-xs text-muted-foreground italic">{t("stream.noData")}</p>
               ) : (
                 disk.map((p) => {
                   const pct = parseDiskPercent(p.use_percent);

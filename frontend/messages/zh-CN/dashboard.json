@@ -1,0 +1,239 @@
+{
+  "routerUnreachable": "无法连接此路由器。请检查 API 后重试。",
+  "upCount": "{up}/{total} 在线",
+  "page": {
+    "title": "仪表盘",
+    "subtitle": "欢迎使用 VyManager - 专业的 VyOS 管理界面",
+    "saveLayout": "保存布局",
+    "addCard": "添加卡片",
+    "exitEdit": "退出编辑",
+    "editDashboard": "编辑仪表盘",
+    "openBeta": "公开测试版",
+    "updateAvailable": "v{version} 可用",
+    "developmentBy": "开发者",
+    "website": "官网",
+    "joinOur": "加入我们的",
+    "emptyEditable": "你的仪表盘为空。点击“编辑仪表盘”添加卡片。",
+    "empty": "你的仪表盘为空。",
+    "column": "第 {number} 列",
+    "dropHere": "拖放到此处"
+  },
+  "addCardModal": {
+    "title": "添加仪表盘卡片",
+    "description": "选择要添加到仪表盘的卡片",
+    "requiresPermission": "需要 {permission} 读取权限",
+    "noAccess": "无权限",
+    "addCard": "添加卡片",
+    "cards": {
+      "interfaceStatistics": {
+        "name": "接口统计",
+        "description": "查看实时网络接口计数器和统计信息"
+      },
+      "systemInfo": {
+        "name": "系统信息",
+        "description": "监控内存使用率、磁盘分区和 VyOS 版本详情"
+      },
+      "hardwareSensors": {
+        "name": "硬件传感器",
+        "description": "CPU、网卡和系统温度传感器及其健康状态"
+      },
+      "transceiverHealth": {
+        "name": "数字诊断监控",
+        "description": "按以太网接口显示 SFP/SFP+ 在位状态、DDM 测量值和告警/警告信号健康状况"
+      },
+      "wireguardPeers": {
+        "name": "WireGuard 对等体",
+        "description": "实时对等体状态，包括握手时间、传输统计和连接健康状况"
+      },
+      "networkSpeed": {
+        "name": "网络速率",
+        "description": "任意接口在 2 分钟滚动窗口内的实时下载和上传速率图"
+      },
+      "pppoeStatistics": {
+        "name": "PPPoE 统计",
+        "description": "滚动窗口内 PPPoE 的汇总 RX/TX 速率、包速率和总流量"
+      },
+      "qosStatistics": {
+        "name": "QoS 统计",
+        "description": "启用 QoS 的接口上各类别整形器的实时带宽、丢包和策略效果"
+      },
+      "openvpnStatus": {
+        "name": "OpenVPN",
+        "description": "OpenVPN 服务器、客户端和站点到站点隧道的实时状态及已连接客户端详情"
+      },
+      "vrrpStatus": {
+        "name": "VRRP / 高可用",
+        "description": "实时 VRRP 组状态（MASTER/BACKUP/FAULT），包括接口、VRID、优先级和最近一次状态切换"
+      },
+      "bgpStatus": {
+        "name": "BGP 会话",
+        "description": "按地址族显示实时 BGP 邻居状态（Established/Active/Idle），包括远端 AS、运行时间和前缀数"
+      },
+      "ipsecStatus": {
+        "name": "IPSec 隧道",
+        "description": "站点到站点 IPSec 隧道的实时状态（up/down），包括流量选择器、字节计数和协商的 ESP 提议"
+      }
+    }
+  },
+  "sizeMenu": {
+    "cardWidth": "卡片宽度",
+    "cardHeight": "卡片高度",
+    "small": "小（1 列）",
+    "medium": "中（2 列）",
+    "large": "大（3 列）",
+    "compact": "紧凑",
+    "standard": "标准",
+    "tall": "加高"
+  },
+  "stream": {
+    "live": "实时",
+    "paused": "已暂停",
+    "liveVia": "通过仪表盘数据流实时更新（{status}）",
+    "streaming": "数据流（{status}）",
+    "loading": "加载中…",
+    "connecting": "连接中...",
+    "noData": "暂无数据"
+  },
+  "severity": {
+    "critical": "严重",
+    "warning": "警告",
+    "absent": "未插入",
+    "ok": "正常"
+  },
+  "traffic": {
+    "received": "已接收",
+    "sent": "已发送"
+  },
+  "bgp": {
+    "title": "BGP 会话",
+    "remoteAs": "远端 AS",
+    "prefixes": "已接收 / 已发送前缀",
+    "uptime": "运行时间",
+    "localAs": "本地 AS{as}",
+    "routerId": "ID {id}",
+    "peers": "{count} 个对等体",
+    "noNeighbors": "没有 BGP 邻居。"
+  },
+  "hardwareSensors": {
+    "title": "硬件传感器",
+    "high": "高温 {value}",
+    "criticalThreshold": "临界 {value}",
+    "reading": "正在读取传感器...",
+    "noSensors": "没有可用的硬件传感器（可能运行在虚拟化环境中）。",
+    "sensorsLoaded": "传感器已加载",
+    "perCoreTemps": "各核心温度",
+    "coreTemps": "CPU 核心温度",
+    "avgCpuTemp": "CPU 平均温度",
+    "clickLive": "点击“实时”加载传感器数据"
+  },
+  "interfaceStatistics": {
+    "title": "接口统计",
+    "filterPlaceholder": "筛选...",
+    "sort": "排序：",
+    "count": "{count} 个接口",
+    "noMatch": "没有匹配“{filter}”的接口",
+    "noInterfaces": "没有接口",
+    "prev": "上一页",
+    "next": "下一页",
+    "page": "第 {current} / {total} 页",
+    "trafficTooltip": "RX: {rx} / {rxPackets} 个包\nTX: {tx} / {txPackets} 个包",
+    "droppedErrors": "丢弃：{dropped} · 错误：{errors}"
+  },
+  "ipsec": {
+    "up": "在线",
+    "down": "离线",
+    "total": "总计",
+    "proposal": "协商的 ESP 提议",
+    "noTunnels": "没有活动的 IPSec 隧道。"
+  },
+  "networkSpeed": {
+    "title": "网络速率",
+    "selectInterfaceTitle": "选择接口",
+    "selectShort": "选择…",
+    "selectInterface": "选择接口",
+    "noInterfacesAvailable": "没有可用的接口",
+    "now": "现在",
+    "download": "↓ 下载",
+    "upload": "↑ 上传",
+    "noInterfaceSelected": "未选择接口",
+    "useDropdown": "使用上方的下拉菜单选择接口",
+    "enterEditMode": "进入编辑模式以选择接口",
+    "down": "下行",
+    "up": "上行",
+    "legendDownload": "下载 (RX)",
+    "legendUpload": "上传 (TX)"
+  },
+  "openVpn": {
+    "clients": "{count} 个客户端",
+    "noTunnels": "未配置 OpenVPN 隧道。",
+    "groupServers": "服务器",
+    "groupClients": "客户端",
+    "groupSiteToSite": "站点到站点"
+  },
+  "pppoe": {
+    "title": "PPPoE 统计",
+    "activeSessions": "{count} 个活动会话",
+    "resume": "继续",
+    "pause": "暂停",
+    "removeCard": "移除卡片"
+  },
+  "qos": {
+    "title": "QoS 统计",
+    "streamDisconnected": "仪表盘数据流已断开",
+    "notApplied": "QoS 未应用到任何接口。将策略绑定到接口后即可在此查看实时流量。",
+    "stale": "“{name}”已不再应用 QoS，正在显示所有接口。",
+    "drops": "{count} 次丢包",
+    "noDrops": "无丢包",
+    "classTooltip": "{bytes} · {packets} 个包",
+    "classTooltipDrops": "{bytes} · {packets} 个包 · {drops} 次丢包"
+  },
+  "systemInfo": {
+    "title": "系统信息",
+    "built": "构建时间：{date}",
+    "loadAverage": "平均负载",
+    "uptime": "运行时间 {value}",
+    "minutes": "{count} 分钟",
+    "memory": "内存",
+    "used": "已用：",
+    "free": "空闲：{value}",
+    "total": "总计：{value}",
+    "diskUsage": "磁盘使用率"
+  },
+  "transceiver": {
+    "title": "数字诊断监控",
+    "reading": "正在读取光模块健康状态...",
+    "noDiagnostics": "未找到以太网光模块诊断信息。",
+    "scanned": "已扫描 {count} 个接口",
+    "okCount": "{count} 个正常",
+    "noPart": "无型号",
+    "alarms": "{count} 个告警",
+    "warnings": "{count} 个警告",
+    "noTransceiver": "未插入光模块"
+  },
+  "vrrp": {
+    "title": "VRRP / 高可用",
+    "priority": "优先级",
+    "prio": "优先级 {priority}",
+    "lastTransition": "最近一次状态切换",
+    "noGroups": "没有活动的 VRRP 组。"
+  },
+  "wireGuard": {
+    "title": "WireGuard 对等体",
+    "never": "从未",
+    "justNow": "刚刚",
+    "connected": "已连接",
+    "idle": "空闲",
+    "neverConnected": "从未连接",
+    "endpoint": "端点：{value}",
+    "key": "密钥：{value}",
+    "disabled": "已禁用",
+    "noPeers": "未配置对等体",
+    "noDataPaused": "暂无数据 — 已暂停或尚未收到数据流。",
+    "noInterfaces": "未配置 WireGuard 接口。"
+  },
+  "connectFirstInstance": {
+    "title": "连接你的第一个 VyOS 实例",
+    "description": "VyManager 已在运行，但尚未添加任何路由器。请在站点管理中添加 VyOS 实例并连接，即可开始管理你的网络。你需要路由器的地址及其 HTTP API 密钥。",
+    "openSiteManager": "打开站点管理"
+  }
+}

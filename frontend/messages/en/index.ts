@@ -2,6 +2,7 @@
 // (keep alphabetical). Other locales use the same file names under
 // messages/<locale>/; a missing file or key falls back to English.
 import common from "./common.json";
+import dashboard from "./dashboard.json";
 import language from "./language.json";
 import login from "./login.json";
 import navigation from "./navigation.json";
@@ -12,6 +13,7 @@ import sites from "./sites.json";
 
 const messages = {
   common,
+  dashboard,
   language,
   login,
   navigation,

@@ -1,0 +1,239 @@
+{
+  "routerUnreachable": "This router is unreachable. Check the API and try again.",
+  "upCount": "{up}/{total} up",
+  "page": {
+    "title": "Dashboard",
+    "subtitle": "Welcome to VyManager - Professional VyOS Management Interface",
+    "saveLayout": "Save Layout",
+    "addCard": "Add Card",
+    "exitEdit": "Exit Edit",
+    "editDashboard": "Edit Dashboard",
+    "openBeta": "Open Beta",
+    "updateAvailable": "v{version} available",
+    "developmentBy": "Development by",
+    "website": "Website",
+    "joinOur": "Join our",
+    "emptyEditable": "Your dashboard is empty. Click \"Edit Dashboard\" to add cards.",
+    "empty": "Your dashboard is empty.",
+    "column": "Column {number}",
+    "dropHere": "Drop here"
+  },
+  "addCardModal": {
+    "title": "Add Dashboard Card",
+    "description": "Select a card to add to your dashboard",
+    "requiresPermission": "Requires {permission} read permission",
+    "noAccess": "No access",
+    "addCard": "Add Card",
+    "cards": {
+      "interfaceStatistics": {
+        "name": "Interface Statistics",
+        "description": "View real-time network interface counters and statistics"
+      },
+      "systemInfo": {
+        "name": "System Information",
+        "description": "Monitor memory usage, disk partitions, and VyOS version details"
+      },
+      "hardwareSensors": {
+        "name": "Hardware Sensors",
+        "description": "CPU, network card, and system temperature sensors with health status"
+      },
+      "transceiverHealth": {
+        "name": "Digital Diagnostic Monitoring",
+        "description": "SFP/SFP+ presence, DDM measurements, and alarm/warning signal health by Ethernet interface"
+      },
+      "wireguardPeers": {
+        "name": "WireGuard Peers",
+        "description": "Live peer status with handshake times, transfer stats, and connection health"
+      },
+      "networkSpeed": {
+        "name": "Network Speed",
+        "description": "Real-time download and upload speed graph for any interface over a 2-minute rolling window"
+      },
+      "pppoeStatistics": {
+        "name": "PPPoE Statistics",
+        "description": "Aggregate PPPoE RX/TX rate, packet rate, and total traffic over a rolling window"
+      },
+      "qosStatistics": {
+        "name": "QoS Statistics",
+        "description": "Live per-class shaper bandwidth, drops and policy effectiveness for QoS-enabled interfaces"
+      },
+      "openvpnStatus": {
+        "name": "OpenVPN",
+        "description": "Live status of OpenVPN servers, clients and site-to-site tunnels with connected client details"
+      },
+      "vrrpStatus": {
+        "name": "VRRP / High Availability",
+        "description": "Real-time VRRP group state (MASTER/BACKUP/FAULT) with interface, VRID, priority and last transition"
+      },
+      "bgpStatus": {
+        "name": "BGP Sessions",
+        "description": "Live BGP neighbor state (Established/Active/Idle) per address family with remote AS, uptime and prefix counts"
+      },
+      "ipsecStatus": {
+        "name": "IPSec Tunnels",
+        "description": "Live site-to-site IPSec tunnel state (up/down) with traffic selectors, byte counters and the negotiated ESP proposal"
+      }
+    }
+  },
+  "sizeMenu": {
+    "cardWidth": "Card Width",
+    "cardHeight": "Card Height",
+    "small": "Small (1 column)",
+    "medium": "Medium (2 columns)",
+    "large": "Large (3 columns)",
+    "compact": "Compact",
+    "standard": "Standard",
+    "tall": "Tall"
+  },
+  "stream": {
+    "live": "Live",
+    "paused": "Paused",
+    "liveVia": "Live via dashboard stream ({status})",
+    "streaming": "Streaming ({status})",
+    "loading": "Loading…",
+    "connecting": "Connecting...",
+    "noData": "No data"
+  },
+  "severity": {
+    "critical": "Critical",
+    "warning": "Warning",
+    "absent": "Absent",
+    "ok": "OK"
+  },
+  "traffic": {
+    "received": "received",
+    "sent": "sent"
+  },
+  "bgp": {
+    "title": "BGP Sessions",
+    "remoteAs": "remote AS",
+    "prefixes": "prefixes received / sent",
+    "uptime": "uptime",
+    "localAs": "local AS{as}",
+    "routerId": "id {id}",
+    "peers": "{count, plural, one {# peer} other {# peers}}",
+    "noNeighbors": "No BGP neighbors."
+  },
+  "hardwareSensors": {
+    "title": "Hardware Sensors",
+    "high": "High {value}",
+    "criticalThreshold": "Critical {value}",
+    "reading": "Reading sensors...",
+    "noSensors": "No hardware sensors available (may be running in a virtualized environment).",
+    "sensorsLoaded": "Sensors loaded",
+    "perCoreTemps": "Per-core temps",
+    "coreTemps": "CPU Core Temperatures",
+    "avgCpuTemp": "AVG CPU Temp",
+    "clickLive": "Click \"Live\" to load sensor data"
+  },
+  "interfaceStatistics": {
+    "title": "Interface Statistics",
+    "filterPlaceholder": "Filter...",
+    "sort": "Sort:",
+    "count": "{count, plural, one {# interface} other {# interfaces}}",
+    "noMatch": "No interfaces matching \"{filter}\"",
+    "noInterfaces": "No interfaces",
+    "prev": "Prev",
+    "next": "Next",
+    "page": "Page {current} of {total}",
+    "trafficTooltip": "RX: {rx} / {rxPackets} pkts\nTX: {tx} / {txPackets} pkts",
+    "droppedErrors": "Dropped: {dropped} · Errors: {errors}"
+  },
+  "ipsec": {
+    "up": "Up",
+    "down": "Down",
+    "total": "Total",
+    "proposal": "negotiated ESP proposal",
+    "noTunnels": "No active IPSec tunnels."
+  },
+  "networkSpeed": {
+    "title": "Network Speed",
+    "selectInterfaceTitle": "Select interface",
+    "selectShort": "Select…",
+    "selectInterface": "Select Interface",
+    "noInterfacesAvailable": "No interfaces available",
+    "now": "now",
+    "download": "↓ Download",
+    "upload": "↑ Upload",
+    "noInterfaceSelected": "No interface selected",
+    "useDropdown": "Use the dropdown above to pick an interface",
+    "enterEditMode": "Enter edit mode to select an interface",
+    "down": "down",
+    "up": "up",
+    "legendDownload": "Download (RX)",
+    "legendUpload": "Upload (TX)"
+  },
+  "openVpn": {
+    "clients": "{count, plural, one {# client} other {# clients}}",
+    "noTunnels": "No OpenVPN tunnels configured.",
+    "groupServers": "Servers",
+    "groupClients": "Clients",
+    "groupSiteToSite": "Site-to-Site"
+  },
+  "pppoe": {
+    "title": "PPPoE Statistics",
+    "activeSessions": "{count, plural, one {# active session} other {# active sessions}}",
+    "resume": "Resume",
+    "pause": "Pause",
+    "removeCard": "Remove card"
+  },
+  "qos": {
+    "title": "QoS Statistics",
+    "streamDisconnected": "Dashboard stream disconnected",
+    "notApplied": "QoS is not applied to any interface. Attach a policy to an interface to see live traffic here.",
+    "stale": "“{name}” no longer has QoS applied — showing all interfaces.",
+    "drops": "{count} drops",
+    "noDrops": "no drops",
+    "classTooltip": "{bytes} · {packets} pkts",
+    "classTooltipDrops": "{bytes} · {packets} pkts · {drops} drops"
+  },
+  "systemInfo": {
+    "title": "System Information",
+    "built": "Built: {date}",
+    "loadAverage": "Load Average",
+    "uptime": "Uptime {value}",
+    "minutes": "{count} min",
+    "memory": "Memory",
+    "used": "Used:",
+    "free": "Free: {value}",
+    "total": "Total: {value}",
+    "diskUsage": "Disk Usage"
+  },
+  "transceiver": {
+    "title": "Digital Diagnostic Monitoring",
+    "reading": "Reading transceiver health...",
+    "noDiagnostics": "No ethernet transceiver diagnostics found.",
+    "scanned": "{count, plural, one {# interface scanned} other {# interfaces scanned}}",
+    "okCount": "{count} OK",
+    "noPart": "No part",
+    "alarms": "{count, plural, one {# alarm} other {# alarms}}",
+    "warnings": "{count, plural, one {# warning} other {# warnings}}",
+    "noTransceiver": "No transceiver"
+  },
+  "vrrp": {
+    "title": "VRRP / High Availability",
+    "priority": "priority",
+    "prio": "prio {priority}",
+    "lastTransition": "last transition",
+    "noGroups": "No active VRRP groups."
+  },
+  "wireGuard": {
+    "title": "WireGuard Peers",
+    "never": "Never",
+    "justNow": "Just now",
+    "connected": "Connected",
+    "idle": "Idle",
+    "neverConnected": "Never connected",
+    "endpoint": "Endpoint: {value}",
+    "key": "Key: {value}",
+    "disabled": "disabled",
+    "noPeers": "No peers configured",
+    "noDataPaused": "No data — paused or stream not yet received.",
+    "noInterfaces": "No WireGuard interfaces configured."
+  },
+  "connectFirstInstance": {
+    "title": "Connect your first VyOS instance",
+    "description": "VyManager is running, but no router has been added yet. Add a VyOS instance in the Site Manager and connect to it to start managing your network. You will need the router's address and its HTTP API key.",
+    "openSiteManager": "Open Site Manager"
+  }
+}
