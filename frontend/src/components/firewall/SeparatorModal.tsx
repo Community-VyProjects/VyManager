@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -21,18 +22,19 @@ import {
 } from "@/lib/api/firewall-separators";
 
 // A small preset palette. 6-digit hex so SeparatorBar's alpha tint works.
+// `name` is a message key under separatorModal.colors.
 const COLORS = [
-  { name: "Red", value: "#ef4444" },
-  { name: "Orange", value: "#f97316" },
-  { name: "Amber", value: "#f59e0b" },
-  { name: "Green", value: "#22c55e" },
-  { name: "Teal", value: "#14b8a6" },
-  { name: "Blue", value: "#3b82f6" },
-  { name: "Indigo", value: "#6366f1" },
-  { name: "Purple", value: "#a855f7" },
-  { name: "Pink", value: "#ec4899" },
-  { name: "Slate", value: "#64748b" },
-];
+  { name: "red", value: "#ef4444" },
+  { name: "orange", value: "#f97316" },
+  { name: "amber", value: "#f59e0b" },
+  { name: "green", value: "#22c55e" },
+  { name: "teal", value: "#14b8a6" },
+  { name: "blue", value: "#3b82f6" },
+  { name: "indigo", value: "#6366f1" },
+  { name: "purple", value: "#a855f7" },
+  { name: "pink", value: "#ec4899" },
+  { name: "slate", value: "#64748b" },
+] as const;
 
 interface SeparatorModalProps {
   open: boolean;
@@ -60,8 +62,10 @@ export function SeparatorModal({
   defaultPosition,
   onSaved,
 }: SeparatorModalProps) {
+  const t = useTranslations("firewallCommon");
+  const tc = useTranslations("common");
   const [label, setLabel] = useState("");
-  const [color, setColor] = useState(COLORS[0].value);
+  const [color, setColor] = useState<string>(COLORS[0].value);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -81,7 +85,7 @@ export function SeparatorModal({
   const handleSave = async () => {
     const trimmed = label.trim();
     if (!trimmed) {
-      setError("Label is required");
+      setError(t("separatorModal.labelRequired"));
       return;
     }
     setSaving(true);
@@ -101,7 +105,7 @@ export function SeparatorModal({
       onSaved(separators);
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save separator");
+      setError(err instanceof Error ? err.message : t("separatorModal.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -111,36 +115,37 @@ export function SeparatorModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{editing ? "Edit Separator" : "Add Separator"}</DialogTitle>
+          <DialogTitle>{editing ? t("separatorModal.editTitle") : t("separatorModal.addTitle")}</DialogTitle>
           <DialogDescription>
-            Separators are visual section labels for the{" "}
-            <span className="font-medium capitalize">{chain} </span> chain. They
-            are stored in VyManager and don&apos;t change the router config.
-            {editing ? " Drag the bar to move it between rules." : ""}
+            {t.rich("separatorModal.description", {
+              chain,
+              highlight: (chunks) => <span className="font-medium capitalize">{chunks}</span>,
+            })}
+            {editing ? ` ${t("separatorModal.dragHint")}` : ""}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label htmlFor="separator-label">Label</Label>
+            <Label htmlFor="separator-label">{t("separatorModal.label")}</Label>
             <Input
               id="separator-label"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              placeholder="e.g. Ingress, Management, VPN"
+              placeholder={t("separatorModal.labelPlaceholder")}
               maxLength={200}
               autoFocus
             />
           </div>
 
           <div className="space-y-2">
-            <Label>Colour</Label>
+            <Label>{t("separatorModal.colour")}</Label>
             <div className="flex flex-wrap gap-2">
               {COLORS.map((c) => (
                 <button
                   key={c.value}
                   type="button"
-                  aria-label={c.name}
+                  aria-label={t(`separatorModal.colors.${c.name}`)}
                   onClick={() => setColor(c.value)}
                   className={cn(
                     "h-7 w-7 rounded-full border-2 transition-transform",
@@ -164,10 +169,10 @@ export function SeparatorModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : editing ? "Save Changes" : "Add Separator"}
+            {saving ? tc("saving") : editing ? t("separatorModal.saveChanges") : t("separatorModal.add")}
           </Button>
         </DialogFooter>
       </DialogContent>

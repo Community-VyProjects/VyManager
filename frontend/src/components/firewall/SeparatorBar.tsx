@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Pencil, Trash2 } from "lucide-react";
@@ -30,6 +31,7 @@ export function SeparatorBar({
   onEdit,
   onDelete,
 }: SeparatorBarProps) {
+  const t = useTranslations("firewallCommon");
   const color = separator.color;
   const {
     attributes,
@@ -61,7 +63,7 @@ export function SeparatorBar({
             <div
               {...attributes}
               {...listeners}
-              aria-label="Drag separator"
+              aria-label={t("separatorBar.drag")}
               className="flex cursor-grab items-center self-stretch px-1.5 text-muted-foreground/60 hover:text-foreground active:cursor-grabbing"
             >
               <GripVertical className="h-4 w-4" />
@@ -80,7 +82,7 @@ export function SeparatorBar({
               <button
                 type="button"
                 onClick={onEdit}
-                aria-label="Edit separator"
+                aria-label={t("separatorBar.edit")}
                 className="rounded p-1 text-muted-foreground hover:text-foreground"
               >
                 <Pencil className="h-3.5 w-3.5" />
@@ -88,7 +90,7 @@ export function SeparatorBar({
               <button
                 type="button"
                 onClick={onDelete}
-                aria-label="Delete separator"
+                aria-label={t("separatorBar.delete")}
                 className="rounded p-1 text-muted-foreground hover:text-destructive"
               >
                 <Trash2 className="h-3.5 w-3.5" />

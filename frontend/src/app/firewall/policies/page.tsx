@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -81,29 +82,37 @@ import { useColumnVisibility, type ColumnDef } from "@/hooks/useColumnVisibility
 
 type ChainType = "forward" | "input" | "output" | "prerouting_raw";
 
-const POLICIES_COLUMNS: ColumnDef[] = [
-  { id: "protocol",      label: "Protocol" },
-  { id: "source",        label: "Source" },
-  { id: "srcPort",       label: "Src Port" },
-  { id: "destination",   label: "Destination" },
-  { id: "dstPort",       label: "Dst Port" },
-  { id: "state",         label: "State" },
-  { id: "description",   label: "Description" },
-  { id: "status",        label: "Status" },
+type PolicyColumnId =
+  | "protocol" | "source" | "srcPort" | "destination" | "dstPort" | "state"
+  | "description" | "status" | "log" | "interface" | "limit" | "time"
+  | "icmpType" | "tcpFlags" | "connectionStatus" | "mark" | "packetLength" | "recent";
+
+// Labels are translated at render time from firewallPolicies.columns.<id>.
+const POLICIES_COLUMNS: { id: PolicyColumnId; defaultVisible?: boolean }[] = [
+  { id: "protocol" },
+  { id: "source" },
+  { id: "srcPort" },
+  { id: "destination" },
+  { id: "dstPort" },
+  { id: "state" },
+  { id: "description" },
+  { id: "status" },
   // Extra columns — hidden by default
-  { id: "log",           label: "Log",          defaultVisible: false },
-  { id: "interface",     label: "Interface",    defaultVisible: false },
-  { id: "limit",         label: "Limit",        defaultVisible: false },
-  { id: "time",          label: "Time",         defaultVisible: false },
-  { id: "icmpType",      label: "ICMP Type",    defaultVisible: false },
-  { id: "tcpFlags",      label: "TCP Flags",    defaultVisible: false },
-  { id: "connectionStatus", label: "Conn Status", defaultVisible: false },
-  { id: "mark",          label: "Mark",         defaultVisible: false },
-  { id: "packetLength",  label: "Pkt Length",   defaultVisible: false },
-  { id: "recent",        label: "Recent",       defaultVisible: false },
+  { id: "log",           defaultVisible: false },
+  { id: "interface",     defaultVisible: false },
+  { id: "limit",         defaultVisible: false },
+  { id: "time",          defaultVisible: false },
+  { id: "icmpType",      defaultVisible: false },
+  { id: "tcpFlags",      defaultVisible: false },
+  { id: "connectionStatus", defaultVisible: false },
+  { id: "mark",          defaultVisible: false },
+  { id: "packetLength",  defaultVisible: false },
+  { id: "recent",        defaultVisible: false },
 ];
 
 function FirewallPoliciesPageInner() {
+  const t = useTranslations("firewallPolicies");
+  const tc = useTranslations("common");
   const searchParams = useSearchParams();
   // Protocol selection state
   const [selectedProtocol, setSelectedProtocol] = useState<"ipv4" | "ipv6">("ipv4");
@@ -162,8 +171,12 @@ function FirewallPoliciesPageInner() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Column visibility & order
+  const policiesColumns = useMemo<ColumnDef[]>(
+    () => POLICIES_COLUMNS.map((c) => ({ ...c, label: t(`columns.${c.id}`) })),
+    [t]
+  );
   const { visibleColumns, toggleColumn, visibleColumnCount, orderedColumns, visibleOrderedColumns, reorderColumns, resetToDefault } =
-    useColumnVisibility("firewall-policies-columns", POLICIES_COLUMNS);
+    useColumnVisibility("firewall-policies-columns", policiesColumns);
 
   // Permissions — separator editing follows the firewall rules permission.
   const { canWrite } = usePermissions();
@@ -197,7 +210,7 @@ function FirewallPoliciesPageInner() {
       setReorderedRules([]);
       setOriginalRules([]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load firewall configuration");
+      setError(err instanceof Error ? err.message : t("errors.loadConfig"));
       console.error("Error fetching firewall config:", err);
     } finally {
       setLoading(false);
@@ -225,7 +238,7 @@ function FirewallPoliciesPageInner() {
       setReorderedRulesIPv6([]);
       setOriginalRulesIPv6([]);
     } catch (err) {
-      setErrorIPv6(err instanceof Error ? err.message : "Failed to load IPv6 firewall configuration");
+      setErrorIPv6(err instanceof Error ? err.message : t("errors.loadConfigIPv6"));
       console.error("Error fetching IPv6 firewall config:", err);
     } finally {
       setLoadingIPv6(false);
@@ -316,7 +329,7 @@ function FirewallPoliciesPageInner() {
       }
     } catch (err) {
       console.error("Error changing default action:", err);
-      setError(err instanceof Error ? err.message : "Failed to change default action");
+      setError(err instanceof Error ? err.message : t("errors.changeDefaultAction"));
     } finally {
       setSavingDefaultAction(false);
     }
@@ -361,6 +374,7 @@ function FirewallPoliciesPageInner() {
     fetchGroups();
     // Load coloured separators (UI metadata from VyManager's DB)
     loadSeparators();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount; a language switch re-renders via router.refresh()
   }, []);
 
   useEffect(() => {
@@ -701,7 +715,7 @@ function FirewallPoliciesPageInner() {
         await fetchConfig(true);
       } catch (err) {
         console.error("Error saving reordered rules:", err);
-        setError(err instanceof Error ? err.message : "Failed to save reordered rules");
+        setError(err instanceof Error ? err.message : t("errors.saveReorder"));
       } finally {
         setSavingReorder(false);
       }
@@ -743,7 +757,7 @@ function FirewallPoliciesPageInner() {
         await fetchConfigIPv6(true);
       } catch (err) {
         console.error("Error saving reordered IPv6 rules:", err);
-        setErrorIPv6(err instanceof Error ? err.message : "Failed to save reordered IPv6 rules");
+        setErrorIPv6(err instanceof Error ? err.message : t("errors.saveReorderIPv6"));
       } finally {
         setSavingReorderIPv6(false);
       }
@@ -779,7 +793,7 @@ function FirewallPoliciesPageInner() {
       await (selectedProtocol === "ipv4" ? fetchConfig(true) : fetchConfigIPv6(true));
     } catch (err) {
       console.error("Error saving chain description:", err);
-      setError(err instanceof Error ? err.message : "Failed to save chain description");
+      setError(err instanceof Error ? err.message : t("errors.saveChainDescription"));
     } finally {
       setSavingChainSettings(false);
     }
@@ -808,7 +822,7 @@ function FirewallPoliciesPageInner() {
       await (selectedProtocol === "ipv4" ? fetchConfig(true) : fetchConfigIPv6(true));
     } catch (err) {
       console.error("Error saving chain default log:", err);
-      setError(err instanceof Error ? err.message : "Failed to save chain default log");
+      setError(err instanceof Error ? err.message : t("errors.saveChainDefaultLog"));
     } finally {
       setSavingChainSettings(false);
     }
@@ -837,7 +851,7 @@ function FirewallPoliciesPageInner() {
       await (selectedProtocol === "ipv4" ? fetchConfig(true) : fetchConfigIPv6(true));
     } catch (err) {
       console.error("Error saving chain default jump target:", err);
-      setError(err instanceof Error ? err.message : "Failed to save chain default jump target");
+      setError(err instanceof Error ? err.message : t("errors.saveChainDefaultJumpTarget"));
     } finally {
       setSavingChainSettings(false);
     }
@@ -968,9 +982,9 @@ function FirewallPoliciesPageInner() {
                 <Shield className="h-5 w-5 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <h1 className="text-lg font-semibold text-foreground">Firewall Policies</h1>
+                <h1 className="text-lg font-semibold text-foreground">{t("page.title")}</h1>
                 <p className="text-xs text-muted-foreground">
-                  {totalRules} rule{totalRules !== 1 ? "s" : ""}
+                  {t("page.ruleCount", { count: totalRules })}
                 </p>
               </div>
               <Button
@@ -999,7 +1013,7 @@ function FirewallPoliciesPageInner() {
                 <ScrollArea className="flex-1 min-h-0 px-3">
                   <div className="space-y-1 py-3">
                     <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1 mb-2">
-                      Base Chains
+                      {t("page.baseChains")}
                     </div>
 
                     <button
@@ -1055,7 +1069,7 @@ function FirewallPoliciesPageInner() {
                     <Separator className="my-4" />
                     <div className="flex items-center justify-between px-2 py-1 mb-2">
                       <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Custom Chains
+                        {t("page.customChains")}
                       </div>
                       <Button
                         variant="ghost"
@@ -1064,15 +1078,15 @@ function FirewallPoliciesPageInner() {
                         onClick={() => setCreateChainModalOpen(true)}
                       >
                         <Plus className="h-3 w-3 mr-1" />
-                        New
+                        {t("page.newChain")}
                       </Button>
                     </div>
 
                     {customChains.length === 0 ? (
                       <div className="px-2 py-4 text-center">
-                        <p className="text-xs text-muted-foreground">No custom chains</p>
+                        <p className="text-xs text-muted-foreground">{t("page.noCustomChains")}</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Click &quot;New&quot; to create one
+                          {t("page.noCustomChainsHint")}
                         </p>
                       </div>
                     ) : (
@@ -1121,7 +1135,7 @@ function FirewallPoliciesPageInner() {
                 <ScrollArea className="flex-1 min-h-0 px-3">
                   <div className="space-y-1 py-3">
                     <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1 mb-2">
-                      Base Chains
+                      {t("page.baseChains")}
                     </div>
 
                     <button
@@ -1177,7 +1191,7 @@ function FirewallPoliciesPageInner() {
                     <Separator className="my-4" />
                     <div className="flex items-center justify-between px-2 py-1 mb-2">
                       <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Custom Chains
+                        {t("page.customChains")}
                       </div>
                       <Button
                         variant="ghost"
@@ -1186,15 +1200,15 @@ function FirewallPoliciesPageInner() {
                         onClick={() => setCreateChainModalOpen(true)}
                       >
                         <Plus className="h-3 w-3 mr-1" />
-                        New
+                        {t("page.newChain")}
                       </Button>
                     </div>
 
                     {customChainsIPv6.length === 0 ? (
                       <div className="px-2 py-4 text-center">
-                        <p className="text-xs text-muted-foreground">No custom chains</p>
+                        <p className="text-xs text-muted-foreground">{t("page.noCustomChains")}</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Click &quot;New&quot; to create one
+                          {t("page.noCustomChainsHint")}
                         </p>
                       </div>
                     ) : (
@@ -1249,7 +1263,7 @@ function FirewallPoliciesPageInner() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                  <span>Firewall</span>
+                  <span>{t("page.breadcrumbFirewall")}</span>
                   <ChevronRight className="h-4 w-4" />
                   <span>{selectedProtocol === "ipv4" ? "IPv4" : "IPv6"}</span>
                   <ChevronRight className="h-4 w-4" />
@@ -1258,12 +1272,12 @@ function FirewallPoliciesPageInner() {
                   </span>
                   {(selectedProtocol === "ipv4" ? isCustomChain : isCustomChainIPv6) && (
                     <Badge variant="outline" className="ml-2">
-                      Custom Chain
+                      {t("page.customChainBadge")}
                     </Badge>
                   )}
                 </div>
                 <h2 className="text-2xl font-bold text-foreground capitalize">
-                  {selectedProtocol === "ipv4" ? selectedChain : selectedChainIPv6} Chain
+                  {t("page.chainTitle", { chain: selectedProtocol === "ipv4" ? selectedChain : selectedChainIPv6 })}
                 </h2>
               </div>
               <div className="flex items-center gap-2">
@@ -1285,12 +1299,12 @@ function FirewallPoliciesPageInner() {
                 {canEditSeparators && (
                   <Button variant="outline" onClick={() => openCreateSeparator(null)}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Separator
+                    {t("page.addSeparator")}
                   </Button>
                 )}
                 <Button onClick={() => setCreateModalOpen(true)}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Rule
+                  {t("page.addRule")}
                 </Button>
               </div>
             </div>
@@ -1300,17 +1314,17 @@ function FirewallPoliciesPageInner() {
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search rules..."
+                  placeholder={t("page.searchPlaceholder")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
                 />
               </div>
               <div className="text-sm text-muted-foreground">
-                {filteredRules.length} rule{filteredRules.length !== 1 ? "s" : ""}
+                {t("page.ruleCount", { count: filteredRules.length })}
               </div>
               <div className="flex items-center gap-2 ml-auto">
-                <span className="text-sm text-muted-foreground">Default Action:</span>
+                <span className="text-sm text-muted-foreground">{t("page.defaultActionLabel")}</span>
                 <Select
                   value={getDefaultAction(
                     selectedProtocol === "ipv4" ? selectedChain : selectedChainIPv6,
@@ -1326,7 +1340,7 @@ function FirewallPoliciesPageInner() {
                   disabled={savingDefaultAction}
                 >
                   <SelectTrigger className="w-[100px]">
-                    <SelectValue placeholder="Not Set" />
+                    <SelectValue placeholder={t("page.notSet")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="accept">accept</SelectItem>
@@ -1341,17 +1355,17 @@ function FirewallPoliciesPageInner() {
             <Collapsible open={chainSettingsOpen} onOpenChange={setChainSettingsOpen} className="mt-4">
                 <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
                   <ChevronDown className={cn("h-4 w-4 transition-transform", chainSettingsOpen && "rotate-180")} />
-                  <span className="font-medium">Chain Settings</span>
+                  <span className="font-medium">{t("page.chainSettings")}</span>
                   {savingChainSettings && <RefreshCw className="h-3 w-3 animate-spin" />}
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-3">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg border border-border bg-muted/30">
                     {/* Description */}
                     <div className="space-y-2">
-                      <Label htmlFor="chain-description" className="text-sm font-medium">Description</Label>
+                      <Label htmlFor="chain-description" className="text-sm font-medium">{tc("description")}</Label>
                       <Input
                         id="chain-description"
-                        placeholder="Chain description..."
+                        placeholder={t("page.chainDescriptionPlaceholder")}
                         value={chainDescription}
                         onChange={(e) => setChainDescription(e.target.value)}
                         onBlur={handleChainDescriptionBlur}
@@ -1361,7 +1375,7 @@ function FirewallPoliciesPageInner() {
 
                     {currentChain !== "prerouting_raw" && (
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">Default Log</Label>
+                      <Label className="text-sm font-medium">{t("page.defaultLog")}</Label>
                       <div className="flex items-center gap-2 pt-1">
                         <Checkbox
                           id="chain-default-log"
@@ -1370,7 +1384,7 @@ function FirewallPoliciesPageInner() {
                           disabled={savingChainSettings}
                         />
                         <Label htmlFor="chain-default-log" className="text-sm text-muted-foreground cursor-pointer">
-                          Log packets matching default action
+                          {t("page.defaultLogHint")}
                         </Label>
                       </div>
                     </div>
@@ -1379,17 +1393,17 @@ function FirewallPoliciesPageInner() {
                     {/* Default Jump Target (custom chains and prerouting_raw only) */}
                     {((selectedProtocol === "ipv4" ? isCustomChain : isCustomChainIPv6) || currentChain === "prerouting_raw") && (
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium">Default Jump Target</Label>
+                        <Label className="text-sm font-medium">{t("page.defaultJumpTarget")}</Label>
                         <Select
                           value={chainDefaultJumpTarget || "__none__"}
                           onValueChange={handleChainDefaultJumpTargetChange}
                           disabled={savingChainSettings}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="None" />
+                            <SelectValue placeholder={tc("none")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="__none__">None</SelectItem>
+                            <SelectItem value="__none__">{tc("none")}</SelectItem>
                             {(selectedProtocol === "ipv4" ? customChains : customChainsIPv6)
                               .filter((c) => c.name !== currentChain)
                               .map((c) => (
@@ -1409,14 +1423,14 @@ function FirewallPoliciesPageInner() {
           {/* Rules Table */}
           <div className="flex-1 overflow-auto">
             {(selectedProtocol === "ipv4" ? loading : loadingIPv6) ? (
-              <LoadingSpinner message={`Loading ${selectedProtocol === "ipv4" ? "IPv4" : "IPv6"} firewall rules...`} />
+              <LoadingSpinner message={t("page.loadingRules", { protocol: selectedProtocol === "ipv4" ? "IPv4" : "IPv6" })} />
             ) : (selectedProtocol === "ipv4" ? error : errorIPv6) ? (
               <div className="flex items-center justify-center h-full">
                 <Card className="border-destructive max-w-md">
                   <CardContent className="flex items-center gap-4 py-8">
                     <AlertCircle className="h-8 w-8 text-destructive" />
                     <div className="flex-1">
-                      <h3 className="font-semibold text-destructive">Error Loading Configuration</h3>
+                      <h3 className="font-semibold text-destructive">{t("page.errorLoadingTitle")}</h3>
                       <p className="text-sm text-muted-foreground mt-1">
                         {selectedProtocol === "ipv4" ? error : errorIPv6}
                       </p>
@@ -1425,7 +1439,7 @@ function FirewallPoliciesPageInner() {
                       onClick={() => selectedProtocol === "ipv4" ? fetchConfig(true) : fetchConfigIPv6(true)}
                       variant="outline"
                     >
-                      Try Again
+                      {t("page.tryAgain")}
                     </Button>
                   </CardContent>
                 </Card>
@@ -1443,8 +1457,8 @@ function FirewallPoliciesPageInner() {
                       <TableHeader>
                         <TableRow className="hover:bg-transparent">
                           <TableHead className="w-[40px]"></TableHead>
-                          <TableHead className="w-[80px]">Rule #</TableHead>
-                          <TableHead className="w-[100px]">Action</TableHead>
+                          <TableHead className="w-[80px]">{t("page.ruleNumberHeader")}</TableHead>
+                          <TableHead className="w-[100px]">{t("page.actionHeader")}</TableHead>
                           {visibleOrderedColumns.map((col) => {
                             const widths: Record<string, string> = {
                               source: "", destination: "",
@@ -1461,7 +1475,7 @@ function FirewallPoliciesPageInner() {
                               </TableHead>
                             );
                           })}
-                          <TableHead className="w-[140px] text-right">Actions</TableHead>
+                          <TableHead className="w-[140px] text-right">{tc("actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1476,11 +1490,11 @@ function FirewallPoliciesPageInner() {
                                   <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
                                   <p className="text-sm font-medium text-foreground">
                                     {searchQuery
-                                      ? "No matching rules"
-                                      : `No rules in ${selectedProtocol === "ipv4" ? selectedChain : selectedChainIPv6} chain`}
+                                      ? t("page.noMatchingRules")
+                                      : t("page.noRulesInChain", { chain: selectedProtocol === "ipv4" ? selectedChain : selectedChainIPv6 })}
                                   </p>
                                   <p className="text-xs text-muted-foreground mt-1">
-                                    {searchQuery ? "Try adjusting your search" : "Add a rule to get started"}
+                                    {searchQuery ? t("page.tryAdjustingSearch") : t("page.addRuleToStart")}
                                   </p>
                                 </div>
                               </TableCell>
@@ -1533,15 +1547,15 @@ function FirewallPoliciesPageInner() {
                                     <TableCell>
                                       <Badge variant="outline">{draggedRule.action}</Badge>
                                     </TableCell>
-                                    <TableCell>{draggedRule.protocol || "all"}</TableCell>
+                                    <TableCell>{draggedRule.protocol || t("rule.all")}</TableCell>
                                     <TableCell>
-                                      {draggedRule.source?.address || "any"}
+                                      {draggedRule.source?.address || t("rule.any")}
                                     </TableCell>
                                     <TableCell>
                                       {draggedRule.source?.port || "-"}
                                     </TableCell>
                                     <TableCell>
-                                      {draggedRule.destination?.address || "any"}
+                                      {draggedRule.destination?.address || t("rule.any")}
                                     </TableCell>
                                     <TableCell>
                                       {draggedRule.destination?.port || "-"}
