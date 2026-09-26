@@ -1,0 +1,24 @@
+{
+  "subtitle": "Professional VyOS Management",
+  "email": "Email",
+  "password": "Password",
+  "passwordPlaceholder": "Enter your password",
+  "signIn": "Sign in",
+  "signingIn": "Signing in...",
+  "orContinueWith": "or continue with",
+  "secureAccess": "Secure Access",
+  "encryptionNotice": "Protected by enterprise-grade encryption",
+  "systemName": "VyOS Router Management System",
+  "termsNotice": "By signing in, you agree to our Terms of Service and Privacy Policy",
+  "twoFactorRequired": "Your administrator requires two-factor authentication before you can continue.",
+  "twoFactorPrompt": "Enter a second-factor code to finish signing in.",
+  "backToPassword": "Back to password",
+  "errors": {
+    "ssoDenied": "Single sign-on was denied. Your account may not be a member of a group permitted to access VyManager. Contact your administrator.",
+    "generic": "An error occurred",
+    "oauthFailed": "OAuth sign-in failed",
+    "revokeFailed": "Failed to revoke other sessions",
+    "loginCancelledRetry": "Login cancelled. Please try again from your other device or choose to continue.",
+    "loginCancelled": "Login cancelled"
+  }
+}

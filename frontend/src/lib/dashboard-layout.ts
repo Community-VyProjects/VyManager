@@ -29,11 +29,11 @@ export const CARD_HEIGHTS = {
 /** Default height for new cards and legacy cards that predate the height field. */
 export const DEFAULT_HEIGHT = CARD_HEIGHTS.standard;
 
-/** Ordered presets for the card size menu. */
-export const HEIGHT_PRESETS: { label: string; value: number }[] = [
-  { label: "Compact", value: CARD_HEIGHTS.compact },
-  { label: "Standard", value: CARD_HEIGHTS.standard },
-  { label: "Tall", value: CARD_HEIGHTS.tall },
+/** Ordered presets for the card size menu (`id` is the dashboard.sizeMenu message key). */
+export const HEIGHT_PRESETS: { id: keyof typeof CARD_HEIGHTS; value: number }[] = [
+  { id: "compact", value: CARD_HEIGHTS.compact },
+  { id: "standard", value: CARD_HEIGHTS.standard },
+  { id: "tall", value: CARD_HEIGHTS.tall },
 ];
 
 /** Resolved pixel height of a card given its row-unit height. */

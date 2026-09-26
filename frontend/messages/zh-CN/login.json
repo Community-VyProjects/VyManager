@@ -1,0 +1,24 @@
+{
+  "subtitle": "专业的 VyOS 管理平台",
+  "email": "邮箱",
+  "password": "密码",
+  "passwordPlaceholder": "请输入密码",
+  "signIn": "登录",
+  "signingIn": "正在登录...",
+  "orContinueWith": "或使用以下方式登录",
+  "secureAccess": "安全访问",
+  "encryptionNotice": "受企业级加密保护",
+  "systemName": "VyOS 路由器管理系统",
+  "termsNotice": "登录即表示你同意我们的服务条款和隐私政策",
+  "twoFactorRequired": "管理员要求启用双重验证后才能继续。",
+  "twoFactorPrompt": "请输入第二重验证码以完成登录。",
+  "backToPassword": "返回密码登录",
+  "errors": {
+    "ssoDenied": "单点登录被拒绝。你的账号可能不属于允许访问 VyManager 的用户组，请联系管理员。",
+    "generic": "发生错误",
+    "oauthFailed": "OAuth 登录失败",
+    "revokeFailed": "注销其他会话失败",
+    "loginCancelledRetry": "已取消登录。请在另一台设备上重试，或选择继续。",
+    "loginCancelled": "已取消登录"
+  }
+}

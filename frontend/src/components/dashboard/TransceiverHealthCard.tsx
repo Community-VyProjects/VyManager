@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Card,
   CardContent,
@@ -45,13 +46,14 @@ function transceiverSeverity(port: TransceiverPortData): "ok" | "warning" | "cri
 }
 
 function SeverityBadge({ port }: { port: TransceiverPortData }) {
+  const t = useTranslations("dashboard");
   const severity = transceiverSeverity(port);
 
   if (severity === "critical") {
     return (
       <Badge variant="destructive" className="shrink-0">
         <CircleAlert className="h-3 w-3 mr-1" />
-        Critical
+        {t("severity.critical")}
       </Badge>
     );
   }
@@ -60,7 +62,7 @@ function SeverityBadge({ port }: { port: TransceiverPortData }) {
     return (
       <Badge className="bg-yellow-600 shrink-0">
         <AlertTriangle className="h-3 w-3 mr-1" />
-        Warning
+        {t("severity.warning")}
       </Badge>
     );
   }
@@ -69,7 +71,7 @@ function SeverityBadge({ port }: { port: TransceiverPortData }) {
     return (
       <Badge variant="outline" className="shrink-0 border-muted-foreground/40 text-muted-foreground">
         <CircleAlert className="h-3 w-3 mr-1" />
-        Absent
+        {t("severity.absent")}
       </Badge>
     );
   }
@@ -77,7 +79,7 @@ function SeverityBadge({ port }: { port: TransceiverPortData }) {
   return (
     <Badge variant="outline" className="shrink-0 border-green-500/30 text-green-700 dark:text-green-400">
       <CheckCircle2 className="h-3 w-3 mr-1" />
-      OK
+      {t("severity.ok")}
     </Badge>
   );
 }
@@ -89,6 +91,7 @@ export function TransceiverHealthCard({
   height,
   onHeightChange,
 }: TransceiverHealthCardProps) {
+  const t = useTranslations("dashboard");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const { status: sseStatus, data: sseData } = useDashboardData();
   // Snapshot the stream so "Paused" freezes the displayed readings.
@@ -116,14 +119,14 @@ export function TransceiverHealthCard({
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 shrink-0">
         <div className="flex min-w-0 items-center gap-2">
           <Gauge className="h-5 w-5 shrink-0 text-primary" />
-          <CardTitle className="text-lg font-medium">Digital Diagnostic Monitoring</CardTitle>
+          <CardTitle className="text-lg font-medium">{t("transceiver.title")}</CardTitle>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <Button
             variant={autoRefresh ? "default" : "outline"}
             size="sm"
             onClick={() => setAutoRefresh((v) => !v)}
-            title={autoRefresh ? `Live via dashboard stream (${sseStatus})` : "Paused"}
+            title={autoRefresh ? t("stream.liveVia", { status: sseStatus }) : t("stream.paused")}
           >
             <RefreshCw className={`h-4 w-4 ${autoRefresh && sseStatus === "connected" ? "animate-spin" : ""}`} />
           </Button>
@@ -147,11 +150,11 @@ export function TransceiverHealthCard({
         {isLoading ? (
           <div className="flex items-center gap-2 py-8 text-muted-foreground">
             <Loader2 className="animate-spin" />
-            Reading transceiver health...
+            {t("transceiver.reading")}
           </div>
         ) : ports.length === 0 ? (
           <p className="py-8 text-sm text-muted-foreground">
-            No ethernet transceiver diagnostics found.
+            {t("transceiver.noDiagnostics")}
           </p>
         ) : (
           <div className="space-y-3">
@@ -167,11 +170,11 @@ export function TransceiverHealthCard({
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
                 )}
                 <span className="text-sm font-medium">
-                  {ports.length} interface{ports.length === 1 ? "" : "s"} scanned
+                  {t("transceiver.scanned", { count: ports.length })}
                 </span>
               </div>
               <div className="text-xs text-muted-foreground">
-                {ports.filter((port) => transceiverSeverity(port) === "ok").length} OK
+                {t("transceiver.okCount", { count: ports.filter((port) => transceiverSeverity(port) === "ok").length })}
               </div>
             </div>
 
@@ -181,16 +184,16 @@ export function TransceiverHealthCard({
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-sm font-medium break-all">{port.interface}</span>
-                      <span className="text-xs text-muted-foreground">{port.transceiver || "No part"}</span>
+                      <span className="text-xs text-muted-foreground">{port.transceiver || t("transceiver.noPart")}</span>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       {port.alarms.length > 0 && (
-                        <span className="text-red-600">{port.alarms.length} alarm{port.alarms.length === 1 ? "" : "s"}</span>
+                        <span className="text-red-600">{t("transceiver.alarms", { count: port.alarms.length })}</span>
                       )}
                       {port.warnings.length > 0 && (
-                        <span className="text-yellow-600">{port.warnings.length} warning{port.warnings.length === 1 ? "" : "s"}</span>
+                        <span className="text-yellow-600">{t("transceiver.warnings", { count: port.warnings.length })}</span>
                       )}
-                      {!port.present && <span>No transceiver</span>}
+                      {!port.present && <span>{t("transceiver.noTransceiver")}</span>}
                     </div>
                   </div>
                   <SeverityBadge port={port} />

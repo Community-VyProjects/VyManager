@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { LanguageSelector } from "@/components/ui/language-selector";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signIn, authClient } from "@/lib/auth-client";
@@ -20,6 +22,7 @@ import { WELL_KNOWN_PROVIDERS } from "@/lib/api/oauth";
 import { interpretSignInResult, leftoverPasswordSessions, mustEnrollTwoFactor, parseTwoFactorQuery } from "@/lib/two-factor";
 
 export default function LoginPage() {
+  const t = useTranslations("login");
   const router = useRouter();
   const [appliance, setAppliance] = useState<boolean | null>(null);
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
@@ -77,10 +80,7 @@ export default function LoginPage() {
       const params = new URLSearchParams(window.location.search);
       // A failed OAuth callback redirects back here with ?error=oauth.
       if (params.get("error")) {
-        setError(
-          "Single sign-on was denied. Your account may not be a member of a " +
-            "group permitted to access VyManager. Contact your administrator."
-        );
+        setError(t("errors.ssoDenied"));
       }
       const twoFactor = parseTwoFactorQuery(window.location.search);
       if (twoFactor.challenge) {
@@ -89,7 +89,7 @@ export default function LoginPage() {
     } catch {
       // ignore
     }
-  }, []);
+  }, [t]);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -135,7 +135,7 @@ export default function LoginPage() {
 
       await finishLogin();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      setError(err instanceof Error ? err.message : t("errors.generic"));
       setIsLoading(false);
     }
   };
@@ -192,7 +192,7 @@ export default function LoginPage() {
       // Proceed to redirect
       router.push(afterLoginPath(appliance));
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to revoke other sessions";
+      const errorMessage = err instanceof Error ? err.message : t("errors.revokeFailed");
       throw new Error(errorMessage);
     }
   };
@@ -210,7 +210,7 @@ export default function LoginPage() {
         errorCallbackURL: "/login?error=oauth",
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "OAuth sign-in failed");
+      setError(err instanceof Error ? err.message : t("errors.oauthFailed"));
       setOauthLoading(null);
     }
   };
@@ -220,10 +220,10 @@ export default function LoginPage() {
       await signOutFully();
       setShowSessionWarning(false);
       setOtherSessions([]);
-      setError("Login cancelled. Please try again from your other device or choose to continue.");
+      setError(t("errors.loginCancelledRetry"));
     } catch (err) {
       console.error("Failed to sign out:", err);
-      setError("Login cancelled");
+      setError(t("errors.loginCancelled"));
     }
   };
 
@@ -244,6 +244,10 @@ export default function LoginPage() {
 
       {/* Animated grid pattern */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
+
+      <div className="absolute top-4 right-4 z-20">
+        <LanguageSelector compact />
+      </div>
 
       {/* Login card */}
       <div className="relative z-10 w-full max-w-md mx-4">
@@ -268,7 +272,7 @@ export default function LoginPage() {
               VyManager
             </h1>
             <p className="text-sm text-muted-foreground mt-2">
-              Professional VyOS Management
+              {t("subtitle")}
             </p>
           </div>
 
@@ -283,7 +287,7 @@ export default function LoginPage() {
           {forceEnroll ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground text-center">
-                Your administrator requires two-factor authentication before you can continue.
+                {t("twoFactorRequired")}
               </p>
               <TwoFactorEnrollForm
                 password={formData.password}
@@ -293,7 +297,7 @@ export default function LoginPage() {
           ) : twoFactorMethods ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground text-center">
-                Enter a second-factor code to finish signing in.
+                {t("twoFactorPrompt")}
               </p>
               <TwoFactorChallenge
                 methods={twoFactorMethods}
@@ -308,7 +312,7 @@ export default function LoginPage() {
                   setError("");
                 }}
               >
-                Back to password
+                {t("backToPassword")}
               </Button>
             </div>
           ) : (
@@ -318,7 +322,7 @@ export default function LoginPage() {
                 htmlFor="email"
                 className="text-sm font-medium text-foreground"
               >
-                Email
+                {t("email")}
               </Label>
               <Input
                 id="email"
@@ -339,12 +343,12 @@ export default function LoginPage() {
                 htmlFor="password"
                 className="text-sm font-medium text-foreground"
               >
-                Password
+                {t("password")}
               </Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter your password"
+                placeholder={t("passwordPlaceholder")}
                 value={formData.password}
                 onChange={(e) =>
                   setFormData({ ...formData, password: e.target.value })
@@ -363,10 +367,10 @@ export default function LoginPage() {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
+                  {t("signingIn")}
                 </>
               ) : (
-                "Sign in"
+                t("signIn")
               )}
             </Button>
 
@@ -382,7 +386,7 @@ export default function LoginPage() {
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
                   <span className="bg-card/80 px-2 text-muted-foreground backdrop-blur-sm">
-                    or continue with
+                    {t("orContinueWith")}
                   </span>
                 </div>
               </div>
@@ -420,7 +424,7 @@ export default function LoginPage() {
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-card px-2 text-muted-foreground">
-                Secure Access
+                {t("secureAccess")}
               </span>
             </div>
           </div>
@@ -428,18 +432,18 @@ export default function LoginPage() {
           {/* Footer info */}
           <div className="text-center space-y-2">
             <p className="text-xs text-muted-foreground">
-              Protected by enterprise-grade encryption
+              {t("encryptionNotice")}
             </p>
             <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground/60">
               <Shield className="w-3 h-3" />
-              <span>VyOS Router Management System</span>
+              <span>{t("systemName")}</span>
             </div>
           </div>
         </div>
 
         {/* Bottom text */}
         <p className="text-center text-xs text-muted-foreground mt-6">
-          By signing in, you agree to our Terms of Service and Privacy Policy
+          {t("termsNotice")}
         </p>
       </div>
 
