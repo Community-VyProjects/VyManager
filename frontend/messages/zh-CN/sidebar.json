@@ -1,0 +1,9 @@
+{
+  "subtitle": "VyOS 管理",
+  "reportBug": "报告问题",
+  "connected": "已连接",
+  "disconnectInstance": "断开实例连接",
+  "connectToInstance": "连接到实例",
+  "userFallback": "用户",
+  "logout": "退出登录"
+}
