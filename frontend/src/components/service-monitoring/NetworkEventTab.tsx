@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,15 +30,17 @@ interface NetworkEventTabProps {
   onSuccess: () => void;
 }
 
-const EVENT_LABELS: Record<string, string> = {
-  addr: "Address",
-  link: "Link",
-  neigh: "Neighbor",
-  route: "Route",
-  rule: "Policy Rule",
+const EVENT_LABELS: Record<string, "networkEvent.events.addr" | "networkEvent.events.link" | "networkEvent.events.neigh" | "networkEvent.events.route" | "networkEvent.events.rule"> = {
+  addr: "networkEvent.events.addr",
+  link: "networkEvent.events.link",
+  neigh: "networkEvent.events.neigh",
+  route: "networkEvent.events.route",
+  rule: "networkEvent.events.rule",
 };
 
 export function NetworkEventTab({ config, caps, hasWrite, onSuccess }: NetworkEventTabProps) {
+  const t = useTranslations("serviceMonitoring");
+  const tc = useTranslations("common");
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -61,14 +64,14 @@ export function NetworkEventTab({ config, caps, hasWrite, onSuccess }: NetworkEv
         <div className="rounded-full p-4 bg-muted mb-4">
           <Network className="h-8 w-8 text-muted-foreground/50" />
         </div>
-        <p className="text-sm font-medium mb-1">Network Event logging not configured</p>
+        <p className="text-sm font-medium mb-1">{t("networkEvent.notConfigured")}</p>
         <p className="text-xs text-muted-foreground mb-4">
-          Log kernel netlink events for network changes
+          {t("networkEvent.emptyDescription")}
         </p>
         {hasWrite && (
           <Button onClick={() => setModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Configure Network Events
+            {t("networkEvent.configureButton")}
           </Button>
         )}
         {modalOpen && (
@@ -91,13 +94,13 @@ export function NetworkEventTab({ config, caps, hasWrite, onSuccess }: NetworkEv
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
               <Network className="h-4 w-4" />
-              Network Event Configuration
+              {t("networkEvent.cardTitle")}
             </CardTitle>
             {hasWrite && (
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={() => setModalOpen(true)}>
                   <Pencil className="h-4 w-4 mr-1" />
-                  Edit
+                  {tc("edit")}
                 </Button>
                 <Button
                   size="sm"
@@ -106,7 +109,7 @@ export function NetworkEventTab({ config, caps, hasWrite, onSuccess }: NetworkEv
                   onClick={() => setDeleteOpen(true)}
                 >
                   <Trash2 className="h-4 w-4 mr-1" />
-                  Remove
+                  {t("common.remove")}
                 </Button>
               </div>
             )}
@@ -116,13 +119,13 @@ export function NetworkEventTab({ config, caps, hasWrite, onSuccess }: NetworkEv
           <div className="flex gap-6 text-sm">
             {config.log_level && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Log Level</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1">{t("networkEvent.logLevel")}</p>
                 <Badge variant="secondary">{config.log_level}</Badge>
               </div>
             )}
             {config.queue_size && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Queue Size</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1">{t("networkEvent.queueSize")}</p>
                 <p className="font-mono">{config.queue_size}</p>
               </div>
             )}
@@ -130,11 +133,11 @@ export function NetworkEventTab({ config, caps, hasWrite, onSuccess }: NetworkEv
 
           {config.events.length > 0 && (
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-2">Event Types</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">{t("networkEvent.eventTypes")}</p>
               <div className="flex flex-wrap gap-2">
                 {config.events.map((e) => (
                   <Badge key={e} variant="secondary" className="bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                    {EVENT_LABELS[e] ?? e}
+                    {EVENT_LABELS[e] ? t(EVENT_LABELS[e]) : e}
                   </Badge>
                 ))}
               </div>
@@ -156,19 +159,19 @@ export function NetworkEventTab({ config, caps, hasWrite, onSuccess }: NetworkEv
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Network Event logging?</AlertDialogTitle>
+            <AlertDialogTitle>{t("networkEvent.removeTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete the network event configuration. This action cannot be undone.
+              {t("networkEvent.removeDescription")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Remove
+              {t("common.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

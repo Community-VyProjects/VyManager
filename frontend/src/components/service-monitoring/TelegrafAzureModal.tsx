@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +36,8 @@ interface TelegrafAzureModalProps {
 }
 
 export function TelegrafAzureModal({ open, onOpenChange, original, caps, onSuccess }: TelegrafAzureModalProps) {
+  const t = useTranslations("serviceMonitoring");
+  const tc = useTranslations("common");
   const [url, setUrl] = useState(original?.url ?? "");
   const [database, setDatabase] = useState(original?.database ?? "");
   const [table, setTable] = useState(original?.table ?? "");
@@ -64,7 +67,7 @@ export function TelegrafAzureModal({ open, onOpenChange, original, caps, onSucce
       });
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -74,22 +77,22 @@ export function TelegrafAzureModal({ open, onOpenChange, original, caps, onSucce
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Configure Azure Data Explorer Output</DialogTitle>
+          <DialogTitle>{t("telegraf.configureOutput", { name: "Azure Data Explorer" })}</DialogTitle>
         </DialogHeader>
 
         <ScrollArea className="max-h-[65vh] pr-4">
           <div className="space-y-4 py-1">
             <div className="space-y-2">
-              <Label htmlFor="azure-url">Endpoint URL</Label>
+              <Label htmlFor="azure-url">{t("telegraf.azure.endpointUrl")}</Label>
               <Input
                 id="azure-url"
-                placeholder="e.g. https://cluster.region.kusto.windows.net"
+                placeholder={t("telegraf.azure.endpointPlaceholder")}
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="azure-database">Database</Label>
+              <Label htmlFor="azure-database">{t("telegraf.azure.database")}</Label>
               <Input
                 id="azure-database"
                 value={database}
@@ -97,7 +100,7 @@ export function TelegrafAzureModal({ open, onOpenChange, original, caps, onSucce
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="azure-table">Table</Label>
+              <Label htmlFor="azure-table">{t("telegraf.azure.table")}</Label>
               <Input
                 id="azure-table"
                 value={table}
@@ -105,10 +108,10 @@ export function TelegrafAzureModal({ open, onOpenChange, original, caps, onSucce
               />
             </div>
             <div className="space-y-2">
-              <Label>Group Metrics</Label>
+              <Label>{t("telegraf.azure.groupMetrics")}</Label>
               <Select value={groupMetrics} onValueChange={setGroupMetrics}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select grouping strategy" />
+                  <SelectValue placeholder={t("telegraf.azure.groupMetricsPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
                   {groupMetricsValues.map((v) => (
@@ -118,7 +121,7 @@ export function TelegrafAzureModal({ open, onOpenChange, original, caps, onSucce
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="azure-client-id">Client ID</Label>
+              <Label htmlFor="azure-client-id">{t("telegraf.azure.clientId")}</Label>
               <Input
                 id="azure-client-id"
                 value={clientId}
@@ -126,7 +129,7 @@ export function TelegrafAzureModal({ open, onOpenChange, original, caps, onSucce
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="azure-client-secret">Client Secret</Label>
+              <Label htmlFor="azure-client-secret">{t("telegraf.azure.clientSecret")}</Label>
               <Input
                 id="azure-client-secret"
                 type="password"
@@ -135,7 +138,7 @@ export function TelegrafAzureModal({ open, onOpenChange, original, caps, onSucce
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="azure-tenant-id">Tenant ID</Label>
+              <Label htmlFor="azure-tenant-id">{t("telegraf.azure.tenantId")}</Label>
               <Input
                 id="azure-tenant-id"
                 value={tenantId}
@@ -154,11 +157,11 @@ export function TelegrafAzureModal({ open, onOpenChange, original, caps, onSucce
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

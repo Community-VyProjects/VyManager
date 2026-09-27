@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,8 @@ interface ZabbixTabProps {
 }
 
 export function ZabbixTab({ config, caps, hasWrite, onSuccess }: ZabbixTabProps) {
+  const t = useTranslations("serviceMonitoring");
+  const tc = useTranslations("common");
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -61,14 +64,14 @@ export function ZabbixTab({ config, caps, hasWrite, onSuccess }: ZabbixTabProps)
         <div className="rounded-full p-4 bg-muted mb-4">
           <Monitor className="h-8 w-8 text-muted-foreground/50" />
         </div>
-        <p className="text-sm font-medium mb-1">Zabbix Agent not configured</p>
+        <p className="text-sm font-medium mb-1">{t("zabbix.notConfigured")}</p>
         <p className="text-xs text-muted-foreground mb-4">
-          Configure the Zabbix monitoring agent for this router
+          {t("zabbix.emptyDescription")}
         </p>
         {hasWrite && (
           <Button onClick={() => setModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Configure Zabbix Agent
+            {t("zabbix.configureTitle")}
           </Button>
         )}
         {modalOpen && (
@@ -91,13 +94,13 @@ export function ZabbixTab({ config, caps, hasWrite, onSuccess }: ZabbixTabProps)
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
               <Monitor className="h-4 w-4" />
-              Zabbix Agent Configuration
+              {t("zabbix.cardTitle")}
             </CardTitle>
             {hasWrite && (
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={() => setModalOpen(true)}>
                   <Pencil className="h-4 w-4 mr-1" />
-                  Edit Configuration
+                  {t("zabbix.editConfiguration")}
                 </Button>
                 <Button
                   size="sm"
@@ -106,7 +109,7 @@ export function ZabbixTab({ config, caps, hasWrite, onSuccess }: ZabbixTabProps)
                   onClick={() => setDeleteOpen(true)}
                 >
                   <Trash2 className="h-4 w-4 mr-1" />
-                  Remove
+                  {t("common.remove")}
                 </Button>
               </div>
             )}
@@ -116,37 +119,37 @@ export function ZabbixTab({ config, caps, hasWrite, onSuccess }: ZabbixTabProps)
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
             {config.host_name && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Host Name</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1">{t("zabbix.hostName")}</p>
                 <p className="font-mono">{config.host_name}</p>
               </div>
             )}
             {config.port && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Port</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1">{t("common.port")}</p>
                 <p className="font-mono">{config.port}</p>
               </div>
             )}
             {config.timeout && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Timeout</p>
-                <p className="font-mono">{config.timeout}s</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1">{t("prometheus.timeout")}</p>
+                <p className="font-mono">{t("common.secondsValue", { value: String(config.timeout) })}</p>
               </div>
             )}
             {config.directory && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Directory</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1">{t("zabbix.directory")}</p>
                 <p className="font-mono">{config.directory}</p>
               </div>
             )}
             {config.authentication.mode && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Auth Mode</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1">{t("zabbix.authMode")}</p>
                 <Badge variant="secondary">{config.authentication.mode}</Badge>
               </div>
             )}
             {config.log.debug_level && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Log Level</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1">{t("networkEvent.logLevel")}</p>
                 <Badge variant="secondary">{config.log.debug_level}</Badge>
               </div>
             )}
@@ -154,7 +157,7 @@ export function ZabbixTab({ config, caps, hasWrite, onSuccess }: ZabbixTabProps)
 
           {config.listen_addresses.length > 0 && (
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-2">Listen Addresses</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">{t("common.listenAddresses")}</p>
               <div className="flex flex-wrap gap-2">
                 {config.listen_addresses.map((a) => (
                   <Badge key={a} variant="secondary" className="font-mono">{a}</Badge>
@@ -165,7 +168,7 @@ export function ZabbixTab({ config, caps, hasWrite, onSuccess }: ZabbixTabProps)
 
           {config.servers.length > 0 && (
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-2">Passive Servers</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">{t("zabbix.passiveServers")}</p>
               <div className="flex flex-wrap gap-2">
                 {config.servers.map((s) => (
                   <Badge key={s} variant="secondary" className="font-mono">{s}</Badge>
@@ -176,12 +179,12 @@ export function ZabbixTab({ config, caps, hasWrite, onSuccess }: ZabbixTabProps)
 
           {config.servers_active.length > 0 && (
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-2">Active Servers</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">{t("zabbix.activeServers")}</p>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Address</TableHead>
-                    <TableHead>Port</TableHead>
+                    <TableHead>{t("zabbix.address")}</TableHead>
+                    <TableHead>{t("common.port")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -199,26 +202,26 @@ export function ZabbixTab({ config, caps, hasWrite, onSuccess }: ZabbixTabProps)
           <div className="flex gap-4 text-sm">
             {config.limits.buffer_flush_interval && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Buffer Flush</p>
-                <p className="font-mono">{config.limits.buffer_flush_interval}s</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1">{t("zabbix.bufferFlush")}</p>
+                <p className="font-mono">{t("common.secondsValue", { value: String(config.limits.buffer_flush_interval) })}</p>
               </div>
             )}
             {config.limits.buffer_size && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Buffer Size</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1">{t("zabbix.bufferSize")}</p>
                 <p className="font-mono">{config.limits.buffer_size}</p>
               </div>
             )}
             {config.log.size && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Log Size</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1">{t("zabbix.logSize")}</p>
                 <p className="font-mono">{config.log.size} MB</p>
               </div>
             )}
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1">Remote Commands</p>
+              <p className="text-xs font-medium text-muted-foreground mb-1">{t("zabbix.remoteCommands")}</p>
               <Badge variant="secondary" className={config.log.remote_commands ? "bg-amber-500/10 text-amber-600" : ""}>
-                {config.log.remote_commands ? "Enabled" : "Disabled"}
+                {config.log.remote_commands ? tc("enabled") : tc("disabled")}
               </Badge>
             </div>
           </div>
@@ -238,19 +241,19 @@ export function ZabbixTab({ config, caps, hasWrite, onSuccess }: ZabbixTabProps)
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Zabbix Agent?</AlertDialogTitle>
+            <AlertDialogTitle>{t("zabbix.removeTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete the entire Zabbix agent configuration. This action cannot be undone.
+              {t("zabbix.removeDescription")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Remove
+              {t("common.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

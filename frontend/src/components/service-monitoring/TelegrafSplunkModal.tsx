@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,8 @@ interface TelegrafSplunkModalProps {
 }
 
 export function TelegrafSplunkModal({ open, onOpenChange, original, onSuccess }: TelegrafSplunkModalProps) {
+  const t = useTranslations("serviceMonitoring");
+  const tc = useTranslations("common");
   const [url, setUrl] = useState(original?.url ?? "");
   const [token, setToken] = useState(original?.authentication?.token ?? "");
   const [insecure, setInsecure] = useState(original?.authentication?.insecure ?? false);
@@ -42,7 +45,7 @@ export function TelegrafSplunkModal({ open, onOpenChange, original, onSuccess }:
       });
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -52,7 +55,7 @@ export function TelegrafSplunkModal({ open, onOpenChange, original, onSuccess }:
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Configure Splunk Output</DialogTitle>
+          <DialogTitle>{t("telegraf.configureOutput", { name: "Splunk" })}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-1">
@@ -60,17 +63,17 @@ export function TelegrafSplunkModal({ open, onOpenChange, original, onSuccess }:
             <Label htmlFor="splunk-url">URL</Label>
             <Input
               id="splunk-url"
-              placeholder="e.g. https://splunk.example.com:8088"
+              placeholder={t("telegraf.splunk.urlPlaceholder")}
               value={url}
               onChange={(e) => setUrl(e.target.value)}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="splunk-token">Token</Label>
+            <Label htmlFor="splunk-token">{t("telegraf.token")}</Label>
             <Input
               id="splunk-token"
               type="password"
-              placeholder="HEC token"
+              placeholder={t("telegraf.splunk.tokenPlaceholder")}
               value={token}
               onChange={(e) => setToken(e.target.value)}
             />
@@ -82,7 +85,7 @@ export function TelegrafSplunkModal({ open, onOpenChange, original, onSuccess }:
               onCheckedChange={(checked) => setInsecure(!!checked)}
             />
             <Label htmlFor="splunk-insecure" className="cursor-pointer">
-              Skip TLS verification (insecure)
+              {t("telegraf.splunk.skipTlsVerify")}
             </Label>
           </div>
         </div>
@@ -96,11 +99,11 @@ export function TelegrafSplunkModal({ open, onOpenChange, original, onSuccess }:
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>
