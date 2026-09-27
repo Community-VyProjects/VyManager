@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
@@ -134,6 +135,8 @@ interface Props {
 export function HAProxyRuleModal({
   open, onOpenChange, type, entityName, rule, entityOptions, capabilities, nextRuleId, onSuccess,
 }: Props) {
+  const t = useTranslations("haproxy");
+  const tc = useTranslations("common");
   const isEdit = !!rule;
   const isV15 = capabilities?.features.backend_rule_wildcard_domain.supported ?? false;
 
@@ -201,33 +204,33 @@ export function HAProxyRuleModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
-  const actionLabel = type === "service" ? "Route to backend" : "Route to server";
-  const actionPlaceholder = type === "service" ? "backend name" : "server name";
+  const actionLabel = type === "service" ? t("ruleModal.routeToBackend") : t("ruleModal.routeToServer");
+  const actionPlaceholder = type === "service" ? t("ruleModal.backendName") : t("ruleModal.serverName");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? `Edit Rule ${rule?.rule_id}` : "Add Routing Rule"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("ruleModal.editTitle", { id: String(rule?.rule_id) }) : t("ruleModal.addTitle")}</DialogTitle>
           <DialogDescription>
-            Define match conditions and the action to take when they are met.
+            {t("ruleModal.description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 py-2">
           {/* Match Conditions */}
           <div className="space-y-4">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Match Conditions</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("matchConditions")}</p>
 
             {/* Domain Names */}
             <div className="space-y-1.5">
-              <Label className="text-sm">Domain Names</Label>
+              <Label className="text-sm">{t("ruleModal.domainNames")}</Label>
               <div className="flex gap-2">
                 <Input
                   value={form.new_domain}
@@ -257,7 +260,7 @@ export function HAProxyRuleModal({
             {isV15 && (
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
-                  <Label className="text-sm">Wildcard Domains</Label>
+                  <Label className="text-sm">{t("ruleModal.wildcardDomains")}</Label>
                   <Badge variant="outline" className="text-xs">VyOS 1.5+</Badge>
                 </div>
                 <div className="flex gap-2">
@@ -265,7 +268,7 @@ export function HAProxyRuleModal({
                     value={form.new_wildcard}
                     onChange={(e) => set("new_wildcard", e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addItem("wildcard_domains", "new_wildcard"))}
-                    placeholder="example.com  (matches *.example.com)"
+                    placeholder={t("ruleModal.wildcardPlaceholder")}
                   />
                   <Button type="button" variant="outline" size="sm" onClick={() => addItem("wildcard_domains", "new_wildcard")}>
                     <Plus className="h-3.5 w-3.5" />
@@ -288,31 +291,31 @@ export function HAProxyRuleModal({
 
             {/* SSL Match */}
             <div className="space-y-1.5">
-              <Label className="text-sm">SSL Match</Label>
+              <Label className="text-sm">{t("ruleModal.sslMatch")}</Label>
               <Select
                 value={form.ssl || "_none"}
                 onValueChange={(v) => set("ssl", v === "_none" ? "" : v)}
               >
-                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="_none">None</SelectItem>
-                  <SelectItem value="hello">hello — match on TLS SNI</SelectItem>
+                  <SelectItem value="_none">{tc("none")}</SelectItem>
+                  <SelectItem value="hello">{t("ruleModal.sslHello")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {/* URL Path */}
             <div className="space-y-3">
-              <Label className="text-sm">URL Path</Label>
+              <Label className="text-sm">{t("ruleModal.urlPath")}</Label>
               {(
                 [
-                  { kind: "begin", tempKey: "new_url_begin", field: "url_path_begin", label: "Begins with", placeholder: "/api" },
-                  { kind: "end",   tempKey: "new_url_end",   field: "url_path_end",   label: "Ends with",   placeholder: ".php" },
-                  { kind: "exact", tempKey: "new_url_exact", field: "url_path_exact", label: "Exact match", placeholder: "/login" },
+                  { kind: "begin", tempKey: "new_url_begin", field: "url_path_begin", label: "beginsWith", placeholder: "/api" },
+                  { kind: "end",   tempKey: "new_url_end",   field: "url_path_end",   label: "endsWith",   placeholder: ".php" },
+                  { kind: "exact", tempKey: "new_url_exact", field: "url_path_exact", label: "exactMatch", placeholder: "/login" },
                 ] as const
               ).map(({ tempKey, field, label, placeholder }) => (
                 <div key={field} className="space-y-1">
-                  <span className="text-xs text-muted-foreground">{label}</span>
+                  <span className="text-xs text-muted-foreground">{t(`ruleModal.${label}`)}</span>
                   <div className="flex gap-2">
                     <Input
                       value={form[tempKey]}
@@ -345,7 +348,7 @@ export function HAProxyRuleModal({
 
           {/* Action */}
           <div className="space-y-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Action</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("action")}</p>
             <Select
               value={form.set_action || "_none"}
               onValueChange={(v) => setForm((f) => ({
@@ -354,11 +357,11 @@ export function HAProxyRuleModal({
                 set_value: "",
               }))}
             >
-              <SelectTrigger><SelectValue placeholder="No action" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t("noAction")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="_none">No action</SelectItem>
+                <SelectItem value="_none">{t("noAction")}</SelectItem>
                 <SelectItem value={type === "service" ? "backend" : "server"}>{actionLabel}</SelectItem>
-                <SelectItem value="redirect">Redirect to URL</SelectItem>
+                <SelectItem value="redirect">{t("ruleModal.redirectToUrl")}</SelectItem>
               </SelectContent>
             </Select>
 
@@ -368,9 +371,9 @@ export function HAProxyRuleModal({
                   value={form.set_value || "_none"}
                   onValueChange={(v) => set("set_value", v === "_none" ? "" : v)}
                 >
-                  <SelectTrigger><SelectValue placeholder={`Select ${actionPlaceholder}`} /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("ruleModal.selectEntity", { name: actionPlaceholder })} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="_none">Select {actionPlaceholder}…</SelectItem>
+                    <SelectItem value="_none">{t("ruleModal.selectEntityEllipsis", { name: actionPlaceholder })}</SelectItem>
                     {entityOptions.map((opt) => (
                       <SelectItem key={opt} value={opt}>{opt}</SelectItem>
                     ))}
@@ -403,10 +406,10 @@ export function HAProxyRuleModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? "Save Rule" : "Add Rule"}
+            {isEdit ? t("ruleModal.saveRule") : t("addRule")}
           </Button>
         </DialogFooter>
       </DialogContent>

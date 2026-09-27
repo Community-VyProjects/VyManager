@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -33,7 +34,7 @@ import {
   emptyClassDraft,
 } from "@/lib/api/qos";
 import { POLICY_TYPE_META, POLICY_TYPE_ORDER, PRECEDENCE_FIELDS } from "@/lib/qos-schema";
-import { QoSFieldForm } from "./QoSFieldForm";
+import { QoSFieldForm, useQoSSchemaText } from "./QoSFieldForm";
 import { QoSClassEditor } from "./QoSClassEditor";
 
 interface QoSPolicyModalProps {
@@ -61,6 +62,9 @@ export function QoSPolicyModal({
   availableMatchGroups,
   onSuccess,
 }: QoSPolicyModalProps) {
+  const t = useTranslations("qos");
+  const tc = useTranslations("common");
+  const st = useQoSSchemaText();
   const isEdit = existing !== null;
   const [draft, setDraft] = useState<PolicyDraft>(
     existing ? policyToDraft(existing) : freshDraft(POLICY_TYPE_ORDER[0])
@@ -130,11 +134,11 @@ export function QoSPolicyModal({
   const handleSubmit = async () => {
     const name = draft.name.trim();
     if (!name) {
-      setError("A policy name is required");
+      setError(t("policyModal.nameRequired"));
       return;
     }
     if (!isEdit && existingNames.includes(name)) {
-      setError(`A ${meta.label} policy named "${name}" already exists`);
+      setError(t("policyModal.exists", { type: st(meta.label), name }));
       return;
     }
     setSubmitting(true);
@@ -144,7 +148,7 @@ export function QoSPolicyModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -154,8 +158,8 @@ export function QoSPolicyModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{isEdit ? `Edit ${meta.label} Policy` : "Add Policy"}</DialogTitle>
-          <DialogDescription>{meta.description}</DialogDescription>
+          <DialogTitle>{isEdit ? t("policyModal.editTitle", { type: st(meta.label) }) : t("addPolicy")}</DialogTitle>
+          <DialogDescription>{st(meta.description)}</DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[68vh] pr-4">
@@ -163,27 +167,27 @@ export function QoSPolicyModal({
             {/* Type + name */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium">Type</Label>
+                <Label className="text-sm font-medium">{t("type")}</Label>
                 <Select
                   value={draft.type}
-                  onValueChange={(t) => setDraft(freshDraft(t))}
+                  onValueChange={(type) => setDraft(freshDraft(type))}
                   disabled={isEdit}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {POLICY_TYPE_ORDER.map((t) => (
-                      <SelectItem key={t} value={t}>{POLICY_TYPE_META[t].label}</SelectItem>
+                    {POLICY_TYPE_ORDER.map((type) => (
+                      <SelectItem key={type} value={type}>{st(POLICY_TYPE_META[type].label)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="qos-policy-name" className="text-sm font-medium">Name</Label>
+                <Label htmlFor="qos-policy-name" className="text-sm font-medium">{tc("name")}</Label>
                 <Input
                   id="qos-policy-name"
-                  placeholder="e.g. wan-shaper"
+                  placeholder={t("example", { value: "wan-shaper" })}
                   value={draft.name}
                   onChange={(e) => {
                     setDraft((d) => ({ ...d, name: e.target.value }));
@@ -214,13 +218,13 @@ export function QoSPolicyModal({
               <>
                 <Separator />
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Flow Isolation</Label>
+                  <Label className="text-sm font-medium">{t("policyModal.flowIsolation")}</Label>
                   <Select value={modeValue === "" ? FI_NONE : modeValue} onValueChange={(v) => setMode(v === FI_NONE ? "" : v)}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Default" />
+                      <SelectValue placeholder={tc("default")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={FI_NONE}>Default</SelectItem>
+                      <SelectItem value={FI_NONE}>{tc("default")}</SelectItem>
                       {flowIsoModes.map((m) => (
                         <SelectItem key={m} value={m}>{m}</SelectItem>
                       ))}
@@ -229,20 +233,20 @@ export function QoSPolicyModal({
                   <div className="flex items-center gap-2 pt-1">
                     <Checkbox id="cake-nat" checked={natOn} onCheckedChange={(c) => setNat(!!c)} />
                     <Label htmlFor="cake-nat" className="text-xs cursor-pointer">
-                      Perform NAT lookup before applying flow isolation
+                      {t("policyModal.natLookup")}
                     </Label>
                   </div>
                   {showAckFilter && (
                     <div className="space-y-1.5 pt-2">
-                      <Label className="text-sm font-medium">ACK filter</Label>
+                      <Label className="text-sm font-medium">{t("policyModal.ackFilter")}</Label>
                       <Select value={ackFilter === "" ? FI_NONE : ackFilter} onValueChange={(v) => setAckFilter(v === FI_NONE ? "" : v)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Off" />
+                          <SelectValue placeholder={t("policyModal.ackOff")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={FI_NONE}>Off</SelectItem>
-                          <SelectItem value="filter">Filter</SelectItem>
-                          <SelectItem value="aggressive">Aggressive</SelectItem>
+                          <SelectItem value={FI_NONE}>{t("policyModal.ackOff")}</SelectItem>
+                          <SelectItem value="filter">{t("policyModal.ackFilterMode")}</SelectItem>
+                          <SelectItem value="aggressive">{t("policyModal.ackAggressive")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -251,7 +255,7 @@ export function QoSPolicyModal({
                     <div className="flex items-center gap-2 pt-2">
                       <Checkbox id="cake-no-split-gso" checked={noSplitGso} onCheckedChange={(c) => setNoSplitGso(!!c)} />
                       <Label htmlFor="cake-no-split-gso" className="text-xs cursor-pointer">
-                        Do not split GSO
+                        {t("policyModal.noSplitGso")}
                       </Label>
                     </div>
                   )}
@@ -273,7 +277,7 @@ export function QoSPolicyModal({
                 <Separator />
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium">Classes</Label>
+                    <Label className="text-sm font-medium">{t("classes")}</Label>
                     <Button
                       type="button"
                       size="sm"
@@ -281,7 +285,7 @@ export function QoSPolicyModal({
                       onClick={() => setDraft((d) => ({ ...d, classes: [...d.classes, emptyClassDraft("")] }))}
                     >
                       <Plus className="h-4 w-4 mr-1" />
-                      Add Class
+                      {t("policyModal.addClass")}
                     </Button>
                   </div>
                   {draft.classes.map((cls, i) => (
@@ -319,7 +323,7 @@ export function QoSPolicyModal({
                       }
                     />
                     <Label htmlFor="qos-default-enabled" className="text-sm font-medium cursor-pointer">
-                      Configure default class
+                      {t("policyModal.configureDefaultClass")}
                     </Label>
                   </div>
                   {draft.default && (
@@ -349,11 +353,11 @@ export function QoSPolicyModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isEdit ? "Save" : "Create"}
+            {isEdit ? tc("save") : t("create")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -372,10 +376,11 @@ function PrecedenceSection({
   setDraft: React.Dispatch<React.SetStateAction<PolicyDraft>>;
   dscpNames: string[];
 }) {
+  const t = useTranslations("qos");
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">IP Precedence</Label>
+        <Label className="text-sm font-medium">{t("policyModal.ipPrecedence")}</Label>
         <Button
           type="button"
           size="sm"
@@ -383,14 +388,14 @@ function PrecedenceSection({
           onClick={() => setDraft((d) => ({ ...d, precedences: [...d.precedences, { precedence: "", values: {} }] }))}
         >
           <Plus className="h-4 w-4 mr-1" />
-          Add Precedence
+          {t("policyModal.addPrecedence")}
         </Button>
       </div>
       {draft.precedences.map((pr, i) => (
         <div key={i} className="space-y-3 rounded-md border border-border p-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex-1 space-y-1">
-              <Label htmlFor={`qos-prec-${i}`} className="text-xs font-medium">Precedence (0-7)</Label>
+              <Label htmlFor={`qos-prec-${i}`} className="text-xs font-medium">{t("policyModal.precedence")}</Label>
               <Input
                 id={`qos-prec-${i}`}
                 type="number"

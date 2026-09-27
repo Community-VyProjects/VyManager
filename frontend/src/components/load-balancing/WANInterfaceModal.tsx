@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
@@ -87,6 +88,8 @@ interface Props {
 // ============================================================================
 
 export function WANInterfaceModal({ open, onOpenChange, iface, onSuccess }: Props) {
+  const t = useTranslations("wanLoadBalancing");
+  const tc = useTranslations("common");
   const isEdit = !!iface;
 
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -119,8 +122,8 @@ export function WANInterfaceModal({ open, onOpenChange, iface, onSuccess }: Prop
     setForm((f) => ({ ...f, tests: f.tests.filter((_, i) => i !== idx) }));
 
   const handleSubmit = async () => {
-    if (!form.interface.trim()) { setError("Interface name is required"); return; }
-    if (!form.nexthop.trim()) { setError("Nexthop address is required"); return; }
+    if (!form.interface.trim()) { setError(t("interfaceModal.interfaceRequired")); return; }
+    if (!form.nexthop.trim()) { setError(t("interfaceModal.nexthopRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -134,7 +137,7 @@ export function WANInterfaceModal({ open, onOpenChange, iface, onSuccess }: Prop
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -144,16 +147,16 @@ export function WANInterfaceModal({ open, onOpenChange, iface, onSuccess }: Prop
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Interface Health" : "Add Interface Health"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("interfaceModal.editTitle") : t("interfaceModal.addTitle")}</DialogTitle>
           <DialogDescription>
-            Configure health monitoring for a WAN interface and its gateway.
+            {t("interfaceModal.description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Interface <span className="text-destructive">*</span></Label>
+              <Label>{t("interface")} <span className="text-destructive">*</span></Label>
               <Input
                 value={form.interface}
                 onChange={(e) => set("interface", e.target.value)}
@@ -162,7 +165,7 @@ export function WANInterfaceModal({ open, onOpenChange, iface, onSuccess }: Prop
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Nexthop (Gateway) <span className="text-destructive">*</span></Label>
+              <Label>{t("nexthopGateway")} <span className="text-destructive">*</span></Label>
               <Input
                 value={form.nexthop}
                 onChange={(e) => set("nexthop", e.target.value)}
@@ -173,7 +176,7 @@ export function WANInterfaceModal({ open, onOpenChange, iface, onSuccess }: Prop
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Failure Count</Label>
+              <Label>{t("interfaceModal.failureCount")}</Label>
               <Input
                 value={form.failure_count}
                 onChange={(e) => set("failure_count", e.target.value)}
@@ -182,7 +185,7 @@ export function WANInterfaceModal({ open, onOpenChange, iface, onSuccess }: Prop
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Success Count</Label>
+              <Label>{t("interfaceModal.successCount")}</Label>
               <Input
                 value={form.success_count}
                 onChange={(e) => set("success_count", e.target.value)}
@@ -197,16 +200,16 @@ export function WANInterfaceModal({ open, onOpenChange, iface, onSuccess }: Prop
           {/* Tests */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-semibold">Health Tests</Label>
+              <Label className="text-sm font-semibold">{t("healthTests")}</Label>
               <Button type="button" variant="outline" size="sm" onClick={addTest}>
-                <Plus className="h-3.5 w-3.5 mr-1" /> Add Test
+                <Plus className="h-3.5 w-3.5 mr-1" /> {t("interfaceModal.addTest")}
               </Button>
             </div>
 
             {form.tests.map((test, idx) => (
               <div key={idx} className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-muted-foreground">Test {test.test_id}</span>
+                  <span className="text-xs font-medium text-muted-foreground">{t("interfaceModal.testN", { id: test.test_id })}</span>
                   {form.tests.length > 1 && (
                     <Button
                       type="button" variant="ghost" size="sm"
@@ -220,7 +223,7 @@ export function WANInterfaceModal({ open, onOpenChange, iface, onSuccess }: Prop
 
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <Label className="text-xs">Type</Label>
+                    <Label className="text-xs">{t("interfaceModal.type")}</Label>
                     <Select
                       value={test.type}
                       onValueChange={(v) => setTest(idx, "type", v)}
@@ -229,13 +232,13 @@ export function WANInterfaceModal({ open, onOpenChange, iface, onSuccess }: Prop
                       <SelectContent>
                         <SelectItem value="ping">Ping</SelectItem>
                         <SelectItem value="ttl">TTL</SelectItem>
-                        <SelectItem value="user-defined">User Defined</SelectItem>
+                        <SelectItem value="user-defined">{t("interfaceModal.userDefined")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">
-                      {test.type === "user-defined" ? "Script" : "Target"}
+                      {test.type === "user-defined" ? t("interfaceModal.script") : t("interfaceModal.target")}
                     </Label>
                     <Input
                       className="h-8 text-sm"
@@ -259,11 +262,11 @@ export function WANInterfaceModal({ open, onOpenChange, iface, onSuccess }: Prop
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? "Save Changes" : "Add Interface"}
+            {isEdit ? t("saveChanges") : t("addInterface")}
           </Button>
         </DialogFooter>
       </DialogContent>

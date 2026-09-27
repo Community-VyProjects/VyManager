@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -89,6 +90,7 @@ function DeleteDialog({
   description: string;
   onConfirm: () => Promise<void>;
 }) {
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -103,7 +105,7 @@ function DeleteDialog({
       await onConfirm();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -124,11 +126,11 @@ function DeleteDialog({
         )}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleConfirm} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Delete
+            {tc("delete")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -141,6 +143,8 @@ function DeleteDialog({
 // ============================================================================
 
 function GlobalSettingsPanel({ config, capabilities, onSaved }: { config: HAConfig; capabilities: HACapabilities | null; onSaved: () => void }) {
+  const t = useTranslations("highAvailability");
+  const tc = useTranslations("common");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -177,7 +181,7 @@ function GlobalSettingsPanel({ config, capabilities, onSaved }: { config: HAConf
       onSaved();
       setDialogOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -194,38 +198,38 @@ function GlobalSettingsPanel({ config, capabilities, onSaved }: { config: HAConf
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Settings2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="text-sm font-medium">VRRP Global Settings</span>
+                <span className="text-sm font-medium">{t("globals.title")}</span>
               </div>
               <div className="h-4 w-px bg-border" />
               <div className="flex items-center gap-5 text-sm">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-muted-foreground">Version</span>
+                  <span className="text-xs text-muted-foreground">{t("globals.version")}</span>
                   <span className="font-medium">
-                    {params.version ? `v${params.version}` : <span className="text-muted-foreground">Default</span>}
+                    {params.version ? `v${params.version}` : <span className="text-muted-foreground">{tc("default")}</span>}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-muted-foreground">Startup delay</span>
+                  <span className="text-xs text-muted-foreground">{t("globals.startupDelay")}</span>
                   <span className="font-medium">
-                    {params.startup_delay ? `${params.startup_delay}s` : <span className="text-muted-foreground">None</span>}
+                    {params.startup_delay ? `${params.startup_delay}s` : <span className="text-muted-foreground">{tc("none")}</span>}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs text-muted-foreground">SNMP</span>
                   <span className="font-medium">
                     {config.vrrp.snmp
-                      ? <Badge variant="secondary" className="text-xs py-0">Enabled</Badge>
-                      : <span className="text-muted-foreground">Disabled</span>
+                      ? <Badge variant="secondary" className="text-xs py-0">{tc("enabled")}</Badge>
+                      : <span className="text-muted-foreground">{tc("disabled")}</span>
                     }
                   </span>
                 </div>
                 {snmpTrapSupported && config.vrrp.snmp && (
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-muted-foreground">Traps</span>
+                    <span className="text-xs text-muted-foreground">{t("globals.traps")}</span>
                     <span className="font-medium">
                       {config.vrrp.snmp_trap
-                        ? <Badge variant="secondary" className="text-xs py-0">Enabled</Badge>
-                        : <span className="text-muted-foreground">Disabled</span>
+                        ? <Badge variant="secondary" className="text-xs py-0">{tc("enabled")}</Badge>
+                        : <span className="text-muted-foreground">{tc("disabled")}</span>
                       }
                     </span>
                   </div>
@@ -237,7 +241,7 @@ function GlobalSettingsPanel({ config, capabilities, onSaved }: { config: HAConf
             {canEdit && (
               <Button variant="outline" size="sm" onClick={openDialog}>
                 <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                Edit
+                {tc("edit")}
               </Button>
             )}
           </div>
@@ -248,9 +252,9 @@ function GlobalSettingsPanel({ config, capabilities, onSaved }: { config: HAConf
       <Dialog open={dialogOpen} onOpenChange={(o) => { if (!loading) setDialogOpen(o); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>VRRP Global Settings</DialogTitle>
+            <DialogTitle>{t("globals.title")}</DialogTitle>
             <DialogDescription>
-              Configure global parameters for all VRRP groups
+              {t("globals.description")}
             </DialogDescription>
           </DialogHeader>
 
@@ -263,30 +267,30 @@ function GlobalSettingsPanel({ config, capabilities, onSaved }: { config: HAConf
             )}
 
             <div className="space-y-1.5">
-              <Label>VRRP Version</Label>
+              <Label>{t("globals.vrrpVersion")}</Label>
               <Select value={version || "default"} onValueChange={(v) => setVersion(v === "default" ? "" : v)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="default">Default</SelectItem>
-                  <SelectItem value="2">Version 2</SelectItem>
-                  <SelectItem value="3">Version 3</SelectItem>
+                  <SelectItem value="default">{tc("default")}</SelectItem>
+                  <SelectItem value="2">{t("globals.versionN", { n: "2" })}</SelectItem>
+                  <SelectItem value="3">{t("globals.versionN", { n: "3" })}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-1.5">
-              <Label>Startup Delay (s)</Label>
+              <Label>{t("globals.startupDelayLabel")}</Label>
               <Input
                 type="number"
                 min={0}
                 value={startupDelay}
                 onChange={(e) => setStartupDelay(e.target.value)}
-                placeholder="0 — no delay"
+                placeholder={t("globals.startupDelayPlaceholder")}
               />
               <p className="text-xs text-muted-foreground">
-                Delay before VRRP starts after system boot
+                {t("globals.startupDelayHelp")}
               </p>
             </div>
 
@@ -298,9 +302,9 @@ function GlobalSettingsPanel({ config, capabilities, onSaved }: { config: HAConf
               />
               <div>
                 <label htmlFor="snmp-dialog" className="text-sm font-medium cursor-pointer">
-                  SNMP Notifications
+                  {t("globals.snmpNotifications")}
                 </label>
-                <p className="text-xs text-muted-foreground">Send VRRP state change traps via SNMP</p>
+                <p className="text-xs text-muted-foreground">{t("globals.snmpNotificationsHelp")}</p>
               </div>
             </div>
 
@@ -314,10 +318,10 @@ function GlobalSettingsPanel({ config, capabilities, onSaved }: { config: HAConf
                 />
                 <div>
                   <label htmlFor="snmp-trap-dialog" className="text-sm font-medium cursor-pointer">
-                    SNMP Traps
+                    {t("globals.snmpTraps")}
                   </label>
                   <p className="text-xs text-muted-foreground">
-                    {snmp ? "Emit keepalived SNMP traps" : "Enable SNMP Notifications first"}
+                    {snmp ? t("globals.snmpTrapsHelp") : t("globals.snmpTrapsNeedsSnmp")}
                   </p>
                 </div>
               </div>
@@ -326,11 +330,11 @@ function GlobalSettingsPanel({ config, capabilities, onSaved }: { config: HAConf
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={loading}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button onClick={handleSave} disabled={loading}>
               {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Save
+              {tc("save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -344,6 +348,8 @@ function GlobalSettingsPanel({ config, capabilities, onSaved }: { config: HAConf
 // ============================================================================
 
 export function HighAvailabilityContent() {
+  const t = useTranslations("highAvailability");
+  const tc = useTranslations("common");
   const searchParams = useSearchParams();
   const [config, setConfig] = useState<HAConfig | null>(null);
   const [capabilities, setCapabilities] = useState<HACapabilities | null>(null);
@@ -383,11 +389,11 @@ export function HighAvailabilityContent() {
       setCapabilities(caps);
       setHaDisabled(cfg.disabled);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load configuration");
+      setError(err instanceof Error ? err.message : t("failedToLoad"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -407,7 +413,7 @@ export function HighAvailabilityContent() {
       setHaDisabled(!haDisabled);
       await loadData(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to toggle HA");
+      setError(err instanceof Error ? err.message : t("toggleFailed"));
     } finally {
       setTogglingHA(false);
     }
@@ -495,7 +501,7 @@ export function HighAvailabilityContent() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => loadData()}>Retry</Button>
+        <Button variant="outline" onClick={() => loadData()}>{tc("retry")}</Button>
       </div>
     );
   }
@@ -507,9 +513,9 @@ export function HighAvailabilityContent() {
         <div className="p-6 pb-4 border-b border-border">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-foreground">High Availability</h1>
+              <h1 className="text-2xl font-bold text-foreground">{t("title")}</h1>
               <p className="text-sm text-muted-foreground mt-1">
-                VRRP redundancy and load balancing with keepalived
+                {t("subtitle")}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -522,13 +528,13 @@ export function HighAvailabilityContent() {
                     disabled={togglingHA}
                   />
                   <label htmlFor="ha-enabled" className="text-sm font-medium cursor-pointer">
-                    HA Enabled
+                    {t("haEnabled")}
                   </label>
                 </div>
               )}
               <Button variant="outline" size="sm" onClick={() => loadData(true)} disabled={loading}>
                 <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -542,7 +548,7 @@ export function HighAvailabilityContent() {
           {haDisabled && (
             <div className="mb-4 p-3 rounded-md bg-yellow-500/10 border border-yellow-500/20 flex items-center gap-2 text-sm text-yellow-700 dark:text-yellow-400">
               <Info className="h-4 w-4 shrink-0" />
-              High availability is currently disabled. Enable it above to activate VRRP.
+              {t("disabledBanner")}
             </div>
           )}
 
@@ -556,7 +562,7 @@ export function HighAvailabilityContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{vrrpGroupCount}</p>
-                    <p className="text-xs text-muted-foreground">VRRP Groups</p>
+                    <p className="text-xs text-muted-foreground">{t("vrrpGroups")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -569,7 +575,7 @@ export function HighAvailabilityContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{activeGroups}</p>
-                    <p className="text-xs text-muted-foreground">Active Groups</p>
+                    <p className="text-xs text-muted-foreground">{t("activeGroups")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -582,7 +588,7 @@ export function HighAvailabilityContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{syncGroupCount}</p>
-                    <p className="text-xs text-muted-foreground">Sync Groups</p>
+                    <p className="text-xs text-muted-foreground">{t("syncGroups")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -595,7 +601,7 @@ export function HighAvailabilityContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{vsCount}</p>
-                    <p className="text-xs text-muted-foreground">Virtual Servers</p>
+                    <p className="text-xs text-muted-foreground">{t("virtualServers")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -618,7 +624,7 @@ export function HighAvailabilityContent() {
               <TabsList>
                 <TabsTrigger value="vrrp" className="flex items-center gap-1.5">
                   <Shield className="h-3.5 w-3.5" />
-                  VRRP Groups
+                  {t("vrrpGroups")}
                   {vrrpGroupCount > 0 && (
                     <Badge variant="secondary" className="ml-1 h-4 min-w-4 px-1 text-[10px]">
                       {vrrpGroupCount}
@@ -627,7 +633,7 @@ export function HighAvailabilityContent() {
                 </TabsTrigger>
                 <TabsTrigger value="sync" className="flex items-center gap-1.5">
                   <GitBranch className="h-3.5 w-3.5" />
-                  Sync Groups
+                  {t("syncGroups")}
                   {syncGroupCount > 0 && (
                     <Badge variant="secondary" className="ml-1 h-4 min-w-4 px-1 text-[10px]">
                       {syncGroupCount}
@@ -636,7 +642,7 @@ export function HighAvailabilityContent() {
                 </TabsTrigger>
                 <TabsTrigger value="vs" className="flex items-center gap-1.5">
                   <Layers className="h-3.5 w-3.5" />
-                  Virtual Servers
+                  {t("virtualServers")}
                   {vsCount > 0 && (
                     <Badge variant="secondary" className="ml-1 h-4 min-w-4 px-1 text-[10px]">
                       {vsCount}
@@ -649,7 +655,7 @@ export function HighAvailabilityContent() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   className="pl-9"
-                  placeholder="Search..."
+                  placeholder={t("search")}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
@@ -661,7 +667,7 @@ export function HighAvailabilityContent() {
               <div className="flex justify-end mb-3">
                 {canEdit && (
                   <Button size="sm" onClick={() => { setEditingVrrpGroup(null); setVrrpGroupModal(true); }}>
-                    <Plus className="h-4 w-4 mr-2" /> Add VRRP Group
+                    <Plus className="h-4 w-4 mr-2" /> {t("vrrp.add")}
                   </Button>
                 )}
               </div>
@@ -670,13 +676,13 @@ export function HighAvailabilityContent() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-16">
                     <Shield className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">No VRRP groups configured</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("vrrp.empty")}</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      Add a VRRP group to enable router redundancy
+                      {t("vrrp.emptyHint")}
                     </p>
                     {canEdit && (
                       <Button size="sm" onClick={() => { setEditingVrrpGroup(null); setVrrpGroupModal(true); }}>
-                        <Plus className="h-4 w-4 mr-2" /> Add VRRP Group
+                        <Plus className="h-4 w-4 mr-2" /> {t("vrrp.add")}
                       </Button>
                     )}
                   </CardContent>
@@ -687,13 +693,13 @@ export function HighAvailabilityContent() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
                           <TableHead>VRID</TableHead>
-                          <TableHead>Interface</TableHead>
-                          <TableHead>Virtual IPs</TableHead>
-                          <TableHead>Priority</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead>{t("interface")}</TableHead>
+                          <TableHead>{t("vrrp.virtualIps")}</TableHead>
+                          <TableHead>{t("priority")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
+                          <TableHead className="text-right">{tc("actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -742,10 +748,10 @@ export function HighAvailabilityContent() {
                             </TableCell>
                             <TableCell>
                               {group.disabled ? (
-                                <Badge variant="secondary" className="text-xs">Disabled</Badge>
+                                <Badge variant="secondary" className="text-xs">{tc("disabled")}</Badge>
                               ) : (
                                 <Badge variant="default" className="text-xs bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20">
-                                  Active
+                                  {t("vrrp.active")}
                                 </Badge>
                               )}
                             </TableCell>
@@ -757,7 +763,7 @@ export function HighAvailabilityContent() {
                                       variant="ghost"
                                       size="icon"
                                       className="h-8 w-8"
-                                      title={group.disabled ? "Enable" : "Disable"}
+                                      title={group.disabled ? t("vrrp.enable") : t("vrrp.disable")}
                                       onClick={() => handleToggleVrrpGroup(group)}
                                     >
                                       {group.disabled
@@ -790,7 +796,7 @@ export function HighAvailabilityContent() {
                         {filteredVrrpGroups.length === 0 && search && (
                           <TableRow>
                             <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                              No groups match &quot;{search}&quot;
+                              {t("vrrp.noMatch", { search })}
                             </TableCell>
                           </TableRow>
                         )}
@@ -806,7 +812,7 @@ export function HighAvailabilityContent() {
               <div className="flex justify-end mb-3">
                 {canEdit && (
                   <Button size="sm" onClick={() => { setEditingSyncGroup(null); setSyncGroupModal(true); }}>
-                    <Plus className="h-4 w-4 mr-2" /> Add Sync Group
+                    <Plus className="h-4 w-4 mr-2" /> {t("sync.add")}
                   </Button>
                 )}
               </div>
@@ -815,13 +821,13 @@ export function HighAvailabilityContent() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-16">
                     <GitBranch className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">No sync groups configured</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("sync.empty")}</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      Sync groups synchronize VRRP state transitions across multiple groups
+                      {t("sync.emptyHint")}
                     </p>
                     {canEdit && (
                       <Button size="sm" onClick={() => { setEditingSyncGroup(null); setSyncGroupModal(true); }}>
-                        <Plus className="h-4 w-4 mr-2" /> Add Sync Group
+                        <Plus className="h-4 w-4 mr-2" /> {t("sync.add")}
                       </Button>
                     )}
                   </CardContent>
@@ -832,10 +838,10 @@ export function HighAvailabilityContent() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Members</TableHead>
-                          <TableHead>Health Check</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("sync.members")}</TableHead>
+                          <TableHead>{t("healthCheck")}</TableHead>
+                          <TableHead className="text-right">{tc("actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -861,7 +867,7 @@ export function HighAvailabilityContent() {
                                   ping: {sg.health_check.ping}
                                 </Badge>
                               ) : sg.health_check.script ? (
-                                <Badge variant="outline" className="text-xs">script</Badge>
+                                <Badge variant="outline" className="text-xs">{t("sync.scriptBadge")}</Badge>
                               ) : (
                                 <span className="text-muted-foreground text-sm">—</span>
                               )}
@@ -895,7 +901,7 @@ export function HighAvailabilityContent() {
                         {filteredSyncGroups.length === 0 && search && (
                           <TableRow>
                             <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                              No sync groups match &quot;{search}&quot;
+                              {t("sync.noMatch", { search })}
                             </TableCell>
                           </TableRow>
                         )}
@@ -911,7 +917,7 @@ export function HighAvailabilityContent() {
               <div className="flex justify-end mb-3">
                 {canEdit && (
                   <Button size="sm" onClick={() => { setEditingVS(null); setVsModal(true); }}>
-                    <Plus className="h-4 w-4 mr-2" /> Add Virtual Server
+                    <Plus className="h-4 w-4 mr-2" /> {t("vs.add")}
                   </Button>
                 )}
               </div>
@@ -920,13 +926,13 @@ export function HighAvailabilityContent() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-16">
                     <Layers className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">No virtual servers configured</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("vs.empty")}</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      Virtual servers distribute traffic across real backend servers
+                      {t("vs.emptyHint")}
                     </p>
                     {canEdit && (
                       <Button size="sm" onClick={() => { setEditingVS(null); setVsModal(true); }}>
-                        <Plus className="h-4 w-4 mr-2" /> Add Virtual Server
+                        <Plus className="h-4 w-4 mr-2" /> {t("vs.add")}
                       </Button>
                     )}
                   </CardContent>
@@ -937,12 +943,12 @@ export function HighAvailabilityContent() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Address</TableHead>
-                          <TableHead>Protocol</TableHead>
-                          <TableHead>Algorithm</TableHead>
-                          <TableHead>Real Servers</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("address")}</TableHead>
+                          <TableHead>{t("protocol")}</TableHead>
+                          <TableHead>{t("algorithm")}</TableHead>
+                          <TableHead>{t("realServers")}</TableHead>
+                          <TableHead className="text-right">{tc("actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -979,7 +985,7 @@ export function HighAvailabilityContent() {
                             </TableCell>
                             <TableCell>
                               <Badge variant="secondary" className="text-xs">
-                                {vs.real_servers.length} server{vs.real_servers.length !== 1 ? "s" : ""}
+                                {t("vs.serverCount", { count: vs.real_servers.length })}
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right">
@@ -1011,7 +1017,7 @@ export function HighAvailabilityContent() {
                         {filteredVS.length === 0 && search && (
                           <TableRow>
                             <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                              No virtual servers match &quot;{search}&quot;
+                              {t("vs.noMatch", { search })}
                             </TableCell>
                           </TableRow>
                         )}
@@ -1055,8 +1061,8 @@ export function HighAvailabilityContent() {
       <DeleteDialog
         open={!!deletingVrrpGroup}
         onOpenChange={(o) => { if (!o) setDeletingVrrpGroup(null); }}
-        title="Delete VRRP Group"
-        description={`Delete VRRP group "${deletingVrrpGroup?.name}"? This action cannot be undone.`}
+        title={t("vrrp.deleteTitle")}
+        description={t("vrrp.deleteDescription", { name: String(deletingVrrpGroup?.name) })}
         onConfirm={async () => {
           await haService.deleteVrrpGroup(deletingVrrpGroup!.name);
           setDeletingVrrpGroup(null);
@@ -1067,8 +1073,8 @@ export function HighAvailabilityContent() {
       <DeleteDialog
         open={!!deletingSyncGroup}
         onOpenChange={(o) => { if (!o) setDeletingSyncGroup(null); }}
-        title="Delete Sync Group"
-        description={`Delete sync group "${deletingSyncGroup?.name}"? This action cannot be undone.`}
+        title={t("sync.deleteTitle")}
+        description={t("sync.deleteDescription", { name: String(deletingSyncGroup?.name) })}
         onConfirm={async () => {
           await haService.deleteSyncGroup(deletingSyncGroup!.name);
           setDeletingSyncGroup(null);
@@ -1079,8 +1085,8 @@ export function HighAvailabilityContent() {
       <DeleteDialog
         open={!!deletingVS}
         onOpenChange={(o) => { if (!o) setDeletingVS(null); }}
-        title="Delete Virtual Server"
-        description={`Delete virtual server "${deletingVS?.name}"? This action cannot be undone.`}
+        title={t("vs.deleteTitle")}
+        description={t("vs.deleteDescription", { name: String(deletingVS?.name) })}
         onConfirm={async () => {
           await haService.deleteVirtualServer(deletingVS!.name);
           setDeletingVS(null);

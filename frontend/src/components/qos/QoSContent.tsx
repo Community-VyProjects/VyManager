@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ import { QoSPolicyModal } from "./QoSPolicyModal";
 import { QoSInterfaceModal } from "./QoSInterfaceModal";
 import { QoSTrafficMatchGroupModal } from "./QoSTrafficMatchGroupModal";
 import { QoSConfirmDeleteModal } from "./QoSConfirmDeleteModal";
+import { useQoSSchemaText } from "./QoSFieldForm";
 
 interface DeleteTarget {
   title: string;
@@ -57,6 +59,9 @@ function Dash() {
 }
 
 export function QoSContent() {
+  const t = useTranslations("qos");
+  const tc = useTranslations("common");
+  const st = useQoSSchemaText();
   const { canWrite } = usePermissions();
   const hasWrite = canWrite(FeatureGroup.QOS);
 
@@ -81,7 +86,7 @@ export function QoSContent() {
       setConfig(cfg);
       setCapabilities(caps);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load QoS configuration");
+      setError(err instanceof Error ? err.message : t("failedToLoad"));
     } finally {
       setLoading(false);
     }
@@ -105,7 +110,7 @@ export function QoSContent() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => loadData()}>Retry</Button>
+        <Button variant="outline" onClick={() => loadData()}>{tc("retry")}</Button>
       </div>
     );
   }
@@ -128,16 +133,16 @@ export function QoSContent() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-2xl font-bold text-foreground">QoS</h1>
-                  {!hasWrite && <Badge variant="secondary">Read Only</Badge>}
+                  {!hasWrite && <Badge variant="secondary">{t("readOnly")}</Badge>}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Quality of Service — shape, prioritise and police traffic
+                  {t("subtitle")}
                 </p>
               </div>
             </div>
             <Button variant="outline" size="sm" onClick={refresh}>
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              {tc("refresh")}
             </Button>
           </div>
 
@@ -154,16 +159,16 @@ export function QoSContent() {
           <Tabs defaultValue="policies" className="w-full">
             <TabsList>
               <TabsTrigger value="policies">
-                Policies
+                {t("policies")}
                 {config.policies.length > 0 && <Badge variant="secondary" className="ml-2">{config.policies.length}</Badge>}
               </TabsTrigger>
               <TabsTrigger value="interfaces">
-                Interfaces
+                {t("interfaces")}
                 {config.interfaces.length > 0 && <Badge variant="secondary" className="ml-2">{config.interfaces.length}</Badge>}
               </TabsTrigger>
               {tmgSupported && (
                 <TabsTrigger value="tmg">
-                  Match Groups
+                  {t("matchGroups")}
                   {config.traffic_match_groups.length > 0 && <Badge variant="secondary" className="ml-2">{config.traffic_match_groups.length}</Badge>}
                 </TabsTrigger>
               )}
@@ -176,12 +181,12 @@ export function QoSContent() {
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
                       <Layers className="h-4 w-4" />
-                      Policies
+                      {t("policies")}
                     </CardTitle>
                     {hasWrite && (
                       <Button size="sm" variant="outline" onClick={() => setPolicyModal({ open: true, edit: null })}>
                         <Plus className="h-4 w-4 mr-1" />
-                        Add Policy
+                        {t("addPolicy")}
                       </Button>
                     )}
                   </div>
@@ -189,17 +194,17 @@ export function QoSContent() {
                 <CardContent className="px-4 pb-4">
                   {config.policies.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4 text-center">
-                      No QoS policies defined. Add one to start shaping traffic.
+                      {t("content.noPolicies")}
                     </p>
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Bandwidth</TableHead>
-                          <TableHead>Classes</TableHead>
-                          <TableHead>Description</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("type")}</TableHead>
+                          <TableHead>{t("content.bandwidth")}</TableHead>
+                          <TableHead>{t("classes")}</TableHead>
+                          <TableHead>{tc("description")}</TableHead>
                           {hasWrite && <TableHead className="w-[80px]" />}
                         </TableRow>
                       </TableHeader>
@@ -207,7 +212,7 @@ export function QoSContent() {
                         {config.policies.map((p) => (
                           <TableRow key={`${p.type}/${p.name}`}>
                             <TableCell className="font-mono font-medium">{p.name}</TableCell>
-                            <TableCell><Badge variant="secondary">{typeLabel(p.type)}</Badge></TableCell>
+                            <TableCell><Badge variant="secondary">{st(typeLabel(p.type))}</Badge></TableCell>
                             <TableCell>{p.bandwidth ?? <Dash />}</TableCell>
                             <TableCell>{p.classes.length > 0 ? p.classes.length : <Dash />}</TableCell>
                             <TableCell className="max-w-[200px] truncate">{p.description ?? <Dash />}</TableCell>
@@ -223,9 +228,9 @@ export function QoSContent() {
                                     className="h-7 w-7 text-destructive hover:text-destructive"
                                     onClick={() =>
                                       setDeleteTarget({
-                                        title: "Remove Policy",
+                                        title: t("content.removePolicy"),
                                         itemName: p.name,
-                                        description: `(${typeLabel(p.type)})`,
+                                        description: `(${st(typeLabel(p.type))})`,
                                         onConfirm: () => qosService.deletePolicy(p.type, p.name).then(() => {}),
                                       })
                                     }
@@ -251,12 +256,12 @@ export function QoSContent() {
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
                       <Network className="h-4 w-4" />
-                      Interface Bindings
+                      {t("content.interfaceBindings")}
                     </CardTitle>
                     {hasWrite && (
                       <Button size="sm" variant="outline" onClick={() => setIfaceModal({ open: true, edit: null })}>
                         <Plus className="h-4 w-4 mr-1" />
-                        Add Binding
+                        {t("content.addBinding")}
                       </Button>
                     )}
                   </div>
@@ -264,15 +269,15 @@ export function QoSContent() {
                 <CardContent className="px-4 pb-4">
                   {config.interfaces.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4 text-center">
-                      No interfaces bound. Attach a policy to an interface to apply it.
+                      {t("content.noInterfaces")}
                     </p>
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Interface</TableHead>
-                          <TableHead>Egress</TableHead>
-                          <TableHead>Ingress</TableHead>
+                          <TableHead>{t("interface")}</TableHead>
+                          <TableHead>{t("content.egress")}</TableHead>
+                          <TableHead>{t("content.ingress")}</TableHead>
                           {hasWrite && <TableHead className="w-[80px]" />}
                         </TableRow>
                       </TableHeader>
@@ -294,7 +299,7 @@ export function QoSContent() {
                                     className="h-7 w-7 text-destructive hover:text-destructive"
                                     onClick={() =>
                                       setDeleteTarget({
-                                        title: "Remove Interface Binding",
+                                        title: t("content.removeBinding"),
                                         itemName: i.name,
                                         onConfirm: () => qosService.deleteInterface(i.name).then(() => {}),
                                       })
@@ -322,12 +327,12 @@ export function QoSContent() {
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
                         <Filter className="h-4 w-4" />
-                        Traffic Match Groups
+                        {t("content.trafficMatchGroups")}
                       </CardTitle>
                       {hasWrite && (
                         <Button size="sm" variant="outline" onClick={() => setTmgModal({ open: true, edit: null })}>
                           <Plus className="h-4 w-4 mr-1" />
-                          Add Group
+                          {t("content.addGroup")}
                         </Button>
                       )}
                     </div>
@@ -335,15 +340,15 @@ export function QoSContent() {
                   <CardContent className="px-4 pb-4">
                     {config.traffic_match_groups.length === 0 ? (
                       <p className="text-sm text-muted-foreground py-4 text-center">
-                        No traffic match groups. Create one to share match rules across classes.
+                        {t("content.noTmgs")}
                       </p>
                     ) : (
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Match Rules</TableHead>
-                            <TableHead>Description</TableHead>
+                            <TableHead>{tc("name")}</TableHead>
+                            <TableHead>{t("matchRules")}</TableHead>
+                            <TableHead>{tc("description")}</TableHead>
                             {hasWrite && <TableHead className="w-[80px]" />}
                           </TableRow>
                         </TableHeader>
@@ -365,7 +370,7 @@ export function QoSContent() {
                                       className="h-7 w-7 text-destructive hover:text-destructive"
                                       onClick={() =>
                                         setDeleteTarget({
-                                          title: "Remove Traffic Match Group",
+                                          title: t("content.removeTmg"),
                                           itemName: g.name,
                                           onConfirm: () => qosService.deleteTmg(g.name).then(() => {}),
                                         })

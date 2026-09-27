@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +43,8 @@ export function QoSInterfaceModal({
   policies,
   onSuccess,
 }: QoSInterfaceModalProps) {
+  const t = useTranslations("qos");
+  const tc = useTranslations("common");
   const isEdit = existing !== null;
   const [name, setName] = useState(existing?.name ?? "");
   const [ingress, setIngress] = useState(existing?.ingress ?? "");
@@ -57,11 +60,11 @@ export function QoSInterfaceModal({
   const handleSubmit = async () => {
     const ifname = name.trim();
     if (!ifname) {
-      setError("An interface is required");
+      setError(t("interfaceModal.interfaceRequired"));
       return;
     }
     if (!ingress.trim() && !egress.trim()) {
-      setError("Set at least one of ingress or egress policy");
+      setError(t("interfaceModal.policyRequired"));
       return;
     }
     setSubmitting(true);
@@ -71,7 +74,7 @@ export function QoSInterfaceModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -81,13 +84,13 @@ export function QoSInterfaceModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Interface Binding" : "Add Interface Binding"}</DialogTitle>
-          <DialogDescription>Attach QoS policies to an interface</DialogDescription>
+          <DialogTitle>{isEdit ? t("interfaceModal.editTitle") : t("interfaceModal.addTitle")}</DialogTitle>
+          <DialogDescription>{t("interfaceModal.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-1">
           <div className="space-y-1.5">
-            <Label>Interface</Label>
+            <Label>{t("interface")}</Label>
             {isEdit ? (
               <Input value={name} disabled className="font-mono bg-muted" />
             ) : (
@@ -100,13 +103,13 @@ export function QoSInterfaceModal({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Egress Policy</Label>
+            <Label>{t("interfaceModal.egressPolicy")}</Label>
             <Select value={egress === "" ? NONE : egress} onValueChange={(v) => setEgress(v === NONE ? "" : v)}>
               <SelectTrigger>
-                <SelectValue placeholder="Select an outbound policy" />
+                <SelectValue placeholder={t("interfaceModal.egressPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>None</SelectItem>
+                <SelectItem value={NONE}>{tc("none")}</SelectItem>
                 {egressPolicies.map((p) => (
                   <SelectItem key={p} value={p}>
                     <span className="font-mono">{p}</span>
@@ -114,17 +117,17 @@ export function QoSInterfaceModal({
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[11px] text-muted-foreground">Applied to outbound (egress) traffic.</p>
+            <p className="text-[11px] text-muted-foreground">{t("interfaceModal.egressHelp")}</p>
           </div>
 
           <div className="space-y-1.5">
-            <Label>Ingress Policy</Label>
+            <Label>{t("interfaceModal.ingressPolicy")}</Label>
             <Select value={ingress === "" ? NONE : ingress} onValueChange={(v) => setIngress(v === NONE ? "" : v)}>
               <SelectTrigger>
-                <SelectValue placeholder="Select a limiter policy" />
+                <SelectValue placeholder={t("interfaceModal.ingressPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>None</SelectItem>
+                <SelectItem value={NONE}>{tc("none")}</SelectItem>
                 {ingressPolicies.map((p) => (
                   <SelectItem key={p} value={p}>
                     <span className="font-mono">{p}</span>
@@ -132,7 +135,7 @@ export function QoSInterfaceModal({
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[11px] text-muted-foreground">Inbound (ingress) accepts limiter policies only.</p>
+            <p className="text-[11px] text-muted-foreground">{t("interfaceModal.ingressHelp")}</p>
           </div>
         </div>
 
@@ -145,11 +148,11 @@ export function QoSInterfaceModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isEdit ? "Save" : "Add"}
+            {isEdit ? tc("save") : tc("add")}
           </Button>
         </DialogFooter>
       </DialogContent>

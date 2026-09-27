@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,8 @@ function DeleteDialog({
   description: string;
   onConfirm: () => Promise<void>;
 }) {
+  const t = useTranslations("wanLoadBalancing");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,7 +57,7 @@ function DeleteDialog({
       await onConfirm();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed");
+      setError(err instanceof Error ? err.message : t("deleteFailed"));
     } finally {
       setLoading(false);
     }
@@ -74,10 +77,10 @@ function DeleteDialog({
           </div>
         )}
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button variant="destructive" onClick={handleConfirm} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Delete
+            {tc("delete")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -97,6 +100,8 @@ function GlobalSettingsDialog({
   config: LBConfig | null;
   onSuccess: () => void;
 }) {
+  const t = useTranslations("wanLoadBalancing");
+  const tc = useTranslations("common");
   const wan = config?.wan;
   const [disableSourceNat, setDisableSourceNat] = useState(false);
   const [enableLocalTraffic, setEnableLocalTraffic] = useState(false);
@@ -131,7 +136,7 @@ function GlobalSettingsDialog({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
+      setError(err instanceof Error ? err.message : t("globals.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -141,9 +146,9 @@ function GlobalSettingsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>WAN Global Settings</DialogTitle>
+          <DialogTitle>{t("globals.title")}</DialogTitle>
           <DialogDescription>
-            Configure global options that apply to all WAN load balancing rules.
+            {t("globals.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -155,9 +160,9 @@ function GlobalSettingsDialog({
               className="mt-0.5"
             />
             <div>
-              <p className="text-sm font-medium">Disable Source NAT</p>
+              <p className="text-sm font-medium">{t("disableSourceNat")}</p>
               <p className="text-xs text-muted-foreground">
-                Disable MASQUERADE on outbound interfaces (use when upstream already handles NAT).
+                {t("globals.disableSourceNatHelp")}
               </p>
             </div>
           </label>
@@ -169,9 +174,9 @@ function GlobalSettingsDialog({
               className="mt-0.5"
             />
             <div>
-              <p className="text-sm font-medium">Enable Local Traffic</p>
+              <p className="text-sm font-medium">{t("globals.enableLocalTraffic")}</p>
               <p className="text-xs text-muted-foreground">
-                Apply load balancing to locally-generated traffic from the router itself.
+                {t("globals.enableLocalTrafficHelp")}
               </p>
             </div>
           </label>
@@ -183,9 +188,9 @@ function GlobalSettingsDialog({
               className="mt-0.5"
             />
             <div>
-              <p className="text-sm font-medium">Flush Connections on Failover</p>
+              <p className="text-sm font-medium">{t("globals.flushConnections")}</p>
               <p className="text-xs text-muted-foreground">
-                Reset existing connections when a WAN interface failover occurs.
+                {t("globals.flushConnectionsHelp")}
               </p>
             </div>
           </label>
@@ -197,22 +202,22 @@ function GlobalSettingsDialog({
               className="mt-0.5"
             />
             <div>
-              <p className="text-sm font-medium">Sticky Connections (Inbound)</p>
+              <p className="text-sm font-medium">{t("globals.stickyInbound")}</p>
               <p className="text-xs text-muted-foreground">
-                Route inbound reply traffic back through the same interface as the outbound flow.
+                {t("globals.stickyInboundHelp")}
               </p>
             </div>
           </label>
 
           <div className="space-y-1.5">
-            <Label>Hook script</Label>
+            <Label>{t("globals.hookScript")}</Label>
             <Input
               value={hook}
               onChange={(e) => setHook(e.target.value)}
               placeholder="/config/scripts/wan-lb"
             />
             <p className="text-xs text-muted-foreground">
-              Optional script run on WAN load-balancing events.
+              {t("globals.hookScriptHelp")}
             </p>
           </div>
         </div>
@@ -225,10 +230,10 @@ function GlobalSettingsDialog({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSave} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Save Settings
+            {t("globals.saveSettings")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -241,6 +246,8 @@ function GlobalSettingsDialog({
 // ============================================================================
 
 export function WANContent() {
+  const t = useTranslations("wanLoadBalancing");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const canEdit = canWrite(FeatureGroup.LOAD_BALANCING);
 
@@ -274,11 +281,11 @@ export function WANContent() {
       setConfig(cfg);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load configuration");
+      setError(err instanceof Error ? err.message : t("failedToLoad"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -318,21 +325,21 @@ export function WANContent() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">WAN Load Balancing</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t("title")}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Multi-WAN traffic distribution and failover across uplinks
+            {t("subtitle")}
           </p>
         </div>
         <div className="flex gap-2">
           {canEdit && (
             <Button variant="outline" size="sm" onClick={() => setGlobalSettingsOpen(true)}>
               <Settings2 className="h-4 w-4 mr-2" />
-              Global Settings
+              {t("globalSettings")}
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
             <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
+            {tc("refresh")}
           </Button>
         </div>
       </div>
@@ -348,10 +355,10 @@ export function WANContent() {
       {wan && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {[
-            { label: "Disable Source NAT", active: wan.disable_source_nat },
-            { label: "Local Traffic", active: wan.enable_local_traffic },
-            { label: "Flush on Failover", active: wan.flush_connections },
-            { label: "Sticky Connections", active: wan.sticky_connections.inbound },
+            { label: t("disableSourceNat"), active: wan.disable_source_nat },
+            { label: t("summary.localTraffic"), active: wan.enable_local_traffic },
+            { label: t("summary.flushOnFailover"), active: wan.flush_connections },
+            { label: t("summary.stickyConnections"), active: wan.sticky_connections.inbound },
           ].map(({ label, active }) => (
             <div
               key={label}
@@ -377,7 +384,7 @@ export function WANContent() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{interfaceHealth.length}</p>
-                <p className="text-xs text-muted-foreground">Monitored Interfaces</p>
+                <p className="text-xs text-muted-foreground">{t("stats.monitoredInterfaces")}</p>
               </div>
             </div>
           </CardContent>
@@ -392,7 +399,7 @@ export function WANContent() {
                 <p className="text-2xl font-bold">
                   {interfaceHealth.reduce((sum, i) => sum + i.tests.length, 0)}
                 </p>
-                <p className="text-xs text-muted-foreground">Health Tests</p>
+                <p className="text-xs text-muted-foreground">{t("healthTests")}</p>
               </div>
             </div>
           </CardContent>
@@ -405,7 +412,7 @@ export function WANContent() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{rules.length}</p>
-                <p className="text-xs text-muted-foreground">LB Rules</p>
+                <p className="text-xs text-muted-foreground">{t("stats.lbRules")}</p>
               </div>
             </div>
           </CardContent>
@@ -418,9 +425,9 @@ export function WANContent() {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base font-semibold">Interface Health</h2>
+            <h2 className="text-base font-semibold">{t("interfaces.title")}</h2>
             <p className="text-xs text-muted-foreground">
-              Define gateway health checks per WAN interface
+              {t("interfaces.subtitle")}
             </p>
           </div>
           {canEdit && (
@@ -428,7 +435,7 @@ export function WANContent() {
               size="sm"
               onClick={() => { setEditIface(null); setIfaceModalOpen(true); }}
             >
-              <Plus className="h-3.5 w-3.5 mr-1" /> Add Interface
+              <Plus className="h-3.5 w-3.5 mr-1" /> {t("addInterface")}
             </Button>
           )}
         </div>
@@ -439,7 +446,7 @@ export function WANContent() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 className="pl-9 h-8 text-sm"
-                placeholder="Search interfaces…"
+                placeholder={t("interfaces.search")}
                 value={ifaceSearch}
                 onChange={(e) => setIfaceSearch(e.target.value)}
               />
@@ -451,16 +458,16 @@ export function WANContent() {
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-3">
                 <Network className="h-5 w-5 text-muted-foreground" />
               </div>
-              <p className="text-sm font-medium">No interfaces configured</p>
+              <p className="text-sm font-medium">{t("interfaces.empty")}</p>
               <p className="text-xs text-muted-foreground mt-1 mb-4">
-                Add WAN interfaces to monitor their health and enable failover.
+                {t("interfaces.emptyHint")}
               </p>
               {canEdit && (
                 <Button
                   size="sm" variant="outline"
                   onClick={() => { setEditIface(null); setIfaceModalOpen(true); }}
                 >
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Interface
+                  <Plus className="h-3.5 w-3.5 mr-1" /> {t("addInterface")}
                 </Button>
               )}
             </div>
@@ -469,10 +476,10 @@ export function WANContent() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Interface</TableHead>
-                    <TableHead>Nexthop (Gateway)</TableHead>
-                    <TableHead>Failure / Success Count</TableHead>
-                    <TableHead>Health Tests</TableHead>
+                    <TableHead>{t("interface")}</TableHead>
+                    <TableHead>{t("nexthopGateway")}</TableHead>
+                    <TableHead>{t("interfaces.failureSuccessCount")}</TableHead>
+                    <TableHead>{t("healthTests")}</TableHead>
                     {canEdit && <TableHead className="w-20" />}
                   </TableRow>
                 </TableHeader>
@@ -496,7 +503,7 @@ export function WANContent() {
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {iface.tests.length === 0 ? (
-                            <span className="text-xs text-muted-foreground">None</span>
+                            <span className="text-xs text-muted-foreground">{tc("none")}</span>
                           ) : (
                             iface.tests.map((t) => (
                               <Badge key={t.test_id} variant="secondary" className="text-xs">
@@ -541,9 +548,9 @@ export function WANContent() {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base font-semibold">Load Balancing Rules</h2>
+            <h2 className="text-base font-semibold">{t("rules.title")}</h2>
             <p className="text-xs text-muted-foreground">
-              Traffic matching rules that distribute connections across WAN interfaces
+              {t("rules.subtitle")}
             </p>
           </div>
           {canEdit && (
@@ -551,7 +558,7 @@ export function WANContent() {
               size="sm"
               onClick={() => { setEditRule(null); setRuleModalOpen(true); }}
             >
-              <Plus className="h-3.5 w-3.5 mr-1" /> Add Rule
+              <Plus className="h-3.5 w-3.5 mr-1" /> {t("addRule")}
             </Button>
           )}
         </div>
@@ -562,7 +569,7 @@ export function WANContent() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 className="pl-9 h-8 text-sm"
-                placeholder="Search rules…"
+                placeholder={t("rules.search")}
                 value={ruleSearch}
                 onChange={(e) => setRuleSearch(e.target.value)}
               />
@@ -574,16 +581,16 @@ export function WANContent() {
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-3">
                 <ArrowLeftRight className="h-5 w-5 text-muted-foreground" />
               </div>
-              <p className="text-sm font-medium">No rules configured</p>
+              <p className="text-sm font-medium">{t("rules.empty")}</p>
               <p className="text-xs text-muted-foreground mt-1 mb-4">
-                Rules define how traffic is distributed across WAN interfaces.
+                {t("rules.emptyHint")}
               </p>
               {canEdit && (
                 <Button
                   size="sm" variant="outline"
                   onClick={() => { setEditRule(null); setRuleModalOpen(true); }}
                 >
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Rule
+                  <Plus className="h-3.5 w-3.5 mr-1" /> {t("addRule")}
                 </Button>
               )}
             </div>
@@ -592,11 +599,11 @@ export function WANContent() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-16">Rule</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Inbound</TableHead>
-                    <TableHead>Outbound Interfaces</TableHead>
-                    <TableHead>Flags</TableHead>
+                    <TableHead className="w-16">{t("rules.rule")}</TableHead>
+                    <TableHead>{tc("description")}</TableHead>
+                    <TableHead>{t("rules.inbound")}</TableHead>
+                    <TableHead>{t("outboundInterfaces")}</TableHead>
+                    <TableHead>{t("rules.flags")}</TableHead>
                     {canEdit && <TableHead className="w-20" />}
                   </TableRow>
                 </TableHeader>
@@ -612,7 +619,7 @@ export function WANContent() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm font-mono">{rule.inbound_interface ?? "any"}</span>
+                        <span className="text-sm font-mono">{rule.inbound_interface ?? t("rules.any")}</span>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
@@ -629,9 +636,9 @@ export function WANContent() {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
-                          {rule.failover && <Badge variant="outline" className="text-xs">failover</Badge>}
-                          {rule.per_packet_balancing && <Badge variant="outline" className="text-xs">per-pkt</Badge>}
-                          {rule.exclude && <Badge variant="outline" className="text-xs text-orange-500">exclude</Badge>}
+                          {rule.failover && <Badge variant="outline" className="text-xs">{t("rules.flagFailover")}</Badge>}
+                          {rule.per_packet_balancing && <Badge variant="outline" className="text-xs">{t("rules.flagPerPacket")}</Badge>}
+                          {rule.exclude && <Badge variant="outline" className="text-xs text-orange-500">{t("rules.flagExclude")}</Badge>}
                           {rule.protocol && <Badge variant="outline" className="text-xs">{rule.protocol}</Badge>}
                         </div>
                       </TableCell>
@@ -691,8 +698,8 @@ export function WANContent() {
       <DeleteDialog
         open={!!deleteIfaceTarget}
         onOpenChange={(o) => !o && setDeleteIfaceTarget(null)}
-        title={`Remove interface "${deleteIfaceTarget?.interface}"?`}
-        description="This will remove all health monitoring configuration for this interface."
+        title={t("interfaces.removeTitle", { name: String(deleteIfaceTarget?.interface) })}
+        description={t("interfaces.removeDescription")}
         onConfirm={async () => {
           await lbService.deleteInterfaceHealth(deleteIfaceTarget!.interface);
           setDeleteIfaceTarget(null);
@@ -703,8 +710,8 @@ export function WANContent() {
       <DeleteDialog
         open={!!deleteRuleTarget}
         onOpenChange={(o) => !o && setDeleteRuleTarget(null)}
-        title={`Delete rule ${deleteRuleTarget?.rule_id}?`}
-        description="This will remove the WAN load balancing rule. This action cannot be undone."
+        title={t("rules.deleteTitle", { id: String(deleteRuleTarget?.rule_id) })}
+        description={t("rules.deleteDescription")}
         onConfirm={async () => {
           await lbService.deleteWANRule(deleteRuleTarget!.rule_id);
           setDeleteRuleTarget(null);

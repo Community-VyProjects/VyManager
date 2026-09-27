@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -120,6 +121,8 @@ export function VirtualServerModal({
   existingServer,
   onSubmit,
 }: VirtualServerModalProps) {
+  const t = useTranslations("highAvailability");
+  const tc = useTranslations("common");
   const isEdit = !!existingServer;
   const [form, setForm] = useState<FormState>(emptyForm());
   const [loading, setLoading] = useState(false);
@@ -154,13 +157,13 @@ export function VirtualServerModal({
 
   const handleSubmit = async () => {
     setError(null);
-    if (!form.name.trim()) { setError("Virtual server name is required"); return; }
+    if (!form.name.trim()) { setError(t("vsModal.nameRequired")); return; }
     setLoading(true);
     try {
       await onSubmit(formToServer(form));
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -170,11 +173,11 @@ export function VirtualServerModal({
     <Dialog open={open} onOpenChange={(o) => { if (!loading) onOpenChange(o); }}>
       <DialogContent className="max-w-3xl max-h-[88vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle>{isEdit ? "Edit Virtual Server" : "Add Virtual Server"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("vsModal.editTitle") : t("vs.add")}</DialogTitle>
           <DialogDescription>
             {isEdit
-              ? `Editing virtual server "${existingServer!.name}"`
-              : "Configure a keepalived virtual server for load balancing"}
+              ? t("vsModal.editingDescription", { name: existingServer!.name })
+              : t("vsModal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -189,21 +192,21 @@ export function VirtualServerModal({
 
             {/* Name */}
             <div className="space-y-1.5">
-              <Label>Server Name <span className="text-destructive">*</span></Label>
+              <Label>{t("vsModal.serverName")} <span className="text-destructive">*</span></Label>
               <Input
                 value={form.name}
                 onChange={(e) => set("name")(e.target.value)}
                 disabled={isEdit}
-                placeholder="e.g. web-lb"
+                placeholder={t("example", { value: "web-lb" })}
                 className={isEdit ? "opacity-60" : ""}
               />
-              {isEdit && <p className="text-xs text-muted-foreground">Name cannot be changed</p>}
+              {isEdit && <p className="text-xs text-muted-foreground">{t("nameCannotChange")}</p>}
             </div>
 
             {/* Address & Port */}
             <div className="grid grid-cols-3 gap-4">
               <div className="col-span-2 space-y-1.5">
-                <Label>Virtual IP Address</Label>
+                <Label>{t("vsModal.virtualIpAddress")}</Label>
                 <Input
                   value={form.address}
                   onChange={(e) => set("address")(e.target.value)}
@@ -212,7 +215,7 @@ export function VirtualServerModal({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Port</Label>
+                <Label>{t("port")}</Label>
                 <Input
                   type="number"
                   min={1}
@@ -227,46 +230,46 @@ export function VirtualServerModal({
             {/* Protocol, Algorithm, Forward Method */}
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <Label>Protocol</Label>
+                <Label>{t("protocol")}</Label>
                 <Select value={form.protocol} onValueChange={(v) => set("protocol")(v === "none" ? "" : v)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Any" />
+                    <SelectValue placeholder={t("any")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Any</SelectItem>
+                    <SelectItem value="none">{t("any")}</SelectItem>
                     <SelectItem value="tcp">TCP</SelectItem>
                     <SelectItem value="udp">UDP</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Algorithm</Label>
+                <Label>{t("algorithm")}</Label>
                 <Select value={form.algorithm} onValueChange={(v) => set("algorithm")(v === "none" ? "" : v)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Default" />
+                    <SelectValue placeholder={tc("default")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Default</SelectItem>
-                    <SelectItem value="round-robin">Round Robin</SelectItem>
-                    <SelectItem value="weighted-round-robin">Weighted Round Robin</SelectItem>
-                    <SelectItem value="least-connection">Least Connection</SelectItem>
-                    <SelectItem value="weighted-least-connection">Weighted Least Connection</SelectItem>
-                    <SelectItem value="source-hashing">Source Hashing</SelectItem>
-                    <SelectItem value="destination-hashing">Destination Hashing</SelectItem>
+                    <SelectItem value="none">{tc("default")}</SelectItem>
+                    <SelectItem value="round-robin">{t("vsModal.algoRoundRobin")}</SelectItem>
+                    <SelectItem value="weighted-round-robin">{t("vsModal.algoWeightedRoundRobin")}</SelectItem>
+                    <SelectItem value="least-connection">{t("vsModal.algoLeastConnection")}</SelectItem>
+                    <SelectItem value="weighted-least-connection">{t("vsModal.algoWeightedLeastConnection")}</SelectItem>
+                    <SelectItem value="source-hashing">{t("vsModal.algoSourceHashing")}</SelectItem>
+                    <SelectItem value="destination-hashing">{t("vsModal.algoDestinationHashing")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Forward Method</Label>
+                <Label>{t("vsModal.forwardMethod")}</Label>
                 <Select value={form.forward_method} onValueChange={(v) => set("forward_method")(v === "none" ? "" : v)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Default" />
+                    <SelectValue placeholder={tc("default")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Default</SelectItem>
-                    <SelectItem value="dr">Direct Routing (DR)</SelectItem>
+                    <SelectItem value="none">{tc("default")}</SelectItem>
+                    <SelectItem value="dr">{t("vsModal.forwardDr")}</SelectItem>
                     <SelectItem value="nat">NAT</SelectItem>
-                    <SelectItem value="tunnel">Tunnel</SelectItem>
+                    <SelectItem value="tunnel">{t("vsModal.forwardTunnel")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -275,7 +278,7 @@ export function VirtualServerModal({
             {/* Delay Loop, Persistence, FWMark */}
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <Label>Delay Loop (s)</Label>
+                <Label>{t("vsModal.delayLoop")}</Label>
                 <Input
                   type="number"
                   min={1}
@@ -285,7 +288,7 @@ export function VirtualServerModal({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Persistence Timeout (s)</Label>
+                <Label>{t("vsModal.persistenceTimeout")}</Label>
                 <Input
                   type="number"
                   min={1}
@@ -295,11 +298,11 @@ export function VirtualServerModal({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>FW Mark</Label>
+                <Label>{t("vsModal.fwMark")}</Label>
                 <Input
                   value={form.fwmark}
                   onChange={(e) => set("fwmark")(e.target.value)}
-                  placeholder="Optional"
+                  placeholder={tc("optional")}
                 />
               </div>
             </div>
@@ -309,19 +312,19 @@ export function VirtualServerModal({
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-sm font-medium">Real Servers</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">Backend servers that receive traffic</p>
+                  <Label className="text-sm font-medium">{t("realServers")}</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t("vsModal.realServersHelp")}</p>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={addRealServer}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Server
+                  <Plus className="h-3.5 w-3.5 mr-1" /> {t("vsModal.addServer")}
                 </Button>
               </div>
 
               {form.real_servers.length === 0 ? (
                 <div className="border border-dashed rounded-lg p-6 flex flex-col items-center gap-2 text-center">
                   <Server className="h-8 w-8 text-muted-foreground/40" />
-                  <p className="text-sm text-muted-foreground">No real servers configured</p>
-                  <p className="text-xs text-muted-foreground">Click &quot;Add Server&quot; to add backend servers</p>
+                  <p className="text-sm text-muted-foreground">{t("vsModal.noRealServers")}</p>
+                  <p className="text-xs text-muted-foreground">{t("vsModal.noRealServersHint")}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -330,7 +333,7 @@ export function VirtualServerModal({
                       {/* Card header */}
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          Server {idx + 1}
+                          {t("vsModal.serverN", { n: idx + 1 })}
                         </span>
                         <Button
                           type="button"
@@ -340,13 +343,13 @@ export function VirtualServerModal({
                           onClick={() => removeRealServer(idx)}
                         >
                           <Trash2 className="h-3.5 w-3.5 mr-1" />
-                          Remove
+                          {t("remove")}
                         </Button>
                       </div>
 
                       {/* Address row */}
                       <div className="space-y-1.5">
-                        <Label className="text-xs">IP Address <span className="text-destructive">*</span></Label>
+                        <Label className="text-xs">{t("vsModal.ipAddress")} <span className="text-destructive">*</span></Label>
                         <Input
                           value={rs.address}
                           onChange={(e) => setRealServer(idx, "address", e.target.value)}
@@ -358,31 +361,31 @@ export function VirtualServerModal({
                       {/* Port + Timeout row */}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
-                          <Label className="text-xs">Port</Label>
+                          <Label className="text-xs">{t("port")}</Label>
                           <Input
                             type="number"
                             min={1}
                             max={65535}
                             value={rs.port}
                             onChange={(e) => setRealServer(idx, "port", e.target.value)}
-                            placeholder="e.g. 80"
+                            placeholder={t("example", { value: "80" })}
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-xs">Connection Timeout (s)</Label>
+                          <Label className="text-xs">{t("vsModal.connectionTimeout")}</Label>
                           <Input
                             type="number"
                             min={1}
                             value={rs.connection_timeout}
                             onChange={(e) => setRealServer(idx, "connection_timeout", e.target.value)}
-                            placeholder="e.g. 5"
+                            placeholder={t("example", { value: "5" })}
                           />
                         </div>
                       </div>
 
                       {/* Health check script */}
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Health Check Script</Label>
+                        <Label className="text-xs">{t("vsModal.healthCheckScript")}</Label>
                         <Input
                           value={rs.health_check_script}
                           onChange={(e) => setRealServer(idx, "health_check_script", e.target.value)}
@@ -400,11 +403,11 @@ export function VirtualServerModal({
 
         <DialogFooter className="shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? "Save Changes" : "Create Server"}
+            {isEdit ? t("saveChanges") : t("vsModal.create")}
           </Button>
         </DialogFooter>
       </DialogContent>
