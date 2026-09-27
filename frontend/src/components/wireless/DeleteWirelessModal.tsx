@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { AlertCircle, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { wirelessService, type WirelessInterface } from "@/lib/api/wireless";
 
 interface DeleteWirelessModalProps {
@@ -27,6 +28,8 @@ export function DeleteWirelessModal({
   onSuccess,
   interfaceData,
 }: DeleteWirelessModalProps) {
+  const t = useTranslations("wireless");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,13 +40,13 @@ export function DeleteWirelessModal({
     try {
       const result = await wirelessService.deleteInterface(interfaceData.name);
       if (!result.success) {
-        setError(result.error ?? "Delete failed");
+        setError(result.error ?? t("errors.deleteFailed"));
         return;
       }
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed");
+      setError(err instanceof Error ? err.message : t("errors.deleteFailed"));
     } finally {
       setLoading(false);
     }
@@ -53,23 +56,22 @@ export function DeleteWirelessModal({
     <AlertDialog open={open} onOpenChange={(o) => { if (!loading) { setError(null); onOpenChange(o); } }}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Wireless Interface</AlertDialogTitle>
+          <AlertDialogTitle>{t("delete.title")}</AlertDialogTitle>
           <AlertDialogDescription className="space-y-2">
-            Are you sure you want to delete interface{" "}
-            <code className="font-mono font-semibold text-foreground">
-              {interfaceData?.name}
-            </code>
-            {interfaceData?.ssid && (
-              <>
-                {" "}(SSID:{" "}
+            {t.rich(interfaceData?.ssid ? "delete.descriptionWithSsid" : "delete.description", {
+              name: interfaceData?.name ?? "",
+              ssid: interfaceData?.ssid ?? "",
+              code: (chunks) => (
+                <code className="font-mono font-semibold text-foreground">
+                  {chunks}
+                </code>
+              ),
+              em: (chunks) => (
                 <span className="font-medium text-foreground">
-                  {interfaceData.ssid}
+                  {chunks}
                 </span>
-                )
-              </>
-            )}
-            ?{" "}
-            This will permanently remove the interface and all its configuration from VyOS.
+              ),
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -81,7 +83,7 @@ export function DeleteWirelessModal({
         )}
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleDelete}
             disabled={loading}
@@ -90,10 +92,10 @@ export function DeleteWirelessModal({
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Deleting…
+                {t("delete.deleting")}
               </>
             ) : (
-              "Delete Interface"
+              t("delete.confirm")
             )}
           </AlertDialogAction>
         </AlertDialogFooter>
