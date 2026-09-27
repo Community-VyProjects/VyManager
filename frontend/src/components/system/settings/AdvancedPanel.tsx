@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Card,
   CardContent,
@@ -64,6 +65,8 @@ interface Props {
 }
 
 export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: Props) {
+  const t = useTranslations("systemAdvanced");
+  const tc = useTranslations("common");
   const { toast } = useToast();
   const { features } = capabilities;
 
@@ -196,13 +199,13 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
     try {
       if (cmRevisions && parseInt(cmRevisions, 10) !== config.config_management.commit_revisions) {
         const r = await systemSettingsService.setCommitRevisions(parseInt(cmRevisions, 10));
-        if (!r.success) { setCmError(r.error ?? "Failed"); return; }
+        if (!r.success) { setCmError(r.error ?? t("failed")); return; }
       }
-      toast.success("Config management saved");
+      toast.success(t("cm.saved"));
       setEditingCm(false);
       onRefresh();
     } catch {
-      setCmError("An unexpected error occurred");
+      setCmError(t("unexpectedError"));
     } finally {
       setCmSaving(false);
     }
@@ -215,14 +218,14 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
     try {
       const r = await systemSettingsService.addArchiveLocation(url);
       if (!r.success) {
-        toast.error("Failed", r.error ?? "Could not add archive location");
+        toast.error(t("failed"), r.error ?? t("cm.addArchiveFailed"));
       } else {
-        toast.success("Archive location added");
+        toast.success(t("cm.archiveAdded"));
         setArchiveInput("");
         onRefresh();
       }
     } catch {
-      toast.error("Error", "An unexpected error occurred");
+      toast.error(t("error"), t("unexpectedError"));
     } finally {
       setCmSaving(false);
     }
@@ -234,13 +237,13 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
     try {
       const r = await systemSettingsService.deleteArchiveLocation(deleteArchiveTarget);
       if (!r.success) {
-        toast.error("Failed", r.error ?? "Could not remove archive location");
+        toast.error(t("failed"), r.error ?? t("cm.removeArchiveFailed"));
       } else {
-        toast.success("Archive location removed");
+        toast.success(t("cm.archiveRemoved"));
         onRefresh();
       }
     } catch {
-      toast.error("Error", "An unexpected error occurred");
+      toast.error(t("error"), t("unexpectedError"));
     } finally {
       setDeletingArchive(false);
       setDeleteArchiveTarget(null);
@@ -266,21 +269,21 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
     setSysctlError(null);
     try {
       if (!sysctlParam.trim() || !sysctlValue.trim()) {
-        setSysctlError("Parameter and value are required.");
+        setSysctlError(t("sysctl.required"));
         return;
       }
       const r = await systemSettingsService.setSysctlParameter(sysctlParam.trim(), sysctlValue.trim());
       if (!r.success) {
-        setSysctlError(r.error ?? "Failed");
+        setSysctlError(r.error ?? t("failed"));
       } else {
-        toast.success("Sysctl parameter set");
+        toast.success(t("sysctl.set"));
         setSysctlParam("");
         setSysctlValue("");
         setAddingSysctl(false);
         onRefresh();
       }
     } catch {
-      setSysctlError("An unexpected error occurred");
+      setSysctlError(t("unexpectedError"));
     } finally {
       setSysctlSaving(false);
     }
@@ -292,13 +295,13 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
     try {
       const r = await systemSettingsService.deleteSysctlParameter(deleteSysctlTarget);
       if (!r.success) {
-        toast.error("Failed", r.error ?? "Could not delete parameter");
+        toast.error(t("failed"), r.error ?? t("sysctl.deleteFailed"));
       } else {
-        toast.success("Parameter removed");
+        toast.success(t("sysctl.removed"));
         onRefresh();
       }
     } catch {
-      toast.error("Error", "An unexpected error occurred");
+      toast.error(t("error"), t("unexpectedError"));
     } finally {
       setDeletingSysctl(false);
       setDeleteSysctlTarget(null);
@@ -318,23 +321,23 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
       if (speedChanged) {
         const r = await systemSettingsService.setConsoleSpeed(editingConsole, consoleSpeed);
         if (!r.success) {
-          setConsoleError(r.error ?? "Failed to update speed");
+          setConsoleError(r.error ?? t("console.speedFailed"));
           return;
         }
       }
       if (powersaveChanged) {
         const r = await systemSettingsService.setConsolePowersave(consolePowersave);
         if (!r.success) {
-          setConsoleError(r.error ?? "Failed to update powersave");
+          setConsoleError(r.error ?? t("console.powersaveFailed"));
           return;
         }
       }
 
-      toast.success("Console device updated");
+      toast.success(t("console.updated"));
       setEditingConsole(null);
       onRefresh();
     } catch {
-      setConsoleError("An unexpected error occurred");
+      setConsoleError(t("unexpectedError"));
     } finally {
       setConsoleSaving(false);
     }
@@ -363,15 +366,15 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
       });
 
       if (!result.success) {
-        setWdError(result.error ?? "Failed to save watchdog settings");
+        setWdError(result.error ?? t("watchdog.saveFailed"));
         return;
       }
 
-      toast.success("Watchdog settings saved");
+      toast.success(t("watchdog.saved"));
       setEditingWd(false);
       onRefresh();
     } catch {
-      setWdError("An unexpected error occurred");
+      setWdError(t("unexpectedError"));
     } finally {
       setWdSaving(false);
     }
@@ -385,13 +388,13 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
         ? await systemSettingsService.setWirelessCountryCode(wirelessCode)
         : await systemSettingsService.deleteWirelessCountryCode();
       if (!r.success) {
-        toast.error("Failed", r.error ?? "Could not update wireless country");
+        toast.error(t("failed"), r.error ?? t("wireless.updateFailed"));
       } else {
-        toast.success("Wireless country code updated");
+        toast.success(t("wireless.updated"));
         onRefresh();
       }
     } catch {
-      toast.error("Error", "An unexpected error occurred");
+      toast.error(t("error"), t("unexpectedError"));
     } finally {
       setWirelessSaving(false);
     }
@@ -457,13 +460,13 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
 
       for (const op of ops) {
         const r = await op();
-        if (!r.success) { setOptsError(r.error ?? "Failed"); return; }
+        if (!r.success) { setOptsError(r.error ?? t("failed")); return; }
       }
-      toast.success("System options saved");
+      toast.success(t("opts.saved"));
       setEditingOpts(false);
       onRefresh();
     } catch {
-      setOptsError("An unexpected error occurred");
+      setOptsError(t("unexpectedError"));
     } finally {
       setOptsSaving(false);
     }
@@ -480,21 +483,21 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
 
       if (url !== (px?.url ?? "")) {
         const r = url ? await systemSettingsService.setProxyUrl(url) : await systemSettingsService.deleteProxyUrl();
-        if (!r.success) { setProxyError(r.error ?? "Failed"); return; }
+        if (!r.success) { setProxyError(r.error ?? t("failed")); return; }
       }
       if (port !== (px?.port ?? null)) {
         const r = port ? await systemSettingsService.setProxyPort(port) : await systemSettingsService.deleteProxyPort();
-        if (!r.success) { setProxyError(r.error ?? "Failed"); return; }
+        if (!r.success) { setProxyError(r.error ?? t("failed")); return; }
       }
       if (user !== (px?.username ?? "")) {
         const r = user ? await systemSettingsService.setProxyUsername(user) : await systemSettingsService.deleteProxyUsername();
-        if (!r.success) { setProxyError(r.error ?? "Failed"); return; }
+        if (!r.success) { setProxyError(r.error ?? t("failed")); return; }
       }
-      toast.success("Proxy settings saved");
+      toast.success(t("proxy.saved"));
       setEditingProxy(false);
       onRefresh();
     } catch {
-      setProxyError("An unexpected error occurred");
+      setProxyError(t("unexpectedError"));
     } finally {
       setProxySaving(false);
     }
@@ -505,11 +508,11 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
     if (!host) return;
     try {
       const r = await systemSettingsService.addProxyNoProxy(host);
-      if (!r.success) { toast.error("Failed", r.error ?? "Could not add entry"); return; }
+      if (!r.success) { toast.error(t("failed"), r.error ?? t("proxy.addEntryFailed")); return; }
       setProxyNoProxyInput("");
       onRefresh();
     } catch {
-      toast.error("Error", "An unexpected error occurred");
+      toast.error(t("error"), t("unexpectedError"));
     }
   };
 
@@ -537,7 +540,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
           rotate: atopRotateChanged ? atopRotate : undefined,
           clearRotate: atopRotateChanged && atopRotate === null,
         });
-        if (!r.success) { setLogsError(r.error ?? "Failed"); return; }
+        if (!r.success) { setLogsError(r.error ?? t("failed")); return; }
       }
       if (msgSizeChanged || msgRotateChanged) {
         const r = await systemSettingsService.updateLogrotateMessages({
@@ -546,13 +549,13 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
           rotate: msgRotateChanged ? msgRotate : undefined,
           clearRotate: msgRotateChanged && msgRotate === null,
         });
-        if (!r.success) { setLogsError(r.error ?? "Failed"); return; }
+        if (!r.success) { setLogsError(r.error ?? t("failed")); return; }
       }
-      toast.success("Log rotation settings saved");
+      toast.success(t("logs.saved"));
       setEditingLogs(false);
       onRefresh();
     } catch {
-      setLogsError("An unexpected error occurred");
+      setLogsError(t("unexpectedError"));
     } finally {
       setLogsSaving(false);
     }
@@ -566,17 +569,17 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
       const url = ucUrl.trim();
       if (url !== (config.update_check?.url ?? "")) {
         const r = url ? await systemSettingsService.setUpdateCheckUrl(url) : await systemSettingsService.deleteUpdateCheckUrl();
-        if (!r.success) { setUcError(r.error ?? "Failed"); return; }
+        if (!r.success) { setUcError(r.error ?? t("failed")); return; }
       }
       if (ucAuto !== (config.update_check?.auto_install ?? false)) {
         const r = await systemSettingsService.setUpdateCheckAutoInstall(ucAuto);
-        if (!r.success) { setUcError(r.error ?? "Failed"); return; }
+        if (!r.success) { setUcError(r.error ?? t("failed")); return; }
       }
-      toast.success("Update check settings saved");
+      toast.success(t("uc.saved"));
       setEditingUc(false);
       onRefresh();
     } catch {
-      setUcError("An unexpected error occurred");
+      setUcError(t("unexpectedError"));
     } finally {
       setUcSaving(false);
     }
@@ -610,16 +613,16 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
         isolateCpus: kIsolateCpus, nohzFull: kNohzFull, rcuNoCbs: kRcuNoCbs,
         defaultHugepageSize: kDefaultHugepageSize, disableNumaBalancing: kDisableNumaBalancing, hugepageSize: kHugepageSize,
       });
-      if (!r1.success) { setKernelError(r1.error ?? "Failed to save kernel options"); return; }
+      if (!r1.success) { setKernelError(r1.error ?? t("kernel.saveFailed")); return; }
       const r2 = await systemSettingsService.saveResourceLimits(resLimits ?? null, {
         maxMapCount: kMaxMapCount, shmmax: kShmmax,
       });
-      if (!r2.success) { setKernelError(r2.error ?? "Failed to save resource limits"); return; }
-      toast.success("Kernel options saved");
+      if (!r2.success) { setKernelError(r2.error ?? t("kernel.saveLimitsFailed")); return; }
+      toast.success(t("kernel.saved"));
       setEditingKernel(false);
       onRefresh();
     } catch {
-      setKernelError("An unexpected error occurred");
+      setKernelError(t("unexpectedError"));
     } finally {
       setKernelSaving(false);
     }
@@ -627,7 +630,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
 
   // FRR BMP handlers
   const handleAddBmpTarget = async () => {
-    if (!bmpName.trim()) { setBmpError("Name is required"); return; }
+    if (!bmpName.trim()) { setBmpError(t("frr.nameRequired")); return; }
     setBmpSaving(true); setBmpError(null);
     try {
       const r = await systemSettingsService.addFrrBmpTarget(
@@ -635,12 +638,12 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
         bmpAddress.trim() || null,
         bmpPort.trim() ? parseInt(bmpPort.trim(), 10) : null,
       );
-      if (!r.success) { setBmpError(r.error ?? "Failed to add target"); return; }
-      toast.success("BMP target added");
+      if (!r.success) { setBmpError(r.error ?? t("frr.addTargetFailed")); return; }
+      toast.success(t("frr.targetAdded"));
       setAddingBmpTarget(false);
       setBmpName(""); setBmpAddress(""); setBmpPort("");
       onRefresh();
-    } catch { setBmpError("An unexpected error occurred"); }
+    } catch { setBmpError(t("unexpectedError")); }
     finally { setBmpSaving(false); }
   };
 
@@ -649,9 +652,9 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
     setDeletingBmp(true);
     try {
       const r = await systemSettingsService.deleteFrrBmpTarget(deleteBmpTarget.name);
-      if (!r.success) toast.error("Delete failed", r.error ?? "Could not remove target");
-      else { toast.success("BMP target removed"); onRefresh(); }
-    } catch { toast.error("Error", "An unexpected error occurred"); }
+      if (!r.success) toast.error(t("deleteFailed"), r.error ?? t("frr.removeTargetFailed"));
+      else { toast.success(t("frr.targetRemoved")); onRefresh(); }
+    } catch { toast.error(t("error"), t("unexpectedError")); }
     finally { setDeletingBmp(false); setDeleteBmpTarget(null); }
   };
 
@@ -663,13 +666,13 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
         ? await systemSettingsService.setFrrProfile(frrProfile)
         : await systemSettingsService.deleteFrrProfile();
       if (!r.success) {
-        toast.error("Failed", r.error ?? "Could not update FRR profile");
+        toast.error(t("failed"), r.error ?? t("frr.updateProfileFailed"));
       } else {
-        toast.success("FRR profile updated");
+        toast.success(t("frr.profileUpdated"));
         onRefresh();
       }
     } catch {
-      toast.error("Error", "An unexpected error occurred");
+      toast.error(t("error"), t("unexpectedError"));
     } finally {
       setFrrSaving(false);
     }
@@ -682,8 +685,8 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Config Management</CardTitle>
-              <CardDescription>Commit history revisions and archive locations.</CardDescription>
+              <CardTitle>{t("cm.title")}</CardTitle>
+              <CardDescription>{t("cm.description")}</CardDescription>
             </div>
             {!isReadOnly && !editingCm && (
               <Button variant="outline" size="sm" onClick={() => {
@@ -691,13 +694,13 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                 setCmError(null);
                 setEditingCm(true);
               }}>
-                <Edit2 className="h-4 w-4 mr-2" />Edit
+                <Edit2 className="h-4 w-4 mr-2" />{tc("edit")}
               </Button>
             )}
             {editingCm && (
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => { setEditingCm(false); setCmError(null); }} disabled={cmSaving}>Cancel</Button>
-                <Button size="sm" onClick={handleSaveCm} disabled={cmSaving}>{cmSaving ? "Saving…" : "Save"}</Button>
+                <Button variant="outline" size="sm" onClick={() => { setEditingCm(false); setCmError(null); }} disabled={cmSaving}>{tc("cancel")}</Button>
+                <Button size="sm" onClick={handleSaveCm} disabled={cmSaving}>{cmSaving ? t("saving") : tc("save")}</Button>
               </div>
             )}
           </div>
@@ -712,23 +715,23 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
             </div>
           )}
           <div className="space-y-2 max-w-xs">
-            <Label>Commit Revisions</Label>
+            <Label>{t("cm.commitRevisions")}</Label>
             {editingCm ? (
               <Input type="number" min="0" value={cmRevisions} onChange={(e) => setCmRevisions(e.target.value)} placeholder="100" />
             ) : (
-              <p className="text-sm font-medium">{config.config_management.commit_revisions ?? <span className="text-muted-foreground">Default</span>}</p>
+              <p className="text-sm font-medium">{config.config_management.commit_revisions ?? <span className="text-muted-foreground">{tc("default")}</span>}</p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label>Archive Locations</Label>
+            <Label>{t("cm.archiveLocations")}</Label>
             <div className="flex items-start gap-2 rounded-lg border border-blue-500/20 bg-blue-500/10 p-3 text-sm">
               <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
               <div className="text-muted-foreground">
-                <span className="font-medium text-foreground">Backup browsing support: </span>
-                <span className="font-medium">SCP, SFTP, FTP</span> — full file listing.{" "}
-                <span className="font-medium">HTTP/HTTPS</span> — requires server directory indexing.{" "}
-                <span className="font-medium">TFTP, git+https</span> — no listing (manual filename entry only).
+                {t.rich("cm.browseInfo", {
+                  title: (chunks) => <span className="font-medium text-foreground">{chunks}</span>,
+                  proto: (chunks) => <span className="font-medium">{chunks}</span>,
+                })}
               </div>
             </div>
             <div className="space-y-2">
@@ -736,7 +739,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                 <div key={loc} className="flex items-center justify-between bg-muted/30 rounded px-3 py-2">
                   <span className="font-mono text-sm truncate flex-1 mr-2">{maskCredentials(loc)}</span>
                   <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title="Browse backups" onClick={() => setBrowseArchiveTarget(loc)}>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title={t("cm.browseBackups")} onClick={() => setBrowseArchiveTarget(loc)}>
                       <FolderOpen className="h-3.5 w-3.5" />
                     </Button>
                     {!isReadOnly && (
@@ -748,14 +751,14 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                 </div>
               ))}
               {config.config_management.archive_locations.length === 0 && (
-                <p className="text-sm text-muted-foreground">No archive locations configured.</p>
+                <p className="text-sm text-muted-foreground">{t("cm.noArchives")}</p>
               )}
             </div>
             {!isReadOnly && (
               <div className="flex gap-2 mt-2">
                 <Input value={archiveInput} onChange={(e) => setArchiveInput(e.target.value)} placeholder="scp://user@host//path" className="flex-1" />
                 <Button variant="outline" size="sm" onClick={handleAddArchive} disabled={cmSaving}>
-                  <Plus className="h-4 w-4 mr-1" />Add
+                  <Plus className="h-4 w-4 mr-1" />{tc("add")}
                 </Button>
               </div>
             )}
@@ -768,12 +771,12 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Sysctl Parameters</CardTitle>
-              <CardDescription>Custom kernel parameter overrides.</CardDescription>
+              <CardTitle>{t("sysctl.title")}</CardTitle>
+              <CardDescription>{t("sysctl.description")}</CardDescription>
             </div>
             {!isReadOnly && !addingSysctl && (
               <Button size="sm" variant="outline" onClick={() => { setSysctlParam(""); setSysctlValue(""); setSysctlError(null); setAddingSysctl(true); }}>
-                <Plus className="h-4 w-4 mr-2" />Add Parameter
+                <Plus className="h-4 w-4 mr-2" />{t("sysctl.addParameter")}
               </Button>
             )}
           </div>
@@ -791,17 +794,17 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-xs">Parameter</Label>
+                  <Label className="text-xs">{t("sysctl.parameter")}</Label>
                   <Input value={sysctlParam} onChange={(e) => setSysctlParam(e.target.value)} placeholder="net.ipv4.ip_forward" className="font-mono text-xs" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Value</Label>
+                  <Label className="text-xs">{t("sysctl.value")}</Label>
                   <Input value={sysctlValue} onChange={(e) => setSysctlValue(e.target.value)} placeholder="1" className="font-mono text-xs" />
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button size="sm" onClick={handleAddSysctl} disabled={sysctlSaving}>{sysctlSaving ? "Saving…" : "Set"}</Button>
-                <Button size="sm" variant="outline" onClick={() => { setAddingSysctl(false); setSysctlError(null); }}>Cancel</Button>
+                <Button size="sm" onClick={handleAddSysctl} disabled={sysctlSaving}>{sysctlSaving ? t("saving") : t("sysctl.setButton")}</Button>
+                <Button size="sm" variant="outline" onClick={() => { setAddingSysctl(false); setSysctlError(null); }}>{tc("cancel")}</Button>
               </div>
             </div>
           )}
@@ -809,16 +812,16 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Parameter</TableHead>
-                <TableHead>Value</TableHead>
-                {!isReadOnly && <TableHead className="text-right">Actions</TableHead>}
+                <TableHead>{t("sysctl.parameter")}</TableHead>
+                <TableHead>{t("sysctl.value")}</TableHead>
+                {!isReadOnly && <TableHead className="text-right">{tc("actions")}</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {config.sysctl_parameters.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={isReadOnly ? 2 : 3} className="text-center text-muted-foreground py-4">
-                    No custom sysctl parameters
+                    {t("sysctl.empty")}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -845,8 +848,8 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
       {config.console_devices.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Console Devices</CardTitle>
-            <CardDescription>Serial console device speed and powersave configuration.</CardDescription>
+            <CardTitle>{t("console.title")}</CardTitle>
+            <CardDescription>{t("console.description")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {consoleError && (
@@ -860,10 +863,10 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Device</TableHead>
-                  <TableHead>Speed (bps)</TableHead>
-                  <TableHead>Powersave</TableHead>
-                  {!isReadOnly && <TableHead className="text-right">Actions</TableHead>}
+                  <TableHead>{t("console.device")}</TableHead>
+                  <TableHead>{t("console.speed")}</TableHead>
+                  <TableHead>{t("console.powersave")}</TableHead>
+                  {!isReadOnly && <TableHead className="text-right">{tc("actions")}</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -874,7 +877,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                       {editingConsole === d.device ? (
                         <Select value={consoleSpeed} onValueChange={setConsoleSpeed}>
                           <SelectTrigger className="w-32">
-                            <SelectValue placeholder="Select…" />
+                            <SelectValue placeholder={t("console.select")} />
                           </SelectTrigger>
                           <SelectContent>
                             {["1200","2400","4800","9600","19200","38400","57600","115200"].map((s) => (
@@ -883,7 +886,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                           </SelectContent>
                         </Select>
                       ) : (
-                        d.speed ?? <span className="text-muted-foreground">Default</span>
+                        d.speed ?? <span className="text-muted-foreground">{tc("default")}</span>
                       )}
                     </TableCell>
                     <TableCell>
@@ -894,14 +897,14 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                           onClick={() => setConsolePowersave(!consolePowersave)}
                         >
                           {consolePowersave
-                            ? <span className="text-green-600 dark:text-green-400">Enabled</span>
-                            : <span className="text-muted-foreground">Disabled</span>}
+                            ? <span className="text-green-600 dark:text-green-400">{tc("enabled")}</span>
+                            : <span className="text-muted-foreground">{tc("disabled")}</span>}
                         </button>
                       ) : (
                         <span className="text-sm">
                           {d.powersave
-                            ? <span className="text-green-600 dark:text-green-400">Enabled</span>
-                            : <span className="text-muted-foreground">Disabled</span>}
+                            ? <span className="text-green-600 dark:text-green-400">{tc("enabled")}</span>
+                            : <span className="text-muted-foreground">{tc("disabled")}</span>}
                         </span>
                       )}
                     </TableCell>
@@ -910,10 +913,10 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                         {editingConsole === d.device ? (
                           <div className="flex justify-end gap-2">
                             <Button size="sm" onClick={handleSaveConsoleDevice} disabled={consoleSaving}>
-                              {consoleSaving ? "Saving…" : "Save"}
+                              {consoleSaving ? t("saving") : tc("save")}
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => { setEditingConsole(null); setConsoleError(null); }}>
-                              Cancel
+                              {tc("cancel")}
                             </Button>
                           </div>
                         ) : (
@@ -948,8 +951,8 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Watchdog</CardTitle>
-                    <CardDescription>Hardware watchdog timer configuration.</CardDescription>
+                    <CardTitle>{t("watchdog.title")}</CardTitle>
+                    <CardDescription>{t("watchdog.description")}</CardDescription>
                   </div>
                   {!isReadOnly && !editingWd && (
                     <Button variant="outline" size="sm" onClick={() => {
@@ -958,13 +961,13 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                       setWdError(null);
                       setEditingWd(true);
                     }}>
-                      <Edit2 className="h-4 w-4 mr-2" />Edit
+                      <Edit2 className="h-4 w-4 mr-2" />{tc("edit")}
                     </Button>
                   )}
                   {editingWd && (
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => { setEditingWd(false); setWdError(null); }} disabled={wdSaving}>Cancel</Button>
-                      <Button size="sm" onClick={handleSaveWatchdog} disabled={wdSaving}>{wdSaving ? "Saving…" : "Save"}</Button>
+                      <Button variant="outline" size="sm" onClick={() => { setEditingWd(false); setWdError(null); }} disabled={wdSaving}>{tc("cancel")}</Button>
+                      <Button size="sm" onClick={handleSaveWatchdog} disabled={wdSaving}>{wdSaving ? t("saving") : tc("save")}</Button>
                     </div>
                   )}
                 </div>
@@ -980,19 +983,19 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                 )}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Timeout (s)</Label>
+                    <Label>{t("watchdog.timeout")}</Label>
                     {editingWd ? (
                       <Input type="number" min="1" value={wdTimeout} onChange={(e) => setWdTimeout(e.target.value)} placeholder="60" />
                     ) : (
-                      <p className="text-sm font-medium">{config.watchdog?.timeout ?? <span className="text-muted-foreground">Not set</span>}</p>
+                      <p className="text-sm font-medium">{config.watchdog?.timeout ?? <span className="text-muted-foreground">{tc("notSet")}</span>}</p>
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label>Reboot Timeout (s)</Label>
+                    <Label>{t("watchdog.rebootTimeout")}</Label>
                     {editingWd ? (
                       <Input type="number" min="1" value={wdReboot} onChange={(e) => setWdReboot(e.target.value)} placeholder="120" />
                     ) : (
-                      <p className="text-sm font-medium">{config.watchdog?.reboot_timeout ?? <span className="text-muted-foreground">Not set</span>}</p>
+                      <p className="text-sm font-medium">{config.watchdog?.reboot_timeout ?? <span className="text-muted-foreground">{tc("notSet")}</span>}</p>
                     )}
                   </div>
                 </div>
@@ -1003,19 +1006,19 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
           {features.wireless.supported && (
             <Card className="flex flex-col">
               <CardHeader>
-                <CardTitle>Wireless</CardTitle>
-                <CardDescription>Wireless regulatory domain configuration.</CardDescription>
+                <CardTitle>{t("wireless.title")}</CardTitle>
+                <CardDescription>{t("wireless.description")}</CardDescription>
               </CardHeader>
               <CardContent className="flex-1">
                 <div className="space-y-2">
-                  <Label>Country Code</Label>
+                  <Label>{t("wireless.countryCode")}</Label>
                   <div className="flex gap-2">
                     <Select value={wirelessCode || "unset"} onValueChange={(v) => setWirelessCode(v === "unset" ? "" : v)} disabled={isReadOnly}>
                       <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Not set" />
+                        <SelectValue placeholder={tc("notSet")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="unset">Not set</SelectItem>
+                        <SelectItem value="unset">{tc("notSet")}</SelectItem>
                         {COUNTRY_CODES.map((c) => (
                           <SelectItem key={c} value={c}>{c}</SelectItem>
                         ))}
@@ -1023,7 +1026,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                     </Select>
                     {!isReadOnly && (
                       <Button size="sm" onClick={handleSaveWireless} disabled={wirelessSaving}>
-                        {wirelessSaving ? "Saving…" : "Save"}
+                        {wirelessSaving ? t("saving") : tc("save")}
                       </Button>
                     )}
                   </div>
@@ -1040,18 +1043,18 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
         <Card>
           <CardHeader>
             <CardTitle>FRR</CardTitle>
-            <CardDescription>FRRouting configuration profile and BMP monitoring targets.</CardDescription>
+            <CardDescription>{t("frr.description")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2 max-w-xs">
-              <Label>Profile</Label>
+              <Label>{t("frr.profile")}</Label>
               <div className="flex gap-2">
                 <Select value={frrProfile || "unset"} onValueChange={(v) => setFrrProfile(v === "unset" ? "" : v)} disabled={isReadOnly}>
                   <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Not set" />
+                    <SelectValue placeholder={tc("notSet")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="unset">Not set</SelectItem>
+                    <SelectItem value="unset">{tc("notSet")}</SelectItem>
                     {FRR_PROFILES.map((p) => (
                       <SelectItem key={p} value={p}>{p}</SelectItem>
                     ))}
@@ -1059,7 +1062,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                 </Select>
                 {!isReadOnly && (
                   <Button size="sm" onClick={handleSaveFrr} disabled={frrSaving}>
-                    {frrSaving ? "Saving…" : "Save"}
+                    {frrSaving ? t("saving") : tc("save")}
                   </Button>
                 )}
               </div>
@@ -1067,10 +1070,10 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">BMP Targets</p>
+                <p className="text-sm font-medium">{t("frr.bmpTargets")}</p>
                 {!isReadOnly && !addingBmpTarget && (
                   <Button size="sm" variant="outline" onClick={() => { setBmpName(""); setBmpAddress(""); setBmpPort(""); setBmpError(null); setAddingBmpTarget(true); }}>
-                    <Plus className="h-4 w-4 mr-1" />Add Target
+                    <Plus className="h-4 w-4 mr-1" />{t("frr.addTarget")}
                   </Button>
                 )}
               </div>
@@ -1087,35 +1090,35 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                   )}
                   <div className="grid grid-cols-3 gap-3">
                     <div className="space-y-1">
-                      <Label className="text-xs">Name</Label>
+                      <Label className="text-xs">{tc("name")}</Label>
                       <Input value={bmpName} onChange={(e) => setBmpName(e.target.value)} placeholder="my-target" className="text-sm" />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Address</Label>
+                      <Label className="text-xs">{t("address")}</Label>
                       <Input value={bmpAddress} onChange={(e) => setBmpAddress(e.target.value)} placeholder="10.0.0.1" className="font-mono text-sm" />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Port</Label>
+                      <Label className="text-xs">{t("port")}</Label>
                       <Input type="number" value={bmpPort} onChange={(e) => setBmpPort(e.target.value)} placeholder="11019" className="text-sm" />
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={handleAddBmpTarget} disabled={bmpSaving}>{bmpSaving ? "Adding…" : "Add"}</Button>
-                    <Button size="sm" variant="outline" onClick={() => { setAddingBmpTarget(false); setBmpError(null); }}>Cancel</Button>
+                    <Button size="sm" onClick={handleAddBmpTarget} disabled={bmpSaving}>{bmpSaving ? t("adding") : tc("add")}</Button>
+                    <Button size="sm" variant="outline" onClick={() => { setAddingBmpTarget(false); setBmpError(null); }}>{tc("cancel")}</Button>
                   </div>
                 </div>
               )}
 
               {(config.frr?.bmp?.targets ?? []).length === 0 && !addingBmpTarget ? (
-                <p className="text-sm text-muted-foreground">No BMP targets configured.</p>
+                <p className="text-sm text-muted-foreground">{t("frr.noTargets")}</p>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Address</TableHead>
-                      <TableHead>Port</TableHead>
-                      {!isReadOnly && <TableHead className="text-right">Actions</TableHead>}
+                      <TableHead>{tc("name")}</TableHead>
+                      <TableHead>{t("address")}</TableHead>
+                      <TableHead>{t("port")}</TableHead>
+                      {!isReadOnly && <TableHead className="text-right">{tc("actions")}</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1146,8 +1149,8 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>System Options</CardTitle>
-              <CardDescription>Keyboard layout, boot behaviour, and network client bindings.</CardDescription>
+              <CardTitle>{t("opts.title")}</CardTitle>
+              <CardDescription>{t("opts.description")}</CardDescription>
             </div>
             {!isReadOnly && !editingOpts && (
               <Button variant="outline" size="sm" onClick={() => {
@@ -1166,13 +1169,13 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                 setOptsError(null);
                 setEditingOpts(true);
               }}>
-                <Edit2 className="h-4 w-4 mr-2" />Edit
+                <Edit2 className="h-4 w-4 mr-2" />{tc("edit")}
               </Button>
             )}
             {editingOpts && (
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => { setEditingOpts(false); setOptsError(null); }} disabled={optsSaving}>Cancel</Button>
-                <Button size="sm" onClick={handleSaveOptions} disabled={optsSaving}>{optsSaving ? "Saving…" : "Save"}</Button>
+                <Button variant="outline" size="sm" onClick={() => { setEditingOpts(false); setOptsError(null); }} disabled={optsSaving}>{tc("cancel")}</Button>
+                <Button size="sm" onClick={handleSaveOptions} disabled={optsSaving}>{optsSaving ? t("saving") : tc("save")}</Button>
               </div>
             )}
           </div>
@@ -1190,56 +1193,56 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
           {/* Select-style options */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1.5">
-              <Label>Keyboard Layout</Label>
+              <Label>{t("opts.keyboardLayout")}</Label>
               {editingOpts ? (
                 <Input value={optKeyboard} onChange={(e) => setOptKeyboard(e.target.value)} placeholder="us" />
               ) : (
-                <p className="text-sm font-medium">{opts?.keyboard_layout ?? <span className="text-muted-foreground">Default</span>}</p>
+                <p className="text-sm font-medium">{opts?.keyboard_layout ?? <span className="text-muted-foreground">{tc("default")}</span>}</p>
               )}
             </div>
             <div className="space-y-1.5">
-              <Label>Time Format</Label>
+              <Label>{t("opts.timeFormat")}</Label>
               {editingOpts ? (
                 <Select value={optTimeFormat || "unset"} onValueChange={(v) => setOptTimeFormat(v === "unset" ? "" : v)}>
-                  <SelectTrigger><SelectValue placeholder="Default" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={tc("default")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="unset">Default</SelectItem>
+                    <SelectItem value="unset">{tc("default")}</SelectItem>
                     <SelectItem value="24-hour">24-hour</SelectItem>
                     <SelectItem value="12-hour">12-hour</SelectItem>
                   </SelectContent>
                 </Select>
               ) : (
-                <p className="text-sm font-medium">{opts?.time_format ?? <span className="text-muted-foreground">Default</span>}</p>
+                <p className="text-sm font-medium">{opts?.time_format ?? <span className="text-muted-foreground">{tc("default")}</span>}</p>
               )}
             </div>
             <div className="space-y-1.5">
               <Label>Ctrl-Alt-Delete</Label>
               {editingOpts ? (
                 <Select value={optCtrlAlt || "unset"} onValueChange={(v) => setOptCtrlAlt(v === "unset" ? "" : v)}>
-                  <SelectTrigger><SelectValue placeholder="Default" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={tc("default")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="unset">Default</SelectItem>
-                    <SelectItem value="ignore">Ignore</SelectItem>
-                    <SelectItem value="reboot">Reboot</SelectItem>
-                    <SelectItem value="poweroff">Poweroff</SelectItem>
+                    <SelectItem value="unset">{tc("default")}</SelectItem>
+                    <SelectItem value="ignore">{t("opts.ignore")}</SelectItem>
+                    <SelectItem value="reboot">{t("opts.reboot")}</SelectItem>
+                    <SelectItem value="poweroff">{t("opts.poweroff")}</SelectItem>
                   </SelectContent>
                 </Select>
               ) : (
-                <p className="text-sm font-medium">{opts?.ctrl_alt_delete ?? <span className="text-muted-foreground">Default</span>}</p>
+                <p className="text-sm font-medium">{opts?.ctrl_alt_delete ?? <span className="text-muted-foreground">{tc("default")}</span>}</p>
               )}
             </div>
           </div>
 
           {/* Boolean flags */}
           <div>
-            <p className="text-sm font-medium text-muted-foreground mb-3">System behaviour</p>
+            <p className="text-sm font-medium text-muted-foreground mb-3">{t("opts.systemBehaviour")}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-8">
               {([
-                { label: "Startup beep", key: "startup_beep", state: optStartupBeep, setter: setOptStartupBeep },
-                { label: "Disable USB autosuspend", key: "disable_usb_autosuspend", state: optUsbAutosuspend, setter: setOptUsbAutosuspend },
-                { label: "Reboot on kernel panic", key: "reboot_on_panic", state: optRebootOnPanic, setter: setOptRebootOnPanic },
-                { label: "Root partition auto-resize", key: "root_partition_auto_resize", state: optRootResize, setter: setOptRootResize },
-                ...(features.watchdog.supported ? [{ label: "Reboot on upgrade failure", key: "reboot_on_upgrade_failure", state: optRebootUpgrade, setter: setOptRebootUpgrade }] : []),
+                { label: t("opts.startupBeep"), key: "startup_beep", state: optStartupBeep, setter: setOptStartupBeep },
+                { label: t("opts.disableUsbAutosuspend"), key: "disable_usb_autosuspend", state: optUsbAutosuspend, setter: setOptUsbAutosuspend },
+                { label: t("opts.rebootOnPanic"), key: "reboot_on_panic", state: optRebootOnPanic, setter: setOptRebootOnPanic },
+                { label: t("opts.rootResize"), key: "root_partition_auto_resize", state: optRootResize, setter: setOptRootResize },
+                ...(features.watchdog.supported ? [{ label: t("opts.rebootOnUpgradeFailure"), key: "reboot_on_upgrade_failure", state: optRebootUpgrade, setter: setOptRebootUpgrade }] : []),
               ] as { label: string; key: string; state: boolean; setter: (v: boolean) => void }[]).map(({ label, key, state, setter }) => (
                 <div key={key} className="flex items-center gap-3">
                   {editingOpts ? (
@@ -1261,53 +1264,53 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
 
           {/* HTTP / SSH client source bindings */}
           <div>
-            <p className="text-sm font-medium text-muted-foreground mb-3">Network client source binding</p>
+            <p className="text-sm font-medium text-muted-foreground mb-3">{t("opts.networkClientBinding")}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2 rounded-lg border p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">HTTP client</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("opts.httpClient")}</p>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Source address</Label>
+                  <Label className="text-xs">{t("opts.sourceAddress")}</Label>
                   {editingOpts ? (
                     <Input value={optHttpAddr} onChange={(e) => setOptHttpAddr(e.target.value)} placeholder="192.168.1.1" className="text-sm" />
                   ) : (
-                    <p className="text-sm">{opts?.http_client?.source_address ?? <span className="text-muted-foreground">Not set</span>}</p>
+                    <p className="text-sm">{opts?.http_client?.source_address ?? <span className="text-muted-foreground">{tc("notSet")}</span>}</p>
                   )}
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Source interface</Label>
+                  <Label className="text-xs">{t("opts.sourceInterface")}</Label>
                   {editingOpts ? (
                     <InterfaceSelect
                       value={optHttpIface || "__none__"}
                       onValueChange={(v) => setOptHttpIface(v === "__none__" ? "" : v)}
-                      noneOption={{ label: "Not set", value: "__none__" }}
+                      noneOption={{ label: tc("notSet"), value: "__none__" }}
                       className="font-mono text-sm"
                     />
                   ) : (
-                    <p className="text-sm">{opts?.http_client?.source_interface ?? <span className="text-muted-foreground">Not set</span>}</p>
+                    <p className="text-sm">{opts?.http_client?.source_interface ?? <span className="text-muted-foreground">{tc("notSet")}</span>}</p>
                   )}
                 </div>
               </div>
               <div className="space-y-2 rounded-lg border p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">SSH client</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("opts.sshClient")}</p>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Source address</Label>
+                  <Label className="text-xs">{t("opts.sourceAddress")}</Label>
                   {editingOpts ? (
                     <Input value={optSshAddr} onChange={(e) => setOptSshAddr(e.target.value)} placeholder="192.168.1.1" className="text-sm" />
                   ) : (
-                    <p className="text-sm">{opts?.ssh_client?.source_address ?? <span className="text-muted-foreground">Not set</span>}</p>
+                    <p className="text-sm">{opts?.ssh_client?.source_address ?? <span className="text-muted-foreground">{tc("notSet")}</span>}</p>
                   )}
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Source interface</Label>
+                  <Label className="text-xs">{t("opts.sourceInterface")}</Label>
                   {editingOpts ? (
                     <InterfaceSelect
                       value={optSshIface || "__none__"}
                       onValueChange={(v) => setOptSshIface(v === "__none__" ? "" : v)}
-                      noneOption={{ label: "Not set", value: "__none__" }}
+                      noneOption={{ label: tc("notSet"), value: "__none__" }}
                       className="font-mono text-sm"
                     />
                   ) : (
-                    <p className="text-sm">{opts?.ssh_client?.source_interface ?? <span className="text-muted-foreground">Not set</span>}</p>
+                    <p className="text-sm">{opts?.ssh_client?.source_interface ?? <span className="text-muted-foreground">{tc("notSet")}</span>}</p>
                   )}
                 </div>
               </div>
@@ -1321,18 +1324,18 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Kernel Options</CardTitle>
-              <CardDescription>Boot-time kernel flags, CPU isolation, memory settings, and resource limits.</CardDescription>
+              <CardTitle>{t("kernel.title")}</CardTitle>
+              <CardDescription>{t("kernel.description")}</CardDescription>
             </div>
             {!isReadOnly && (
               editingKernel ? (
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => { setEditingKernel(false); setKernelError(null); }} disabled={kernelSaving}>Cancel</Button>
-                  <Button size="sm" onClick={handleSaveKernel} disabled={kernelSaving}>{kernelSaving ? "Saving…" : "Save"}</Button>
+                  <Button variant="outline" size="sm" onClick={() => { setEditingKernel(false); setKernelError(null); }} disabled={kernelSaving}>{tc("cancel")}</Button>
+                  <Button size="sm" onClick={handleSaveKernel} disabled={kernelSaving}>{kernelSaving ? t("saving") : tc("save")}</Button>
                 </div>
               ) : (
                 <Button variant="outline" size="sm" onClick={startEditKernel}>
-                  <Edit2 className="h-4 w-4 mr-2" />Edit
+                  <Edit2 className="h-4 w-4 mr-2" />{tc("edit")}
                 </Button>
               )
             )}
@@ -1350,12 +1353,12 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
 
           {/* General flags */}
           <div>
-            <p className="text-xs font-semibold uppercase text-muted-foreground mb-3">General</p>
+            <p className="text-xs font-semibold uppercase text-muted-foreground mb-3">{t("kernel.general")}</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-3 gap-x-8">
               {([
-                { label: "Disable HPET", key: "hpet", state: editingKernel ? kDisableHpet : (kern?.disable_hpet ?? false), setter: setKDisableHpet },
-                { label: "Disable MCE", key: "mce", state: editingKernel ? kDisableMce : (kern?.disable_mce ?? false), setter: setKDisableMce },
-                { label: "Disable softlockup", key: "softlockup", state: editingKernel ? kDisableSoftlockup : (kern?.disable_softlockup ?? false), setter: setKDisableSoftlockup },
+                { label: t("kernel.disableHpet"), key: "hpet", state: editingKernel ? kDisableHpet : (kern?.disable_hpet ?? false), setter: setKDisableHpet },
+                { label: t("kernel.disableMce"), key: "mce", state: editingKernel ? kDisableMce : (kern?.disable_mce ?? false), setter: setKDisableMce },
+                { label: t("kernel.disableSoftlockup"), key: "softlockup", state: editingKernel ? kDisableSoftlockup : (kern?.disable_softlockup ?? false), setter: setKDisableSoftlockup },
               ] as { label: string; key: string; state: boolean; setter: (v: boolean) => void }[]).map(({ label, key, state, setter }) => (
                 <div key={key} className="flex items-center gap-3">
                   {editingKernel ? (
@@ -1383,19 +1386,19 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                     {(kern?.cpu?.disable_nmi_watchdog ?? false) && <span className="text-primary-foreground text-xs">✓</span>}
                   </div>
                 )}
-                <Label htmlFor="kern-nmi" className="cursor-pointer font-normal">Disable NMI watchdog</Label>
+                <Label htmlFor="kern-nmi" className="cursor-pointer font-normal">{t("kernel.disableNmiWatchdog")}</Label>
               </div>
               {([
-                { label: "Isolate CPUs", val: editingKernel ? kIsolateCpus : (kern?.cpu?.isolate_cpus ?? ""), set: setKIsolateCpus, placeholder: "0-3" },
-                { label: "nohz_full CPUs", val: editingKernel ? kNohzFull : (kern?.cpu?.nohz_full ?? ""), set: setKNohzFull, placeholder: "1-3" },
-                { label: "rcu_no_cbs CPUs", val: editingKernel ? kRcuNoCbs : (kern?.cpu?.rcu_no_cbs ?? ""), set: setKRcuNoCbs, placeholder: "1-3" },
+                { label: t("kernel.isolateCpus"), val: editingKernel ? kIsolateCpus : (kern?.cpu?.isolate_cpus ?? ""), set: setKIsolateCpus, placeholder: "0-3" },
+                { label: t("kernel.nohzFull"), val: editingKernel ? kNohzFull : (kern?.cpu?.nohz_full ?? ""), set: setKNohzFull, placeholder: "1-3" },
+                { label: t("kernel.rcuNoCbs"), val: editingKernel ? kRcuNoCbs : (kern?.cpu?.rcu_no_cbs ?? ""), set: setKRcuNoCbs, placeholder: "1-3" },
               ] as { label: string; val: string; set: (v: string) => void; placeholder: string }[]).map(({ label, val, set, placeholder }) => (
                 <div key={label} className="space-y-1">
                   <Label className="text-xs">{label}</Label>
                   {editingKernel ? (
                     <Input value={val} onChange={(e) => set(e.target.value)} placeholder={placeholder} className="font-mono text-sm" />
                   ) : (
-                    <p className="text-sm font-mono">{val || <span className="text-muted-foreground">Not set</span>}</p>
+                    <p className="text-sm font-mono">{val || <span className="text-muted-foreground">{tc("notSet")}</span>}</p>
                   )}
                 </div>
               ))}
@@ -1404,7 +1407,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
 
           {/* Memory */}
           <div>
-            <p className="text-xs font-semibold uppercase text-muted-foreground mb-3">Memory</p>
+            <p className="text-xs font-semibold uppercase text-muted-foreground mb-3">{t("kernel.memory")}</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-3 gap-x-6">
               <div className="flex items-center gap-3 sm:col-span-3">
                 {editingKernel ? (
@@ -1414,25 +1417,25 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                     {(kern?.memory?.disable_numa_balancing ?? false) && <span className="text-primary-foreground text-xs">✓</span>}
                   </div>
                 )}
-                <Label htmlFor="kern-numa" className="cursor-pointer font-normal">Disable NUMA balancing</Label>
+                <Label htmlFor="kern-numa" className="cursor-pointer font-normal">{t("kernel.disableNumaBalancing")}</Label>
               </div>
               {([
-                { label: "Default hugepage size", val: editingKernel ? kDefaultHugepageSize : (kern?.memory?.default_hugepage_size ?? ""), set: setKDefaultHugepageSize },
-                { label: "Hugepage size", val: editingKernel ? kHugepageSize : (kern?.memory?.hugepage_size ?? ""), set: setKHugepageSize },
+                { label: t("kernel.defaultHugepageSize"), val: editingKernel ? kDefaultHugepageSize : (kern?.memory?.default_hugepage_size ?? ""), set: setKDefaultHugepageSize },
+                { label: t("kernel.hugepageSize"), val: editingKernel ? kHugepageSize : (kern?.memory?.hugepage_size ?? ""), set: setKHugepageSize },
               ] as { label: string; val: string; set: (v: string) => void }[]).map(({ label, val, set }) => (
                 <div key={label} className="space-y-1">
                   <Label className="text-xs">{label}</Label>
                   {editingKernel ? (
                     <Select value={val || "unset"} onValueChange={(v) => set(v === "unset" ? "" : v)}>
-                      <SelectTrigger><SelectValue placeholder="Not set" /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder={tc("notSet")} /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="unset">Not set</SelectItem>
+                        <SelectItem value="unset">{tc("notSet")}</SelectItem>
                         <SelectItem value="2M">2M</SelectItem>
                         <SelectItem value="1G">1G</SelectItem>
                       </SelectContent>
                     </Select>
                   ) : (
-                    <p className="text-sm font-mono">{val || <span className="text-muted-foreground">Not set</span>}</p>
+                    <p className="text-sm font-mono">{val || <span className="text-muted-foreground">{tc("notSet")}</span>}</p>
                   )}
                 </div>
               ))}
@@ -1442,22 +1445,22 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
           {/* Resource Limits (1.5 only) */}
           {features.resource_limits.supported && (
             <div>
-              <p className="text-xs font-semibold uppercase text-muted-foreground mb-3">Resource Limits</p>
+              <p className="text-xs font-semibold uppercase text-muted-foreground mb-3">{t("kernel.resourceLimits")}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <Label className="text-xs">Max map count</Label>
+                  <Label className="text-xs">{t("kernel.maxMapCount")}</Label>
                   {editingKernel ? (
-                    <Input type="number" min="0" value={kMaxMapCount} onChange={(e) => setKMaxMapCount(e.target.value)} placeholder="Default" />
+                    <Input type="number" min="0" value={kMaxMapCount} onChange={(e) => setKMaxMapCount(e.target.value)} placeholder={tc("default")} />
                   ) : (
-                    <p className="text-sm font-medium">{resLimits?.max_map_count ?? <span className="text-muted-foreground">Default</span>}</p>
+                    <p className="text-sm font-medium">{resLimits?.max_map_count ?? <span className="text-muted-foreground">{tc("default")}</span>}</p>
                   )}
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Shared memory max (bytes)</Label>
+                  <Label className="text-xs">{t("kernel.shmmax")}</Label>
                   {editingKernel ? (
-                    <Input type="number" min="0" value={kShmmax} onChange={(e) => setKShmmax(e.target.value)} placeholder="Default" />
+                    <Input type="number" min="0" value={kShmmax} onChange={(e) => setKShmmax(e.target.value)} placeholder={tc("default")} />
                   ) : (
-                    <p className="text-sm font-medium">{resLimits?.shmmax ?? <span className="text-muted-foreground">Default</span>}</p>
+                    <p className="text-sm font-medium">{resLimits?.shmmax ?? <span className="text-muted-foreground">{tc("default")}</span>}</p>
                   )}
                 </div>
               </div>
@@ -1471,8 +1474,8 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Log Rotation</CardTitle>
-              <CardDescription>Configure log size limits and rotation counts for system logs.</CardDescription>
+              <CardTitle>{t("logs.title")}</CardTitle>
+              <CardDescription>{t("logs.description")}</CardDescription>
             </div>
             {!isReadOnly && !editingLogs && (
               <Button variant="outline" size="sm" onClick={() => {
@@ -1483,13 +1486,13 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                 setLogsError(null);
                 setEditingLogs(true);
               }}>
-                <Edit2 className="h-4 w-4 mr-2" />Edit
+                <Edit2 className="h-4 w-4 mr-2" />{tc("edit")}
               </Button>
             )}
             {editingLogs && (
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => { setEditingLogs(false); setLogsError(null); }} disabled={logsSaving}>Cancel</Button>
-                <Button size="sm" onClick={handleSaveLogs} disabled={logsSaving}>{logsSaving ? "Saving…" : "Save"}</Button>
+                <Button variant="outline" size="sm" onClick={() => { setEditingLogs(false); setLogsError(null); }} disabled={logsSaving}>{tc("cancel")}</Button>
+                <Button size="sm" onClick={handleSaveLogs} disabled={logsSaving}>{logsSaving ? t("saving") : tc("save")}</Button>
               </div>
             )}
           </div>
@@ -1512,19 +1515,19 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Max size (KB)</Label>
+                    <Label className="text-xs">{t("logs.maxSize")}</Label>
                     {editingLogs ? (
-                      <Input type="number" min="0" value={size} onChange={(e) => setSize(e.target.value)} placeholder="Default" className="text-sm" />
+                      <Input type="number" min="0" value={size} onChange={(e) => setSize(e.target.value)} placeholder={tc("default")} className="text-sm" />
                     ) : (
-                      <p className="text-sm font-medium">{current?.max_size ?? <span className="text-muted-foreground">Default</span>}</p>
+                      <p className="text-sm font-medium">{current?.max_size ?? <span className="text-muted-foreground">{tc("default")}</span>}</p>
                     )}
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Rotate count</Label>
+                    <Label className="text-xs">{t("logs.rotateCount")}</Label>
                     {editingLogs ? (
-                      <Input type="number" min="0" value={rotate} onChange={(e) => setRotate(e.target.value)} placeholder="Default" className="text-sm" />
+                      <Input type="number" min="0" value={rotate} onChange={(e) => setRotate(e.target.value)} placeholder={tc("default")} className="text-sm" />
                     ) : (
-                      <p className="text-sm font-medium">{current?.rotate_count ?? <span className="text-muted-foreground">Default</span>}</p>
+                      <p className="text-sm font-medium">{current?.rotate_count ?? <span className="text-muted-foreground">{tc("default")}</span>}</p>
                     )}
                   </div>
                 </div>
@@ -1542,8 +1545,8 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Update Check</CardTitle>
-                <CardDescription>Automatic package update notifications.</CardDescription>
+                <CardTitle>{t("uc.title")}</CardTitle>
+                <CardDescription>{t("uc.description")}</CardDescription>
               </div>
               {!isReadOnly && !editingUc && (
                 <Button variant="outline" size="sm" onClick={() => {
@@ -1552,13 +1555,13 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                   setUcError(null);
                   setEditingUc(true);
                 }}>
-                  <Edit2 className="h-4 w-4 mr-2" />Edit
+                  <Edit2 className="h-4 w-4 mr-2" />{tc("edit")}
                 </Button>
               )}
               {editingUc && (
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => { setEditingUc(false); setUcError(null); }} disabled={ucSaving}>Cancel</Button>
-                  <Button size="sm" onClick={handleSaveUc} disabled={ucSaving}>{ucSaving ? "Saving…" : "Save"}</Button>
+                  <Button variant="outline" size="sm" onClick={() => { setEditingUc(false); setUcError(null); }} disabled={ucSaving}>{tc("cancel")}</Button>
+                  <Button size="sm" onClick={handleSaveUc} disabled={ucSaving}>{ucSaving ? t("saving") : tc("save")}</Button>
                 </div>
               )}
             </div>
@@ -1573,11 +1576,11 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
               </div>
             )}
             <div className="space-y-1.5">
-              <Label>Check URL</Label>
+              <Label>{t("uc.checkUrl")}</Label>
               {editingUc ? (
                 <Input value={ucUrl} onChange={(e) => setUcUrl(e.target.value)} placeholder="https://packages.vyos.net/…" />
               ) : (
-                <p className="text-sm font-medium break-all">{config.update_check?.url ?? <span className="text-muted-foreground">Default</span>}</p>
+                <p className="text-sm font-medium break-all">{config.update_check?.url ?? <span className="text-muted-foreground">{tc("default")}</span>}</p>
               )}
             </div>
             <div className="flex items-center gap-3">
@@ -1588,7 +1591,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                   {ucAuto && <span className="text-primary-foreground text-xs">✓</span>}
                 </div>
               )}
-              <Label htmlFor="uc-auto" className="cursor-pointer font-normal">Auto-install packages</Label>
+              <Label htmlFor="uc-auto" className="cursor-pointer font-normal">{t("uc.autoInstall")}</Label>
             </div>
           </CardContent>
         </Card>
@@ -1598,8 +1601,8 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Proxy</CardTitle>
-                <CardDescription>Outbound HTTP proxy for system traffic.</CardDescription>
+                <CardTitle>{t("proxy.title")}</CardTitle>
+                <CardDescription>{t("proxy.description")}</CardDescription>
               </div>
               {!isReadOnly && !editingProxy && (
                 <Button variant="outline" size="sm" onClick={() => {
@@ -1609,13 +1612,13 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                   setProxyError(null);
                   setEditingProxy(true);
                 }}>
-                  <Edit2 className="h-4 w-4 mr-2" />Edit
+                  <Edit2 className="h-4 w-4 mr-2" />{tc("edit")}
                 </Button>
               )}
               {editingProxy && (
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => { setEditingProxy(false); setProxyError(null); }} disabled={proxySaving}>Cancel</Button>
-                  <Button size="sm" onClick={handleSaveProxy} disabled={proxySaving}>{proxySaving ? "Saving…" : "Save"}</Button>
+                  <Button variant="outline" size="sm" onClick={() => { setEditingProxy(false); setProxyError(null); }} disabled={proxySaving}>{tc("cancel")}</Button>
+                  <Button size="sm" onClick={handleSaveProxy} disabled={proxySaving}>{proxySaving ? t("saving") : tc("save")}</Button>
                 </div>
               )}
             </div>
@@ -1635,11 +1638,11 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                 {editingProxy ? (
                   <Input value={proxyUrl} onChange={(e) => setProxyUrl(e.target.value)} placeholder="http://proxy.example.com" />
                 ) : (
-                  <p className="text-sm font-medium break-all">{px?.url ?? <span className="text-muted-foreground">Not set</span>}</p>
+                  <p className="text-sm font-medium break-all">{px?.url ?? <span className="text-muted-foreground">{tc("notSet")}</span>}</p>
                 )}
               </div>
               <div className="space-y-1.5">
-                <Label>Port</Label>
+                <Label>{t("port")}</Label>
                 {editingProxy ? (
                   <Input type="number" value={proxyPort} onChange={(e) => setProxyPort(e.target.value)} placeholder="3128" />
                 ) : (
@@ -1648,15 +1651,15 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Username</Label>
+              <Label>{t("proxy.username")}</Label>
               {editingProxy ? (
-                <Input value={proxyUsername} onChange={(e) => setProxyUsername(e.target.value)} placeholder="Optional" />
+                <Input value={proxyUsername} onChange={(e) => setProxyUsername(e.target.value)} placeholder={tc("optional")} />
               ) : (
-                <p className="text-sm font-medium">{px?.username ?? <span className="text-muted-foreground">Not set</span>}</p>
+                <p className="text-sm font-medium">{px?.username ?? <span className="text-muted-foreground">{tc("notSet")}</span>}</p>
               )}
             </div>
             <div className="space-y-2">
-              <Label>No-proxy hosts</Label>
+              <Label>{t("proxy.noProxyHosts")}</Label>
               <div className="flex flex-wrap gap-1.5 min-h-[2rem]">
                 {(px?.no_proxy ?? []).map((h) => (
                   <div key={h} className="flex items-center gap-1 bg-muted rounded px-2 py-0.5 text-xs font-mono">
@@ -1676,7 +1679,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                   </div>
                 ))}
                 {(px?.no_proxy ?? []).length === 0 && (
-                  <span className="text-sm text-muted-foreground">None configured</span>
+                  <span className="text-sm text-muted-foreground">{t("proxy.noneConfigured")}</span>
                 )}
               </div>
               {!isReadOnly && (
@@ -1689,7 +1692,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                     className="flex-1 text-sm"
                   />
                   <Button variant="outline" size="sm" onClick={handleAddNoProxy}>
-                    <Plus className="h-4 w-4 mr-1" />Add
+                    <Plus className="h-4 w-4 mr-1" />{tc("add")}
                   </Button>
                 </div>
               )}
@@ -1702,15 +1705,15 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
       <AlertDialog open={!!deleteArchiveTarget} onOpenChange={(o: boolean) => { if (!o) setDeleteArchiveTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Archive Location</AlertDialogTitle>
+            <AlertDialogTitle>{t("cm.removeArchiveTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Remove <strong>{deleteArchiveTarget}</strong> from archive locations?
+              {t.rich("cm.removeArchiveConfirm", { location: deleteArchiveTarget ?? "", strong: (chunks) => <strong>{chunks}</strong> })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingArchive}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deletingArchive}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteArchive} disabled={deletingArchive} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deletingArchive ? "Removing…" : "Remove"}
+              {deletingArchive ? t("removing") : t("remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1720,15 +1723,15 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
       <AlertDialog open={!!deleteBmpTarget} onOpenChange={(o: boolean) => { if (!o) setDeleteBmpTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove BMP Target</AlertDialogTitle>
+            <AlertDialogTitle>{t("frr.removeTargetTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Remove BMP target <strong>{deleteBmpTarget?.name}</strong>?
+              {t.rich("frr.removeTargetConfirm", { name: deleteBmpTarget?.name ?? "", strong: (chunks) => <strong>{chunks}</strong> })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingBmp}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deletingBmp}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteBmpTarget} disabled={deletingBmp} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deletingBmp ? "Removing…" : "Remove"}
+              {deletingBmp ? t("removing") : t("remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1738,15 +1741,15 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
       <AlertDialog open={!!deleteSysctlTarget} onOpenChange={(o: boolean) => { if (!o) setDeleteSysctlTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Sysctl Parameter</AlertDialogTitle>
+            <AlertDialogTitle>{t("sysctl.removeTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Remove <strong>{deleteSysctlTarget}</strong>?
+              {t.rich("sysctl.removeConfirm", { name: deleteSysctlTarget ?? "", strong: (chunks) => <strong>{chunks}</strong> })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingSysctl}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deletingSysctl}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteSysctl} disabled={deletingSysctl} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deletingSysctl ? "Removing…" : "Remove"}
+              {deletingSysctl ? t("removing") : t("remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
