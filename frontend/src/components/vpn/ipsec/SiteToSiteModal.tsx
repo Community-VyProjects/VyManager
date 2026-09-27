@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -59,6 +60,8 @@ export function SiteToSiteModal({
   espGroups,
   existingPeer,
 }: SiteToSiteModalProps) {
+  const t = useTranslations("ipsec");
+  const tc = useTranslations("common");
   const isEdit = !!existingPeer;
 
   const [name, setName] = useState("");
@@ -178,8 +181,8 @@ export function SiteToSiteModal({
   };
 
   const handleSubmit = async () => {
-    if (!name.trim()) { setError("Peer name is required"); return; }
-    if (!ikeGroup) { setError("IKE group is required"); return; }
+    if (!name.trim()) { setError(t("s2sModal.peerNameRequired")); return; }
+    if (!ikeGroup) { setError(t("s2sModal.ikeGroupRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -231,7 +234,7 @@ export function SiteToSiteModal({
       });
 
       if (!result.success) {
-        setError(result.error || "Failed to create peer");
+        setError(result.error || t("s2sModal.createFailed"));
         setLoading(false);
         return;
       }
@@ -239,7 +242,7 @@ export function SiteToSiteModal({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError((err as ApiError).message || "Failed to save peer");
+      setError((err as ApiError).message || t("s2sModal.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -251,42 +254,42 @@ export function SiteToSiteModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Network className="h-5 w-5 text-primary" />
-            {isEdit ? "Edit" : "Create"} Site-to-Site Peer
+            {isEdit ? t("s2sModal.titleEdit") : t("s2sModal.titleCreate")}
           </DialogTitle>
-          <DialogDescription>Configure an IPSec site-to-site VPN peer connection.</DialogDescription>
+          <DialogDescription>{t("s2sModal.description")}</DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="general" className="w-full">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="general">General</TabsTrigger>
-            <TabsTrigger value="auth">Authentication</TabsTrigger>
-            <TabsTrigger value="tunnels">Tunnels</TabsTrigger>
+            <TabsTrigger value="general">{t("s2sModal.general")}</TabsTrigger>
+            <TabsTrigger value="auth">{t("page.tabs.authentication")}</TabsTrigger>
+            <TabsTrigger value="tunnels">{t("page.s2s.tunnels")}</TabsTrigger>
             <TabsTrigger value="vti">VTI</TabsTrigger>
           </TabsList>
 
           <TabsContent value="general" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>Peer Name</Label>
+              <Label>{t("s2sModal.peerName")}</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="peer-1" disabled={isEdit} />
             </div>
             <div className="space-y-2">
-              <Label>Description</Label>
-              <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Remote office VPN" />
+              <Label>{tc("description")}</Label>
+              <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("s2sModal.descriptionPlaceholder")} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>IKE Group *</Label>
+                <Label>{t("s2sModal.ikeGroupLabel")}</Label>
                 <Select value={ikeGroup} onValueChange={setIkeGroup}>
-                  <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("modal.select")} /></SelectTrigger>
                   <SelectContent>
                     {ikeGroups.map((g) => <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Default ESP Group</Label>
+                <Label>{t("s2sModal.defaultEspGroup")}</Label>
                 <Select value={defaultEspGroup} onValueChange={setDefaultEspGroup}>
-                  <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("modal.select")} /></SelectTrigger>
                   <SelectContent>
                     {espGroups.map((g) => <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>)}
                   </SelectContent>
@@ -295,62 +298,62 @@ export function SiteToSiteModal({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Local Address</Label>
-                <Input value={localAddress} onChange={(e) => setLocalAddress(e.target.value)} placeholder="any or IP address" />
+                <Label>{t("page.ra.localAddress")}</Label>
+                <Input value={localAddress} onChange={(e) => setLocalAddress(e.target.value)} placeholder={t("s2sModal.localAddressPlaceholder")} />
               </div>
               <div className="space-y-2">
-                <Label>Remote Address(es)</Label>
+                <Label>{t("s2sModal.remoteAddresses")}</Label>
                 <Input value={remoteAddresses} onChange={(e) => setRemoteAddresses(e.target.value)} placeholder="203.0.113.1" />
-                <p className="text-xs text-muted-foreground">Comma-separated for multiple</p>
+                <p className="text-xs text-muted-foreground">{t("s2sModal.commaSeparated")}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Connection Type</Label>
+                <Label>{t("s2sModal.connectionType")}</Label>
                 <Select value={connectionType} onValueChange={setConnectionType}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="initiate">Initiate</SelectItem>
-                    <SelectItem value="respond">Respond</SelectItem>
+                    <SelectItem value="initiate">{t("s2sModal.initiate")}</SelectItem>
+                    <SelectItem value="respond">{t("s2sModal.respond")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>DHCP Interface (optional)</Label>
+                <Label>{t("s2sModal.dhcpInterface")}</Label>
                 <InterfaceSelect
                   value={dhcpInterface || "_none"}
                   onValueChange={(v) => setDhcpInterface(v === "_none" ? "" : v)}
                   interfaces={allInterfaces}
-                  noneOption={{ label: "None", value: "_none" }}
-                  placeholder="None"
+                  noneOption={{ label: tc("none"), value: "_none" }}
+                  placeholder={tc("none")}
                 />
               </div>
             </div>
             <div className="flex items-center gap-2">
               <Checkbox id="forceUdp" checked={forceUdp} onCheckedChange={(c) => setForceUdp(c === true)} />
-              <Label htmlFor="forceUdp" className="cursor-pointer text-sm">Force UDP Encapsulation</Label>
+              <Label htmlFor="forceUdp" className="cursor-pointer text-sm">{t("s2sModal.forceUdp")}</Label>
             </div>
           </TabsContent>
 
           <TabsContent value="auth" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>Authentication Mode</Label>
+              <Label>{t("s2sModal.authMode")}</Label>
               <Select value={authMode} onValueChange={setAuthMode}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pre-shared-secret">Pre-Shared Secret</SelectItem>
+                  <SelectItem value="pre-shared-secret">{t("modal.preSharedSecret")}</SelectItem>
                   <SelectItem value="rsa">RSA</SelectItem>
-                  <SelectItem value="x509">X.509 Certificate</SelectItem>
+                  <SelectItem value="x509">{t("s2sModal.x509Certificate")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Local ID</Label>
+                <Label>{t("modal.localId")}</Label>
                 <Input value={authLocalId} onChange={(e) => setAuthLocalId(e.target.value)} placeholder="@local-id" />
               </div>
               <div className="space-y-2">
-                <Label>Remote ID</Label>
+                <Label>{t("s2sModal.remoteId")}</Label>
                 <Input value={authRemoteId} onChange={(e) => setAuthRemoteId(e.target.value)} placeholder="@remote-id" />
               </div>
             </div>
@@ -358,17 +361,17 @@ export function SiteToSiteModal({
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>CA Certificate</Label>
+                    <Label>{t("modal.caCertificate")}</Label>
                     <Input value={authX509CaCert} onChange={(e) => setAuthX509CaCert(e.target.value)} placeholder="ca-cert-name" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Certificate</Label>
+                    <Label>{t("modal.certificate")}</Label>
                     <Input value={authX509Cert} onChange={(e) => setAuthX509Cert(e.target.value)} placeholder="cert-name" />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Passphrase (optional)</Label>
-                  <Input value={authX509Passphrase} onChange={(e) => setAuthX509Passphrase(e.target.value)} placeholder="Private key passphrase" />
+                  <Label>{t("s2sModal.passphraseOptional")}</Label>
+                  <Input value={authX509Passphrase} onChange={(e) => setAuthX509Passphrase(e.target.value)} placeholder={t("s2sModal.privateKeyPassphrase")} />
                 </div>
               </>
             )}
@@ -376,19 +379,19 @@ export function SiteToSiteModal({
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Local Key</Label>
-                    <Input value={authRsaLocalKey} onChange={(e) => setAuthRsaLocalKey(e.target.value)} placeholder="PKI key-pair name" />
-                    <p className="text-xs text-muted-foreground">Name of PKI key-pair with local private key</p>
+                    <Label>{t("s2sModal.localKey")}</Label>
+                    <Input value={authRsaLocalKey} onChange={(e) => setAuthRsaLocalKey(e.target.value)} placeholder={t("s2sModal.keyPairName")} />
+                    <p className="text-xs text-muted-foreground">{t("s2sModal.localKeyHelp")}</p>
                   </div>
                   <div className="space-y-2">
-                    <Label>Remote Key</Label>
-                    <Input value={authRsaRemoteKey} onChange={(e) => setAuthRsaRemoteKey(e.target.value)} placeholder="PKI key-pair name" />
-                    <p className="text-xs text-muted-foreground">Name of PKI key-pair with remote public key</p>
+                    <Label>{t("s2sModal.remoteKey")}</Label>
+                    <Input value={authRsaRemoteKey} onChange={(e) => setAuthRsaRemoteKey(e.target.value)} placeholder={t("s2sModal.keyPairName")} />
+                    <p className="text-xs text-muted-foreground">{t("s2sModal.remoteKeyHelp")}</p>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Passphrase (optional)</Label>
-                  <Input value={authRsaPassphrase} onChange={(e) => setAuthRsaPassphrase(e.target.value)} placeholder="Local private key passphrase" />
+                  <Label>{t("s2sModal.passphraseOptional")}</Label>
+                  <Input value={authRsaPassphrase} onChange={(e) => setAuthRsaPassphrase(e.target.value)} placeholder={t("s2sModal.localPrivateKeyPassphrase")} />
                 </div>
               </>
             )}
@@ -396,40 +399,40 @@ export function SiteToSiteModal({
 
           <TabsContent value="tunnels" className="space-y-4 mt-4">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Tunnels</Label>
+              <Label className="text-sm font-medium">{t("page.s2s.tunnels")}</Label>
               <Button type="button" variant="outline" size="sm" onClick={addTunnel}>
-                <Plus className="h-4 w-4 mr-1" /> Add Tunnel
+                <Plus className="h-4 w-4 mr-1" /> {t("s2sModal.addTunnel")}
               </Button>
             </div>
             {tunnels.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground text-sm">
-                No tunnels configured. Add a tunnel or use VTI binding (see the VTI tab) instead.
+                {t("s2sModal.noTunnels")}
               </div>
             ) : (
-              tunnels.map((t) => (
-                <div key={t.number} className="rounded-lg border p-4 space-y-3">
+              tunnels.map((tun) => (
+                <div key={tun.number} className="rounded-lg border p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Tunnel {t.number}</span>
-                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => removeTunnel(t.number)}>
+                    <span className="text-sm font-medium">{t("s2sModal.tunnelN", { number: tun.number })}</span>
+                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => removeTunnel(tun.number)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">ESP Group</Label>
-                      <Select value={t.esp_group} onValueChange={(v) => updateTunnel(t.number, "esp_group", v)}>
-                        <SelectTrigger className="h-9"><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <Label className="text-xs text-muted-foreground">{t("page.espGroup")}</Label>
+                      <Select value={tun.esp_group} onValueChange={(v) => updateTunnel(tun.number, "esp_group", v)}>
+                        <SelectTrigger className="h-9"><SelectValue placeholder={t("modal.select")} /></SelectTrigger>
                         <SelectContent>
                           {espGroups.map((g) => <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Protocol</Label>
-                      <Select value={t.protocol || "_none"} onValueChange={(v) => updateTunnel(t.number, "protocol", v === "_none" ? "" : v)}>
-                        <SelectTrigger className="h-9"><SelectValue placeholder="Any" /></SelectTrigger>
+                      <Label className="text-xs text-muted-foreground">{t("s2sModal.protocol")}</Label>
+                      <Select value={tun.protocol || "_none"} onValueChange={(v) => updateTunnel(tun.number, "protocol", v === "_none" ? "" : v)}>
+                        <SelectTrigger className="h-9"><SelectValue placeholder={t("s2sModal.any")} /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="_none">Any</SelectItem>
+                          <SelectItem value="_none">{t("s2sModal.any")}</SelectItem>
                           <SelectItem value="gre">GRE</SelectItem>
                           <SelectItem value="ipip">IPIP</SelectItem>
                           <SelectItem value="ip">IP</SelectItem>
@@ -439,12 +442,12 @@ export function SiteToSiteModal({
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Local Prefix</Label>
-                      <Input className="h-9" value={t.local_prefix} onChange={(e) => updateTunnel(t.number, "local_prefix", e.target.value)} placeholder="10.0.0.0/24" />
+                      <Label className="text-xs text-muted-foreground">{t("s2sModal.localPrefix")}</Label>
+                      <Input className="h-9" value={tun.local_prefix} onChange={(e) => updateTunnel(tun.number, "local_prefix", e.target.value)} placeholder="10.0.0.0/24" />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Remote Prefix</Label>
-                      <Input className="h-9" value={t.remote_prefix} onChange={(e) => updateTunnel(t.number, "remote_prefix", e.target.value)} placeholder="10.1.0.0/24" />
+                      <Label className="text-xs text-muted-foreground">{t("s2sModal.remotePrefix")}</Label>
+                      <Input className="h-9" value={tun.remote_prefix} onChange={(e) => updateTunnel(tun.number, "remote_prefix", e.target.value)} placeholder="10.1.0.0/24" />
                     </div>
                   </div>
                 </div>
@@ -454,26 +457,25 @@ export function SiteToSiteModal({
 
           <TabsContent value="vti" className="space-y-4 mt-4">
             <p className="text-xs text-muted-foreground">
-              Bind a Virtual Tunnel Interface (VTI) to this peer for route-based VPN. The interface
-              must already exist under Interfaces &rsaquo; VTI.
+              {t("s2sModal.vtiHelp")}
             </p>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Bound Interface</Label>
+                <Label>{t("s2sModal.boundInterface")}</Label>
                 <InterfaceSelect
                   value={vtiBind || "_none"}
                   onValueChange={(v) => setVtiBind(v === "_none" ? "" : v)}
                   interfaces={allInterfaces.filter((iface) => iface.name.startsWith("vti"))}
-                  noneOption={{ label: "None", value: "_none" }}
-                  placeholder="None"
+                  noneOption={{ label: tc("none"), value: "_none" }}
+                  placeholder={tc("none")}
                 />
               </div>
               <div className="space-y-2">
-                <Label>ESP Group</Label>
+                <Label>{t("page.espGroup")}</Label>
                 <Select value={vtiEspGroup || "_none"} onValueChange={(v) => setVtiEspGroup(v === "_none" ? "" : v)} disabled={!vtiBind}>
-                  <SelectTrigger><SelectValue placeholder="Default" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={tc("default")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="_none">Default</SelectItem>
+                    <SelectItem value="_none">{tc("default")}</SelectItem>
                     {espGroups.map((g) => <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -481,14 +483,14 @@ export function SiteToSiteModal({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Traffic Selector — Local Prefix</Label>
+                <Label>{t("s2sModal.tsLocalPrefix")}</Label>
                 <Input value={vtiTsLocalPrefix} onChange={(e) => setVtiTsLocalPrefix(e.target.value)} placeholder="0.0.0.0/0" disabled={!vtiBind} />
-                <p className="text-xs text-muted-foreground">Comma-separated for multiple</p>
+                <p className="text-xs text-muted-foreground">{t("s2sModal.commaSeparated")}</p>
               </div>
               <div className="space-y-2">
-                <Label>Traffic Selector — Remote Prefix</Label>
+                <Label>{t("s2sModal.tsRemotePrefix")}</Label>
                 <Input value={vtiTsRemotePrefix} onChange={(e) => setVtiTsRemotePrefix(e.target.value)} placeholder="0.0.0.0/0" disabled={!vtiBind} />
-                <p className="text-xs text-muted-foreground">Comma-separated for multiple</p>
+                <p className="text-xs text-muted-foreground">{t("s2sModal.commaSeparated")}</p>
               </div>
             </div>
           </TabsContent>
@@ -502,9 +504,9 @@ export function SiteToSiteModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? "Saving..." : "Creating..."}</> : isEdit ? "Save Changes" : "Create Peer"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("modal.creating")}</> : isEdit ? t("modal.saveChanges") : t("s2sModal.createPeer")}
           </Button>
         </DialogFooter>
       </DialogContent>

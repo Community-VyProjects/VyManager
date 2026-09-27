@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from "react";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -61,6 +62,8 @@ import {
 } from "@/components/vpn/ipsec";
 
 function IPSecPageInner() {
+  const t = useTranslations("ipsec");
+  const tc = useTranslations("common");
   const searchParams = useSearchParams();
   const { canRead, canWrite } = usePermissions();
   const hasRead = canRead(FeatureGroup.IPSEC);
@@ -106,7 +109,7 @@ function IPSecPageInner() {
       setConfig(configData);
       setCapabilities(capsData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load IPSec configuration");
+      setError(err instanceof Error ? err.message : t("page.loadConfigFailed"));
     } finally {
       setLoading(false);
     }
@@ -138,12 +141,12 @@ function IPSecPageInner() {
     setStatusMsg(null);
     try {
       await ipsecService.resetPeer(peerName);
-      setStatusMsg({ type: "ok", text: `Bounced peer "${peerName}". Re-checking status…` });
+      setStatusMsg({ type: "ok", text: t("page.bouncedPeer", { name: peerName }) });
       // Give strongSwan a moment to re-establish before re-reading state.
       await new Promise((r) => setTimeout(r, 2000));
       await refreshStatus();
     } catch (err) {
-      setStatusMsg({ type: "err", text: err instanceof Error ? err.message : "Failed to bounce peer" });
+      setStatusMsg({ type: "err", text: err instanceof Error ? err.message : t("page.bouncePeerFailed") });
     } finally {
       setBouncing(null);
     }
@@ -154,11 +157,11 @@ function IPSecPageInner() {
     setStatusMsg(null);
     try {
       await ipsecService.resetAllPeers();
-      setStatusMsg({ type: "ok", text: "Bounced all peers. Re-checking status…" });
+      setStatusMsg({ type: "ok", text: t("page.bouncedAll") });
       await new Promise((r) => setTimeout(r, 2000));
       await refreshStatus();
     } catch (err) {
-      setStatusMsg({ type: "err", text: err instanceof Error ? err.message : "Failed to bounce peers" });
+      setStatusMsg({ type: "err", text: err instanceof Error ? err.message : t("page.bouncePeersFailed") });
     } finally {
       setBouncing(null);
     }
@@ -169,9 +172,9 @@ function IPSecPageInner() {
     setStatusMsg(null);
     try {
       await ipsecService.resetRemoteAccess();
-      setStatusMsg({ type: "ok", text: "Reset all remote-access sessions." });
+      setStatusMsg({ type: "ok", text: t("page.resetRaDone") });
     } catch (err) {
-      setStatusMsg({ type: "err", text: err instanceof Error ? err.message : "Failed to reset sessions" });
+      setStatusMsg({ type: "err", text: err instanceof Error ? err.message : t("page.resetSessionsFailed") });
     } finally {
       setBouncing(null);
     }
@@ -182,6 +185,7 @@ function IPSecPageInner() {
       fetchConfig();
       refreshStatus();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount; a language switch re-renders via router.refresh()
   }, [hasRead]);
 
   useEffect(() => {
@@ -197,7 +201,7 @@ function IPSecPageInner() {
         <div className="flex items-center justify-center h-[calc(100vh-200px)]">
           <div className="text-center space-y-4">
             <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-            <p className="text-muted-foreground">Loading IPSec configuration...</p>
+            <p className="text-muted-foreground">{t("page.loadingConfig")}</p>
           </div>
         </div>
       </AppLayout>
@@ -211,10 +215,10 @@ function IPSecPageInner() {
         <div className="flex items-center justify-center h-[calc(100vh-200px)]">
           <div className="text-center space-y-4">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-            <p className="text-destructive font-medium">Failed to load configuration</p>
+            <p className="text-destructive font-medium">{t("page.loadFailed")}</p>
             <p className="text-sm text-muted-foreground">{error}</p>
             <Button onClick={() => fetchConfig(true)}>
-              <RefreshCw className="h-4 w-4 mr-2" /> Retry
+              <RefreshCw className="h-4 w-4 mr-2" /> {tc("retry")}
             </Button>
           </div>
         </div>
@@ -237,13 +241,13 @@ function IPSecPageInner() {
               <div>
                 <h1 className="text-2xl font-bold">IPSec VPN</h1>
                 <p className="text-muted-foreground">
-                  Manage site-to-site and remote access IPSec tunnels
+                  {t("page.subtitle")}
                 </p>
               </div>
             </div>
             <Button variant="outline" size="sm" onClick={() => fetchConfig(true)} disabled={loading}>
               <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
-              Refresh
+              {tc("refresh")}
             </Button>
           </div>
 
@@ -253,7 +257,7 @@ function IPSecPageInner() {
               <div className="flex items-center gap-2">
                 <Network className="h-4 w-4 text-blue-500" />
                 <div>
-                  <p className="text-xs text-muted-foreground">S2S Peers</p>
+                  <p className="text-xs text-muted-foreground">{t("page.stats.s2sPeers")}</p>
                   <p className="font-semibold">{totals?.site_to_site_peers ?? 0}</p>
                 </div>
               </div>
@@ -262,7 +266,7 @@ function IPSecPageInner() {
               <div className="flex items-center gap-2">
                 <Wifi className="h-4 w-4 text-green-500" />
                 <div>
-                  <p className="text-xs text-muted-foreground">RA Conns</p>
+                  <p className="text-xs text-muted-foreground">{t("page.stats.raConns")}</p>
                   <p className="font-semibold">{totals?.remote_access_connections ?? 0}</p>
                 </div>
               </div>
@@ -271,7 +275,7 @@ function IPSecPageInner() {
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-purple-500" />
                 <div>
-                  <p className="text-xs text-muted-foreground">IKE Groups</p>
+                  <p className="text-xs text-muted-foreground">{t("page.ikeGroups")}</p>
                   <p className="font-semibold">{totals?.ike_groups ?? 0}</p>
                 </div>
               </div>
@@ -280,7 +284,7 @@ function IPSecPageInner() {
               <div className="flex items-center gap-2">
                 <Lock className="h-4 w-4 text-amber-500" />
                 <div>
-                  <p className="text-xs text-muted-foreground">ESP Groups</p>
+                  <p className="text-xs text-muted-foreground">{t("page.espGroups")}</p>
                   <p className="font-semibold">{totals?.esp_groups ?? 0}</p>
                 </div>
               </div>
@@ -289,7 +293,7 @@ function IPSecPageInner() {
               <div className="flex items-center gap-2">
                 <Database className="h-4 w-4 text-cyan-500" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Pools</p>
+                  <p className="text-xs text-muted-foreground">{t("page.pools")}</p>
                   <p className="font-semibold">{totals?.remote_access_pools ?? 0}</p>
                 </div>
               </div>
@@ -298,7 +302,7 @@ function IPSecPageInner() {
               <div className="flex items-center gap-2">
                 <Settings className="h-4 w-4 text-gray-500" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Profiles</p>
+                  <p className="text-xs text-muted-foreground">{t("page.profiles")}</p>
                   <p className="font-semibold">{totals?.profiles ?? 0}</p>
                 </div>
               </div>
@@ -311,13 +315,13 @@ function IPSecPageInner() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
             <div className="px-6 pt-4 border-b">
               <TabsList>
-                <TabsTrigger value="s2s">Site-to-Site</TabsTrigger>
-                <TabsTrigger value="ra">Remote Access</TabsTrigger>
-                <TabsTrigger value="ike">IKE Groups</TabsTrigger>
-                <TabsTrigger value="esp">ESP Groups</TabsTrigger>
-                <TabsTrigger value="auth">Authentication</TabsTrigger>
-                <TabsTrigger value="pools">Pools</TabsTrigger>
-                <TabsTrigger value="settings">Settings</TabsTrigger>
+                <TabsTrigger value="s2s">{t("page.tabs.siteToSite")}</TabsTrigger>
+                <TabsTrigger value="ra">{t("page.tabs.remoteAccess")}</TabsTrigger>
+                <TabsTrigger value="ike">{t("page.ikeGroups")}</TabsTrigger>
+                <TabsTrigger value="esp">{t("page.espGroups")}</TabsTrigger>
+                <TabsTrigger value="auth">{t("page.tabs.authentication")}</TabsTrigger>
+                <TabsTrigger value="pools">{t("page.pools")}</TabsTrigger>
+                <TabsTrigger value="settings">{t("page.tabs.settings")}</TabsTrigger>
               </TabsList>
             </div>
 
@@ -326,10 +330,10 @@ function IPSecPageInner() {
                 {/* Site-to-Site Tab */}
                 <TabsContent value="s2s" className="mt-0">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">Site-to-Site Peers</h3>
+                    <h3 className="font-semibold">{t("page.s2s.title")}</h3>
                     <div className="flex items-center gap-2">
                       <Button variant="outline" size="sm" onClick={refreshStatus} disabled={statusLoading}>
-                        <RefreshCw className={cn("h-4 w-4 mr-1", statusLoading && "animate-spin")} /> Refresh Status
+                        <RefreshCw className={cn("h-4 w-4 mr-1", statusLoading && "animate-spin")} /> {t("page.s2s.refreshStatus")}
                       </Button>
                       {hasWrite && (config?.site_to_site_peers.length ?? 0) > 0 && (
                         <Button
@@ -337,15 +341,15 @@ function IPSecPageInner() {
                           size="sm"
                           onClick={resetAllPeers}
                           disabled={bouncing !== null}
-                          title="Bounce every site-to-site peer"
+                          title={t("page.s2s.resetAllTitle")}
                         >
                           {bouncing === "__all__" ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Lock className="h-4 w-4 mr-1" />}
-                          Reset All
+                          {t("page.s2s.resetAll")}
                         </Button>
                       )}
                       {hasWrite && (
                         <Button size="sm" onClick={() => { setEditingS2S(null); setShowS2SModal(true); }}>
-                          <Plus className="h-4 w-4 mr-1" /> Add Peer
+                          <Plus className="h-4 w-4 mr-1" /> {t("page.s2s.addPeer")}
                         </Button>
                       )}
                     </div>
@@ -361,19 +365,19 @@ function IPSecPageInner() {
                     </div>
                   )}
                   {(config?.site_to_site_peers.length ?? 0) === 0 ? (
-                    <EmptyState icon={Network} label="No site-to-site peers configured" />
+                    <EmptyState icon={Network} label={t("page.s2s.empty")} />
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Peer</TableHead>
-                          <TableHead>Remote Address</TableHead>
-                          <TableHead>IKE Group</TableHead>
-                          <TableHead>ESP Group</TableHead>
+                          <TableHead>{t("page.s2s.peer")}</TableHead>
+                          <TableHead>{t("page.s2s.remoteAddress")}</TableHead>
+                          <TableHead>{t("page.ikeGroup")}</TableHead>
+                          <TableHead>{t("page.espGroup")}</TableHead>
                           <TableHead>VTI</TableHead>
-                          <TableHead>Tunnels</TableHead>
-                          <TableHead>Status</TableHead>
-                          {hasWrite && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead>{t("page.s2s.tunnels")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
+                          {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -387,7 +391,7 @@ function IPSecPageInner() {
                             </TableCell>
                             <TableCell>
                               <code className="text-xs bg-muted px-1.5 py-0.5 rounded">
-                                {(peer.remote_address || []).join(", ") || "N/A"}
+                                {(peer.remote_address || []).join(", ") || t("page.na")}
                               </code>
                             </TableCell>
                             <TableCell>{peer.ike_group || "-"}</TableCell>
@@ -403,9 +407,9 @@ function IPSecPageInner() {
                             <TableCell>
                               <div className="flex flex-col gap-1">
                                 {peer.disabled ? (
-                                  <Badge variant="secondary" className="bg-red-500/10 text-red-600 w-fit">Disabled</Badge>
+                                  <Badge variant="secondary" className="bg-red-500/10 text-red-600 w-fit">{tc("disabled")}</Badge>
                                 ) : (
-                                  <Badge variant="secondary" className="bg-green-500/10 text-green-600 w-fit">Enabled</Badge>
+                                  <Badge variant="secondary" className="bg-green-500/10 text-green-600 w-fit">{tc("enabled")}</Badge>
                                 )}
                                 {(() => {
                                   const lts = peerTunnels(peer.name);
@@ -419,10 +423,10 @@ function IPSecPageInner() {
                                         "text-xs w-fit gap-1",
                                         allUp ? "border-green-500/30 text-green-600" : "border-amber-500/30 text-amber-600",
                                       )}
-                                      title="Live tunnel status"
+                                      title={t("page.s2s.liveStatus")}
                                     >
                                       <span className={cn("inline-block h-1.5 w-1.5 rounded-full", allUp ? "bg-green-500" : "bg-amber-500")} />
-                                      {up}/{lts.length} up
+                                      {t("page.s2s.tunnelsUp", { up, total: lts.length })}
                                     </Badge>
                                   );
                                 })()}
@@ -437,7 +441,7 @@ function IPSecPageInner() {
                                     className="h-8 w-8"
                                     disabled={bouncing !== null}
                                     onClick={() => bouncePeer(peer.name)}
-                                    title="Bounce tunnel (reset peer)"
+                                    title={t("page.s2s.bounceTitle")}
                                   >
                                     {bouncing === peer.name ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                                   </Button>
@@ -445,10 +449,10 @@ function IPSecPageInner() {
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
-                                    type: "Site-to-Site Peer",
+                                    type: t("page.types.s2sPeer"),
                                     name: peer.name,
                                     onDelete: () => ipsecService.deleteS2SPeer(peer.name),
-                                    warning: peer.tunnels.length > 0 ? `This peer has ${peer.tunnels.length} tunnel(s) that will also be removed.` : undefined,
+                                    warning: peer.tunnels.length > 0 ? t("page.s2s.deleteWarning", { count: peer.tunnels.length }) : undefined,
                                   })}>
                                     <Trash2 className="h-4 w-4 text-destructive" />
                                   </Button>
@@ -465,7 +469,7 @@ function IPSecPageInner() {
                 {/* Remote Access Tab */}
                 <TabsContent value="ra" className="mt-0">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">Remote Access Connections</h3>
+                    <h3 className="font-semibold">{t("page.ra.title")}</h3>
                     <div className="flex items-center gap-2">
                       {hasWrite && (config?.remote_access.connections.length ?? 0) > 0 && (
                         <Button
@@ -473,15 +477,15 @@ function IPSecPageInner() {
                           size="sm"
                           onClick={resetRemoteAccess}
                           disabled={bouncing !== null}
-                          title="Reset all remote-access (road-warrior) sessions"
+                          title={t("page.ra.resetSessionsTitle")}
                         >
                           {bouncing === "__ra__" ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
-                          Reset Sessions
+                          {t("page.ra.resetSessions")}
                         </Button>
                       )}
                       {hasWrite && (
                         <Button size="sm" onClick={() => { setEditingRA(null); setShowRAModal(true); }}>
-                          <Plus className="h-4 w-4 mr-1" /> Add Connection
+                          <Plus className="h-4 w-4 mr-1" /> {t("page.ra.addConnection")}
                         </Button>
                       )}
                     </div>
@@ -497,18 +501,18 @@ function IPSecPageInner() {
                     </div>
                   )}
                   {(config?.remote_access.connections.length ?? 0) === 0 ? (
-                    <EmptyState icon={Wifi} label="No remote access connections configured" />
+                    <EmptyState icon={Wifi} label={t("page.ra.empty")} />
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Connection</TableHead>
-                          <TableHead>Local Address</TableHead>
-                          <TableHead>IKE Group</TableHead>
-                          <TableHead>ESP Group</TableHead>
-                          <TableHead>Pools</TableHead>
-                          <TableHead>Auth</TableHead>
-                          {hasWrite && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead>{t("page.types.connection")}</TableHead>
+                          <TableHead>{t("page.ra.localAddress")}</TableHead>
+                          <TableHead>{t("page.ikeGroup")}</TableHead>
+                          <TableHead>{t("page.espGroup")}</TableHead>
+                          <TableHead>{t("page.pools")}</TableHead>
+                          <TableHead>{t("page.ra.auth")}</TableHead>
+                          {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -532,7 +536,7 @@ function IPSecPageInner() {
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
-                                    type: "Connection", name: conn.name,
+                                    type: t("page.types.connection"), name: conn.name,
                                     onDelete: () => ipsecService.deleteRAConnection(conn.name),
                                   })}>
                                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -550,25 +554,25 @@ function IPSecPageInner() {
                 {/* IKE Groups Tab */}
                 <TabsContent value="ike" className="mt-0">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">IKE Groups</h3>
+                    <h3 className="font-semibold">{t("page.ikeGroups")}</h3>
                     {hasWrite && (
                       <Button size="sm" onClick={() => { setEditingIKE(null); setShowIKEModal(true); }}>
-                        <Plus className="h-4 w-4 mr-1" /> Add IKE Group
+                        <Plus className="h-4 w-4 mr-1" /> {t("page.ike.add")}
                       </Button>
                     )}
                   </div>
                   {(config?.ike_groups.length ?? 0) === 0 ? (
-                    <EmptyState icon={Shield} label="No IKE groups configured" />
+                    <EmptyState icon={Shield} label={t("page.ike.empty")} />
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Key Exchange</TableHead>
-                          <TableHead>Lifetime</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("page.ike.keyExchange")}</TableHead>
+                          <TableHead>{t("page.lifetime")}</TableHead>
                           <TableHead>DPD</TableHead>
-                          <TableHead>Proposals</TableHead>
-                          {hasWrite && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead>{t("page.proposals")}</TableHead>
+                          {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -586,9 +590,9 @@ function IPSecPageInner() {
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
-                                    type: "IKE Group", name: g.name,
+                                    type: t("page.ikeGroup"), name: g.name,
                                     onDelete: () => ipsecService.deleteIKEGroup(g.name),
-                                    warning: "Deleting this IKE group may affect peers that reference it.",
+                                    warning: t("page.ike.deleteWarning"),
                                   })}>
                                     <Trash2 className="h-4 w-4 text-destructive" />
                                   </Button>
@@ -605,25 +609,25 @@ function IPSecPageInner() {
                 {/* ESP Groups Tab */}
                 <TabsContent value="esp" className="mt-0">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">ESP Groups</h3>
+                    <h3 className="font-semibold">{t("page.espGroups")}</h3>
                     {hasWrite && (
                       <Button size="sm" onClick={() => { setEditingESP(null); setShowESPModal(true); }}>
-                        <Plus className="h-4 w-4 mr-1" /> Add ESP Group
+                        <Plus className="h-4 w-4 mr-1" /> {t("page.esp.add")}
                       </Button>
                     )}
                   </div>
                   {(config?.esp_groups.length ?? 0) === 0 ? (
-                    <EmptyState icon={Lock} label="No ESP groups configured" />
+                    <EmptyState icon={Lock} label={t("page.esp.empty")} />
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Mode</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("page.esp.mode")}</TableHead>
                           <TableHead>PFS</TableHead>
-                          <TableHead>Lifetime</TableHead>
-                          <TableHead>Proposals</TableHead>
-                          {hasWrite && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead>{t("page.lifetime")}</TableHead>
+                          <TableHead>{t("page.proposals")}</TableHead>
+                          {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -641,9 +645,9 @@ function IPSecPageInner() {
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
-                                    type: "ESP Group", name: g.name,
+                                    type: t("page.espGroup"), name: g.name,
                                     onDelete: () => ipsecService.deleteESPGroup(g.name),
-                                    warning: "Deleting this ESP group may affect peers/tunnels that reference it.",
+                                    warning: t("page.esp.deleteWarning"),
                                   })}>
                                     <Trash2 className="h-4 w-4 text-destructive" />
                                   </Button>
@@ -660,24 +664,24 @@ function IPSecPageInner() {
                 {/* Authentication Tab */}
                 <TabsContent value="auth" className="mt-0">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">Pre-Shared Keys</h3>
+                    <h3 className="font-semibold">{t("page.psk.title")}</h3>
                     {hasWrite && (
                       <Button size="sm" onClick={() => { setEditingPSK(null); setShowPSKModal(true); }}>
-                        <Plus className="h-4 w-4 mr-1" /> Add PSK
+                        <Plus className="h-4 w-4 mr-1" /> {t("page.psk.add")}
                       </Button>
                     )}
                   </div>
                   {(config?.authentication.psk.length ?? 0) === 0 ? (
-                    <EmptyState icon={Key} label="No pre-shared keys configured" />
+                    <EmptyState icon={Key} label={t("page.psk.empty")} />
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Identities</TableHead>
-                          <TableHead>Secret</TableHead>
-                          <TableHead>Type</TableHead>
-                          {hasWrite && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("page.psk.identities")}</TableHead>
+                          <TableHead>{t("page.psk.secret")}</TableHead>
+                          <TableHead>{t("page.psk.type")}</TableHead>
+                          {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -721,25 +725,25 @@ function IPSecPageInner() {
                 {/* Pools Tab */}
                 <TabsContent value="pools" className="mt-0">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">Address Pools</h3>
+                    <h3 className="font-semibold">{t("page.pool.title")}</h3>
                     {hasWrite && (
                       <Button size="sm" onClick={() => { setEditingPool(null); setShowPoolModal(true); }}>
-                        <Plus className="h-4 w-4 mr-1" /> Add Pool
+                        <Plus className="h-4 w-4 mr-1" /> {t("page.pool.add")}
                       </Button>
                     )}
                   </div>
                   {(config?.remote_access.pools.length ?? 0) === 0 ? (
-                    <EmptyState icon={Database} label="No address pools configured" />
+                    <EmptyState icon={Database} label={t("page.pool.empty")} />
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Prefix</TableHead>
-                          <TableHead>DNS Servers</TableHead>
-                          <TableHead>Exclude</TableHead>
-                          {capabilities?.features.pool_range.supported && <TableHead>Range</TableHead>}
-                          {hasWrite && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("page.pool.prefix")}</TableHead>
+                          <TableHead>{t("page.pool.dnsServers")}</TableHead>
+                          <TableHead>{t("page.pool.exclude")}</TableHead>
+                          {capabilities?.features.pool_range.supported && <TableHead>{t("page.pool.range")}</TableHead>}
+                          {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -769,9 +773,9 @@ function IPSecPageInner() {
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
-                                    type: "Pool", name: pool.name,
+                                    type: t("page.types.pool"), name: pool.name,
                                     onDelete: () => ipsecService.deleteRAPool(pool.name),
-                                    warning: "Connections using this pool may be affected.",
+                                    warning: t("page.pool.deleteWarning"),
                                   })}>
                                     <Trash2 className="h-4 w-4 text-destructive" />
                                   </Button>
@@ -788,69 +792,69 @@ function IPSecPageInner() {
                 {/* Settings Tab */}
                 <TabsContent value="settings" className="mt-0">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">Global Settings</h3>
+                    <h3 className="font-semibold">{t("page.settings.title")}</h3>
                     {hasWrite && (
                       <Button size="sm" onClick={() => setShowSettingsModal(true)}>
-                        <Pencil className="h-4 w-4 mr-1" /> Edit Settings
+                        <Pencil className="h-4 w-4 mr-1" /> {t("page.settings.edit")}
                       </Button>
                     )}
                   </div>
                   <div className="grid grid-cols-2 gap-6">
                     <Card className="p-4 space-y-3">
-                      <h4 className="text-sm font-medium">Options</h4>
+                      <h4 className="text-sm font-medium">{t("page.settings.options")}</h4>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Disable Route Auto-install</span>
+                          <span className="text-muted-foreground">{t("page.settings.disableRouteAutoinstall")}</span>
                           <Badge variant={config?.options.disable_route_autoinstall ? "default" : "secondary"}>
-                            {config?.options.disable_route_autoinstall ? "Yes" : "No"}
+                            {config?.options.disable_route_autoinstall ? t("page.settings.yes") : t("page.settings.no")}
                           </Badge>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">FlexVPN</span>
                           <Badge variant={config?.options.flexvpn ? "default" : "secondary"}>
-                            {config?.options.flexvpn ? "Enabled" : "Disabled"}
+                            {config?.options.flexvpn ? tc("enabled") : tc("disabled")}
                           </Badge>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Virtual IP</span>
+                          <span className="text-muted-foreground">{t("page.settings.virtualIp")}</span>
                           <Badge variant={config?.options.virtual_ip ? "default" : "secondary"}>
-                            {config?.options.virtual_ip ? "Enabled" : "Disabled"}
+                            {config?.options.virtual_ip ? tc("enabled") : tc("disabled")}
                           </Badge>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Disable Unique Req IDs</span>
+                          <span className="text-muted-foreground">{t("page.settings.disableUniqReqIds")}</span>
                           <Badge variant={config?.disable_uniqreqids ? "default" : "secondary"}>
-                            {config?.disable_uniqreqids ? "Yes" : "No"}
+                            {config?.disable_uniqreqids ? t("page.settings.yes") : t("page.settings.no")}
                           </Badge>
                         </div>
                       </div>
                     </Card>
                     <Card className="p-4 space-y-3">
-                      <h4 className="text-sm font-medium">Logging</h4>
+                      <h4 className="text-sm font-medium">{t("page.settings.logging")}</h4>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Level</span>
+                          <span className="text-muted-foreground">{t("page.settings.level")}</span>
                           <span>{config?.log.level || "default"}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Subsystems</span>
+                          <span className="text-muted-foreground">{t("page.settings.subsystems")}</span>
                           <span>{(config?.log.subsystems || []).join(", ") || "none"}</span>
                         </div>
                       </div>
                       {capabilities?.features.retransmission_options.supported && (
                         <>
-                          <h4 className="text-sm font-medium pt-2">Retransmission</h4>
+                          <h4 className="text-sm font-medium pt-2">{t("page.settings.retransmission")}</h4>
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
-                              <span className="text-muted-foreground">Attempts</span>
+                              <span className="text-muted-foreground">{t("page.settings.attempts")}</span>
                               <span>{config?.options.retransmission_attempts || "default"}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-muted-foreground">Base</span>
+                              <span className="text-muted-foreground">{t("page.settings.base")}</span>
                               <span>{config?.options.retransmission_base || "default"}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-muted-foreground">Timeout</span>
+                              <span className="text-muted-foreground">{t("page.settings.timeout")}</span>
                               <span>{config?.options.retransmission_timeout || "default"}</span>
                             </div>
                           </div>
@@ -858,7 +862,7 @@ function IPSecPageInner() {
                       )}
                     </Card>
                     <Card className="p-4 space-y-3">
-                      <h4 className="text-sm font-medium">Interfaces</h4>
+                      <h4 className="text-sm font-medium">{t("page.settings.interfaces")}</h4>
                       {config?.interfaces && config.interfaces.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
                           {config.interfaces.map((iface) => (
@@ -866,12 +870,12 @@ function IPSecPageInner() {
                           ))}
                         </div>
                       ) : (
-                        <p className="text-sm text-muted-foreground">No interfaces configured</p>
+                        <p className="text-sm text-muted-foreground">{t("page.settings.noInterfaces")}</p>
                       )}
                     </Card>
                     {(config?.profiles.length ?? 0) > 0 && (
                       <Card className="p-4 space-y-3">
-                        <h4 className="text-sm font-medium">Profiles</h4>
+                        <h4 className="text-sm font-medium">{t("page.profiles")}</h4>
                         <div className="space-y-2 text-sm">
                           {config?.profiles.map((p) => (
                             <div key={p.name} className="flex justify-between">
@@ -879,7 +883,7 @@ function IPSecPageInner() {
                               <div className="flex gap-2">
                                 {p.ike_group && <Badge variant="outline" className="text-xs">IKE: {p.ike_group}</Badge>}
                                 {p.esp_group && <Badge variant="outline" className="text-xs">ESP: {p.esp_group}</Badge>}
-                                {p.disabled && <Badge variant="secondary" className="text-xs bg-red-500/10 text-red-600">Disabled</Badge>}
+                                {p.disabled && <Badge variant="secondary" className="text-xs bg-red-500/10 text-red-600">{tc("disabled")}</Badge>}
                               </div>
                             </div>
                           ))}

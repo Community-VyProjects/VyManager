@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -58,6 +59,8 @@ export function RemoteAccessModal({
   pools,
   existingConnection,
 }: RemoteAccessModalProps) {
+  const t = useTranslations("ipsec");
+  const tc = useTranslations("common");
   const isEdit = !!existingConnection;
 
   const [name, setName] = useState("");
@@ -124,7 +127,7 @@ export function RemoteAccessModal({
   }, [open, existingConnection]);
 
   const handleSubmit = async () => {
-    if (!name.trim()) { setError("Connection name is required"); return; }
+    if (!name.trim()) { setError(t("raModal.nameRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -160,10 +163,10 @@ export function RemoteAccessModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to save connection");
+        setError(result.error || t("raModal.saveFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to save connection");
+      setError((err as ApiError).message || t("raModal.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -175,34 +178,34 @@ export function RemoteAccessModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wifi className="h-5 w-5 text-primary" />
-            {isEdit ? "Edit" : "Create"} Remote Access Connection
+            {isEdit ? t("raModal.titleEdit") : t("raModal.titleCreate")}
           </DialogTitle>
-          <DialogDescription>Configure a remote access IPSec VPN connection.</DialogDescription>
+          <DialogDescription>{t("raModal.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Name</Label>
+            <Label>{tc("name")}</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="ra-vpn" disabled={isEdit} />
           </div>
           <div className="space-y-2">
-            <Label>Description</Label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Remote access VPN" />
+            <Label>{tc("description")}</Label>
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("raModal.descriptionPlaceholder")} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>IKE Group</Label>
+              <Label>{t("page.ikeGroup")}</Label>
               <Select value={ikeGroup} onValueChange={setIkeGroup}>
-                <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("modal.select")} /></SelectTrigger>
                 <SelectContent>
                   {ikeGroups.map((g) => <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>ESP Group</Label>
+              <Label>{t("page.espGroup")}</Label>
               <Select value={espGroup} onValueChange={setEspGroup}>
-                <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("modal.select")} /></SelectTrigger>
                 <SelectContent>
                   {espGroups.map((g) => <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>)}
                 </SelectContent>
@@ -211,11 +214,11 @@ export function RemoteAccessModal({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Local Address</Label>
-              <Input value={localAddress} onChange={(e) => setLocalAddress(e.target.value)} placeholder="any or IP" />
+              <Label>{t("page.ra.localAddress")}</Label>
+              <Input value={localAddress} onChange={(e) => setLocalAddress(e.target.value)} placeholder={t("raModal.localAddressPlaceholder")} />
             </div>
             <div className="space-y-2">
-              <Label>Pools</Label>
+              <Label>{t("page.pools")}</Label>
               {pools.length > 0 ? (
                 <div className="space-y-2">
                   {pools.map((pool) => {
@@ -240,30 +243,30 @@ export function RemoteAccessModal({
                   })}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No pools configured</p>
+                <p className="text-sm text-muted-foreground">{t("raModal.noPools")}</p>
               )}
             </div>
           </div>
 
           <div className="border-t pt-4 space-y-4">
-            <Label className="text-sm font-medium">Authentication</Label>
+            <Label className="text-sm font-medium">{t("page.tabs.authentication")}</Label>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Server Mode</Label>
+                <Label className="text-xs text-muted-foreground">{t("raModal.serverMode")}</Label>
                 <Select value={authServerMode} onValueChange={setAuthServerMode}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="pre-shared-secret">Pre-Shared Secret</SelectItem>
+                    <SelectItem value="pre-shared-secret">{t("modal.preSharedSecret")}</SelectItem>
                     <SelectItem value="x509">X.509</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Client Mode</Label>
+                <Label className="text-xs text-muted-foreground">{t("raModal.clientMode")}</Label>
                 <Select value={authClientMode || "_none"} onValueChange={(v) => setAuthClientMode(v === "_none" ? "" : v)}>
-                  <SelectTrigger><SelectValue placeholder="Default" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={tc("default")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="_none">Default</SelectItem>
+                    <SelectItem value="_none">{tc("default")}</SelectItem>
                     <SelectItem value="eap-mschapv2">EAP-MSCHAPv2</SelectItem>
                     <SelectItem value="eap-tls">EAP-TLS</SelectItem>
                     <SelectItem value="eap-radius">EAP-RADIUS</SelectItem>
@@ -273,18 +276,18 @@ export function RemoteAccessModal({
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Local ID</Label>
+              <Label>{t("modal.localId")}</Label>
               <Input value={authLocalId} onChange={(e) => setAuthLocalId(e.target.value)} placeholder="@vpn-server" />
             </div>
             {authServerMode === "pre-shared-secret" && (
               <div className="space-y-2">
-                <Label>Pre-Shared Key</Label>
+                <Label>{t("raModal.preSharedKey")}</Label>
                 <div className="relative">
                   <Input
                     type={showPsk ? "text" : "password"}
                     value={authPsk}
                     onChange={(e) => setAuthPsk(e.target.value)}
-                    placeholder="Enter PSK"
+                    placeholder={t("raModal.enterPsk")}
                     className="pr-10"
                   />
                   <Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-full px-3" onClick={() => setShowPsk(!showPsk)}>
@@ -297,11 +300,11 @@ export function RemoteAccessModal({
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>CA Certificate</Label>
+                    <Label>{t("modal.caCertificate")}</Label>
                     <Input value={authX509CaCert} onChange={(e) => setAuthX509CaCert(e.target.value)} placeholder="ca-cert" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Certificate</Label>
+                    <Label>{t("modal.certificate")}</Label>
                     <Input value={authX509Cert} onChange={(e) => setAuthX509Cert(e.target.value)} placeholder="server-cert" />
                   </div>
                 </div>
@@ -313,9 +316,9 @@ export function RemoteAccessModal({
                       onCheckedChange={(checked) => setAlwaysSendCert(checked === true)}
                     />
                     <div className="space-y-0.5">
-                      <Label htmlFor="always-send-cert" className="cursor-pointer text-sm">Always send certificate</Label>
+                      <Label htmlFor="always-send-cert" className="cursor-pointer text-sm">{t("raModal.alwaysSendCert")}</Label>
                       <p className="text-xs text-muted-foreground">
-                        Send the server certificate even when not requested. Required by some clients (e.g. Windows).
+                        {t("raModal.alwaysSendCertHelp")}
                       </p>
                     </div>
                   </div>
@@ -325,18 +328,18 @@ export function RemoteAccessModal({
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs text-muted-foreground">Local Users</Label>
+                <Label className="text-xs text-muted-foreground">{t("raModal.localUsers")}</Label>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => setLocalUsers([...localUsers, { username: "", password: "", disabled: false }])}
                 >
-                  <Plus className="mr-1 h-3 w-3" /> Add User
+                  <Plus className="mr-1 h-3 w-3" /> {t("raModal.addUser")}
                 </Button>
               </div>
               {localUsers.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No local users configured</p>
+                <p className="text-sm text-muted-foreground">{t("raModal.noLocalUsers")}</p>
               ) : (
                 <div className="space-y-2">
                   {localUsers.map((user, idx) => (
@@ -348,7 +351,7 @@ export function RemoteAccessModal({
                           next[idx] = { ...next[idx], username: e.target.value };
                           setLocalUsers(next);
                         }}
-                        placeholder="username"
+                        placeholder={t("raModal.usernamePlaceholder")}
                       />
                       <Input
                         type="password"
@@ -358,7 +361,7 @@ export function RemoteAccessModal({
                           next[idx] = { ...next[idx], password: e.target.value };
                           setLocalUsers(next);
                         }}
-                        placeholder="password"
+                        placeholder={t("raModal.passwordPlaceholder")}
                       />
                       <Button
                         type="button"
@@ -384,9 +387,9 @@ export function RemoteAccessModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? "Saving..." : "Creating..."}</> : isEdit ? "Save Changes" : "Create Connection"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("modal.creating")}</> : isEdit ? t("modal.saveChanges") : t("raModal.createConnection")}
           </Button>
         </DialogFooter>
       </DialogContent>
