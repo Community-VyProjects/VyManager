@@ -1,1 +1,84 @@
-{}
+{
+  "example": "e.g. {value}",
+  "addRoute": "Add Route",
+  "errors": {
+    "loadFailed": "Failed to load failover configuration"
+  },
+  "header": {
+    "title": "Failover Routes",
+    "subtitle": "Health-checked failover routes with automatic path switching"
+  },
+  "stats": {
+    "routes": "Routes",
+    "nextHops": "Next-Hops",
+    "checkTargets": "Check Targets",
+    "dhcpInterfaces": "DHCP Interfaces"
+  },
+  "content": {
+    "searchPlaceholder": "Search by destination, next-hop...",
+    "empty": "No failover routes configured",
+    "emptyHint": "Add a failover route to enable health-checked path switching",
+    "noMatch": "No routes match \"{query}\""
+  },
+  "table": {
+    "destination": "Destination",
+    "nextHops": "Next-Hops",
+    "healthCheck": "Health Check",
+    "metrics": "Metrics",
+    "dhcpInterfaces": "DHCP Interfaces",
+    "more": "+{count} more",
+    "targetCount": "({count, plural, one {# target} other {# targets}})"
+  },
+  "deleteModal": {
+    "title": "Delete Failover Route",
+    "description": "Are you sure you want to delete the failover route for <mono>{destination}</mono>? This will remove all next-hops, DHCP interfaces, and health checks associated with this route.",
+    "deleteRoute": "Delete Route"
+  },
+  "validation": {
+    "destinationRequired": "Destination is required",
+    "destinationCidr": "Destination must be in CIDR format (e.g. 10.0.0.0/24)",
+    "nextHopOrDhcpRequired": "At least one next-hop or DHCP interface is required",
+    "nhInvalidAddress": "Next-hop #{n}: address must be a valid IP",
+    "nhMetric": "Next-hop #{n}: metric must be a positive number",
+    "nhTcpPort": "Next-hop #{n}: port is required for TCP check type",
+    "nhTargetAddress": "Next-hop #{n}, target #{m}: address is required",
+    "dhcpTcpPort": "DHCP interface #{n}: port is required for TCP check type",
+    "dhcpTargetAddress": "DHCP interface #{n}, target #{m}: address is required"
+  },
+  "healthCheck": {
+    "title": "Health Check",
+    "type": "Type",
+    "policy": "Policy",
+    "allPass": "All Pass",
+    "anyPass": "Any Pass",
+    "port": "Port",
+    "timeout": "Timeout",
+    "seconds": "seconds",
+    "checkTargets": "Check Targets",
+    "addTarget": "Add Target",
+    "targetIp": "Target IP"
+  },
+  "modal": {
+    "selectInterface": "Select interface",
+    "editTitle": "Edit Failover Route",
+    "addTitle": "Add Failover Route",
+    "editDescription": "Modify failover route configuration for {destination}.",
+    "addDescription": "Configure a new failover route with health-checked next-hops.",
+    "destination": "Destination",
+    "destinationHelp": "Network destination in CIDR notation.",
+    "nextHops": "Next-Hops",
+    "addNextHop": "Add Next-Hop",
+    "nextHopN": "Next-Hop #{n}",
+    "addressRequired": "Address *",
+    "metric": "Metric",
+    "interface": "Interface",
+    "onlink": "Onlink",
+    "dhcpInterfaces": "DHCP Interfaces",
+    "addDhcpInterface": "Add DHCP Interface",
+    "noDhcp": "No DHCP interfaces configured. Click \"Add DHCP Interface\" to add one.",
+    "dhcpInterfaceN": "DHCP Interface #{n}",
+    "nameRequired": "Name *",
+    "creating": "Creating...",
+    "saveChanges": "Save Changes"
+  }
+}

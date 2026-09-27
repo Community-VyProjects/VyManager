@@ -1,1 +1,84 @@
-{}
+{
+  "example": "例如 {value}",
+  "addRoute": "添加路由",
+  "errors": {
+    "loadFailed": "加载故障转移配置失败"
+  },
+  "header": {
+    "title": "故障转移路由",
+    "subtitle": "带健康检查、可自动切换路径的故障转移路由"
+  },
+  "stats": {
+    "routes": "路由",
+    "nextHops": "下一跳",
+    "checkTargets": "检查目标",
+    "dhcpInterfaces": "DHCP 接口"
+  },
+  "content": {
+    "searchPlaceholder": "按目标、下一跳搜索...",
+    "empty": "未配置故障转移路由",
+    "emptyHint": "添加故障转移路由，以启用基于健康检查的路径切换",
+    "noMatch": "没有与“{query}”匹配的路由"
+  },
+  "table": {
+    "destination": "目标",
+    "nextHops": "下一跳",
+    "healthCheck": "健康检查",
+    "metrics": "度量值",
+    "dhcpInterfaces": "DHCP 接口",
+    "more": "另外 {count} 个",
+    "targetCount": "（{count} 个目标）"
+  },
+  "deleteModal": {
+    "title": "删除故障转移路由",
+    "description": "确定要删除 <mono>{destination}</mono> 的故障转移路由吗？这将移除与此路由关联的所有下一跳、DHCP 接口和健康检查。",
+    "deleteRoute": "删除路由"
+  },
+  "validation": {
+    "destinationRequired": "目标为必填项",
+    "destinationCidr": "目标必须为 CIDR 格式（例如 10.0.0.0/24）",
+    "nextHopOrDhcpRequired": "至少需要一个下一跳或 DHCP 接口",
+    "nhInvalidAddress": "下一跳 #{n}：地址必须是有效的 IP",
+    "nhMetric": "下一跳 #{n}：度量值必须为正数",
+    "nhTcpPort": "下一跳 #{n}：TCP 检查类型需要填写端口",
+    "nhTargetAddress": "下一跳 #{n}，目标 #{m}：地址为必填项",
+    "dhcpTcpPort": "DHCP 接口 #{n}：TCP 检查类型需要填写端口",
+    "dhcpTargetAddress": "DHCP 接口 #{n}，目标 #{m}：地址为必填项"
+  },
+  "healthCheck": {
+    "title": "健康检查",
+    "type": "检查类型",
+    "policy": "策略",
+    "allPass": "全部通过",
+    "anyPass": "任一通过",
+    "port": "端口",
+    "timeout": "超时",
+    "seconds": "秒",
+    "checkTargets": "检查目标",
+    "addTarget": "添加目标",
+    "targetIp": "目标 IP"
+  },
+  "modal": {
+    "selectInterface": "选择接口",
+    "editTitle": "编辑故障转移路由",
+    "addTitle": "添加故障转移路由",
+    "editDescription": "修改 {destination} 的故障转移路由配置。",
+    "addDescription": "配置带健康检查下一跳的新故障转移路由。",
+    "destination": "目标",
+    "destinationHelp": "CIDR 格式的目标网络。",
+    "nextHops": "下一跳",
+    "addNextHop": "添加下一跳",
+    "nextHopN": "下一跳 #{n}",
+    "addressRequired": "地址 *",
+    "metric": "度量值",
+    "interface": "接口",
+    "onlink": "Onlink（直连）",
+    "dhcpInterfaces": "DHCP 接口",
+    "addDhcpInterface": "添加 DHCP 接口",
+    "noDhcp": "未配置 DHCP 接口。点击“添加 DHCP 接口”进行添加。",
+    "dhcpInterfaceN": "DHCP 接口 #{n}",
+    "nameRequired": "名称 *",
+    "creating": "正在创建...",
+    "saveChanges": "保存更改"
+  }
+}

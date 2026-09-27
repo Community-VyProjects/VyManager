@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,8 @@ import { FailoverRouteModal } from "./FailoverRouteModal";
 import { DeleteFailoverRouteModal } from "./DeleteFailoverRouteModal";
 
 export function FailoverContent() {
+  const t = useTranslations("failover");
+  const tc = useTranslations("common");
   const [config, setConfig] = useState<FailoverConfig | null>(null);
   const [capabilities, setCapabilities] = useState<FailoverCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,11 +60,11 @@ export function FailoverContent() {
       setConfig(configData);
       setCapabilities(capData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load failover configuration");
+      setError(err instanceof Error ? err.message : t("errors.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -133,7 +136,7 @@ export function FailoverContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -146,9 +149,9 @@ export function FailoverContent() {
         <div className="p-6 pb-4 border-b border-border">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Failover Routes</h1>
+              <h1 className="text-2xl font-bold text-foreground">{t("header.title")}</h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Health-checked failover routes with automatic path switching
+                {t("header.subtitle")}
               </p>
             </div>
             <Button
@@ -157,7 +160,7 @@ export function FailoverContent() {
               onClick={() => loadData(true)}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              {tc("refresh")}
             </Button>
           </div>
 
@@ -177,7 +180,7 @@ export function FailoverContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{routeCount}</p>
-                    <p className="text-xs text-muted-foreground">Routes</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.routes")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -190,7 +193,7 @@ export function FailoverContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{totalNextHops}</p>
-                    <p className="text-xs text-muted-foreground">Next-Hops</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.nextHops")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -203,7 +206,7 @@ export function FailoverContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{totalTargets}</p>
-                    <p className="text-xs text-muted-foreground">Check Targets</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.checkTargets")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -217,7 +220,7 @@ export function FailoverContent() {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">{totalDhcpInterfaces}</p>
-                      <p className="text-xs text-muted-foreground">DHCP Interfaces</p>
+                      <p className="text-xs text-muted-foreground">{t("stats.dhcpInterfaces")}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -234,7 +237,7 @@ export function FailoverContent() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 className="pl-9"
-                placeholder="Search by destination, next-hop..."
+                placeholder={t("content.searchPlaceholder")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -247,7 +250,7 @@ export function FailoverContent() {
               }}
             >
               <Plus className="h-4 w-4 mr-2" />
-              Add Route
+              {t("addRoute")}
             </Button>
           </div>
 
@@ -257,10 +260,10 @@ export function FailoverContent() {
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Network className="h-12 w-12 text-muted-foreground/30 mb-4" />
                 <p className="text-sm text-muted-foreground mb-2">
-                  No failover routes configured
+                  {t("content.empty")}
                 </p>
                 <p className="text-xs text-muted-foreground mb-4">
-                  Add a failover route to enable health-checked path switching
+                  {t("content.emptyHint")}
                 </p>
                 <Button
                   size="sm"
@@ -270,7 +273,7 @@ export function FailoverContent() {
                   }}
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Route
+                  {t("addRoute")}
                 </Button>
               </CardContent>
             </Card>
@@ -280,12 +283,12 @@ export function FailoverContent() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Destination</TableHead>
-                      <TableHead>Next-Hops</TableHead>
-                      <TableHead>Health Check</TableHead>
-                      <TableHead>Metrics</TableHead>
-                      {showDhcp && <TableHead>DHCP Interfaces</TableHead>}
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead>{t("table.destination")}</TableHead>
+                      <TableHead>{t("table.nextHops")}</TableHead>
+                      <TableHead>{t("table.healthCheck")}</TableHead>
+                      <TableHead>{t("table.metrics")}</TableHead>
+                      {showDhcp && <TableHead>{t("table.dhcpInterfaces")}</TableHead>}
+                      <TableHead className="text-right">{tc("actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -317,7 +320,7 @@ export function FailoverContent() {
                               ))}
                               {nhAddrs.length > 2 && (
                                 <Badge variant="outline" className="text-xs">
-                                  +{nhAddrs.length - 2} more
+                                  {t("table.more", { count: nhAddrs.length - 2 })}
                                 </Badge>
                               )}
                               {nhAddrs.length === 0 && (
@@ -336,7 +339,7 @@ export function FailoverContent() {
                                 </Badge>
                                 {targetCount > 0 && (
                                   <span className="text-xs text-muted-foreground">
-                                    ({targetCount} target{targetCount !== 1 ? "s" : ""})
+                                    {t("table.targetCount", { count: targetCount })}
                                   </span>
                                 )}
                               </div>
@@ -397,7 +400,7 @@ export function FailoverContent() {
                           colSpan={showDhcp ? 6 : 5}
                           className="text-center py-8 text-muted-foreground"
                         >
-                          No routes match &quot;{searchQuery}&quot;
+                          {t("content.noMatch", { query: searchQuery })}
                         </TableCell>
                       </TableRow>
                     )}
