@@ -1,1 +1,55 @@
-{}
+{
+  "content": {
+    "loadFailed": "Failed to load broadcast relay configuration",
+    "updateStatusFailed": "Failed to update service status",
+    "title": "Broadcast Relay",
+    "readOnly": "Read Only",
+    "subtitle": "UDP broadcast relay between interfaces",
+    "enableService": "Enable Service",
+    "disableService": "Disable Service",
+    "globallyDisabled": "Broadcast relay service is globally disabled. All instances are inactive.",
+    "reEnable": "Re-enable",
+    "totalInstances": "Total Instances",
+    "activeInstances": "Active Instances",
+    "disabledInstances": "Disabled Instances",
+    "addInstance": "Add Instance",
+    "empty": "No relay instances configured",
+    "colPort": "Port",
+    "colInterfaces": "Interfaces",
+    "colSourceAddress": "Source Address",
+    "active": "Active"
+  },
+  "delete": {
+    "failed": "Failed to delete instance",
+    "title": "Delete Relay Instance",
+    "description": "Are you sure you want to delete relay instance <mono>#{id}</mono>? This action cannot be undone.",
+    "descriptionWithPort": "Are you sure you want to delete relay instance <mono>#{id}</mono> (UDP port <mono>{port}</mono>)? This action cannot be undone.",
+    "confirm": "Delete Instance"
+  },
+  "modal": {
+    "idRange": "Instance ID must be an integer between 1 and 99",
+    "portRange": "UDP port must be an integer between 1 and 65535",
+    "interfaceRequired": "At least one interface is required",
+    "addressInvalid": "Source address must be a valid IPv4 address (e.g. 192.168.1.1)",
+    "editTitle": "Edit Relay Instance",
+    "addTitle": "Add Relay Instance",
+    "editDescription": "Modify relay instance #{id}.",
+    "addDescription": "Configure a new UDP broadcast relay instance.",
+    "instanceId": "Instance ID",
+    "instanceIdLocked": "Instance ID cannot be changed after creation.",
+    "udpPort": "UDP Port",
+    "udpPortPlaceholder": "e.g. 67",
+    "udpPortHint": "UDP port to relay broadcasts on (1–65535).",
+    "interfaces": "Interfaces",
+    "interfacesHint": "At least one interface required; two or more needed for relaying.",
+    "selectInterface": "Select interface to add",
+    "noMoreInterfaces": "No more interfaces available",
+    "sourceAddress": "Source Address",
+    "sourceAddressPlaceholder": "e.g. 192.168.1.1",
+    "sourceAddressHint": "Optional. If unset, the original sender's address is used.",
+    "descriptionPlaceholder": "Optional description",
+    "disableInstance": "Disable this instance",
+    "adding": "Adding...",
+    "saveChanges": "Save Changes"
+  }
+}
