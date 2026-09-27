@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -55,6 +56,8 @@ export function SstpcModal({
   existingInterfaces,
   existing,
 }: SstpcModalProps) {
+  const t = useTranslations("sstpc");
+  const tc = useTranslations("common");
   const isEdit = sstpcModalIsEdit(existing);
   // Basic
   const [name, setName] = useState("sstpc0");
@@ -128,27 +131,27 @@ export function SstpcModal({
   }, [open, existing]);
 
   const validateShared = (): string | null => {
-    if (!server.trim()) return "Server address is required.";
+    if (!server.trim()) return t("validation.serverRequired");
     if (port) {
       const p = Number(port);
-      if (!Number.isInteger(p) || p < 1 || p > 65535) return "Port must be an integer between 1 and 65535.";
+      if (!Number.isInteger(p) || p < 1 || p > 65535) return t("validation.portRange");
     }
     if (defaultRouteDistance) {
       const d = Number(defaultRouteDistance);
-      if (!Number.isInteger(d) || d < 1 || d > 255) return "Default route distance must be between 1 and 255.";
+      if (!Number.isInteger(d) || d < 1 || d > 255) return t("validation.defaultRouteDistanceRange");
     }
     if (mtu) {
       const m = Number(mtu);
-      if (!Number.isInteger(m) || m < 68 || m > 1500) return "MTU must be between 68 and 1500.";
+      if (!Number.isInteger(m) || m < 68 || m > 1500) return t("validation.mtuRange");
     }
     return null;
   };
 
   const validateCreate = (): string | null => {
     const n = name.trim();
-    if (!n) return "Interface name is required.";
-    if (!SSTPC_NAME_RE.test(n)) return "Interface name must be in the format 'sstpcN' (e.g. sstpc0).";
-    if (existingInterfaces.includes(n)) return `Interface '${n}' already exists.`;
+    if (!n) return t("validation.nameRequired");
+    if (!SSTPC_NAME_RE.test(n)) return t("validation.nameFormat");
+    if (existingInterfaces.includes(n)) return t("validation.nameExists", { name: n });
     return validateShared();
   };
 
@@ -204,10 +207,10 @@ export function SstpcModal({
           onOpenChange(false);
           onSuccess();
         } else {
-          setError(result.error || "Operation failed");
+          setError(result.error || tc("operationFailed"));
         }
       } catch (err) {
-        setError((err as ApiError).message || "Failed to update interface");
+        setError((err as ApiError).message || t("modal.updateFailed"));
       } finally {
         setLoading(false);
       }
@@ -242,10 +245,10 @@ export function SstpcModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to create interface");
+      setError((err as ApiError).message || t("modal.createFailed"));
     } finally {
       setLoading(false);
     }
@@ -258,26 +261,26 @@ export function SstpcModal({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? `Edit SSTPC Interface: ${existing.name}` : "Create SSTPC Interface"}
+            {isEdit ? t("modal.editTitle", { name: existing.name }) : t("modal.createTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Update the configuration for this SSTP client interface."
-              : "Configure a new Secure Socket Tunneling Protocol client interface."}
+              ? t("modal.editDescription")
+              : t("modal.createDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="basic">Basic</TabsTrigger>
-            <TabsTrigger value="auth">Authentication &amp; SSL</TabsTrigger>
-            <TabsTrigger value="routing">Routing &amp; Network</TabsTrigger>
+            <TabsTrigger value="basic">{t("tabs.basic")}</TabsTrigger>
+            <TabsTrigger value="auth">{t("tabs.auth")}</TabsTrigger>
+            <TabsTrigger value="routing">{t("tabs.routing")}</TabsTrigger>
           </TabsList>
 
           {/* ── Tab 1: Basic ── */}
           <TabsContent value="basic" className="space-y-4 pt-2">
             <div className="space-y-2">
-              <Label htmlFor="sstpc-name">Interface Name</Label>
+              <Label htmlFor="sstpc-name">{t("basic.interfaceName")}</Label>
               <Input
                 id="sstpc-name"
                 value={lockedName.value}
@@ -287,24 +290,24 @@ export function SstpcModal({
               />
               {isEdit ? (
                 <p className="text-xs text-muted-foreground">
-                  Interface name cannot be changed.
+                  {t("basic.nameLocked")}
                 </p>
               ) : null}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="sstpc-server">Server <span className="text-destructive">*</span></Label>
+              <Label htmlFor="sstpc-server">{t("basic.server")} <span className="text-destructive">*</span></Label>
               <Input
                 id="sstpc-server"
                 value={server}
                 onChange={(e) => setServer(e.target.value)}
-                placeholder="vpn.example.com or 192.0.2.1"
+                placeholder={t("basic.serverPlaceholder")}
               />
-              <p className="text-xs text-muted-foreground">Remote SSTP server hostname or IPv4 address</p>
+              <p className="text-xs text-muted-foreground">{t("basic.serverHint")}</p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="sstpc-port">Port</Label>
+              <Label htmlFor="sstpc-port">{t("basic.port")}</Label>
               <Input
                 id="sstpc-port"
                 value={port}
@@ -317,12 +320,12 @@ export function SstpcModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="sstpc-description">Description</Label>
+              <Label htmlFor="sstpc-description">{tc("description")}</Label>
               <Input
                 id="sstpc-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional description"
+                placeholder={t("basic.descriptionPlaceholder")}
               />
             </div>
 
@@ -333,7 +336,7 @@ export function SstpcModal({
                 onCheckedChange={(v) => setDisabled(!!v)}
               />
               <Label htmlFor="sstpc-disabled" className="cursor-pointer">
-                Administratively disable this interface
+                {t("basic.disableInterface")}
               </Label>
             </div>
           </TabsContent>
@@ -341,25 +344,25 @@ export function SstpcModal({
           {/* ── Tab 2: Authentication & SSL ── */}
           <TabsContent value="auth" className="space-y-4 pt-2">
             <div className="space-y-2">
-              <Label htmlFor="sstpc-username">Username</Label>
+              <Label htmlFor="sstpc-username">{t("auth.username")}</Label>
               <Input
                 id="sstpc-username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="VPN username"
+                placeholder={t("auth.usernamePlaceholder")}
                 autoComplete="off"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="sstpc-password">Password</Label>
+              <Label htmlFor="sstpc-password">{t("auth.password")}</Label>
               <div className="relative">
                 <Input
                   id="sstpc-password"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder={isEdit ? "Leave blank to keep existing password" : "VPN password"}
+                  placeholder={isEdit ? t("auth.passwordKeepPlaceholder") : t("auth.passwordPlaceholder")}
                   autoComplete="new-password"
                   className="pr-9"
                 />
@@ -375,10 +378,10 @@ export function SstpcModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="sstpc-sslCa">CA Certificate</Label>
+              <Label htmlFor="sstpc-sslCa">{t("auth.caCertificate")}</Label>
               <Select value={sslCaCertificate} onValueChange={setSslCaCertificate}>
                 <SelectTrigger id="sstpc-sslCa">
-                  <SelectValue placeholder={pki?.ca && pki.ca.length > 0 ? "Select CA certificate" : "No CA certificates in PKI"} />
+                  <SelectValue placeholder={pki?.ca && pki.ca.length > 0 ? t("auth.selectCa") : t("auth.noCaInPki")} />
                 </SelectTrigger>
                 <SelectContent>
                   {pki?.ca && pki.ca.length > 0 ? (
@@ -389,13 +392,13 @@ export function SstpcModal({
                     ))
                   ) : (
                     <SelectItem value="_none" disabled>
-                      No CA certificates available
+                      {t("auth.noCaAvailable")}
                     </SelectItem>
                   )}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                CA certificate from PKI used to verify the server&apos;s SSL certificate
+                {t("auth.caHint")}
               </p>
             </div>
           </TabsContent>
@@ -403,7 +406,7 @@ export function SstpcModal({
           {/* ── Tab 3: Routing & Network ── */}
           <TabsContent value="routing" className="space-y-4 pt-2">
             <div className="space-y-2">
-              <Label htmlFor="sstpc-defaultRouteDistance">Default Route Distance</Label>
+              <Label htmlFor="sstpc-defaultRouteDistance">{t("routing.defaultRouteDistance")}</Label>
               <Input
                 id="sstpc-defaultRouteDistance"
                 value={defaultRouteDistance}
@@ -413,7 +416,7 @@ export function SstpcModal({
                 min={1}
                 max={255}
               />
-              <p className="text-xs text-muted-foreground">Administrative distance for the default route (1–255)</p>
+              <p className="text-xs text-muted-foreground">{t("routing.defaultRouteDistanceHint")}</p>
             </div>
 
             <div className="flex items-center gap-2">
@@ -423,7 +426,7 @@ export function SstpcModal({
                 onCheckedChange={(v) => setNoDefaultRoute(!!v)}
               />
               <Label htmlFor="sstpc-noDefaultRoute" className="cursor-pointer">
-                Do not install default route to system
+                {t("routing.noDefaultRoute")}
               </Label>
             </div>
 
@@ -434,7 +437,7 @@ export function SstpcModal({
                 onCheckedChange={(v) => setNoPeerDns(!!v)}
               />
               <Label htmlFor="sstpc-noPeerDns" className="cursor-pointer">
-                Do not use DNS servers provided by the peer
+                {t("routing.noPeerDns")}
               </Label>
             </div>
 
@@ -449,7 +452,7 @@ export function SstpcModal({
                 min={68}
                 max={1500}
               />
-              <p className="text-xs text-muted-foreground">Maximum Transmission Unit in bytes (68–1500)</p>
+              <p className="text-xs text-muted-foreground">{t("routing.mtuHint")}</p>
             </div>
 
             <div className="space-y-2">
@@ -472,18 +475,18 @@ export function SstpcModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? "Saving..." : "Creating..."}
+                {isEdit ? tc("saving") : t("modal.creating")}
               </>
             ) : isEdit ? (
-              "Save Changes"
+              t("modal.saveChanges")
             ) : (
-              "Create Interface"
+              t("modal.createInterface")
             )}
           </Button>
         </DialogFooter>
