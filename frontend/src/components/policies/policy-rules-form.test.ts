@@ -325,9 +325,9 @@ describe("local route update", () => {
 
 describe("prefix-list rule", () => {
   it("rejects a missing prefix", () => {
-    assert.equal(
+    assert.deepEqual(
       validatePrefixListRule(emptyPrefixListRuleDraft(), "ipv4"),
-      "Please enter a prefix in CIDR notation",
+      { key: "prefixRequired" },
     );
   });
 
