@@ -262,6 +262,7 @@ const BGP_AF_NETWORK_GROUP: EntityGroupSpec = {
 
 const NEIGHBOR_AF_GROUP: EntityGroupSpec = {
   label: "Address Family",
+  pluralLabel: "Address Families",
   rawKey: "address-family",
   createOp: "vrf_bgp_neighbor_af",
   schema: afSchema("vrf_bgp_neighbor_af"),
@@ -270,6 +271,7 @@ const NEIGHBOR_AF_GROUP: EntityGroupSpec = {
 
 const PEER_GROUP_AF_GROUP: EntityGroupSpec = {
   label: "Address Family",
+  pluralLabel: "Address Families",
   rawKey: "address-family",
   createOp: "vrf_bgp_peer_group_af",
   schema: afSchema("vrf_bgp_peer_group_af"),
@@ -296,6 +298,7 @@ export const BGP_PEER_GROUP_GROUP: EntityGroupSpec = {
 
 export const BGP_AF_GROUP: EntityGroupSpec = {
   label: "Address Family",
+  pluralLabel: "Address Families",
   rawKey: "address-family",
   createOp: "vrf_bgp_af",
   schema: GLOBAL_AF_SCHEMA,

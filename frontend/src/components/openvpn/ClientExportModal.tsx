@@ -62,12 +62,15 @@ export function ClientExportModal({
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [result, setResult] = useState<{ filename: string; config: string } | null>(null);
+  const [result, setResult] = useState<{
+    filename: string;
+    config: string;
+  } | null>(null);
 
   // Per-client ("assigned user") entries configured on this server.
   const clients = useMemo(
     () => interfaceData?.server?.clients ?? [],
-    [interfaceData]
+    [interfaceData],
   );
   const hasClients = clients.length > 0;
 
@@ -90,7 +93,9 @@ export function ClientExportModal({
     setCertificate("");
     setAssignedClient(MANUAL);
     setCa(interfaceData.tls?.ca_certificates?.[0] ?? "");
-    setRemoteHost(interfaceData.local_host ?? interfaceData.remote_host?.[0] ?? "");
+    setRemoteHost(
+      interfaceData.local_host ?? interfaceData.remote_host?.[0] ?? "",
+    );
 
     let cancelled = false;
     setOptionsLoading(true);
@@ -121,7 +126,8 @@ export function ClientExportModal({
         }
       })
       .catch((err) => {
-        if (!cancelled) setError((err as ApiError).message || "Failed to load PKI material");
+        if (!cancelled)
+          setError((err as ApiError).message || "Failed to load PKI material");
       })
       .finally(() => {
         if (!cancelled) setOptionsLoading(false);
@@ -147,9 +153,11 @@ export function ClientExportModal({
 
   // Hint state for the assigned-client matching.
   const selectedClient =
-    assignedClient !== MANUAL ? clients.find((c) => c.name === assignedClient) : undefined;
+    assignedClient !== MANUAL
+      ? clients.find((c) => c.name === assignedClient)
+      : undefined;
   const matchedCertName =
-    assignedClient !== MANUAL ? cnToCert.get(assignedClient) ?? null : null;
+    assignedClient !== MANUAL ? (cnToCert.get(assignedClient) ?? null) : null;
   const noMatch = assignedClient !== MANUAL && matchedCertName === null;
 
   const certLabel = (c: OpenvpnExportCertificate) =>
@@ -193,7 +201,9 @@ export function ClientExportModal({
 
   const handleDownload = useCallback(() => {
     if (!result) return;
-    const blob = new Blob([result.config], { type: "application/x-openvpn-profile" });
+    const blob = new Blob([result.config], {
+      type: "application/x-openvpn-profile",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -239,9 +249,15 @@ export function ClientExportModal({
 
             <div className="space-y-2">
               <Label>CA certificate</Label>
-              <Select value={ca} onValueChange={setCa} disabled={optionsLoading}>
+              <Select
+                value={ca}
+                onValueChange={setCa}
+                disabled={optionsLoading}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder={optionsLoading ? "Loading…" : "Select CA"} />
+                  <SelectValue
+                    placeholder={optionsLoading ? "Loading…" : "Select CA"}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {caOptions.map((name) => (
@@ -271,17 +287,22 @@ export function ClientExportModal({
                         {c.disable ? " (disabled)" : ""}
                       </SelectItem>
                     ))}
-                    <SelectItem value={MANUAL}>Other / pick certificate manually</SelectItem>
+                    <SelectItem value={MANUAL}>
+                      Other / pick certificate manually
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 {selectedClient && matchedCertName && (
                   <p className="text-xs text-muted-foreground">
-                    Matched certificate <span className="font-mono">{matchedCertName}</span>
-                    {selectedClient.ip ? (
+                    Matched certificate{" "}
+                    <span className="font-mono">{matchedCertName}</span>
+                    {selectedClient.ip.length > 0 ? (
                       <>
                         {" "}
                         · server assigns fixed IP{" "}
-                        <span className="font-mono">{selectedClient.ip}</span>
+                        <span className="font-mono">
+                          {selectedClient.ip.join(", ")}
+                        </span>
                       </>
                     ) : null}
                   </p>
@@ -291,9 +312,10 @@ export function ClientExportModal({
                     <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                     <p className="text-xs text-amber-700 dark:text-amber-500">
                       No certificate has a Common Name of{" "}
-                      <span className="font-mono">{assignedClient}</span>. Per-client
-                      settings (fixed IP, routes) won&apos;t apply unless the exported
-                      certificate&apos;s CN matches. Pick a certificate below.
+                      <span className="font-mono">{assignedClient}</span>.
+                      Per-client settings (fixed IP, routes) won&apos;t apply
+                      unless the exported certificate&apos;s CN matches. Pick a
+                      certificate below.
                     </p>
                   </div>
                 )}
@@ -309,7 +331,9 @@ export function ClientExportModal({
               >
                 <SelectTrigger>
                   <SelectValue
-                    placeholder={optionsLoading ? "Loading…" : "Select client certificate"}
+                    placeholder={
+                      optionsLoading ? "Loading…" : "Select client certificate"
+                    }
                   />
                 </SelectTrigger>
                 <SelectContent>
@@ -324,12 +348,18 @@ export function ClientExportModal({
 
             <div className="space-y-2">
               <Label>Client key</Label>
-              <Select value={keyName} onValueChange={setKeyName} disabled={optionsLoading}>
+              <Select
+                value={keyName}
+                onValueChange={setKeyName}
+                disabled={optionsLoading}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={SAME_AS_CERT}>Same as certificate</SelectItem>
+                  <SelectItem value={SAME_AS_CERT}>
+                    Same as certificate
+                  </SelectItem>
                   {certs.map((c) => (
                     <SelectItem key={c.name} value={c.name}>
                       {c.name}
@@ -342,7 +372,9 @@ export function ClientExportModal({
             {error && (
               <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3">
                 <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
+                <p className="text-sm text-destructive whitespace-pre-wrap">
+                  {error}
+                </p>
               </div>
             )}
           </div>
@@ -358,8 +390,9 @@ export function ClientExportModal({
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              Includes the CA, client certificate/key and the server&apos;s TLS key.
-              Treat this file as a secret &mdash; anyone with it can connect.
+              Includes the CA, client certificate/key and the server&apos;s TLS
+              key. Treat this file as a secret &mdash; anyone with it can
+              connect.
             </p>
           </div>
         )}
@@ -367,10 +400,17 @@ export function ClientExportModal({
         <DialogFooter>
           {!result ? (
             <>
-              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={generating}>
+              <Button
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={generating}
+              >
                 Cancel
               </Button>
-              <Button onClick={handleGenerate} disabled={generating || optionsLoading}>
+              <Button
+                onClick={handleGenerate}
+                disabled={generating || optionsLoading}
+              >
                 {generating ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
