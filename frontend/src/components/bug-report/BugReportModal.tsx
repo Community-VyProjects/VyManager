@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -42,14 +43,16 @@ interface BugReportModalProps {
 type Step = "loading" | "connect" | "form" | "preview" | "done";
 
 const CATEGORIES = [
-  { value: "bug", label: "Bug" },
-  { value: "crash", label: "Crash / error" },
-  { value: "ui", label: "UI / display" },
-  { value: "performance", label: "Performance" },
-  { value: "other", label: "Other" },
-];
+  { value: "bug", label: "bugReport.categories.bug" },
+  { value: "crash", label: "bugReport.categories.crash" },
+  { value: "ui", label: "bugReport.categories.ui" },
+  { value: "performance", label: "bugReport.categories.performance" },
+  { value: "other", label: "bugReport.categories.other" },
+] as const;
 
 export function BugReportModal({ open, onOpenChange }: BugReportModalProps) {
+  const t = useTranslations("backupBugReport");
+  const tc = useTranslations("common");
   const [step, setStep] = useState<Step>("loading");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -121,14 +124,14 @@ export function BugReportModal({ open, onOpenChange }: BugReportModalProps) {
         const status = await bugReportService.getStatus();
         if (cancelled) return;
         if (!status.enabled) {
-          setError("Bug reporting is not configured on this server.");
+          setError(t("bugReport.notConfigured"));
           setStep("connect");
           return;
         }
         setStep(status.connected ? "form" : "connect");
       } catch {
         if (!cancelled) {
-          setError("Could not load bug reporter.");
+          setError(t("bugReport.loadFailed"));
           setStep("connect");
         }
       }
@@ -136,7 +139,7 @@ export function BugReportModal({ open, onOpenChange }: BugReportModalProps) {
     return () => {
       cancelled = true;
     };
-  }, [open, resetAll]);
+  }, [open, resetAll, t]);
 
   useEffect(() => () => stopPolling(), [stopPolling]);
 
@@ -167,8 +170,8 @@ export function BugReportModal({ open, onOpenChange }: BugReportModalProps) {
           stopPolling();
           setError(
             res.status === "expired"
-              ? "The authorization request expired. Please try again."
-              : "Authorization was denied."
+              ? t("bugReport.authExpired")
+              : t("bugReport.authDenied")
           );
           return;
         }
@@ -177,7 +180,7 @@ export function BugReportModal({ open, onOpenChange }: BugReportModalProps) {
         pollTimer.current = setTimeout(() => poll(intervalMs), intervalMs);
       }
     },
-    [stopPolling]
+    [stopPolling, t]
   );
 
   const handleConnect = async () => {
@@ -191,15 +194,15 @@ export function BugReportModal({ open, onOpenChange }: BugReportModalProps) {
       const intervalMs = Math.max(res.interval, 5) * 1000;
       pollTimer.current = setTimeout(() => poll(intervalMs), intervalMs);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not start GitHub authorization.");
+      setError(err instanceof Error ? err.message : t("bugReport.authStartFailed"));
     } finally {
       setBusy(false);
     }
   };
 
   const validateForm = (): string | null => {
-    if (title.trim().length < 3) return "Please enter a short title (at least 3 characters).";
-    if (description.trim().length < 10) return "Please describe the problem (at least 10 characters).";
+    if (title.trim().length < 3) return t("bugReport.titleTooShort");
+    if (description.trim().length < 10) return t("bugReport.descriptionTooShort");
     return null;
   };
 
@@ -216,7 +219,7 @@ export function BugReportModal({ open, onOpenChange }: BugReportModalProps) {
       setPreview(p);
       setStep("preview");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not generate preview.");
+      setError(err instanceof Error ? err.message : t("bugReport.previewFailed"));
     } finally {
       setBusy(false);
     }
@@ -230,7 +233,7 @@ export function BugReportModal({ open, onOpenChange }: BugReportModalProps) {
       setIssueUrl(res.url);
       setStep("done");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Could not submit the report.";
+      const msg = err instanceof Error ? err.message : t("bugReport.submitFailed");
       setError(msg);
       // A revoked/expired token sends us back to connect.
       if (/connect|authoriz/i.test(msg)) setStep("connect");
@@ -245,10 +248,10 @@ export function BugReportModal({ open, onOpenChange }: BugReportModalProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Github className="h-5 w-5" />
-            Report a Bug
+            {t("bugReport.title")}
           </DialogTitle>
           <DialogDescription>
-            File a GitHub issue using your own GitHub account.
+            {t("bugReport.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -270,35 +273,34 @@ export function BugReportModal({ open, onOpenChange }: BugReportModalProps) {
             {!userCode ? (
               <>
                 <p className="text-sm text-muted-foreground">
-                  Connect your GitHub account to submit a report. We never see or store your
-                  GitHub password, and the connection is used only to create this one issue.
+                  {t("bugReport.connectIntro")}
                 </p>
                 <Button onClick={handleConnect} disabled={busy} className="gap-2">
                   {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Github className="h-4 w-4" />}
-                  Connect GitHub
+                  {t("bugReport.connect")}
                 </Button>
               </>
             ) : (
               <div className="space-y-3">
                 <p className="text-sm">
-                  1. Copy this code:
+                  {t("bugReport.step1")}
                   <span className="ml-2 select-all rounded bg-muted px-2 py-1 font-mono text-base font-semibold tracking-widest">
                     {userCode}
                   </span>
                 </p>
                 <p className="text-sm">
-                  2. Open GitHub, paste the code, and authorize:
+                  {t("bugReport.step2")}
                 </p>
                 <Button asChild variant="outline" className="gap-2">
                   <a href={verificationUri} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-4 w-4" />
-                    Open GitHub
+                    {t("bugReport.openGithub")}
                   </a>
                 </Button>
                 {polling && (
                   <p className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Waiting for authorization…
+                    {t("bugReport.waiting")}
                   </p>
                 )}
               </div>
@@ -309,17 +311,17 @@ export function BugReportModal({ open, onOpenChange }: BugReportModalProps) {
         {step === "form" && (
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="br-title">Title</Label>
+              <Label htmlFor="br-title">{t("bugReport.titleLabel")}</Label>
               <Input
                 id="br-title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Short summary of the problem"
+                placeholder={t("bugReport.titlePlaceholder")}
                 maxLength={200}
               />
             </div>
             <div className="space-y-2">
-              <Label>Category</Label>
+              <Label>{t("bugReport.category")}</Label>
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger>
                   <SelectValue />
@@ -327,25 +329,25 @@ export function BugReportModal({ open, onOpenChange }: BugReportModalProps) {
                 <SelectContent>
                   {CATEGORIES.map((c) => (
                     <SelectItem key={c.value} value={c.value}>
-                      {c.label}
+                      {t(c.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="br-desc">Description</Label>
+              <Label htmlFor="br-desc">{tc("description")}</Label>
               <Textarea
                 id="br-desc"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="What happened? What did you expect? Steps to reproduce."
+                placeholder={t("bugReport.descriptionPlaceholder")}
                 rows={5}
               />
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <Label htmlFor="br-error">Error / stack trace (optional)</Label>
+                <Label htmlFor="br-error">{t("bugReport.errorLabel")}</Label>
                 {errorText.trim() && (
                   <button
                     type="button"
@@ -355,21 +357,20 @@ export function BugReportModal({ open, onOpenChange }: BugReportModalProps) {
                     }}
                     className="text-xs text-muted-foreground hover:text-foreground"
                   >
-                    Clear
+                    {t("bugReport.clear")}
                   </button>
                 )}
               </div>
               {autoAttached && (
                 <p className="text-xs text-muted-foreground">
-                  Recent errors were detected and attached automatically. Review and edit
-                  or clear them below.
+                  {t("bugReport.autoAttached")}
                 </p>
               )}
               <Textarea
                 id="br-error"
                 value={errorText}
                 onChange={(e) => setErrorText(e.target.value)}
-                placeholder="Paste any error message or stack trace here"
+                placeholder={t("bugReport.errorPlaceholder")}
                 rows={4}
                 className="font-mono text-xs"
               />
@@ -381,14 +382,12 @@ export function BugReportModal({ open, onOpenChange }: BugReportModalProps) {
                 className="mt-0.5"
               />
               <span className="text-muted-foreground">
-                Include basic diagnostics (browser and current page). No router configuration is
-                attached.
+                {t("bugReport.includeDiagnostics")}
               </span>
             </label>
             <p className="flex items-start gap-2 rounded-md border border-border/60 bg-muted/30 p-2 text-xs text-muted-foreground">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              Sensitive data (public IPs, passwords, keys, certificates) is automatically redacted.
-              You will review the final report before it is sent.
+              {t("bugReport.redactionNotice")}
             </p>
           </div>
         )}
@@ -397,17 +396,18 @@ export function BugReportModal({ open, onOpenChange }: BugReportModalProps) {
           <div className="space-y-3 py-2">
             <p className="flex items-start gap-2 rounded-md border border-border/60 bg-muted/30 p-2 text-xs text-muted-foreground">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              This is exactly what will be posted to GitHub. Anything detected as sensitive has been
-              replaced with <code className="font-mono">[REDACTED]</code>. Review it before submitting.
+              {t.rich("bugReport.previewNotice", {
+                code: (chunks) => <code className="font-mono">{chunks}</code>,
+              })}
             </p>
             <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Title</Label>
+              <Label className="text-xs text-muted-foreground">{t("bugReport.titleLabel")}</Label>
               <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm font-medium">
                 {preview.title}
               </div>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Body</Label>
+              <Label className="text-xs text-muted-foreground">{t("bugReport.body")}</Label>
               <ScrollArea className="h-64 rounded-md border bg-muted/20">
                 <pre className="whitespace-pre-wrap break-words p-3 text-xs">{preview.body}</pre>
               </ScrollArea>
@@ -418,12 +418,12 @@ export function BugReportModal({ open, onOpenChange }: BugReportModalProps) {
         {step === "done" && (
           <div className="space-y-4 py-6 text-center">
             <CheckCircle2 className="mx-auto h-10 w-10 text-green-500" />
-            <p className="text-sm">Thanks! Your report was submitted.</p>
+            <p className="text-sm">{t("bugReport.submitted")}</p>
             {issueUrl && (
               <Button asChild variant="outline" className="gap-2">
                 <a href={issueUrl} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-4 w-4" />
-                  View issue
+                  {t("bugReport.viewIssue")}
                 </a>
               </Button>
             )}
@@ -434,27 +434,27 @@ export function BugReportModal({ open, onOpenChange }: BugReportModalProps) {
           {step === "form" && (
             <>
               <Button variant="ghost" onClick={() => onOpenChange(false)}>
-                Cancel
+                {tc("cancel")}
               </Button>
               <Button onClick={handlePreview} disabled={busy}>
                 {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Review report
+                {t("bugReport.review")}
               </Button>
             </>
           )}
           {step === "preview" && (
             <>
               <Button variant="ghost" onClick={() => setStep("form")} disabled={busy}>
-                Back
+                {t("bugReport.back")}
               </Button>
               <Button onClick={handleSubmit} disabled={busy}>
                 {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Submit to GitHub
+                {t("bugReport.submit")}
               </Button>
             </>
           )}
           {step === "done" && (
-            <Button onClick={() => onOpenChange(false)}>Close</Button>
+            <Button onClick={() => onOpenChange(false)}>{tc("close")}</Button>
           )}
         </DialogFooter>
       </DialogContent>

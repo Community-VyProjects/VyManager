@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +48,8 @@ export function BackupRestoreModal({
   onRestored,
   defaultTab = "backup",
 }: BackupRestoreModalProps) {
+  const t = useTranslations("backupBugReport");
+  const tc = useTranslations("common");
   const appliance = useSessionStore((s) => s.appliance);
   const [tab, setTab] = useState<"backup" | "restore">(defaultTab);
 
@@ -89,11 +92,11 @@ export function BackupRestoreModal({
   // -- Backup --
   const handleBackup = async () => {
     if (backupPass.length < 8) {
-      setBackupError("Passphrase must be at least 8 characters");
+      setBackupError(t("backup.passTooShort"));
       return;
     }
     if (backupPass !== backupConfirm) {
-      setBackupError("Passphrases do not match");
+      setBackupError(t("backup.passMismatch"));
       return;
     }
     setBackupLoading(true);
@@ -102,7 +105,7 @@ export function BackupRestoreModal({
       await sessionService.backup(backupPass);
       handleClose(false);
     } catch (err) {
-      setBackupError(err instanceof Error ? err.message : "Backup failed");
+      setBackupError(err instanceof Error ? err.message : t("backup.failed"));
     } finally {
       setBackupLoading(false);
     }
@@ -119,7 +122,7 @@ export function BackupRestoreModal({
 
   const handlePreview = async () => {
     if (!file || !restorePass) {
-      setRestoreError("Select a backup file and enter its passphrase");
+      setRestoreError(t("restore.fileAndPassRequired"));
       return;
     }
     setPreviewLoading(true);
@@ -128,7 +131,7 @@ export function BackupRestoreModal({
     try {
       setPreview(await sessionService.previewBackup(file, restorePass));
     } catch (err) {
-      setRestoreError(err instanceof Error ? err.message : "Could not read backup");
+      setRestoreError(err instanceof Error ? err.message : t("restore.readFailed"));
     } finally {
       setPreviewLoading(false);
     }
@@ -143,7 +146,7 @@ export function BackupRestoreModal({
       setSummary(result);
       onRestored?.();
     } catch (err) {
-      setRestoreError(err instanceof Error ? err.message : "Restore failed");
+      setRestoreError(err instanceof Error ? err.message : t("restore.failed"));
     } finally {
       setRestoreLoading(false);
     }
@@ -156,47 +159,45 @@ export function BackupRestoreModal({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
-          <DialogTitle>Backup &amp; Restore</DialogTitle>
+          <DialogTitle>{t("backup.title")}</DialogTitle>
         </DialogHeader>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as "backup" | "restore")}>
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="backup">Backup</TabsTrigger>
-            <TabsTrigger value="restore">Restore</TabsTrigger>
+            <TabsTrigger value="backup">{t("backup.tab")}</TabsTrigger>
+            <TabsTrigger value="restore">{t("restore.tab")}</TabsTrigger>
           </TabsList>
 
           {/* ------------------------------ BACKUP ------------------------------ */}
           <TabsContent value="backup" className="space-y-4 py-4">
             <div className="rounded-lg bg-muted/50 border border-border p-4 text-sm text-muted-foreground">
-              Downloads an encrypted file containing your entire VyManager setup:
-              user accounts, sites, instances (including API keys and SSH keys),
-              RBAC grants, and OIDC providers.
+              {t("backup.intro")}
             </div>
 
             <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-3">
               <div className="flex items-start gap-3">
                 <ShieldAlert className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                 <p className="text-xs text-yellow-700 dark:text-yellow-400">
-                  This file contains <strong>secrets</strong>. It is encrypted with
-                  the passphrase below &mdash; store both safely. The passphrase
-                  cannot be recovered if lost.
+                  {t.rich("backup.secretsWarning", {
+                    strong: (chunks) => <strong>{chunks}</strong>,
+                  })}
                 </p>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="backup-pass">Passphrase</Label>
+              <Label htmlFor="backup-pass">{t("backup.passphrase")}</Label>
               <Input
                 id="backup-pass"
                 type="password"
                 value={backupPass}
                 onChange={(e) => setBackupPass(e.target.value)}
-                placeholder="At least 8 characters"
+                placeholder={t("backup.passPlaceholder")}
                 disabled={backupLoading}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="backup-confirm">Confirm passphrase</Label>
+              <Label htmlFor="backup-confirm">{t("backup.confirmPassphrase")}</Label>
               <Input
                 id="backup-confirm"
                 type="password"
@@ -210,18 +211,18 @@ export function BackupRestoreModal({
 
             <DialogFooter>
               <Button variant="outline" onClick={() => handleClose(false)} disabled={backupLoading}>
-                Cancel
+                {tc("cancel")}
               </Button>
               <Button onClick={handleBackup} disabled={backupLoading}>
                 {backupLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Preparing...
+                    {t("backup.preparing")}
                   </>
                 ) : (
                   <>
                     <Download className="mr-2 h-4 w-4" />
-                    Download backup
+                    {t("backup.download")}
                   </>
                 )}
               </Button>
@@ -236,13 +237,11 @@ export function BackupRestoreModal({
               <>
                 {appliance && (
                   <div className="rounded-lg bg-muted/50 border border-border p-3 text-sm text-muted-foreground">
-                    This device only restores a backup of this router. A backup
-                    with other sites or instances is refused for both merge and
-                    replace.
+                    {t("restore.applianceNotice")}
                   </div>
                 )}
                 <div className="space-y-2">
-                  <Label htmlFor="restore-file">Backup file</Label>
+                  <Label htmlFor="restore-file">{t("restore.file")}</Label>
                   <Input
                     id="restore-file"
                     type="file"
@@ -259,7 +258,7 @@ export function BackupRestoreModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="restore-pass">Passphrase</Label>
+                  <Label htmlFor="restore-pass">{t("backup.passphrase")}</Label>
                   <Input
                     id="restore-pass"
                     type="password"
@@ -273,7 +272,7 @@ export function BackupRestoreModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Restore mode</Label>
+                  <Label>{t("restore.mode")}</Label>
                   <RadioGroup
                     value={mode}
                     onValueChange={(v) => setMode(v as RestoreMode)}
@@ -282,10 +281,9 @@ export function BackupRestoreModal({
                     <label className="flex items-start gap-3 rounded-lg border border-border p-3 cursor-pointer">
                       <RadioGroupItem value="merge" id="mode-merge" className="mt-0.5" />
                       <div>
-                        <p className="text-sm font-medium">Merge</p>
+                        <p className="text-sm font-medium">{t("restore.merge")}</p>
                         <p className="text-xs text-muted-foreground">
-                          Add missing records and update existing ones. Nothing is
-                          deleted.
+                          {t("restore.mergeHint")}
                         </p>
                       </div>
                     </label>
@@ -293,12 +291,10 @@ export function BackupRestoreModal({
                       <RadioGroupItem value="replace" id="mode-replace" className="mt-0.5" />
                       <div>
                         <p className="text-sm font-medium text-destructive">
-                          Replace (destructive)
+                          {t("restore.replace")}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Wipe all current VyManager data and restore the backup
-                          exactly. You will be signed out and must log in with a
-                          restored account.
+                          {t("restore.replaceHint")}
                         </p>
                       </div>
                     </label>
@@ -308,22 +304,23 @@ export function BackupRestoreModal({
                 {preview && (
                   <div className="rounded-lg bg-muted/50 border border-border p-3 space-y-1 text-xs text-muted-foreground">
                     <p className="text-sm font-medium text-foreground">
-                      {totalRecords(preview.counts)} records in this backup
+                      {t("restore.recordCount", { count: totalRecords(preview.counts) })}
                     </p>
                     {preview.created_at && (
-                      <p>Created: {new Date(preview.created_at).toLocaleString()}</p>
+                      <p>{t("restore.created", { date: new Date(preview.created_at).toLocaleString() })}</p>
                     )}
                     <p>
-                      Users: {preview.counts.users ?? 0} &middot; Sites:{" "}
-                      {preview.counts.sites ?? 0} &middot; Instances:{" "}
-                      {preview.counts.instances ?? 0} &middot; OIDC providers:{" "}
-                      {preview.counts.oauth_providers ?? 0}
+                      {t("restore.counts", {
+                        users: preview.counts.users ?? 0,
+                        sites: preview.counts.sites ?? 0,
+                        instances: preview.counts.instances ?? 0,
+                        providers: preview.counts.oauth_providers ?? 0,
+                      })}
                     </p>
                     {!preview.ssh_keys_decryptable && (
                       <p className="flex items-start gap-1.5 text-yellow-600 dark:text-yellow-400 pt-1">
                         <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
-                        Encrypted SSH keys were created on a different host and
-                        cannot be restored here; re-run SSH key setup per instance.
+                        {t("restore.sshKeysWarning")}
                       </p>
                     )}
                   </div>
@@ -333,7 +330,7 @@ export function BackupRestoreModal({
 
                 <DialogFooter>
                   <Button variant="outline" onClick={() => handleClose(false)} disabled={restoreLoading}>
-                    Cancel
+                    {tc("cancel")}
                   </Button>
                   {preview ? (
                     <Button
@@ -344,12 +341,12 @@ export function BackupRestoreModal({
                       {restoreLoading ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Restoring...
+                          {t("restore.restoring")}
                         </>
                       ) : (
                         <>
                           <Upload className="mr-2 h-4 w-4" />
-                          {mode === "replace" ? "Wipe & restore" : "Restore"}
+                          {mode === "replace" ? t("restore.wipeAndRestore") : t("restore.tab")}
                         </>
                       )}
                     </Button>
@@ -358,10 +355,10 @@ export function BackupRestoreModal({
                       {previewLoading ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Reading...
+                          {t("restore.reading")}
                         </>
                       ) : (
-                        "Review backup"
+                        t("restore.review")
                       )}
                     </Button>
                   )}
@@ -387,6 +384,7 @@ function ErrorBox({ message }: { message: string }) {
 }
 
 function RestoreResult({ summary }: { summary: RestoreSummary }) {
+  const t = useTranslations("backupBugReport");
   const sum = (r: Record<string, number>) =>
     Object.values(r).reduce((a, b) => a + b, 0);
   return (
@@ -396,13 +394,15 @@ function RestoreResult({ summary }: { summary: RestoreSummary }) {
           <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-green-700 dark:text-green-400">
-              Restore completed ({summary.mode} mode)
+              {t("result.completed", {
+                mode: summary.mode === "replace" ? t("result.modeReplace") : t("result.modeMerge"),
+              })}
             </p>
             <ul className="text-sm text-muted-foreground mt-2 space-y-1">
-              <li>Records added: {sum(summary.inserted)}</li>
-              <li>Records updated: {sum(summary.updated)}</li>
+              <li>{t("result.added", { count: sum(summary.inserted) })}</li>
+              <li>{t("result.updated", { count: sum(summary.updated) })}</li>
               {sum(summary.skipped) > 0 && (
-                <li>Records skipped: {sum(summary.skipped)}</li>
+                <li>{t("result.skipped", { count: sum(summary.skipped) })}</li>
               )}
             </ul>
           </div>
