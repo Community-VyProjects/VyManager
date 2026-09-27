@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   InstanceUpdateStatus,
   SiteUpdatesSummary,
@@ -18,7 +19,9 @@ import {
 export function useSiteUpdates(siteId: string | null) {
   const [summary, setSummary] = useState<SiteUpdatesSummary | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const t = useTranslations("miscLib");
+  // Backend message as-is, or `{ key }` for the built-in fallback translated on render.
+  const [error, setError] = useState<string | { key: "checkFailed" } | null>(null);
 
   const load = useCallback(
     async (refresh: boolean) => {
@@ -28,7 +31,7 @@ export function useSiteUpdates(siteId: string | null) {
       try {
         setSummary(await systemUpdatesService.getSiteUpdates(siteId, refresh));
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to check for updates");
+        setError(e instanceof Error ? e.message : { key: "checkFailed" });
       } finally {
         setLoading(false);
       }
@@ -50,5 +53,11 @@ export function useSiteUpdates(siteId: string | null) {
 
   const refresh = useCallback(() => load(true), [load]);
 
-  return { summary, loading, error, refresh, statusById };
+  return {
+    summary,
+    loading,
+    error: error !== null && typeof error === "object" ? t(`siteUpdates.${error.key}`) : error,
+    refresh,
+    statusById,
+  };
 }

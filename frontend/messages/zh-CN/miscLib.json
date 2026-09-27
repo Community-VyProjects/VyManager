@@ -1,1 +1,25 @@
-{}
+{
+  "twoFactor": {
+    "loginFailed": "登录失败"
+  },
+  "session": {
+    "connectRouterFailed": "无法连接到此路由器",
+    "loadFailed": "加载会话失败",
+    "connectInstanceFailed": "连接实例失败",
+    "disconnectFailed": "断开连接失败"
+  },
+  "monitoring": {
+    "unknownError": "未知错误",
+    "sessionEnded": "会话已结束",
+    "connectionError": "WebSocket 连接错误"
+  },
+  "console": {
+    "connectionFailed": "WebSocket 连接失败"
+  },
+  "siteUpdates": {
+    "checkFailed": "检查更新失败"
+  },
+  "permissions": {
+    "fetchFailed": "获取权限失败"
+  }
+}

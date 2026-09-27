@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useSessionStore } from "@/store/session-store";
 import { userManagementService, FeatureGroup, PermissionLevel } from "@/lib/api/user-management";
 import { ApiError } from "@/lib/types/api";
@@ -10,7 +11,8 @@ interface PermissionsState {
   hasActiveSession: boolean;
   instanceId?: string;
   isLoading: boolean;
-  error: string | null;
+  // Backend message as-is, or `{ key }` for the built-in fallback translated on render.
+  error: string | { key: "fetchFailed" } | null;
 }
 
 /**
@@ -31,6 +33,7 @@ interface PermissionsState {
  * }
  */
 export function usePermissions() {
+  const t = useTranslations("miscLib");
   const { activeSession } = useSessionStore();
   const [state, setState] = useState<PermissionsState>({
     permissions: {},
@@ -57,7 +60,7 @@ export function usePermissions() {
         setState((prev) => ({
           ...prev,
           isLoading: false,
-          error: (error as ApiError).message || "Failed to fetch permissions",
+          error: (error as ApiError).message || { key: "fetchFailed" },
         }));
       }
     };
@@ -118,7 +121,10 @@ export function usePermissions() {
     hasActiveSession: state.hasActiveSession,
     instanceId: state.instanceId,
     isLoading: state.isLoading,
-    error: state.error,
+    error:
+      state.error !== null && typeof state.error === "object"
+        ? t(`permissions.${state.error.key}`)
+        : state.error,
     hasPermission,
     canRead,
     canWrite,
