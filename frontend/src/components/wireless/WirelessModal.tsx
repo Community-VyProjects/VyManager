@@ -25,6 +25,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Eye, EyeOff, Loader2, Plus, Trash2, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { wirelessService, type WirelessInterface, type WirelessCapabilitiesResponse, type WpaRadiusServer } from "@/lib/api/wireless";
 import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
 
@@ -96,23 +97,24 @@ function BadgeArray({ values, onAdd, onRemove, placeholder }: { values: string[]
 }
 
 function RadiusServerRow({ server, onChange, onRemove }: { server: WpaRadiusServer; onChange: (s: WpaRadiusServer) => void; onRemove: () => void }) {
+  const t = useTranslations("wireless");
   const [showKey, setShowKey] = useState(false);
   return (
     <div className="border rounded-md p-3 space-y-2 bg-muted/30">
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1">
-          <Label className="text-xs">Server IP</Label>
+          <Label className="text-xs">{t("radius.serverIp")}</Label>
           <Input value={server.server} onChange={(e) => onChange({ ...server, server: e.target.value })} placeholder="192.168.1.1" className="h-7 text-xs" />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Port</Label>
+          <Label className="text-xs">{t("radius.port")}</Label>
           <Input value={server.port ?? ""} onChange={(e) => onChange({ ...server, port: e.target.value || null })} placeholder="1812" className="h-7 text-xs" />
         </div>
       </div>
       <div className="space-y-1">
-        <Label className="text-xs">Shared Secret</Label>
+        <Label className="text-xs">{t("radius.sharedSecret")}</Label>
         <div className="flex gap-1">
-          <Input type={showKey ? "text" : "password"} value={server.key ?? ""} onChange={(e) => onChange({ ...server, key: e.target.value || null })} placeholder="secret" className="h-7 text-xs" />
+          <Input type={showKey ? "text" : "password"} value={server.key ?? ""} onChange={(e) => onChange({ ...server, key: e.target.value || null })} placeholder={t("radius.secretPlaceholder")} className="h-7 text-xs" />
           <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowKey(!showKey)}>
             {showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
           </Button>
@@ -122,11 +124,11 @@ function RadiusServerRow({ server, onChange, onRemove }: { server: WpaRadiusServ
         <div className="flex items-center gap-4">
           <label className="flex items-center gap-1.5 text-xs cursor-pointer">
             <Checkbox checked={server.accounting} onCheckedChange={(v) => onChange({ ...server, accounting: !!v })} className="h-3.5 w-3.5" />
-            Accounting
+            {t("radius.accounting")}
           </label>
           <label className="flex items-center gap-1.5 text-xs cursor-pointer">
             <Checkbox checked={server.disable} onCheckedChange={(v) => onChange({ ...server, disable: !!v })} className="h-3.5 w-3.5" />
-            Disable
+            {t("radius.disable")}
           </label>
         </div>
         <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={onRemove}>
@@ -138,6 +140,8 @@ function RadiusServerRow({ server, onChange, onRemove }: { server: WpaRadiusServ
 }
 
 export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, existingInterfaces, existing }: WirelessModalProps) {
+  const t = useTranslations("wireless");
+  const tc = useTranslations("common");
   const hasBssid = capabilities?.features?.bssid?.supported === true;
   const hasCountryCode = capabilities?.features?.country_code?.supported === true;
   const isEdit = modalIsEdit(existing);
@@ -595,7 +599,7 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
   const handleSubmit = async () => {
     const write = modalWriteKind(existing);
     if (write.kind === "create" && !name.trim()) {
-      setError("Interface name is required");
+      setError(t("errors.nameRequired"));
       return;
     }
 
@@ -608,14 +612,14 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
           : await submitCreate();
 
       if (!result.success) {
-        setError(result.error ?? (isEdit ? "Update failed" : "Create failed"));
+        setError(result.error ?? (isEdit ? t("errors.updateFailed") : t("errors.createFailed")));
         return;
       }
       onOpenChange(false);
       if (!isEdit) resetForm();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : isEdit ? "Update failed" : "Create failed");
+      setError(err instanceof Error ? err.message : isEdit ? t("errors.updateFailed") : t("errors.createFailed"));
     } finally {
       setLoading(false);
     }
@@ -626,31 +630,31 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? <>Edit Wireless Interface — <code className="font-mono">{existing.name}</code></> : "Create Wireless Interface"}
+            {isEdit ? t.rich("editTitle", { name: existing.name, code: (chunks) => <code className="font-mono">{chunks}</code> }) : t("createTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Modify the configuration of this wireless interface."
-              : "Configure a new wireless (WiFi) interface on the router."}
+              ? t("editDescription")
+              : t("createDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-1">
           <Tabs defaultValue="basic">
             <TabsList className="grid w-full grid-cols-6 mb-4">
-              <TabsTrigger value="basic" className="text-xs px-1">Basic</TabsTrigger>
+              <TabsTrigger value="basic" className="text-xs px-1">{t("tabs.basic")}</TabsTrigger>
               <TabsTrigger value="ap" className="text-xs px-1">AP</TabsTrigger>
-              <TabsTrigger value="security" className="text-xs px-1">Security</TabsTrigger>
-              <TabsTrigger value="capabilities" className="text-xs px-1">Capabilities</TabsTrigger>
-              <TabsTrigger value="addresses" className="text-xs px-1">Addresses</TabsTrigger>
-              <TabsTrigger value="advanced" className="text-xs px-1">Advanced</TabsTrigger>
+              <TabsTrigger value="security" className="text-xs px-1">{t("tabs.security")}</TabsTrigger>
+              <TabsTrigger value="capabilities" className="text-xs px-1">{t("tabs.capabilities")}</TabsTrigger>
+              <TabsTrigger value="addresses" className="text-xs px-1">{t("tabs.addresses")}</TabsTrigger>
+              <TabsTrigger value="advanced" className="text-xs px-1">{t("tabs.advanced")}</TabsTrigger>
             </TabsList>
 
             {/* ── Basic ── */}
             <TabsContent value="basic" className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label>Interface Name {!isEdit && <span className="text-destructive">*</span>}</Label>
+                  <Label>{t("basic.interfaceName")} {!isEdit && <span className="text-destructive">*</span>}</Label>
                   <Input
                     value={lockedName.value}
                     onChange={(e) => setName(e.target.value)}
@@ -659,24 +663,24 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
                     disabled={lockedName.disabled}
                   />
                   {lockedName.disabled && (
-                    <p className="text-xs text-muted-foreground">Interface name cannot be changed.</p>
+                    <p className="text-xs text-muted-foreground">{t("basic.nameLocked")}</p>
                   )}
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Wireless Type</Label>
+                  <Label>{t("basic.wirelessType")}</Label>
                   <Select value={wirelessType} onValueChange={setWirelessType}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="access-point">Access Point</SelectItem>
-                      <SelectItem value="station">Station (Client)</SelectItem>
-                      <SelectItem value="monitor">Monitor</SelectItem>
+                      <SelectItem value="access-point">{t("basic.accessPoint")}</SelectItem>
+                      <SelectItem value="station">{t("basic.station")}</SelectItem>
+                      <SelectItem value="monitor">{t("basic.monitor")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Radio Mode</Label>
+                  <Label>{t("basic.radioMode")}</Label>
                   <Select value={radioMode} onValueChange={setRadioMode}>
-                    <SelectTrigger><SelectValue placeholder="Select mode" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={t("basic.selectMode")} /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="a">a (5 GHz, 802.11a)</SelectItem>
                       <SelectItem value="b">b (2.4 GHz, 802.11b)</SelectItem>
@@ -692,60 +696,60 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
                   <Input value={ssid} onChange={(e) => setSsid(e.target.value)} placeholder="MyNetwork" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Channel</Label>
-                  <Input value={channel} onChange={(e) => setChannel(e.target.value)} placeholder="0 = ACS (auto)" />
-                  <p className="text-xs text-muted-foreground">0 = automatic channel selection</p>
+                  <Label>{t("basic.channel")}</Label>
+                  <Input value={channel} onChange={(e) => setChannel(e.target.value)} placeholder={t("basic.channelPlaceholder")} />
+                  <p className="text-xs text-muted-foreground">{t("basic.channelHelp")}</p>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Physical Device</Label>
+                  <Label>{t("basic.physicalDevice")}</Label>
                   <Input value={physicalDevice} onChange={(e) => setPhysicalDevice(e.target.value)} placeholder="phy0" className="font-mono" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Hardware ID (MAC)</Label>
+                  <Label>{t("basic.hardwareId")}</Label>
                   <Input value={hwId} onChange={(e) => setHwId(e.target.value)} placeholder="aa:bb:cc:dd:ee:ff" className="font-mono" />
-                  <p className="text-xs text-muted-foreground">Physical radio MAC address identifier</p>
+                  <p className="text-xs text-muted-foreground">{t("basic.hardwareIdHelp")}</p>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>MAC Override</Label>
+                  <Label>{t("basic.macOverride")}</Label>
                   <Input value={mac} onChange={(e) => setMac(e.target.value)} placeholder="aa:bb:cc:dd:ee:ff" className="font-mono" />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label>Description</Label>
-                <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description" />
+                <Label>{tc("description")}</Label>
+                <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("basic.descriptionPlaceholder")} />
               </div>
               {hasBssid && (
                 <div className="space-y-1.5">
                   <Label>BSSID</Label>
                   <Input value={bssid} onChange={(e) => setBssid(e.target.value)} placeholder="aa:bb:cc:dd:ee:ff" className="font-mono" />
-                  <p className="text-xs text-muted-foreground">Target AP BSSID for station mode</p>
+                  <p className="text-xs text-muted-foreground">{t("basic.bssidHelp")}</p>
                 </div>
               )}
               {hasCountryCode && (
                 <div className="space-y-1.5">
-                  <Label>Country Code</Label>
+                  <Label>{t("basic.countryCode")}</Label>
                   <Input value={countryCode} onChange={(e) => setCountryCode(e.target.value.toUpperCase())} placeholder="US" maxLength={2} className="w-24 font-mono uppercase" />
-                  <p className="text-xs text-muted-foreground">ISO 3166-1 alpha-2 country code for regulatory compliance</p>
+                  <p className="text-xs text-muted-foreground">{t("basic.countryCodeHelp")}</p>
                 </div>
               )}
               <div className="flex items-center gap-2">
                 <Checkbox id="disable-create" checked={disable} onCheckedChange={(v) => setDisable(!!v)} />
-                <label htmlFor="disable-create" className="text-sm cursor-pointer">Administratively disable this interface</label>
+                <label htmlFor="disable-create" className="text-sm cursor-pointer">{t("basic.disableInterface")}</label>
               </div>
             </TabsContent>
 
             {/* ── AP Settings ── */}
             <TabsContent value="ap" className="space-y-4">
-              <p className="text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">Most of these settings apply to access-point mode only.</p>
+              <p className="text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">{t("ap.note")}</p>
               <div className="grid grid-cols-2 gap-x-8 gap-y-3">
                 {[
-                  { id: "dbs", label: "Disable Broadcast SSID", val: disableBroadcastSsid, set: setDisableBroadcastSsid },
-                  { id: "efs", label: "Expunge Failing Stations", val: expungeFailingStations, set: setExpungeFailingStations },
-                  { id: "iso", label: "Isolate Stations", val: isolateStations, set: setIsolateStations },
-                  { id: "pct", label: "Per-Client Thread", val: perClientThread, set: setPerClientThread },
-                  { id: "rtp", label: "Reduce Transmit Power", val: reduceTransmitPower, set: setReduceTransmitPower },
-                  { id: "sap", label: "Stationary AP", val: stationaryAp, set: setStationaryAp },
-                  { id: "ebp", label: "Enable Beacon Frame Protection", val: enableBfProtection, set: setEnableBfProtection },
+                  { id: "dbs", label: t("ap.disableBroadcastSsid"), val: disableBroadcastSsid, set: setDisableBroadcastSsid },
+                  { id: "efs", label: t("ap.expungeFailingStations"), val: expungeFailingStations, set: setExpungeFailingStations },
+                  { id: "iso", label: t("ap.isolateStations"), val: isolateStations, set: setIsolateStations },
+                  { id: "pct", label: t("ap.perClientThread"), val: perClientThread, set: setPerClientThread },
+                  { id: "rtp", label: t("ap.reduceTransmitPower"), val: reduceTransmitPower, set: setReduceTransmitPower },
+                  { id: "sap", label: t("ap.stationaryAp"), val: stationaryAp, set: setStationaryAp },
+                  { id: "ebp", label: t("ap.enableBfProtection"), val: enableBfProtection, set: setEnableBfProtection },
                 ].map(({ id, label, val, set }) => (
                   <label key={id} className="flex items-center gap-2 cursor-pointer">
                     <Checkbox id={id} checked={val} onCheckedChange={(v) => set(!!v)} />
@@ -755,17 +759,17 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label>Max Stations</Label>
-                  <Input type="number" value={maxStations} onChange={(e) => setMaxStations(e.target.value)} placeholder="e.g. 50" min={0} max={2007} />
+                  <Label>{t("ap.maxStations")}</Label>
+                  <Input type="number" value={maxStations} onChange={(e) => setMaxStations(e.target.value)} placeholder={t("ap.maxStationsPlaceholder")} min={0} max={2007} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Management Frame Protection</Label>
+                  <Label>{t("ap.mgmtFrameProtection")}</Label>
                   <Select value={mgmtFrameProtection} onValueChange={setMgmtFrameProtection}>
-                    <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={t("ap.select")} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="disabled">Disabled</SelectItem>
-                      <SelectItem value="optional">Optional</SelectItem>
-                      <SelectItem value="required">Required</SelectItem>
+                      <SelectItem value="disabled">{tc("disabled")}</SelectItem>
+                      <SelectItem value="optional">{tc("optional")}</SelectItem>
+                      <SelectItem value="required">{t("ap.required")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -779,9 +783,9 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
                 <h4 className="text-sm font-semibold">WPA / WPA2 / WPA3</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <Label>WPA Mode</Label>
+                    <Label>{t("security.wpaMode")}</Label>
                     <Select value={wpaMode} onValueChange={setWpaMode}>
-                      <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="wpa">WPA</SelectItem>
                         <SelectItem value="wpa2">WPA2</SelectItem>
@@ -791,9 +795,9 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Passphrase</Label>
+                    <Label>{t("security.passphrase")}</Label>
                     <div className="flex gap-1">
-                      <Input type={showPassphrase ? "text" : "password"} value={wpaPassphrase} onChange={(e) => setWpaPassphrase(e.target.value)} placeholder="8-63 characters" />
+                      <Input type={showPassphrase ? "text" : "password"} value={wpaPassphrase} onChange={(e) => setWpaPassphrase(e.target.value)} placeholder={t("security.passphrasePlaceholder")} />
                       <Button type="button" variant="ghost" size="icon" onClick={() => setShowPassphrase(!showPassphrase)}>
                         {showPassphrase ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </Button>
@@ -801,23 +805,23 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Ciphers</Label>
+                  <Label>{t("security.ciphers")}</Label>
                   <TagToggle options={WPA_CIPHERS} selected={wpaCiphers} onChange={setWpaCiphers} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <Label>Group Cipher</Label>
+                    <Label>{t("security.groupCipher")}</Label>
                     <Select value={wpaGroupCipher} onValueChange={setWpaGroupCipher}>
-                      <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
                       <SelectContent>
                         {WPA_CIPHERS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Group Management Cipher</Label>
+                    <Label>{t("security.groupMgmtCipher")}</Label>
                     <Select value={wpaGroupMgmtCipher} onValueChange={setWpaGroupMgmtCipher}>
-                      <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="AES-128-CMAC">AES-128-CMAC</SelectItem>
                         <SelectItem value="BIP-CMAC-256">BIP-CMAC-256</SelectItem>
@@ -828,14 +832,14 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>RADIUS Source Address</Label>
+                  <Label>{t("security.radiusSourceAddress")}</Label>
                   <Input value={wpaRadiusSource} onChange={(e) => setWpaRadiusSource(e.target.value)} placeholder="192.168.1.1" className="font-mono" />
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label>RADIUS Servers</Label>
+                    <Label>{t("security.radiusServers")}</Label>
                     <Button type="button" variant="outline" size="sm" className="h-7 gap-1" onClick={() => setWpaRadiusServers([...wpaRadiusServers, { server: "", key: null, port: null, accounting: false, disable: false }])}>
-                      <Plus className="h-3.5 w-3.5" /> Add Server
+                      <Plus className="h-3.5 w-3.5" /> {t("security.addServer")}
                     </Button>
                   </div>
                   {wpaRadiusServers.map((srv, i) => (
@@ -848,10 +852,10 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
 
               {/* WEP */}
               <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-amber-600">WEP (Legacy)</h4>
+                <h4 className="text-sm font-semibold text-amber-600">{t("security.wepLegacy")}</h4>
                 <div className="space-y-1.5">
-                  <Label>WEP Keys</Label>
-                  <BadgeArray values={wepKeys} onAdd={(v) => setWepKeys([...wepKeys, v])} onRemove={(v) => setWepKeys(wepKeys.filter((k) => k !== v))} placeholder="Add WEP key…" />
+                  <Label>{t("security.wepKeys")}</Label>
+                  <BadgeArray values={wepKeys} onAdd={(v) => setWepKeys([...wepKeys, v])} onRemove={(v) => setWepKeys(wepKeys.filter((k) => k !== v))} placeholder={t("security.addWepKey")} />
                 </div>
               </div>
 
@@ -859,23 +863,23 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
 
               {/* Station Address Filter */}
               <div className="space-y-3">
-                <h4 className="text-sm font-semibold">Station Address Filter</h4>
+                <h4 className="text-sm font-semibold">{t("security.stationFilter")}</h4>
                 <div className="space-y-1.5">
-                  <Label>Mode</Label>
+                  <Label>{t("security.mode")}</Label>
                   <Select value={stationAddressMode} onValueChange={setStationAddressMode}>
-                    <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="accept">Accept (allowlist)</SelectItem>
-                      <SelectItem value="deny">Deny (blocklist)</SelectItem>
+                      <SelectItem value="accept">{t("security.accept")}</SelectItem>
+                      <SelectItem value="deny">{t("security.deny")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Accept MAC Addresses</Label>
+                  <Label>{t("security.acceptMacs")}</Label>
                   <BadgeArray values={acceptMacs} onAdd={(v) => setAcceptMacs([...acceptMacs, v])} onRemove={(v) => setAcceptMacs(acceptMacs.filter((m) => m !== v))} placeholder="aa:bb:cc:dd:ee:ff" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Deny MAC Addresses</Label>
+                  <Label>{t("security.denyMacs")}</Label>
                   <BadgeArray values={denyMacs} onAdd={(v) => setDenyMacs([...denyMacs, v])} onRemove={(v) => setDenyMacs(denyMacs.filter((m) => m !== v))} placeholder="aa:bb:cc:dd:ee:ff" />
                 </div>
               </div>
@@ -887,53 +891,53 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
               <div className="space-y-3">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <Checkbox checked={htEnabled} onCheckedChange={(v) => setHtEnabled(!!v)} />
-                  <span className="text-sm font-semibold">HT (802.11n) Capabilities</span>
+                  <span className="text-sm font-semibold">{t("capabilities.htTitle")}</span>
                 </label>
                 {htEnabled && (
                   <div className="pl-6 space-y-3 border-l-2 border-muted">
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Channel Set Width</Label>
+                      <Label className="text-xs">{t("capabilities.channelSetWidth")}</Label>
                       <TagToggle options={["ht20", "ht40+", "ht40-"]} selected={htChannelSetWidth} onChange={setHtChannelSetWidth} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Short GI</Label>
+                      <Label className="text-xs">{t("capabilities.shortGi")}</Label>
                       <TagToggle options={["20", "40"]} selected={htShortGi} onChange={setHtShortGi} />
                     </div>
                     <div className="grid grid-cols-3 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">SMPS</Label>
                         <Select value={htSmps} onValueChange={setHtSmps}>
-                          <SelectTrigger className="h-8"><SelectValue placeholder="None" /></SelectTrigger>
+                          <SelectTrigger className="h-8"><SelectValue placeholder={tc("none")} /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="static">Static</SelectItem>
-                            <SelectItem value="dynamic">Dynamic</SelectItem>
+                            <SelectItem value="static">{t("capabilities.static")}</SelectItem>
+                            <SelectItem value="dynamic">{t("capabilities.dynamic")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Max A-MSDU</Label>
+                        <Label className="text-xs">{t("capabilities.maxAmsdu")}</Label>
                         <Select value={htMaxAmsdu} onValueChange={setHtMaxAmsdu}>
-                          <SelectTrigger className="h-8"><SelectValue placeholder="None" /></SelectTrigger>
+                          <SelectTrigger className="h-8"><SelectValue placeholder={tc("none")} /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="3839">3839 bytes</SelectItem>
-                            <SelectItem value="7935">7935 bytes</SelectItem>
+                            <SelectItem value="3839">{t("capabilities.bytes", { value: "3839" })}</SelectItem>
+                            <SelectItem value="7935">{t("capabilities.bytes", { value: "7935" })}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">STBC RX Streams</Label>
+                        <Label className="text-xs">{t("capabilities.stbcRxStreams")}</Label>
                         <Input type="number" value={htStbcRx} onChange={(e) => setHtStbcRx(e.target.value)} className="h-8" min={1} max={3} />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       {[
-                        { id: "ht-40inc", label: "40MHz Incapable", val: ht40MhzIncapable, set: setHt40MhzIncapable },
-                        { id: "ht-aps", label: "Auto Powersave", val: htAutoPowersave, set: setHtAutoPowersave },
-                        { id: "ht-dba", label: "Delayed Block ACK", val: htDelayedBlockAck, set: setHtDelayedBlockAck },
+                        { id: "ht-40inc", label: t("capabilities.fortyMhzIncapable"), val: ht40MhzIncapable, set: setHt40MhzIncapable },
+                        { id: "ht-aps", label: t("capabilities.autoPowersave"), val: htAutoPowersave, set: setHtAutoPowersave },
+                        { id: "ht-dba", label: t("capabilities.delayedBlockAck"), val: htDelayedBlockAck, set: setHtDelayedBlockAck },
                         { id: "ht-dsscck", label: "DSSS/CCK-40", val: htDssCck40, set: setHtDssCck40 },
-                        { id: "ht-gf", label: "Greenfield", val: htGreenfield, set: setHtGreenfield },
+                        { id: "ht-gf", label: t("capabilities.greenfield"), val: htGreenfield, set: setHtGreenfield },
                         { id: "ht-ldpc", label: "LDPC", val: htLdpc, set: setHtLdpc },
-                        { id: "ht-lsig", label: "L-SIG Protection", val: htLsigProtection, set: setHtLsigProtection },
+                        { id: "ht-lsig", label: t("capabilities.lsigProtection"), val: htLsigProtection, set: setHtLsigProtection },
                         { id: "ht-stbctx", label: "STBC TX", val: htStbcTx, set: setHtStbcTx },
                       ].map(({ id, label, val, set }) => (
                         <label key={id} className="flex items-center gap-2 text-xs cursor-pointer">
@@ -944,7 +948,7 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
                     </div>
                     <label className="flex items-center gap-2 text-xs cursor-pointer font-medium">
                       <Checkbox checked={requireHt} onCheckedChange={(v) => setRequireHt(!!v)} className="h-3.5 w-3.5" />
-                      Require HT (reject non-HT clients)
+                      {t("capabilities.requireHt")}
                     </label>
                   </div>
                 )}
@@ -956,15 +960,15 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
               <div className="space-y-3">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <Checkbox checked={vhtEnabled} onCheckedChange={(v) => setVhtEnabled(!!v)} />
-                  <span className="text-sm font-semibold">VHT (802.11ac) Capabilities</span>
+                  <span className="text-sm font-semibold">{t("capabilities.vhtTitle")}</span>
                 </label>
                 {vhtEnabled && (
                   <div className="pl-6 space-y-3 border-l-2 border-muted">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <Label className="text-xs">Channel Set Width</Label>
+                        <Label className="text-xs">{t("capabilities.channelSetWidth")}</Label>
                         <Select value={vhtChannelSetWidth} onValueChange={setVhtChannelSetWidth}>
-                          <SelectTrigger className="h-8"><SelectValue placeholder="None" /></SelectTrigger>
+                          <SelectTrigger className="h-8"><SelectValue placeholder={tc("none")} /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="0">0 — 20/40 MHz</SelectItem>
                             <SelectItem value="1">1 — 80 MHz</SelectItem>
@@ -974,29 +978,29 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
                         </Select>
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Link Adaptation</Label>
+                        <Label className="text-xs">{t("capabilities.linkAdaptation")}</Label>
                         <Select value={vhtLinkAdaptation} onValueChange={setVhtLinkAdaptation}>
-                          <SelectTrigger className="h-8"><SelectValue placeholder="None" /></SelectTrigger>
+                          <SelectTrigger className="h-8"><SelectValue placeholder={tc("none")} /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="unsolicited">Unsolicited</SelectItem>
-                            <SelectItem value="both">Both</SelectItem>
+                            <SelectItem value="unsolicited">{t("capabilities.unsolicited")}</SelectItem>
+                            <SelectItem value="both">{t("capabilities.both")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Short GI</Label>
+                      <Label className="text-xs">{t("capabilities.shortGi")}</Label>
                       <TagToggle options={["80", "160"]} selected={vhtShortGi} onChange={setVhtShortGi} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Beamform</Label>
+                      <Label className="text-xs">{t("capabilities.beamform")}</Label>
                       <TagToggle options={VHT_BEAMFORM_OPTIONS} selected={vhtBeamform} onChange={setVhtBeamform} />
                     </div>
                     <div className="grid grid-cols-3 gap-3">
                       <div className="space-y-1">
-                        <Label className="text-xs">Max MPDU</Label>
+                        <Label className="text-xs">{t("capabilities.maxMpdu")}</Label>
                         <Select value={vhtMaxMpdu} onValueChange={setVhtMaxMpdu}>
-                          <SelectTrigger className="h-8"><SelectValue placeholder="None" /></SelectTrigger>
+                          <SelectTrigger className="h-8"><SelectValue placeholder={tc("none")} /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="7991">7991</SelectItem>
                             <SelectItem value="11454">11454</SelectItem>
@@ -1004,32 +1008,32 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
                         </Select>
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Max MPDU Exponent</Label>
+                        <Label className="text-xs">{t("capabilities.maxMpduExponent")}</Label>
                         <Input type="number" value={vhtMaxMpduExp} onChange={(e) => setVhtMaxMpduExp(e.target.value)} className="h-8" min={0} max={7} />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Antenna Count</Label>
+                        <Label className="text-xs">{t("capabilities.antennaCount")}</Label>
                         <Input type="number" value={vhtAntennaCount} onChange={(e) => setVhtAntennaCount(e.target.value)} className="h-8" min={1} max={8} />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Center Channel Freq 1</Label>
+                        <Label className="text-xs">{t("capabilities.centerFreq1")}</Label>
                         <Input type="number" value={vhtCenterFreq1} onChange={(e) => setVhtCenterFreq1(e.target.value)} className="h-8" />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Center Channel Freq 2</Label>
+                        <Label className="text-xs">{t("capabilities.centerFreq2")}</Label>
                         <Input type="number" value={vhtCenterFreq2} onChange={(e) => setVhtCenterFreq2(e.target.value)} className="h-8" />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">STBC RX Streams</Label>
+                        <Label className="text-xs">{t("capabilities.stbcRxStreams")}</Label>
                         <Input type="number" value={vhtStbcRx} onChange={(e) => setVhtStbcRx(e.target.value)} className="h-8" min={1} max={4} />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       {[
-                        { id: "vht-apf", label: "Antenna Pattern Fixed", val: vhtAntennaPatternFixed, set: setVhtAntennaPatternFixed },
+                        { id: "vht-apf", label: t("capabilities.antennaPatternFixed"), val: vhtAntennaPatternFixed, set: setVhtAntennaPatternFixed },
                         { id: "vht-ldpc", label: "LDPC", val: vhtLdpc, set: setVhtLdpc },
                         { id: "vht-stbctx", label: "STBC TX", val: vhtStbcTx, set: setVhtStbcTx },
-                        { id: "vht-txps", label: "TX Powersave", val: vhtTxPowersave, set: setVhtTxPowersave },
+                        { id: "vht-txps", label: t("capabilities.txPowersave"), val: vhtTxPowersave, set: setVhtTxPowersave },
                         { id: "vht-cf", label: "VHT-CF", val: vhtCf, set: setVhtCf },
                       ].map(({ id, label, val, set }) => (
                         <label key={id} className="flex items-center gap-2 text-xs cursor-pointer">
@@ -1040,7 +1044,7 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
                     </div>
                     <label className="flex items-center gap-2 text-xs cursor-pointer font-medium">
                       <Checkbox checked={requireVht} onCheckedChange={(v) => setRequireVht(!!v)} className="h-3.5 w-3.5" />
-                      Require VHT (reject non-VHT clients)
+                      {t("capabilities.requireVht")}
                     </label>
                   </div>
                 )}
@@ -1052,19 +1056,19 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
               <div className="space-y-3">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <Checkbox checked={heEnabled} onCheckedChange={(v) => setHeEnabled(!!v)} />
-                  <span className="text-sm font-semibold">HE (802.11ax / WiFi 6) Capabilities</span>
+                  <span className="text-sm font-semibold">{t("capabilities.heTitle")}</span>
                 </label>
                 {heEnabled && (
                   <div className="pl-6 space-y-3 border-l-2 border-muted">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <Label className="text-xs">Channel Set Width</Label>
+                        <Label className="text-xs">{t("capabilities.channelSetWidth")}</Label>
                         <Select value={heChannelSetWidth} onValueChange={setHeChannelSetWidth}>
-                          <SelectTrigger className="h-8"><SelectValue placeholder="None" /></SelectTrigger>
+                          <SelectTrigger className="h-8"><SelectValue placeholder={tc("none")} /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="81">81 — 20 MHz (2.4G)</SelectItem>
-                            <SelectItem value="83">83 — 40 MHz lower (2.4G)</SelectItem>
-                            <SelectItem value="84">84 — 40 MHz upper (2.4G)</SelectItem>
+                            <SelectItem value="83">{t("capabilities.he83")}</SelectItem>
+                            <SelectItem value="84">{t("capabilities.he84")}</SelectItem>
                             <SelectItem value="131">131 — 80 MHz (5G)</SelectItem>
                             <SelectItem value="132">132 — 80 MHz (5G)</SelectItem>
                             <SelectItem value="133">133 — 160 MHz (5G)</SelectItem>
@@ -1074,37 +1078,37 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
                         </Select>
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Coding Scheme</Label>
+                        <Label className="text-xs">{t("capabilities.codingScheme")}</Label>
                         <Select value={heCodingScheme} onValueChange={setHeCodingScheme}>
-                          <SelectTrigger className="h-8"><SelectValue placeholder="None" /></SelectTrigger>
+                          <SelectTrigger className="h-8"><SelectValue placeholder={tc("none")} /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="0">0 — HE-MCS 0-7</SelectItem>
                             <SelectItem value="1">1 — HE-MCS 0-9</SelectItem>
                             <SelectItem value="2">2 — HE-MCS 0-11</SelectItem>
-                            <SelectItem value="3">3 — Not supported</SelectItem>
+                            <SelectItem value="3">{t("capabilities.codingNotSupported")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">BSS Color (1-63)</Label>
+                        <Label className="text-xs">{t("capabilities.bssColor")}</Label>
                         <Input type="number" value={heBssColor} onChange={(e) => setHeBssColor(e.target.value)} className="h-8" min={1} max={63} />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Center Channel Freq 1</Label>
+                        <Label className="text-xs">{t("capabilities.centerFreq1")}</Label>
                         <Input type="number" value={heCenterFreq1} onChange={(e) => setHeCenterFreq1(e.target.value)} className="h-8" />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Center Channel Freq 2</Label>
+                        <Label className="text-xs">{t("capabilities.centerFreq2")}</Label>
                         <Input type="number" value={heCenterFreq2} onChange={(e) => setHeCenterFreq2(e.target.value)} className="h-8" />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-xs">Beamform</Label>
+                      <Label className="text-xs">{t("capabilities.beamform")}</Label>
                       {[
-                        { id: "he-mu", label: "Multi-User Beamformer", val: heBeamformMultiUser, set: setHeBeamformMultiUser },
-                        { id: "he-subee", label: "Single-User Beamformee", val: heBeamformSuBeamformee, set: setHeBeamformSuBeamformee },
-                        { id: "he-suber", label: "Single-User Beamformer", val: heBeamformSuBeamformer, set: setHeBeamformSuBeamformer },
-                        { id: "he-apf", label: "Antenna Pattern Fixed", val: heAntennaPatternFixed, set: setHeAntennaPatternFixed },
+                        { id: "he-mu", label: t("capabilities.multiUserBeamformer"), val: heBeamformMultiUser, set: setHeBeamformMultiUser },
+                        { id: "he-subee", label: t("capabilities.singleUserBeamformee"), val: heBeamformSuBeamformee, set: setHeBeamformSuBeamformee },
+                        { id: "he-suber", label: t("capabilities.singleUserBeamformer"), val: heBeamformSuBeamformer, set: setHeBeamformSuBeamformer },
+                        { id: "he-apf", label: t("capabilities.antennaPatternFixed"), val: heAntennaPatternFixed, set: setHeAntennaPatternFixed },
                       ].map(({ id, label, val, set }) => (
                         <label key={id} className="flex items-center gap-2 text-xs cursor-pointer">
                           <Checkbox checked={val} onCheckedChange={(v) => set(!!v)} className="h-3.5 w-3.5" />
@@ -1114,7 +1118,7 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
                     </div>
                     <label className="flex items-center gap-2 text-xs cursor-pointer font-medium">
                       <Checkbox checked={requireHe} onCheckedChange={(v) => setRequireHe(!!v)} className="h-3.5 w-3.5" />
-                      Require HE (reject non-HE clients)
+                      {t("capabilities.requireHe")}
                     </label>
                   </div>
                 )}
@@ -1124,9 +1128,9 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
             {/* ── Addresses ── */}
             <TabsContent value="addresses" className="space-y-4">
               <div className="space-y-1.5">
-                <Label>IP Addresses</Label>
-                <BadgeArray values={addresses} onAdd={(v) => setAddresses([...addresses, v])} onRemove={(v) => setAddresses(addresses.filter((a) => a !== v))} placeholder="192.168.1.1/24 or dhcp" />
-                <p className="text-xs text-muted-foreground">CIDR notation, or use &apos;dhcp&apos; / &apos;dhcpv6&apos;</p>
+                <Label>{t("addresses.ipAddresses")}</Label>
+                <BadgeArray values={addresses} onAdd={(v) => setAddresses([...addresses, v])} onRemove={(v) => setAddresses(addresses.filter((a) => a !== v))} placeholder={t("addresses.placeholder")} />
+                <p className="text-xs text-muted-foreground">{t("addresses.help")}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
@@ -1144,32 +1148,32 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
             <TabsContent value="advanced" className="space-y-5">
               {/* IP Settings */}
               <div className="space-y-3">
-                <h4 className="text-sm font-semibold">IP Settings</h4>
+                <h4 className="text-sm font-semibold">{t("advanced.ipSettings")}</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <Label>Source Validation</Label>
+                    <Label>{t("advanced.sourceValidation")}</Label>
                     <Select value={ipSourceValidation} onValueChange={setIpSourceValidation}>
-                      <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="strict">Strict</SelectItem>
-                        <SelectItem value="loose">Loose</SelectItem>
-                        <SelectItem value="disable">Disable</SelectItem>
+                        <SelectItem value="strict">{t("advanced.strict")}</SelectItem>
+                        <SelectItem value="loose">{t("advanced.loose")}</SelectItem>
+                        <SelectItem value="disable">{t("advanced.disable")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label>ARP Cache Timeout (ms)</Label>
+                    <Label>{t("advanced.arpCacheTimeout")}</Label>
                     <Input type="number" value={ipArpCacheTimeout} onChange={(e) => setIpArpCacheTimeout(e.target.value)} placeholder="30000" />
                   </div>
                 </div>
                 <div className="flex gap-6">
                   <label className="flex items-center gap-2 text-sm cursor-pointer">
                     <Checkbox checked={ipDisableForwarding} onCheckedChange={(v) => setIpDisableForwarding(!!v)} />
-                    Disable IPv4 Forwarding
+                    {t("advanced.disableIpv4Forwarding")}
                   </label>
                   <label className="flex items-center gap-2 text-sm cursor-pointer">
                     <Checkbox checked={ipEnableProxyArp} onCheckedChange={(v) => setIpEnableProxyArp(!!v)} />
-                    Enable Proxy ARP
+                    {t("advanced.enableProxyArp")}
                   </label>
                 </div>
               </div>
@@ -1178,19 +1182,19 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
 
               {/* IPv6 Settings */}
               <div className="space-y-3">
-                <h4 className="text-sm font-semibold">IPv6 Settings</h4>
+                <h4 className="text-sm font-semibold">{t("advanced.ipv6Settings")}</h4>
                 <div className="space-y-1.5">
-                  <Label>EUI-64 Prefixes</Label>
+                  <Label>{t("advanced.eui64Prefixes")}</Label>
                   <BadgeArray values={ipv6Eui64} onAdd={(v) => setIpv6Eui64([...ipv6Eui64, v])} onRemove={(v) => setIpv6Eui64(ipv6Eui64.filter((p) => p !== v))} placeholder="2001:db8::/64" />
                 </div>
                 <div className="flex gap-6">
                   <label className="flex items-center gap-2 text-sm cursor-pointer">
                     <Checkbox checked={ipv6DisableForwarding} onCheckedChange={(v) => setIpv6DisableForwarding(!!v)} />
-                    Disable IPv6 Forwarding
+                    {t("advanced.disableIpv6Forwarding")}
                   </label>
                   <label className="flex items-center gap-2 text-sm cursor-pointer">
                     <Checkbox checked={ipv6NoDefaultLinkLocal} onCheckedChange={(v) => setIpv6NoDefaultLinkLocal(!!v)} />
-                    No Default Link-Local
+                    {t("advanced.noDefaultLinkLocal")}
                   </label>
                 </div>
               </div>
@@ -1199,18 +1203,18 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
 
               {/* Mirror / Redirect */}
               <div className="space-y-3">
-                <h4 className="text-sm font-semibold">Mirror / Redirect</h4>
+                <h4 className="text-sm font-semibold">{t("advanced.mirrorRedirect")}</h4>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-1.5">
-                    <Label>Mirror Ingress</Label>
+                    <Label>{t("advanced.mirrorIngress")}</Label>
                     <Input value={mirrorIngress} onChange={(e) => setMirrorIngress(e.target.value)} placeholder="eth0" className="font-mono" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Mirror Egress</Label>
+                    <Label>{t("advanced.mirrorEgress")}</Label>
                     <Input value={mirrorEgress} onChange={(e) => setMirrorEgress(e.target.value)} placeholder="eth0" className="font-mono" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Redirect</Label>
+                    <Label>{t("advanced.redirect")}</Label>
                     <Input value={redirect} onChange={(e) => setRedirect(e.target.value)} placeholder="ifb0" className="font-mono" />
                   </div>
                 </div>
@@ -1227,11 +1231,11 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => { if (!isEdit) resetForm(); onOpenChange(false); }} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => { if (!isEdit) resetForm(); onOpenChange(false); }} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading
-              ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />{isEdit ? "Saving…" : "Creating…"}</>
-              : isEdit ? "Save Changes" : "Create Interface"}
+              ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />{isEdit ? t("saving") : t("creating")}</>
+              : isEdit ? t("saveChanges") : t("createInterface")}
           </Button>
         </DialogFooter>
       </DialogContent>

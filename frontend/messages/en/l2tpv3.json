@@ -1,1 +1,106 @@
-{}
+{
+  "modal": {
+    "createTitle": "Create L2TPv3 Interface",
+    "editTitle": "Edit L2TPv3 Interface",
+    "createDescription": "Create a new L2TPv3 tunnel interface for Layer 2 tunneling.",
+    "editDescription": "Editing interface <code>{name}</code>",
+    "creating": "Creating...",
+    "saveChanges": "Save Changes",
+    "createInterface": "Create Interface",
+    "tabs": {
+      "general": "General",
+      "addresses": "Addresses",
+      "ip": "IP Settings",
+      "ipv6": "IPv6 Settings",
+      "advanced": "Advanced"
+    },
+    "errors": {
+      "remoteRequired": "Remote address is required",
+      "mtuRange": "MTU must be between 68 and 16000",
+      "tunnelIdRange": "Tunnel ID must be between 1 and 429496729",
+      "peerTunnelIdRange": "Peer Tunnel ID must be between 1 and 429496729",
+      "sessionIdRange": "Session ID must be between 1 and 429496729",
+      "peerSessionIdRange": "Peer Session ID must be between 1 and 429496729",
+      "destinationPortRange": "Destination port must be between 1 and 65535",
+      "sourcePortRange": "Source port must be between 1 and 65535",
+      "nameRequired": "Interface name is required",
+      "nameFormat": "Name must be l2tpeth0, l2tpeth1, etc.",
+      "nameExists": "Interface {name} already exists",
+      "createFailed": "Failed to create L2TPv3 interface",
+      "updateFailed": "Failed to update L2TPv3 interface"
+    },
+    "general": {
+      "interfaceName": "Interface Name",
+      "nameLocked": "Interface name cannot be changed.",
+      "nameFormatHint": "Must match pattern: l2tpeth0, l2tpeth1, l2tpeth2, ...",
+      "descriptionPlaceholder": "Optional description",
+      "remoteAddress": "Remote Address",
+      "remotePlaceholder": "10.0.0.1 or 2001:db8::1",
+      "remoteHint": "Remote tunnel endpoint",
+      "sourceAddress": "Source Address",
+      "sourcePlaceholder": "10.0.0.2 or 2001:db8::2",
+      "sourceHint": "Local source IP",
+      "tunnelId": "Tunnel ID",
+      "peerTunnelId": "Peer Tunnel ID",
+      "sessionId": "Session ID",
+      "peerSessionId": "Peer Session ID",
+      "encapsulation": "Encapsulation",
+      "encapsulationDefault": "Default (UDP)",
+      "destinationPort": "Destination Port",
+      "sourcePort": "Source Port",
+      "portDefaultHint": "Default: 5000",
+      "mtuHint": "Valid range: 68-16000 (default: 1488)",
+      "disableInterface": "Disable Interface"
+    },
+    "addresses": {
+      "ipAddresses": "IP Addresses",
+      "ipAddressesHint": "One address per line, IPv4 or IPv6 CIDR notation",
+      "eui64Prefixes": "IPv6 EUI-64 Prefixes",
+      "eui64Hint": "One /64 prefix per line",
+      "autoconf": "IPv6 SLAAC Autoconf",
+      "noDefaultLinkLocal": "No Default Link-Local",
+      "interfaceIdentifier": "Interface Identifier (SLAAC)"
+    },
+    "ip": {
+      "adjustMss": "Adjust MSS",
+      "adjustMssPlaceholder": "clamp-mss-to-pmtu or 536-65535",
+      "arpCacheTimeout": "ARP Cache Timeout",
+      "sourceValidation": "Source Validation",
+      "strict": "Strict",
+      "loose": "Loose",
+      "disable": "Disable",
+      "disableArpFilter": "Disable ARP Filter",
+      "disableForwarding": "Disable IPv4 Forwarding",
+      "enableArpAccept": "Enable ARP Accept",
+      "enableArpAnnounce": "Enable ARP Announce",
+      "enableArpIgnore": "Enable ARP Ignore",
+      "enableDirectedBroadcast": "Enable Directed Broadcast",
+      "enableProxyArp": "Enable Proxy ARP",
+      "proxyArpPvlan": "Private VLAN Proxy ARP"
+    },
+    "ipv6": {
+      "acceptDad": "Accept DAD",
+      "dad0": "0 - Disable DAD",
+      "dad1": "1 - Enable DAD",
+      "dad2": "2 - Enable DAD and disable if MAC-based duplicate link-local",
+      "baseReachableTime": "Base Reachable Time",
+      "dadTransmits": "DAD Transmit Count",
+      "dadTransmitsPlaceholder": "Number of NS messages",
+      "disableForwarding": "Disable IPv6 Forwarding"
+    },
+    "advanced": {
+      "trafficMirroring": "Traffic Mirroring",
+      "mirrorIngress": "Mirror Ingress →",
+      "mirrorEgress": "Mirror Egress →"
+    }
+  },
+  "delete": {
+    "title": "Delete Interface: {name}",
+    "confirm": "Are you sure you want to delete this L2TPv3 interface? This action cannot be undone.",
+    "addressCount": "{count} {count, plural, one {address} other {addresses}}",
+    "remote": "Remote: {remote}",
+    "tunnelId": "Tunnel ID: {id}",
+    "failed": "Failed to delete L2TPv3 interface",
+    "button": "Delete Interface"
+  }
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +36,8 @@ export function InputModal({
   existingInterfaces,
   existing,
 }: InputModalProps) {
+  const t = useTranslations("input");
+  const tc = useTranslations("common");
   const isEdit = !!existing;
   const [name, setName] = useState("ifb0");
   const [description, setDescription] = useState("");
@@ -82,9 +85,9 @@ export function InputModal({
   }, [open, existing]);
 
   const validateForm = (): string | null => {
-    if (!name.trim()) return "Interface name is required";
-    if (!/^ifb\d+$/.test(name)) return "Name must be ifb0, ifb1, etc.";
-    if (existingInterfaces.includes(name)) return `Interface ${name} already exists`;
+    if (!name.trim()) return t("modal.errors.nameRequired");
+    if (!/^ifb\d+$/.test(name)) return t("modal.errors.namePattern");
+    if (existingInterfaces.includes(name)) return t("modal.errors.nameExists", { name });
     return null;
   };
 
@@ -105,7 +108,7 @@ export function InputModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to update input interface");
+        setError(result.error || t("modal.errors.updateFailed"));
       }
     } catch (err) {
       const msg = (err as ApiError).message;
@@ -145,7 +148,7 @@ export function InputModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to create input interface");
+        setError(result.error || t("modal.errors.createFailed"));
       }
     } catch (err) {
       const msg = (err as ApiError).message;
@@ -161,25 +164,29 @@ export function InputModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ArrowDownToLine className="h-5 w-5" />
-            {isEdit ? "Edit Input Interface" : "Create Input Interface"}
+            {isEdit ? t("modal.editTitle") : t("modal.createTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEdit ? (
               <>
-                Editing interface{" "}
-                <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">
-                  {existing.name}
-                </code>
+                {t.rich("modal.editingInterface", {
+                  name: existing.name,
+                  code: (chunks) => (
+                    <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">
+                      {chunks}
+                    </code>
+                  ),
+                })}
               </>
             ) : (
-              "Create a new Input Functional Block (IFB) interface for traffic redirection and shaping."
+              t("modal.createDescription")
             )}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 mt-2">
           <div className="space-y-2">
-            <Label htmlFor="name">Interface Name {isEdit ? null : <span className="text-destructive">*</span>}</Label>
+            <Label htmlFor="name">{t("modal.interfaceName")} {isEdit ? null : <span className="text-destructive">*</span>}</Label>
             <Input
               id="name"
               value={isEdit ? existing.name : name}
@@ -189,36 +196,36 @@ export function InputModal({
             />
             <p className="text-xs text-muted-foreground">
               {isEdit
-                ? "Interface name cannot be changed."
-                : "Must match pattern: ifb0, ifb1, ifb2, ..."}
+                ? t("modal.nameImmutable")
+                : t("modal.namePatternHint")}
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{tc("description")}</Label>
             <Input
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description"
+              placeholder={t("modal.descriptionPlaceholder")}
             />
           </div>
 
           <div className="space-y-2">
-            <Label>Redirect To</Label>
+            <Label>{t("modal.redirectTo")}</Label>
             <InterfaceSelect
               value={redirect || "none"}
               onValueChange={(v) => setRedirect(v === "none" ? "" : v)}
               interfaces={availableInterfaces}
-              noneOption={{ label: "None", value: "none" }}
-              placeholder="None"
+              noneOption={{ label: tc("none"), value: "none" }}
+              placeholder={tc("none")}
             />
-            <p className="text-xs text-muted-foreground">Redirect incoming packets to a destination interface</p>
+            <p className="text-xs text-muted-foreground">{t("modal.redirectHint")}</p>
           </div>
 
           <div className="flex items-center gap-2">
             <Checkbox checked={disabled} onCheckedChange={(c) => setDisabled(c === true)} id="disabled" />
-            <Label htmlFor="disabled" className="font-normal">Disable Interface</Label>
+            <Label htmlFor="disabled" className="font-normal">{t("modal.disableInterface")}</Label>
           </div>
         </div>
 
@@ -230,18 +237,18 @@ export function InputModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? "Saving..." : "Creating..."}
+                {isEdit ? tc("saving") : t("modal.creating")}
               </>
             ) : isEdit ? (
-              "Save Changes"
+              t("modal.saveChanges")
             ) : (
-              "Create Interface"
+              t("modal.createInterface")
             )}
           </Button>
         </DialogFooter>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +47,8 @@ export function DummyModal({
   existingInterfaces,
   existing,
 }: DummyModalProps) {
+  const t = useTranslations("dummy");
+  const tc = useTranslations("common");
   const isEdit = !!existing;
   // Basic
   const [name, setName] = useState("dum0");
@@ -139,16 +142,16 @@ export function DummyModal({
     if (mtu.trim()) {
       const mtuNum = parseInt(mtu.trim(), 10);
       if (isNaN(mtuNum) || mtuNum < 68 || mtuNum > 16000) {
-        return "MTU must be between 68 and 16000";
+        return t("modal.errors.mtuRange");
       }
     }
     return null;
   };
 
   const validateForm = (): string | null => {
-    if (!name.trim()) return "Interface name is required";
-    if (!/^dum\d+$/.test(name)) return "Name must be dum0, dum1, etc.";
-    if (existingInterfaces.includes(name)) return `Interface ${name} already exists`;
+    if (!name.trim()) return t("modal.errors.nameRequired");
+    if (!/^dum\d+$/.test(name)) return t("modal.errors.namePattern");
+    if (existingInterfaces.includes(name)) return t("modal.errors.nameExists", { name });
     return validateMtu();
   };
 
@@ -190,7 +193,7 @@ export function DummyModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to update dummy interface");
+        setError(result.error || t("modal.errors.updateFailed"));
       }
     } catch (err) {
       const msg = (err as ApiError).message;
@@ -245,7 +248,7 @@ export function DummyModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to create dummy interface");
+        setError(result.error || t("modal.errors.createFailed"));
       }
     } catch (err) {
       const msg = (err as ApiError).message;
@@ -264,33 +267,37 @@ export function DummyModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Box className="h-5 w-5" />
-            {isEdit ? "Edit Dummy Interface" : "Create Dummy Interface"}
+            {isEdit ? t("modal.editTitle") : t("modal.createTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEdit ? (
               <>
-                Editing interface{" "}
-                <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">
-                  {existing.name}
-                </code>
+                {t.rich("modal.editingInterface", {
+                  name: existing.name,
+                  code: (chunks) => (
+                    <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">
+                      {chunks}
+                    </code>
+                  ),
+                })}
               </>
             ) : (
-              "Create a new software-only dummy interface."
+              t("modal.createDescription")
             )}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="mt-2">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="basic">Basic</TabsTrigger>
-            <TabsTrigger value="addresses">Addresses</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            <TabsTrigger value="basic">{t("modal.tabs.basic")}</TabsTrigger>
+            <TabsTrigger value="addresses">{t("modal.tabs.addresses")}</TabsTrigger>
+            <TabsTrigger value="advanced">{t("modal.tabs.advanced")}</TabsTrigger>
           </TabsList>
 
           {/* Basic Tab */}
           <TabsContent value="basic" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Interface Name {isEdit ? null : <span className="text-destructive">*</span>}</Label>
+              <Label htmlFor="name">{t("modal.interfaceName")} {isEdit ? null : <span className="text-destructive">*</span>}</Label>
               <Input
                 id="name"
                 value={isEdit ? existing.name : name}
@@ -300,18 +307,18 @@ export function DummyModal({
               />
               <p className="text-xs text-muted-foreground">
                 {isEdit
-                  ? "Interface name cannot be changed."
-                  : "Must match pattern: dum0, dum1, dum2, …"}
+                  ? t("modal.nameImmutable")
+                  : t("modal.namePatternHint")}
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{tc("description")}</Label>
               <Input
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional description"
+                placeholder={t("modal.descriptionPlaceholder")}
               />
             </div>
 
@@ -323,7 +330,7 @@ export function DummyModal({
                 onChange={(e) => setMtu(e.target.value)}
                 placeholder="1500"
               />
-              <p className="text-xs text-muted-foreground">Valid range: 68–16000</p>
+              <p className="text-xs text-muted-foreground">{t("modal.mtuHint")}</p>
             </div>
 
             <div className="space-y-2">
@@ -337,14 +344,14 @@ export function DummyModal({
 
             <div className="flex items-center gap-2">
               <Checkbox checked={disabled} onCheckedChange={(c) => setDisabled(c === true)} id="disabled" />
-              <Label htmlFor="disabled" className="font-normal">Disable Interface</Label>
+              <Label htmlFor="disabled" className="font-normal">{t("modal.disableInterface")}</Label>
             </div>
           </TabsContent>
 
           {/* Addresses Tab */}
           <TabsContent value="addresses" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="addresses">IP Addresses</Label>
+              <Label htmlFor="addresses">{t("modal.ipAddresses")}</Label>
               <Textarea
                 id="addresses"
                 value={addresses}
@@ -352,11 +359,11 @@ export function DummyModal({
                 placeholder={"10.0.0.1/32\n192.168.1.1/24"}
                 rows={4}
               />
-              <p className="text-xs text-muted-foreground">One address per line, IPv4 or IPv6 CIDR notation</p>
+              <p className="text-xs text-muted-foreground">{t("modal.addressesHint")}</p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="eui64">IPv6 EUI-64 Prefixes</Label>
+              <Label htmlFor="eui64">{t("modal.eui64Prefixes")}</Label>
               <Textarea
                 id="eui64"
                 value={ipv6AddressEui64}
@@ -364,7 +371,7 @@ export function DummyModal({
                 placeholder={"2001:db8::/64"}
                 rows={3}
               />
-              <p className="text-xs text-muted-foreground">One /64 prefix per line</p>
+              <p className="text-xs text-muted-foreground">{t("modal.eui64Hint")}</p>
             </div>
 
             <div className="flex items-center gap-2">
@@ -373,7 +380,7 @@ export function DummyModal({
                 checked={ipv6AddressNoDefaultLinkLocal}
                 onCheckedChange={(c) => setIpv6AddressNoDefaultLinkLocal(c === true)}
               />
-              <Label htmlFor="noDefaultLinkLocal" className="font-normal">No Default Link-Local</Label>
+              <Label htmlFor="noDefaultLinkLocal" className="font-normal">{t("modal.noDefaultLinkLocal")}</Label>
             </div>
           </TabsContent>
 
@@ -381,22 +388,22 @@ export function DummyModal({
           <TabsContent value="advanced" className="space-y-4 mt-4">
             {/* IP Settings */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium text-foreground">IP Settings</h4>
+              <h4 className="text-sm font-medium text-foreground">{t("modal.ipSettings")}</h4>
               <div className="flex items-center gap-2">
                 <Checkbox id="ipDisableForwarding" checked={ipDisableForwarding} onCheckedChange={(c) => setIpDisableForwarding(c === true)} />
-                <Label htmlFor="ipDisableForwarding" className="font-normal">Disable IPv4 Forwarding</Label>
+                <Label htmlFor="ipDisableForwarding" className="font-normal">{t("modal.disableIpv4Forwarding")}</Label>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="sourceValidation">Source Validation</Label>
+                <Label htmlFor="sourceValidation">{t("modal.sourceValidation")}</Label>
                 <Select value={ipSourceValidation || "none"} onValueChange={(v) => setIpSourceValidation(v === "none" ? "" : v)}>
                   <SelectTrigger id="sourceValidation">
-                    <SelectValue placeholder="None" />
+                    <SelectValue placeholder={tc("none")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    <SelectItem value="strict">Strict</SelectItem>
-                    <SelectItem value="loose">Loose</SelectItem>
-                    <SelectItem value="disable">Disable</SelectItem>
+                    <SelectItem value="none">{tc("none")}</SelectItem>
+                    <SelectItem value="strict">{t("modal.sourceValidationStrict")}</SelectItem>
+                    <SelectItem value="loose">{t("modal.sourceValidationLoose")}</SelectItem>
+                    <SelectItem value="disable">{t("modal.sourceValidationDisable")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -404,44 +411,44 @@ export function DummyModal({
 
             {/* IPv6 Settings */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium text-foreground">IPv6 Settings</h4>
+              <h4 className="text-sm font-medium text-foreground">{t("modal.ipv6Settings")}</h4>
               <div className="flex items-center gap-2">
                 <Checkbox id="ipv6DisableForwarding" checked={ipv6DisableForwarding} onCheckedChange={(c) => setIpv6DisableForwarding(c === true)} />
-                <Label htmlFor="ipv6DisableForwarding" className="font-normal">Disable IPv6 Forwarding</Label>
+                <Label htmlFor="ipv6DisableForwarding" className="font-normal">{t("modal.disableIpv6Forwarding")}</Label>
               </div>
             </div>
 
             {/* Traffic Mirroring */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium text-foreground">Traffic Mirroring</h4>
+              <h4 className="text-sm font-medium text-foreground">{t("modal.trafficMirroring")}</h4>
               <div className="space-y-2">
-                <Label>Mirror Ingress →</Label>
+                <Label>{t("modal.mirrorIngress")}</Label>
                 <InterfaceSelect
                   value={mirrorIngress || "none"}
                   onValueChange={(v) => setMirrorIngress(v === "none" ? "" : v)}
                   interfaces={availableInterfaces}
-                  noneOption={{ label: "None", value: "none" }}
-                  placeholder="None"
+                  noneOption={{ label: tc("none"), value: "none" }}
+                  placeholder={tc("none")}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Mirror Egress →</Label>
+                <Label>{t("modal.mirrorEgress")}</Label>
                 <InterfaceSelect
                   value={mirrorEgress || "none"}
                   onValueChange={(v) => setMirrorEgress(v === "none" ? "" : v)}
                   interfaces={availableInterfaces}
-                  noneOption={{ label: "None", value: "none" }}
-                  placeholder="None"
+                  noneOption={{ label: tc("none"), value: "none" }}
+                  placeholder={tc("none")}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Redirect To</Label>
+                <Label>{t("modal.redirectTo")}</Label>
                 <InterfaceSelect
                   value={redirect || "none"}
                   onValueChange={(v) => setRedirect(v === "none" ? "" : v)}
                   interfaces={availableInterfaces}
-                  noneOption={{ label: "None", value: "none" }}
-                  placeholder="None"
+                  noneOption={{ label: tc("none"), value: "none" }}
+                  placeholder={tc("none")}
                 />
               </div>
             </div>
@@ -449,10 +456,10 @@ export function DummyModal({
             {/* Hardware (capability-gated) */}
             {showHardwareSection && (
               <div className="space-y-3">
-                <h4 className="text-sm font-medium text-foreground">Hardware</h4>
+                <h4 className="text-sm font-medium text-foreground">{t("modal.hardware")}</h4>
                 {capabilities?.features.mac?.supported && (
                   <div className="space-y-2">
-                    <Label htmlFor="mac">MAC Address</Label>
+                    <Label htmlFor="mac">{t("modal.macAddress")}</Label>
                     <Input
                       id="mac"
                       value={mac}
@@ -463,12 +470,12 @@ export function DummyModal({
                 )}
                 {capabilities?.features.netns?.supported && (
                   <div className="space-y-2">
-                    <Label htmlFor="netns">Network Namespace</Label>
+                    <Label htmlFor="netns">{t("modal.networkNamespace")}</Label>
                     <Input
                       id="netns"
                       value={netns}
                       onChange={(e) => setNetns(e.target.value)}
-                      placeholder="Namespace name"
+                      placeholder={t("modal.namespacePlaceholder")}
                     />
                   </div>
                 )}
@@ -485,18 +492,18 @@ export function DummyModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? "Saving..." : "Creating..."}
+                {isEdit ? tc("saving") : t("modal.creating")}
               </>
             ) : isEdit ? (
-              "Save Changes"
+              t("modal.saveChanges")
             ) : (
-              "Create Interface"
+              t("modal.createInterface")
             )}
           </Button>
         </DialogFooter>

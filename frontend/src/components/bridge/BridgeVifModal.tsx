@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +36,8 @@ export function BridgeVifModal({
   existingVlanIds,
   existing,
 }: BridgeVifModalProps) {
+  const t = useTranslations("bridgeInterface");
+  const tc = useTranslations("common");
   const isEdit = !!existing;
   const [vlanId, setVlanId] = useState("");
   const [addresses, setAddresses] = useState("");
@@ -97,10 +100,10 @@ export function BridgeVifModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to update VIF");
+        setError(result.error || t("vifErrUpdate"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to update VIF");
+      setError((err as ApiError).message || t("vifErrUpdate"));
     } finally {
       setLoading(false);
     }
@@ -114,16 +117,16 @@ export function BridgeVifModal({
 
     const vid = vlanId.trim();
     if (!vid) {
-      setError("VLAN ID is required.");
+      setError(t("vifErrVlanRequired"));
       return;
     }
     const vidNum = Number(vid);
     if (!Number.isInteger(vidNum) || vidNum < 1 || vidNum > 4094) {
-      setError("VLAN ID must be a number between 1 and 4094.");
+      setError(t("vifErrVlanRange"));
       return;
     }
     if (existingVlanIds.includes(vid)) {
-      setError(`VIF ${vid} already exists on ${interfaceName}.`);
+      setError(t("vifErrExists", { vid, name: interfaceName }));
       return;
     }
 
@@ -144,10 +147,10 @@ export function BridgeVifModal({
         handleOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to create VIF");
+        setError(result.error || t("vifErrCreate"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to create VIF");
+      setError((err as ApiError).message || t("vifErrCreate"));
     } finally {
       setLoading(false);
     }
@@ -158,12 +161,12 @@ export function BridgeVifModal({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? `Edit VIF ${existing.vlan_id} on ${interfaceName}` : `Add VIF to ${interfaceName}`}
+            {isEdit ? t("vifEditTitle", { vid: existing.vlan_id, name: interfaceName }) : t("vifAddTitle", { name: interfaceName })}
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Modify VLAN sub-interface configuration."
-              : "Create a VLAN sub-interface (802.1Q) on this bridge."}
+              ? t("vifEditDescription")
+              : t("vifCreateDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -183,29 +186,29 @@ export function BridgeVifModal({
               disabled={isEdit}
             />
             {isEdit ? (
-              <p className="text-xs text-muted-foreground">VLAN ID cannot be changed.</p>
+              <p className="text-xs text-muted-foreground">{t("vifVlanLocked")}</p>
             ) : null}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="vif-description">Description</Label>
+            <Label htmlFor="vif-description">{tc("description")}</Label>
             <Input
               id="vif-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description"
+              placeholder={t("optionalDescription")}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="vif-addresses">IP Addresses</Label>
+            <Label htmlFor="vif-addresses">{t("ipAddresses")}</Label>
             <Input
               id="vif-addresses"
               value={addresses}
               onChange={(e) => setAddresses(e.target.value)}
               placeholder="192.168.10.1/24, 10.0.10.1/24"
             />
-            <p className="text-xs text-muted-foreground">Comma-separated CIDR addresses</p>
+            <p className="text-xs text-muted-foreground">{t("addressesHint")}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -235,7 +238,7 @@ export function BridgeVifModal({
               onCheckedChange={(c) => setDisabled(c === true)}
             />
             <Label htmlFor="vif-disabled" className="font-normal text-sm">
-              Administratively Disabled
+              {t("adminDisabled")}
             </Label>
           </div>
 
@@ -249,18 +252,18 @@ export function BridgeVifModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? "Saving..." : "Creating..."}
+                {isEdit ? tc("saving") : t("creating")}
               </>
             ) : isEdit ? (
-              "Save Changes"
+              t("saveChanges")
             ) : (
-              "Create VIF"
+              t("vifCreateButton")
             )}
           </Button>
         </DialogFooter>

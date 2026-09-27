@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +47,8 @@ export function GeneveModal({
   existingInterfaces,
   existing,
 }: GeneveModalProps) {
+  const t = useTranslations("geneve");
+  const tc = useTranslations("common");
   const isEdit = !!existing;
   // General
   const [name, setName] = useState("gnv0");
@@ -211,32 +214,32 @@ export function GeneveModal({
   }, [open, existing]);
 
   const validateShared = (): string | null => {
-    if (!remote.trim()) return "Remote address is required";
+    if (!remote.trim()) return t("validation.remoteRequired");
     if (mtu.trim()) {
       const mtuNum = parseInt(mtu.trim(), 10);
       if (isNaN(mtuNum) || mtuNum < 1200 || mtuNum > 16000) {
-        return "MTU must be between 1200 and 16000";
+        return t("validation.mtuRange");
       }
     }
     if (vni.trim()) {
       const vniNum = parseInt(vni.trim(), 10);
       if (isNaN(vniNum) || vniNum < 0 || vniNum > 16777214) {
-        return "VNI must be between 0 and 16777214";
+        return t("validation.vniRange");
       }
     }
     if (port.trim()) {
       const portNum = parseInt(port.trim(), 10);
       if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
-        return "Port must be between 1 and 65535";
+        return t("validation.portRange");
       }
     }
     return null;
   };
 
   const validateForm = (): string | null => {
-    if (!name.trim()) return "Interface name is required";
-    if (!/^gnv\d+$/.test(name)) return "Name must be gnv0, gnv1, etc.";
-    if (existingInterfaces.includes(name)) return `Interface ${name} already exists`;
+    if (!name.trim()) return t("validation.nameRequired");
+    if (!/^gnv\d+$/.test(name)) return t("validation.nameFormat");
+    if (existingInterfaces.includes(name)) return t("validation.nameExists", { name });
     return validateShared();
   };
 
@@ -301,7 +304,7 @@ export function GeneveModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to update GENEVE interface");
+        setError(result.error || t("modal.updateFailed"));
       }
     } catch (err) {
       const msg = (err as ApiError).message;
@@ -390,7 +393,7 @@ export function GeneveModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to create GENEVE interface");
+        setError(result.error || t("modal.createFailed"));
       }
     } catch (err) {
       const msg = (err as ApiError).message;
@@ -406,35 +409,37 @@ export function GeneveModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Layers className="h-5 w-5" />
-            {isEdit ? "Edit GENEVE Interface" : "Create GENEVE Interface"}
+            {isEdit ? t("modal.editTitle") : t("modal.createTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEdit ? (
-              <>
-                Editing interface{" "}
-                <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">
-                  {existing.name}
-                </code>
-              </>
+              t.rich("modal.editDescription", {
+                name: existing.name,
+                code: (chunks) => (
+                  <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">
+                    {chunks}
+                  </code>
+                ),
+              })
             ) : (
-              "Create a new GENEVE tunnel interface for network virtualization encapsulation."
+              t("modal.createDescription")
             )}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="general" className="mt-2">
           <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="general">General</TabsTrigger>
-            <TabsTrigger value="addresses">Addresses</TabsTrigger>
-            <TabsTrigger value="ip">IP Settings</TabsTrigger>
-            <TabsTrigger value="ipv6">IPv6 Settings</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            <TabsTrigger value="general">{t("tabs.general")}</TabsTrigger>
+            <TabsTrigger value="addresses">{t("tabs.addresses")}</TabsTrigger>
+            <TabsTrigger value="ip">{t("tabs.ipSettings")}</TabsTrigger>
+            <TabsTrigger value="ipv6">{t("tabs.ipv6Settings")}</TabsTrigger>
+            <TabsTrigger value="advanced">{t("tabs.advanced")}</TabsTrigger>
           </TabsList>
 
           {/* General Tab */}
           <TabsContent value="general" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Interface Name {isEdit ? null : <span className="text-destructive">*</span>}</Label>
+              <Label htmlFor="name">{t("general.interfaceName")} {isEdit ? null : <span className="text-destructive">*</span>}</Label>
               <Input
                 id="name"
                 value={isEdit ? existing.name : name}
@@ -444,30 +449,30 @@ export function GeneveModal({
               />
               <p className="text-xs text-muted-foreground">
                 {isEdit
-                  ? "Interface name cannot be changed."
-                  : "Must match pattern: gnv0, gnv1, gnv2, ..."}
+                  ? t("general.nameLocked")
+                  : t("general.nameHint")}
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{tc("description")}</Label>
               <Input
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional description"
+                placeholder={t("general.descriptionPlaceholder")}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="remote">Remote Address <span className="text-destructive">*</span></Label>
+              <Label htmlFor="remote">{t("general.remoteAddress")} <span className="text-destructive">*</span></Label>
               <Input
                 id="remote"
                 value={remote}
                 onChange={(e) => setRemote(e.target.value)}
-                placeholder="10.0.0.1 or 2001:db8::1"
+                placeholder={t("general.remoteAddressPlaceholder")}
               />
-              <p className="text-xs text-muted-foreground">IPv4 or IPv6 address of the remote tunnel endpoint</p>
+              <p className="text-xs text-muted-foreground">{t("general.remoteAddressHint")}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -479,17 +484,17 @@ export function GeneveModal({
                   onChange={(e) => setVni(e.target.value)}
                   placeholder="0-16777214"
                 />
-                <p className="text-xs text-muted-foreground">Virtual Network Identifier</p>
+                <p className="text-xs text-muted-foreground">{t("general.vniHint")}</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="port">Port</Label>
+                <Label htmlFor="port">{t("general.port")}</Label>
                 <Input
                   id="port"
                   value={port}
                   onChange={(e) => setPort(e.target.value)}
                   placeholder="6081"
                 />
-                <p className="text-xs text-muted-foreground">Default: 6081</p>
+                <p className="text-xs text-muted-foreground">{t("general.portHint")}</p>
               </div>
             </div>
 
@@ -502,7 +507,7 @@ export function GeneveModal({
                   onChange={(e) => setMtu(e.target.value)}
                   placeholder="1500"
                 />
-                <p className="text-xs text-muted-foreground">Valid range: 1200-16000</p>
+                <p className="text-xs text-muted-foreground">{t("general.mtuHint")}</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="vrf">VRF</Label>
@@ -516,7 +521,7 @@ export function GeneveModal({
 
             {capabilities?.features.mac?.supported && (
               <div className="space-y-2">
-                <Label htmlFor="mac">MAC Address</Label>
+                <Label htmlFor="mac">{t("general.macAddress")}</Label>
                 <Input
                   id="mac"
                   value={mac}
@@ -528,14 +533,14 @@ export function GeneveModal({
 
             <div className="flex items-center gap-2">
               <Checkbox checked={disabled} onCheckedChange={(c) => setDisabled(c === true)} id="disabled" />
-              <Label htmlFor="disabled" className="font-normal">Disable Interface</Label>
+              <Label htmlFor="disabled" className="font-normal">{t("general.disableInterface")}</Label>
             </div>
           </TabsContent>
 
           {/* Addresses Tab */}
           <TabsContent value="addresses" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="addresses">IP Addresses</Label>
+              <Label htmlFor="addresses">{t("addresses.ipAddresses")}</Label>
               <Textarea
                 id="addresses"
                 value={addresses}
@@ -543,11 +548,11 @@ export function GeneveModal({
                 placeholder={"10.0.0.1/32\n192.168.1.1/24"}
                 rows={4}
               />
-              <p className="text-xs text-muted-foreground">One address per line, IPv4 or IPv6 CIDR notation</p>
+              <p className="text-xs text-muted-foreground">{t("addresses.ipAddressesHint")}</p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="eui64">IPv6 EUI-64 Prefixes</Label>
+              <Label htmlFor="eui64">{t("addresses.eui64Prefixes")}</Label>
               <Textarea
                 id="eui64"
                 value={ipv6AddressEui64}
@@ -555,7 +560,7 @@ export function GeneveModal({
                 placeholder={"2001:db8::/64"}
                 rows={3}
               />
-              <p className="text-xs text-muted-foreground">One /64 prefix per line</p>
+              <p className="text-xs text-muted-foreground">{t("addresses.eui64Hint")}</p>
             </div>
 
             <div className="flex items-center gap-2">
@@ -564,7 +569,7 @@ export function GeneveModal({
                 checked={ipv6AddressAutoconf}
                 onCheckedChange={(c) => setIpv6AddressAutoconf(c === true)}
               />
-              <Label htmlFor="autoconf" className="font-normal">IPv6 SLAAC Autoconf</Label>
+              <Label htmlFor="autoconf" className="font-normal">{t("addresses.autoconf")}</Label>
             </div>
 
             <div className="flex items-center gap-2">
@@ -573,19 +578,19 @@ export function GeneveModal({
                 checked={ipv6AddressNoDefaultLinkLocal}
                 onCheckedChange={(c) => setIpv6AddressNoDefaultLinkLocal(c === true)}
               />
-              <Label htmlFor="noDefaultLinkLocal" className="font-normal">No Default Link-Local</Label>
+              <Label htmlFor="noDefaultLinkLocal" className="font-normal">{t("addresses.noDefaultLinkLocal")}</Label>
             </div>
 
             {capabilities?.features.ipv6_address_interface_identifier?.supported && (
               <div className="space-y-2">
-                <Label htmlFor="interfaceIdentifier">Interface Identifier (SLAAC)</Label>
+                <Label htmlFor="interfaceIdentifier">{t("addresses.interfaceIdentifier")}</Label>
                 <Input
                   id="interfaceIdentifier"
                   value={ipv6AddressInterfaceIdentifier}
                   onChange={(e) => setIpv6AddressInterfaceIdentifier(e.target.value)}
                   placeholder="::1"
                 />
-                <p className="text-xs text-muted-foreground">VyOS 1.5+ only</p>
+                <p className="text-xs text-muted-foreground">{t("addresses.vyos15Only")}</p>
               </div>
             )}
           </TabsContent>
@@ -594,16 +599,16 @@ export function GeneveModal({
           <TabsContent value="ip" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="ipAdjustMss">Adjust MSS</Label>
+                <Label htmlFor="ipAdjustMss">{t("ip.adjustMss")}</Label>
                 <Input
                   id="ipAdjustMss"
                   value={ipAdjustMss}
                   onChange={(e) => setIpAdjustMss(e.target.value)}
-                  placeholder="e.g. 1360"
+                  placeholder={t("ip.adjustMssPlaceholder")}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ipArpCacheTimeout">ARP Cache Timeout</Label>
+                <Label htmlFor="ipArpCacheTimeout">{t("ip.arpCacheTimeout")}</Label>
                 <Input
                   id="ipArpCacheTimeout"
                   value={ipArpCacheTimeout}
@@ -614,16 +619,16 @@ export function GeneveModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="sourceValidation">Source Validation</Label>
+              <Label htmlFor="sourceValidation">{t("ip.sourceValidation")}</Label>
               <Select value={ipSourceValidation || "none"} onValueChange={(v) => setIpSourceValidation(v === "none" ? "" : v)}>
                 <SelectTrigger id="sourceValidation">
-                  <SelectValue placeholder="None" />
+                  <SelectValue placeholder={tc("none")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="strict">Strict</SelectItem>
-                  <SelectItem value="loose">Loose</SelectItem>
-                  <SelectItem value="disable">Disable</SelectItem>
+                  <SelectItem value="none">{tc("none")}</SelectItem>
+                  <SelectItem value="strict">{t("ip.strict")}</SelectItem>
+                  <SelectItem value="loose">{t("ip.loose")}</SelectItem>
+                  <SelectItem value="disable">{t("ip.disable")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -631,35 +636,35 @@ export function GeneveModal({
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Checkbox id="ipDisableArpFilter" checked={ipDisableArpFilter} onCheckedChange={(c) => setIpDisableArpFilter(c === true)} />
-                <Label htmlFor="ipDisableArpFilter" className="font-normal">Disable ARP Filter</Label>
+                <Label htmlFor="ipDisableArpFilter" className="font-normal">{t("ip.disableArpFilter")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="ipDisableForwarding" checked={ipDisableForwarding} onCheckedChange={(c) => setIpDisableForwarding(c === true)} />
-                <Label htmlFor="ipDisableForwarding" className="font-normal">Disable IPv4 Forwarding</Label>
+                <Label htmlFor="ipDisableForwarding" className="font-normal">{t("ip.disableIpv4Forwarding")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="ipEnableArpAccept" checked={ipEnableArpAccept} onCheckedChange={(c) => setIpEnableArpAccept(c === true)} />
-                <Label htmlFor="ipEnableArpAccept" className="font-normal">Enable ARP Accept</Label>
+                <Label htmlFor="ipEnableArpAccept" className="font-normal">{t("ip.enableArpAccept")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="ipEnableArpAnnounce" checked={ipEnableArpAnnounce} onCheckedChange={(c) => setIpEnableArpAnnounce(c === true)} />
-                <Label htmlFor="ipEnableArpAnnounce" className="font-normal">Enable ARP Announce</Label>
+                <Label htmlFor="ipEnableArpAnnounce" className="font-normal">{t("ip.enableArpAnnounce")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="ipEnableArpIgnore" checked={ipEnableArpIgnore} onCheckedChange={(c) => setIpEnableArpIgnore(c === true)} />
-                <Label htmlFor="ipEnableArpIgnore" className="font-normal">Enable ARP Ignore</Label>
+                <Label htmlFor="ipEnableArpIgnore" className="font-normal">{t("ip.enableArpIgnore")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="ipEnableDirectedBroadcast" checked={ipEnableDirectedBroadcast} onCheckedChange={(c) => setIpEnableDirectedBroadcast(c === true)} />
-                <Label htmlFor="ipEnableDirectedBroadcast" className="font-normal">Enable Directed Broadcast</Label>
+                <Label htmlFor="ipEnableDirectedBroadcast" className="font-normal">{t("ip.enableDirectedBroadcast")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="ipEnableProxyArp" checked={ipEnableProxyArp} onCheckedChange={(c) => setIpEnableProxyArp(c === true)} />
-                <Label htmlFor="ipEnableProxyArp" className="font-normal">Enable Proxy ARP</Label>
+                <Label htmlFor="ipEnableProxyArp" className="font-normal">{t("ip.enableProxyArp")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="ipProxyArpPvlan" checked={ipProxyArpPvlan} onCheckedChange={(c) => setIpProxyArpPvlan(c === true)} />
-                <Label htmlFor="ipProxyArpPvlan" className="font-normal">Private VLAN Proxy ARP</Label>
+                <Label htmlFor="ipProxyArpPvlan" className="font-normal">{t("ip.proxyArpPvlan")}</Label>
               </div>
             </div>
           </TabsContent>
@@ -667,32 +672,32 @@ export function GeneveModal({
           {/* IPv6 Settings Tab */}
           <TabsContent value="ipv6" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="ipv6AcceptDad">Accept DAD</Label>
+              <Label htmlFor="ipv6AcceptDad">{t("ipv6.acceptDad")}</Label>
               <Select value={ipv6AcceptDad || "default"} onValueChange={(v) => setIpv6AcceptDad(v === "default" ? "" : v)}>
                 <SelectTrigger id="ipv6AcceptDad">
-                  <SelectValue placeholder="Default" />
+                  <SelectValue placeholder={tc("default")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="default">Default</SelectItem>
-                  <SelectItem value="0">0 - Disable DAD</SelectItem>
-                  <SelectItem value="1">1 - Enable DAD</SelectItem>
-                  <SelectItem value="2">2 - Enable DAD and disable if MAC-based duplicate link-local</SelectItem>
+                  <SelectItem value="default">{tc("default")}</SelectItem>
+                  <SelectItem value="0">{t("ipv6.acceptDad0")}</SelectItem>
+                  <SelectItem value="1">{t("ipv6.acceptDad1")}</SelectItem>
+                  <SelectItem value="2">{t("ipv6.acceptDad2")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="ipv6AdjustMss">Adjust MSS</Label>
+                <Label htmlFor="ipv6AdjustMss">{t("ip.adjustMss")}</Label>
                 <Input
                   id="ipv6AdjustMss"
                   value={ipv6AdjustMss}
                   onChange={(e) => setIpv6AdjustMss(e.target.value)}
-                  placeholder="e.g. 1340"
+                  placeholder={t("ipv6.adjustMssPlaceholder")}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ipv6BaseReachableTime">Base Reachable Time</Label>
+                <Label htmlFor="ipv6BaseReachableTime">{t("ipv6.baseReachableTime")}</Label>
                 <Input
                   id="ipv6BaseReachableTime"
                   value={ipv6BaseReachableTime}
@@ -703,33 +708,33 @@ export function GeneveModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="ipv6DupAddrDetectTransmits">DAD Transmit Count</Label>
+              <Label htmlFor="ipv6DupAddrDetectTransmits">{t("ipv6.dadTransmitCount")}</Label>
               <Input
                 id="ipv6DupAddrDetectTransmits"
                 value={ipv6DupAddrDetectTransmits}
                 onChange={(e) => setIpv6DupAddrDetectTransmits(e.target.value)}
-                placeholder="Number of NS messages"
+                placeholder={t("ipv6.dadTransmitCountPlaceholder")}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="ipv6SourceValidation">Source Validation</Label>
+              <Label htmlFor="ipv6SourceValidation">{t("ip.sourceValidation")}</Label>
               <Select value={ipv6SourceValidation || "none"} onValueChange={(v) => setIpv6SourceValidation(v === "none" ? "" : v)}>
                 <SelectTrigger id="ipv6SourceValidation">
-                  <SelectValue placeholder="None" />
+                  <SelectValue placeholder={tc("none")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="strict">Strict</SelectItem>
-                  <SelectItem value="loose">Loose</SelectItem>
-                  <SelectItem value="disable">Disable</SelectItem>
+                  <SelectItem value="none">{tc("none")}</SelectItem>
+                  <SelectItem value="strict">{t("ip.strict")}</SelectItem>
+                  <SelectItem value="loose">{t("ip.loose")}</SelectItem>
+                  <SelectItem value="disable">{t("ip.disable")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="flex items-center gap-2">
               <Checkbox id="ipv6DisableForwarding" checked={ipv6DisableForwarding} onCheckedChange={(c) => setIpv6DisableForwarding(c === true)} />
-              <Label htmlFor="ipv6DisableForwarding" className="font-normal">Disable IPv6 Forwarding</Label>
+              <Label htmlFor="ipv6DisableForwarding" className="font-normal">{t("ipv6.disableIpv6Forwarding")}</Label>
             </div>
           </TabsContent>
 
@@ -737,19 +742,19 @@ export function GeneveModal({
           <TabsContent value="advanced" className="space-y-4 mt-4">
             {/* Tunnel Parameters */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium text-foreground">Tunnel Parameters</h4>
+              <h4 className="text-sm font-medium text-foreground">{t("advanced.tunnelParameters")}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="parametersDf">Don&apos;t Fragment (DF)</Label>
+                  <Label htmlFor="parametersDf">{t("advanced.dontFragment")}</Label>
                   <Select value={parametersDf || "none"} onValueChange={(v) => setParametersDf(v === "none" ? "" : v)}>
                     <SelectTrigger id="parametersDf">
-                      <SelectValue placeholder="Default" />
+                      <SelectValue placeholder={tc("default")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Default</SelectItem>
-                      <SelectItem value="set">Set</SelectItem>
-                      <SelectItem value="unset">Unset</SelectItem>
-                      <SelectItem value="inherit">Inherit</SelectItem>
+                      <SelectItem value="none">{tc("default")}</SelectItem>
+                      <SelectItem value="set">{t("advanced.dfSet")}</SelectItem>
+                      <SelectItem value="unset">{t("advanced.dfUnset")}</SelectItem>
+                      <SelectItem value="inherit">{t("advanced.dfInherit")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -774,52 +779,52 @@ export function GeneveModal({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="parametersFlowlabel">Flow Label</Label>
+                  <Label htmlFor="parametersFlowlabel">{t("advanced.flowLabel")}</Label>
                   <Input
                     id="parametersFlowlabel"
                     value={parametersFlowlabel}
                     onChange={(e) => setParametersFlowlabel(e.target.value)}
-                    placeholder="inherit or hex value"
+                    placeholder={t("advanced.flowLabelPlaceholder")}
                   />
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="parametersInnerproto" checked={parametersInnerproto} onCheckedChange={(c) => setParametersInnerproto(c === true)} />
-                <Label htmlFor="parametersInnerproto" className="font-normal">Use IPv4 as Inner Protocol</Label>
+                <Label htmlFor="parametersInnerproto" className="font-normal">{t("advanced.innerProto")}</Label>
               </div>
             </div>
 
             {/* Traffic Mirroring */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium text-foreground">Traffic Mirroring</h4>
+              <h4 className="text-sm font-medium text-foreground">{t("advanced.trafficMirroring")}</h4>
               <div className="space-y-2">
-                <Label>Mirror Ingress &rarr;</Label>
+                <Label>{t("advanced.mirrorIngress")}</Label>
                 <InterfaceSelect
                   value={mirrorIngress || "none"}
                   onValueChange={(v) => setMirrorIngress(v === "none" ? "" : v)}
                   interfaces={availableInterfaces}
-                  noneOption={{ label: "None", value: "none" }}
-                  placeholder="None"
+                  noneOption={{ label: tc("none"), value: "none" }}
+                  placeholder={tc("none")}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Mirror Egress &rarr;</Label>
+                <Label>{t("advanced.mirrorEgress")}</Label>
                 <InterfaceSelect
                   value={mirrorEgress || "none"}
                   onValueChange={(v) => setMirrorEgress(v === "none" ? "" : v)}
                   interfaces={availableInterfaces}
-                  noneOption={{ label: "None", value: "none" }}
-                  placeholder="None"
+                  noneOption={{ label: tc("none"), value: "none" }}
+                  placeholder={tc("none")}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Redirect To</Label>
+                <Label>{t("advanced.redirectTo")}</Label>
                 <InterfaceSelect
                   value={redirect || "none"}
                   onValueChange={(v) => setRedirect(v === "none" ? "" : v)}
                   interfaces={availableInterfaces}
-                  noneOption={{ label: "None", value: "none" }}
-                  placeholder="None"
+                  noneOption={{ label: tc("none"), value: "none" }}
+                  placeholder={tc("none")}
                 />
               </div>
             </div>
@@ -834,18 +839,18 @@ export function GeneveModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? "Saving..." : "Creating..."}
+                {isEdit ? tc("saving") : t("modal.creating")}
               </>
             ) : isEdit ? (
-              "Save Changes"
+              t("modal.saveChanges")
             ) : (
-              "Create Interface"
+              t("modal.createInterface")
             )}
           </Button>
         </DialogFooter>

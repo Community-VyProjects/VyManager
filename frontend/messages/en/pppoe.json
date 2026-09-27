@@ -1,1 +1,121 @@
-{}
+{
+  "delete": {
+    "title": "Delete Interface: {name}",
+    "confirm": "Are you sure you want to delete this PPPoE interface? This will tear down the session and cannot be undone.",
+    "source": "Source:",
+    "ac": "AC:",
+    "service": "Service:",
+    "user": "User:",
+    "failed": "Failed to delete PPPoE interface",
+    "submit": "Delete Interface"
+  },
+  "modal": {
+    "editTitle": "Edit PPPoE Interface",
+    "createTitle": "Create PPPoE Interface",
+    "editing": "Editing interface",
+    "createDescription": "Dial up to an upstream access concentrator over an Ethernet source interface.",
+    "creating": "Creating...",
+    "saveChanges": "Save Changes",
+    "createInterface": "Create Interface",
+    "updateFailed": "Failed to update PPPoE interface",
+    "createFailed": "Failed to create PPPoE interface"
+  },
+  "tabs": {
+    "basic": "Basic",
+    "routing": "Routing",
+    "mirror": "Mirror"
+  },
+  "validation": {
+    "mtuRange": "MTU must be an integer between 68 and 1500.",
+    "mruRange": "MRU must be an integer between 128 and 16384.",
+    "defaultRouteDistanceRange": "Default route distance must be between 1 and 255.",
+    "pdInstanceRequired": "Each PD instance must have an identifier.",
+    "pdLengthRange": "PD length must be between 32 and 64.",
+    "delegatedNameRequired": "Each delegated interface must have a name.",
+    "nameRequired": "Interface name is required.",
+    "namePattern": "Interface name must match pattern 'pppoeN' (e.g. pppoe0).",
+    "nameExists": "Interface ''{name}'' already exists."
+  },
+  "basic": {
+    "interfaceName": "Interface Name",
+    "nameLocked": "Interface name cannot be changed.",
+    "namePatternHint": "Must match pattern pppoeN.",
+    "descriptionPlaceholder": "ISP uplink",
+    "sourceInterface": "Source Interface",
+    "sourcePlaceholder": "Select ethernet or VLAN",
+    "sourceHint": "Underlying interface used to establish the session.",
+    "accessConcentrator": "Access Concentrator",
+    "accessConcentratorPlaceholder": "optional AC name",
+    "serviceName": "Service Name",
+    "serviceNamePlaceholder": "only connect to ACs advertising this service",
+    "redirectInterface": "Redirect Interface",
+    "redirectPlaceholder": "destination interface for incoming packets",
+    "disableInterface": "Administratively disable this interface"
+  },
+  "ppp": {
+    "username": "PAP/CHAP Username",
+    "password": "PAP/CHAP Password",
+    "localAddress": "Local Address (IPv4)",
+    "remoteAddress": "Remote Address (IPv4)",
+    "examplePlaceholder": "e.g. {value}",
+    "holdoff": "Holdoff (seconds)",
+    "holdoffPlaceholder": "re-dial delay",
+    "idleTimeout": "Idle Timeout (seconds)",
+    "hostUniq": "Host-Uniq (hex)"
+  },
+  "routing": {
+    "connectOnDemand": "Connect on demand (dial only when traffic is sent)",
+    "noDefaultRoute": "Do not install a default route",
+    "defaultRouteDistance": "Default Route Distance",
+    "noPeerDns": "Do not use peer-provided DNS servers"
+  },
+  "ip": {
+    "adjustMss": "Adjust MSS",
+    "adjustMssIpv6": "Adjust MSS (IPv6)",
+    "mssPlaceholder": "MSS value (bytes)",
+    "clampToPmtu": "Clamp to PMTU",
+    "disableIpv4Forwarding": "Disable IPv4 forwarding on this interface",
+    "sourceValidation": "Source Validation",
+    "sourceValidationOptions": {
+      "strict": "Strict",
+      "loose": "Loose",
+      "disable": "Disable"
+    }
+  },
+  "ipv6": {
+    "addressAutoconf": "Address autoconf (SLAAC)",
+    "requestDhcpv6Address": "Request a stateful DHCPv6 address",
+    "disableIpv6Forwarding": "Disable IPv6 forwarding on this interface",
+    "interfaceIdentifier": "Interface Identifier",
+    "interfaceIdentifierPlaceholder": "manual SLAAC identifier"
+  },
+  "dhcpv6": {
+    "duidPlaceholder": "DHCP Unique Identifier",
+    "noRelease": "No release",
+    "rapidCommit": "Rapid commit",
+    "temporaryAddress": "Temporary address",
+    "parametersOnly": "Parameters only",
+    "noRequestDns": "Don't request DNS",
+    "noRequestDomainName": "Don't request domain name",
+    "prefixDelegation": "Prefix Delegation",
+    "prefixDelegationHint": "Request IPv6 prefixes and delegate them to downstream interfaces.",
+    "addPdInstance": "Add PD Instance",
+    "noPdInstances": "No PD instances configured.",
+    "instance": "Instance",
+    "instancePlaceholder": "instance id",
+    "prefixLength": "Prefix Length",
+    "removePdInstance": "Remove PD instance",
+    "delegatedInterfaces": "Delegated Interfaces",
+    "addInterface": "Add Interface",
+    "noDelegatedInterfaces": "No delegated interfaces.",
+    "interface": "Interface",
+    "address": "Address",
+    "optionalPlaceholder": "optional",
+    "removeDelegatedInterface": "Remove delegated interface"
+  },
+  "mirror": {
+    "ingress": "Ingress Mirror Interface",
+    "egress": "Egress Mirror Interface",
+    "selectInterface": "Select interface"
+  }
+}

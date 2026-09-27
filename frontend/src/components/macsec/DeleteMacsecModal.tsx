@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -27,6 +28,8 @@ export function DeleteMacsecModal({
   onSuccess,
   interfaceData,
 }: DeleteMacsecModalProps) {
+  const t = useTranslations("macsec");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,10 +46,10 @@ export function DeleteMacsecModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to delete MACsec interface");
+        setError(result.error || t("delete.failed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to delete MACsec interface");
+      setError((err as ApiError).message || t("delete.failed"));
     } finally {
       setLoading(false);
     }
@@ -54,7 +57,8 @@ export function DeleteMacsecModal({
 
   if (!interfaceData) return null;
 
-  const securityMode = interfaceData.security?.mka?.cak ? "MKA" : interfaceData.security?.static?.key ? "Static" : null;
+  const securityMode = interfaceData.security?.mka?.cak ? "MKA" : interfaceData.security?.static?.key ? t("delete.modeStatic") : null;
+  const strong = (chunks: ReactNode) => <span className="font-medium text-foreground">{chunks}</span>;
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -62,26 +66,25 @@ export function DeleteMacsecModal({
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            Delete Interface: {interfaceData.name}
+            {t("delete.title", { name: interfaceData.name })}
           </AlertDialogTitle>
           <AlertDialogDescription className="space-y-2">
             <p>
-              Are you sure you want to delete this MACsec interface? This action
-              cannot be undone.
+              {t("delete.confirm")}
             </p>
             <div className="rounded-lg bg-muted/50 border p-3 mt-2">
               <p className="text-sm text-muted-foreground">
                 {interfaceData.source_interface && (
-                  <>Source: <span className="font-medium text-foreground">{interfaceData.source_interface}</span></>
+                  <>{t.rich("delete.source", { value: interfaceData.source_interface, strong })}</>
                 )}
                 {interfaceData.security?.cipher && (
-                  <> &middot; Cipher: <span className="font-medium text-foreground">{interfaceData.security.cipher}</span></>
+                  <> &middot; {t.rich("delete.cipher", { value: interfaceData.security.cipher, strong })}</>
                 )}
                 {securityMode && (
-                  <> &middot; Mode: <span className="font-medium text-foreground">{securityMode}</span></>
+                  <> &middot; {t.rich("delete.mode", { value: securityMode, strong })}</>
                 )}
                 {interfaceData.addresses.length > 0 && (
-                  <> &middot; {interfaceData.addresses.length} address{interfaceData.addresses.length !== 1 ? "es" : ""}</>
+                  <> &middot; {t("delete.addressCount", { count: interfaceData.addresses.length })}</>
                 )}
               </p>
             </div>
@@ -100,16 +103,16 @@ export function DeleteMacsecModal({
             onClick={() => onOpenChange(false)}
             disabled={loading}
           >
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Interface"
+              t("delete.button")
             )}
           </Button>
         </AlertDialogFooter>

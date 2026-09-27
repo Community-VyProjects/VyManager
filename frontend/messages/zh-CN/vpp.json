@@ -1,1 +1,98 @@
-{}
+{
+  "subTypes": {
+    "bonding": {
+      "label": "绑定",
+      "description": "用于链路聚合的 Bond/LAG 接口"
+    },
+    "bridge": {
+      "label": "网桥",
+      "description": "网桥域接口（vppbr0 为保留名称）"
+    },
+    "gre": {
+      "label": "GRE",
+      "description": "GRE 隧道接口"
+    },
+    "ipip": {
+      "label": "IPIP",
+      "description": "IP-in-IP 隧道接口"
+    },
+    "loopback": {
+      "label": "环回",
+      "description": "环回接口"
+    },
+    "vxlan": {
+      "label": "VXLAN",
+      "description": "VXLAN 隧道接口"
+    },
+    "xconnect": {
+      "label": "XConnect",
+      "description": "二层交叉连接接口"
+    }
+  },
+  "delete": {
+    "title": "删除 VPP {type}：{name}",
+    "confirm": "确定要删除此 VPP 接口吗？此操作无法撤销。",
+    "type": "类型：",
+    "name": "名称：",
+    "failed": "删除 VPP 接口失败",
+    "submit": "删除接口"
+  },
+  "modal": {
+    "createTitle": "创建 VPP 接口",
+    "editTitle": "编辑 VPP {type}：",
+    "selectTypeDescription": "选择要创建的 VPP 接口类型。",
+    "editDescription": "修改 VPP {type} 接口配置。",
+    "createDescription": "配置新的 VPP {type} 接口。",
+    "updateFailed": "更新 VPP 接口失败",
+    "createFailed": "创建 VPP 接口失败",
+    "creating": "正在创建...",
+    "saveChanges": "保存更改",
+    "createSubType": "创建 {type}"
+  },
+  "validation": {
+    "selectType": "请选择接口类型。",
+    "nameRequired": "接口名称为必填项。",
+    "namePattern": "接口名称必须符合格式 {pattern}（例如 {example}）。",
+    "nameExists": "接口 ''{name}'' 已存在。",
+    "mtuRange": "MTU 必须在 68 到 16000 之间。",
+    "vniRange": "VNI 必须在 0 到 16777214 之间。",
+    "vniRequired": "VXLAN 必须填写 VNI。",
+    "remoteRequired": "{type} 必须填写远端 IP。",
+    "sourceRequired": "{type} 必须填写源地址。"
+  },
+  "tabs": {
+    "basic": "基本",
+    "addresses": "地址",
+    "members": "成员",
+    "vif": "VIF 子接口"
+  },
+  "form": {
+    "interfaceName": "接口名称",
+    "nameLocked": "接口名称不可更改。",
+    "mode": "模式",
+    "hashPolicy": "哈希策略",
+    "macAddress": "MAC 地址",
+    "remoteIp": "远端 IP",
+    "sourceAddress": "源地址",
+    "tunnelType": "隧道类型",
+    "key": "密钥（0-4294967295）",
+    "descriptionPlaceholder": "可选描述",
+    "ipAddresses": "IP 地址",
+    "examplePlaceholder": "例如 {value}"
+  },
+  "members": {
+    "bridgeMembers": "网桥成员",
+    "xconnectMembers": "XConnect 成员",
+    "bondMembers": "绑定成员",
+    "selectToAdd": "选择要添加的接口...",
+    "allAdded": "已添加所有接口"
+  },
+  "vif": {
+    "title": "VIF 子接口",
+    "add": "添加 VIF",
+    "edit": "编辑 VIF",
+    "update": "更新 VIF",
+    "addresses": "地址",
+    "noAddresses": "无地址"
+  }
+}

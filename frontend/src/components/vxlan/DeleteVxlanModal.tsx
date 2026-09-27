@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -27,6 +28,8 @@ export function DeleteVxlanModal({
   onSuccess,
   interfaceData,
 }: DeleteVxlanModalProps) {
+  const t = useTranslations("vxlan");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,10 +46,10 @@ export function DeleteVxlanModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to delete VXLAN interface");
+        setError(result.error || t("delete.failed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to delete VXLAN interface");
+      setError((err as ApiError).message || t("delete.failed"));
     } finally {
       setLoading(false);
     }
@@ -60,21 +63,19 @@ export function DeleteVxlanModal({
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            Delete Interface: {interfaceData.name}
+            {t("delete.title", { name: interfaceData.name })}
           </AlertDialogTitle>
           <AlertDialogDescription className="space-y-2">
             <p>
-              Are you sure you want to delete this VXLAN interface? This action
-              cannot be undone.
+              {t("delete.confirm")}
             </p>
             {interfaceData.vlan_to_vni.length > 0 && (
               <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 mt-2">
                 <p className="text-sm text-amber-600 font-medium">
-                  Warning: This interface has {interfaceData.vlan_to_vni.length} VLAN-to-VNI
-                  mapping{interfaceData.vlan_to_vni.length !== 1 ? "s" : ""} configured.
+                  {t("delete.mappingsWarning", { count: interfaceData.vlan_to_vni.length })}
                 </p>
                 <p className="text-xs text-amber-600/80 mt-1">
-                  Deleting the interface will remove all VLAN-to-VNI mappings.
+                  {t("delete.mappingsRemoved")}
                 </p>
               </div>
             )}
@@ -93,16 +94,16 @@ export function DeleteVxlanModal({
             onClick={() => onOpenChange(false)}
             disabled={loading}
           >
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Interface"
+              t("delete.button")
             )}
           </Button>
         </AlertDialogFooter>

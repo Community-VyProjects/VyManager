@@ -1,1 +1,277 @@
-{}
+{
+  "page": {
+    "title": "接口",
+    "total": "共 {count} 个",
+    "loadFailed": "加载接口数据失败",
+    "failedToLoad": "加载失败",
+    "loading": "正在加载接口...",
+    "failedToLoadInterfaces": "加载接口失败",
+    "tryAgain": "重试"
+  },
+  "types": {
+    "bonding": "链路聚合",
+    "bridge": "网桥",
+    "dummy": "虚拟 (Dummy)",
+    "ethernet": "以太网",
+    "input": "Input",
+    "loopback": "环回",
+    "pseudoEthernet": "伪以太网",
+    "tunnel": "隧道",
+    "virtualEthernet": "虚拟以太网",
+    "wireless": "无线"
+  },
+  "sidebar": {
+    "interfaceCount": "{count} 个接口",
+    "vlanCount": "{count} 个 VLAN",
+    "tunnelCount": "{count} 条隧道"
+  },
+  "titles": {
+    "ethernet": "以太网接口",
+    "vlan": "VLAN",
+    "vxlan": "VXLAN 接口",
+    "tunnel": "隧道接口",
+    "l2tpv3": "L2TPv3 接口",
+    "dummy": "虚拟 (Dummy) 接口",
+    "geneve": "GENEVE 接口",
+    "input": "Input 接口",
+    "loopback": "环回接口",
+    "macsec": "MACsec 接口",
+    "bonding": "链路聚合接口",
+    "bridge": "网桥接口",
+    "pppoe": "PPPoE 接口",
+    "pseudoEthernet": "伪以太网接口",
+    "sstpc": "SSTPC 接口",
+    "virtualEthernet": "虚拟以太网接口",
+    "vpp": "VPP 接口",
+    "vti": "VTI 接口",
+    "wireless": "无线接口",
+    "wwan": "WWAN 接口",
+    "wireguard": "WireGuard 接口"
+  },
+  "descriptions": {
+    "ethernet": "物理和虚拟以太网接口配置",
+    "vlan": "802.1Q VLAN、QinQ 服务 (VIF-S) 和 QinQ 客户 (VIF-C) 子接口",
+    "vxlan": "用于覆盖网络的 VXLAN 隧道接口",
+    "tunnel": "GRE、IPIP、SIT、ERSPAN 等隧道接口",
+    "l2tpv3": "第 2 层隧道协议第 3 版 (L2TPv3) 隧道接口",
+    "dummy": "用于测试和路由的纯软件虚拟 (Dummy) 接口",
+    "geneve": "用于网络虚拟化封装的 GENEVE 隧道接口",
+    "input": "用于流量重定向和整形的 Input 功能块 (IFB) 接口",
+    "loopback": "用于本地地址分配和路由的环回接口",
+    "macsec": "用于二层加密的 IEEE 802.1AE MACsec 接口",
+    "bonding": "用于高可用和提升吞吐量的链路聚合 (bonding) 接口",
+    "bridge": "用于二层网络桥接的网桥接口",
+    "pppoe": "PPPoE 拨号接口 — 通过以太网源接口连接到上游访问集中器",
+    "pseudoEthernet": "绑定到物理以太网端口、可配置隔离模式的 MacVLAN 伪以太网接口",
+    "sstpc": "SSTP 客户端接口 — 通过 HTTPS 将 PPP 隧道连接到远程服务器，可穿越严格的防火墙建立 VPN 连接",
+    "virtualEthernet": "虚拟以太网 (veth) 对等接口对 — 连接网络命名空间的内核级点对点链路",
+    "vpp": "VPP（矢量包处理）接口 — 包括链路聚合、网桥、GRE、IPIP、环回、VXLAN 和 XConnect 类型",
+    "vti": "虚拟隧道接口 (VTI) — IPsec 隧道的可路由端点",
+    "wireless": "无线 (802.11) 接口 — 接入点、客户端和监听模式",
+    "wwan": "无线 WAN（蜂窝调制解调器）接口 — 通过 APN 使用 LTE/5G 调制解调器连接",
+    "wireguard": "WireGuard 隧道接口及状态"
+  },
+  "create": {
+    "ethernet": "创建接口",
+    "vxlan": "创建 VXLAN",
+    "tunnel": "创建隧道",
+    "dummy": "创建虚拟 (Dummy) 接口",
+    "geneve": "创建 GENEVE",
+    "input": "创建 Input 接口",
+    "l2tpv3": "创建 L2TPv3",
+    "loopback": "配置环回接口",
+    "macsec": "创建 MACsec",
+    "bonding": "创建链路聚合",
+    "bridge": "创建网桥",
+    "pppoe": "创建 PPPoE",
+    "pseudoEthernet": "创建伪以太网接口",
+    "sstpc": "创建 SSTPC",
+    "virtualEthernet": "创建虚拟以太网接口",
+    "vpp": "创建 VPP 接口",
+    "vti": "创建 VTI",
+    "wireless": "创建无线接口",
+    "wwan": "创建 WWAN",
+    "wireguard": "管理 WireGuard",
+    "vlan": "创建 {label}",
+    "wirelessInterface": "创建无线接口",
+    "wwanInterface": "创建 WWAN 接口"
+  },
+  "vlan": {
+    "tabVifS": "VIF-S（QinQ 服务）",
+    "tabVifC": "VIF-C（QinQ 客户）"
+  },
+  "search": {
+    "ethernet": "按名称、描述、IP 地址、VRF 或 MAC 搜索...",
+    "vlan": "按名称、父接口、描述、IP 地址或 VRF 搜索...",
+    "vxlan": "按名称、描述、地址或 VNI 搜索...",
+    "tunnel": "按名称、描述、地址、封装或远端搜索...",
+    "dummy": "按名称、描述、地址或 VRF 搜索...",
+    "geneve": "按名称、描述、地址、远端或 VNI 搜索...",
+    "input": "按名称、描述或重定向目标搜索...",
+    "l2tpv3": "按名称、描述、远端或地址搜索...",
+    "loopback": "按名称、描述或地址搜索...",
+    "bonding": "按名称、描述、地址、模式或成员搜索...",
+    "bridge": "按名称、描述、地址或成员搜索...",
+    "pppoe": "按名称、源接口、AC 或用户名搜索...",
+    "pseudoEthernet": "按名称、描述、源接口或地址搜索...",
+    "virtualEthernet": "按名称、对端、描述或地址搜索...",
+    "default": "按名称、描述、地址搜索..."
+  },
+  "empty": {
+    "ethernet": {
+      "noMatch": "没有与搜索匹配的以太网接口",
+      "none": "尚未配置以太网接口"
+    },
+    "vxlan": {
+      "noMatch": "没有与搜索匹配的 VXLAN 接口",
+      "none": "尚未配置 VXLAN 接口"
+    },
+    "tunnel": {
+      "noMatch": "没有与搜索匹配的隧道接口",
+      "none": "尚未配置隧道接口"
+    },
+    "dummy": {
+      "noMatch": "没有与搜索匹配的虚拟 (Dummy) 接口",
+      "none": "尚未配置虚拟 (Dummy) 接口"
+    },
+    "geneve": {
+      "noMatch": "没有与搜索匹配的 GENEVE 接口",
+      "none": "尚未配置 GENEVE 接口"
+    },
+    "l2tpv3": {
+      "noMatch": "没有与搜索匹配的 L2TPv3 接口",
+      "none": "尚未配置 L2TPv3 接口"
+    },
+    "input": {
+      "noMatch": "没有与搜索匹配的 Input 接口",
+      "none": "尚未配置 Input 接口"
+    },
+    "loopback": {
+      "noMatch": "没有与搜索匹配的环回接口",
+      "none": "尚未配置环回接口"
+    },
+    "macsec": {
+      "noMatch": "没有与搜索匹配的 MACsec 接口",
+      "none": "尚未配置 MACsec 接口"
+    },
+    "pppoe": {
+      "noMatch": "没有与搜索匹配的 PPPoE 接口",
+      "none": "尚未配置 PPPoE 接口"
+    },
+    "pseudoEthernet": {
+      "noMatch": "没有与搜索匹配的伪以太网接口",
+      "none": "尚未配置伪以太网接口"
+    },
+    "sstpc": {
+      "noMatch": "没有与搜索匹配的 SSTPC 接口",
+      "none": "尚未配置 SSTPC 接口"
+    },
+    "virtualEthernet": {
+      "noMatch": "没有与搜索匹配的虚拟以太网接口",
+      "none": "尚未配置虚拟以太网接口"
+    },
+    "bonding": {
+      "noMatch": "没有与搜索匹配的链路聚合接口",
+      "none": "尚未配置链路聚合接口"
+    },
+    "bridge": {
+      "noMatch": "没有与搜索匹配的网桥接口",
+      "none": "尚未配置网桥接口"
+    },
+    "vti": {
+      "noMatch": "没有与搜索匹配的 VTI 接口",
+      "none": "尚未配置 VTI 接口"
+    },
+    "wireless": {
+      "noMatch": "没有与搜索匹配的无线接口",
+      "none": "尚未配置无线接口"
+    },
+    "wwan": {
+      "noMatch": "没有与搜索匹配的 WWAN 接口",
+      "none": "尚未配置 WWAN 接口"
+    },
+    "wireguard": {
+      "noMatch": "没有与搜索匹配的 WireGuard 接口",
+      "none": "尚未配置 WireGuard 接口"
+    },
+    "vlan": {
+      "noMatch": "没有与搜索匹配的 {label}",
+      "none": "尚未配置 {label}"
+    },
+    "vpp": {
+      "noMatch": "没有与搜索匹配的 VPP {label} 接口",
+      "none": "尚未配置 VPP {label} 接口"
+    }
+  },
+  "table": {
+    "parent": "父接口",
+    "addresses": "地址",
+    "extra": "其他",
+    "macHwId": "MAC / 硬件 ID",
+    "vlans": "VLAN",
+    "optic": "光模块",
+    "source": "源",
+    "remotes": "远端",
+    "remote": "远端",
+    "encapsulation": "封装",
+    "tunnelId": "隧道 ID",
+    "sessionId": "会话 ID",
+    "redirect": "重定向",
+    "sourceValidation": "源验证",
+    "cipher": "加密算法",
+    "securityMode": "安全模式",
+    "acService": "AC / 服务",
+    "sourceInterface": "源接口",
+    "mode": "模式",
+    "server": "服务器",
+    "port": "端口",
+    "peer": "对端",
+    "namespace": "命名空间",
+    "subInterfaces": "子接口",
+    "hashPolicy": "哈希策略",
+    "members": "成员",
+    "tunnelType": "隧道类型",
+    "key": "密钥",
+    "subInterface": "子接口",
+    "type": "类型",
+    "channel": "信道",
+    "security": "安全",
+    "peers": "对等体",
+    "showingInterfaces": "显示 {shown} / {total} 个接口",
+    "showingTunnels": "显示 {shown} / {total} 条隧道",
+    "showingVlans": "显示 {count} 个 {label}",
+    "showingVpp": "显示 {shown} / {total} 个接口"
+  },
+  "optic": {
+    "alarm": "告警",
+    "alarmTitle": "光模块告警",
+    "warning": "警告",
+    "warningTitle": "光模块警告",
+    "healthy": "正常",
+    "healthyTitle": "光模块正常"
+  },
+  "actions": {
+    "viewDiagnostics": "查看光模块诊断"
+  },
+  "macsec": {
+    "static": "静态"
+  },
+  "vpp": {
+    "memberCount": "{count} 个成员",
+    "bviCount": "（{count} 个 BVI）"
+  },
+  "bridge": {
+    "vifCount": "{count} 个 VIF",
+    "vifSubInterfaces": "VIF 子接口 ({count})",
+    "addVif": "添加 VIF",
+    "noVifs": "此网桥上尚未配置 VIF。"
+  },
+  "wireless": {
+    "open": "开放",
+    "station": "客户端",
+    "monitor": "监听"
+  },
+  "wireguard": {
+    "auto": "自动"
+  }
+}

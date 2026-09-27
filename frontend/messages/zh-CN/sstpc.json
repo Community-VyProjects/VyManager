@@ -1,1 +1,64 @@
-{}
+{
+  "delete": {
+    "title": "删除接口：{name}",
+    "confirm": "确定要删除此 SSTP 客户端接口吗？这将断开 SSTP 会话，且无法撤销。",
+    "server": "服务器：",
+    "user": "用户：",
+    "failed": "删除 SSTP 客户端接口失败",
+    "submit": "删除接口"
+  },
+  "modal": {
+    "editTitle": "编辑 SSTP 客户端接口：{name}",
+    "createTitle": "创建 SSTP 客户端接口",
+    "editDescription": "更新此 SSTP 客户端接口的配置。",
+    "createDescription": "配置新的安全套接字隧道协议（SSTP）客户端接口。",
+    "updateFailed": "更新接口失败",
+    "createFailed": "创建接口失败",
+    "creating": "正在创建...",
+    "saveChanges": "保存更改",
+    "createInterface": "创建接口"
+  },
+  "validation": {
+    "serverRequired": "服务器地址为必填项。",
+    "portRange": "端口必须是 1 到 65535 之间的整数。",
+    "defaultRouteDistanceRange": "默认路由距离必须在 1 到 255 之间。",
+    "mtuRange": "MTU 必须在 68 到 1500 之间。",
+    "nameRequired": "接口名称为必填项。",
+    "nameFormat": "接口名称格式必须为 'sstpcN'（例如 sstpc0）。",
+    "nameExists": "接口 ''{name}'' 已存在。"
+  },
+  "tabs": {
+    "basic": "基本",
+    "auth": "认证与 SSL",
+    "routing": "路由与网络"
+  },
+  "basic": {
+    "interfaceName": "接口名称",
+    "nameLocked": "接口名称不可更改。",
+    "server": "服务器",
+    "serverPlaceholder": "vpn.example.com 或 192.0.2.1",
+    "serverHint": "远端 SSTP 服务器的主机名或 IPv4 地址",
+    "port": "端口",
+    "descriptionPlaceholder": "可选描述",
+    "disableInterface": "管理性禁用此接口"
+  },
+  "auth": {
+    "username": "用户名",
+    "usernamePlaceholder": "VPN 用户名",
+    "password": "密码",
+    "passwordKeepPlaceholder": "留空以保留现有密码",
+    "passwordPlaceholder": "VPN 密码",
+    "caCertificate": "CA 证书",
+    "selectCa": "选择 CA 证书",
+    "noCaInPki": "PKI 中没有 CA 证书",
+    "noCaAvailable": "没有可用的 CA 证书",
+    "caHint": "来自 PKI 的 CA 证书，用于验证服务器的 SSL 证书"
+  },
+  "routing": {
+    "defaultRouteDistance": "默认路由距离",
+    "defaultRouteDistanceHint": "默认路由的管理距离（1–255）",
+    "noDefaultRoute": "不向系统安装默认路由",
+    "noPeerDns": "不使用对端提供的 DNS 服务器",
+    "mtuHint": "最大传输单元，单位为字节（68–1500）"
+  }
+}

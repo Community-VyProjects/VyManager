@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -52,6 +53,8 @@ export function MacsecModal({
   existingInterfaces,
   existing,
 }: MacsecModalProps) {
+  const t = useTranslations("macsec");
+  const tc = useTranslations("common");
   const isEdit = !!existing;
   const [allInterfaces, setAllInterfaces] = useState<InterfaceName[]>([]);
 
@@ -278,15 +281,15 @@ export function MacsecModal({
   };
 
   const validateShared = (): string | null => {
-    if (!sourceInterface.trim()) return "Source interface is required";
-    if (mtu && (parseInt(mtu) < 68 || parseInt(mtu) > 16000)) return "MTU must be between 68 and 16000";
+    if (!sourceInterface.trim()) return t("modal.errors.sourceRequired");
+    if (mtu && (parseInt(mtu) < 68 || parseInt(mtu) > 16000)) return t("modal.errors.mtuRange");
     return null;
   };
 
   const validateForm = (): string | null => {
-    if (!name.trim()) return "Interface name is required";
-    if (!/^macsec\d+$/.test(name)) return "Name must be macsec0, macsec1, etc.";
-    if (existingInterfaces.includes(name)) return `Interface ${name} already exists`;
+    if (!name.trim()) return t("modal.errors.nameRequired");
+    if (!/^macsec\d+$/.test(name)) return t("modal.errors.nameFormat");
+    if (existingInterfaces.includes(name)) return t("modal.errors.nameExists", { name });
     return validateShared();
   };
 
@@ -419,10 +422,10 @@ export function MacsecModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to update MACsec interface");
+        setError(result.error || t("modal.errors.updateFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to update MACsec interface");
+      setError((err as ApiError).message || t("modal.errors.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -540,10 +543,10 @@ export function MacsecModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to create MACsec interface");
+        setError(result.error || t("modal.errors.createFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to create MACsec interface");
+      setError((err as ApiError).message || t("modal.errors.createFailed"));
     } finally {
       setLoading(false);
     }
@@ -555,35 +558,37 @@ export function MacsecModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Lock className="h-5 w-5" />
-            {isEdit ? "Edit MACsec Interface" : "Create MACsec Interface"}
+            {isEdit ? t("modal.editTitle") : t("modal.createTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEdit ? (
-              <>
-                Editing interface{" "}
-                <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">
-                  {existing.name}
-                </code>
-              </>
+              t.rich("modal.editDescription", {
+                name: existing.name,
+                code: (chunks) => (
+                  <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">
+                    {chunks}
+                  </code>
+                ),
+              })
             ) : (
-              "Create a new IEEE 802.1AE MACsec encrypted interface"
+              t("modal.createDescription")
             )}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="basic">Basic</TabsTrigger>
-            <TabsTrigger value="security">Security</TabsTrigger>
-            <TabsTrigger value="addresses">Addresses</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            <TabsTrigger value="basic">{t("modal.tabs.basic")}</TabsTrigger>
+            <TabsTrigger value="security">{t("modal.tabs.security")}</TabsTrigger>
+            <TabsTrigger value="addresses">{t("modal.tabs.addresses")}</TabsTrigger>
+            <TabsTrigger value="advanced">{t("modal.tabs.advanced")}</TabsTrigger>
           </TabsList>
 
           {/* Basic Tab */}
           <TabsContent value="basic" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Interface Name</Label>
+                <Label htmlFor="name">{t("modal.basic.interfaceName")}</Label>
                 <Input
                   id="name"
                   value={isEdit ? existing.name : name}
@@ -593,31 +598,31 @@ export function MacsecModal({
                 />
                 <p className="text-xs text-muted-foreground">
                   {isEdit
-                    ? "Interface name cannot be changed."
-                    : "Format: macsec0, macsec1, etc."}
+                    ? t("modal.basic.nameLocked")
+                    : t("modal.basic.nameFormatHint")}
                 </p>
               </div>
               <div className="space-y-2">
-                <Label>Source Interface <span className="text-destructive">*</span></Label>
+                <Label>{t("modal.basic.sourceInterface")} <span className="text-destructive">*</span></Label>
                 <InterfaceSelect
                   value={sourceInterface}
                   onValueChange={setSourceInterface}
                   interfaces={allInterfaces}
-                  placeholder="Select source interface"
+                  placeholder={t("modal.basic.sourceInterfacePlaceholder")}
                 />
-                <p className="text-xs text-muted-foreground">Physical ethernet interface for MACsec traffic</p>
+                <p className="text-xs text-muted-foreground">{t("modal.basic.sourceInterfaceHint")}</p>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="MACsec encrypted link" />
+              <Label htmlFor="description">{tc("description")}</Label>
+              <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("modal.basic.descriptionPlaceholder")} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="mtu">MTU</Label>
-                <Input id="mtu" value={mtu} onChange={(e) => setMtu(e.target.value)} placeholder="1460 (default)" type="number" min={68} max={16000} />
+                <Input id="mtu" value={mtu} onChange={(e) => setMtu(e.target.value)} placeholder={t("modal.basic.mtuPlaceholder")} type="number" min={68} max={16000} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="vrf">VRF</Label>
@@ -627,7 +632,7 @@ export function MacsecModal({
 
             <div className="flex items-center space-x-2">
               <Checkbox id="disabled" checked={disabled} onCheckedChange={(checked) => setDisabled(checked === true)} />
-              <Label htmlFor="disabled" className="text-sm font-normal">Administratively disable interface</Label>
+              <Label htmlFor="disabled" className="text-sm font-normal">{t("modal.basic.disableInterface")}</Label>
             </div>
           </TabsContent>
 
@@ -635,7 +640,7 @@ export function MacsecModal({
           <TabsContent value="security" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="cipher">Cipher Suite</Label>
+                <Label htmlFor="cipher">{t("modal.security.cipherSuite")}</Label>
                 <Select value={cipher} onValueChange={setCipher}>
                   <SelectTrigger>
                     <SelectValue />
@@ -647,96 +652,96 @@ export function MacsecModal({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="replayWindow">Replay Window</Label>
-                <Input id="replayWindow" value={replayWindow} onChange={(e) => setReplayWindow(e.target.value)} placeholder="0 (strict)" type="number" min={0} />
+                <Label htmlFor="replayWindow">{t("modal.security.replayWindow")}</Label>
+                <Input id="replayWindow" value={replayWindow} onChange={(e) => setReplayWindow(e.target.value)} placeholder={t("modal.security.replayWindowPlaceholder")} type="number" min={0} />
               </div>
             </div>
 
             <div className="flex items-center space-x-2">
               <Checkbox id="encrypt" checked={encrypt} onCheckedChange={(checked) => setEncrypt(checked === true)} />
-              <Label htmlFor="encrypt" className="text-sm font-normal">Enable MACsec encryption</Label>
+              <Label htmlFor="encrypt" className="text-sm font-normal">{t("modal.security.enableEncryption")}</Label>
             </div>
 
             <Separator />
 
             <div className="space-y-2">
-              <Label>Security Mode</Label>
+              <Label>{t("modal.security.securityMode")}</Label>
               <Select value={securityMode} onValueChange={(v) => setSecurityMode(v as "mka" | "static")}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="mka">MKA (Dynamic Key Agreement)</SelectItem>
-                  <SelectItem value="static">Static Key</SelectItem>
+                  <SelectItem value="mka">{t("modal.security.modeMka")}</SelectItem>
+                  <SelectItem value="static">{t("modal.security.modeStatic")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {securityMode === "mka" ? (
               <div className="space-y-4 rounded-lg border p-4">
-                <h4 className="text-sm font-medium">MACsec Key Agreement (MKA)</h4>
+                <h4 className="text-sm font-medium">{t("modal.security.mkaTitle")}</h4>
                 <div className="space-y-2">
-                  <Label htmlFor="cak">Connectivity Association Key (CAK)</Label>
-                  <Input id="cak" value={mkaCak} onChange={(e) => setMkaCak(e.target.value)} placeholder={cipher === "gcm-aes-256" ? "64 hex characters" : "32 hex characters"} className="font-mono" />
-                  <p className="text-xs text-muted-foreground">{cipher === "gcm-aes-256" ? "32-byte (256-bit) hex string — 64 hex digits" : "16-byte (128-bit) hex string — 32 hex digits"}</p>
+                  <Label htmlFor="cak">{t("modal.security.cak")}</Label>
+                  <Input id="cak" value={mkaCak} onChange={(e) => setMkaCak(e.target.value)} placeholder={cipher === "gcm-aes-256" ? t("modal.security.hex64") : t("modal.security.hex32")} className="font-mono" />
+                  <p className="text-xs text-muted-foreground">{cipher === "gcm-aes-256" ? t("modal.security.keyHint256") : t("modal.security.keyHint128")}</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ckn">Connectivity Association Key Name (CKN)</Label>
-                  <Input id="ckn" value={mkaCkn} onChange={(e) => setMkaCkn(e.target.value)} placeholder="2-64 hex characters" className="font-mono" />
-                  <p className="text-xs text-muted-foreground">1-32 byte hex string (2-64 hex digits)</p>
+                  <Label htmlFor="ckn">{t("modal.security.ckn")}</Label>
+                  <Input id="ckn" value={mkaCkn} onChange={(e) => setMkaCkn(e.target.value)} placeholder={t("modal.security.cknPlaceholder")} className="font-mono" />
+                  <p className="text-xs text-muted-foreground">{t("modal.security.cknHint")}</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="priority">MKA Priority</Label>
-                  <Input id="priority" value={mkaPriority} onChange={(e) => setMkaPriority(e.target.value)} placeholder="255 (default)" type="number" min={0} max={255} />
+                  <Label htmlFor="priority">{t("modal.security.mkaPriority")}</Label>
+                  <Input id="priority" value={mkaPriority} onChange={(e) => setMkaPriority(e.target.value)} placeholder={t("modal.security.mkaPriorityPlaceholder")} type="number" min={0} max={255} />
                 </div>
               </div>
             ) : (
               <div className="space-y-4 rounded-lg border p-4">
-                <h4 className="text-sm font-medium">Static Key Configuration</h4>
+                <h4 className="text-sm font-medium">{t("modal.security.staticTitle")}</h4>
                 <div className="space-y-2">
-                  <Label htmlFor="staticKey">Local Key</Label>
-                  <Input id="staticKey" value={staticKey} onChange={(e) => setStaticKey(e.target.value)} placeholder={cipher === "gcm-aes-256" ? "64 hex characters" : "32 hex characters"} className="font-mono" />
-                  <p className="text-xs text-muted-foreground">{cipher === "gcm-aes-256" ? "32-byte (256-bit) hex string — 64 hex digits" : "16-byte (128-bit) hex string — 32 hex digits"}</p>
+                  <Label htmlFor="staticKey">{t("modal.security.localKey")}</Label>
+                  <Input id="staticKey" value={staticKey} onChange={(e) => setStaticKey(e.target.value)} placeholder={cipher === "gcm-aes-256" ? t("modal.security.hex64") : t("modal.security.hex32")} className="font-mono" />
+                  <p className="text-xs text-muted-foreground">{cipher === "gcm-aes-256" ? t("modal.security.keyHint256") : t("modal.security.keyHint128")}</p>
                 </div>
 
                 <Separator />
 
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-medium">Static Peers</h4>
+                  <h4 className="text-sm font-medium">{t("modal.security.staticPeers")}</h4>
                   <Button type="button" variant="outline" size="sm" onClick={addStaticPeer}>
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Add Peer
+                    <Plus className="h-3.5 w-3.5 mr-1" /> {t("modal.security.addPeer")}
                   </Button>
                 </div>
 
                 {staticPeers.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-2">No static peers configured</p>
+                  <p className="text-sm text-muted-foreground text-center py-2">{t("modal.security.noPeers")}</p>
                 )}
 
                 {staticPeers.map((peer, index) => (
                   <div key={index} className="rounded-md border p-3 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Peer {index + 1}</span>
+                      <span className="text-sm font-medium">{t("modal.security.peerLabel", { n: String(index + 1) })}</span>
                       <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeStaticPeer(index)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <div className="space-y-1">
-                        <Label className="text-xs">Name</Label>
+                        <Label className="text-xs">{tc("name")}</Label>
                         <Input value={peer.name} onChange={(e) => updateStaticPeer(index, "name", e.target.value)} placeholder="peer0" className="h-8 text-sm" />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Key (hex)</Label>
-                        <Input value={peer.key} onChange={(e) => updateStaticPeer(index, "key", e.target.value)} placeholder="hex key" className="h-8 text-sm font-mono" />
+                        <Label className="text-xs">{t("modal.security.peerKey")}</Label>
+                        <Input value={peer.key} onChange={(e) => updateStaticPeer(index, "key", e.target.value)} placeholder={t("modal.security.peerKeyPlaceholder")} className="h-8 text-sm font-mono" />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">MAC Address</Label>
+                        <Label className="text-xs">{t("modal.security.macAddress")}</Label>
                         <Input value={peer.mac} onChange={(e) => updateStaticPeer(index, "mac", e.target.value)} placeholder="00:11:22:33:44:55" className="h-8 text-sm font-mono" />
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Checkbox checked={peer.disable} onCheckedChange={(checked) => updateStaticPeer(index, "disable", checked === true)} />
-                      <Label className="text-xs font-normal">Disable this peer</Label>
+                      <Label className="text-xs font-normal">{t("modal.security.disablePeer")}</Label>
                     </div>
                   </div>
                 ))}
@@ -747,52 +752,52 @@ export function MacsecModal({
           {/* Addresses Tab */}
           <TabsContent value="addresses" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="addresses">IP Addresses</Label>
+              <Label htmlFor="addresses">{t("modal.addresses.ipAddresses")}</Label>
               <Input id="addresses" value={addresses} onChange={(e) => setAddresses(e.target.value)} placeholder="10.0.0.1/24, 192.168.1.1/24" />
-              <p className="text-xs text-muted-foreground">Comma-separated CIDR addresses</p>
+              <p className="text-xs text-muted-foreground">{t("modal.addresses.ipAddressesHint")}</p>
             </div>
 
             <div className="flex gap-6">
               <div className="flex items-center space-x-2">
                 <Checkbox id="useDhcp" checked={useDhcp} onCheckedChange={(checked) => setUseDhcp(checked === true)} />
-                <Label htmlFor="useDhcp" className="text-sm font-normal">Enable DHCP</Label>
+                <Label htmlFor="useDhcp" className="text-sm font-normal">{t("modal.addresses.enableDhcp")}</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox id="useDhcpv6" checked={useDhcpv6} onCheckedChange={(checked) => setUseDhcpv6(checked === true)} />
-                <Label htmlFor="useDhcpv6" className="text-sm font-normal">Enable DHCPv6</Label>
+                <Label htmlFor="useDhcpv6" className="text-sm font-normal">{t("modal.addresses.enableDhcpv6")}</Label>
               </div>
             </div>
 
             {useDhcp && (
               <>
                 <Separator />
-                <h4 className="text-sm font-medium">DHCP Options</h4>
+                <h4 className="text-sm font-medium">{t("modal.addresses.dhcpOptions")}</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="dhcpClientId" className="text-xs">Client ID</Label>
+                    <Label htmlFor="dhcpClientId" className="text-xs">{t("modal.addresses.clientId")}</Label>
                     <Input id="dhcpClientId" value={dhcpClientId} onChange={(e) => setDhcpClientId(e.target.value)} className="h-8 text-sm" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="dhcpHostName" className="text-xs">Host Name</Label>
+                    <Label htmlFor="dhcpHostName" className="text-xs">{t("modal.addresses.hostName")}</Label>
                     <Input id="dhcpHostName" value={dhcpHostName} onChange={(e) => setDhcpHostName(e.target.value)} className="h-8 text-sm" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="dhcpVendorClassId" className="text-xs">Vendor Class ID</Label>
+                    <Label htmlFor="dhcpVendorClassId" className="text-xs">{t("modal.addresses.vendorClassId")}</Label>
                     <Input id="dhcpVendorClassId" value={dhcpVendorClassId} onChange={(e) => setDhcpVendorClassId(e.target.value)} className="h-8 text-sm" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="dhcpDefaultRouteDistance" className="text-xs">Default Route Distance</Label>
+                    <Label htmlFor="dhcpDefaultRouteDistance" className="text-xs">{t("modal.addresses.defaultRouteDistance")}</Label>
                     <Input id="dhcpDefaultRouteDistance" value={dhcpDefaultRouteDistance} onChange={(e) => setDhcpDefaultRouteDistance(e.target.value)} className="h-8 text-sm" type="number" />
                   </div>
                 </div>
                 <div className="flex gap-6">
                   <div className="flex items-center space-x-2">
                     <Checkbox id="dhcpNoDefaultRoute" checked={dhcpNoDefaultRoute} onCheckedChange={(checked) => setDhcpNoDefaultRoute(checked === true)} />
-                    <Label htmlFor="dhcpNoDefaultRoute" className="text-xs font-normal">No Default Route</Label>
+                    <Label htmlFor="dhcpNoDefaultRoute" className="text-xs font-normal">{t("modal.addresses.noDefaultRoute")}</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Checkbox id="dhcpMtu" checked={dhcpMtu} onCheckedChange={(checked) => setDhcpMtu(checked === true)} />
-                    <Label htmlFor="dhcpMtu" className="text-xs font-normal">Request MTU</Label>
+                    <Label htmlFor="dhcpMtu" className="text-xs font-normal">{t("modal.addresses.requestMtu")}</Label>
                   </div>
                 </div>
               </>
@@ -801,26 +806,26 @@ export function MacsecModal({
 
           {/* Advanced Tab */}
           <TabsContent value="advanced" className="space-y-4 mt-4">
-            <h4 className="text-sm font-medium">IPv4 Settings</h4>
+            <h4 className="text-sm font-medium">{t("modal.advanced.ipv4Settings")}</h4>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="ipAdjustMss" className="text-xs">Adjust MSS</Label>
-                <Input id="ipAdjustMss" value={ipAdjustMss} onChange={(e) => setIpAdjustMss(e.target.value)} placeholder="clamp-mss-to-pmtu or value" className="h-8 text-sm" />
+                <Label htmlFor="ipAdjustMss" className="text-xs">{t("modal.advanced.adjustMss")}</Label>
+                <Input id="ipAdjustMss" value={ipAdjustMss} onChange={(e) => setIpAdjustMss(e.target.value)} placeholder={t("modal.advanced.adjustMssPlaceholder")} className="h-8 text-sm" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ipArpCacheTimeout" className="text-xs">ARP Cache Timeout</Label>
+                <Label htmlFor="ipArpCacheTimeout" className="text-xs">{t("modal.advanced.arpCacheTimeout")}</Label>
                 <Input id="ipArpCacheTimeout" value={ipArpCacheTimeout} onChange={(e) => setIpArpCacheTimeout(e.target.value)} className="h-8 text-sm" type="number" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ipSourceValidation" className="text-xs">Source Validation</Label>
+                <Label htmlFor="ipSourceValidation" className="text-xs">{t("modal.advanced.sourceValidation")}</Label>
                 <Select value={ipSourceValidation} onValueChange={setIpSourceValidation}>
                   <SelectTrigger className="h-8 text-sm">
-                    <SelectValue placeholder="None" />
+                    <SelectValue placeholder={tc("none")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="strict">Strict</SelectItem>
-                    <SelectItem value="loose">Loose</SelectItem>
-                    <SelectItem value="disable">Disable</SelectItem>
+                    <SelectItem value="strict">{t("modal.advanced.strict")}</SelectItem>
+                    <SelectItem value="loose">{t("modal.advanced.loose")}</SelectItem>
+                    <SelectItem value="disable">{t("modal.advanced.disable")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -828,76 +833,76 @@ export function MacsecModal({
             <div className="grid grid-cols-2 gap-x-4 gap-y-2">
               <div className="flex items-center space-x-2">
                 <Checkbox id="ipDisableArpFilter" checked={ipDisableArpFilter} onCheckedChange={(checked) => setIpDisableArpFilter(checked === true)} />
-                <Label htmlFor="ipDisableArpFilter" className="text-xs font-normal">Disable ARP Filter</Label>
+                <Label htmlFor="ipDisableArpFilter" className="text-xs font-normal">{t("modal.advanced.disableArpFilter")}</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox id="ipDisableForwarding" checked={ipDisableForwarding} onCheckedChange={(checked) => setIpDisableForwarding(checked === true)} />
-                <Label htmlFor="ipDisableForwarding" className="text-xs font-normal">Disable Forwarding</Label>
+                <Label htmlFor="ipDisableForwarding" className="text-xs font-normal">{t("modal.advanced.disableForwarding")}</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox id="ipEnableArpAccept" checked={ipEnableArpAccept} onCheckedChange={(checked) => setIpEnableArpAccept(checked === true)} />
-                <Label htmlFor="ipEnableArpAccept" className="text-xs font-normal">Enable ARP Accept</Label>
+                <Label htmlFor="ipEnableArpAccept" className="text-xs font-normal">{t("modal.advanced.enableArpAccept")}</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox id="ipEnableArpAnnounce" checked={ipEnableArpAnnounce} onCheckedChange={(checked) => setIpEnableArpAnnounce(checked === true)} />
-                <Label htmlFor="ipEnableArpAnnounce" className="text-xs font-normal">Enable ARP Announce</Label>
+                <Label htmlFor="ipEnableArpAnnounce" className="text-xs font-normal">{t("modal.advanced.enableArpAnnounce")}</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox id="ipEnableArpIgnore" checked={ipEnableArpIgnore} onCheckedChange={(checked) => setIpEnableArpIgnore(checked === true)} />
-                <Label htmlFor="ipEnableArpIgnore" className="text-xs font-normal">Enable ARP Ignore</Label>
+                <Label htmlFor="ipEnableArpIgnore" className="text-xs font-normal">{t("modal.advanced.enableArpIgnore")}</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox id="ipEnableDirectedBroadcast" checked={ipEnableDirectedBroadcast} onCheckedChange={(checked) => setIpEnableDirectedBroadcast(checked === true)} />
-                <Label htmlFor="ipEnableDirectedBroadcast" className="text-xs font-normal">Enable Directed Broadcast</Label>
+                <Label htmlFor="ipEnableDirectedBroadcast" className="text-xs font-normal">{t("modal.advanced.enableDirectedBroadcast")}</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox id="ipEnableProxyArp" checked={ipEnableProxyArp} onCheckedChange={(checked) => setIpEnableProxyArp(checked === true)} />
-                <Label htmlFor="ipEnableProxyArp" className="text-xs font-normal">Enable Proxy ARP</Label>
+                <Label htmlFor="ipEnableProxyArp" className="text-xs font-normal">{t("modal.advanced.enableProxyArp")}</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox id="ipProxyArpPvlan" checked={ipProxyArpPvlan} onCheckedChange={(checked) => setIpProxyArpPvlan(checked === true)} />
-                <Label htmlFor="ipProxyArpPvlan" className="text-xs font-normal">Proxy ARP PVLAN</Label>
+                <Label htmlFor="ipProxyArpPvlan" className="text-xs font-normal">{t("modal.advanced.proxyArpPvlan")}</Label>
               </div>
             </div>
 
             <Separator />
 
-            <h4 className="text-sm font-medium">IPv6 Settings</h4>
+            <h4 className="text-sm font-medium">{t("modal.advanced.ipv6Settings")}</h4>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="ipv6AcceptDad" className="text-xs">Accept DAD</Label>
+                <Label htmlFor="ipv6AcceptDad" className="text-xs">{t("modal.advanced.acceptDad")}</Label>
                 <Input id="ipv6AcceptDad" value={ipv6AcceptDad} onChange={(e) => setIpv6AcceptDad(e.target.value)} className="h-8 text-sm" type="number" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ipv6DupAddrDetect" className="text-xs">DAD Transmits</Label>
+                <Label htmlFor="ipv6DupAddrDetect" className="text-xs">{t("modal.advanced.dadTransmits")}</Label>
                 <Input id="ipv6DupAddrDetect" value={ipv6DupAddrDetect} onChange={(e) => setIpv6DupAddrDetect(e.target.value)} className="h-8 text-sm" type="number" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ipv6AddressEui64" className="text-xs">EUI-64 Prefix</Label>
+                <Label htmlFor="ipv6AddressEui64" className="text-xs">{t("modal.advanced.eui64Prefix")}</Label>
                 <Input id="ipv6AddressEui64" value={ipv6AddressEui64} onChange={(e) => setIpv6AddressEui64(e.target.value)} className="h-8 text-sm" placeholder="2001:db8::/64" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ipv6InterfaceIdentifier" className="text-xs">Interface Identifier</Label>
+                <Label htmlFor="ipv6InterfaceIdentifier" className="text-xs">{t("modal.advanced.interfaceIdentifier")}</Label>
                 <Input id="ipv6InterfaceIdentifier" value={ipv6InterfaceIdentifier} onChange={(e) => setIpv6InterfaceIdentifier(e.target.value)} className="h-8 text-sm" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ipv6AdjustMss" className="text-xs">Adjust MSS</Label>
+                <Label htmlFor="ipv6AdjustMss" className="text-xs">{t("modal.advanced.adjustMss")}</Label>
                 <Input id="ipv6AdjustMss" value={ipv6AdjustMss} onChange={(e) => setIpv6AdjustMss(e.target.value)} className="h-8 text-sm" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ipv6BaseReachableTime" className="text-xs">Base Reachable Time</Label>
+                <Label htmlFor="ipv6BaseReachableTime" className="text-xs">{t("modal.advanced.baseReachableTime")}</Label>
                 <Input id="ipv6BaseReachableTime" value={ipv6BaseReachableTime} onChange={(e) => setIpv6BaseReachableTime(e.target.value)} className="h-8 text-sm" type="number" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ipv6SourceValidation" className="text-xs">Source Validation</Label>
+                <Label htmlFor="ipv6SourceValidation" className="text-xs">{t("modal.advanced.sourceValidation")}</Label>
                 <Select value={ipv6SourceValidation} onValueChange={setIpv6SourceValidation}>
                   <SelectTrigger className="h-8 text-sm">
-                    <SelectValue placeholder="None" />
+                    <SelectValue placeholder={tc("none")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="strict">Strict</SelectItem>
-                    <SelectItem value="loose">Loose</SelectItem>
-                    <SelectItem value="disable">Disable</SelectItem>
+                    <SelectItem value="strict">{t("modal.advanced.strict")}</SelectItem>
+                    <SelectItem value="loose">{t("modal.advanced.loose")}</SelectItem>
+                    <SelectItem value="disable">{t("modal.advanced.disable")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -905,32 +910,32 @@ export function MacsecModal({
             <div className="grid grid-cols-2 gap-x-4 gap-y-2">
               <div className="flex items-center space-x-2">
                 <Checkbox id="ipv6AddressAutoconf" checked={ipv6AddressAutoconf} onCheckedChange={(checked) => setIpv6AddressAutoconf(checked === true)} />
-                <Label htmlFor="ipv6AddressAutoconf" className="text-xs font-normal">Address Autoconf (SLAAC)</Label>
+                <Label htmlFor="ipv6AddressAutoconf" className="text-xs font-normal">{t("modal.advanced.addressAutoconf")}</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox id="ipv6NoDefaultLinkLocal" checked={ipv6NoDefaultLinkLocal} onCheckedChange={(checked) => setIpv6NoDefaultLinkLocal(checked === true)} />
-                <Label htmlFor="ipv6NoDefaultLinkLocal" className="text-xs font-normal">No Default Link-Local</Label>
+                <Label htmlFor="ipv6NoDefaultLinkLocal" className="text-xs font-normal">{t("modal.advanced.noDefaultLinkLocal")}</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox id="ipv6DisableForwarding" checked={ipv6DisableForwarding} onCheckedChange={(checked) => setIpv6DisableForwarding(checked === true)} />
-                <Label htmlFor="ipv6DisableForwarding" className="text-xs font-normal">Disable Forwarding</Label>
+                <Label htmlFor="ipv6DisableForwarding" className="text-xs font-normal">{t("modal.advanced.disableForwarding")}</Label>
               </div>
             </div>
 
             <Separator />
 
-            <h4 className="text-sm font-medium">Mirror & Redirect</h4>
+            <h4 className="text-sm font-medium">{t("modal.advanced.mirrorRedirect")}</h4>
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="mirrorIngress" className="text-xs">Mirror Ingress</Label>
+                <Label htmlFor="mirrorIngress" className="text-xs">{t("modal.advanced.mirrorIngress")}</Label>
                 <Input id="mirrorIngress" value={mirrorIngress} onChange={(e) => setMirrorIngress(e.target.value)} className="h-8 text-sm" placeholder="eth1" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="mirrorEgress" className="text-xs">Mirror Egress</Label>
+                <Label htmlFor="mirrorEgress" className="text-xs">{t("modal.advanced.mirrorEgress")}</Label>
                 <Input id="mirrorEgress" value={mirrorEgress} onChange={(e) => setMirrorEgress(e.target.value)} className="h-8 text-sm" placeholder="eth1" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="redirect" className="text-xs">Redirect</Label>
+                <Label htmlFor="redirect" className="text-xs">{t("modal.advanced.redirect")}</Label>
                 <Input id="redirect" value={redirect} onChange={(e) => setRedirect(e.target.value)} className="h-8 text-sm" placeholder="eth1" />
               </div>
             </div>
@@ -946,18 +951,18 @@ export function MacsecModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? "Saving..." : "Creating..."}
+                {isEdit ? tc("saving") : t("modal.creating")}
               </>
             ) : isEdit ? (
-              "Save Changes"
+              t("modal.saveChanges")
             ) : (
-              "Create Interface"
+              t("modal.createInterface")
             )}
           </Button>
         </DialogFooter>

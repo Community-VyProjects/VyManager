@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -27,6 +28,8 @@ export function DeleteTunnelModal({
   onSuccess,
   interfaceData,
 }: DeleteTunnelModalProps) {
+  const t = useTranslations("tunnel");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,10 +46,10 @@ export function DeleteTunnelModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to delete tunnel interface");
+        setError(result.error || t("delete.failed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to delete tunnel interface");
+      setError((err as ApiError).message || t("delete.failed"));
     } finally {
       setLoading(false);
     }
@@ -60,19 +63,18 @@ export function DeleteTunnelModal({
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            Delete Interface: {interfaceData.name}
+            {t("delete.title", { name: interfaceData.name })}
           </AlertDialogTitle>
           <AlertDialogDescription className="space-y-2">
             <p>
-              Are you sure you want to delete this tunnel interface? This action
-              cannot be undone.
+              {t("delete.confirm")}
             </p>
             {interfaceData.encapsulation && (
               <div className="rounded-lg bg-muted/50 border p-3 mt-2">
                 <p className="text-sm text-muted-foreground">
-                  Encapsulation: <span className="font-medium text-foreground">{interfaceData.encapsulation}</span>
+                  {t("delete.encapsulation")} <span className="font-medium text-foreground">{interfaceData.encapsulation}</span>
                   {interfaceData.addresses.length > 0 && (
-                    <> &middot; {interfaceData.addresses.length} address{interfaceData.addresses.length !== 1 ? "es" : ""}</>
+                    <> &middot; {t("delete.addressCount", { count: interfaceData.addresses.length })}</>
                   )}
                 </p>
               </div>
@@ -92,16 +94,16 @@ export function DeleteTunnelModal({
             onClick={() => onOpenChange(false)}
             disabled={loading}
           >
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Interface"
+              t("delete.submit")
             )}
           </Button>
         </AlertDialogFooter>

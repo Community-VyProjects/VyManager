@@ -254,16 +254,26 @@ export function vppDraftFrom(current: VppAnyConfig, subType: VppSubType): VppDra
 // Validation
 // ============================================================================
 
-const mtuError = (mtu: string): string | null => {
+/**
+ * A validation failure as a message key under the `vpp.validation` namespace,
+ * plus the values it interpolates. The component translates it.
+ */
+export type VppValidationError =
+  | { key: "selectType" | "nameRequired" | "mtuRange" | "vniRange" | "vniRequired" }
+  | { key: "remoteRequired" | "sourceRequired"; values: { type: string } }
+  | { key: "namePattern"; values: { pattern: string; example: string } }
+  | { key: "nameExists"; values: { name: string } };
+
+const mtuError = (mtu: string): VppValidationError | null => {
   if (!mtu) return null;
   const m = Number(mtu);
-  if (!Number.isInteger(m) || m < 68 || m > 16000) return "MTU must be between 68 and 16000.";
+  if (!Number.isInteger(m) || m < 68 || m > 16000) return { key: "mtuRange" };
   return null;
 };
 
-const vniError = (vni: string): string | null => {
+const vniError = (vni: string): VppValidationError | null => {
   const n = Number(vni);
-  if (!Number.isInteger(n) || n < 0 || n > 16777214) return "VNI must be between 0 and 16777214.";
+  if (!Number.isInteger(n) || n < 0 || n > 16777214) return { key: "vniRange" };
   return null;
 };
 
@@ -272,22 +282,22 @@ const vniError = (vni: string): string | null => {
  * cannot commit without. Requiredness runs on edit too, so clearing a
  * mandatory endpoint is refused here instead of reaching the router.
  */
-function validateVppFields(draft: VppDraft, subType: VppSubType): string | null {
+function validateVppFields(draft: VppDraft, subType: VppSubType): VppValidationError | null {
   const mtu = mtuError(draft.mtu.trim());
   if (mtu) return mtu;
 
   if (subType === "gre") {
-    if (!draft.greRemote.trim()) return "Remote IP is required for GRE.";
-    if (!draft.greSource.trim()) return "Source address is required for GRE.";
+    if (!draft.greRemote.trim()) return { key: "remoteRequired", values: { type: "GRE" } };
+    if (!draft.greSource.trim()) return { key: "sourceRequired", values: { type: "GRE" } };
   }
   if (subType === "ipip") {
-    if (!draft.ipipRemote.trim()) return "Remote IP is required for IPIP.";
-    if (!draft.ipipSource.trim()) return "Source address is required for IPIP.";
+    if (!draft.ipipRemote.trim()) return { key: "remoteRequired", values: { type: "IPIP" } };
+    if (!draft.ipipSource.trim()) return { key: "sourceRequired", values: { type: "IPIP" } };
   }
   if (subType === "vxlan") {
-    if (!draft.vxlanRemote.trim()) return "Remote IP is required for VXLAN.";
-    if (!draft.vxlanSource.trim()) return "Source address is required for VXLAN.";
-    if (!draft.vxlanVni.trim()) return "VNI is required for VXLAN.";
+    if (!draft.vxlanRemote.trim()) return { key: "remoteRequired", values: { type: "VXLAN" } };
+    if (!draft.vxlanSource.trim()) return { key: "sourceRequired", values: { type: "VXLAN" } };
+    if (!draft.vxlanVni.trim()) return { key: "vniRequired" };
     const vni = vniError(draft.vxlanVni.trim());
     if (vni) return vni;
   }
@@ -299,19 +309,22 @@ export function validateVppCreate(
   draft: VppDraft,
   subType: VppSubType | null,
   existingNames: string[],
-): string | null {
-  if (!subType) return "Please select an interface type.";
+): VppValidationError | null {
+  if (!subType) return { key: "selectType" };
   const n = draft.name.trim();
-  if (!n) return "Interface name is required.";
+  if (!n) return { key: "nameRequired" };
   if (!VPP_NAME_PATTERNS[subType].test(n)) {
-    return `Interface name must match pattern ${VPP_NAME_PATTERNS[subType]} (e.g., ${VPP_NAME_EXAMPLES[subType]}).`;
+    return {
+      key: "namePattern",
+      values: { pattern: String(VPP_NAME_PATTERNS[subType]), example: VPP_NAME_EXAMPLES[subType] },
+    };
   }
-  if (existingNames.includes(n)) return `Interface '${n}' already exists.`;
+  if (existingNames.includes(n)) return { key: "nameExists", values: { name: n } };
   return validateVppFields(draft, subType);
 }
 
 /** Edit-mode rules. Identity is locked, so the name rules do not run again. */
-export function validateVppEdit(draft: VppDraft, subType: VppSubType): string | null {
+export function validateVppEdit(draft: VppDraft, subType: VppSubType): VppValidationError | null {
   return validateVppFields(draft, subType);
 }
 

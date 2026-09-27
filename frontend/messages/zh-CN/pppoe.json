@@ -1,1 +1,121 @@
-{}
+{
+  "delete": {
+    "title": "删除接口：{name}",
+    "confirm": "确定要删除此 PPPoE 客户端接口吗？这将断开会话，且无法撤销。",
+    "source": "源接口：",
+    "ac": "AC：",
+    "service": "服务：",
+    "user": "用户：",
+    "failed": "删除 PPPoE 接口失败",
+    "submit": "删除接口"
+  },
+  "modal": {
+    "editTitle": "编辑 PPPoE 客户端接口",
+    "createTitle": "创建 PPPoE 客户端接口",
+    "editing": "正在编辑接口",
+    "createDescription": "通过以太网源接口拨号连接到上游接入集中器。",
+    "creating": "正在创建...",
+    "saveChanges": "保存更改",
+    "createInterface": "创建接口",
+    "updateFailed": "更新 PPPoE 接口失败",
+    "createFailed": "创建 PPPoE 接口失败"
+  },
+  "tabs": {
+    "basic": "基本",
+    "routing": "路由",
+    "mirror": "镜像"
+  },
+  "validation": {
+    "mtuRange": "MTU 必须是 68 到 1500 之间的整数。",
+    "mruRange": "MRU 必须是 128 到 16384 之间的整数。",
+    "defaultRouteDistanceRange": "默认路由距离必须在 1 到 255 之间。",
+    "pdInstanceRequired": "每个 PD 实例都必须有标识符。",
+    "pdLengthRange": "PD 长度必须在 32 到 64 之间。",
+    "delegatedNameRequired": "每个委派接口都必须有名称。",
+    "nameRequired": "接口名称为必填项。",
+    "namePattern": "接口名称必须符合 'pppoeN' 格式（例如 pppoe0）。",
+    "nameExists": "接口 ''{name}'' 已存在。"
+  },
+  "basic": {
+    "interfaceName": "接口名称",
+    "nameLocked": "接口名称不可更改。",
+    "namePatternHint": "必须符合 pppoeN 格式。",
+    "descriptionPlaceholder": "ISP 上行链路",
+    "sourceInterface": "源接口",
+    "sourcePlaceholder": "选择以太网或 VLAN 接口",
+    "sourceHint": "用于建立会话的底层接口。",
+    "accessConcentrator": "接入集中器",
+    "accessConcentratorPlaceholder": "可选的 AC 名称",
+    "serviceName": "服务名称",
+    "serviceNamePlaceholder": "仅连接到通告此服务的 AC",
+    "redirectInterface": "重定向接口",
+    "redirectPlaceholder": "入站数据包的目标接口",
+    "disableInterface": "管理性禁用此接口"
+  },
+  "ppp": {
+    "username": "PAP/CHAP 用户名",
+    "password": "PAP/CHAP 密码",
+    "localAddress": "本地地址（IPv4）",
+    "remoteAddress": "远端地址（IPv4）",
+    "examplePlaceholder": "例如 {value}",
+    "holdoff": "重拨等待（秒）",
+    "holdoffPlaceholder": "重拨延迟",
+    "idleTimeout": "空闲超时（秒）",
+    "hostUniq": "Host-Uniq（十六进制）"
+  },
+  "routing": {
+    "connectOnDemand": "按需拨号（仅在有流量发送时拨号）",
+    "noDefaultRoute": "不安装默认路由",
+    "defaultRouteDistance": "默认路由距离",
+    "noPeerDns": "不使用对端提供的 DNS 服务器"
+  },
+  "ip": {
+    "adjustMss": "调整 MSS",
+    "adjustMssIpv6": "调整 MSS（IPv6）",
+    "mssPlaceholder": "MSS 值（字节）",
+    "clampToPmtu": "钳制到 PMTU",
+    "disableIpv4Forwarding": "在此接口上禁用 IPv4 转发",
+    "sourceValidation": "源地址验证",
+    "sourceValidationOptions": {
+      "strict": "严格",
+      "loose": "宽松",
+      "disable": "禁用"
+    }
+  },
+  "ipv6": {
+    "addressAutoconf": "地址自动配置（SLAAC）",
+    "requestDhcpv6Address": "请求有状态 DHCPv6 地址",
+    "disableIpv6Forwarding": "在此接口上禁用 IPv6 转发",
+    "interfaceIdentifier": "接口标识符",
+    "interfaceIdentifierPlaceholder": "手动 SLAAC 标识符"
+  },
+  "dhcpv6": {
+    "duidPlaceholder": "DHCP 唯一标识符",
+    "noRelease": "不释放",
+    "rapidCommit": "快速提交",
+    "temporaryAddress": "临时地址",
+    "parametersOnly": "仅请求参数",
+    "noRequestDns": "不请求 DNS",
+    "noRequestDomainName": "不请求域名",
+    "prefixDelegation": "前缀委派",
+    "prefixDelegationHint": "请求 IPv6 前缀并将其委派给下游接口。",
+    "addPdInstance": "添加 PD 实例",
+    "noPdInstances": "未配置 PD 实例。",
+    "instance": "实例",
+    "instancePlaceholder": "实例 ID",
+    "prefixLength": "前缀长度",
+    "removePdInstance": "移除 PD 实例",
+    "delegatedInterfaces": "委派接口",
+    "addInterface": "添加接口",
+    "noDelegatedInterfaces": "没有委派接口。",
+    "interface": "接口",
+    "address": "地址",
+    "optionalPlaceholder": "可选",
+    "removeDelegatedInterface": "移除委派接口"
+  },
+  "mirror": {
+    "ingress": "入站镜像接口",
+    "egress": "出站镜像接口",
+    "selectInterface": "选择接口"
+  }
+}

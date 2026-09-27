@@ -1,1 +1,277 @@
-{}
+{
+  "page": {
+    "title": "Interfaces",
+    "total": "{count} total",
+    "loadFailed": "Failed to load interface data",
+    "failedToLoad": "Failed to load",
+    "loading": "Loading interfaces...",
+    "failedToLoadInterfaces": "Failed to load interfaces",
+    "tryAgain": "Try Again"
+  },
+  "types": {
+    "bonding": "Bonding",
+    "bridge": "Bridge",
+    "dummy": "Dummy",
+    "ethernet": "Ethernet",
+    "input": "Input",
+    "loopback": "Loopback",
+    "pseudoEthernet": "Pseudo-Ethernet",
+    "tunnel": "Tunnel",
+    "virtualEthernet": "Virtual Ethernet",
+    "wireless": "Wireless"
+  },
+  "sidebar": {
+    "interfaceCount": "{count, plural, one {# interface} other {# interfaces}}",
+    "vlanCount": "{count, plural, one {# VLAN} other {# VLANs}}",
+    "tunnelCount": "{count, plural, one {# tunnel} other {# tunnels}}"
+  },
+  "titles": {
+    "ethernet": "Ethernet Interfaces",
+    "vlan": "VLANs",
+    "vxlan": "VXLAN Interfaces",
+    "tunnel": "Tunnel Interfaces",
+    "l2tpv3": "L2TPv3 Interfaces",
+    "dummy": "Dummy Interfaces",
+    "geneve": "GENEVE Interfaces",
+    "input": "Input Interfaces",
+    "loopback": "Loopback Interface",
+    "macsec": "MACsec Interfaces",
+    "bonding": "Bonding Interfaces",
+    "bridge": "Bridge Interfaces",
+    "pppoe": "PPPoE Interfaces",
+    "pseudoEthernet": "Pseudo-Ethernet Interfaces",
+    "sstpc": "SSTPC Interfaces",
+    "virtualEthernet": "Virtual Ethernet Interfaces",
+    "vpp": "VPP Interfaces",
+    "vti": "VTI Interfaces",
+    "wireless": "Wireless Interfaces",
+    "wwan": "WWAN Interfaces",
+    "wireguard": "WireGuard Interfaces"
+  },
+  "descriptions": {
+    "ethernet": "Physical and virtual ethernet interface configurations",
+    "vlan": "802.1Q VLAN, QinQ Service (VIF-S), and QinQ Customer (VIF-C) sub-interfaces",
+    "vxlan": "VXLAN tunnel interfaces for overlay networking",
+    "tunnel": "GRE, IPIP, SIT, ERSPAN and other tunnel interfaces",
+    "l2tpv3": "Layer 2 Tunnel Protocol Version 3 tunnel interfaces",
+    "dummy": "Software-only dummy interfaces for testing and routing",
+    "geneve": "GENEVE tunnel interfaces for network virtualization encapsulation",
+    "input": "Input Functional Block (IFB) interfaces for traffic redirection and shaping",
+    "loopback": "Loopback interface for local address assignment and routing",
+    "macsec": "IEEE 802.1AE MACsec interfaces for layer-2 encryption",
+    "bonding": "Link aggregation (bonding) interfaces for high availability and throughput",
+    "bridge": "Bridge interfaces for layer-2 network bridging",
+    "pppoe": "PPP over Ethernet dial-up interfaces — connects to an upstream access concentrator over an Ethernet source",
+    "pseudoEthernet": "MacVLAN pseudo-ethernet interfaces bound to a physical Ethernet port with configurable isolation mode",
+    "sstpc": "SSTP client interfaces — tunnel PPP over HTTPS to a remote server for VPN connectivity through restrictive firewalls",
+    "virtualEthernet": "Virtual Ethernet (veth) peer interface pairs — kernel-level point-to-point links connecting network namespaces",
+    "vpp": "VPP (Vector Packet Processing) interfaces — bonding, bridge, GRE, IPIP, loopback, VXLAN, and XConnect types",
+    "vti": "Virtual Tunnel Interfaces (VTI) — routable endpoints for IPsec tunnels",
+    "wireless": "Wireless (802.11) interfaces — access point, station, and monitor mode",
+    "wwan": "Wireless WAN (cellular modem) interfaces — connect via APN with LTE/5G modems",
+    "wireguard": "WireGuard tunnel interfaces and status"
+  },
+  "create": {
+    "ethernet": "Create Interface",
+    "vxlan": "Create VXLAN",
+    "tunnel": "Create Tunnel",
+    "dummy": "Create Dummy",
+    "geneve": "Create GENEVE",
+    "input": "Create Input",
+    "l2tpv3": "Create L2TPv3",
+    "loopback": "Configure Loopback",
+    "macsec": "Create MACsec",
+    "bonding": "Create Bond",
+    "bridge": "Create Bridge",
+    "pppoe": "Create PPPoE",
+    "pseudoEthernet": "Create Pseudo-Ethernet",
+    "sstpc": "Create SSTPC",
+    "virtualEthernet": "Create Virtual Ethernet",
+    "vpp": "Create VPP Interface",
+    "vti": "Create VTI",
+    "wireless": "Create Wireless",
+    "wwan": "Create WWAN",
+    "wireguard": "Manage WireGuard",
+    "vlan": "Create {label}",
+    "wirelessInterface": "Create Wireless Interface",
+    "wwanInterface": "Create WWAN Interface"
+  },
+  "vlan": {
+    "tabVifS": "VIF-S (QinQ Service)",
+    "tabVifC": "VIF-C (QinQ Customer)"
+  },
+  "search": {
+    "ethernet": "Search by name, description, IP address, VRF, or MAC...",
+    "vlan": "Search by name, parent, description, IP address, or VRF...",
+    "vxlan": "Search by name, description, address, or VNI...",
+    "tunnel": "Search by name, description, address, encapsulation, or remote...",
+    "dummy": "Search by name, description, address, or VRF...",
+    "geneve": "Search by name, description, address, remote, or VNI...",
+    "input": "Search by name, description, or redirect...",
+    "l2tpv3": "Search by name, description, remote, or address...",
+    "loopback": "Search by name, description, or address...",
+    "bonding": "Search by name, description, address, mode, or member...",
+    "bridge": "Search by name, description, address, or member...",
+    "pppoe": "Search by name, source, AC, or username...",
+    "pseudoEthernet": "Search by name, description, source, or address...",
+    "virtualEthernet": "Search by name, peer, description, or address...",
+    "default": "Search by name, description, address..."
+  },
+  "empty": {
+    "ethernet": {
+      "noMatch": "No ethernet interfaces matching your search",
+      "none": "No ethernet interfaces configured"
+    },
+    "vxlan": {
+      "noMatch": "No VXLAN interfaces matching your search",
+      "none": "No VXLAN interfaces configured"
+    },
+    "tunnel": {
+      "noMatch": "No tunnel interfaces matching your search",
+      "none": "No tunnel interfaces configured"
+    },
+    "dummy": {
+      "noMatch": "No dummy interfaces matching your search",
+      "none": "No dummy interfaces configured"
+    },
+    "geneve": {
+      "noMatch": "No GENEVE interfaces matching your search",
+      "none": "No GENEVE interfaces configured"
+    },
+    "l2tpv3": {
+      "noMatch": "No L2TPv3 interfaces matching your search",
+      "none": "No L2TPv3 interfaces configured"
+    },
+    "input": {
+      "noMatch": "No input interfaces matching your search",
+      "none": "No input interfaces configured"
+    },
+    "loopback": {
+      "noMatch": "No loopback interfaces matching your search",
+      "none": "No loopback interface configured"
+    },
+    "macsec": {
+      "noMatch": "No MACsec interfaces matching your search",
+      "none": "No MACsec interfaces configured"
+    },
+    "pppoe": {
+      "noMatch": "No PPPoE interfaces matching your search",
+      "none": "No PPPoE interfaces configured"
+    },
+    "pseudoEthernet": {
+      "noMatch": "No pseudo-ethernet interfaces matching your search",
+      "none": "No pseudo-ethernet interfaces configured"
+    },
+    "sstpc": {
+      "noMatch": "No SSTPC interfaces matching your search",
+      "none": "No SSTPC interfaces configured"
+    },
+    "virtualEthernet": {
+      "noMatch": "No virtual ethernet interfaces matching your search",
+      "none": "No virtual ethernet interfaces configured"
+    },
+    "bonding": {
+      "noMatch": "No bonding interfaces matching your search",
+      "none": "No bonding interfaces configured"
+    },
+    "bridge": {
+      "noMatch": "No bridge interfaces matching your search",
+      "none": "No bridge interfaces configured"
+    },
+    "vti": {
+      "noMatch": "No VTI interfaces matching your search",
+      "none": "No VTI interfaces configured"
+    },
+    "wireless": {
+      "noMatch": "No wireless interfaces matching your search",
+      "none": "No wireless interfaces configured"
+    },
+    "wwan": {
+      "noMatch": "No WWAN interfaces matching your search",
+      "none": "No WWAN interfaces configured"
+    },
+    "wireguard": {
+      "noMatch": "No WireGuard interfaces matching your search",
+      "none": "No WireGuard interfaces configured"
+    },
+    "vlan": {
+      "noMatch": "No {label}s matching your search",
+      "none": "No {label}s configured"
+    },
+    "vpp": {
+      "noMatch": "No VPP {label} interfaces matching your search",
+      "none": "No VPP {label} interfaces configured"
+    }
+  },
+  "table": {
+    "parent": "Parent",
+    "addresses": "Addresses",
+    "extra": "Extra",
+    "macHwId": "MAC / HW ID",
+    "vlans": "VLANs",
+    "optic": "Optic",
+    "source": "Source",
+    "remotes": "Remotes",
+    "remote": "Remote",
+    "encapsulation": "Encapsulation",
+    "tunnelId": "Tunnel ID",
+    "sessionId": "Session ID",
+    "redirect": "Redirect",
+    "sourceValidation": "Source Validation",
+    "cipher": "Cipher",
+    "securityMode": "Security Mode",
+    "acService": "AC / Service",
+    "sourceInterface": "Source Interface",
+    "mode": "Mode",
+    "server": "Server",
+    "port": "Port",
+    "peer": "Peer",
+    "namespace": "Namespace",
+    "subInterfaces": "Sub-interfaces",
+    "hashPolicy": "Hash Policy",
+    "members": "Members",
+    "tunnelType": "Tunnel Type",
+    "key": "Key",
+    "subInterface": "Sub-interface",
+    "type": "Type",
+    "channel": "Channel",
+    "security": "Security",
+    "peers": "Peers",
+    "showingInterfaces": "Showing {shown} of {total, plural, one {# interface} other {# interfaces}}",
+    "showingTunnels": "Showing {shown} of {total, plural, one {# tunnel} other {# tunnels}}",
+    "showingVlans": "Showing {count} {label}{count, plural, one {} other {s}}",
+    "showingVpp": "Showing {shown} of {total} {shown, plural, one {interface} other {interfaces}}"
+  },
+  "optic": {
+    "alarm": "Alarm",
+    "alarmTitle": "Optic alarm",
+    "warning": "Warning",
+    "warningTitle": "Optic warning",
+    "healthy": "Healthy",
+    "healthyTitle": "Optic healthy"
+  },
+  "actions": {
+    "viewDiagnostics": "View transceiver diagnostics"
+  },
+  "macsec": {
+    "static": "Static"
+  },
+  "vpp": {
+    "memberCount": "{count, plural, one {# member} other {# members}}",
+    "bviCount": " ({count} BVI)"
+  },
+  "bridge": {
+    "vifCount": "{count, plural, one {# VIF} other {# VIFs}}",
+    "vifSubInterfaces": "VIF Sub-interfaces ({count})",
+    "addVif": "Add VIF",
+    "noVifs": "No VIFs configured on this bridge."
+  },
+  "wireless": {
+    "open": "Open",
+    "station": "Station",
+    "monitor": "Monitor"
+  },
+  "wireguard": {
+    "auto": "Auto"
+  }
+}

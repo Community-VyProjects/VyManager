@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -50,6 +51,8 @@ export function CreateVirtualEthernetModal({
   existingNames,
 }: CreateVirtualEthernetModalProps) {
   const feat = (key: string) => capabilities?.features?.[key]?.supported ?? false;
+  const t = useTranslations("virtualEthernet");
+  const tc = useTranslations("common");
 
   // Basic
   const [name, setName] = useState("veth0");
@@ -121,14 +124,14 @@ export function CreateVirtualEthernetModal({
 
   const validate = (): string | null => {
     const n = name.trim();
-    if (!n) return "Interface name is required.";
-    if (!VETH_NAME_RE.test(n)) return "Interface name must start with a letter and contain only letters, digits, underscores, hyphens, or dots (max 15 chars).";
-    if (existingNames.includes(n)) return `Interface '${n}' already exists.`;
-    if (!peerName.trim()) return "Peer name is required.";
-    if (!VETH_NAME_RE.test(peerName.trim())) return "Peer name must follow the same naming rules as the interface name.";
+    if (!n) return t("validation.nameRequired");
+    if (!VETH_NAME_RE.test(n)) return t("validation.nameFormat");
+    if (existingNames.includes(n)) return t("validation.nameExists", { name: n });
+    if (!peerName.trim()) return t("validation.peerRequired");
+    if (!VETH_NAME_RE.test(peerName.trim())) return t("validation.peerFormat");
     if (mtu) {
       const m = Number(mtu);
-      if (!Number.isInteger(m) || m < 68 || m > 16000) return "MTU must be between 68 and 16000.";
+      if (!Number.isInteger(m) || m < 68 || m > 16000) return t("validation.mtuRange");
     }
     return null;
   };
@@ -192,10 +195,10 @@ export function CreateVirtualEthernetModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to create interface");
+      setError((err as ApiError).message || t("create.failed"));
     } finally {
       setLoading(false);
     }
@@ -207,50 +210,50 @@ export function CreateVirtualEthernetModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Virtual Ethernet Interface</DialogTitle>
+          <DialogTitle>{t("create.title")}</DialogTitle>
           <DialogDescription>
-            Configure a new kernel veth pair. Both ends of the pair are created together.
+            {t("create.description")}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="basic">Basic</TabsTrigger>
-            <TabsTrigger value="addresses">Addresses</TabsTrigger>
+            <TabsTrigger value="basic">{t("tabs.basic")}</TabsTrigger>
+            <TabsTrigger value="addresses">{t("tabs.addresses")}</TabsTrigger>
           </TabsList>
 
           {/* Basic Tab */}
           <TabsContent value="basic" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Interface Name *</Label>
+                <Label htmlFor="name">{t("form.interfaceNameRequired")}</Label>
                 <Input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="veth0"
                 />
-                <p className="text-xs text-muted-foreground">e.g. veth0, veth-ns1</p>
+                <p className="text-xs text-muted-foreground">{t("form.nameExampleHint")}</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="peerName">Peer Name *</Label>
+                <Label htmlFor="peerName">{t("form.peerNameRequired")}</Label>
                 <Input
                   id="peerName"
                   value={peerName}
                   onChange={(e) => setPeerName(e.target.value)}
                   placeholder="veth1"
                 />
-                <p className="text-xs text-muted-foreground">The other end of the veth pair</p>
+                <p className="text-xs text-muted-foreground">{t("form.peerNameHint")}</p>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{tc("description")}</Label>
               <Input
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional description"
+                placeholder={t("form.descriptionPlaceholder")}
               />
             </div>
 
@@ -279,7 +282,7 @@ export function CreateVirtualEthernetModal({
 
             {feat("netns") && (
               <div className="space-y-2">
-                <Label htmlFor="netns">Network Namespace</Label>
+                <Label htmlFor="netns">{t("form.networkNamespace")}</Label>
                 <Input
                   id="netns"
                   value={netns}
@@ -291,20 +294,20 @@ export function CreateVirtualEthernetModal({
 
             <div className="flex items-center gap-2">
               <Checkbox id="disabled" checked={disabled} onCheckedChange={(c) => setDisabled(!!c)} />
-              <Label htmlFor="disabled">Disabled</Label>
+              <Label htmlFor="disabled">{t("form.disabled")}</Label>
             </div>
           </TabsContent>
 
           {/* Addresses Tab */}
           <TabsContent value="addresses" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>IP Addresses</Label>
+              <Label>{t("form.ipAddresses")}</Label>
               <div className="flex gap-2">
                 <Input
                   value={addressInput}
                   onChange={(e) => setAddressInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addAddress())}
-                  placeholder="192.0.2.1/24 or dhcp or dhcpv6"
+                  placeholder={t("form.addressPlaceholder")}
                 />
                 <Button type="button" variant="outline" size="sm" onClick={addAddress}>
                   <Plus className="h-4 w-4" />
@@ -325,47 +328,47 @@ export function CreateVirtualEthernetModal({
             {(hasDhcpAddress || dhcpClientId || dhcpHostName || dhcpVendorClassId || dhcpUserClass || dhcpNoDefaultRoute || dhcpReject.length > 0 || dhcpMtu) && (
               <>
                 <Separator />
-                <p className="text-sm font-medium">DHCP Options</p>
+                <p className="text-sm font-medium">{t("form.dhcpOptions")}</p>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Client ID</Label>
+                    <Label>{t("form.clientId")}</Label>
                     <Input value={dhcpClientId} onChange={(e) => setDhcpClientId(e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Hostname</Label>
+                    <Label>{t("form.hostname")}</Label>
                     <Input value={dhcpHostName} onChange={(e) => setDhcpHostName(e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Vendor Class ID</Label>
+                    <Label>{t("form.vendorClassId")}</Label>
                     <Input value={dhcpVendorClassId} onChange={(e) => setDhcpVendorClassId(e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <Label>User Class</Label>
+                    <Label>{t("form.userClass")}</Label>
                     <Input value={dhcpUserClass} onChange={(e) => setDhcpUserClass(e.target.value)} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex items-center gap-2">
                     <Checkbox checked={dhcpNoDefaultRoute} onCheckedChange={(c) => setDhcpNoDefaultRoute(!!c)} id="dhcpNoDef" />
-                    <Label htmlFor="dhcpNoDef">No Default Route</Label>
+                    <Label htmlFor="dhcpNoDef">{t("form.noDefaultRoute")}</Label>
                   </div>
                   <div className="space-y-2">
-                    <Label>Default Route Distance</Label>
+                    <Label>{t("form.defaultRouteDistance")}</Label>
                     <Input type="number" value={dhcpDefaultRouteDistance} onChange={(e) => setDhcpDefaultRouteDistance(e.target.value)} min={1} max={255} />
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox checked={dhcpMtu} onCheckedChange={(c) => setDhcpMtu(!!c)} id="dhcpMtu" />
-                  <Label htmlFor="dhcpMtu">Request MTU from DHCP</Label>
+                  <Label htmlFor="dhcpMtu">{t("form.requestMtuFromDhcp")}</Label>
                 </div>
                 <div className="space-y-2">
-                  <Label>Reject Servers</Label>
+                  <Label>{t("form.rejectServers")}</Label>
                   <div className="flex gap-2">
                     <Input
                       value={dhcpRejectInput}
                       onChange={(e) => setDhcpRejectInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addDhcpReject())}
-                      placeholder="Server IP to reject"
+                      placeholder={t("form.rejectServerPlaceholder")}
                     />
                     <Button type="button" variant="outline" size="sm" onClick={addDhcpReject}>
                       <Plus className="h-4 w-4" />
@@ -386,22 +389,22 @@ export function CreateVirtualEthernetModal({
             )}
             {!hasDhcpAddress && !dhcpClientId && (
               <Button type="button" variant="outline" size="sm" onClick={() => setDhcpClientId(" ")}>
-                Expand DHCP Options
+                {t("form.expandDhcpOptions")}
               </Button>
             )}
 
             <Separator />
-            <p className="text-sm font-medium">DHCPv6 Options</p>
+            <p className="text-sm font-medium">{t("form.dhcpv6Options")}</p>
             <div className="space-y-2">
               <Label>DUID</Label>
-              <Input value={dhcpv6Duid} onChange={(e) => setDhcpv6Duid(e.target.value)} placeholder="DHCPv6 unique identifier" />
+              <Input value={dhcpv6Duid} onChange={(e) => setDhcpv6Duid(e.target.value)} placeholder={t("form.duidPlaceholder")} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               {([
-                [dhcpv6NoRelease, setDhcpv6NoRelease, "No Release"],
-                [dhcpv6ParametersOnly, setDhcpv6ParametersOnly, "Parameters Only"],
-                [dhcpv6RapidCommit, setDhcpv6RapidCommit, "Rapid Commit"],
-                [dhcpv6Temporary, setDhcpv6Temporary, "Temporary"],
+                [dhcpv6NoRelease, setDhcpv6NoRelease, t("form.noRelease")],
+                [dhcpv6ParametersOnly, setDhcpv6ParametersOnly, t("form.parametersOnly")],
+                [dhcpv6RapidCommit, setDhcpv6RapidCommit, t("form.rapidCommit")],
+                [dhcpv6Temporary, setDhcpv6Temporary, t("form.temporary")],
               ] as const).map(([val, setter, label]) => (
                 <div key={label} className="flex items-center gap-2">
                   <Checkbox checked={val} onCheckedChange={(c) => setter(!!c)} id={`dhcpv6-${label}`} />
@@ -411,52 +414,52 @@ export function CreateVirtualEthernetModal({
               {feat("dhcpv6_no_request_dns") && (
                 <div className="flex items-center gap-2">
                   <Checkbox checked={dhcpv6NoRequestDns} onCheckedChange={(c) => setDhcpv6NoRequestDns(!!c)} id="dhcpv6NoDns" />
-                  <Label htmlFor="dhcpv6NoDns" className="text-sm font-normal">No Request DNS</Label>
+                  <Label htmlFor="dhcpv6NoDns" className="text-sm font-normal">{t("form.noRequestDns")}</Label>
                 </div>
               )}
               {feat("dhcpv6_no_request_domain_name") && (
                 <div className="flex items-center gap-2">
                   <Checkbox checked={dhcpv6NoRequestDomainName} onCheckedChange={(c) => setDhcpv6NoRequestDomainName(!!c)} id="dhcpv6NoDomain" />
-                  <Label htmlFor="dhcpv6NoDomain" className="text-sm font-normal">No Request Domain Name</Label>
+                  <Label htmlFor="dhcpv6NoDomain" className="text-sm font-normal">{t("form.noRequestDomainName")}</Label>
                 </div>
               )}
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>PD Instances</Label>
+                <Label>{t("form.pdInstances")}</Label>
                 <Button type="button" variant="outline" size="sm" onClick={() => setPdInstances((p) => [...p, { instance: String(p.length + 1), length: "", interfaces: [] }])}>
-                  <Plus className="h-4 w-4 mr-1" /> Add PD
+                  <Plus className="h-4 w-4 mr-1" /> {t("form.addPd")}
                 </Button>
               </div>
               {pdInstances.map((pd, i) => (
                 <div key={i} className="border rounded-lg p-3 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">PD Instance {pd.instance}</span>
+                    <span className="text-sm font-medium">{t("form.pdInstance", { instance: pd.instance })}</span>
                     <Button type="button" variant="ghost" size="sm" onClick={() => setPdInstances((p) => p.filter((_, j) => j !== i))}>
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <Label className="text-xs">Instance ID</Label>
+                      <Label className="text-xs">{t("form.instanceId")}</Label>
                       <Input value={pd.instance} onChange={(e) => setPdInstances((p) => p.map((r, j) => j === i ? { ...r, instance: e.target.value } : r))} />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Length (32–64)</Label>
+                      <Label className="text-xs">{t("form.pdLength")}</Label>
                       <Input type="number" min={32} max={64} value={pd.length} onChange={(e) => setPdInstances((p) => p.map((r, j) => j === i ? { ...r, length: e.target.value } : r))} />
                     </div>
                   </div>
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <Label className="text-xs">Delegated Interfaces</Label>
+                      <Label className="text-xs">{t("form.delegatedInterfaces")}</Label>
                       <Button type="button" variant="outline" size="sm" className="h-6 text-xs" onClick={() => setPdInstances((p) => p.map((r, j) => j === i ? { ...r, interfaces: [...r.interfaces, { name: "", address: "", sla_id: "" }] } : r))}>
-                        <Plus className="h-3 w-3 mr-1" /> Add
+                        <Plus className="h-3 w-3 mr-1" /> {tc("add")}
                       </Button>
                     </div>
                     {pd.interfaces.map((di, k) => (
                       <div key={k} className="flex gap-2 items-center">
-                        <Input className="flex-1" placeholder="Interface" value={di.name ?? ""} onChange={(e) => setPdInstances((p) => p.map((r, j) => j === i ? { ...r, interfaces: r.interfaces.map((x, l) => l === k ? { ...x, name: e.target.value } : x) } : r))} />
-                        <Input className="flex-1" placeholder="Address" value={di.address ?? ""} onChange={(e) => setPdInstances((p) => p.map((r, j) => j === i ? { ...r, interfaces: r.interfaces.map((x, l) => l === k ? { ...x, address: e.target.value } : x) } : r))} />
+                        <Input className="flex-1" placeholder={t("form.interfacePlaceholder")} value={di.name ?? ""} onChange={(e) => setPdInstances((p) => p.map((r, j) => j === i ? { ...r, interfaces: r.interfaces.map((x, l) => l === k ? { ...x, name: e.target.value } : x) } : r))} />
+                        <Input className="flex-1" placeholder={t("form.addressPlaceholderShort")} value={di.address ?? ""} onChange={(e) => setPdInstances((p) => p.map((r, j) => j === i ? { ...r, interfaces: r.interfaces.map((x, l) => l === k ? { ...x, address: e.target.value } : x) } : r))} />
                         <Input className="w-20" placeholder="SLA ID" value={di.sla_id ?? ""} onChange={(e) => setPdInstances((p) => p.map((r, j) => j === i ? { ...r, interfaces: r.interfaces.map((x, l) => l === k ? { ...x, sla_id: e.target.value } : x) } : r))} />
                         <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setPdInstances((p) => p.map((r, j) => j === i ? { ...r, interfaces: r.interfaces.filter((_, l) => l !== k) } : r))}>
                           <X className="h-3 w-3" />
@@ -479,16 +482,16 @@ export function CreateVirtualEthernetModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
+                {t("create.creating")}
               </>
             ) : (
-              "Create Interface"
+              t("create.submit")
             )}
           </Button>
         </DialogFooter>
