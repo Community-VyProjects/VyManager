@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,8 @@ export function DeleteCustomChainModal({
   chain,
   protocol = "ipv4",
 }: DeleteCustomChainModalProps) {
+  const t = useTranslations("firewallPolicies");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,7 +47,7 @@ export function DeleteCustomChainModal({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete custom chain");
+      setError(err instanceof Error ? err.message : t("deleteChain.deleteFailed"));
     } finally {
       setLoading(false);
     }
@@ -54,9 +57,9 @@ export function DeleteCustomChainModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Delete Custom Chain</DialogTitle>
+          <DialogTitle>{t("deleteChain.title")}</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete this custom chain?
+            {t("deleteChain.confirm")}
           </DialogDescription>
         </DialogHeader>
 
@@ -64,7 +67,7 @@ export function DeleteCustomChainModal({
           <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
             <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-destructive">Error</p>
+              <p className="text-sm font-medium text-destructive">{t("deleteChain.error")}</p>
               <p className="text-sm text-destructive/90">{error}</p>
             </div>
           </div>
@@ -72,17 +75,17 @@ export function DeleteCustomChainModal({
 
         <div className="bg-muted/50 border border-border rounded-lg p-4 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-muted-foreground">Chain Name</span>
+            <span className="text-sm font-medium text-muted-foreground">{t("deleteChain.chainName")}</span>
             <span className="text-sm font-mono font-semibold text-foreground">{chain.name}</span>
           </div>
           {chain.description && (
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-muted-foreground">Description</span>
+              <span className="text-sm font-medium text-muted-foreground">{tc("description")}</span>
               <span className="text-sm text-foreground">{chain.description}</span>
             </div>
           )}
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-muted-foreground">Rules</span>
+            <span className="text-sm font-medium text-muted-foreground">{t("deleteChain.rules")}</span>
             <span className="text-sm text-foreground">{chain.rules.length}</span>
           </div>
         </div>
@@ -91,9 +94,9 @@ export function DeleteCustomChainModal({
           <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-3 flex items-start gap-2">
             <AlertTriangle className="h-5 w-5 text-orange-500 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-orange-600 dark:text-orange-400">Warning</p>
+              <p className="text-sm font-medium text-orange-600 dark:text-orange-400">{t("deleteChain.warning")}</p>
               <p className="text-sm text-orange-600/90 dark:text-orange-400/90">
-                This chain contains {chain.rules.length} rule{chain.rules.length !== 1 ? "s" : ""}. Deleting the chain will also delete all its rules.
+                {t("deleteChain.warningText", { count: chain.rules.length })}
               </p>
             </div>
           </div>
@@ -101,16 +104,16 @@ export function DeleteCustomChainModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
             {loading ? (
               <>
                 <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Chain"
+              t("deleteChain.submit")
             )}
           </Button>
         </DialogFooter>

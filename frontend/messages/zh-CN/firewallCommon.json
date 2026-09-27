@@ -1,1 +1,47 @@
-{}
+{
+  "reorderBanner": {
+    "title": "排序待保存",
+    "count": "将重新排序 {count} 条规则",
+    "saveOrder": "保存排序"
+  },
+  "separatorBar": {
+    "drag": "拖动分隔栏",
+    "edit": "编辑分隔栏",
+    "delete": "删除分隔栏"
+  },
+  "separatorInsert": {
+    "ariaLabel": "在此处插入分隔栏",
+    "button": "分隔栏"
+  },
+  "separatorModal": {
+    "editTitle": "编辑分隔栏",
+    "addTitle": "添加分隔栏",
+    "description": "分隔栏是 <highlight>{chain} </highlight>链中用于划分区段的可视标签。它们保存在 VyManager 中，不会更改路由器配置。",
+    "dragHint": "拖动分隔栏可将其移动到其他规则之间。",
+    "label": "标签",
+    "labelPlaceholder": "例如：入站、管理、VPN",
+    "colour": "颜色",
+    "labelRequired": "标签为必填项",
+    "saveFailed": "保存分隔栏失败",
+    "saveChanges": "保存更改",
+    "add": "添加分隔栏",
+    "colors": {
+      "red": "红色",
+      "orange": "橙色",
+      "amber": "琥珀色",
+      "green": "绿色",
+      "teal": "青色",
+      "blue": "蓝色",
+      "indigo": "靛蓝色",
+      "purple": "紫色",
+      "pink": "粉色",
+      "slate": "石板灰"
+    }
+  },
+  "countrySelect": {
+    "placeholder": "选择国家/地区...",
+    "selected": "已选择 {count} 个国家/地区",
+    "searchPlaceholder": "搜索国家/地区...",
+    "noResults": "未找到国家/地区"
+  }
+}

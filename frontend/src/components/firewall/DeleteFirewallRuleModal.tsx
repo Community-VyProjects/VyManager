@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,8 @@ export function DeleteFirewallRuleModal({
   rule,
   protocol = "ipv4",
 }: DeleteFirewallRuleModalProps) {
+  const t = useTranslations("firewallPolicies");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,7 +58,7 @@ export function DeleteFirewallRuleModal({
       handleClose();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete rule");
+      setError(err instanceof Error ? err.message : t("deleteRule.deleteFailed"));
     } finally {
       setLoading(false);
     }
@@ -72,9 +75,9 @@ export function DeleteFirewallRuleModal({
               <Shield className="h-5 w-5 text-destructive" />
             </div>
             <div>
-              <DialogTitle>Delete Firewall Rule</DialogTitle>
+              <DialogTitle>{t("deleteRule.title")}</DialogTitle>
               <DialogDescription>
-                This action cannot be undone
+                {t("deleteRule.cannotUndo")}
               </DialogDescription>
             </div>
           </div>
@@ -84,7 +87,7 @@ export function DeleteFirewallRuleModal({
           <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
             <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-destructive">Error</p>
+              <p className="text-sm font-medium text-destructive">{t("deleteRule.error")}</p>
               <p className="text-sm text-destructive/90">{error}</p>
             </div>
           </div>
@@ -92,18 +95,17 @@ export function DeleteFirewallRuleModal({
 
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Are you sure you want to delete this firewall rule? This will remove all
-            traffic filtering for this rule.
+            {t("deleteRule.confirm")}
           </p>
 
           <div className="rounded-lg border border-border bg-muted/50 p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Rule Number</span>
+              <span className="text-sm font-medium">{t("deleteRule.ruleNumber")}</span>
               <span className="font-mono font-semibold">{rule.rule_number}</span>
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Chain</span>
+              <span className="text-sm font-medium">{t("deleteRule.chain")}</span>
               <Badge variant="outline" className="capitalize">
                 {rule.chain}
               </Badge>
@@ -111,7 +113,7 @@ export function DeleteFirewallRuleModal({
 
             {rule.description && (
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Description</span>
+                <span className="text-sm font-medium">{tc("description")}</span>
                 <span className="text-sm text-muted-foreground">
                   {rule.description}
                 </span>
@@ -120,7 +122,7 @@ export function DeleteFirewallRuleModal({
 
             {rule.action && (
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Action</span>
+                <span className="text-sm font-medium">{t("deleteRule.action")}</span>
                 <Badge
                   variant="outline"
                   className={
@@ -138,21 +140,21 @@ export function DeleteFirewallRuleModal({
 
             {rule.protocol && (
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Protocol</span>
+                <span className="text-sm font-medium">{t("deleteRule.protocol")}</span>
                 <Badge variant="outline">{rule.protocol.toUpperCase()}</Badge>
               </div>
             )}
 
             {rule.source?.address && (
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Source</span>
+                <span className="text-sm font-medium">{t("deleteRule.source")}</span>
                 <span className="font-mono text-sm">{rule.source.address}</span>
               </div>
             )}
 
             {rule.destination?.address && (
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Destination</span>
+                <span className="text-sm font-medium">{t("deleteRule.destination")}</span>
                 <span className="font-mono text-sm">
                   {rule.destination.address}
                 </span>
@@ -163,16 +165,16 @@ export function DeleteFirewallRuleModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
             {loading ? (
               <>
                 <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Rule"
+              t("deleteRule.submit")
             )}
           </Button>
         </DialogFooter>

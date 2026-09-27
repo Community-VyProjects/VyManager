@@ -27,6 +27,7 @@ import {
 import { useState, useEffect, useCallback } from "react";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   firewallGlobalOptionsService,
   type FirewallGlobalOptionsConfig,
@@ -36,6 +37,8 @@ import { firewallFeatureSupported } from "@/lib/api/firewall-capability-gates";
 import { cn } from "@/lib/utils";
 
 function FirewallGlobalOptionsPageInner() {
+  const t = useTranslations("firewallGlobalOptions");
+  const tc = useTranslations("common");
   const searchParams = useSearchParams();
   const [config, setConfig] = useState<FirewallGlobalOptionsConfig | null>(null);
   const [capabilities, setCapabilities] = useState<FirewallGlobalOptionsCapabilities | null>(null);
@@ -266,11 +269,11 @@ function FirewallGlobalOptionsPageInner() {
       setCapabilities(capabilitiesData);
       populateFormFromConfig(configResponse.config);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load global options");
+      setError(err instanceof Error ? err.message : t("loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -354,14 +357,14 @@ function FirewallGlobalOptionsPageInner() {
       const response = await firewallGlobalOptionsService.updateConfig(updateConfig);
 
       if (response.success) {
-        setSuccessMessage("Configuration saved successfully");
+        setSuccessMessage(t("saveSuccess"));
         await loadData();
         setTimeout(() => setSuccessMessage(null), 3000);
       } else {
-        setError(response.error || "Failed to save configuration");
+        setError(response.error || t("saveFailed"));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save configuration");
+      setError(err instanceof Error ? err.message : t("saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -426,35 +429,35 @@ function FirewallGlobalOptionsPageInner() {
   );
 
   const enableDisableOptions = [
-    { value: "not_set", label: "Not Set (Default)" },
-    { value: "enable", label: "Enable" },
-    { value: "disable", label: "Disable" },
+    { value: "not_set", label: t("options.notSetDefault") },
+    { value: "enable", label: t("options.enable") },
+    { value: "disable", label: t("options.disable") },
   ];
 
   const actionOptions = [
-    { value: "not_set", label: "Not Set" },
-    { value: "accept", label: "Accept" },
-    { value: "drop", label: "Drop" },
-    { value: "reject", label: "Reject" },
+    { value: "not_set", label: t("options.notSet") },
+    { value: "accept", label: t("options.accept") },
+    { value: "drop", label: t("options.drop") },
+    { value: "reject", label: t("options.reject") },
   ];
 
   const logLevelOptions = [
-    { value: "not_set", label: "Not Set" },
-    { value: "emerg", label: "Emergency" },
-    { value: "alert", label: "Alert" },
-    { value: "crit", label: "Critical" },
-    { value: "err", label: "Error" },
-    { value: "warn", label: "Warning" },
-    { value: "notice", label: "Notice" },
-    { value: "info", label: "Info" },
-    { value: "debug", label: "Debug" },
+    { value: "not_set", label: t("options.notSet") },
+    { value: "emerg", label: t("options.emerg") },
+    { value: "alert", label: t("options.alert") },
+    { value: "crit", label: t("options.crit") },
+    { value: "err", label: t("options.err") },
+    { value: "warn", label: t("options.warn") },
+    { value: "notice", label: t("options.notice") },
+    { value: "info", label: t("options.info") },
+    { value: "debug", label: t("options.debug") },
   ];
 
   const sourceValidationOptions = [
-    { value: "not_set", label: "Not Set (Default)" },
-    { value: "strict", label: "Strict" },
-    { value: "loose", label: "Loose" },
-    { value: "disable", label: "Disable" },
+    { value: "not_set", label: t("options.notSetDefault") },
+    { value: "strict", label: t("options.strict") },
+    { value: "loose", label: t("options.loose") },
+    { value: "disable", label: t("options.disable") },
   ];
 
   return (
@@ -467,20 +470,20 @@ function FirewallGlobalOptionsPageInner() {
               <Settings className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Global Options</h1>
+              <h1 className="text-2xl font-bold text-foreground">{t("title")}</h1>
               <p className="text-sm text-muted-foreground">
-                Configure global firewall settings
+                {t("subtitle")}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => loadData()} disabled={saving}>
               <RefreshCw className={cn("h-4 w-4 mr-1.5", loading && "animate-spin")} />
-              Refresh
+              {tc("refresh")}
             </Button>
             {hasChanges && (
               <Button variant="outline" size="sm" onClick={handleReset} disabled={saving}>
-                Reset
+                {t("reset")}
               </Button>
             )}
             <Button size="sm" onClick={handleSave} disabled={saving || !hasChanges}>
@@ -489,7 +492,7 @@ function FirewallGlobalOptionsPageInner() {
               ) : (
                 <Save className="h-4 w-4 mr-1.5" />
               )}
-              {saving ? "Saving..." : "Save Changes"}
+              {saving ? tc("saving") : t("saveChanges")}
             </Button>
           </div>
         </div>
@@ -511,7 +514,7 @@ function FirewallGlobalOptionsPageInner() {
           <div className="bg-amber-500/10 border border-amber-500/20 rounded-md px-3 py-2 flex items-center gap-2">
             <Info className="h-4 w-4 text-amber-500" />
             <p className="text-sm text-amber-600 dark:text-amber-400">
-              You have unsaved changes
+              {t("unsavedChanges")}
             </p>
           </div>
         )}
@@ -523,24 +526,24 @@ function FirewallGlobalOptionsPageInner() {
             {/* ICMP Settings */}
             <Card id="icmp-settings">
               <CardHeader className="py-3 px-4">
-                <CardTitle className="text-sm font-semibold">ICMP Settings</CardTitle>
+                <CardTitle className="text-sm font-semibold">{t("icmp.title")}</CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-3 pt-0">
                 <SettingSelect
                   fieldId="all-ping"
-                  label="All Ping"
+                  label={t("icmp.allPing")}
                   value={allPing}
                   onChange={setAllPing}
                   options={enableDisableOptions}
-                  description="Accept/reject all IPv4 ICMP echo requests"
+                  description={t("icmp.allPingDesc")}
                 />
                 <SettingSelect
                   fieldId="broadcast-ping"
-                  label="Broadcast Ping"
+                  label={t("icmp.broadcastPing")}
                   value={broadcastPing}
                   onChange={setBroadcastPing}
                   options={enableDisableOptions}
-                  description="Accept/reject broadcast ping"
+                  description={t("icmp.broadcastPingDesc")}
                 />
               </CardContent>
             </Card>
@@ -548,19 +551,19 @@ function FirewallGlobalOptionsPageInner() {
             {/* Source Routing */}
             <Card id="source-routing">
               <CardHeader className="py-3 px-4">
-                <CardTitle className="text-sm font-semibold">Source Routing</CardTitle>
+                <CardTitle className="text-sm font-semibold">{t("sourceRouting.title")}</CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-3 pt-0">
                 <SettingSelect
                   fieldId="ipv4-source-routing"
-                  label="IPv4 Source Routing"
+                  label={t("sourceRouting.ipv4")}
                   value={ipSrcRoute}
                   onChange={setIpSrcRoute}
                   options={enableDisableOptions}
                 />
                 <SettingSelect
                   fieldId="ipv6-source-routing"
-                  label="IPv6 Source Routing"
+                  label={t("sourceRouting.ipv6")}
                   value={ipv6SrcRoute}
                   onChange={setIpv6SrcRoute}
                   options={enableDisableOptions}
@@ -571,26 +574,26 @@ function FirewallGlobalOptionsPageInner() {
             {/* ICMP Redirects */}
             <Card id="icmp-redirects">
               <CardHeader className="py-3 px-4">
-                <CardTitle className="text-sm font-semibold">ICMP Redirects</CardTitle>
+                <CardTitle className="text-sm font-semibold">{t("redirects.title")}</CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-3 pt-0">
                 <SettingSelect
                   fieldId="receive-redirects-ipv4"
-                  label="Receive Redirects (IPv4)"
+                  label={t("redirects.receiveIpv4")}
                   value={receiveRedirects}
                   onChange={setReceiveRedirects}
                   options={enableDisableOptions}
                 />
                 <SettingSelect
                   fieldId="receive-redirects-ipv6"
-                  label="Receive Redirects (IPv6)"
+                  label={t("redirects.receiveIpv6")}
                   value={ipv6ReceiveRedirects}
                   onChange={setIpv6ReceiveRedirects}
                   options={enableDisableOptions}
                 />
                 <SettingSelect
                   fieldId="send-redirects"
-                  label="Send Redirects"
+                  label={t("redirects.send")}
                   value={sendRedirects}
                   onChange={setSendRedirects}
                   options={enableDisableOptions}
@@ -601,40 +604,40 @@ function FirewallGlobalOptionsPageInner() {
             {/* Security Options */}
             <Card id="security-options">
               <CardHeader className="py-3 px-4">
-                <CardTitle className="text-sm font-semibold">Security Options</CardTitle>
+                <CardTitle className="text-sm font-semibold">{t("security.title")}</CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-3 pt-0">
                 <SettingSelect
                   fieldId="log-martians"
-                  label="Log Martians"
+                  label={t("security.logMartians")}
                   value={logMartians}
                   onChange={setLogMartians}
                   options={enableDisableOptions}
-                  description="Log packets with impossible addresses"
+                  description={t("security.logMartiansDesc")}
                 />
                 <SettingSelect
                   fieldId="source-validation"
-                  label="Source Validation"
+                  label={t("security.sourceValidation")}
                   value={sourceValidation}
                   onChange={setSourceValidation}
                   options={sourceValidationOptions}
-                  description="Reverse path filtering mode"
+                  description={t("security.sourceValidationDesc")}
                 />
                 <SettingSelect
                   fieldId="syn-cookies"
-                  label="SYN Cookies"
+                  label={t("security.synCookies")}
                   value={synCookies}
                   onChange={setSynCookies}
                   options={enableDisableOptions}
-                  description="SYN flood protection"
+                  description={t("security.synCookiesDesc")}
                 />
                 <SettingSelect
                   fieldId="twa-hazards"
-                  label="TWA Hazards Protection"
+                  label={t("security.twaHazards")}
                   value={twaHazardsProtection}
                   onChange={setTwaHazardsProtection}
                   options={enableDisableOptions}
-                  description="RFC1337 TIME-WAIT protection"
+                  description={t("security.twaHazardsDesc")}
                 />
               </CardContent>
             </Card>
@@ -642,7 +645,7 @@ function FirewallGlobalOptionsPageInner() {
             {/* DNS Resolver */}
             <Card id="dns-resolver">
               <CardHeader className="py-3 px-4">
-                <CardTitle className="text-sm font-semibold">DNS Resolver</CardTitle>
+                <CardTitle className="text-sm font-semibold">{t("dns.title")}</CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-3 pt-0">
                 <div
@@ -650,9 +653,9 @@ function FirewallGlobalOptionsPageInner() {
                   className="flex items-center justify-between py-2 border-b border-border/50 scroll-mt-24"
                 >
                   <div className="flex-1 min-w-0 pr-4">
-                    <span className="text-sm font-medium">Resolver Cache</span>
+                    <span className="text-sm font-medium">{t("dns.resolverCache")}</span>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Retain last resolved value if domain resolution fails
+                      {t("dns.resolverCacheDesc")}
                     </p>
                   </div>
                   <Checkbox
@@ -665,9 +668,9 @@ function FirewallGlobalOptionsPageInner() {
                   className="flex items-center justify-between py-2 scroll-mt-24"
                 >
                   <div className="flex-1 min-w-0 pr-4">
-                    <span className="text-sm font-medium">Resolver Interval (sec)</span>
+                    <span className="text-sm font-medium">{t("dns.resolverInterval")}</span>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Domain resolver update interval (10-3600, default 300)
+                      {t("dns.resolverIntervalDesc")}
                     </p>
                   </div>
                   <Input
@@ -687,17 +690,17 @@ function FirewallGlobalOptionsPageInner() {
             {/* State Policies */}
             <Card id="state-policies">
               <CardHeader className="py-3 px-4">
-                <CardTitle className="text-sm font-semibold">State Policies</CardTitle>
+                <CardTitle className="text-sm font-semibold">{t("statePolicies.title")}</CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-3 pt-0 space-y-4">
                 {/* Established */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs font-medium">Established</Badge>
+                    <Badge variant="outline" className="text-xs font-medium">{t("statePolicies.established")}</Badge>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <div id="established-action" className="scroll-mt-24">
-                      <Label className="text-xs text-muted-foreground">Action</Label>
+                      <Label className="text-xs text-muted-foreground">{t("statePolicies.action")}</Label>
                       <Select value={establishedAction} onValueChange={setEstablishedAction}>
                         <SelectTrigger className="h-8 text-xs mt-1">
                           <SelectValue />
@@ -710,7 +713,7 @@ function FirewallGlobalOptionsPageInner() {
                       </Select>
                     </div>
                     <div id="established-log-level" className="scroll-mt-24">
-                      <Label className="text-xs text-muted-foreground">Log Level</Label>
+                      <Label className="text-xs text-muted-foreground">{t("statePolicies.logLevel")}</Label>
                       <Select value={establishedLogLevel} onValueChange={setEstablishedLogLevel}>
                         <SelectTrigger className="h-8 text-xs mt-1">
                           <SelectValue />
@@ -729,7 +732,7 @@ function FirewallGlobalOptionsPageInner() {
                           checked={establishedLog}
                           onCheckedChange={(c) => setEstablishedLog(c === true)}
                         />
-                        <Label htmlFor="est-log" className="text-xs">Log</Label>
+                        <Label htmlFor="est-log" className="text-xs">{t("statePolicies.log")}</Label>
                       </div>
                     </div>
                   </div>
@@ -738,11 +741,11 @@ function FirewallGlobalOptionsPageInner() {
                 {/* Invalid */}
                 <div className="space-y-2 pt-2 border-t border-border/50">
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs font-medium">Invalid</Badge>
+                    <Badge variant="outline" className="text-xs font-medium">{t("statePolicies.invalid")}</Badge>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <div>
-                      <Label className="text-xs text-muted-foreground">Action</Label>
+                      <Label className="text-xs text-muted-foreground">{t("statePolicies.action")}</Label>
                       <Select value={invalidAction} onValueChange={setInvalidAction}>
                         <SelectTrigger className="h-8 text-xs mt-1">
                           <SelectValue />
@@ -755,7 +758,7 @@ function FirewallGlobalOptionsPageInner() {
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-xs text-muted-foreground">Log Level</Label>
+                      <Label className="text-xs text-muted-foreground">{t("statePolicies.logLevel")}</Label>
                       <Select value={invalidLogLevel} onValueChange={setInvalidLogLevel}>
                         <SelectTrigger className="h-8 text-xs mt-1">
                           <SelectValue />
@@ -774,7 +777,7 @@ function FirewallGlobalOptionsPageInner() {
                           checked={invalidLog}
                           onCheckedChange={(c) => setInvalidLog(c === true)}
                         />
-                        <Label htmlFor="inv-log" className="text-xs">Log</Label>
+                        <Label htmlFor="inv-log" className="text-xs">{t("statePolicies.log")}</Label>
                       </div>
                     </div>
                   </div>
@@ -783,11 +786,11 @@ function FirewallGlobalOptionsPageInner() {
                 {/* Related */}
                 <div className="space-y-2 pt-2 border-t border-border/50">
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs font-medium">Related</Badge>
+                    <Badge variant="outline" className="text-xs font-medium">{t("statePolicies.related")}</Badge>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <div>
-                      <Label className="text-xs text-muted-foreground">Action</Label>
+                      <Label className="text-xs text-muted-foreground">{t("statePolicies.action")}</Label>
                       <Select value={relatedAction} onValueChange={setRelatedAction}>
                         <SelectTrigger className="h-8 text-xs mt-1">
                           <SelectValue />
@@ -800,7 +803,7 @@ function FirewallGlobalOptionsPageInner() {
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-xs text-muted-foreground">Log Level</Label>
+                      <Label className="text-xs text-muted-foreground">{t("statePolicies.logLevel")}</Label>
                       <Select value={relatedLogLevel} onValueChange={setRelatedLogLevel}>
                         <SelectTrigger className="h-8 text-xs mt-1">
                           <SelectValue />
@@ -819,7 +822,7 @@ function FirewallGlobalOptionsPageInner() {
                           checked={relatedLog}
                           onCheckedChange={(c) => setRelatedLog(c === true)}
                         />
-                        <Label htmlFor="rel-log" className="text-xs">Log</Label>
+                        <Label htmlFor="rel-log" className="text-xs">{t("statePolicies.log")}</Label>
                       </div>
                     </div>
                   </div>
@@ -830,18 +833,18 @@ function FirewallGlobalOptionsPageInner() {
             {showBridgedTraffic && (
               <Card id="bridged-traffic">
                 <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-sm font-semibold">Bridged Traffic</CardTitle>
+                  <CardTitle className="text-sm font-semibold">{t("bridged.title")}</CardTitle>
                 </CardHeader>
                 <CardContent className="px-4 pb-3 pt-0">
                   <div className="flex items-center justify-between py-2 border-b border-border/50">
-                    <span className="text-sm">Apply to IPv4 Bridged Traffic</span>
+                    <span className="text-sm">{t("bridged.ipv4")}</span>
                     <Checkbox
                       checked={bridgedIpv4}
                       onCheckedChange={(c) => setBridgedIpv4(c === true)}
                     />
                   </div>
                   <div className="flex items-center justify-between py-2">
-                    <span className="text-sm">Apply to IPv6 Bridged Traffic</span>
+                    <span className="text-sm">{t("bridged.ipv6")}</span>
                     <Checkbox
                       checked={bridgedIpv6}
                       onCheckedChange={(c) => setBridgedIpv6(c === true)}
@@ -854,13 +857,13 @@ function FirewallGlobalOptionsPageInner() {
             {showTimeouts && (
               <Card id="connection-timeouts">
                 <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-sm font-semibold">Connection Timeouts</CardTitle>
+                  <CardTitle className="text-sm font-semibold">{t("timeouts.title")}</CardTitle>
                 </CardHeader>
                 <CardContent className="px-4 pb-3 pt-0 space-y-3">
                   {/* General */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label className="text-xs text-muted-foreground">ICMP (sec)</Label>
+                      <Label className="text-xs text-muted-foreground">{t("timeouts.icmp")}</Label>
                       <Input
                         type="number"
                         placeholder="30"
@@ -870,7 +873,7 @@ function FirewallGlobalOptionsPageInner() {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-muted-foreground">Other (sec)</Label>
+                      <Label className="text-xs text-muted-foreground">{t("timeouts.other")}</Label>
                       <Input
                         type="number"
                         placeholder="600"
@@ -886,35 +889,35 @@ function FirewallGlobalOptionsPageInner() {
                     <Label className="text-xs font-medium text-muted-foreground mb-2 block">TCP</Label>
                     <div className="grid grid-cols-4 gap-2">
                       <div>
-                        <Label className="text-[10px] text-muted-foreground">Established</Label>
+                        <Label className="text-[10px] text-muted-foreground">{t("timeouts.established")}</Label>
                         <Input type="number" placeholder="432000" value={timeoutTcpEstablished} onChange={(e) => setTimeoutTcpEstablished(e.target.value)} className="h-7 text-xs mt-0.5" />
                       </div>
                       <div>
-                        <Label className="text-[10px] text-muted-foreground">Close</Label>
+                        <Label className="text-[10px] text-muted-foreground">{t("timeouts.close")}</Label>
                         <Input type="number" placeholder="10" value={timeoutTcpClose} onChange={(e) => setTimeoutTcpClose(e.target.value)} className="h-7 text-xs mt-0.5" />
                       </div>
                       <div>
-                        <Label className="text-[10px] text-muted-foreground">Close Wait</Label>
+                        <Label className="text-[10px] text-muted-foreground">{t("timeouts.closeWait")}</Label>
                         <Input type="number" placeholder="60" value={timeoutTcpCloseWait} onChange={(e) => setTimeoutTcpCloseWait(e.target.value)} className="h-7 text-xs mt-0.5" />
                       </div>
                       <div>
-                        <Label className="text-[10px] text-muted-foreground">FIN Wait</Label>
+                        <Label className="text-[10px] text-muted-foreground">{t("timeouts.finWait")}</Label>
                         <Input type="number" placeholder="120" value={timeoutTcpFinWait} onChange={(e) => setTimeoutTcpFinWait(e.target.value)} className="h-7 text-xs mt-0.5" />
                       </div>
                       <div>
-                        <Label className="text-[10px] text-muted-foreground">Last ACK</Label>
+                        <Label className="text-[10px] text-muted-foreground">{t("timeouts.lastAck")}</Label>
                         <Input type="number" placeholder="30" value={timeoutTcpLastAck} onChange={(e) => setTimeoutTcpLastAck(e.target.value)} className="h-7 text-xs mt-0.5" />
                       </div>
                       <div>
-                        <Label className="text-[10px] text-muted-foreground">SYN Recv</Label>
+                        <Label className="text-[10px] text-muted-foreground">{t("timeouts.synRecv")}</Label>
                         <Input type="number" placeholder="60" value={timeoutTcpSynRecv} onChange={(e) => setTimeoutTcpSynRecv(e.target.value)} className="h-7 text-xs mt-0.5" />
                       </div>
                       <div>
-                        <Label className="text-[10px] text-muted-foreground">SYN Sent</Label>
+                        <Label className="text-[10px] text-muted-foreground">{t("timeouts.synSent")}</Label>
                         <Input type="number" placeholder="120" value={timeoutTcpSynSent} onChange={(e) => setTimeoutTcpSynSent(e.target.value)} className="h-7 text-xs mt-0.5" />
                       </div>
                       <div>
-                        <Label className="text-[10px] text-muted-foreground">TIME Wait</Label>
+                        <Label className="text-[10px] text-muted-foreground">{t("timeouts.timeWait")}</Label>
                         <Input type="number" placeholder="120" value={timeoutTcpTimeWait} onChange={(e) => setTimeoutTcpTimeWait(e.target.value)} className="h-7 text-xs mt-0.5" />
                       </div>
                     </div>
@@ -925,11 +928,11 @@ function FirewallGlobalOptionsPageInner() {
                     <Label className="text-xs font-medium text-muted-foreground mb-2 block">UDP</Label>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <Label className="text-[10px] text-muted-foreground">Stream</Label>
+                        <Label className="text-[10px] text-muted-foreground">{t("timeouts.stream")}</Label>
                         <Input type="number" placeholder="180" value={timeoutUdpStream} onChange={(e) => setTimeoutUdpStream(e.target.value)} className="h-7 text-xs mt-0.5" />
                       </div>
                       <div>
-                        <Label className="text-[10px] text-muted-foreground">Other</Label>
+                        <Label className="text-[10px] text-muted-foreground">{t("timeouts.udpOther")}</Label>
                         <Input type="number" placeholder="30" value={timeoutUdpOther} onChange={(e) => setTimeoutUdpOther(e.target.value)} className="h-7 text-xs mt-0.5" />
                       </div>
                     </div>

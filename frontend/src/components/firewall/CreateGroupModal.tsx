@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,22 @@ interface CreateGroupModalProps {
   capabilities: FirewallGroupsCapabilities | null;
 }
 
+// Message keys for group type labels (the config values stay untranslated).
+const GROUP_TYPE_KEYS = {
+  "address-group": "addressGroup",
+  "ipv6-address-group": "ipv6AddressGroup",
+  "network-group": "networkGroup",
+  "ipv6-network-group": "ipv6NetworkGroup",
+  "port-group": "portGroup",
+  "interface-group": "interfaceGroup",
+  "mac-group": "macGroup",
+  "domain-group": "domainGroup",
+  "remote-group": "remoteGroup",
+} as const satisfies Record<GroupType, string>;
+
 export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }: CreateGroupModalProps) {
+  const t = useTranslations("firewallGroups");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -139,12 +155,12 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
   const handleSubmit = async () => {
     // Validation
     if (!groupName.trim()) {
-      setError("Group name is required");
+      setError(t("create.nameRequired"));
       return;
     }
 
     if (members.length === 0 && includedGroups.length === 0) {
-      setError("At least one member or included group is required");
+      setError(t("create.memberRequired"));
       return;
     }
 
@@ -164,7 +180,7 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
       handleClose();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create group");
+      setError(err instanceof Error ? err.message : t("create.createFailed"));
     } finally {
       setLoading(false);
     }
@@ -172,33 +188,11 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
 
 
   const getMemberPlaceholder = (type: GroupType) => {
-    const placeholders: Record<GroupType, string> = {
-      "address-group": "e.g., 10.0.0.1 or 10.0.0.1-10.0.0.10",
-      "ipv6-address-group": "e.g., 2001:db8::1 or 2001:db8::1-2001:db8::10",
-      "network-group": "e.g., 10.0.0.0/24",
-      "ipv6-network-group": "e.g., 2001:db8::/32",
-      "port-group": "e.g., 80, 8000-8100, or http",
-      "interface-group": "e.g., eth0 or eth1.100",
-      "mac-group": "e.g., 00:11:22:33:44:55",
-      "domain-group": "e.g., example.com",
-      "remote-group": "e.g., https://example.com/blocklist.txt",
-    };
-    return placeholders[type];
+    return t(`memberPlaceholders.${GROUP_TYPE_KEYS[type]}`);
   };
 
   const getMemberLabel = (type: GroupType) => {
-    const labels: Record<GroupType, string> = {
-      "address-group": "IPv4 Address/Range",
-      "ipv6-address-group": "IPv6 Address/Range",
-      "network-group": "Network (CIDR)",
-      "ipv6-network-group": "IPv6 Network (CIDR)",
-      "port-group": "Port",
-      "interface-group": "Interface",
-      "mac-group": "MAC Address",
-      "domain-group": "Domain",
-      "remote-group": "URL",
-    };
-    return labels[type];
+    return t(`memberLabels.${GROUP_TYPE_KEYS[type]}`);
   };
 
   // Get available group types based on capabilities
@@ -207,30 +201,30 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
 
     type CapabilityKey = keyof typeof capabilities.group_types;
 
-    const groupTypeMap: Array<{ value: GroupType; label: string; capKey: CapabilityKey }> = [
-      { value: "address-group", label: "IPv4 Address Group", capKey: "address_group" },
-      { value: "ipv6-address-group", label: "IPv6 Address Group", capKey: "ipv6_address_group" },
-      { value: "network-group", label: "IPv4 Network Group", capKey: "network_group" },
-      { value: "ipv6-network-group", label: "IPv6 Network Group", capKey: "ipv6_network_group" },
-      { value: "port-group", label: "Port Group", capKey: "port_group" },
-      { value: "interface-group", label: "Interface Group", capKey: "interface_group" },
-      { value: "mac-group", label: "MAC Address Group", capKey: "mac_group" },
-      { value: "domain-group", label: "Domain Group", capKey: "domain_group" },
-      { value: "remote-group", label: "Remote Group", capKey: "remote_group" },
+    const groupTypeMap: Array<{ value: GroupType; capKey: CapabilityKey }> = [
+      { value: "address-group", capKey: "address_group" },
+      { value: "ipv6-address-group", capKey: "ipv6_address_group" },
+      { value: "network-group", capKey: "network_group" },
+      { value: "ipv6-network-group", capKey: "ipv6_network_group" },
+      { value: "port-group", capKey: "port_group" },
+      { value: "interface-group", capKey: "interface_group" },
+      { value: "mac-group", capKey: "mac_group" },
+      { value: "domain-group", capKey: "domain_group" },
+      { value: "remote-group", capKey: "remote_group" },
     ];
 
-    return groupTypeMap.filter(({ capKey }) =>
-      capabilities.group_types[capKey]?.supported === true
-    );
+    return groupTypeMap
+      .filter(({ capKey }) => capabilities.group_types[capKey]?.supported === true)
+      .map(({ value }) => ({ value, label: t(`types.${GROUP_TYPE_KEYS[value]}`) }));
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Firewall Group</DialogTitle>
+          <DialogTitle>{t("create.title")}</DialogTitle>
           <DialogDescription>
-            Create a new firewall group to organize addresses, networks, ports, or other resources for use in firewall rules.
+            {t("create.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -248,24 +242,24 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
           {/* Group Name */}
           <div className="space-y-2">
             <Label htmlFor="group-name">
-              Group Name <span className="text-destructive">*</span>
+              {t("form.groupName")} <span className="text-destructive">*</span>
             </Label>
             <Input
               id="group-name"
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
-              placeholder="e.g., INTERNAL_NETS"
+              placeholder={t("create.namePlaceholder")}
               className="font-mono"
             />
             <p className="text-xs text-muted-foreground">
-              Use uppercase with underscores (e.g., WEB_SERVERS, INTERNAL_NETS)
+              {t("create.nameHint")}
             </p>
           </div>
 
           {/* Group Type */}
           <div className="space-y-2">
             <Label htmlFor="group-type">
-              Group Type <span className="text-destructive">*</span>
+              {t("form.groupType")} <span className="text-destructive">*</span>
             </Label>
             <Select value={groupType} onValueChange={(v) => setGroupType(v as GroupType)}>
               <SelectTrigger id="group-type">
@@ -283,12 +277,12 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{tc("description")}</Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description for this group"
+              placeholder={t("form.descriptionPlaceholder")}
               rows={2}
             />
           </div>
@@ -314,7 +308,7 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
               />
               <Button type="button" onClick={addMember} size="sm">
                 <Plus className="h-4 w-4 mr-1" />
-                Add
+                {tc("add")}
               </Button>
             </div>
 
@@ -322,7 +316,7 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
             {members.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  {members.length} member{members.length !== 1 ? "s" : ""}:
+                  {t("create.memberCountColon", { count: members.length, n: String(members.length) })}
                 </p>
                 <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 border rounded-md bg-muted/30">
                   {members.map((member, idx) => (
@@ -343,13 +337,13 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
           {supportsInclude() && availableGroups.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Include Other Groups (Optional)</Label>
+                <Label>{t("create.includeOptional")}</Label>
                 <span className="text-xs text-muted-foreground">
-                  {includedGroups.length} of {availableGroups.length} selected
+                  {t("form.selectedOf", { selected: String(includedGroups.length), total: String(availableGroups.length) })}
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Select other groups of the same type to include in this group
+                {t("form.includeHint")}
               </p>
 
               {/* Search and Quick Actions */}
@@ -357,7 +351,7 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
                 <div className="relative flex-1">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search groups..."
+                    placeholder={t("form.searchGroups")}
                     value={groupSearchQuery}
                     onChange={(e) => setGroupSearchQuery(e.target.value)}
                     className="pl-8 h-9 text-sm"
@@ -372,7 +366,7 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
                     disabled={filteredGroups.length === 0 || filteredGroups.every(g => includedGroups.includes(g.name))}
                     className="text-xs h-9"
                   >
-                    All
+                    {t("form.all")}
                   </Button>
                   <Button
                     type="button"
@@ -382,7 +376,7 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
                     disabled={includedGroups.length === 0}
                     className="text-xs h-9"
                   >
-                    Clear
+                    {t("form.clear")}
                   </Button>
                 </div>
               </div>
@@ -391,7 +385,7 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
               <div className="border rounded-md bg-muted/30">
                 {filteredGroups.length === 0 ? (
                   <div className="p-8 text-center text-sm text-muted-foreground">
-                    {groupSearchQuery ? "No groups found matching your search" : "No groups available"}
+                    {groupSearchQuery ? t("form.noGroupsMatchSearch") : t("create.noGroupsAvailable")}
                   </div>
                 ) : (
                   <div className="max-h-64 overflow-y-auto">
@@ -399,7 +393,7 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
                     {selectedGroups.length > 0 && (
                       <>
                         <div className="sticky top-0 bg-muted/50 px-3 py-1.5 text-xs font-medium text-muted-foreground border-b">
-                          Selected ({selectedGroups.length})
+                          {t("form.selectedCount", { count: String(selectedGroups.length) })}
                         </div>
                         {selectedGroups.map((group) => (
                           <div key={group.name} className="flex items-center space-x-2 px-3 py-2 hover:bg-muted/50 border-b">
@@ -426,7 +420,7 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
                       <>
                         {selectedGroups.length > 0 && (
                           <div className="sticky top-0 bg-muted/50 px-3 py-1.5 text-xs font-medium text-muted-foreground border-b">
-                            Available ({unselectedGroups.length})
+                            {t("form.availableCount", { count: String(unselectedGroups.length) })}
                           </div>
                         )}
                         {unselectedGroups.map((group) => (
@@ -457,10 +451,10 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Creating..." : "Create Group"}
+            {loading ? t("create.creating") : t("create.submit")}
           </Button>
         </DialogFooter>
       </DialogContent>

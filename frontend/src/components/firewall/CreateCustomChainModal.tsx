@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,8 @@ export function CreateCustomChainModal({
   existingChainNames,
   protocol = "ipv4",
 }: CreateCustomChainModalProps) {
+  const t = useTranslations("firewallPolicies");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,16 +62,16 @@ export function CreateCustomChainModal({
 
   const validateChainName = (name: string): string | null => {
     if (!name.trim()) {
-      return "Chain name is required";
+      return t("createChain.nameRequired");
     }
     if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(name)) {
-      return "Chain name must start with a letter and contain only letters, numbers, hyphens, and underscores";
+      return t("createChain.nameInvalid");
     }
     if (existingChainNames.includes(name.toLowerCase())) {
-      return "A chain with this name already exists";
+      return t("createChain.nameExists");
     }
     if (["forward", "input", "output"].includes(name.toLowerCase())) {
-      return "Cannot use base chain names";
+      return t("createChain.nameReserved");
     }
     return null;
   };
@@ -94,7 +97,7 @@ export function CreateCustomChainModal({
       handleClose();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create custom chain");
+      setError(err instanceof Error ? err.message : t("createChain.createFailed"));
     } finally {
       setLoading(false);
     }
@@ -104,9 +107,9 @@ export function CreateCustomChainModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Create Custom Chain</DialogTitle>
+          <DialogTitle>{t("createChain.title")}</DialogTitle>
           <DialogDescription>
-            Create a new custom firewall chain that can be referenced from base chains
+            {t("createChain.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -114,7 +117,7 @@ export function CreateCustomChainModal({
           <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
             <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-destructive">Error</p>
+              <p className="text-sm font-medium text-destructive">{t("createChain.error")}</p>
               <p className="text-sm text-destructive/90">{error}</p>
             </div>
           </div>
@@ -122,7 +125,7 @@ export function CreateCustomChainModal({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="chainName">Chain Name *</Label>
+            <Label htmlFor="chainName">{t("createChain.chainNameLabel")}</Label>
             <Input
               id="chainName"
               value={chainName}
@@ -130,51 +133,51 @@ export function CreateCustomChainModal({
               placeholder="my-custom-chain"
             />
             <p className="text-xs text-muted-foreground">
-              Must start with a letter and contain only letters, numbers, hyphens, and underscores
+              {t("createChain.chainNameHint")}
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{tc("description")}</Label>
             <Input
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Brief description of this chain"
+              placeholder={t("createChain.descriptionPlaceholder")}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="defaultAction">Default Action</Label>
+            <Label htmlFor="defaultAction">{t("createChain.defaultAction")}</Label>
             <Select value={defaultAction} onValueChange={setDefaultAction}>
               <SelectTrigger id="defaultAction">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="drop">Drop</SelectItem>
-                <SelectItem value="accept">Accept</SelectItem>
-                <SelectItem value="reject">Reject</SelectItem>
-                <SelectItem value="return">Return</SelectItem>
+                <SelectItem value="drop">{t("createChain.actionDrop")}</SelectItem>
+                <SelectItem value="accept">{t("createChain.actionAccept")}</SelectItem>
+                <SelectItem value="reject">{t("createChain.actionReject")}</SelectItem>
+                <SelectItem value="return">{t("createChain.actionReturn")}</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Action to take if no rules match in this chain
+              {t("createChain.defaultActionHint")}
             </p>
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
+                {t("createChain.creating")}
               </>
             ) : (
-              "Create Chain"
+              t("createChain.submit")
             )}
           </Button>
         </DialogFooter>

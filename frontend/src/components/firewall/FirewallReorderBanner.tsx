@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, X, Check } from "lucide-react";
 
@@ -16,6 +17,8 @@ export function FirewallReorderBanner({
   onCancel,
   saving,
 }: FirewallReorderBannerProps) {
+  const t = useTranslations("firewallCommon");
+  const tc = useTranslations("common");
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-5 duration-300">
       <div className="bg-card border-2 border-primary shadow-2xl rounded-lg px-6 py-4 flex items-center gap-6">
@@ -25,10 +28,10 @@ export function FirewallReorderBanner({
           </div>
           <div>
             <p className="text-sm font-semibold text-foreground">
-              Reorder Pending
+              {t("reorderBanner.title")}
             </p>
             <p className="text-xs text-muted-foreground">
-              {changesCount} rule{changesCount !== 1 ? "s" : ""} will be reordered
+              {t("reorderBanner.count", { count: changesCount })}
             </p>
           </div>
         </div>
@@ -44,7 +47,7 @@ export function FirewallReorderBanner({
             className="gap-2"
           >
             <X className="h-4 w-4" />
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button
             size="sm"
@@ -55,12 +58,12 @@ export function FirewallReorderBanner({
             {saving ? (
               <>
                 <RefreshCw className="h-4 w-4 animate-spin" />
-                Saving...
+                {tc("saving")}
               </>
             ) : (
               <>
                 <Check className="h-4 w-4" />
-                Save Order
+                {t("reorderBanner.saveOrder")}
               </>
             )}
           </Button>

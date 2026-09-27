@@ -2,6 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useTranslations } from "next-intl";
 import { GripVertical, Pencil, Trash2, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,8 @@ interface BridgeRuleRowProps {
 }
 
 export function BridgeRuleRow({ rule, showProtocol, onEdit, onDelete, visibleOrderedColumns = DEFAULT_BRIDGE_COLUMNS, groups = [] }: BridgeRuleRowProps) {
+  const t = useTranslations("firewallBridge");
+  const tc = useTranslations("common");
   const getGroupMembers = (groupName: string): string[] => {
     const cleanName = groupName.startsWith("!") ? groupName.substring(1) : groupName;
     return groups.find((g) => g.name === cleanName)?.members || [];
@@ -60,7 +63,7 @@ export function BridgeRuleRow({ rule, showProtocol, onEdit, onDelete, visibleOrd
           </TooltipTrigger>
           <TooltipContent>
             <div className="max-w-xs">
-              <p className="font-semibold text-xs mb-2">{inv ? `NOT ${display}` : display}</p>
+              <p className="font-semibold text-xs mb-2">{inv ? t("ruleRow.notGroup", { name: display }) : display}</p>
               {members.length > 0 ? (
                 <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
                   {members.map((m, i) => (
@@ -68,7 +71,7 @@ export function BridgeRuleRow({ rule, showProtocol, onEdit, onDelete, visibleOrd
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground">No members</p>
+                <p className="text-xs text-muted-foreground">{t("ruleRow.noMembers")}</p>
               )}
             </div>
           </TooltipContent>
@@ -147,7 +150,7 @@ export function BridgeRuleRow({ rule, showProtocol, onEdit, onDelete, visibleOrd
     if (rule.source_port) {
       items.push(
         <div key="port" className="text-xs text-muted-foreground">
-          Port: {rule.source_port}
+          {t("ruleRow.port", { port: rule.source_port })}
         </div>
       );
     }
@@ -163,7 +166,7 @@ export function BridgeRuleRow({ rule, showProtocol, onEdit, onDelete, visibleOrd
     }
 
     if (items.length === 0) {
-      return <span className="text-muted-foreground text-sm">Any</span>;
+      return <span className="text-muted-foreground text-sm">{t("any")}</span>;
     }
 
     return <div className="flex flex-col gap-0.5">{items}</div>;
@@ -199,7 +202,7 @@ export function BridgeRuleRow({ rule, showProtocol, onEdit, onDelete, visibleOrd
     if (rule.destination_port) {
       items.push(
         <div key="port" className="text-xs text-muted-foreground">
-          Port: {rule.destination_port}
+          {t("ruleRow.port", { port: rule.destination_port })}
         </div>
       );
     }
@@ -207,7 +210,7 @@ export function BridgeRuleRow({ rule, showProtocol, onEdit, onDelete, visibleOrd
     if (rule.destination_group_port) items.push(renderGroupBadge(rule.destination_group_port, true));
 
     if (items.length === 0) {
-      return <span className="text-muted-foreground text-sm">Any</span>;
+      return <span className="text-muted-foreground text-sm">{t("any")}</span>;
     }
 
     return <div className="flex flex-col gap-0.5">{items}</div>;
@@ -216,7 +219,7 @@ export function BridgeRuleRow({ rule, showProtocol, onEdit, onDelete, visibleOrd
   // Format protocol
   const formatProtocol = () => {
     if (!rule.protocol) {
-      return <span className="text-muted-foreground text-sm">Any</span>;
+      return <span className="text-muted-foreground text-sm">{t("any")}</span>;
     }
     return (
       <Badge variant="outline" className="text-xs uppercase">
@@ -229,7 +232,7 @@ export function BridgeRuleRow({ rule, showProtocol, onEdit, onDelete, visibleOrd
   const formatInterfaces = () => {
     const hasAny = rule.inbound_interface || rule.inbound_interface_group || rule.outbound_interface || rule.outbound_interface_group;
     if (!hasAny) {
-      return <span className="text-muted-foreground text-sm">Any</span>;
+      return <span className="text-muted-foreground text-sm">{t("any")}</span>;
     }
 
     const inbound = rule.inbound_interface_group
@@ -258,19 +261,23 @@ export function BridgeRuleRow({ rule, showProtocol, onEdit, onDelete, visibleOrd
     }
 
     if (rule.limit_rate) {
-      items.push(`Rate limit: ${rule.limit_rate}${rule.limit_burst ? ` (burst: ${rule.limit_burst})` : ""}`);
+      items.push(
+        rule.limit_burst
+          ? t("ruleRow.tooltipRateLimitBurst", { rate: rule.limit_rate, burst: rule.limit_burst })
+          : t("ruleRow.tooltipRateLimit", { rate: rule.limit_rate })
+      );
     }
 
     if (rule.time_starttime || rule.time_stoptime) {
-      items.push(`Time: ${rule.time_starttime || "00:00:00"} - ${rule.time_stoptime || "23:59:59"}`);
+      items.push(t("ruleRow.tooltipTime", { start: rule.time_starttime || "00:00:00", stop: rule.time_stoptime || "23:59:59" }));
     }
 
     if (rule.time_weekdays) {
-      items.push(`Days: ${rule.time_weekdays}`);
+      items.push(t("ruleRow.tooltipDays", { days: rule.time_weekdays }));
     }
 
     if (rule.ethernet_type) {
-      items.push(`Ethernet: ${rule.ethernet_type}`);
+      items.push(t("ruleRow.tooltipEthernet", { type: rule.ethernet_type }));
     }
 
     return items.length > 0 ? items.join("\n") : null;
@@ -311,12 +318,12 @@ export function BridgeRuleRow({ rule, showProtocol, onEdit, onDelete, visibleOrd
           <div className="flex gap-1 flex-wrap">
             {rule.disabled && (
               <Badge variant="outline" className="text-[10px] bg-muted">
-                Off
+                {t("ruleRow.off")}
               </Badge>
             )}
             {rule.log && (
               <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-500 border-blue-500/20">
-                Log
+                {t("ruleRow.log")}
               </Badge>
             )}
           </div>
@@ -342,7 +349,7 @@ export function BridgeRuleRow({ rule, showProtocol, onEdit, onDelete, visibleOrd
             return (
               <TableCell key="status">
                 <Badge variant="outline" className={rule.disabled ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-green-500/10 text-green-500 border-green-500/20"}>
-                  {rule.disabled ? "disabled" : "enabled"}
+                  {rule.disabled ? t("ruleRow.statusDisabled") : t("ruleRow.statusEnabled")}
                 </Badge>
               </TableCell>
             );
@@ -350,9 +357,9 @@ export function BridgeRuleRow({ rule, showProtocol, onEdit, onDelete, visibleOrd
             return (
               <TableCell key="log">
                 {rule.log ? (
-                  <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">on</Badge>
+                  <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">{t("ruleRow.logOn")}</Badge>
                 ) : (
-                  <span className="text-sm text-muted-foreground">off</span>
+                  <span className="text-sm text-muted-foreground">{t("ruleRow.logOff")}</span>
                 )}
               </TableCell>
             );
@@ -362,7 +369,7 @@ export function BridgeRuleRow({ rule, showProtocol, onEdit, onDelete, visibleOrd
                 {rule.vlan_id ? (
                   <div className="flex flex-col gap-0.5 text-xs">
                     <code className="bg-muted/50 px-2 py-1 rounded font-mono">{rule.vlan_id}</code>
-                    {rule.vlan_priority && <span className="text-muted-foreground">pri: {rule.vlan_priority}</span>}
+                    {rule.vlan_priority && <span className="text-muted-foreground">{t("ruleRow.vlanPriority", { priority: rule.vlan_priority })}</span>}
                     {rule.vlan_ethernet_type && <span className="text-muted-foreground">{rule.vlan_ethernet_type}</span>}
                   </div>
                 ) : (
@@ -385,10 +392,10 @@ export function BridgeRuleRow({ rule, showProtocol, onEdit, onDelete, visibleOrd
               <TableCell key="connectionState">
                 {rule.connection_status_established || rule.connection_status_new || rule.connection_status_related || rule.connection_status_invalid ? (
                   <div className="flex flex-wrap gap-1">
-                    {rule.connection_status_established && <Badge variant="outline" className="text-xs bg-green-500/10 text-green-500 border-green-500/20">EST</Badge>}
-                    {rule.connection_status_new && <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">NEW</Badge>}
-                    {rule.connection_status_related && <Badge variant="outline" className="text-xs bg-purple-500/10 text-purple-500 border-purple-500/20">REL</Badge>}
-                    {rule.connection_status_invalid && <Badge variant="outline" className="text-xs bg-red-500/10 text-red-500 border-red-500/20">INV</Badge>}
+                    {rule.connection_status_established && <Badge variant="outline" className="text-xs bg-green-500/10 text-green-500 border-green-500/20">{t("ruleRow.connEstablished")}</Badge>}
+                    {rule.connection_status_new && <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">{t("ruleRow.connNew")}</Badge>}
+                    {rule.connection_status_related && <Badge variant="outline" className="text-xs bg-purple-500/10 text-purple-500 border-purple-500/20">{t("ruleRow.connRelated")}</Badge>}
+                    {rule.connection_status_invalid && <Badge variant="outline" className="text-xs bg-red-500/10 text-red-500 border-red-500/20">{t("ruleRow.connInvalid")}</Badge>}
                   </div>
                 ) : (
                   <span className="text-sm text-muted-foreground">-</span>
@@ -459,7 +466,7 @@ export function BridgeRuleRow({ rule, showProtocol, onEdit, onDelete, visibleOrd
             className="h-7 px-2"
           >
             <Pencil className="h-3.5 w-3.5 mr-1" />
-            Edit
+            {tc("edit")}
           </Button>
           <Button
             variant="ghost"

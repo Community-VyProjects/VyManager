@@ -1,1 +1,94 @@
-{}
+{
+  "title": "Global Options",
+  "subtitle": "Configure global firewall settings",
+  "reset": "Reset",
+  "saveChanges": "Save Changes",
+  "unsavedChanges": "You have unsaved changes",
+  "loadFailed": "Failed to load global options",
+  "saveSuccess": "Configuration saved successfully",
+  "saveFailed": "Failed to save configuration",
+  "options": {
+    "notSetDefault": "Not Set (Default)",
+    "notSet": "Not Set",
+    "enable": "Enable",
+    "disable": "Disable",
+    "accept": "Accept",
+    "drop": "Drop",
+    "reject": "Reject",
+    "strict": "Strict",
+    "loose": "Loose",
+    "emerg": "Emergency",
+    "alert": "Alert",
+    "crit": "Critical",
+    "err": "Error",
+    "warn": "Warning",
+    "notice": "Notice",
+    "info": "Info",
+    "debug": "Debug"
+  },
+  "icmp": {
+    "title": "ICMP Settings",
+    "allPing": "All Ping",
+    "allPingDesc": "Accept/reject all IPv4 ICMP echo requests",
+    "broadcastPing": "Broadcast Ping",
+    "broadcastPingDesc": "Accept/reject broadcast ping"
+  },
+  "sourceRouting": {
+    "title": "Source Routing",
+    "ipv4": "IPv4 Source Routing",
+    "ipv6": "IPv6 Source Routing"
+  },
+  "redirects": {
+    "title": "ICMP Redirects",
+    "receiveIpv4": "Receive Redirects (IPv4)",
+    "receiveIpv6": "Receive Redirects (IPv6)",
+    "send": "Send Redirects"
+  },
+  "security": {
+    "title": "Security Options",
+    "logMartians": "Log Martians",
+    "logMartiansDesc": "Log packets with impossible addresses",
+    "sourceValidation": "Source Validation",
+    "sourceValidationDesc": "Reverse path filtering mode",
+    "synCookies": "SYN Cookies",
+    "synCookiesDesc": "SYN flood protection",
+    "twaHazards": "TWA Hazards Protection",
+    "twaHazardsDesc": "RFC1337 TIME-WAIT protection"
+  },
+  "dns": {
+    "title": "DNS Resolver",
+    "resolverCache": "Resolver Cache",
+    "resolverCacheDesc": "Retain last resolved value if domain resolution fails",
+    "resolverInterval": "Resolver Interval (sec)",
+    "resolverIntervalDesc": "Domain resolver update interval (10-3600, default 300)"
+  },
+  "statePolicies": {
+    "title": "State Policies",
+    "established": "Established",
+    "invalid": "Invalid",
+    "related": "Related",
+    "action": "Action",
+    "logLevel": "Log Level",
+    "log": "Log"
+  },
+  "bridged": {
+    "title": "Bridged Traffic",
+    "ipv4": "Apply to IPv4 Bridged Traffic",
+    "ipv6": "Apply to IPv6 Bridged Traffic"
+  },
+  "timeouts": {
+    "title": "Connection Timeouts",
+    "icmp": "ICMP (sec)",
+    "other": "Other (sec)",
+    "established": "Established",
+    "close": "Close",
+    "closeWait": "Close Wait",
+    "finWait": "FIN Wait",
+    "lastAck": "Last ACK",
+    "synRecv": "SYN Recv",
+    "synSent": "SYN Sent",
+    "timeWait": "TIME Wait",
+    "stream": "Stream",
+    "udpOther": "Other"
+  }
+}

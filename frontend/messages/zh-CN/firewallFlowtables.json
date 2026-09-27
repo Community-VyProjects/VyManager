@@ -1,1 +1,54 @@
-{}
+{
+  "createFlowtable": "创建流表",
+  "interfaces": "接口",
+  "offloadType": "卸载类型",
+  "page": {
+    "title": "流表",
+    "subtitle": "管理已建立连接的快速路径数据包卸载",
+    "searchPlaceholder": "搜索流表...",
+    "count": "{count, plural, other {{n} 个流表}}",
+    "hwOffload": "硬件卸载",
+    "loading": "正在加载流表配置...",
+    "loadFailed": "加载流表配置失败",
+    "errorTitle": "加载配置出错",
+    "tryAgain": "重试",
+    "noMatching": "没有匹配的流表",
+    "noConfigured": "尚未配置流表",
+    "adjustSearch": "请尝试调整搜索条件",
+    "emptyDescription": "流表通过将已建立的连接卸载到硬件或软件加速，实现快速路径数据包处理。",
+    "createFirst": "创建你的第一个流表",
+    "noDescription": "无描述",
+    "noInterfaces": "无接口"
+  },
+  "modal": {
+    "nameRequired": "名称为必填项",
+    "nameInvalid": "名称必须以字母开头，且只能包含字母、数字、连字符和下划线",
+    "nameExists": "已存在同名流表",
+    "interfaceRequired": "至少需要一个接口",
+    "updateFailed": "更新流表失败",
+    "createFailed": "创建流表失败",
+    "editTitle": "编辑流表：{name}",
+    "editDescription": "修改流表配置。",
+    "createDescription": "创建新的流表，用于快速路径数据包卸载。",
+    "namePlaceholder": "例如：FT_LAN",
+    "nameHintEdit": "流表名称无法更改。如需重命名，请删除后重新创建。",
+    "nameHintCreate": "必须以字母开头。可使用字母、数字、连字符和下划线。",
+    "descriptionPlaceholder": "可选描述",
+    "selectInterface": "选择接口",
+    "interfacesHint": "选择要包含在此流表中的网络接口。",
+    "offloadSoftware": "软件（基于内核）",
+    "offloadHardware": "硬件（基于 NIC）",
+    "offloadHint": "软件卸载使用内核进行处理。硬件卸载使用 NIC（需要兼容的硬件）。",
+    "creating": "正在创建...",
+    "saveChanges": "保存更改"
+  },
+  "delete": {
+    "title": "删除流表",
+    "failed": "删除流表失败",
+    "confirm": "确定要删除流表 <b>{name}</b> 吗？此操作无法撤销。",
+    "willRemove": "这将删除：",
+    "removeConfig": "{name} 的流表配置",
+    "removeBindings": "接口绑定：{interfaces}",
+    "removeOffload": "卸载类型：{offload}"
+  }
+}

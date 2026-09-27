@@ -1,1 +1,6 @@
-{}
+{
+  "invalidIpv4": "Invalid IPv4 address. Use format: 192.168.1.1, 192.168.1.0/24, or 192.168.1.1-192.168.1.10",
+  "invalidIpv6": "Invalid IPv6 address. Use format: 2001:db8::1, 2001:db8::/32, or 2001:db8::1-2001:db8::10",
+  "invalidMac": "Invalid MAC address. Use format: aa:bb:cc:dd:ee:ff",
+  "invalidPort": "Invalid port. Use port number (1-65535), range (1024-2048), service name (http, ssh), or comma-separated list (80,443,8080-8090)"
+}
