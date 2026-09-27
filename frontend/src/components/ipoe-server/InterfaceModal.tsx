@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +36,8 @@ interface InterfaceModalProps {
 }
 
 export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterface, capabilities }: InterfaceModalProps) {
+  const t = useTranslations("ipoeServer");
+  const tc = useTranslations("common");
   const isEdit = !!existingInterface;
 
   const [ifaceName, setIfaceName] = useState("");
@@ -93,7 +96,7 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
   };
 
   const handleSubmit = async () => {
-    if (!ifaceName.trim()) { setError("Interface name is required"); return; }
+    if (!ifaceName.trim()) { setError(t("interfaceModal.nameRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -122,10 +125,10 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to save interface");
+        setError(result.error || t("interfaceModal.saveFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to save interface");
+      setError((err as ApiError).message || t("interfaceModal.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -137,20 +140,20 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Network className="h-5 w-5 text-primary" />
-            {isEdit ? "Edit" : "Add"} Interface
+            {isEdit ? t("interfaceModal.editTitle") : t("interfaceModal.addTitle")}
           </DialogTitle>
-          <DialogDescription>Configure an IPoE server interface.</DialogDescription>
+          <DialogDescription>{t("interfaceModal.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Interface Name</Label>
+            <Label>{t("interfaceModal.interfaceName")}</Label>
             <Input value={ifaceName} onChange={(e) => setIfaceName(e.target.value)} placeholder="eth0" disabled={isEdit} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Mode</Label>
+              <Label>{t("interfaceModal.mode")}</Label>
               <Select value={mode} onValueChange={setMode}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -160,11 +163,11 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Network</Label>
+              <Label>{t("interfaceModal.network")}</Label>
               <Select value={network} onValueChange={setNetwork}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="shared">Shared</SelectItem>
+                  <SelectItem value="shared">{t("interfaceModal.networkShared")}</SelectItem>
                   <SelectItem value="vlan">VLAN</SelectItem>
                 </SelectContent>
               </Select>
@@ -172,19 +175,19 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
           </div>
 
           <div className="space-y-2">
-            <Label>Start Session</Label>
+            <Label>{t("interfaceModal.startSession")}</Label>
             <Select value={startSession} onValueChange={setStartSession}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="dhcp">DHCP</SelectItem>
-                <SelectItem value="auto">Auto</SelectItem>
-                <SelectItem value="unclassified-packet">Unclassified Packet</SelectItem>
+                <SelectItem value="auto">{t("interfaceModal.startAuto")}</SelectItem>
+                <SelectItem value="unclassified-packet">{t("interfaceModal.startUnclassified")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-2">
-            <Label>Client Subnet</Label>
+            <Label>{t("interfaceModal.clientSubnet")}</Label>
             <Input value={clientSubnet} onChange={(e) => setClientSubnet(e.target.value)} placeholder="192.168.100.0/24" />
           </div>
 
@@ -194,11 +197,11 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
               <Input
                 value={vlanInput}
                 onChange={(e) => setVlanInput(e.target.value)}
-                placeholder="100 or 100-200"
+                placeholder={t("interfaceModal.vlanPlaceholder")}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addVlan(); } }}
                 className="flex-1"
               />
-              <Button type="button" variant="outline" size="sm" onClick={addVlan}>Add</Button>
+              <Button type="button" variant="outline" size="sm" onClick={addVlan}>{tc("add")}</Button>
             </div>
             <div className="flex flex-wrap gap-1">
               {vlans.map((vlan) => (
@@ -215,25 +218,25 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
           {showVlanMon && (
             <div className="flex items-center gap-2">
               <Checkbox id="vlan-mon" checked={vlanMon} onCheckedChange={(v) => setVlanMon(!!v)} />
-              <Label htmlFor="vlan-mon" className="cursor-pointer">VLAN Monitoring</Label>
+              <Label htmlFor="vlan-mon" className="cursor-pointer">{t("interfaceModal.vlanMonitoring")}</Label>
             </div>
           )}
 
           <div className="space-y-2">
-            <Label>Lua Username Function</Label>
+            <Label>{t("interfaceModal.luaUsername")}</Label>
             <Input value={luaUsername} onChange={(e) => setLuaUsername(e.target.value)} placeholder="getUsername" />
           </div>
 
           <Separator />
-          <h4 className="text-sm font-medium">External DHCP</h4>
+          <h4 className="text-sm font-medium">{t("interfaceModal.externalDhcp")}</h4>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>DHCP Relay</Label>
+              <Label>{t("interfaceModal.dhcpRelay")}</Label>
               <Input value={dhcpRelay} onChange={(e) => setDhcpRelay(e.target.value)} placeholder="10.0.0.1" />
             </div>
             <div className="space-y-2">
-              <Label>Gateway Address (giaddr)</Label>
+              <Label>{t("interfaceModal.giaddr")}</Label>
               <Input value={giaddr} onChange={(e) => setGiaddr(e.target.value)} placeholder="10.0.0.2" />
             </div>
           </div>
@@ -247,9 +250,9 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? "Saving..." : "Adding..."}</> : isEdit ? "Save Changes" : "Add Interface"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("adding")}</> : isEdit ? t("saveChanges") : t("interfaceModal.addTitle")}
           </Button>
         </DialogFooter>
       </DialogContent>

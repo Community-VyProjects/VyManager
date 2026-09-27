@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { useState, useEffect } from "react";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -56,6 +57,8 @@ import {
 } from "@/components/ipoe-server";
 
 function IPoEPageInner() {
+  const t = useTranslations("ipoeServer");
+  const tc = useTranslations("common");
   const searchParams = useSearchParams();
   const { canRead, canWrite } = usePermissions();
   const hasRead = canRead(FeatureGroup.IPOE_SERVER);
@@ -109,7 +112,7 @@ function IPoEPageInner() {
       setConfig(configData);
       setCapabilities(capsData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load IPoE configuration");
+      setError(err instanceof Error ? err.message : t("errors.loadIpoeConfig"));
     } finally {
       setLoading(false);
     }
@@ -117,6 +120,7 @@ function IPoEPageInner() {
 
   useEffect(() => {
     if (hasRead) fetchConfig();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once when read access is known; a language switch re-renders via router.refresh()
   }, [hasRead]);
 
   useEffect(() => {
@@ -146,7 +150,7 @@ function IPoEPageInner() {
         <div className="flex items-center justify-center h-[calc(100vh-200px)]">
           <div className="text-center space-y-4">
             <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-            <p className="text-muted-foreground">Loading IPoE configuration...</p>
+            <p className="text-muted-foreground">{t("loadingConfig")}</p>
           </div>
         </div>
       </AppLayout>
@@ -159,10 +163,10 @@ function IPoEPageInner() {
         <div className="flex items-center justify-center h-[calc(100vh-200px)]">
           <div className="text-center space-y-4">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-            <p className="text-destructive font-medium">Failed to load configuration</p>
+            <p className="text-destructive font-medium">{t("errors.loadConfig")}</p>
             <p className="text-sm text-muted-foreground">{error}</p>
             <Button onClick={() => fetchConfig(true)}>
-              <RefreshCw className="h-4 w-4 mr-2" /> Retry
+              <RefreshCw className="h-4 w-4 mr-2" /> {tc("retry")}
             </Button>
           </div>
         </div>
@@ -184,14 +188,14 @@ function IPoEPageInner() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold">IPoE Server</h1>
+                  <h1 className="text-2xl font-bold">{t("title")}</h1>
                   {config?.configured ? (
-                    <Badge variant="secondary" className="bg-green-500/10 text-green-600">Configured</Badge>
+                    <Badge variant="secondary" className="bg-green-500/10 text-green-600">{t("configured")}</Badge>
                   ) : (
-                    <Badge variant="secondary">Not Configured</Badge>
+                    <Badge variant="secondary">{t("notConfigured")}</Badge>
                   )}
                 </div>
-                <p className="text-muted-foreground">Manage IP over Ethernet broadband access server</p>
+                <p className="text-muted-foreground">{t("subtitle")}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -201,19 +205,19 @@ function IPoEPageInner() {
                   size="sm"
                   className="text-destructive hover:bg-destructive/10"
                   onClick={() => setDeleteTarget({
-                    type: "IPoE Server",
-                    name: "entire IPoE configuration",
+                    type: t("deleteTypes.ipoeServer"),
+                    name: t("deleteServer.name"),
                     onDelete: () => ipoeServerService.deleteIPoEServer(),
-                    warning: "This will remove the entire IPoE server configuration including all interfaces, pools, and settings.",
+                    warning: t("deleteServer.warning"),
                   })}
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Delete IPoE Server
+                  {t("deleteServer.button")}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={() => fetchConfig(true)} disabled={loading}>
                 <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -224,7 +228,7 @@ function IPoEPageInner() {
               <div className="flex items-center gap-2">
                 <Network className="h-4 w-4 text-blue-500" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Interfaces</p>
+                  <p className="text-xs text-muted-foreground">{t("stats.interfaces")}</p>
                   <p className="font-semibold">{totals?.interfaces ?? 0}</p>
                 </div>
               </div>
@@ -233,7 +237,7 @@ function IPoEPageInner() {
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-orange-500" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Auth Interfaces</p>
+                  <p className="text-xs text-muted-foreground">{t("stats.authInterfaces")}</p>
                   <p className="font-semibold">{totals?.auth_interfaces ?? 0}</p>
                 </div>
               </div>
@@ -242,7 +246,7 @@ function IPoEPageInner() {
               <div className="flex items-center gap-2">
                 <Server className="h-4 w-4 text-purple-500" />
                 <div>
-                  <p className="text-xs text-muted-foreground">RADIUS Servers</p>
+                  <p className="text-xs text-muted-foreground">{t("stats.radiusServers")}</p>
                   <p className="font-semibold">{totals?.radius_servers ?? 0}</p>
                 </div>
               </div>
@@ -251,7 +255,7 @@ function IPoEPageInner() {
               <div className="flex items-center gap-2">
                 <Network className="h-4 w-4 text-green-500" />
                 <div>
-                  <p className="text-xs text-muted-foreground">IP Pools</p>
+                  <p className="text-xs text-muted-foreground">{t("stats.ipPools")}</p>
                   <p className="font-semibold">{totals?.client_ip_pools ?? 0}</p>
                 </div>
               </div>
@@ -260,7 +264,7 @@ function IPoEPageInner() {
               <div className="flex items-center gap-2">
                 <Network className="h-4 w-4 text-cyan-500" />
                 <div>
-                  <p className="text-xs text-muted-foreground">IPv6 Pools</p>
+                  <p className="text-xs text-muted-foreground">{t("stats.ipv6Pools")}</p>
                   <p className="font-semibold">{totals?.client_ipv6_pools ?? 0}</p>
                 </div>
               </div>
@@ -273,13 +277,13 @@ function IPoEPageInner() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
             <div className="px-6 pt-4 border-b">
               <TabsList>
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="interfaces">Interfaces</TabsTrigger>
-                <TabsTrigger value="local-auth">Local Auth</TabsTrigger>
+                <TabsTrigger value="overview">{t("tabs.overview")}</TabsTrigger>
+                <TabsTrigger value="interfaces">{t("tabs.interfaces")}</TabsTrigger>
+                <TabsTrigger value="local-auth">{t("tabs.localAuth")}</TabsTrigger>
                 <TabsTrigger value="radius">RADIUS</TabsTrigger>
-                <TabsTrigger value="pools">IP Pools</TabsTrigger>
-                <TabsTrigger value="ipv6pools">IPv6 Pools</TabsTrigger>
-                <TabsTrigger value="advanced">Advanced</TabsTrigger>
+                <TabsTrigger value="pools">{t("tabs.ipPools")}</TabsTrigger>
+                <TabsTrigger value="ipv6pools">{t("tabs.ipv6Pools")}</TabsTrigger>
+                <TabsTrigger value="advanced">{t("tabs.advanced")}</TabsTrigger>
               </TabsList>
             </div>
 
@@ -291,38 +295,38 @@ function IPoEPageInner() {
                   <div className="grid grid-cols-2 gap-6">
                     <Card className="p-4 space-y-3">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-medium">General Settings</h4>
+                        <h4 className="text-sm font-medium">{t("overview.generalSettings")}</h4>
                         {hasWrite && (
                           <Button variant="ghost" size="sm" onClick={() => setShowGeneralModal(true)}>
-                            <Pencil className="h-3 w-3 mr-1" /> Edit
+                            <Pencil className="h-3 w-3 mr-1" /> {tc("edit")}
                           </Button>
                         )}
                       </div>
                       <div className="space-y-2 text-sm">
-                        <InfoRow label="Description" value={config?.description} />
-                        <InfoRow label="Default Pool" value={config?.default_pool} />
-                        <InfoRow label="Default IPv6 Pool" value={config?.default_ipv6_pool} />
-                        <InfoRow label="Gateway Addresses" value={(config?.gateway_addresses || []).join(", ")} />
-                        <InfoRow label="Name Servers" value={(config?.name_servers || []).join(", ")} />
-                        <InfoRow label="Max Sessions" value={config?.max_concurrent_sessions} />
-                        <InfoRow label="Threads" value={config?.thread_count} />
-                        <InfoRow label="Lua File" value={config?.lua_file} />
+                        <InfoRow label={tc("description")} value={config?.description} />
+                        <InfoRow label={t("overview.defaultPool")} value={config?.default_pool} />
+                        <InfoRow label={t("overview.defaultIpv6Pool")} value={config?.default_ipv6_pool} />
+                        <InfoRow label={t("overview.gatewayAddresses")} value={(config?.gateway_addresses || []).join(", ")} />
+                        <InfoRow label={t("overview.nameServers")} value={(config?.name_servers || []).join(", ")} />
+                        <InfoRow label={t("overview.maxSessions")} value={config?.max_concurrent_sessions} />
+                        <InfoRow label={t("overview.threads")} value={config?.thread_count} />
+                        <InfoRow label={t("overview.luaFile")} value={config?.lua_file} />
                       </div>
                     </Card>
 
                     <Card className="p-4 space-y-3">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-medium">Auth Settings</h4>
+                        <h4 className="text-sm font-medium">{t("overview.authSettings")}</h4>
                         {hasWrite && (
                           <Button variant="ghost" size="sm" onClick={() => setShowAuthModal(true)}>
-                            <Pencil className="h-3 w-3 mr-1" /> Edit
+                            <Pencil className="h-3 w-3 mr-1" /> {tc("edit")}
                           </Button>
                         )}
                       </div>
                       <div className="flex items-center gap-2 mt-2">
                         <Key className="h-4 w-4 text-muted-foreground" />
                         <Badge variant="outline" className="text-sm">
-                          {config?.authentication.mode || "Not set"}
+                          {config?.authentication.mode || tc("notSet")}
                         </Badge>
                       </div>
                     </Card>
@@ -332,26 +336,26 @@ function IPoEPageInner() {
                 {/* Interfaces Tab */}
                 <TabsContent value="interfaces" className="mt-0">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">Server Interfaces</h3>
+                    <h3 className="font-semibold">{t("interfaces.title")}</h3>
                     {hasWrite && (
                       <Button size="sm" onClick={() => { setEditingInterface(null); setShowInterfaceModal(true); }}>
-                        <Plus className="h-4 w-4 mr-1" /> Add Interface
+                        <Plus className="h-4 w-4 mr-1" /> {t("interfaces.add")}
                       </Button>
                     )}
                   </div>
                   {(config?.interfaces.length ?? 0) === 0 ? (
-                    <EmptyState icon={Network} label="No interfaces configured" />
+                    <EmptyState icon={Network} label={t("interfaces.empty")} />
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Interface</TableHead>
-                          <TableHead>Mode</TableHead>
-                          <TableHead>Network</TableHead>
-                          <TableHead>Start Session</TableHead>
-                          <TableHead>Client Subnet</TableHead>
+                          <TableHead>{t("interfaces.interface")}</TableHead>
+                          <TableHead>{t("interfaces.mode")}</TableHead>
+                          <TableHead>{t("interfaces.network")}</TableHead>
+                          <TableHead>{t("interfaces.startSession")}</TableHead>
+                          <TableHead>{t("interfaces.clientSubnet")}</TableHead>
                           <TableHead>VLANs</TableHead>
-                          {hasWrite && <TableHead className="text-right">Actions</TableHead>}
+                          {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -384,7 +388,7 @@ function IPoEPageInner() {
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
-                                    type: "Interface",
+                                    type: t("deleteTypes.interface"),
                                     name: iface.interface,
                                     onDelete: () => ipoeServerService.deleteInterface(iface.interface),
                                   })}>
@@ -405,17 +409,17 @@ function IPoEPageInner() {
                   {config?.authentication.mode !== "local" ? (
                     <Card className="p-6 text-center">
                       <Shield className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-                      <p className="font-medium">Local authentication not active</p>
+                      <p className="font-medium">{t("localAuth.inactive")}</p>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Local authentication is only active when auth mode is set to &apos;local&apos;.
-                        Current mode: <Badge variant="outline">{config?.authentication.mode || "not set"}</Badge>
+                        {t("localAuth.inactiveHelp")}{" "}
+                        {t("localAuth.currentMode")} <Badge variant="outline">{config?.authentication.mode || t("localAuth.notSet")}</Badge>
                       </p>
                     </Card>
                   ) : (
                     <>
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
-                          <h3 className="font-semibold">Local MAC Authentication</h3>
+                          <h3 className="font-semibold">{t("localAuth.title")}</h3>
                           {(config.authentication.interfaces?.length ?? 0) > 0 && (
                             <Select value={selectedAuthIface} onValueChange={setSelectedAuthIface}>
                               <SelectTrigger className="w-36 h-8 text-sm">
@@ -431,25 +435,25 @@ function IPoEPageInner() {
                         </div>
                         {hasWrite && (
                           <Button size="sm" onClick={() => { setEditingMac(null); setShowMacModal(true); }}>
-                            <Plus className="h-4 w-4 mr-1" /> Add MAC
+                            <Plus className="h-4 w-4 mr-1" /> {t("localAuth.addMac")}
                           </Button>
                         )}
                       </div>
 
                       {(config.authentication.interfaces?.length ?? 0) === 0 ? (
-                        <EmptyState icon={Shield} label="No local authentication interfaces configured" />
+                        <EmptyState icon={Shield} label={t("localAuth.noInterfaces")} />
                       ) : !selectedAuthIfaceData || selectedAuthIfaceData.macs.length === 0 ? (
-                        <EmptyState icon={Shield} label="No MAC entries for this interface" />
+                        <EmptyState icon={Shield} label={t("localAuth.noMacs")} />
                       ) : (
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>MAC Address</TableHead>
-                              <TableHead>IP Address</TableHead>
+                              <TableHead>{t("localAuth.macAddress")}</TableHead>
+                              <TableHead>{t("localAuth.ipAddress")}</TableHead>
                               <TableHead>VLAN</TableHead>
-                              <TableHead>Rate Down</TableHead>
-                              <TableHead>Rate Up</TableHead>
-                              {hasWrite && <TableHead className="text-right">Actions</TableHead>}
+                              <TableHead>{t("localAuth.rateDown")}</TableHead>
+                              <TableHead>{t("localAuth.rateUp")}</TableHead>
+                              {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -471,7 +475,7 @@ function IPoEPageInner() {
                                         <Pencil className="h-4 w-4" />
                                       </Button>
                                       <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
-                                        type: "MAC Entry",
+                                        type: t("deleteTypes.macEntry"),
                                         name: mac.mac,
                                         onDelete: () => ipoeServerService.deleteAuthMac(selectedAuthIface, mac.mac),
                                       })}>
@@ -493,65 +497,65 @@ function IPoEPageInner() {
                 <TabsContent value="radius" className="mt-0">
                   <div className="mb-6">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-semibold">RADIUS Settings</h3>
+                      <h3 className="font-semibold">{t("radius.settingsTitle")}</h3>
                       {hasWrite && (
                         <Button variant="outline" size="sm" onClick={() => setShowRadiusSettingsModal(true)}>
-                          <Pencil className="h-3 w-3 mr-1" /> Edit Settings
+                          <Pencil className="h-3 w-3 mr-1" /> {t("radius.editSettings")}
                         </Button>
                       )}
                     </div>
                     <div className="grid grid-cols-2 gap-6">
                       <Card className="p-4 space-y-2 text-sm">
-                        <h4 className="text-sm font-medium mb-2">General</h4>
-                        <InfoRow label="Source Address" value={config?.authentication.radius?.source_address} />
-                        <InfoRow label="Timeout" value={config?.authentication.radius?.timeout} />
-                        <InfoRow label="Max Try" value={config?.authentication.radius?.max_try} />
-                        <InfoRow label="NAS Identifier" value={config?.authentication.radius?.nas_identifier} />
+                        <h4 className="text-sm font-medium mb-2">{t("radius.general")}</h4>
+                        <InfoRow label={t("radius.sourceAddress")} value={config?.authentication.radius?.source_address} />
+                        <InfoRow label={t("radius.timeout")} value={config?.authentication.radius?.timeout} />
+                        <InfoRow label={t("radius.maxTry")} value={config?.authentication.radius?.max_try} />
+                        <InfoRow label={t("radius.nasIdentifier")} value={config?.authentication.radius?.nas_identifier} />
                         <InfoRow label="NAS IP" value={config?.authentication.radius?.nas_ip_address} />
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Preallocate VIF</span>
+                          <span className="text-muted-foreground">{t("radius.preallocateVif")}</span>
                           <Badge variant={config?.authentication.radius?.preallocate_vif ? "default" : "secondary"}>
-                            {config?.authentication.radius?.preallocate_vif ? "Yes" : "No"}
+                            {config?.authentication.radius?.preallocate_vif ? t("yes") : t("no")}
                           </Badge>
                         </div>
-                        <InfoRow label="Acct Interval" value={config?.authentication.radius?.accounting_interim_interval} />
+                        <InfoRow label={t("radius.acctInterval")} value={config?.authentication.radius?.accounting_interim_interval} />
                       </Card>
                       <Card className="p-4 space-y-2 text-sm">
-                        <h4 className="text-sm font-medium mb-2">DAE & Rate Limit</h4>
-                        <InfoRow label="DAE Server" value={config?.authentication.radius?.dynamic_author?.server} />
-                        <InfoRow label="DAE Port" value={config?.authentication.radius?.dynamic_author?.port} />
+                        <h4 className="text-sm font-medium mb-2">{t("radius.daeRateLimit")}</h4>
+                        <InfoRow label={t("radius.daeServer")} value={config?.authentication.radius?.dynamic_author?.server} />
+                        <InfoRow label={t("radius.daePort")} value={config?.authentication.radius?.dynamic_author?.port} />
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Rate Limit</span>
+                          <span className="text-muted-foreground">{t("radius.rateLimit")}</span>
                           <Badge variant={config?.authentication.radius?.rate_limit?.enable ? "default" : "secondary"}>
-                            {config?.authentication.radius?.rate_limit?.enable ? "Enabled" : "Disabled"}
+                            {config?.authentication.radius?.rate_limit?.enable ? tc("enabled") : tc("disabled")}
                           </Badge>
                         </div>
-                        <InfoRow label="Attribute" value={config?.authentication.radius?.rate_limit?.attribute} />
-                        <InfoRow label="Multiplier" value={config?.authentication.radius?.rate_limit?.multiplier} />
+                        <InfoRow label={t("radius.attribute")} value={config?.authentication.radius?.rate_limit?.attribute} />
+                        <InfoRow label={t("radius.multiplier")} value={config?.authentication.radius?.rate_limit?.multiplier} />
                       </Card>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">RADIUS Servers</h3>
+                    <h3 className="font-semibold">{t("radius.serversTitle")}</h3>
                     {hasWrite && (
                       <Button size="sm" onClick={() => { setEditingRadiusServer(null); setShowRadiusServerModal(true); }}>
-                        <Plus className="h-4 w-4 mr-1" /> Add Server
+                        <Plus className="h-4 w-4 mr-1" /> {t("radius.addServer")}
                       </Button>
                     )}
                   </div>
                   {(config?.authentication.radius?.servers?.length ?? 0) === 0 ? (
-                    <EmptyState icon={Server} label="No RADIUS servers configured" />
+                    <EmptyState icon={Server} label={t("radius.noServers")} />
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Address</TableHead>
-                          <TableHead>Port</TableHead>
-                          <TableHead>Acct Port</TableHead>
-                          <TableHead>Priority</TableHead>
-                          <TableHead>Status</TableHead>
-                          {hasWrite && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead>{t("radius.address")}</TableHead>
+                          <TableHead>{t("radius.port")}</TableHead>
+                          <TableHead>{t("radius.acctPort")}</TableHead>
+                          <TableHead>{t("radius.priority")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
+                          {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -566,11 +570,11 @@ function IPoEPageInner() {
                             <TableCell>
                               <div className="flex gap-1">
                                 {srv.disabled ? (
-                                  <Badge variant="secondary" className="bg-red-500/10 text-red-600">Disabled</Badge>
+                                  <Badge variant="secondary" className="bg-red-500/10 text-red-600">{tc("disabled")}</Badge>
                                 ) : (
-                                  <Badge variant="secondary" className="bg-green-500/10 text-green-600">Active</Badge>
+                                  <Badge variant="secondary" className="bg-green-500/10 text-green-600">{t("radius.active")}</Badge>
                                 )}
-                                {srv.backup && <Badge variant="outline">Backup</Badge>}
+                                {srv.backup && <Badge variant="outline">{t("radius.backup")}</Badge>}
                               </div>
                             </TableCell>
                             {hasWrite && (
@@ -580,7 +584,7 @@ function IPoEPageInner() {
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
-                                    type: "RADIUS Server",
+                                    type: t("deleteTypes.radiusServer"),
                                     name: srv.address,
                                     onDelete: () => ipoeServerService.deleteRadiusServer(srv.address),
                                   })}>
@@ -599,23 +603,23 @@ function IPoEPageInner() {
                 {/* IP Pools Tab */}
                 <TabsContent value="pools" className="mt-0">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">IPv4 Client IP Pools</h3>
+                    <h3 className="font-semibold">{t("pools.ipv4Title")}</h3>
                     {hasWrite && (
                       <Button size="sm" onClick={() => { setEditingIPPool(null); setShowIPPoolModal(true); }}>
-                        <Plus className="h-4 w-4 mr-1" /> Add Pool
+                        <Plus className="h-4 w-4 mr-1" /> {t("pools.addPool")}
                       </Button>
                     )}
                   </div>
                   {(config?.client_ip_pools.length ?? 0) === 0 ? (
-                    <EmptyState icon={Network} label="No IPv4 pools configured" />
+                    <EmptyState icon={Network} label={t("pools.noIpv4Pools")} />
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Ranges</TableHead>
-                          <TableHead>Next Pool</TableHead>
-                          {hasWrite && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("pools.ranges")}</TableHead>
+                          <TableHead>{t("pools.nextPool")}</TableHead>
+                          {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -638,7 +642,7 @@ function IPoEPageInner() {
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
-                                    type: "IP Pool",
+                                    type: t("deleteTypes.ipPool"),
                                     name: pool.name,
                                     onDelete: () => ipoeServerService.deleteIPPool(pool.name),
                                   })}>
@@ -657,23 +661,23 @@ function IPoEPageInner() {
                 {/* IPv6 Pools Tab */}
                 <TabsContent value="ipv6pools" className="mt-0">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">IPv6 Client Pools</h3>
+                    <h3 className="font-semibold">{t("pools.ipv6Title")}</h3>
                     {hasWrite && (
                       <Button size="sm" onClick={() => { setEditingIPv6Pool(null); setShowIPv6PoolModal(true); }}>
-                        <Plus className="h-4 w-4 mr-1" /> Add Pool
+                        <Plus className="h-4 w-4 mr-1" /> {t("pools.addPool")}
                       </Button>
                     )}
                   </div>
                   {(config?.client_ipv6_pools.length ?? 0) === 0 ? (
-                    <EmptyState icon={Network} label="No IPv6 pools configured" />
+                    <EmptyState icon={Network} label={t("pools.noIpv6Pools")} />
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Prefixes</TableHead>
-                          <TableHead>Delegates</TableHead>
-                          {hasWrite && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("pools.prefixes")}</TableHead>
+                          <TableHead>{t("pools.delegates")}</TableHead>
+                          {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -707,7 +711,7 @@ function IPoEPageInner() {
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
-                                    type: "IPv6 Pool",
+                                    type: t("deleteTypes.ipv6Pool"),
                                     name: pool.name,
                                     onDelete: () => ipoeServerService.deleteIPv6Pool(pool.name),
                                   })}>
@@ -727,29 +731,29 @@ function IPoEPageInner() {
                 <TabsContent value="advanced" className="mt-0">
                   <Card className="p-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-medium">Advanced Settings</h4>
+                      <h4 className="text-sm font-medium">{t("advanced.title")}</h4>
                       {hasWrite && (
                         <Button variant="ghost" size="sm" onClick={() => setShowAdvancedModal(true)}>
-                          <Pencil className="h-3 w-3 mr-1" /> Edit
+                          <Pencil className="h-3 w-3 mr-1" /> {tc("edit")}
                         </Button>
                       )}
                     </div>
                     <div className="space-y-2 text-sm">
-                      <InfoRow label="Log Level" value={config?.log?.level} />
-                      <InfoRow label="Shaper FWMark" value={config?.shaper?.fwmark} />
+                      <InfoRow label={t("advanced.logLevel")} value={config?.log?.level} />
+                      <InfoRow label={t("advanced.shaperFwmark")} value={config?.shaper?.fwmark} />
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">SNMP Master Agent</span>
+                        <span className="text-muted-foreground">{t("advanced.snmpMasterAgent")}</span>
                         <Badge variant={config?.snmp?.master_agent ? "default" : "secondary"}>
-                          {config?.snmp?.master_agent ? "Yes" : "No"}
+                          {config?.snmp?.master_agent ? t("yes") : t("no")}
                         </Badge>
                       </div>
-                      <InfoRow label="Limits Burst" value={config?.limits?.burst} />
-                      <InfoRow label="Conn. Limit" value={config?.limits?.connection_limit} />
-                      <InfoRow label="Limits Timeout" value={config?.limits?.timeout} />
-                      <InfoRow label="Script On Change" value={config?.extended_scripts?.on_change} />
-                      <InfoRow label="Script On Down" value={config?.extended_scripts?.on_down} />
-                      <InfoRow label="Script On Pre-Up" value={config?.extended_scripts?.on_pre_up} />
-                      <InfoRow label="Script On Up" value={config?.extended_scripts?.on_up} />
+                      <InfoRow label={t("advanced.limitsBurst")} value={config?.limits?.burst} />
+                      <InfoRow label={t("advanced.connLimit")} value={config?.limits?.connection_limit} />
+                      <InfoRow label={t("advanced.limitsTimeout")} value={config?.limits?.timeout} />
+                      <InfoRow label={t("advanced.scriptOnChange")} value={config?.extended_scripts?.on_change} />
+                      <InfoRow label={t("advanced.scriptOnDown")} value={config?.extended_scripts?.on_down} />
+                      <InfoRow label={t("advanced.scriptOnPreUp")} value={config?.extended_scripts?.on_pre_up} />
+                      <InfoRow label={t("advanced.scriptOnUp")} value={config?.extended_scripts?.on_up} />
                     </div>
                   </Card>
                 </TabsContent>

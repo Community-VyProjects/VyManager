@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,8 @@ interface AuthSettingsModalProps {
 }
 
 export function AuthSettingsModal({ open, onOpenChange, onSuccess, currentMode }: AuthSettingsModalProps) {
+  const t = useTranslations("ipoeServer");
+  const tc = useTranslations("common");
   const [mode, setMode] = useState("local");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,10 +53,10 @@ export function AuthSettingsModal({ open, onOpenChange, onSuccess, currentMode }
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to update authentication mode");
+        setError(result.error || t("authModal.updateFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to update authentication mode");
+      setError((err as ApiError).message || t("authModal.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -65,22 +68,22 @@ export function AuthSettingsModal({ open, onOpenChange, onSuccess, currentMode }
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Key className="h-5 w-5 text-primary" />
-            Authentication Settings
+            {t("authModal.title")}
           </DialogTitle>
-          <DialogDescription>Configure the IPoE authentication mode.</DialogDescription>
+          <DialogDescription>{t("authModal.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Authentication Mode</Label>
+            <Label>{t("authModal.mode")}</Label>
             <Select value={mode} onValueChange={setMode}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="local">Local</SelectItem>
+                <SelectItem value="local">{t("authModal.modeLocal")}</SelectItem>
                 <SelectItem value="radius">RADIUS</SelectItem>
-                <SelectItem value="noauth">No Authentication</SelectItem>
+                <SelectItem value="noauth">{t("authModal.modeNoauth")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -94,9 +97,9 @@ export function AuthSettingsModal({ open, onOpenChange, onSuccess, currentMode }
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save Changes"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : t("saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>
