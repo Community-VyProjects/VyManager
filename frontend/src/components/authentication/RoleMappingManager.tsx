@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,6 +40,12 @@ import {
 
 const SITE_ROLE_NONE = "__none__";
 
+const ROLE_VALUE_KEYS: Record<string, "roleValues.ADMIN" | "roleValues.OPERATOR" | "roleValues.VIEWER"> = {
+  ADMIN: "roleValues.ADMIN",
+  OPERATOR: "roleValues.OPERATOR",
+  VIEWER: "roleValues.VIEWER",
+};
+
 interface RoleMappingManagerProps {
   provider: OAuthProviderConfig;
   onBack: () => void;
@@ -51,6 +58,9 @@ export function RoleMappingManager({
   onBack,
   onProviderChanged,
 }: RoleMappingManagerProps) {
+  const t = useTranslations("authentication");
+  const tc = useTranslations("common");
+  const roleLabel = (role: string) => (ROLE_VALUE_KEYS[role] ? t(ROLE_VALUE_KEYS[role]) : role);
   const [enabled, setEnabled] = useState(provider.roleMappingEnabled ?? false);
   const [groupsClaim, setGroupsClaim] = useState(provider.groupsClaim ?? "groups");
   const [savingSettings, setSavingSettings] = useState(false);
@@ -93,11 +103,11 @@ export function RoleMappingManager({
       }
       setInstances(allInstances);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load role mappings");
+      setError(err instanceof Error ? err.message : t("roleMapping.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [provider.providerId]);
+  }, [provider.providerId, t]);
 
   useEffect(() => {
     load();
@@ -155,7 +165,7 @@ export function RoleMappingManager({
       });
       onProviderChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save settings");
+      setError(err instanceof Error ? err.message : t("roleMapping.saveSettingsFailed"));
     } finally {
       setSavingSettings(false);
     }
@@ -180,7 +190,7 @@ export function RoleMappingManager({
       }
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update site role");
+      setError(err instanceof Error ? err.message : t("roleMapping.siteRoleFailed"));
     }
   };
 
@@ -190,7 +200,7 @@ export function RoleMappingManager({
       await oauthConfigService.deleteMapping(provider.providerId, id);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete grant");
+      setError(err instanceof Error ? err.message : t("roleMapping.deleteGrantFailed"));
     }
   };
 
@@ -203,7 +213,7 @@ export function RoleMappingManager({
       setSelectedGrantIds([]);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete grants");
+      setError(err instanceof Error ? err.message : t("roleMapping.deleteGrantsFailed"));
     }
   };
 
@@ -221,7 +231,7 @@ export function RoleMappingManager({
       if (selectedGroup === group) setSelectedGroup(null);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete group");
+      setError(err instanceof Error ? err.message : t("roleMapping.deleteGroupFailed"));
     }
   };
 
@@ -242,10 +252,10 @@ export function RoleMappingManager({
         </Button>
         <div>
           <h2 className="text-2xl font-bold text-foreground">
-            Role Mapping — {provider.displayName}
+            {t("roleMapping.title", { name: provider.displayName })}
           </h2>
           <p className="text-sm text-muted-foreground">
-            Map IdP group claims to site and instance roles. Evaluated on every login.
+            {t("roleMapping.subtitle")}
           </p>
         </div>
       </div>
@@ -262,14 +272,14 @@ export function RoleMappingManager({
         <label className="flex items-start gap-3 cursor-pointer">
           <Checkbox checked={enabled} onCheckedChange={(v) => setEnabled(v === true)} className="mt-0.5" />
           <span>
-            <span className="text-sm font-medium text-foreground">Enable role mapping</span>
+            <span className="text-sm font-medium text-foreground">{t("roleMapping.enable")}</span>
             <span className="block text-xs text-muted-foreground mt-0.5">
-              Users whose claims match no rule are denied login.
+              {t("roleMapping.enableHint")}
             </span>
           </span>
         </label>
         <div className="space-y-1.5">
-          <Label htmlFor="groupsClaim">Claim name</Label>
+          <Label htmlFor="groupsClaim">{t("roleMapping.claimName")}</Label>
           <Input
             id="groupsClaim"
             value={groupsClaim}
@@ -279,14 +289,14 @@ export function RoleMappingManager({
           />
         </div>
         <Button size="sm" onClick={saveSettings} disabled={savingSettings} className="ml-auto">
-          {savingSettings ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save settings"}
+          {savingSettings ? <Loader2 className="h-4 w-4 animate-spin" /> : t("roleMapping.saveSettings")}
         </Button>
       </div>
 
       {enabled && groups.length === 0 && (
         <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
           <ShieldAlert className="h-4 w-4 shrink-0" />
-          Mapping is enabled but no groups are defined — all SSO users will be denied login.
+          {t("roleMapping.noGroupsWarning")}
         </div>
       )}
 
@@ -299,7 +309,7 @@ export function RoleMappingManager({
           {/* Left: groups */}
           <div className="rounded-lg border border-border">
             <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-              <span className="text-sm font-semibold">Groups</span>
+              <span className="text-sm font-semibold">{t("roleMapping.groups")}</span>
               <Button size="sm" variant="ghost" className="px-2" onClick={() => setAddingGroup((v) => !v)}>
                 <Plus className="h-4 w-4" />
               </Button>
@@ -311,17 +321,17 @@ export function RoleMappingManager({
                   value={newGroupName}
                   onChange={(e) => setNewGroupName(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && confirmAddGroup()}
-                  placeholder="Group/claim value"
+                  placeholder={t("roleMapping.groupPlaceholder")}
                   className="h-8 text-sm"
                 />
                 <Button size="sm" className="h-8" onClick={confirmAddGroup}>
-                  Add
+                  {tc("add")}
                 </Button>
               </div>
             )}
             <div className="max-h-[28rem] overflow-y-auto">
               {groups.length === 0 ? (
-                <p className="px-3 py-3 text-sm text-muted-foreground">No groups yet.</p>
+                <p className="px-3 py-3 text-sm text-muted-foreground">{t("roleMapping.noGroups")}</p>
               ) : (
                 groups.map((g) => (
                   <button
@@ -344,7 +354,7 @@ export function RoleMappingManager({
             {!selectedGroup ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-16 text-muted-foreground">
                 <Users className="h-10 w-10 mb-3" />
-                <p className="text-sm">Select a group, or add one, to configure its access.</p>
+                <p className="text-sm">{t("roleMapping.selectGroup")}</p>
               </div>
             ) : (
               <div className="space-y-5">
@@ -360,39 +370,39 @@ export function RoleMappingManager({
                     onClick={() => deleteGroup(selectedGroup)}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
-                    Delete group
+                    {t("roleMapping.deleteGroup")}
                   </Button>
                 </div>
 
                 {/* Site role */}
                 <div className="space-y-1.5 max-w-xs">
-                  <Label>Site role</Label>
+                  <Label>{t("roleMapping.siteRole")}</Label>
                   <Select value={currentSiteRole || SITE_ROLE_NONE} onValueChange={changeSiteRole}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={SITE_ROLE_NONE}>None</SelectItem>
-                      <SelectItem value="VIEWER">Viewer</SelectItem>
+                      <SelectItem value={SITE_ROLE_NONE}>{tc("none")}</SelectItem>
+                      <SelectItem value="VIEWER">{t("roleMapping.viewer")}</SelectItem>
                       <SelectItem value="ADMIN" disabled={adminGroupExists}>
-                        Admin
+                        {t("roleMapping.admin")}
                       </SelectItem>
                     </SelectContent>
                   </Select>
                   {adminGroupExists && currentSiteRole !== "ADMIN" && (
-                    <p className="text-xs text-muted-foreground">A site-admin group already exists.</p>
+                    <p className="text-xs text-muted-foreground">{t("roleMapping.adminExists")}</p>
                   )}
                 </div>
 
                 {/* Grants */}
                 {currentSiteRole === "ADMIN" ? (
                   <p className="text-sm text-muted-foreground rounded-lg bg-muted/50 px-3 py-2">
-                    Site admins automatically have full access to all instances and features.
+                    {t("roleMapping.adminNotice")}
                   </p>
                 ) : (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label>Instance &amp; site grants</Label>
+                      <Label>{t("roleMapping.grantsTitle")}</Label>
                       <Button
                         size="sm"
                         variant="outline"
@@ -400,12 +410,12 @@ export function RoleMappingManager({
                         onClick={() => setGrantEditor({ existing: null })}
                       >
                         <Plus className="h-3.5 w-3.5" />
-                        Add grant
+                        {t("grant.addTitle")}
                       </Button>
                     </div>
                     {selectedGrantIds.length > 0 && (
                       <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm">
-                        <span className="font-medium">{selectedGrantIds.length} selected</span>
+                        <span className="font-medium">{t("roleMapping.selectedCount", { count: selectedGrantIds.length })}</span>
                         <div className="ml-auto flex items-center gap-2">
                           <Button
                             size="sm"
@@ -417,7 +427,7 @@ export function RoleMappingManager({
                               })
                             }
                           >
-                            Edit selected
+                            {t("roleMapping.editSelected")}
                           </Button>
                           <Button
                             size="sm"
@@ -425,16 +435,16 @@ export function RoleMappingManager({
                             className="text-destructive hover:text-destructive"
                             onClick={deleteSelectedGrants}
                           >
-                            Delete selected
+                            {t("roleMapping.deleteSelected")}
                           </Button>
                           <Button size="sm" variant="ghost" onClick={() => setSelectedGrantIds([])}>
-                            Clear
+                            {t("roleMapping.clear")}
                           </Button>
                         </div>
                       </div>
                     )}
                     {grantRows.length === 0 ? (
-                      <p className="text-sm text-muted-foreground py-1">No grants yet.</p>
+                      <p className="text-sm text-muted-foreground py-1">{t("roleMapping.noGrants")}</p>
                     ) : (
                       <div className="rounded-lg border border-border divide-y divide-border">
                         <label className="flex items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground cursor-pointer">
@@ -446,7 +456,7 @@ export function RoleMappingManager({
                               setSelectedGrantIds(v === true ? grantRows.map((g) => g.id) : [])
                             }
                           />
-                          Select all
+                          {t("roleMapping.selectAll")}
                         </label>
                         {grantRows.map((m) => (
                           <div key={m.id} className="flex items-center justify-between gap-3 px-3 py-2">
@@ -458,7 +468,7 @@ export function RoleMappingManager({
                               {m.siteId ? (
                                 <span className="inline-flex items-center gap-1.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-0.5 font-medium">
                                   <Building2 className="h-3.5 w-3.5" />
-                                  {siteName(m.siteId)} (whole site)
+                                  {t("roleMapping.wholeSite", { site: siteName(m.siteId) })}
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-0.5 font-medium">
@@ -467,10 +477,10 @@ export function RoleMappingManager({
                                 </span>
                               )}
                               <span className="text-muted-foreground">→</span>
-                              <span className="text-xs font-medium">{m.instanceRole}</span>
+                              <span className="text-xs font-medium">{m.instanceRole ? roleLabel(m.instanceRole) : m.instanceRole}</span>
                               {m.featurePermissions?.length ? (
                                 <span className="text-xs text-muted-foreground">
-                                  · {m.featurePermissions.length} features
+                                  · {t("roleMapping.featureCount", { count: m.featurePermissions.length })}
                                 </span>
                               ) : null}
                             </div>

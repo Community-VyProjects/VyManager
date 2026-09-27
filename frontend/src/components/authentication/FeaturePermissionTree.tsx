@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,12 +14,17 @@ import { ChevronRight, Search } from "lucide-react";
 import {
   getFlatFeatureCategories,
   getFeatureAndDescendants,
-  FEATURE_DISPLAY_NAMES,
 } from "@/lib/feature-permissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
 const FLAT_CATEGORIES = getFlatFeatureCategories();
 const ALL_FEATURES = FLAT_CATEGORIES.flatMap((c) => c.items.map((i) => i.feature));
+
+// Category names come from lib/feature-permissions; map them to message keys for display.
+const CATEGORY_KEYS: Record<string, "categories.vyosConfiguration" | "categories.systemGeneral"> = {
+  "VyOS Configuration": "categories.vyosConfiguration",
+  "System & General": "categories.systemGeneral",
+};
 
 export type FeaturePermsMap = Record<string, { canEdit: boolean; canView: boolean }>;
 
@@ -34,6 +40,10 @@ interface FeaturePermissionTreeProps {
  * Shared by the SSO and user-access grant editors.
  */
 export function FeaturePermissionTree({ value, onChange }: FeaturePermissionTreeProps) {
+  const t = useTranslations("authentication");
+  const tc = useTranslations("common");
+  const featureName = (f: FeatureGroup) => t(`features.${f}` as const);
+  const categoryName = (name: string) => (CATEGORY_KEYS[name] ? t(CATEGORY_KEYS[name]) : name);
   const [openCats, setOpenCats] = useState<string[]>([]);
   const [query, setQuery] = useState("");
 
@@ -44,10 +54,10 @@ export function FeaturePermissionTree({ value, onChange }: FeaturePermissionTree
       FLAT_CATEGORIES.map((cat) => ({
         ...cat,
         items: cat.items.filter(
-          (i) => !q || (FEATURE_DISPLAY_NAMES[i.feature] ?? i.feature).toLowerCase().includes(q)
+          (i) => !q || t(`features.${i.feature}` as const).toLowerCase().includes(q)
         ),
       })).filter((cat) => cat.items.length > 0),
-    [q]
+    [q, t]
   );
 
   const applyAll = (mode: "view" | "edit" | "clear") => {
@@ -84,13 +94,13 @@ export function FeaturePermissionTree({ value, onChange }: FeaturePermissionTree
       <div className="flex items-center gap-2">
         <div className="flex gap-1">
           <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => applyAll("view")}>
-            All view
+            {t("tree.allView")}
           </Button>
           <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => applyAll("edit")}>
-            All edit
+            {t("tree.allEdit")}
           </Button>
           <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => applyAll("clear")}>
-            Clear
+            {t("tree.clear")}
           </Button>
         </div>
         <div className="relative flex-1">
@@ -98,7 +108,7 @@ export function FeaturePermissionTree({ value, onChange }: FeaturePermissionTree
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Filter features…"
+            placeholder={t("tree.filterPlaceholder")}
             className="h-7 pl-7 text-xs"
           />
         </div>
@@ -106,7 +116,7 @@ export function FeaturePermissionTree({ value, onChange }: FeaturePermissionTree
 
       <div className="rounded-lg border border-border divide-y divide-border max-h-72 overflow-y-auto">
         {filtered.length === 0 ? (
-          <p className="px-3 py-2 text-sm text-muted-foreground">No matching features</p>
+          <p className="px-3 py-2 text-sm text-muted-foreground">{t("tree.noMatches")}</p>
         ) : (
           filtered.map((cat) => {
             const isOpen = q !== "" || openCats.includes(cat.name);
@@ -120,7 +130,7 @@ export function FeaturePermissionTree({ value, onChange }: FeaturePermissionTree
               >
                 <CollapsibleTrigger className="flex items-center gap-2 w-full px-3 py-2 text-sm font-medium hover:bg-muted/50">
                   <ChevronRight className={`h-4 w-4 transition-transform ${isOpen ? "rotate-90" : ""}`} />
-                  {cat.name}
+                  {categoryName(cat.name)}
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   {cat.items.map((item) => {
@@ -133,22 +143,22 @@ export function FeaturePermissionTree({ value, onChange }: FeaturePermissionTree
                         style={{ paddingLeft: `${28 + (q ? 0 : item.depth * 16)}px`, paddingRight: "12px" }}
                       >
                         <span className="text-foreground">
-                          {FEATURE_DISPLAY_NAMES[item.feature] ?? key}
+                          {featureName(item.feature)}
                         </span>
                         {item.binary ? (
                           <label className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground">
                             <Checkbox checked={p.canView} onCheckedChange={() => toggleBinary(key)} />
-                            Allow
+                            {t("tree.allow")}
                           </label>
                         ) : (
                           <div className="flex items-center gap-4">
                             <label className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground">
                               <Checkbox checked={p.canView} onCheckedChange={() => togglePerm(key, "canView")} />
-                              View
+                              {t("tree.view")}
                             </label>
                             <label className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground">
                               <Checkbox checked={p.canEdit} onCheckedChange={() => togglePerm(key, "canEdit")} />
-                              Edit
+                              {tc("edit")}
                             </label>
                           </div>
                         )}

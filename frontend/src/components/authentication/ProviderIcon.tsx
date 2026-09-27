@@ -2,6 +2,36 @@
 
 import { KeyRound } from "lucide-react";
 import { useId } from "react";
+import { useTranslations } from "next-intl";
+
+const KNOWN_PROVIDER_IDS = [
+  "google",
+  "github",
+  "microsoft",
+  "gitlab",
+  "discord",
+  "slack",
+  "auth0",
+  "okta",
+  "keycloak",
+  "authentik",
+  "authelia",
+  "custom-oidc",
+] as const;
+
+type KnownProviderId = (typeof KNOWN_PROVIDER_IDS)[number];
+
+const isKnownProviderId = (id: string): id is KnownProviderId =>
+  (KNOWN_PROVIDER_IDS as readonly string[]).includes(id);
+
+/** Localized description for a well-known provider; falls back to the catalogue text. */
+export function useProviderDescription() {
+  const t = useTranslations("authentication");
+  return (provider: { providerId: string; description: string }) =>
+    isKnownProviderId(provider.providerId)
+      ? t(`providerDescriptions.${provider.providerId}` as const)
+      : provider.description;
+}
 
 interface ProviderIconProps {
   iconKey: string;
