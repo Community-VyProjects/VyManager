@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -96,6 +97,8 @@ export function BgpPeerGroupModal({
   routeMapNames,
   bfdProfileNames,
 }: BgpPeerGroupModalProps) {
+  const t = useTranslations("bgp");
+  const tc = useTranslations("common");
   const isEditMode = !!existingPeerGroup;
 
   // --- Basic fields ---
@@ -280,29 +283,29 @@ export function BgpPeerGroupModal({
 
   const validateForm = (): string | null => {
     if (!name.trim()) {
-      return "Peer group name is required";
+      return t("peerGroupModal.nameRequired");
     }
 
     if (ebgpMultihop.trim()) {
       const val = parseInt(ebgpMultihop.trim(), 10);
       if (isNaN(val) || val < 1 || val > 255) {
-        return "eBGP multihop must be between 1 and 255";
+        return t("peerGroupModal.ebgpMultihopRange");
       }
     }
 
     if (ttlSecurityHops.trim()) {
       const val = parseInt(ttlSecurityHops.trim(), 10);
       if (isNaN(val) || val < 1 || val > 254) {
-        return "TTL security hops must be between 1 and 254";
+        return t("peerGroupModal.ttlRange");
       }
     }
 
     if (localAsNoPrependReplaceAs && !localAsAsn.trim()) {
-      return "Local AS number is required when no-prepend-replace-as is enabled";
+      return t("peerGroupModal.localAsRequired");
     }
 
     if (localRoleStrict && localRole === "__none__") {
-      return "Local role must be set when strict mode is enabled";
+      return t("peerGroupModal.localRoleRequired");
     }
 
     return null;
@@ -383,7 +386,7 @@ export function BgpPeerGroupModal({
       handleClose();
     } catch (err: unknown) {
       const message =
-        err instanceof Error ? err.message : "Operation failed";
+        err instanceof Error ? err.message : tc("operationFailed");
       setError(message);
     } finally {
       setLoading(false);
@@ -395,12 +398,12 @@ export function BgpPeerGroupModal({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit Peer Group" : "Add Peer Group"}
+            {isEditMode ? t("peerGroupModal.editTitle") : t("peerGroupModal.addTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? `Modify the BGP peer group configuration for "${existingPeerGroup?.name}".`
-              : "Configure a new BGP peer group."}
+              ? t("peerGroupModal.editDescription", { name: existingPeerGroup?.name ?? "" })
+              : t("peerGroupModal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -410,63 +413,62 @@ export function BgpPeerGroupModal({
             {/* Section 1: Basic Settings */}
             {/* ============================================================ */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium">Basic Settings</h4>
+              <h4 className="text-sm font-medium">{t("form.basicSettings")}</h4>
               <div className="space-y-4 rounded-lg border p-3">
                 {/* Name */}
                 <div className="space-y-2">
                   <Label htmlFor="bgp-pg-name">
-                    Name <span className="text-destructive">*</span>
+                    {tc("name")} <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="bgp-pg-name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. MY-PEERS"
+                    placeholder={t("eg", { value: "MY-PEERS" })}
                     disabled={isEditMode}
                     className={isEditMode ? "bg-muted" : ""}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Unique name for this BGP peer group.
+                    {t("peerGroupModal.nameHelp")}
                   </p>
                 </div>
 
                 {/* Remote AS */}
                 <div className="space-y-2">
-                  <Label htmlFor="bgp-pg-remote-as">Remote AS</Label>
+                  <Label htmlFor="bgp-pg-remote-as">{t("form.remoteAs")}</Label>
                   <Input
                     id="bgp-pg-remote-as"
                     value={remoteAs}
                     onChange={(e) => setRemoteAs(e.target.value)}
-                    placeholder="e.g. 65001 or external or internal"
+                    placeholder={t("peerGroupModal.remoteAsPlaceholder")}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Remote AS number, or &quot;external&quot; /
-                    &quot;internal&quot;.
+                    {t("peerGroupModal.remoteAsHelp")}
                   </p>
                 </div>
 
                 {/* Description */}
                 <div className="space-y-2">
-                  <Label htmlFor="bgp-pg-description">Description</Label>
+                  <Label htmlFor="bgp-pg-description">{tc("description")}</Label>
                   <Input
                     id="bgp-pg-description"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Peer group description"
+                    placeholder={t("peerGroupModal.descriptionPlaceholder")}
                   />
                 </div>
 
                 {/* Update Source */}
                 <div className="space-y-2">
-                  <Label htmlFor="bgp-pg-update-source">Update Source</Label>
+                  <Label htmlFor="bgp-pg-update-source">{t("form.updateSource")}</Label>
                   <Input
                     id="bgp-pg-update-source"
                     value={updateSource}
                     onChange={(e) => setUpdateSource(e.target.value)}
-                    placeholder="e.g. eth0 or 192.0.2.1"
+                    placeholder={t("form.updateSourcePlaceholder")}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Source interface or address for BGP sessions.
+                    {t("peerGroupModal.updateSourceHelp")}
                   </p>
                 </div>
               </div>
@@ -476,7 +478,7 @@ export function BgpPeerGroupModal({
             {/* Section 2: Status & Options */}
             {/* ============================================================ */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium">Status &amp; Options</h4>
+              <h4 className="text-sm font-medium">{t("form.statusOptions")}</h4>
               <div className="space-y-3 rounded-lg border p-3">
                 {/* Shutdown */}
                 <div className="flex items-center space-x-3">
@@ -492,10 +494,10 @@ export function BgpPeerGroupModal({
                       htmlFor="bgp-pg-shutdown"
                       className="cursor-pointer text-destructive"
                     >
-                      Shutdown
+                      {t("form.shutdown")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Administratively disable this peer group.
+                      {t("peerGroupModal.shutdownHelp")}
                     </p>
                   </div>
                 </div>
@@ -514,10 +516,10 @@ export function BgpPeerGroupModal({
                       htmlFor="bgp-pg-passive"
                       className="cursor-pointer"
                     >
-                      Passive
+                      {t("form.passive")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Do not initiate BGP connections to peers in this group.
+                      {t("peerGroupModal.passiveHelp")}
                     </p>
                   </div>
                 </div>
@@ -536,10 +538,10 @@ export function BgpPeerGroupModal({
                       htmlFor="bgp-pg-override-capability"
                       className="cursor-pointer"
                     >
-                      Override Capability
+                      {t("form.overrideCapability")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Override capability negotiation result.
+                      {t("form.overrideCapabilityHelp")}
                     </p>
                   </div>
                 </div>
@@ -558,10 +560,10 @@ export function BgpPeerGroupModal({
                       htmlFor="bgp-pg-disable-cap-neg"
                       className="cursor-pointer"
                     >
-                      Disable Capability Negotiation
+                      {t("form.disableCapNeg")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Suppress sending capability negotiation as OPEN message.
+                      {t("peerGroupModal.disableCapNegHelp")}
                     </p>
                   </div>
                 </div>
@@ -580,11 +582,10 @@ export function BgpPeerGroupModal({
                       htmlFor="bgp-pg-disable-conn-check"
                       className="cursor-pointer"
                     >
-                      Disable Connected Check
+                      {t("form.disableConnectedCheck")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Allow peerings between directly connected eBGP peers
-                      using loopback addresses.
+                      {t("peerGroupModal.disableConnectedCheckHelp")}
                     </p>
                   </div>
                 </div>
@@ -611,11 +612,10 @@ export function BgpPeerGroupModal({
                       htmlFor="bgp-pg-bfd-enabled"
                       className="cursor-pointer"
                     >
-                      Enable BFD
+                      {t("form.enableBfd")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Enable Bidirectional Forwarding Detection for this peer
-                      group.
+                      {t("peerGroupModal.bfdHelp")}
                     </p>
                   </div>
                 </div>
@@ -636,31 +636,30 @@ export function BgpPeerGroupModal({
                           htmlFor="bgp-pg-bfd-ccpf"
                           className="cursor-pointer"
                         >
-                          Check Control Plane Failure
+                          {t("form.checkControlPlane")}
                         </Label>
                         <p className="text-xs text-muted-foreground">
-                          Trigger session down on control plane independent
-                          failure.
+                          {t("peerGroupModal.checkControlPlaneHelp")}
                         </p>
                       </div>
                     </div>
 
                     {/* BFD Profile */}
                     <div className="space-y-2">
-                      <Label>BFD Profile</Label>
+                      <Label>{t("form.bfdProfile")}</Label>
                       <Select value={bfdProfile || "__none__"} onValueChange={(v) => setBfdProfile(v === "__none__" ? "" : v)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="None" />
+                          <SelectValue placeholder={tc("none")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="__none__">None</SelectItem>
+                          <SelectItem value="__none__">{tc("none")}</SelectItem>
                           {bfdProfileNames.map((name) => (
                             <SelectItem key={name} value={name}>{name}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">
-                        BFD profile to apply to this peer group.
+                        {t("peerGroupModal.bfdProfileHelp")}
                       </p>
                     </div>
                   </>
@@ -672,7 +671,7 @@ export function BgpPeerGroupModal({
             {/* Section 4: Capability */}
             {/* ============================================================ */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium">Capability</h4>
+              <h4 className="text-sm font-medium">{t("form.capability")}</h4>
               <div className="space-y-3 rounded-lg border p-3">
                 {/* Dynamic */}
                 <div className="flex items-center space-x-3">
@@ -688,10 +687,10 @@ export function BgpPeerGroupModal({
                       htmlFor="bgp-pg-cap-dynamic"
                       className="cursor-pointer"
                     >
-                      Dynamic
+                      {t("form.dynamic")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Advertise dynamic capability to this peer group.
+                      {t("peerGroupModal.dynamicHelp")}
                     </p>
                   </div>
                 </div>
@@ -710,10 +709,10 @@ export function BgpPeerGroupModal({
                       htmlFor="bgp-pg-cap-extended-nexthop"
                       className="cursor-pointer"
                     >
-                      Extended Nexthop
+                      {t("form.extendedNexthop")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Advertise extended nexthop capability.
+                      {t("form.extendedNexthopHelp")}
                     </p>
                   </div>
                 </div>
@@ -732,10 +731,10 @@ export function BgpPeerGroupModal({
                       htmlFor="bgp-pg-cap-software-version"
                       className="cursor-pointer"
                     >
-                      Software Version
+                      {t("form.softwareVersion")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Advertise software version capability.
+                      {t("form.softwareVersionHelp")}
                     </p>
                   </div>
                 </div>
@@ -746,11 +745,11 @@ export function BgpPeerGroupModal({
             {/* Section 5: Advanced */}
             {/* ============================================================ */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium">Advanced</h4>
+              <h4 className="text-sm font-medium">{t("form.advanced")}</h4>
               <div className="space-y-4 rounded-lg border p-3">
                 {/* eBGP Multihop */}
                 <div className="space-y-2">
-                  <Label htmlFor="bgp-pg-ebgp-multihop">eBGP Multihop</Label>
+                  <Label htmlFor="bgp-pg-ebgp-multihop">{t("form.ebgpMultihop")}</Label>
                   <Input
                     id="bgp-pg-ebgp-multihop"
                     type="number"
@@ -761,14 +760,14 @@ export function BgpPeerGroupModal({
                     max={255}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Maximum number of hops for eBGP neighbors (1-255).
+                    {t("peerGroupModal.ebgpMultihopHelp")}
                   </p>
                 </div>
 
                 {/* TTL Security Hops */}
                 <div className="space-y-2">
                   <Label htmlFor="bgp-pg-ttl-security">
-                    TTL Security Hops
+                    {t("form.ttlSecurityHops")}
                   </Label>
                   <Input
                     id="bgp-pg-ttl-security"
@@ -780,60 +779,60 @@ export function BgpPeerGroupModal({
                     max={254}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Enforce TTL security hops value (1-254).
+                    {t("peerGroupModal.ttlHelp")}
                   </p>
                 </div>
 
                 {/* Password */}
                 <div className="space-y-2">
-                  <Label htmlFor="bgp-pg-password">Password</Label>
+                  <Label htmlFor="bgp-pg-password">{t("form.password")}</Label>
                   <Input
                     id="bgp-pg-password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="MD5 authentication password"
+                    placeholder={t("peerGroupModal.passwordPlaceholder")}
                   />
                   <p className="text-xs text-muted-foreground">
-                    BGP MD5 authentication password.
+                    {t("peerGroupModal.passwordHelp")}
                   </p>
                 </div>
 
                 {/* Graceful Restart */}
                 <div className="space-y-2">
                   <Label htmlFor="bgp-pg-graceful-restart">
-                    Graceful Restart
+                    {t("form.gracefulRestart")}
                   </Label>
                   <Select
                     value={gracefulRestart}
                     onValueChange={setGracefulRestart}
                   >
                     <SelectTrigger id="bgp-pg-graceful-restart">
-                      <SelectValue placeholder="Select graceful restart mode" />
+                      <SelectValue placeholder={t("form.gracefulRestartPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">None</SelectItem>
-                      <SelectItem value="enable">Enable</SelectItem>
-                      <SelectItem value="disable">Disable</SelectItem>
-                      <SelectItem value="restart">Restart</SelectItem>
+                      <SelectItem value="__none__">{tc("none")}</SelectItem>
+                      <SelectItem value="enable">{t("form.grEnable")}</SelectItem>
+                      <SelectItem value="disable">{t("form.grDisable")}</SelectItem>
+                      <SelectItem value="restart">{t("form.grRestart")}</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Configure graceful restart for this peer group.
+                    {t("peerGroupModal.gracefulRestartHelp")}
                   </p>
                 </div>
 
                 {/* Local AS */}
                 <div className="space-y-2">
-                  <Label htmlFor="bgp-pg-local-as">Local AS Number</Label>
+                  <Label htmlFor="bgp-pg-local-as">{t("form.localAs")}</Label>
                   <Input
                     id="bgp-pg-local-as"
                     value={localAsAsn}
                     onChange={(e) => setLocalAsAsn(e.target.value)}
-                    placeholder="e.g. 65100"
+                    placeholder={t("eg", { value: "65100" })}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Alternate local AS number advertised to this peer group.
+                    {t("peerGroupModal.localAsHelp")}
                   </p>
                 </div>
 
@@ -852,11 +851,10 @@ export function BgpPeerGroupModal({
                         htmlFor="bgp-pg-local-as-no-prepend"
                         className="cursor-pointer"
                       >
-                        No Prepend Replace AS
+                        {t("form.noPrependReplaceAs")}
                       </Label>
                       <p className="text-xs text-muted-foreground">
-                        Do not prepend local AS to updates from this peer
-                        group and replace AS in outgoing updates.
+                        {t("peerGroupModal.noPrependHelp")}
                       </p>
                     </div>
                   </div>
@@ -866,25 +864,25 @@ export function BgpPeerGroupModal({
                 {capabilities?.features.local_role.supported && (
                   <>
                     <div className="space-y-2">
-                      <Label htmlFor="bgp-pg-local-role">Local Role</Label>
+                      <Label htmlFor="bgp-pg-local-role">{t("form.localRole")}</Label>
                       <Select
                         value={localRole}
                         onValueChange={setLocalRole}
                       >
                         <SelectTrigger id="bgp-pg-local-role">
-                          <SelectValue placeholder="Select local role" />
+                          <SelectValue placeholder={t("peerGroupModal.localRolePlaceholder")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="__none__">None</SelectItem>
-                          <SelectItem value="provider">Provider</SelectItem>
-                          <SelectItem value="customer">Customer</SelectItem>
-                          <SelectItem value="rs-server">RS Server</SelectItem>
-                          <SelectItem value="rs-client">RS Client</SelectItem>
-                          <SelectItem value="peer">Peer</SelectItem>
+                          <SelectItem value="__none__">{tc("none")}</SelectItem>
+                          <SelectItem value="provider">{t("form.roleProvider")}</SelectItem>
+                          <SelectItem value="customer">{t("form.roleCustomer")}</SelectItem>
+                          <SelectItem value="rs-server">{t("form.roleRsServer")}</SelectItem>
+                          <SelectItem value="rs-client">{t("form.roleRsClient")}</SelectItem>
+                          <SelectItem value="peer">{t("form.rolePeer")}</SelectItem>
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">
-                        Set the local role for this peer group (RFC 9234).
+                        {t("peerGroupModal.localRoleHelp")}
                       </p>
                     </div>
 
@@ -903,11 +901,10 @@ export function BgpPeerGroupModal({
                             htmlFor="bgp-pg-local-role-strict"
                             className="cursor-pointer"
                           >
-                            Strict Mode
+                            {t("form.strictMode")}
                           </Label>
                           <p className="text-xs text-muted-foreground">
-                            Require the peer to send the correct role; reject
-                            the session otherwise.
+                            {t("peerGroupModal.strictModeHelp")}
                           </p>
                         </div>
                       </div>
@@ -922,12 +919,12 @@ export function BgpPeerGroupModal({
             {/* ============================================================ */}
             {availableAFs.length > 0 && (
               <div className="space-y-3">
-                <h4 className="text-sm font-medium">Address Families</h4>
+                <h4 className="text-sm font-medium">{t("form.addressFamilies")}</h4>
                 <div className="space-y-4 rounded-lg border p-3">
                   {/* AFI selection checkboxes */}
                   <div className="space-y-2">
                     <p className="text-xs text-muted-foreground">
-                      Select address families to enable for this peer group.
+                      {t("peerGroupModal.afHelp")}
                     </p>
                     <div className="grid grid-cols-2 gap-2">
                       {availableAFs.map((afi) => (
@@ -969,7 +966,7 @@ export function BgpPeerGroupModal({
                             <Label
                               htmlFor={`bgp-pg-af-${afi}-rm-import`}
                             >
-                              Route Map Import
+                              {t("form.routeMapImport")}
                             </Label>
                             <Select
                               value={af.route_map_import || "__none__"}
@@ -982,10 +979,10 @@ export function BgpPeerGroupModal({
                               }
                             >
                               <SelectTrigger id={`bgp-pg-af-${afi}-rm-import`}>
-                                <SelectValue placeholder="None" />
+                                <SelectValue placeholder={tc("none")} />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="__none__">None</SelectItem>
+                                <SelectItem value="__none__">{tc("none")}</SelectItem>
                                 {routeMapNames.map((name) => (
                                   <SelectItem key={name} value={name}>{name}</SelectItem>
                                 ))}
@@ -997,7 +994,7 @@ export function BgpPeerGroupModal({
                             <Label
                               htmlFor={`bgp-pg-af-${afi}-rm-export`}
                             >
-                              Route Map Export
+                              {t("form.routeMapExport")}
                             </Label>
                             <Select
                               value={af.route_map_export || "__none__"}
@@ -1010,10 +1007,10 @@ export function BgpPeerGroupModal({
                               }
                             >
                               <SelectTrigger id={`bgp-pg-af-${afi}-rm-export`}>
-                                <SelectValue placeholder="None" />
+                                <SelectValue placeholder={tc("none")} />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="__none__">None</SelectItem>
+                                <SelectItem value="__none__">{tc("none")}</SelectItem>
                                 {routeMapNames.map((name) => (
                                   <SelectItem key={name} value={name}>{name}</SelectItem>
                                 ))}
@@ -1040,7 +1037,7 @@ export function BgpPeerGroupModal({
                               htmlFor={`bgp-pg-af-${afi}-soft-reconfig`}
                               className="cursor-pointer text-sm"
                             >
-                              Soft Reconfiguration Inbound
+                              {t("form.softReconfig")}
                             </Label>
                           </div>
 
@@ -1060,7 +1057,7 @@ export function BgpPeerGroupModal({
                               htmlFor={`bgp-pg-af-${afi}-nexthop-self`}
                               className="cursor-pointer text-sm"
                             >
-                              Nexthop Self
+                              {t("peerGroupModal.nexthopSelf")}
                             </Label>
                           </div>
 
@@ -1080,7 +1077,7 @@ export function BgpPeerGroupModal({
                               htmlFor={`bgp-pg-af-${afi}-rr-client`}
                               className="cursor-pointer text-sm"
                             >
-                              Route Reflector Client
+                              {t("form.routeReflectorClient")}
                             </Label>
                           </div>
                         </div>
@@ -1103,18 +1100,18 @@ export function BgpPeerGroupModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Creating..."}
+                {isEditMode ? tc("saving") : t("form.creating")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("form.saveChanges")
             ) : (
-              "Add Peer Group"
+              t("peerGroupModal.submit")
             )}
           </Button>
         </DialogFooter>
