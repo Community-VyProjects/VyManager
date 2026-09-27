@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +42,8 @@ export function LoopbackModal({
   onSuccess,
   existing,
 }: LoopbackModalProps) {
+  const t = useTranslations("loopback");
+  const tc = useTranslations("common");
   const isEdit = !!existing;
   const [description, setDescription] = useState("");
   const [addresses, setAddresses] = useState("");
@@ -106,7 +109,7 @@ export function LoopbackModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to update loopback interface");
+        setError(result.error || t("modal.errors.updateFailed"));
       }
     } catch (err) {
       const msg = (err as ApiError).message;
@@ -145,7 +148,7 @@ export function LoopbackModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to configure loopback interface");
+        setError(result.error || t("modal.errors.configureFailed"));
       }
     } catch (err) {
       const msg = (err as ApiError).message;
@@ -161,49 +164,53 @@ export function LoopbackModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Repeat className="h-5 w-5" />
-            {isEdit ? "Edit Loopback Interface" : "Configure Loopback Interface"}
+            {isEdit ? t("modal.editTitle") : t("modal.configureTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEdit ? (
               <>
-                Editing interface{" "}
-                <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">
-                  {existing.name}
-                </code>
+                {t.rich("modal.editingInterface", {
+                  name: existing.name,
+                  code: (chunks) => (
+                    <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">
+                      {chunks}
+                    </code>
+                  ),
+                })}
               </>
             ) : (
-              "Configure the loopback interface (lo)."
+              t("modal.configureDescription")
             )}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="general" className="mt-2">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="general">General</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            <TabsTrigger value="general">{t("modal.tabs.general")}</TabsTrigger>
+            <TabsTrigger value="advanced">{t("modal.tabs.advanced")}</TabsTrigger>
           </TabsList>
 
           {/* General Tab */}
           <TabsContent value="general" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>Interface Name</Label>
+              <Label>{t("modal.interfaceName")}</Label>
               <code className="block rounded bg-muted px-3 py-2 font-mono text-sm text-foreground">
                 {isEdit ? existing.name : "lo"}
               </code>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{tc("description")}</Label>
               <Input
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional description"
+                placeholder={t("modal.descriptionPlaceholder")}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="addresses">IP Addresses</Label>
+              <Label htmlFor="addresses">{t("modal.ipAddresses")}</Label>
               <Textarea
                 id="addresses"
                 value={addresses}
@@ -211,60 +218,60 @@ export function LoopbackModal({
                 placeholder={"10.0.0.1/32\n192.168.1.1/24"}
                 rows={4}
               />
-              <p className="text-xs text-muted-foreground">One address per line, IPv4 or IPv6 CIDR notation</p>
+              <p className="text-xs text-muted-foreground">{t("modal.addressesHint")}</p>
             </div>
           </TabsContent>
 
           {/* Advanced Tab */}
           <TabsContent value="advanced" className="space-y-4 mt-4">
             <div className="space-y-3">
-              <h4 className="text-sm font-medium text-foreground">IP Settings</h4>
+              <h4 className="text-sm font-medium text-foreground">{t("modal.ipSettings")}</h4>
               <div className="space-y-2">
-                <Label htmlFor="sourceValidation">Source Validation</Label>
+                <Label htmlFor="sourceValidation">{t("modal.sourceValidation")}</Label>
                 <Select value={ipSourceValidation || "none"} onValueChange={(v) => setIpSourceValidation(v === "none" ? "" : v)}>
                   <SelectTrigger id="sourceValidation">
-                    <SelectValue placeholder="None" />
+                    <SelectValue placeholder={tc("none")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    <SelectItem value="strict">Strict</SelectItem>
-                    <SelectItem value="loose">Loose</SelectItem>
-                    <SelectItem value="disable">Disable</SelectItem>
+                    <SelectItem value="none">{tc("none")}</SelectItem>
+                    <SelectItem value="strict">{t("modal.sourceValidationStrict")}</SelectItem>
+                    <SelectItem value="loose">{t("modal.sourceValidationLoose")}</SelectItem>
+                    <SelectItem value="disable">{t("modal.sourceValidationDisable")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
             <div className="space-y-3">
-              <h4 className="text-sm font-medium text-foreground">Traffic Mirroring</h4>
+              <h4 className="text-sm font-medium text-foreground">{t("modal.trafficMirroring")}</h4>
               <div className="space-y-2">
-                <Label>Mirror Ingress</Label>
+                <Label>{t("modal.mirrorIngress")}</Label>
                 <InterfaceSelect
                   value={mirrorIngress || "none"}
                   onValueChange={(v) => setMirrorIngress(v === "none" ? "" : v)}
                   interfaces={availableInterfaces}
-                  noneOption={{ label: "None", value: "none" }}
-                  placeholder="None"
+                  noneOption={{ label: tc("none"), value: "none" }}
+                  placeholder={tc("none")}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Mirror Egress</Label>
+                <Label>{t("modal.mirrorEgress")}</Label>
                 <InterfaceSelect
                   value={mirrorEgress || "none"}
                   onValueChange={(v) => setMirrorEgress(v === "none" ? "" : v)}
                   interfaces={availableInterfaces}
-                  noneOption={{ label: "None", value: "none" }}
-                  placeholder="None"
+                  noneOption={{ label: tc("none"), value: "none" }}
+                  placeholder={tc("none")}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Redirect To</Label>
+                <Label>{t("modal.redirectTo")}</Label>
                 <InterfaceSelect
                   value={redirect || "none"}
                   onValueChange={(v) => setRedirect(v === "none" ? "" : v)}
                   interfaces={availableInterfaces}
-                  noneOption={{ label: "None", value: "none" }}
-                  placeholder="None"
+                  noneOption={{ label: tc("none"), value: "none" }}
+                  placeholder={tc("none")}
                 />
               </div>
             </div>
@@ -279,18 +286,18 @@ export function LoopbackModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? "Saving..." : "Configuring..."}
+                {isEdit ? tc("saving") : t("modal.configuring")}
               </>
             ) : isEdit ? (
-              "Save Changes"
+              t("modal.saveChanges")
             ) : (
-              "Configure Loopback"
+              t("modal.configureLoopback")
             )}
           </Button>
         </DialogFooter>

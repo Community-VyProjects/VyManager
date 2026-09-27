@@ -1,1 +1,39 @@
-{}
+{
+  "delete": {
+    "failed": "Failed to delete loopback interface",
+    "title": "Delete Interface: {name}",
+    "confirm": "Are you sure you want to delete the loopback interface configuration? This action cannot be undone.",
+    "addressCount": "{count, plural, one {# address} other {# addresses}}",
+    "submit": "Delete Interface"
+  },
+  "modal": {
+    "editTitle": "Edit Loopback Interface",
+    "configureTitle": "Configure Loopback Interface",
+    "editingInterface": "Editing interface <code>{name}</code>",
+    "configureDescription": "Configure the loopback interface (lo).",
+    "tabs": {
+      "general": "General",
+      "advanced": "Advanced"
+    },
+    "interfaceName": "Interface Name",
+    "descriptionPlaceholder": "Optional description",
+    "ipAddresses": "IP Addresses",
+    "addressesHint": "One address per line, IPv4 or IPv6 CIDR notation",
+    "ipSettings": "IP Settings",
+    "sourceValidation": "Source Validation",
+    "sourceValidationStrict": "Strict",
+    "sourceValidationLoose": "Loose",
+    "sourceValidationDisable": "Disable",
+    "trafficMirroring": "Traffic Mirroring",
+    "mirrorIngress": "Mirror Ingress",
+    "mirrorEgress": "Mirror Egress",
+    "redirectTo": "Redirect To",
+    "configuring": "Configuring...",
+    "saveChanges": "Save Changes",
+    "configureLoopback": "Configure Loopback",
+    "errors": {
+      "updateFailed": "Failed to update loopback interface",
+      "configureFailed": "Failed to configure loopback interface"
+    }
+  }
+}
