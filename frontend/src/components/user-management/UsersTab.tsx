@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -34,8 +35,15 @@ import { UserModal } from "./UserModal";
 import { DeleteUserModal } from "./DeleteUserModal";
 import { ManageUserAccessView } from "./ManageUserAccessView";
 import { ApiError } from "@/lib/types/api";
+import { roleValueKey } from "./user-form";
 
 export function UsersTab() {
+  const t = useTranslations("userManagement");
+  const tc = useTranslations("common");
+  const roleLabel = (role: string) => {
+    const key = roleValueKey(role);
+    return key ? t(key) : role;
+  };
   const [users, setUsers] = useState<UserListItem[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<UserListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +59,7 @@ export function UsersTab() {
 
   useEffect(() => {
     loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount; a language switch re-renders via router.refresh()
   }, []);
 
   useEffect(() => {
@@ -78,7 +87,7 @@ export function UsersTab() {
       setUsers(data);
       setFilteredUsers(data);
     } catch (err) {
-      setError((err as ApiError).message || "Failed to load users");
+      setError((err as ApiError).message || t("users.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -119,11 +128,11 @@ export function UsersTab() {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <AlertCircle className="h-12 w-12 text-destructive mb-4" />
-        <h3 className="text-lg font-semibold text-foreground mb-2">Error Loading Users</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-2">{t("users.errorTitle")}</h3>
         <p className="text-sm text-muted-foreground mb-4">{error}</p>
         <Button onClick={loadUsers} variant="outline" size="sm">
           <RefreshCw className="h-4 w-4 mr-2" />
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -145,19 +154,19 @@ export function UsersTab() {
         {/* Header with actions */}
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-foreground">Users</h3>
+            <h3 className="text-lg font-semibold text-foreground">{t("tabs.users")}</h3>
             <p className="text-sm text-muted-foreground">
-              {users.length} {users.length === 1 ? "user" : "users"} total
+              {t("users.total", { count: users.length })}
             </p>
           </div>
           <div className="flex items-center gap-3">
             <Button onClick={loadUsers} variant="outline" size="sm">
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              {tc("refresh")}
             </Button>
             <Button onClick={handleCreateUser} size="sm">
               <Plus className="h-4 w-4 mr-2" />
-              Create User
+              {t("form.createTitle")}
             </Button>
           </div>
         </div>
@@ -166,7 +175,7 @@ export function UsersTab() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search users by name, email, or role..."
+            placeholder={t("users.searchPlaceholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -177,7 +186,7 @@ export function UsersTab() {
         {filteredUsers.length === 0 ? (
           <div className="text-center py-12 border border-dashed border-border rounded-lg">
             <p className="text-sm text-muted-foreground">
-              {searchQuery ? "No users found matching your search" : "No users yet"}
+              {searchQuery ? t("users.noMatches") : t("users.empty")}
             </p>
           </div>
         ) : (
@@ -185,10 +194,10 @@ export function UsersTab() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead className="text-center">Instance Access</TableHead>
-                  <TableHead>Site Role</TableHead>
+                  <TableHead>{tc("name")}</TableHead>
+                  <TableHead>{t("form.email")}</TableHead>
+                  <TableHead className="text-center">{t("users.colInstanceAccess")}</TableHead>
+                  <TableHead>{t("form.siteRole")}</TableHead>
                   <TableHead className="w-[80px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -204,11 +213,11 @@ export function UsersTab() {
                         </div>
                         <div>
                           <div className="font-medium text-sm text-foreground">
-                            {user.name || "Unnamed User"}
+                            {user.name || t("unnamedUser")}
                           </div>
                           {!user.email_verified && (
                             <div className="text-xs text-muted-foreground">
-                              Email not verified
+                              {t("users.emailNotVerified")}
                             </div>
                           )}
                         </div>
@@ -219,7 +228,7 @@ export function UsersTab() {
                     </TableCell>
                     <TableCell className="text-center">
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent text-accent-foreground text-xs font-medium">
-                        {user.instance_count} {user.instance_count === 1 ? "instance" : "instances"}
+                        {t("instances.instanceCount", { count: user.instance_count })}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -232,7 +241,7 @@ export function UsersTab() {
                           }`}
                         >
                           <Shield className="h-3 w-3" />
-                          {user.site_role}
+                          {roleLabel(user.site_role)}
                         </span>
                       </div>
                     </TableCell>
@@ -246,18 +255,18 @@ export function UsersTab() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => handleManageAccess(user)}>
                             <UserCog className="h-4 w-4 mr-2" />
-                            Manage Access
+                            {t("users.manageAccess")}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleEditUser(user)}>
                             <Pencil className="h-4 w-4 mr-2" />
-                            Edit User
+                            {t("form.editTitle")}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleDeleteUser(user)}
                             className="text-destructive focus:text-destructive"
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
-                            Delete User
+                            {t("deleteUser.confirm")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

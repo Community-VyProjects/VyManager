@@ -55,7 +55,7 @@ describe("user create", () => {
   it("rejects a missing password on create only", () => {
     const draft = emptyUserDraft();
     draft.email = "jane@example.com";
-    assert.equal(validateUserCreate(draft), "Password must be at least 8 characters");
+    assert.equal(validateUserCreate(draft), "form.passwordTooShort");
     assert.equal(validateUserShared(draft), null);
   });
 

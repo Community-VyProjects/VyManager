@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,6 +36,8 @@ interface UserModalProps {
 }
 
 export function UserModal({ open, onOpenChange, onSuccess, existing }: UserModalProps) {
+  const t = useTranslations("userManagement");
+  const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
   const [draft, setDraft] = useState<UserDraft>(emptyUserDraft());
   const [loading, setLoading] = useState(false);
@@ -57,7 +60,7 @@ export function UserModal({ open, onOpenChange, onSuccess, existing }: UserModal
 
     const validationError = isEdit ? validateUserShared(draft) : validateUserCreate(draft);
     if (validationError) {
-      setError(validationError);
+      setError(t(validationError));
       return;
     }
 
@@ -76,7 +79,7 @@ export function UserModal({ open, onOpenChange, onSuccess, existing }: UserModal
     } catch (err) {
       setError(
         (err as ApiError).message ||
-          (isEdit ? "Failed to update user" : "Failed to create user"),
+          (isEdit ? t("form.updateFailed") : t("form.createFailed")),
       );
     } finally {
       setLoading(false);
@@ -87,11 +90,11 @@ export function UserModal({ open, onOpenChange, onSuccess, existing }: UserModal
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit User" : "Create User"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("form.editTitle") : t("form.createTitle")}</DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Update user information. Leave password empty to keep current password."
-              : "Create a new user account. You can assign them to instances later."}
+              ? t("form.editDescription")
+              : t("form.createDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -105,7 +108,7 @@ export function UserModal({ open, onOpenChange, onSuccess, existing }: UserModal
 
           <div className="space-y-2">
             <Label htmlFor="name">
-              Name <span className="text-muted-foreground text-xs">(Optional)</span>
+              {tc("name")} <span className="text-muted-foreground text-xs">({tc("optional")})</span>
             </Label>
             <Input
               id="name"
@@ -118,7 +121,7 @@ export function UserModal({ open, onOpenChange, onSuccess, existing }: UserModal
 
           <div className="space-y-2">
             <Label htmlFor="email">
-              Email {!isEdit && <span className="text-destructive">*</span>}
+              {t("form.email")} {!isEdit && <span className="text-destructive">*</span>}
             </Label>
             <Input
               id="email"
@@ -133,7 +136,7 @@ export function UserModal({ open, onOpenChange, onSuccess, existing }: UserModal
 
           <div className="space-y-2">
             <Label htmlFor="siteRole">
-              Site Role {!isEdit && <span className="text-destructive">*</span>}
+              {t("form.siteRole")} {!isEdit && <span className="text-destructive">*</span>}
             </Label>
             <Select
               value={draft.siteRole}
@@ -146,21 +149,21 @@ export function UserModal({ open, onOpenChange, onSuccess, existing }: UserModal
               <SelectContent>
                 <SelectItem value={SiteRole.ADMIN}>
                   <div className="flex flex-col">
-                    <span className="font-medium">Admin</span>
-                    <span className="text-xs text-muted-foreground">Can manage sites, instances, and users</span>
+                    <span className="font-medium">{t("roles.admin")}</span>
+                    <span className="text-xs text-muted-foreground">{t("form.adminHint")}</span>
                   </div>
                 </SelectItem>
                 <SelectItem value={SiteRole.VIEWER}>
                   <div className="flex flex-col">
-                    <span className="font-medium">Viewer</span>
-                    <span className="text-xs text-muted-foreground">Read-only access to assigned sites and instances</span>
+                    <span className="font-medium">{t("roles.viewer")}</span>
+                    <span className="text-xs text-muted-foreground">{t("form.viewerHint")}</span>
                   </div>
                 </SelectItem>
               </SelectContent>
             </Select>
             {!isEdit && (
               <p className="text-xs text-muted-foreground">
-                Site role determines platform-wide permissions
+                {t("form.siteRoleHint")}
               </p>
             )}
           </div>
@@ -169,19 +172,19 @@ export function UserModal({ open, onOpenChange, onSuccess, existing }: UserModal
             <Label htmlFor="password">
               {isEdit ? (
                 <>
-                  New Password{" "}
-                  <span className="text-muted-foreground text-xs">(Leave empty to keep current)</span>
+                  {t("form.newPassword")}{" "}
+                  <span className="text-muted-foreground text-xs">{t("form.keepCurrent")}</span>
                 </>
               ) : (
                 <>
-                  Password <span className="text-destructive">*</span>
+                  {t("form.password")} <span className="text-destructive">*</span>
                 </>
               )}
             </Label>
             <Input
               id="password"
               type="password"
-              placeholder="Minimum 8 characters"
+              placeholder={t("form.passwordPlaceholder")}
               value={draft.password}
               onChange={(e) => patch({ password: e.target.value })}
               disabled={loading}
@@ -189,23 +192,23 @@ export function UserModal({ open, onOpenChange, onSuccess, existing }: UserModal
               minLength={isEdit ? undefined : 8}
             />
             {!isEdit && (
-              <p className="text-xs text-muted-foreground">Must be at least 8 characters</p>
+              <p className="text-xs text-muted-foreground">{t("form.passwordHint")}</p>
             )}
           </div>
 
           {(!isEdit || draft.password) && (
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">
-                {isEdit ? "Confirm New Password" : (
+                {isEdit ? t("form.confirmNewPassword") : (
                   <>
-                    Confirm Password <span className="text-destructive">*</span>
+                    {t("form.confirmPassword")} <span className="text-destructive">*</span>
                   </>
                 )}
               </Label>
               <Input
                 id="confirmPassword"
                 type="password"
-                placeholder={isEdit ? "Re-enter new password" : "Re-enter password"}
+                placeholder={isEdit ? t("form.reenterNewPassword") : t("form.reenterPassword")}
                 value={draft.confirmPassword}
                 onChange={(e) => patch({ confirmPassword: e.target.value })}
                 disabled={loading}
@@ -221,17 +224,17 @@ export function UserModal({ open, onOpenChange, onSuccess, existing }: UserModal
               onClick={() => onOpenChange(false)}
               disabled={loading}
             >
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {loading
                 ? isEdit
-                  ? "Updating..."
-                  : "Creating..."
+                  ? t("form.updating")
+                  : t("form.creating")
                 : isEdit
-                  ? "Update User"
-                  : "Create User"}
+                  ? t("form.updateSubmit")
+                  : t("form.createTitle")}
             </Button>
           </DialogFooter>
         </form>
