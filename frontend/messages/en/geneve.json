@@ -1,1 +1,104 @@
-{}
+{
+  "delete": {
+    "title": "Delete Interface: {name}",
+    "confirm": "Are you sure you want to delete this GENEVE interface? This action cannot be undone.",
+    "addressCount": "{count, plural, one {# address} other {# addresses}}",
+    "remote": "Remote: {remote}",
+    "submit": "Delete Interface",
+    "failed": "Failed to delete GENEVE interface"
+  },
+  "modal": {
+    "createTitle": "Create GENEVE Interface",
+    "editTitle": "Edit GENEVE Interface",
+    "createDescription": "Create a new GENEVE tunnel interface for network virtualization encapsulation.",
+    "editDescription": "Editing interface <code>{name}</code>",
+    "creating": "Creating...",
+    "saveChanges": "Save Changes",
+    "createInterface": "Create Interface",
+    "createFailed": "Failed to create GENEVE interface",
+    "updateFailed": "Failed to update GENEVE interface"
+  },
+  "tabs": {
+    "general": "General",
+    "addresses": "Addresses",
+    "ipSettings": "IP Settings",
+    "ipv6Settings": "IPv6 Settings",
+    "advanced": "Advanced"
+  },
+  "validation": {
+    "remoteRequired": "Remote address is required",
+    "mtuRange": "MTU must be between 1200 and 16000",
+    "vniRange": "VNI must be between 0 and 16777214",
+    "portRange": "Port must be between 1 and 65535",
+    "nameRequired": "Interface name is required",
+    "nameFormat": "Name must be gnv0, gnv1, etc.",
+    "nameExists": "Interface {name} already exists"
+  },
+  "general": {
+    "interfaceName": "Interface Name",
+    "nameLocked": "Interface name cannot be changed.",
+    "nameHint": "Must match pattern: gnv0, gnv1, gnv2, ...",
+    "descriptionPlaceholder": "Optional description",
+    "remoteAddress": "Remote Address",
+    "remoteAddressPlaceholder": "10.0.0.1 or 2001:db8::1",
+    "remoteAddressHint": "IPv4 or IPv6 address of the remote tunnel endpoint",
+    "vniHint": "Virtual Network Identifier",
+    "port": "Port",
+    "portHint": "Default: 6081",
+    "mtuHint": "Valid range: 1200-16000",
+    "macAddress": "MAC Address",
+    "disableInterface": "Disable Interface"
+  },
+  "addresses": {
+    "ipAddresses": "IP Addresses",
+    "ipAddressesHint": "One address per line, IPv4 or IPv6 CIDR notation",
+    "eui64Prefixes": "IPv6 EUI-64 Prefixes",
+    "eui64Hint": "One /64 prefix per line",
+    "autoconf": "IPv6 SLAAC Autoconf",
+    "noDefaultLinkLocal": "No Default Link-Local",
+    "interfaceIdentifier": "Interface Identifier (SLAAC)",
+    "vyos15Only": "VyOS 1.5+ only"
+  },
+  "ip": {
+    "adjustMss": "Adjust MSS",
+    "adjustMssPlaceholder": "e.g. 1360",
+    "arpCacheTimeout": "ARP Cache Timeout",
+    "sourceValidation": "Source Validation",
+    "strict": "Strict",
+    "loose": "Loose",
+    "disable": "Disable",
+    "disableArpFilter": "Disable ARP Filter",
+    "disableIpv4Forwarding": "Disable IPv4 Forwarding",
+    "enableArpAccept": "Enable ARP Accept",
+    "enableArpAnnounce": "Enable ARP Announce",
+    "enableArpIgnore": "Enable ARP Ignore",
+    "enableDirectedBroadcast": "Enable Directed Broadcast",
+    "enableProxyArp": "Enable Proxy ARP",
+    "proxyArpPvlan": "Private VLAN Proxy ARP"
+  },
+  "ipv6": {
+    "acceptDad": "Accept DAD",
+    "acceptDad0": "0 - Disable DAD",
+    "acceptDad1": "1 - Enable DAD",
+    "acceptDad2": "2 - Enable DAD and disable if MAC-based duplicate link-local",
+    "adjustMssPlaceholder": "e.g. 1340",
+    "baseReachableTime": "Base Reachable Time",
+    "dadTransmitCount": "DAD Transmit Count",
+    "dadTransmitCountPlaceholder": "Number of NS messages",
+    "disableIpv6Forwarding": "Disable IPv6 Forwarding"
+  },
+  "advanced": {
+    "tunnelParameters": "Tunnel Parameters",
+    "dontFragment": "Don't Fragment (DF)",
+    "dfSet": "Set",
+    "dfUnset": "Unset",
+    "dfInherit": "Inherit",
+    "flowLabel": "Flow Label",
+    "flowLabelPlaceholder": "inherit or hex value",
+    "innerProto": "Use IPv4 as Inner Protocol",
+    "trafficMirroring": "Traffic Mirroring",
+    "mirrorIngress": "Mirror Ingress →",
+    "mirrorEgress": "Mirror Egress →",
+    "redirectTo": "Redirect To"
+  }
+}

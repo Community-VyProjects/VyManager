@@ -1,1 +1,104 @@
-{}
+{
+  "delete": {
+    "title": "删除接口：{name}",
+    "confirm": "确定要删除此 GENEVE 接口吗？此操作无法撤销。",
+    "addressCount": "{count} 个地址",
+    "remote": "远端地址：{remote}",
+    "submit": "删除接口",
+    "failed": "删除 GENEVE 接口失败"
+  },
+  "modal": {
+    "createTitle": "创建 GENEVE 接口",
+    "editTitle": "编辑 GENEVE 接口",
+    "createDescription": "创建新的 GENEVE 隧道接口，用于网络虚拟化封装。",
+    "editDescription": "正在编辑接口 <code>{name}</code>",
+    "creating": "正在创建...",
+    "saveChanges": "保存更改",
+    "createInterface": "创建接口",
+    "createFailed": "创建 GENEVE 接口失败",
+    "updateFailed": "更新 GENEVE 接口失败"
+  },
+  "tabs": {
+    "general": "常规",
+    "addresses": "地址",
+    "ipSettings": "IP 设置",
+    "ipv6Settings": "IPv6 设置",
+    "advanced": "高级"
+  },
+  "validation": {
+    "remoteRequired": "远端地址为必填项",
+    "mtuRange": "MTU 必须在 1200 到 16000 之间",
+    "vniRange": "VNI 必须在 0 到 16777214 之间",
+    "portRange": "端口必须在 1 到 65535 之间",
+    "nameRequired": "接口名称为必填项",
+    "nameFormat": "名称必须为 gnv0、gnv1 等",
+    "nameExists": "接口 {name} 已存在"
+  },
+  "general": {
+    "interfaceName": "接口名称",
+    "nameLocked": "接口名称不可更改。",
+    "nameHint": "必须符合格式：gnv0、gnv1、gnv2 ...",
+    "descriptionPlaceholder": "可选描述",
+    "remoteAddress": "远端地址",
+    "remoteAddressPlaceholder": "10.0.0.1 或 2001:db8::1",
+    "remoteAddressHint": "远端隧道端点的 IPv4 或 IPv6 地址",
+    "vniHint": "虚拟网络标识符",
+    "port": "端口",
+    "portHint": "默认：6081",
+    "mtuHint": "有效范围：1200-16000",
+    "macAddress": "MAC 地址",
+    "disableInterface": "禁用接口"
+  },
+  "addresses": {
+    "ipAddresses": "IP 地址",
+    "ipAddressesHint": "每行一个地址，使用 IPv4 或 IPv6 CIDR 格式",
+    "eui64Prefixes": "IPv6 EUI-64 前缀",
+    "eui64Hint": "每行一个 /64 前缀",
+    "autoconf": "IPv6 SLAAC 自动配置",
+    "noDefaultLinkLocal": "无默认链路本地地址",
+    "interfaceIdentifier": "接口标识符（SLAAC）",
+    "vyos15Only": "仅限 VyOS 1.5+"
+  },
+  "ip": {
+    "adjustMss": "调整 MSS",
+    "adjustMssPlaceholder": "例如 1360",
+    "arpCacheTimeout": "ARP 缓存超时",
+    "sourceValidation": "源地址验证",
+    "strict": "严格",
+    "loose": "宽松",
+    "disable": "禁用",
+    "disableArpFilter": "禁用 ARP 过滤",
+    "disableIpv4Forwarding": "禁用 IPv4 转发",
+    "enableArpAccept": "启用 ARP 接受",
+    "enableArpAnnounce": "启用 ARP 通告",
+    "enableArpIgnore": "启用 ARP 忽略",
+    "enableDirectedBroadcast": "启用定向广播",
+    "enableProxyArp": "启用代理 ARP",
+    "proxyArpPvlan": "私有 VLAN 代理 ARP"
+  },
+  "ipv6": {
+    "acceptDad": "接受 DAD",
+    "acceptDad0": "0 - 禁用 DAD",
+    "acceptDad1": "1 - 启用 DAD",
+    "acceptDad2": "2 - 启用 DAD，发现基于 MAC 的重复链路本地地址时禁用",
+    "adjustMssPlaceholder": "例如 1340",
+    "baseReachableTime": "基础可达时间",
+    "dadTransmitCount": "DAD 发送次数",
+    "dadTransmitCountPlaceholder": "NS 消息数量",
+    "disableIpv6Forwarding": "禁用 IPv6 转发"
+  },
+  "advanced": {
+    "tunnelParameters": "隧道参数",
+    "dontFragment": "不分片（DF）",
+    "dfSet": "设置",
+    "dfUnset": "取消设置",
+    "dfInherit": "继承",
+    "flowLabel": "流标签",
+    "flowLabelPlaceholder": "inherit 或十六进制值",
+    "innerProto": "使用 IPv4 作为内层协议",
+    "trafficMirroring": "流量镜像",
+    "mirrorIngress": "镜像入站 →",
+    "mirrorEgress": "镜像出站 →",
+    "redirectTo": "重定向到"
+  }
+}
