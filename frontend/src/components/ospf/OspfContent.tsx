@@ -54,8 +54,11 @@ import { OspfRedistributeModal } from "./OspfRedistributeModal";
 import { DeleteOspfModal } from "./DeleteOspfModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
+import { useTranslations } from "next-intl";
 
 export function OspfContent() {
+  const t = useTranslations("ospf");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWritePermission = canWrite(FeatureGroup.OSPF);
 
@@ -154,11 +157,11 @@ export function OspfContent() {
       setRouteMapNames(rmNames);
       setAccessListNames(aclNames);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load OSPF configuration");
+      setError(err instanceof Error ? err.message : t("page.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -278,7 +281,7 @@ export function OspfContent() {
       await loadData(true);
       setOverviewEditing(false);
     } catch (err) {
-      setOverviewError(err instanceof Error ? err.message : "Failed to save parameters");
+      setOverviewError(err instanceof Error ? err.message : t("page.saveParametersFailed"));
     } finally {
       setOverviewSaving(false);
     }
@@ -312,7 +315,7 @@ export function OspfContent() {
       await loadData(true);
       setDiEditing(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save default information");
+      setError(err instanceof Error ? err.message : t("page.saveDefaultInfoFailed"));
     } finally {
       setDiSaving(false);
     }
@@ -401,7 +404,7 @@ export function OspfContent() {
       await loadData(true);
       setAdvancedEditing(false);
     } catch (err) {
-      setAdvancedError(err instanceof Error ? err.message : "Failed to save advanced settings");
+      setAdvancedError(err instanceof Error ? err.message : t("page.saveAdvancedFailed"));
     } finally {
       setAdvancedSaving(false);
     }
@@ -424,7 +427,7 @@ export function OspfContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -437,18 +440,18 @@ export function OspfContent() {
         <div className="p-6 pb-4 border-b border-border">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-foreground">OSPF Configuration</h1>
+              <h1 className="text-2xl font-bold text-foreground">{t("page.title")}</h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Open Shortest Path First routing protocol
+                {t("page.subtitle")}
               </p>
             </div>
             <div className="flex items-center gap-2">
               {!hasWritePermission && (
-                <Badge variant="secondary">Read Only</Badge>
+                <Badge variant="secondary">{t("page.readOnly")}</Badge>
               )}
               <Button variant="outline" size="sm" onClick={() => loadData(true)}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -469,7 +472,7 @@ export function OspfContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{areaCount}</p>
-                    <p className="text-xs text-muted-foreground">Areas</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.areas")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -482,7 +485,7 @@ export function OspfContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{ifaceCount}</p>
-                    <p className="text-xs text-muted-foreground">Interfaces</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.interfaces")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -495,7 +498,7 @@ export function OspfContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{redistCount}</p>
-                    <p className="text-xs text-muted-foreground">Redistributed</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.redistributed")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -508,9 +511,9 @@ export function OspfContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold font-mono text-base">
-                      {config?.parameters.router_id || "Auto"}
+                      {config?.parameters.router_id || t("stats.auto")}
                     </p>
-                    <p className="text-xs text-muted-foreground">Router ID</p>
+                    <p className="text-xs text-muted-foreground">{t("fields.routerId")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -522,26 +525,26 @@ export function OspfContent() {
         <div className="flex-1 p-6 pt-4 overflow-auto">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="overview">{t("tabs.overview")}</TabsTrigger>
               <TabsTrigger value="areas">
-                Areas
+                {t("tabs.areas")}
                 {areaCount > 0 && (
                   <Badge variant="secondary" className="ml-2">{areaCount}</Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger value="interfaces">
-                Interfaces
+                {t("tabs.interfaces")}
                 {ifaceCount > 0 && (
                   <Badge variant="secondary" className="ml-2">{ifaceCount}</Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger value="redistribute">
-                Redistribute
+                {t("tabs.redistribute")}
                 {redistCount > 0 && (
                   <Badge variant="secondary" className="ml-2">{redistCount}</Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="advanced">Advanced</TabsTrigger>
+              <TabsTrigger value="advanced">{t("tabs.advanced")}</TabsTrigger>
             </TabsList>
 
             {/* ============================================================ */}
@@ -550,22 +553,22 @@ export function OspfContent() {
             <TabsContent value="overview">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  OSPF global parameters and settings
+                  {t("overview.description")}
                 </p>
                 {hasWritePermission && (
                   !overviewEditing ? (
                     <Button size="sm" variant="outline" onClick={startEditOverview}>
                       <Pencil className="h-4 w-4 mr-2" />
-                      Edit Parameters
+                      {t("overview.editParameters")}
                     </Button>
                   ) : (
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" onClick={() => setOverviewEditing(false)}>
-                        Cancel
+                        {tc("cancel")}
                       </Button>
                       <Button size="sm" onClick={saveOverview} disabled={overviewSaving}>
                         {overviewSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                        Save
+                        {tc("save")}
                       </Button>
                     </div>
                   )
@@ -582,26 +585,26 @@ export function OspfContent() {
                 {/* Parameters Card */}
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4">Parameters</h3>
+                    <h3 className="font-semibold mb-4">{t("overview.parameters")}</h3>
                     <div className="space-y-4">
                       <div>
-                        <Label className="text-sm">Router ID</Label>
+                        <Label className="text-sm">{t("fields.routerId")}</Label>
                         <Input
                           value={overviewEditing ? routerId : (config?.parameters.router_id ?? "")}
                           disabled={!overviewEditing}
                           onChange={(e) => setRouterId(e.target.value)}
-                          placeholder="Auto-detected"
+                          placeholder={t("overview.routerIdPlaceholder")}
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">ABR Type</Label>
+                        <Label className="text-sm">{t("overview.abrType")}</Label>
                         <Select
                           value={overviewEditing ? abrType : (config?.parameters.abr_type ?? "")}
                           onValueChange={setAbrType}
                           disabled={!overviewEditing}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Default (cisco)" />
+                            <SelectValue placeholder={t("overview.abrTypePlaceholder")} />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="cisco">Cisco</SelectItem>
@@ -612,24 +615,24 @@ export function OspfContent() {
                         </Select>
                       </div>
                       <div>
-                        <Label className="text-sm">Maximum Paths</Label>
+                        <Label className="text-sm">{t("overview.maximumPaths")}</Label>
                         <Input
                           type="number"
                           value={overviewEditing ? maxPaths : (config?.maximum_paths != null ? String(config.maximum_paths) : "")}
                           disabled={!overviewEditing}
                           onChange={(e) => setMaxPaths(e.target.value)}
-                          placeholder="Default"
+                          placeholder={tc("default")}
                           min={1}
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">Reference Bandwidth</Label>
+                        <Label className="text-sm">{t("overview.referenceBandwidth")}</Label>
                         <Input
                           type="number"
                           value={overviewEditing ? refBandwidth : (config?.auto_cost_reference_bandwidth != null ? String(config.auto_cost_reference_bandwidth) : "")}
                           disabled={!overviewEditing}
                           onChange={(e) => setRefBandwidth(e.target.value)}
-                          placeholder="Default (100 Mbps)"
+                          placeholder={t("overview.referenceBandwidthPlaceholder")}
                         />
                       </div>
                     </div>
@@ -639,7 +642,7 @@ export function OspfContent() {
                 {/* Options Card */}
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4">Options</h3>
+                    <h3 className="font-semibold mb-4">{t("fields.options")}</h3>
                     <div className="space-y-4">
                       <div className="flex items-center gap-3">
                         <Checkbox
@@ -648,7 +651,7 @@ export function OspfContent() {
                           disabled={!overviewEditing}
                           onCheckedChange={(checked) => setPassiveDefault(!!checked)}
                         />
-                        <Label htmlFor="passive-default">Passive Interface Default</Label>
+                        <Label htmlFor="passive-default">{t("overview.passiveInterfaceDefault")}</Label>
                       </div>
                       <div className="flex items-center gap-3">
                         <Checkbox
@@ -657,7 +660,7 @@ export function OspfContent() {
                           disabled={!overviewEditing}
                           onCheckedChange={(checked) => setLogAdjChanges(!!checked)}
                         />
-                        <Label htmlFor="log-adj">Log Adjacency Changes</Label>
+                        <Label htmlFor="log-adj">{t("overview.logAdjacencyChanges")}</Label>
                       </div>
                       <div className="flex items-center gap-3">
                         <Checkbox
@@ -666,7 +669,7 @@ export function OspfContent() {
                           disabled={!overviewEditing}
                           onCheckedChange={(checked) => setLogAdjDetail(!!checked)}
                         />
-                        <Label htmlFor="log-adj-detail">Log Adjacency Changes (Detail)</Label>
+                        <Label htmlFor="log-adj-detail">{t("overview.logAdjacencyChangesDetail")}</Label>
                       </div>
                       <div className="flex items-center gap-3">
                         <Checkbox
@@ -675,7 +678,7 @@ export function OspfContent() {
                           disabled={!overviewEditing}
                           onCheckedChange={(checked) => setOpaqueLsa(!!checked)}
                         />
-                        <Label htmlFor="opaque-lsa">Opaque LSA</Label>
+                        <Label htmlFor="opaque-lsa">{t("overview.opaqueLsa")}</Label>
                       </div>
                       <div className="flex items-center gap-3">
                         <Checkbox
@@ -684,7 +687,7 @@ export function OspfContent() {
                           disabled={!overviewEditing}
                           onCheckedChange={(checked) => setRfc1583(!!checked)}
                         />
-                        <Label htmlFor="rfc1583">RFC 1583 Compatibility</Label>
+                        <Label htmlFor="rfc1583">{t("overview.rfc1583")}</Label>
                       </div>
                     </div>
                   </CardContent>
@@ -694,21 +697,21 @@ export function OspfContent() {
                 <Card className="col-span-2">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-semibold">Default Information Originate</h3>
+                      <h3 className="font-semibold">{t("overview.defaultInformation")}</h3>
                       {hasWritePermission && (
                         !diEditing ? (
                           <Button size="sm" variant="outline" onClick={startEditDI}>
                             <Pencil className="h-4 w-4 mr-2" />
-                            Edit
+                            {tc("edit")}
                           </Button>
                         ) : (
                           <div className="flex gap-2">
                             <Button size="sm" variant="outline" onClick={() => setDiEditing(false)}>
-                              Cancel
+                              {tc("cancel")}
                             </Button>
                             <Button size="sm" onClick={saveDI} disabled={diSaving}>
                               {diSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                              Save
+                              {tc("save")}
                             </Button>
                           </div>
                         )
@@ -722,7 +725,7 @@ export function OspfContent() {
                           disabled={!diEditing}
                           onCheckedChange={(checked) => setDiEnabled(!!checked)}
                         />
-                        <Label htmlFor="di-enabled">Enabled</Label>
+                        <Label htmlFor="di-enabled">{tc("enabled")}</Label>
                       </div>
                       <div className="flex items-center gap-3">
                         <Checkbox
@@ -731,46 +734,46 @@ export function OspfContent() {
                           disabled={!diEditing}
                           onCheckedChange={(checked) => setDiAlways(!!checked)}
                         />
-                        <Label htmlFor="di-always">Always</Label>
+                        <Label htmlFor="di-always">{t("overview.always")}</Label>
                       </div>
                       <div>
-                        <Label className="text-sm">Metric</Label>
+                        <Label className="text-sm">{t("fields.metric")}</Label>
                         <Input
                           type="number"
                           value={diEditing ? diMetric : (config?.default_information.metric != null ? String(config.default_information.metric) : "")}
                           disabled={!diEditing}
                           onChange={(e) => setDiMetric(e.target.value)}
-                          placeholder="Default"
+                          placeholder={tc("default")}
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">Metric Type</Label>
+                        <Label className="text-sm">{t("fields.metricType")}</Label>
                         <Select
                           value={diEditing ? diMetricType : (config?.default_information.metric_type != null ? String(config.default_information.metric_type) : "")}
                           onValueChange={setDiMetricType}
                           disabled={!diEditing}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Default" />
+                            <SelectValue placeholder={tc("default")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="1">Type 1</SelectItem>
-                            <SelectItem value="2">Type 2</SelectItem>
+                            <SelectItem value="1">{t("fields.type1")}</SelectItem>
+                            <SelectItem value="2">{t("fields.type2")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div>
-                        <Label className="text-sm">Route Map</Label>
+                        <Label className="text-sm">{t("fields.routeMap")}</Label>
                         <Select
                           value={diEditing ? diRouteMap : (config?.default_information.route_map ?? "")}
                           onValueChange={(v) => setDiRouteMap(v === "__none__" ? "" : v)}
                           disabled={!diEditing}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="None" />
+                            <SelectValue placeholder={tc("none")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="__none__">None</SelectItem>
+                            <SelectItem value="__none__">{tc("none")}</SelectItem>
                             {routeMapNames.map((name) => (
                               <SelectItem key={name} value={name}>{name}</SelectItem>
                             ))}
@@ -790,7 +793,7 @@ export function OspfContent() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <p className="text-sm text-muted-foreground">
-                    OSPF area configuration
+                    {t("areas.description")}
                   </p>
                   {areaCount > 3 && (
                     <div className="relative">
@@ -798,7 +801,7 @@ export function OspfContent() {
                       <Input
                         value={areaSearch}
                         onChange={(e) => setAreaSearch(e.target.value)}
-                        placeholder="Filter areas..."
+                        placeholder={t("areas.filterPlaceholder")}
                         className="pl-8 h-9 w-48"
                       />
                     </div>
@@ -807,7 +810,7 @@ export function OspfContent() {
                 {hasWritePermission && (
                   <Button size="sm" onClick={() => { setEditingArea(null); setAreaModalOpen(true); }}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Area
+                    {t("fields.addArea")}
                   </Button>
                 )}
               </div>
@@ -816,14 +819,14 @@ export function OspfContent() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <Globe className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">No OSPF areas configured</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("areas.emptyTitle")}</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      Add an area to start configuring OSPF routing
+                      {t("areas.emptyHint")}
                     </p>
                     {hasWritePermission && (
                       <Button size="sm" onClick={() => { setEditingArea(null); setAreaModalOpen(true); }}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Area
+                        {t("fields.addArea")}
                       </Button>
                     )}
                   </CardContent>
@@ -834,12 +837,12 @@ export function OspfContent() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Area ID</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Networks</TableHead>
-                          <TableHead>Ranges</TableHead>
-                          <TableHead>Authentication</TableHead>
-                          {hasWritePermission && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead>{t("fields.areaId")}</TableHead>
+                          <TableHead>{t("areas.type")}</TableHead>
+                          <TableHead>{t("fields.networks")}</TableHead>
+                          <TableHead>{t("areas.ranges")}</TableHead>
+                          <TableHead>{t("fields.authentication")}</TableHead>
+                          {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -878,7 +881,7 @@ export function OspfContent() {
                               {area.authentication ? (
                                 <Badge variant="outline">{area.authentication}</Badge>
                               ) : (
-                                <span className="text-muted-foreground">none</span>
+                                <span className="text-muted-foreground">{t("values.none")}</span>
                               )}
                             </TableCell>
                             {hasWritePermission && (
@@ -922,7 +925,7 @@ export function OspfContent() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <p className="text-sm text-muted-foreground">
-                    OSPF interface settings
+                    {t("interfaces.description")}
                   </p>
                   {ifaceCount > 3 && (
                     <div className="relative">
@@ -930,7 +933,7 @@ export function OspfContent() {
                       <Input
                         value={ifaceSearch}
                         onChange={(e) => setIfaceSearch(e.target.value)}
-                        placeholder="Filter interfaces..."
+                        placeholder={t("interfaces.filterPlaceholder")}
                         className="pl-8 h-9 w-48"
                       />
                     </div>
@@ -939,7 +942,7 @@ export function OspfContent() {
                 {hasWritePermission && (
                   <Button size="sm" onClick={() => { setEditingIface(null); setIfaceModalOpen(true); }}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Interface
+                    {t("fields.addInterface")}
                   </Button>
                 )}
               </div>
@@ -948,14 +951,14 @@ export function OspfContent() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <Network className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">No OSPF interfaces configured</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("interfaces.emptyTitle")}</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      Add an interface to enable OSPF on it
+                      {t("interfaces.emptyHint")}
                     </p>
                     {hasWritePermission && (
                       <Button size="sm" onClick={() => { setEditingIface(null); setIfaceModalOpen(true); }}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Interface
+                        {t("fields.addInterface")}
                       </Button>
                     )}
                   </CardContent>
@@ -966,15 +969,15 @@ export function OspfContent() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Interface</TableHead>
-                          <TableHead>Area</TableHead>
-                          <TableHead>Cost</TableHead>
-                          <TableHead>Priority</TableHead>
-                          <TableHead>Network Type</TableHead>
-                          <TableHead>Passive</TableHead>
+                          <TableHead>{t("fields.interface")}</TableHead>
+                          <TableHead>{t("fields.area")}</TableHead>
+                          <TableHead>{t("fields.cost")}</TableHead>
+                          <TableHead>{t("fields.priority")}</TableHead>
+                          <TableHead>{t("fields.networkType")}</TableHead>
+                          <TableHead>{t("fields.passive")}</TableHead>
                           <TableHead>BFD</TableHead>
-                          <TableHead>Auth</TableHead>
-                          {hasWritePermission && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead>{t("interfaces.auth")}</TableHead>
+                          {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -989,39 +992,39 @@ export function OspfContent() {
                               )}
                             </TableCell>
                             <TableCell>
-                              {iface.cost != null ? iface.cost : <span className="text-muted-foreground">auto</span>}
+                              {iface.cost != null ? iface.cost : <span className="text-muted-foreground">{t("values.auto")}</span>}
                             </TableCell>
                             <TableCell>
-                              {iface.priority != null ? iface.priority : <span className="text-muted-foreground">default</span>}
+                              {iface.priority != null ? iface.priority : <span className="text-muted-foreground">{t("values.default")}</span>}
                             </TableCell>
                             <TableCell>
                               {iface.network ? (
                                 <Badge variant="outline">{iface.network}</Badge>
                               ) : (
-                                <span className="text-muted-foreground">default</span>
+                                <span className="text-muted-foreground">{t("values.default")}</span>
                               )}
                             </TableCell>
                             <TableCell>
                               {iface.passive ? (
-                                <Badge variant="secondary">Yes</Badge>
+                                <Badge variant="secondary">{t("values.yes")}</Badge>
                               ) : (
-                                <span className="text-muted-foreground">No</span>
+                                <span className="text-muted-foreground">{t("values.no")}</span>
                               )}
                             </TableCell>
                             <TableCell>
                               {iface.bfd ? (
-                                <Badge variant="secondary">Yes</Badge>
+                                <Badge variant="secondary">{t("values.yes")}</Badge>
                               ) : (
-                                <span className="text-muted-foreground">No</span>
+                                <span className="text-muted-foreground">{t("values.no")}</span>
                               )}
                             </TableCell>
                             <TableCell>
                               {Object.keys(iface.authentication.md5_key_ids).length > 0 ? (
                                 <Badge variant="outline">MD5</Badge>
                               ) : iface.authentication.plaintext_password ? (
-                                <Badge variant="outline">Plain</Badge>
+                                <Badge variant="outline">{t("values.plain")}</Badge>
                               ) : (
-                                <span className="text-muted-foreground">none</span>
+                                <span className="text-muted-foreground">{t("values.none")}</span>
                               )}
                             </TableCell>
                             {hasWritePermission && (
@@ -1064,12 +1067,12 @@ export function OspfContent() {
             <TabsContent value="redistribute">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Route redistribution into OSPF
+                  {t("redistribute.description")}
                 </p>
                 {hasWritePermission && (
                   <Button size="sm" onClick={() => setRedistModalOpen(true)}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Redistribute
+                    {t("fields.addRedistribute")}
                   </Button>
                 )}
               </div>
@@ -1078,14 +1081,14 @@ export function OspfContent() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <ArrowLeftRight className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">No route redistribution configured</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("redistribute.emptyTitle")}</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      Add redistribution to import routes from other protocols
+                      {t("redistribute.emptyHint")}
                     </p>
                     {hasWritePermission && (
                       <Button size="sm" onClick={() => setRedistModalOpen(true)}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Redistribute
+                        {t("fields.addRedistribute")}
                       </Button>
                     )}
                   </CardContent>
@@ -1096,12 +1099,12 @@ export function OspfContent() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Protocol</TableHead>
-                          <TableHead>Metric</TableHead>
-                          <TableHead>Metric Type</TableHead>
-                          <TableHead>Route Map</TableHead>
-                          <TableHead>Table</TableHead>
-                          {hasWritePermission && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead>{t("fields.protocol")}</TableHead>
+                          <TableHead>{t("fields.metric")}</TableHead>
+                          <TableHead>{t("fields.metricType")}</TableHead>
+                          <TableHead>{t("fields.routeMap")}</TableHead>
+                          <TableHead>{t("redistribute.table")}</TableHead>
+                          {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1109,13 +1112,13 @@ export function OspfContent() {
                           <TableRow key={`${entry.protocol}-${entry.table || idx}`}>
                             <TableCell className="font-medium">{entry.protocol}</TableCell>
                             <TableCell>
-                              {entry.metric ?? <span className="text-muted-foreground">default</span>}
+                              {entry.metric ?? <span className="text-muted-foreground">{t("values.default")}</span>}
                             </TableCell>
                             <TableCell>
                               {entry.metric_type ? (
-                                <Badge variant="outline">Type {entry.metric_type}</Badge>
+                                <Badge variant="outline">{t("values.type", { type: String(entry.metric_type) })}</Badge>
                               ) : (
-                                <span className="text-muted-foreground">default</span>
+                                <span className="text-muted-foreground">{t("values.default")}</span>
                               )}
                             </TableCell>
                             <TableCell>
@@ -1155,22 +1158,22 @@ export function OspfContent() {
             <TabsContent value="advanced">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Advanced OSPF protocol settings
+                  {t("advanced.description")}
                 </p>
                 {hasWritePermission && (
                   !advancedEditing ? (
                     <Button size="sm" variant="outline" onClick={startEditAdvanced}>
                       <Pencil className="h-4 w-4 mr-2" />
-                      Edit Advanced
+                      {t("advanced.editAdvanced")}
                     </Button>
                   ) : (
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" onClick={() => setAdvancedEditing(false)}>
-                        Cancel
+                        {tc("cancel")}
                       </Button>
                       <Button size="sm" onClick={saveAdvanced} disabled={advancedSaving}>
                         {advancedSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                        Save
+                        {tc("save")}
                       </Button>
                     </div>
                   )
@@ -1187,36 +1190,36 @@ export function OspfContent() {
                 {/* SPF Timers */}
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4">SPF Throttle Timers</h3>
+                    <h3 className="font-semibold mb-4">{t("advanced.spfThrottleTimers")}</h3>
                     <div className="space-y-4">
                       <div>
-                        <Label className="text-sm">Delay (ms)</Label>
+                        <Label className="text-sm">{t("advanced.delayMs")}</Label>
                         <Input
                           type="number"
                           value={advancedEditing ? spfDelay : (config?.timers_throttle_spf.delay != null ? String(config.timers_throttle_spf.delay) : "")}
                           disabled={!advancedEditing}
                           onChange={(e) => setSpfDelay(e.target.value)}
-                          placeholder="Default"
+                          placeholder={tc("default")}
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">Initial Holdtime (ms)</Label>
+                        <Label className="text-sm">{t("advanced.initialHoldtimeMs")}</Label>
                         <Input
                           type="number"
                           value={advancedEditing ? spfInitial : (config?.timers_throttle_spf.initial_holdtime != null ? String(config.timers_throttle_spf.initial_holdtime) : "")}
                           disabled={!advancedEditing}
                           onChange={(e) => setSpfInitial(e.target.value)}
-                          placeholder="Default"
+                          placeholder={tc("default")}
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">Max Holdtime (ms)</Label>
+                        <Label className="text-sm">{t("advanced.maxHoldtimeMs")}</Label>
                         <Input
                           type="number"
                           value={advancedEditing ? spfMax : (config?.timers_throttle_spf.max_holdtime != null ? String(config.timers_throttle_spf.max_holdtime) : "")}
                           disabled={!advancedEditing}
                           onChange={(e) => setSpfMax(e.target.value)}
-                          placeholder="Default"
+                          placeholder={tc("default")}
                         />
                       </div>
                     </div>
@@ -1226,10 +1229,10 @@ export function OspfContent() {
                 {/* Distance */}
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4">Administrative Distance</h3>
+                    <h3 className="font-semibold mb-4">{t("advanced.administrativeDistance")}</h3>
                     <div className="space-y-4">
                       <div>
-                        <Label className="text-sm">Global Distance</Label>
+                        <Label className="text-sm">{t("advanced.globalDistance")}</Label>
                         <Input
                           type="number"
                           value={advancedEditing ? distGlobal : (config?.distance.global_value != null ? String(config.distance.global_value) : "")}
@@ -1241,37 +1244,37 @@ export function OspfContent() {
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">External</Label>
+                        <Label className="text-sm">{t("advanced.external")}</Label>
                         <Input
                           type="number"
                           value={advancedEditing ? distExternal : (config?.distance.ospf.external != null ? String(config.distance.ospf.external) : "")}
                           disabled={!advancedEditing}
                           onChange={(e) => setDistExternal(e.target.value)}
-                          placeholder="Default"
+                          placeholder={tc("default")}
                           min={1}
                           max={255}
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">Inter-Area</Label>
+                        <Label className="text-sm">{t("advanced.interArea")}</Label>
                         <Input
                           type="number"
                           value={advancedEditing ? distInterArea : (config?.distance.ospf.inter_area != null ? String(config.distance.ospf.inter_area) : "")}
                           disabled={!advancedEditing}
                           onChange={(e) => setDistInterArea(e.target.value)}
-                          placeholder="Default"
+                          placeholder={tc("default")}
                           min={1}
                           max={255}
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">Intra-Area</Label>
+                        <Label className="text-sm">{t("advanced.intraArea")}</Label>
                         <Input
                           type="number"
                           value={advancedEditing ? distIntraArea : (config?.distance.ospf.intra_area != null ? String(config.distance.ospf.intra_area) : "")}
                           disabled={!advancedEditing}
                           onChange={(e) => setDistIntraArea(e.target.value)}
-                          placeholder="Default"
+                          placeholder={tc("default")}
                           min={1}
                           max={255}
                         />
@@ -1283,7 +1286,7 @@ export function OspfContent() {
                 {/* Max Metric */}
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4">Max-Metric Router-LSA</h3>
+                    <h3 className="font-semibold mb-4">{t("advanced.maxMetricRouterLsa")}</h3>
                     <div className="space-y-4">
                       <div className="flex items-center gap-3">
                         <Checkbox
@@ -1292,26 +1295,26 @@ export function OspfContent() {
                           disabled={!advancedEditing}
                           onCheckedChange={(checked) => setMaxMetricAdmin(!!checked)}
                         />
-                        <Label htmlFor="max-metric-admin">Administrative</Label>
+                        <Label htmlFor="max-metric-admin">{t("advanced.administrative")}</Label>
                       </div>
                       <div>
-                        <Label className="text-sm">On Shutdown (seconds)</Label>
+                        <Label className="text-sm">{t("advanced.onShutdown")}</Label>
                         <Input
                           type="number"
                           value={advancedEditing ? maxMetricShutdown : (config?.max_metric_router_lsa.on_shutdown != null ? String(config.max_metric_router_lsa.on_shutdown) : "")}
                           disabled={!advancedEditing}
                           onChange={(e) => setMaxMetricShutdown(e.target.value)}
-                          placeholder="Disabled"
+                          placeholder={tc("disabled")}
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">On Startup (seconds)</Label>
+                        <Label className="text-sm">{t("advanced.onStartup")}</Label>
                         <Input
                           type="number"
                           value={advancedEditing ? maxMetricStartup : (config?.max_metric_router_lsa.on_startup != null ? String(config.max_metric_router_lsa.on_startup) : "")}
                           disabled={!advancedEditing}
                           onChange={(e) => setMaxMetricStartup(e.target.value)}
-                          placeholder="Disabled"
+                          placeholder={tc("disabled")}
                         />
                       </div>
                     </div>
@@ -1321,7 +1324,7 @@ export function OspfContent() {
                 {/* Graceful Restart */}
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4">Graceful Restart</h3>
+                    <h3 className="font-semibold mb-4">{t("advanced.gracefulRestart")}</h3>
                     <div className="space-y-4">
                       <div className="flex items-center gap-3">
                         <Checkbox
@@ -1330,16 +1333,16 @@ export function OspfContent() {
                           disabled={!advancedEditing}
                           onCheckedChange={(checked) => setGrEnabled(!!checked)}
                         />
-                        <Label htmlFor="gr-enabled">Enable Graceful Restart</Label>
+                        <Label htmlFor="gr-enabled">{t("advanced.enableGracefulRestart")}</Label>
                       </div>
                       <div>
-                        <Label className="text-sm">Grace Period (seconds)</Label>
+                        <Label className="text-sm">{t("advanced.gracePeriod")}</Label>
                         <Input
                           type="number"
                           value={advancedEditing ? grPeriod : (config?.graceful_restart.grace_period != null ? String(config.graceful_restart.grace_period) : "")}
                           disabled={!advancedEditing}
                           onChange={(e) => setGrPeriod(e.target.value)}
-                          placeholder="Default (120)"
+                          placeholder={t("advanced.gracePeriodPlaceholder")}
                         />
                       </div>
                       <div className="flex items-center gap-3">
@@ -1349,10 +1352,10 @@ export function OspfContent() {
                           disabled={!advancedEditing}
                           onCheckedChange={(checked) => setGrHelperEnable(!!checked)}
                         />
-                        <Label htmlFor="gr-helper">Enable Helper</Label>
+                        <Label htmlFor="gr-helper">{t("advanced.enableHelper")}</Label>
                       </div>
                       <div>
-                        <Label className="text-sm">Helper Router IDs</Label>
+                        <Label className="text-sm">{t("advanced.helperRouterIds")}</Label>
                         <div className="space-y-2 mt-1">
                           {(advancedEditing ? grHelperRouterIds : (config?.graceful_restart.helper.router_ids || [])).map((id) => (
                             <div key={id} className="flex items-center gap-2">
@@ -1403,36 +1406,36 @@ export function OspfContent() {
                 {/* Misc Advanced */}
                 <Card className="col-span-2">
                   <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4">Miscellaneous</h3>
+                    <h3 className="font-semibold mb-4">{t("advanced.miscellaneous")}</h3>
                     <div className="grid grid-cols-4 gap-4">
                       <div>
-                        <Label className="text-sm">LDP Sync Holddown</Label>
+                        <Label className="text-sm">{t("advanced.ldpSyncHolddown")}</Label>
                         <Input
                           type="number"
                           value={advancedEditing ? ldpSyncHolddown : (config?.ldp_sync_holddown != null ? String(config.ldp_sync_holddown) : "")}
                           disabled={!advancedEditing}
                           onChange={(e) => setLdpSyncHolddown(e.target.value)}
-                          placeholder="Disabled"
+                          placeholder={tc("disabled")}
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">Refresh Timers</Label>
+                        <Label className="text-sm">{t("advanced.refreshTimers")}</Label>
                         <Input
                           type="number"
                           value={advancedEditing ? refreshTimers : (config?.refresh_timers != null ? String(config.refresh_timers) : "")}
                           disabled={!advancedEditing}
                           onChange={(e) => setRefreshTimers(e.target.value)}
-                          placeholder="Default"
+                          placeholder={tc("default")}
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">Aggregation Timer</Label>
+                        <Label className="text-sm">{t("advanced.aggregationTimer")}</Label>
                         <Input
                           type="number"
                           value={advancedEditing ? aggregationTimer : (config?.aggregation_timer != null ? String(config.aggregation_timer) : "")}
                           disabled={!advancedEditing}
                           onChange={(e) => setAggregationTimer(e.target.value)}
-                          placeholder="Default"
+                          placeholder={tc("default")}
                         />
                       </div>
                       <div className="flex items-end pb-1">
@@ -1443,7 +1446,7 @@ export function OspfContent() {
                             disabled={!advancedEditing}
                             onCheckedChange={(checked) => setCapabilityOpaque(!!checked)}
                           />
-                          <Label htmlFor="cap-opaque">Capability Opaque</Label>
+                          <Label htmlFor="cap-opaque">{t("advanced.capabilityOpaque")}</Label>
                         </div>
                       </div>
                     </div>
@@ -1485,7 +1488,7 @@ export function OspfContent() {
         <DeleteOspfModal
           open={!!deletingArea}
           onOpenChange={(open) => !open && setDeletingArea(null)}
-          itemType="Area"
+          itemType={t("delete.itemArea")}
           itemName={deletingArea}
           onConfirm={handleDeleteArea}
         />
@@ -1495,7 +1498,7 @@ export function OspfContent() {
         <DeleteOspfModal
           open={!!deletingIface}
           onOpenChange={(open) => !open && setDeletingIface(null)}
-          itemType="Interface"
+          itemType={t("delete.itemInterface")}
           itemName={deletingIface}
           onConfirm={handleDeleteInterface}
         />
@@ -1505,8 +1508,8 @@ export function OspfContent() {
         <DeleteOspfModal
           open={!!deletingRedist}
           onOpenChange={(open) => !open && setDeletingRedist(null)}
-          itemType="Redistribute"
-          itemName={deletingRedist.protocol + (deletingRedist.table ? ` (table ${deletingRedist.table})` : "")}
+          itemType={t("delete.itemRedistribute")}
+          itemName={deletingRedist.protocol + (deletingRedist.table ? t("delete.tableSuffix", { table: String(deletingRedist.table) }) : "")}
           onConfirm={handleDeleteRedistribute}
         />
       )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,8 @@ export function BfdProfileModal({
   onSubmit,
   existingProfile,
 }: BfdProfileModalProps) {
+  const t = useTranslations("bfd");
+  const tc = useTranslations("common");
   const isEditMode = !!existingProfile;
 
   // Form state
@@ -106,44 +109,44 @@ export function BfdProfileModal({
 
   const validateForm = (): string | null => {
     if (!name.trim()) {
-      return "Profile name is required";
+      return t("profileModal.nameRequired");
     }
     if (!/^[a-zA-Z0-9-]{1,32}$/.test(name.trim())) {
-      return "Profile name must be 1-32 characters, alphanumeric and hyphens only";
+      return t("profileModal.nameInvalid");
     }
 
     if (transmit.trim()) {
       const val = parseInt(transmit.trim(), 10);
       if (isNaN(val) || val < 10 || val > 60000) {
-        return "Transmit interval must be between 10 and 60000 ms";
+        return t("validation.transmitRange");
       }
     }
 
     if (receive.trim()) {
       const val = parseInt(receive.trim(), 10);
       if (isNaN(val) || val < 10 || val > 60000) {
-        return "Receive interval must be between 10 and 60000 ms";
+        return t("validation.receiveRange");
       }
     }
 
     if (echoInterval.trim()) {
       const val = parseInt(echoInterval.trim(), 10);
       if (isNaN(val) || val < 10 || val > 60000) {
-        return "Echo interval must be between 10 and 60000 ms";
+        return t("validation.echoRange");
       }
     }
 
     if (multiplier.trim()) {
       const val = parseInt(multiplier.trim(), 10);
       if (isNaN(val) || val < 2 || val > 255) {
-        return "Multiplier must be between 2 and 255";
+        return t("validation.multiplierRange");
       }
     }
 
     if (minimumTtl.trim()) {
       const val = parseInt(minimumTtl.trim(), 10);
       if (isNaN(val) || val < 1 || val > 254) {
-        return "Minimum TTL must be between 1 and 254";
+        return t("validation.minTtlRange");
       }
     }
 
@@ -189,7 +192,7 @@ export function BfdProfileModal({
       handleClose();
     } catch (err: unknown) {
       const message =
-        err instanceof Error ? err.message : "Operation failed";
+        err instanceof Error ? err.message : tc("operationFailed");
       setError(message);
     } finally {
       setLoading(false);
@@ -201,12 +204,12 @@ export function BfdProfileModal({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit BFD Profile" : "Create BFD Profile"}
+            {isEditMode ? t("profileModal.editTitle") : t("profileModal.createTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? `Modify the BFD profile configuration for "${existingProfile?.name}".`
-              : "Configure a reusable BFD timer profile that peers can reference."}
+              ? t("profileModal.editDescription", { name: existingProfile?.name ?? "" })
+              : t("profileModal.createDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -214,7 +217,7 @@ export function BfdProfileModal({
           <div className="space-y-6 pb-2">
             {/* Profile Name */}
             <div className="space-y-2">
-              <Label htmlFor="bfd-profile-name">Profile Name</Label>
+              <Label htmlFor="bfd-profile-name">{t("content.profileName")}</Label>
               <Input
                 id="bfd-profile-name"
                 value={name}
@@ -225,13 +228,13 @@ export function BfdProfileModal({
                 maxLength={32}
               />
               <p className="text-xs text-muted-foreground">
-                Alphanumeric and hyphens only, 1-32 characters.
+                {t("profileModal.nameHelp")}
               </p>
             </div>
 
             {/* Status & Mode Section */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium">Status &amp; Mode</h4>
+              <h4 className="text-sm font-medium">{t("form.statusAndMode")}</h4>
               <div className="rounded-lg border p-3 space-y-4">
                 {/* Shutdown */}
                 <div className="flex items-center space-x-3">
@@ -247,11 +250,10 @@ export function BfdProfileModal({
                       htmlFor="bfd-profile-shutdown"
                       className="cursor-pointer"
                     >
-                      Shutdown
+                      {t("content.shutdown")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Administratively disable this profile. Peers using it
-                      will not establish BFD sessions.
+                      {t("profileModal.shutdownHelp")}
                     </p>
                   </div>
                 </div>
@@ -270,10 +272,10 @@ export function BfdProfileModal({
                       htmlFor="bfd-profile-passive"
                       className="cursor-pointer"
                     >
-                      Passive Mode
+                      {t("form.passiveMode")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Wait for the remote peer to initiate the BFD session.
+                      {t("form.passiveHelp")}
                     </p>
                   </div>
                 </div>
@@ -292,10 +294,10 @@ export function BfdProfileModal({
                       htmlFor="bfd-profile-echo-mode"
                       className="cursor-pointer"
                     >
-                      Echo Mode
+                      {t("form.echoMode")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Enable BFD echo mode for faster failure detection.
+                      {t("form.echoModeHelp")}
                     </p>
                   </div>
                 </div>
@@ -304,12 +306,12 @@ export function BfdProfileModal({
 
             {/* Timer Intervals Section */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium">Timer Intervals</h4>
+              <h4 className="text-sm font-medium">{t("form.timerIntervals")}</h4>
               <div className="grid grid-cols-2 gap-4">
                 {/* Transmit Interval */}
                 <div className="space-y-2">
                   <Label htmlFor="bfd-profile-transmit">
-                    Transmit Interval (ms)
+                    {t("form.transmitInterval")}
                   </Label>
                   <Input
                     id="bfd-profile-transmit"
@@ -325,7 +327,7 @@ export function BfdProfileModal({
                 {/* Receive Interval */}
                 <div className="space-y-2">
                   <Label htmlFor="bfd-profile-receive">
-                    Receive Interval (ms)
+                    {t("form.receiveInterval")}
                   </Label>
                   <Input
                     id="bfd-profile-receive"
@@ -341,7 +343,7 @@ export function BfdProfileModal({
                 {/* Echo Interval */}
                 <div className="space-y-2">
                   <Label htmlFor="bfd-profile-echo-interval">
-                    Echo Interval (ms)
+                    {t("form.echoInterval")}
                   </Label>
                   <Input
                     id="bfd-profile-echo-interval"
@@ -356,7 +358,7 @@ export function BfdProfileModal({
 
                 {/* Multiplier */}
                 <div className="space-y-2">
-                  <Label htmlFor="bfd-profile-multiplier">Multiplier</Label>
+                  <Label htmlFor="bfd-profile-multiplier">{t("content.multiplier")}</Label>
                   <Input
                     id="bfd-profile-multiplier"
                     type="number"
@@ -372,9 +374,9 @@ export function BfdProfileModal({
 
             {/* Advanced Section */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium">Advanced</h4>
+              <h4 className="text-sm font-medium">{t("form.advanced")}</h4>
               <div className="space-y-2">
-                <Label htmlFor="bfd-profile-min-ttl">Minimum TTL</Label>
+                <Label htmlFor="bfd-profile-min-ttl">{t("form.minimumTtl")}</Label>
                 <Input
                   id="bfd-profile-min-ttl"
                   type="number"
@@ -385,8 +387,7 @@ export function BfdProfileModal({
                   max={254}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Minimum Time To Live (1-254). Used to restrict BFD packets
-                  to a certain number of hops.
+                  {t("profileModal.minimumTtlHelp")}
                 </p>
               </div>
             </div>
@@ -403,18 +404,18 @@ export function BfdProfileModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Creating..."}
+                {isEditMode ? tc("saving") : t("form.creating")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("form.saveChanges")
             ) : (
-              "Create Profile"
+              t("profileModal.createProfile")
             )}
           </Button>
         </DialogFooter>

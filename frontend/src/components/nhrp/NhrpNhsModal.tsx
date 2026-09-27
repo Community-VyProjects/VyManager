@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +29,8 @@ export function NhrpNhsModal({
   onSubmit,
   existingNhs,
 }: NhrpNhsModalProps) {
+  const t = useTranslations("nhrp");
+  const tc = useTranslations("common");
   const isEditMode = existingNhs !== null;
 
   const [tunnelIp, setTunnelIp] = useState("");
@@ -63,7 +66,7 @@ export function NhrpNhsModal({
 
   const handleSubmit = async () => {
     if (!tunnelIp.trim()) {
-      setError("Tunnel IP is required");
+      setError(t("tunnelIpRequired"));
       return;
     }
 
@@ -73,7 +76,7 @@ export function NhrpNhsModal({
       await onSubmit(tunnelIp.trim(), nbmaAddresses);
       onOpenChange(false);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -84,13 +87,13 @@ export function NhrpNhsModal({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit NHS Entry" : "Add NHS Entry"}
+            {isEditMode ? t("nhsModal.editTitle") : t("nhsModal.addTitle")}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label htmlFor="nhs-tunnel-ip">Tunnel IP</Label>
+            <Label htmlFor="nhs-tunnel-ip">{t("tunnel.tunnelIp")}</Label>
             {isEditMode ? (
               <p className="text-sm font-mono font-medium px-3 py-2 bg-muted rounded-md">
                 {existingNhs?.tunnel_ip}
@@ -100,18 +103,18 @@ export function NhrpNhsModal({
                 id="nhs-tunnel-ip"
                 value={tunnelIp}
                 onChange={(e) => setTunnelIp(e.target.value)}
-                placeholder="e.g. 10.0.0.1 or dynamic"
+                placeholder={t("nhsModal.tunnelIpPlaceholder")}
               />
             )}
           </div>
 
           <div className="space-y-2">
-            <Label>NBMA Addresses</Label>
+            <Label>{t("tunnel.nbmaAddresses")}</Label>
             <div className="flex gap-2">
               <Input
                 value={nbmaInput}
                 onChange={(e) => setNbmaInput(e.target.value)}
-                placeholder="e.g. 192.168.1.1"
+                placeholder={t("placeholders.nbma")}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
@@ -157,18 +160,18 @@ export function NhrpNhsModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Adding..."}
+                {isEditMode ? tc("saving") : t("adding")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("saveChanges")
             ) : (
-              "Add NHS"
+              t("nhsModal.addNhs")
             )}
           </Button>
         </DialogFooter>

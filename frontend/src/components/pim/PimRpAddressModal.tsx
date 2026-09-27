@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,8 @@ export function PimRpAddressModal({
   onSubmit,
   existingRp,
 }: PimRpAddressModalProps) {
+  const t = useTranslations("pim");
+  const tc = useTranslations("common");
   const isEditMode = !!existingRp;
 
   const [address, setAddress] = useState("");
@@ -63,14 +66,14 @@ export function PimRpAddressModal({
 
   const validateForm = (): string | null => {
     if (!address.trim()) {
-      return "RP address is required";
+      return t("rpModal.addressRequired");
     }
     if (!address.trim().match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
-      return "RP address must be a valid IPv4 address";
+      return t("rpModal.addressInvalid");
     }
     for (const g of groups) {
       if (!g.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/)) {
-        return `Invalid group format: ${g}. Use CIDR notation (e.g., 224.0.0.0/4)`;
+        return t("rpModal.invalidGroup", { group: g });
       }
     }
     return null;
@@ -80,7 +83,7 @@ export function PimRpAddressModal({
     const value = newGroup.trim();
     if (!value) return;
     if (groups.includes(value)) {
-      setError("Group already exists");
+      setError(t("rpModal.groupExists"));
       return;
     }
     setGroups([...groups, value]);
@@ -109,7 +112,7 @@ export function PimRpAddressModal({
       });
       handleClose();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Operation failed";
+      const message = err instanceof Error ? err.message : tc("operationFailed");
       setError(message);
     } finally {
       setLoading(false);
@@ -121,12 +124,12 @@ export function PimRpAddressModal({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit RP Address" : "Add RP Address"}
+            {isEditMode ? t("rpModal.editTitle") : t("addRpAddress")}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? `Modify the Rendezvous Point configuration for ${existingRp?.address}.`
-              : "Add a new Rendezvous Point address for PIM multicast routing."}
+              ? t("rpModal.editDescription", { address: String(existingRp?.address) })
+              : t("rpModal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -134,7 +137,7 @@ export function PimRpAddressModal({
           <div className="space-y-6 pb-2">
             {/* RP Address */}
             <div className="space-y-2">
-              <Label>RP Address</Label>
+              <Label>{t("rpModal.rpAddress")}</Label>
               {isEditMode ? (
                 <Input
                   value={address}
@@ -145,21 +148,21 @@ export function PimRpAddressModal({
                 <Input
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="e.g. 192.168.1.1"
+                  placeholder={t("rpModal.addressPlaceholder")}
                   className="font-mono"
                 />
               )}
               <p className="text-xs text-muted-foreground">
-                IPv4 address of the Rendezvous Point.
+                {t("rpModal.addressHelp")}
               </p>
             </div>
 
             {/* Multicast Groups */}
             <div className="space-y-3">
               <div>
-                <Label>Multicast Groups</Label>
+                <Label>{t("rpModal.multicastGroups")}</Label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Multicast group ranges this RP serves. Use CIDR notation (e.g., 224.0.0.0/4).
+                  {t("rpModal.groupsHelp")}
                 </p>
               </div>
 
@@ -187,7 +190,7 @@ export function PimRpAddressModal({
                 <Input
                   value={newGroup}
                   onChange={(e) => setNewGroup(e.target.value)}
-                  placeholder="e.g. 224.0.0.0/4"
+                  placeholder={t("rpModal.groupPlaceholder")}
                   className="font-mono"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
@@ -218,18 +221,18 @@ export function PimRpAddressModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Adding..."}
+                {isEditMode ? tc("saving") : t("adding")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("saveChanges")
             ) : (
-              "Add RP Address"
+              t("addRpAddress")
             )}
           </Button>
         </DialogFooter>

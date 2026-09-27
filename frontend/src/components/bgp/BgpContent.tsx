@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { bgpTabFromSearch } from "@/lib/query-tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -56,6 +57,8 @@ import { DeleteBgpNeighborModal } from "./DeleteBgpNeighborModal";
 import { DeleteBgpPeerGroupModal } from "./DeleteBgpPeerGroupModal";
 
 export function BgpContent() {
+  const t = useTranslations("bgp");
+  const tc = useTranslations("common");
   const [config, setConfig] = useState<BgpConfig | null>(null);
   const [capabilities, setCapabilities] = useState<BgpCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
@@ -136,11 +139,11 @@ export function BgpContent() {
         setSelectedAfi(capData.address_family_types.global[0]);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load BGP configuration");
+      setError(err instanceof Error ? err.message : t("content.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [selectedAfi]);
+  }, [selectedAfi, t]);
 
   useEffect(() => {
     loadData();
@@ -169,11 +172,11 @@ export function BgpContent() {
     setOverviewError(null);
     try {
       const result = await bgpService.saveOverview(config, systemAs, routerId, keepalive, holdtime);
-      if (!result.success) throw new Error(result.error || "Failed to save");
+      if (!result.success) throw new Error(result.error || t("content.saveFailed"));
       await loadData(true);
       setOverviewEditing(false);
     } catch (err) {
-      setOverviewError(err instanceof Error ? err.message : "Failed to save overview");
+      setOverviewError(err instanceof Error ? err.message : t("content.saveOverviewFailed"));
     } finally {
       setOverviewSaving(false);
     }
@@ -254,7 +257,7 @@ export function BgpContent() {
       await bgpService.setL2vpnEvpnFlag(flag, enabled);
       await loadData(true);
     } catch (err) {
-      setAfError(err instanceof Error ? err.message : "Failed to update EVPN flag");
+      setAfError(err instanceof Error ? err.message : t("content.evpnFlagFailed"));
     } finally {
       setAfSaving(false);
     }
@@ -270,7 +273,7 @@ export function BgpContent() {
       setAfNetworkRouteMap("");
       await loadData(true);
     } catch (err) {
-      setAfError(err instanceof Error ? err.message : "Failed to add network");
+      setAfError(err instanceof Error ? err.message : t("content.addNetworkFailed"));
     } finally {
       setAfSaving(false);
     }
@@ -283,7 +286,7 @@ export function BgpContent() {
       await bgpService.deleteNetwork(selectedAfi, prefix);
       await loadData(true);
     } catch (err) {
-      setAfError(err instanceof Error ? err.message : "Failed to delete network");
+      setAfError(err instanceof Error ? err.message : t("content.deleteNetworkFailed"));
     } finally {
       setAfSaving(false);
     }
@@ -300,7 +303,7 @@ export function BgpContent() {
       setAfRedistMetric("");
       await loadData(true);
     } catch (err) {
-      setAfError(err instanceof Error ? err.message : "Failed to add redistribution");
+      setAfError(err instanceof Error ? err.message : t("content.addRedistributeFailed"));
     } finally {
       setAfSaving(false);
     }
@@ -313,7 +316,7 @@ export function BgpContent() {
       await bgpService.deleteRedistribute(selectedAfi, protocol);
       await loadData(true);
     } catch (err) {
-      setAfError(err instanceof Error ? err.message : "Failed to delete redistribution");
+      setAfError(err instanceof Error ? err.message : t("content.deleteRedistributeFailed"));
     } finally {
       setAfSaving(false);
     }
@@ -331,7 +334,7 @@ export function BgpContent() {
       setAfAggRouteMap("");
       await loadData(true);
     } catch (err) {
-      setAfError(err instanceof Error ? err.message : "Failed to add aggregate");
+      setAfError(err instanceof Error ? err.message : t("content.addAggregateFailed"));
     } finally {
       setAfSaving(false);
     }
@@ -344,7 +347,7 @@ export function BgpContent() {
       await bgpService.deleteAggregateAddress(selectedAfi, prefix);
       await loadData(true);
     } catch (err) {
-      setAfError(err instanceof Error ? err.message : "Failed to delete aggregate");
+      setAfError(err instanceof Error ? err.message : t("content.deleteAggregateFailed"));
     } finally {
       setAfSaving(false);
     }
@@ -368,11 +371,11 @@ export function BgpContent() {
     setParamsError(null);
     try {
       const result = await bgpService.saveParameters(config.parameters, editParams);
-      if (!result.success) throw new Error(result.error || "Failed to save");
+      if (!result.success) throw new Error(result.error || t("content.saveFailed"));
       await loadData(true);
       setParamsEditing(false);
     } catch (err) {
-      setParamsError(err instanceof Error ? err.message : "Failed to save parameters");
+      setParamsError(err instanceof Error ? err.message : t("content.saveParamsFailed"));
     } finally {
       setParamsSaving(false);
     }
@@ -422,7 +425,7 @@ export function BgpContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -437,7 +440,7 @@ export function BgpContent() {
             <div>
               <h1 className="text-2xl font-bold text-foreground">BGP</h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Border Gateway Protocol - autonomous system routing
+                {t("content.subtitle")}
                 {config?.system_as && (
                   <span className="ml-2 font-mono text-foreground">AS {config.system_as}</span>
                 )}
@@ -449,7 +452,7 @@ export function BgpContent() {
               onClick={() => loadData(true)}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              {tc("refresh")}
             </Button>
           </div>
 
@@ -469,7 +472,7 @@ export function BgpContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{neighborCount}</p>
-                    <p className="text-xs text-muted-foreground">Neighbors</p>
+                    <p className="text-xs text-muted-foreground">{t("content.neighbors")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -482,7 +485,7 @@ export function BgpContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{activeNeighbors}</p>
-                    <p className="text-xs text-muted-foreground">Active</p>
+                    <p className="text-xs text-muted-foreground">{t("content.active")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -495,7 +498,7 @@ export function BgpContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{peerGroupCount}</p>
-                    <p className="text-xs text-muted-foreground">Peer Groups</p>
+                    <p className="text-xs text-muted-foreground">{t("content.peerGroups")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -508,7 +511,7 @@ export function BgpContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{afCount}</p>
-                    <p className="text-xs text-muted-foreground">Address Families</p>
+                    <p className="text-xs text-muted-foreground">{t("content.addressFamilies")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -520,26 +523,26 @@ export function BgpContent() {
         <div className="flex-1 p-6 pt-4 overflow-auto">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="overview">{t("content.overviewTab")}</TabsTrigger>
               <TabsTrigger value="neighbors">
-                Neighbors
+                {t("content.neighbors")}
                 {neighborCount > 0 && (
                   <Badge variant="secondary" className="ml-2">{neighborCount}</Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger value="peer-groups">
-                Peer Groups
+                {t("content.peerGroups")}
                 {peerGroupCount > 0 && (
                   <Badge variant="secondary" className="ml-2">{peerGroupCount}</Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger value="address-families">
-                Address Families
+                {t("content.addressFamilies")}
                 {afCount > 0 && (
                   <Badge variant="secondary" className="ml-2">{afCount}</Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="parameters">Parameters</TabsTrigger>
+              <TabsTrigger value="parameters">{t("content.parametersTab")}</TabsTrigger>
             </TabsList>
 
             {/* ============================================================ */}
@@ -549,18 +552,18 @@ export function BgpContent() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">
-                    Core BGP settings for this router
+                    {t("content.overview.description")}
                   </p>
                   {!overviewEditing ? (
                     <Button size="sm" variant="outline" onClick={() => setOverviewEditing(true)}>
                       <Pencil className="h-4 w-4 mr-2" />
-                      Edit
+                      {tc("edit")}
                     </Button>
                   ) : (
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" onClick={handleOverviewCancel} disabled={overviewSaving}>
                         <X className="h-4 w-4 mr-2" />
-                        Cancel
+                        {tc("cancel")}
                       </Button>
                       <Button size="sm" onClick={handleOverviewSave} disabled={overviewSaving}>
                         {overviewSaving ? (
@@ -568,7 +571,7 @@ export function BgpContent() {
                         ) : (
                           <Save className="h-4 w-4 mr-2" />
                         )}
-                        Save
+                        {tc("save")}
                       </Button>
                     </div>
                   )}
@@ -584,41 +587,41 @@ export function BgpContent() {
                   <CardContent className="p-6">
                     <div className="grid grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <Label>System AS Number</Label>
+                        <Label>{t("content.overview.systemAs")}</Label>
                         {overviewEditing ? (
                           <Input
                             value={systemAs}
                             onChange={(e) => setSystemAs(e.target.value)}
-                            placeholder="e.g. 65001"
+                            placeholder={t("eg", { value: "65001" })}
                           />
                         ) : (
                           <p className="text-sm font-mono p-2 bg-muted rounded-md">
-                            {config?.system_as || <span className="text-muted-foreground">Not configured</span>}
+                            {config?.system_as || <span className="text-muted-foreground">{t("content.overview.notConfigured")}</span>}
                           </p>
                         )}
                         <p className="text-xs text-muted-foreground">
-                          The autonomous system number for this BGP router
+                          {t("content.overview.systemAsHelp")}
                         </p>
                       </div>
                       <div className="space-y-2">
-                        <Label>Router ID</Label>
+                        <Label>{t("content.overview.routerId")}</Label>
                         {overviewEditing ? (
                           <Input
                             value={routerId}
                             onChange={(e) => setRouterId(e.target.value)}
-                            placeholder="e.g. 10.0.0.1"
+                            placeholder={t("eg", { value: "10.0.0.1" })}
                           />
                         ) : (
                           <p className="text-sm font-mono p-2 bg-muted rounded-md">
-                            {config?.parameters.router_id || <span className="text-muted-foreground">Auto-detect</span>}
+                            {config?.parameters.router_id || <span className="text-muted-foreground">{t("content.overview.autoDetect")}</span>}
                           </p>
                         )}
                         <p className="text-xs text-muted-foreground">
-                          Override the default router identifier
+                          {t("content.overview.routerIdHelp")}
                         </p>
                       </div>
                       <div className="space-y-2">
-                        <Label>Keepalive Interval (seconds)</Label>
+                        <Label>{t("content.overview.keepalive")}</Label>
                         {overviewEditing ? (
                           <Input
                             type="number"
@@ -628,15 +631,15 @@ export function BgpContent() {
                           />
                         ) : (
                           <p className="text-sm font-mono p-2 bg-muted rounded-md">
-                            {config?.timers.keepalive ?? <span className="text-muted-foreground">60 (default)</span>}
+                            {config?.timers.keepalive ?? <span className="text-muted-foreground">{t("content.defaultValue", { value: "60" })}</span>}
                           </p>
                         )}
                         <p className="text-xs text-muted-foreground">
-                          How often to send keepalive messages to peers
+                          {t("content.overview.keepaliveHelp")}
                         </p>
                       </div>
                       <div className="space-y-2">
-                        <Label>Hold Time (seconds)</Label>
+                        <Label>{t("content.overview.holdTime")}</Label>
                         {overviewEditing ? (
                           <Input
                             type="number"
@@ -646,11 +649,11 @@ export function BgpContent() {
                           />
                         ) : (
                           <p className="text-sm font-mono p-2 bg-muted rounded-md">
-                            {config?.timers.holdtime ?? <span className="text-muted-foreground">180 (default)</span>}
+                            {config?.timers.holdtime ?? <span className="text-muted-foreground">{t("content.defaultValue", { value: "180" })}</span>}
                           </p>
                         )}
                         <p className="text-xs text-muted-foreground">
-                          Time to wait for keepalive before declaring peer dead
+                          {t("content.overview.holdTimeHelp")}
                         </p>
                       </div>
                     </div>
@@ -661,18 +664,18 @@ export function BgpContent() {
                 {config?.listen && (config.listen.limit || config.listen.ranges.length > 0) && (
                   <Card>
                     <CardContent className="p-6">
-                      <h3 className="text-sm font-medium mb-4">Dynamic Neighbors (Listen)</h3>
+                      <h3 className="text-sm font-medium mb-4">{t("content.overview.listenTitle")}</h3>
                       {config.listen.limit && (
                         <p className="text-sm text-muted-foreground mb-3">
-                          Connection limit: <span className="font-mono">{config.listen.limit}</span>
+                          {t("content.overview.connectionLimit")} <span className="font-mono">{config.listen.limit}</span>
                         </p>
                       )}
                       {config.listen.ranges.length > 0 && (
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Prefix</TableHead>
-                              <TableHead>Peer Group</TableHead>
+                              <TableHead>{t("content.prefix")}</TableHead>
+                              <TableHead>{t("content.peerGroup")}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -697,11 +700,11 @@ export function BgpContent() {
             <TabsContent value="neighbors">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Configure BGP peering sessions with remote routers
+                  {t("content.neighborsTab.description")}
                 </p>
                 <Button size="sm" onClick={() => { setEditingNeighbor(null); setNeighborModalOpen(true); }}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Neighbor
+                  {t("content.neighborsTab.add")}
                 </Button>
               </div>
 
@@ -709,13 +712,13 @@ export function BgpContent() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <Users className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">No BGP neighbors configured</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("content.neighborsTab.empty")}</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      Add a neighbor to establish a BGP peering session
+                      {t("content.neighborsTab.emptyHint")}
                     </p>
                     <Button size="sm" onClick={() => { setEditingNeighbor(null); setNeighborModalOpen(true); }}>
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Neighbor
+                      {t("content.neighborsTab.add")}
                     </Button>
                   </CardContent>
                 </Card>
@@ -725,14 +728,14 @@ export function BgpContent() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Address</TableHead>
-                          <TableHead>Remote AS</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Peer Group</TableHead>
+                          <TableHead>{t("content.address")}</TableHead>
+                          <TableHead>{t("content.remoteAs")}</TableHead>
+                          <TableHead>{tc("description")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
+                          <TableHead>{t("content.peerGroup")}</TableHead>
                           <TableHead>BFD</TableHead>
-                          <TableHead>Address Families</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead>{t("content.addressFamilies")}</TableHead>
+                          <TableHead className="text-right">{tc("actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -750,11 +753,11 @@ export function BgpContent() {
                             <TableCell>
                               {neighbor.shutdown ? (
                                 <Badge variant="secondary" className="bg-red-500/10 text-red-600">
-                                  Shutdown
+                                  {t("content.shutdown")}
                                 </Badge>
                               ) : (
                                 <Badge variant="secondary" className="bg-green-500/10 text-green-600">
-                                  Active
+                                  {t("content.active")}
                                 </Badge>
                               )}
                             </TableCell>
@@ -823,11 +826,11 @@ export function BgpContent() {
             <TabsContent value="peer-groups">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Templates that apply common settings to multiple neighbors
+                  {t("content.peerGroupsTab.description")}
                 </p>
                 <Button size="sm" onClick={() => { setEditingPeerGroup(null); setPeerGroupModalOpen(true); }}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Peer Group
+                  {t("content.peerGroupsTab.add")}
                 </Button>
               </div>
 
@@ -835,13 +838,13 @@ export function BgpContent() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <Users className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">No peer groups configured</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("content.peerGroupsTab.empty")}</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      Create a peer group to apply shared settings to multiple neighbors
+                      {t("content.peerGroupsTab.emptyHint")}
                     </p>
                     <Button size="sm" onClick={() => { setEditingPeerGroup(null); setPeerGroupModalOpen(true); }}>
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Peer Group
+                      {t("content.peerGroupsTab.add")}
                     </Button>
                   </CardContent>
                 </Card>
@@ -851,14 +854,14 @@ export function BgpContent() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Remote AS</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("content.remoteAs")}</TableHead>
+                          <TableHead>{tc("description")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
                           <TableHead>BFD</TableHead>
-                          <TableHead>Members</TableHead>
-                          <TableHead>Address Families</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead>{t("content.peerGroupsTab.members")}</TableHead>
+                          <TableHead>{t("content.addressFamilies")}</TableHead>
+                          <TableHead className="text-right">{tc("actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -876,11 +879,11 @@ export function BgpContent() {
                               <TableCell>
                                 {pg.shutdown ? (
                                   <Badge variant="secondary" className="bg-red-500/10 text-red-600">
-                                    Shutdown
+                                    {t("content.shutdown")}
                                   </Badge>
                                 ) : (
                                   <Badge variant="secondary" className="bg-green-500/10 text-green-600">
-                                    Active
+                                    {t("content.active")}
                                   </Badge>
                                 )}
                               </TableCell>
@@ -894,10 +897,10 @@ export function BgpContent() {
                               <TableCell>
                                 {memberCount > 0 ? (
                                   <Badge variant="secondary">
-                                    {memberCount} neighbor{memberCount !== 1 ? "s" : ""}
+                                    {t("content.peerGroupsTab.memberCount", { count: memberCount })}
                                   </Badge>
                                 ) : (
-                                  <span className="text-muted-foreground">None</span>
+                                  <span className="text-muted-foreground">{tc("none")}</span>
                                 )}
                               </TableCell>
                               <TableCell>
@@ -953,11 +956,11 @@ export function BgpContent() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">
-                    Global address family settings for networks, redistribution, aggregation, and EVPN
+                    {t("content.af.description")}
                   </p>
                   <Select value={selectedAfi} onValueChange={setSelectedAfi}>
                     <SelectTrigger className="w-[220px]">
-                      <SelectValue placeholder="Select address family" />
+                      <SelectValue placeholder={t("content.af.selectPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
                       {capabilities?.address_family_types.global.map((afi) => (
@@ -980,9 +983,9 @@ export function BgpContent() {
                     {isL2vpnEvpn && evpnFlagsSupported && (
                       <Card>
                         <CardContent className="p-6">
-                          <h3 className="text-sm font-medium mb-4">EVPN control flags</h3>
+                          <h3 className="text-sm font-medium mb-4">{t("content.af.evpnTitle")}</h3>
                           <p className="text-xs text-muted-foreground mb-4">
-                            Address-family flags for L2VPN EVPN
+                            {t("content.af.evpnDescription")}
                           </p>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {evpnFlags.map((flag) => {
@@ -1011,18 +1014,18 @@ export function BgpContent() {
                     {/* Networks */}
                     <Card>
                       <CardContent className="p-6">
-                        <h3 className="text-sm font-medium mb-4">Networks</h3>
+                        <h3 className="text-sm font-medium mb-4">{t("content.af.networks")}</h3>
                         <p className="text-xs text-muted-foreground mb-4">
-                          Prefixes to originate from this BGP router
+                          {t("content.af.networksHelp")}
                         </p>
 
                         {currentAf && currentAf.networks.length > 0 && (
                           <Table>
                             <TableHeader>
                               <TableRow>
-                                <TableHead>Prefix</TableHead>
-                                <TableHead>Route Map</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                <TableHead>{t("content.prefix")}</TableHead>
+                                <TableHead>{t("content.routeMap")}</TableHead>
+                                <TableHead className="text-right">{tc("actions")}</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1049,22 +1052,22 @@ export function BgpContent() {
 
                         <div className="flex items-end gap-3 mt-4">
                           <div className="flex-1 space-y-1">
-                            <Label className="text-xs">Prefix</Label>
+                            <Label className="text-xs">{t("content.prefix")}</Label>
                             <Input
                               value={afNetworkPrefix}
                               onChange={(e) => setAfNetworkPrefix(e.target.value)}
-                              placeholder="e.g. 10.0.0.0/24"
+                              placeholder={t("eg", { value: "10.0.0.0/24" })}
                               className="h-9"
                             />
                           </div>
                           <div className="flex-1 space-y-1">
-                            <Label className="text-xs">Route Map (optional)</Label>
+                            <Label className="text-xs">{t("content.routeMapOptional")}</Label>
                             <Select value={afNetworkRouteMap || "__none__"} onValueChange={(v) => setAfNetworkRouteMap(v === "__none__" ? "" : v)}>
                               <SelectTrigger className="h-9">
-                                <SelectValue placeholder="None" />
+                                <SelectValue placeholder={tc("none")} />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="__none__">None</SelectItem>
+                                <SelectItem value="__none__">{tc("none")}</SelectItem>
                                 {routeMapNames.map((name) => (
                                   <SelectItem key={name} value={name}>{name}</SelectItem>
                                 ))}
@@ -1073,7 +1076,7 @@ export function BgpContent() {
                           </div>
                           <Button size="sm" onClick={handleAddNetwork} disabled={afSaving || !afNetworkPrefix.trim()}>
                             {afSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
-                            Add
+                            {tc("add")}
                           </Button>
                         </div>
                       </CardContent>
@@ -1082,19 +1085,19 @@ export function BgpContent() {
                     {/* Redistribute */}
                     <Card>
                       <CardContent className="p-6">
-                        <h3 className="text-sm font-medium mb-4">Redistribute</h3>
+                        <h3 className="text-sm font-medium mb-4">{t("content.af.redistribute")}</h3>
                         <p className="text-xs text-muted-foreground mb-4">
-                          Redistribute routes from other protocols into BGP
+                          {t("content.af.redistributeHelp")}
                         </p>
 
                         {currentAf && currentAf.redistribute.length > 0 && (
                           <Table>
                             <TableHeader>
                               <TableRow>
-                                <TableHead>Protocol</TableHead>
-                                <TableHead>Route Map</TableHead>
-                                <TableHead>Metric</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                <TableHead>{t("content.af.protocol")}</TableHead>
+                                <TableHead>{t("content.routeMap")}</TableHead>
+                                <TableHead>{t("content.af.metric")}</TableHead>
+                                <TableHead className="text-right">{tc("actions")}</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1122,10 +1125,10 @@ export function BgpContent() {
 
                         <div className="flex items-end gap-3 mt-4">
                           <div className="w-[160px] space-y-1">
-                            <Label className="text-xs">Protocol</Label>
+                            <Label className="text-xs">{t("content.af.protocol")}</Label>
                             <Select value={afRedistProto} onValueChange={setAfRedistProto}>
                               <SelectTrigger className="h-9">
-                                <SelectValue placeholder="Select..." />
+                                <SelectValue placeholder={t("content.af.selectEllipsis")} />
                               </SelectTrigger>
                               <SelectContent>
                                 {redistributeProtocols.map((p) => (
@@ -1135,13 +1138,13 @@ export function BgpContent() {
                             </Select>
                           </div>
                           <div className="flex-1 space-y-1">
-                            <Label className="text-xs">Route Map (optional)</Label>
+                            <Label className="text-xs">{t("content.routeMapOptional")}</Label>
                             <Select value={afRedistRouteMap || "__none__"} onValueChange={(v) => setAfRedistRouteMap(v === "__none__" ? "" : v)}>
                               <SelectTrigger className="h-9">
-                                <SelectValue placeholder="None" />
+                                <SelectValue placeholder={tc("none")} />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="__none__">None</SelectItem>
+                                <SelectItem value="__none__">{tc("none")}</SelectItem>
                                 {routeMapNames.map((name) => (
                                   <SelectItem key={name} value={name}>{name}</SelectItem>
                                 ))}
@@ -1149,17 +1152,17 @@ export function BgpContent() {
                             </Select>
                           </div>
                           <div className="w-[100px] space-y-1">
-                            <Label className="text-xs">Metric</Label>
+                            <Label className="text-xs">{t("content.af.metric")}</Label>
                             <Input
                               value={afRedistMetric}
                               onChange={(e) => setAfRedistMetric(e.target.value)}
-                              placeholder="e.g. 100"
+                              placeholder={t("eg", { value: "100" })}
                               className="h-9"
                             />
                           </div>
                           <Button size="sm" onClick={handleAddRedistribute} disabled={afSaving || !afRedistProto}>
                             {afSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
-                            Add
+                            {tc("add")}
                           </Button>
                         </div>
                       </CardContent>
@@ -1168,28 +1171,28 @@ export function BgpContent() {
                     {/* Aggregate Addresses */}
                     <Card>
                       <CardContent className="p-6">
-                        <h3 className="text-sm font-medium mb-4">Aggregate Addresses</h3>
+                        <h3 className="text-sm font-medium mb-4">{t("content.af.aggregate")}</h3>
                         <p className="text-xs text-muted-foreground mb-4">
-                          Summarize multiple routes into a single advertisement
+                          {t("content.af.aggregateHelp")}
                         </p>
 
                         {currentAf && currentAf.aggregate_addresses.length > 0 && (
                           <Table>
                             <TableHeader>
                               <TableRow>
-                                <TableHead>Prefix</TableHead>
-                                <TableHead>AS Set</TableHead>
-                                <TableHead>Summary Only</TableHead>
-                                <TableHead>Route Map</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                <TableHead>{t("content.prefix")}</TableHead>
+                                <TableHead>{t("content.af.asSet")}</TableHead>
+                                <TableHead>{t("content.af.summaryOnly")}</TableHead>
+                                <TableHead>{t("content.routeMap")}</TableHead>
+                                <TableHead className="text-right">{tc("actions")}</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {currentAf.aggregate_addresses.map((agg) => (
                                 <TableRow key={agg.prefix}>
                                   <TableCell className="font-mono">{agg.prefix}</TableCell>
-                                  <TableCell>{agg.as_set ? "Yes" : "No"}</TableCell>
-                                  <TableCell>{agg.summary_only ? "Yes" : "No"}</TableCell>
+                                  <TableCell>{agg.as_set ? t("content.yes") : t("content.no")}</TableCell>
+                                  <TableCell>{agg.summary_only ? t("content.yes") : t("content.no")}</TableCell>
                                   <TableCell>{agg.route_map || <span className="text-muted-foreground">-</span>}</TableCell>
                                   <TableCell className="text-right">
                                     <Button
@@ -1210,22 +1213,22 @@ export function BgpContent() {
 
                         <div className="flex items-end gap-3 mt-4">
                           <div className="flex-1 space-y-1">
-                            <Label className="text-xs">Prefix</Label>
+                            <Label className="text-xs">{t("content.prefix")}</Label>
                             <Input
                               value={afAggPrefix}
                               onChange={(e) => setAfAggPrefix(e.target.value)}
-                              placeholder="e.g. 10.0.0.0/8"
+                              placeholder={t("eg", { value: "10.0.0.0/8" })}
                               className="h-9"
                             />
                           </div>
                           <div className="flex-1 space-y-1">
-                            <Label className="text-xs">Route Map (optional)</Label>
+                            <Label className="text-xs">{t("content.routeMapOptional")}</Label>
                             <Select value={afAggRouteMap || "__none__"} onValueChange={(v) => setAfAggRouteMap(v === "__none__" ? "" : v)}>
                               <SelectTrigger className="h-9">
-                                <SelectValue placeholder="None" />
+                                <SelectValue placeholder={tc("none")} />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="__none__">None</SelectItem>
+                                <SelectItem value="__none__">{tc("none")}</SelectItem>
                                 {routeMapNames.map((name) => (
                                   <SelectItem key={name} value={name}>{name}</SelectItem>
                                 ))}
@@ -1239,7 +1242,7 @@ export function BgpContent() {
                                 checked={afAggAsSet}
                                 onCheckedChange={(c) => setAfAggAsSet(c === true)}
                               />
-                              <Label htmlFor="agg-as-set" className="text-xs cursor-pointer">AS Set</Label>
+                              <Label htmlFor="agg-as-set" className="text-xs cursor-pointer">{t("content.af.asSet")}</Label>
                             </div>
                             <div className="flex items-center gap-1.5">
                               <Checkbox
@@ -1247,12 +1250,12 @@ export function BgpContent() {
                                 checked={afAggSummaryOnly}
                                 onCheckedChange={(c) => setAfAggSummaryOnly(c === true)}
                               />
-                              <Label htmlFor="agg-summary" className="text-xs cursor-pointer">Summary Only</Label>
+                              <Label htmlFor="agg-summary" className="text-xs cursor-pointer">{t("content.af.summaryOnly")}</Label>
                             </div>
                           </div>
                           <Button size="sm" onClick={handleAddAggregate} disabled={afSaving || !afAggPrefix.trim()}>
                             {afSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
-                            Add
+                            {tc("add")}
                           </Button>
                         </div>
                       </CardContent>
@@ -1264,15 +1267,15 @@ export function BgpContent() {
                     {currentAf && (currentAf.maximum_paths_ebgp || currentAf.maximum_paths_ibgp) && (
                       <Card>
                         <CardContent className="p-6">
-                          <h3 className="text-sm font-medium mb-4">Maximum Paths</h3>
+                          <h3 className="text-sm font-medium mb-4">{t("content.af.maximumPaths")}</h3>
                           <div className="grid grid-cols-2 gap-4">
                             <div>
                               <Label className="text-xs text-muted-foreground">eBGP</Label>
-                              <p className="font-mono">{currentAf.maximum_paths_ebgp ?? "Default"}</p>
+                              <p className="font-mono">{currentAf.maximum_paths_ebgp ?? tc("default")}</p>
                             </div>
                             <div>
                               <Label className="text-xs text-muted-foreground">iBGP</Label>
-                              <p className="font-mono">{currentAf.maximum_paths_ibgp ?? "Default"}</p>
+                              <p className="font-mono">{currentAf.maximum_paths_ibgp ?? tc("default")}</p>
                             </div>
                           </div>
                         </CardContent>
@@ -1290,18 +1293,18 @@ export function BgpContent() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">
-                    Advanced BGP parameters and behavior settings
+                    {t("content.params.description")}
                   </p>
                   {!paramsEditing ? (
                     <Button size="sm" variant="outline" onClick={handleParamsEdit}>
                       <Pencil className="h-4 w-4 mr-2" />
-                      Edit
+                      {tc("edit")}
                     </Button>
                   ) : (
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" onClick={handleParamsCancel} disabled={paramsSaving}>
                         <X className="h-4 w-4 mr-2" />
-                        Cancel
+                        {tc("cancel")}
                       </Button>
                       <Button size="sm" onClick={handleParamsSave} disabled={paramsSaving}>
                         {paramsSaving ? (
@@ -1309,7 +1312,7 @@ export function BgpContent() {
                         ) : (
                           <Save className="h-4 w-4 mr-2" />
                         )}
-                        Save
+                        {tc("save")}
                       </Button>
                     </div>
                   )}
@@ -1324,25 +1327,25 @@ export function BgpContent() {
                 {/* General Settings */}
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="text-sm font-medium mb-4">General Settings</h3>
+                    <h3 className="text-sm font-medium mb-4">{t("content.params.general")}</h3>
                     <div className="grid grid-cols-2 gap-4 mb-6">
                       <div className="space-y-2">
-                        <Label className="text-xs">Cluster ID</Label>
+                        <Label className="text-xs">{t("content.params.clusterId")}</Label>
                         {paramsEditing && editParams ? (
                           <Input
                             value={editParams.cluster_id || ""}
                             onChange={(e) => updateParam("cluster_id", e.target.value || null)}
-                            placeholder="e.g. 10.0.0.1"
+                            placeholder={t("eg", { value: "10.0.0.1" })}
                             className="h-9"
                           />
                         ) : (
                           <p className="text-sm font-mono p-2 bg-muted rounded-md">
-                            {config?.parameters.cluster_id || <span className="text-muted-foreground">Not set</span>}
+                            {config?.parameters.cluster_id || <span className="text-muted-foreground">{tc("notSet")}</span>}
                           </p>
                         )}
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-xs">Default Local Preference</Label>
+                        <Label className="text-xs">{t("content.params.defaultLocalPref")}</Label>
                         {paramsEditing && editParams ? (
                           <Input
                             type="number"
@@ -1353,35 +1356,35 @@ export function BgpContent() {
                           />
                         ) : (
                           <p className="text-sm font-mono p-2 bg-muted rounded-md">
-                            {config?.parameters.default_local_pref ?? <span className="text-muted-foreground">100 (default)</span>}
+                            {config?.parameters.default_local_pref ?? <span className="text-muted-foreground">{t("content.defaultValue", { value: "100" })}</span>}
                           </p>
                         )}
                       </div>
                     </div>
 
                     {/* Boolean flags */}
-                    <h4 className="text-xs font-medium text-muted-foreground mb-3">Behavior Flags</h4>
+                    <h4 className="text-xs font-medium text-muted-foreground mb-3">{t("content.params.behaviorFlags")}</h4>
                     <div className="space-y-3 rounded-lg border p-4">
                       {([
-                        { key: "log_neighbor_changes" as const, label: "Log Neighbor Changes", desc: "Log neighbor up/down and reset reason" },
-                        { key: "always_compare_med" as const, label: "Always Compare MED", desc: "Compare MED among all routes, not just from same AS" },
-                        { key: "deterministic_med" as const, label: "Deterministic MED", desc: "Group paths by AS before comparing MED" },
-                        { key: "ebgp_requires_policy" as const, label: "eBGP Requires Policy", desc: "Require route-map for eBGP sessions" },
-                        { key: "graceful_shutdown" as const, label: "Graceful Shutdown", desc: "Initiate graceful shutdown procedure" },
-                        { key: "no_client_to_client_reflection" as const, label: "No Client-to-Client Reflection", desc: "Disable route reflection between RR clients" },
-                        { key: "no_fast_external_failover" as const, label: "No Fast External Failover", desc: "Disable fast failover on eBGP link down" },
-                        { key: "allow_martian_nexthop" as const, label: "Allow Martian Nexthop", desc: "Allow martian next-hops in BGP table" },
-                        { key: "disable_ebgp_connected_route_check" as const, label: "Disable eBGP Connected Check", desc: "Skip connected route check for eBGP peers" },
-                        { key: "fast_convergence" as const, label: "Fast Convergence", desc: "Speed up best path selection after changes" },
-                        { key: "network_import_check" as const, label: "Network Import Check", desc: "Check BGP network route in RIB before advertising" },
-                        { key: "reject_as_sets" as const, label: "Reject AS-Sets", desc: "Reject routes with AS_SET or AS_CONFED_SET" },
-                        { key: "route_reflector_allow_outbound_policy" as const, label: "RR Allow Outbound Policy", desc: "Apply outbound policy on reflected routes" },
-                        { key: "suppress_fib_pending" as const, label: "Suppress FIB Pending", desc: "Do not advertise routes pending FIB installation" },
-                        { key: "no_suppress_duplicates" as const, label: "No Suppress Duplicates", desc: "Do not suppress duplicate BGP routes" },
-                        { key: "no_ipv6_auto_ra" as const, label: "No IPv6 Auto RA", desc: "Disable automatic IPv6 router advertisements" },
-                        { key: "shutdown" as const, label: "Shutdown", desc: "Administratively shut down BGP", destructive: true },
+                        { key: "log_neighbor_changes" as const },
+                        { key: "always_compare_med" as const },
+                        { key: "deterministic_med" as const },
+                        { key: "ebgp_requires_policy" as const },
+                        { key: "graceful_shutdown" as const },
+                        { key: "no_client_to_client_reflection" as const },
+                        { key: "no_fast_external_failover" as const },
+                        { key: "allow_martian_nexthop" as const },
+                        { key: "disable_ebgp_connected_route_check" as const },
+                        { key: "fast_convergence" as const },
+                        { key: "network_import_check" as const },
+                        { key: "reject_as_sets" as const },
+                        { key: "route_reflector_allow_outbound_policy" as const },
+                        { key: "suppress_fib_pending" as const },
+                        { key: "no_suppress_duplicates" as const },
+                        { key: "no_ipv6_auto_ra" as const },
+                        { key: "shutdown" as const, destructive: true },
                       ] as const).map((item) => {
-                        const { key, label, desc } = item;
+                        const { key } = item;
                         const destructive = "destructive" in item;
                         const params = paramsEditing ? editParams : config?.parameters;
                         const checked = (params?.[key] as boolean) ?? false;
@@ -1402,9 +1405,9 @@ export function BgpContent() {
                                 htmlFor={`param-${key}`}
                                 className={`cursor-pointer text-sm ${destructive ? "text-destructive" : ""}`}
                               >
-                                {label}
+                                {t(`content.params.flags.${key}.label`)}
                               </Label>
-                              <p className="text-xs text-muted-foreground">{desc}</p>
+                              <p className="text-xs text-muted-foreground">{t(`content.params.flags.${key}.desc`)}</p>
                             </div>
                           </div>
                         );
@@ -1416,15 +1419,15 @@ export function BgpContent() {
                 {/* Bestpath Selection */}
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="text-sm font-medium mb-4">Bestpath Selection</h3>
+                    <h3 className="text-sm font-medium mb-4">{t("content.params.bestpathTitle")}</h3>
                     <div className="space-y-3 rounded-lg border p-4">
                       {([
-                        { key: "as_path_confed" as const, label: "AS-Path Confed", desc: "Compare path length including confederation segments" },
-                        { key: "as_path_ignore" as const, label: "AS-Path Ignore", desc: "Ignore AS-path length in best path selection" },
-                        { key: "as_path_multipath_relax" as const, label: "AS-Path Multipath Relax", desc: "Allow load sharing across providers with different AS paths" },
-                        { key: "compare_routerid" as const, label: "Compare Router ID", desc: "Compare router-id for identical eBGP paths" },
-                        { key: "peer_type_multipath_relax" as const, label: "Peer Type Multipath Relax", desc: "Allow load sharing across iBGP and eBGP paths" },
-                      ] as const).map(({ key, label, desc }) => {
+                        { key: "as_path_confed" as const },
+                        { key: "as_path_ignore" as const },
+                        { key: "as_path_multipath_relax" as const },
+                        { key: "compare_routerid" as const },
+                        { key: "peer_type_multipath_relax" as const },
+                      ] as const).map(({ key }) => {
                         const bp = paramsEditing ? editParams?.bestpath : config?.parameters.bestpath;
                         const checked = bp?.[key] ?? false;
                         return (
@@ -1443,8 +1446,8 @@ export function BgpContent() {
                               }}
                             />
                             <div className="flex-1">
-                              <Label htmlFor={`bp-${key}`} className="cursor-pointer text-sm">{label}</Label>
-                              <p className="text-xs text-muted-foreground">{desc}</p>
+                              <Label htmlFor={`bp-${key}`} className="cursor-pointer text-sm">{t(`content.params.bestpath.${key}.label`)}</Label>
+                              <p className="text-xs text-muted-foreground">{t(`content.params.bestpath.${key}.desc`)}</p>
                             </div>
                           </div>
                         );
@@ -1456,17 +1459,17 @@ export function BgpContent() {
                 {/* Administrative Distance */}
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="text-sm font-medium mb-4">Administrative Distance</h3>
+                    <h3 className="text-sm font-medium mb-4">{t("content.params.distanceTitle")}</h3>
                     <div className="grid grid-cols-3 gap-4">
                       {([
-                        { key: "external" as const, label: "External", placeholder: "20" },
-                        { key: "internal" as const, label: "Internal", placeholder: "200" },
-                        { key: "local" as const, label: "Local", placeholder: "200" },
-                      ] as const).map(({ key, label, placeholder }) => {
+                        { key: "external" as const, placeholder: "20" },
+                        { key: "internal" as const, placeholder: "200" },
+                        { key: "local" as const, placeholder: "200" },
+                      ] as const).map(({ key, placeholder }) => {
                         const dg = paramsEditing ? editParams?.distance_global : config?.parameters.distance_global;
                         return (
                           <div key={key} className="space-y-2">
-                            <Label className="text-xs">{label}</Label>
+                            <Label className="text-xs">{t(`content.params.distance.${key}`)}</Label>
                             {paramsEditing && editParams ? (
                               <Input
                                 type="number"
@@ -1485,7 +1488,7 @@ export function BgpContent() {
                               />
                             ) : (
                               <p className="text-sm font-mono p-2 bg-muted rounded-md">
-                                {dg?.[key] ?? <span className="text-muted-foreground">{placeholder} (default)</span>}
+                                {dg?.[key] ?? <span className="text-muted-foreground">{t("content.defaultValue", { value: placeholder })}</span>}
                               </p>
                             )}
                           </div>

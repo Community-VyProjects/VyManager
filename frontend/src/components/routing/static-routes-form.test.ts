@@ -105,13 +105,13 @@ describe("static route create", () => {
   it("rejects a missing destination", () => {
     const draft = emptyStaticRouteDraft("ipv4");
     draft.isBlackhole = true;
-    assert.equal(validateStaticRouteCreate(draft), "Destination is required");
+    assert.equal(validateStaticRouteCreate(draft), "destinationRequired");
   });
 
   it("rejects an IPv4 route with no routing method", () => {
     const draft = emptyStaticRouteDraft("ipv4");
     draft.destination = "10.0.0.0/8";
-    assert.match(validateStaticRouteCreate(draft) ?? "", /routing method/);
+    assert.equal(validateStaticRouteCreate(draft), "routingMethodRequired");
   });
 
   it("emits only the fields the operator filled in", async () => {
@@ -234,7 +234,7 @@ describe("table route", () => {
   });
 
   it("rejects a missing destination on create", () => {
-    assert.equal(validateTableRouteCreate(emptyTableRouteDraft()), "Destination is required");
+    assert.equal(validateTableRouteCreate(emptyTableRouteDraft()), "destinationRequired");
   });
 
   it("sends nothing when the table route is unchanged", async () => {
@@ -263,11 +263,11 @@ describe("table route", () => {
 describe("arp entry", () => {
   it("create requires interface, ip, and mac", () => {
     const draft = emptyArpDraft();
-    assert.equal(validateArpCreate(draft), "Interface is required");
+    assert.equal(validateArpCreate(draft), "interfaceRequired");
     draft.interfaceName = "eth0";
-    assert.equal(validateArpCreate(draft), "IP address is required");
+    assert.equal(validateArpCreate(draft), "ipAddressRequired");
     draft.ipAddress = "192.168.1.50";
-    assert.equal(validateArpCreate(draft), "MAC address is required");
+    assert.equal(validateArpCreate(draft), "macAddressRequired");
   });
 
   it("create emits only filled-in fields", async () => {
@@ -308,11 +308,8 @@ describe("arp entry", () => {
 
 describe("routing table", () => {
   it("create requires a table id in range", () => {
-    assert.equal(validateRoutingTableCreate({ tableId: "", description: "" }), "Table ID is required");
-    assert.match(
-      validateRoutingTableCreate({ tableId: "0", description: "" }) ?? "",
-      /between 1 and 200/,
-    );
+    assert.equal(validateRoutingTableCreate({ tableId: "", description: "" }), "tableIdRequired");
+    assert.equal(validateRoutingTableCreate({ tableId: "0", description: "" }), "tableIdRange");
   });
 
   it("create emits the table and optional description", async () => {

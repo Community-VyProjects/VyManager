@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { InProgress } from "@/components/layout/InProgress";
 import { BfdContent } from "@/components/bfd/BfdContent";
@@ -24,21 +25,20 @@ type InfraType = "bfd" | "mpls" | "segment-routing" | "nhrp" | "rpki" | "traffic
 
 const allInfrastructure: {
   id: InfraType;
-  name: string;
-  description: string;
   icon: React.ComponentType<{ className?: string }>;
   permission: FeatureGroup;
   requiresCapability?: boolean;
 }[] = [
-  { id: "bfd", name: "BFD", description: "Bidirectional Forwarding Detection", icon: Activity, permission: FeatureGroup.BFD },
-  { id: "mpls", name: "MPLS", description: "Multiprotocol Label Switching", icon: Box, permission: FeatureGroup.MPLS },
-  { id: "segment-routing", name: "Segment Routing", description: "Source routing with segments", icon: Waypoints, permission: FeatureGroup.SEGMENT_ROUTING },
-  { id: "nhrp", name: "NHRP", description: "Next Hop Resolution Protocol", icon: Globe, permission: FeatureGroup.NHRP },
-  { id: "rpki", name: "RPKI", description: "Resource Public Key Infrastructure", icon: Shield, permission: FeatureGroup.RPKI },
-  { id: "traffic-engineering", name: "Traffic Engineering", description: "MPLS-TE link parameter configuration", icon: GitBranch, permission: FeatureGroup.TRAFFIC_ENGINEERING, requiresCapability: true },
+  { id: "bfd", icon: Activity, permission: FeatureGroup.BFD },
+  { id: "mpls", icon: Box, permission: FeatureGroup.MPLS },
+  { id: "segment-routing", icon: Waypoints, permission: FeatureGroup.SEGMENT_ROUTING },
+  { id: "nhrp", icon: Globe, permission: FeatureGroup.NHRP },
+  { id: "rpki", icon: Shield, permission: FeatureGroup.RPKI },
+  { id: "traffic-engineering", icon: GitBranch, permission: FeatureGroup.TRAFFIC_ENGINEERING, requiresCapability: true },
 ];
 
 function InfrastructurePageInner() {
+  const t = useTranslations("routingPages");
   const searchParams = useSearchParams();
   const { canRead, isLoading } = usePermissions();
   const [teSupported, setTeSupported] = useState<boolean | null>(null);
@@ -88,9 +88,9 @@ function InfrastructurePageInner() {
             <div className="flex items-center gap-3 mb-2">
               <Settings className="h-6 w-6 text-primary" />
               <div>
-                <h2 className="text-lg font-semibold text-foreground">Routing Infrastructure</h2>
+                <h2 className="text-lg font-semibold text-foreground">{t("infrastructure.title")}</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Advanced routing features
+                  {t("infrastructure.subtitle")}
                 </p>
               </div>
             </div>
@@ -103,11 +103,11 @@ function InfrastructurePageInner() {
             <div className="space-y-1 py-3">
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
-                  <p className="text-sm text-muted-foreground">Loading infrastructure...</p>
+                  <p className="text-sm text-muted-foreground">{t("infrastructure.loading")}</p>
                 </div>
               ) : infrastructure.length === 0 ? (
                 <div className="flex items-center justify-center py-8">
-                  <p className="text-sm text-muted-foreground">No accessible infrastructure</p>
+                  <p className="text-sm text-muted-foreground">{t("infrastructure.empty")}</p>
                 </div>
               ) : (
                 infrastructure.map((infra) => {
@@ -139,14 +139,14 @@ function InfrastructurePageInner() {
                             "font-medium text-sm",
                             selectedInfra === infra.id ? "text-foreground" : "text-foreground"
                           )}>
-                            {infra.name}
+                            {t(`infrastructure.items.${infra.id}.name`)}
                           </span>
                           {selectedInfra === infra.id && (
                             <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
                           )}
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          {infra.description}
+                          {t(`infrastructure.items.${infra.id}.description`)}
                         </span>
                       </div>
                     </div>
@@ -172,7 +172,7 @@ function InfrastructurePageInner() {
             <TrafficEngineeringContent />
           ) : selectedInfra === null ? (
             <div className="flex items-center justify-center h-full">
-              <p className="text-sm text-muted-foreground">Loading infrastructure...</p>
+              <p className="text-sm text-muted-foreground">{t("infrastructure.loading")}</p>
             </div>
           ) : (
             <InProgress />

@@ -24,6 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { AlertCircle, Loader2, Plus, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { showService, InterfaceName } from "@/lib/api/show";
 import type {
   FailoverRoute,
@@ -195,16 +196,18 @@ function InterfaceSelect({
   interfaces: InterfaceName[];
   placeholder?: string;
 }) {
+  const t = useTranslations("failover");
+  const tc = useTranslations("common");
   return (
     <Select
       value={value || "__none__"}
       onValueChange={(v) => onChange(v === "__none__" ? "" : v)}
     >
       <SelectTrigger id={id} className="h-8 text-xs">
-        <SelectValue placeholder={placeholder || "Select interface"} />
+        <SelectValue placeholder={placeholder || t("modal.selectInterface")} />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="__none__">None</SelectItem>
+        <SelectItem value="__none__">{tc("none")}</SelectItem>
         {interfaces.map((iface) => (
           <SelectItem key={iface.name} value={iface.name}>
             <span className="font-mono">{iface.name}</span>
@@ -237,6 +240,8 @@ export function FailoverRouteModal({
   existingRoute,
   capabilities,
 }: FailoverRouteModalProps) {
+  const t = useTranslations("failover");
+  const tc = useTranslations("common");
   const isEditMode = !!existingRoute;
   const showDhcp = capabilities?.features.dhcp_interface.supported ?? false;
   const showTargetProps = capabilities?.features.check_target_properties.supported ?? false;
@@ -376,31 +381,31 @@ export function FailoverRouteModal({
   // ==========================================================================
 
   const validateForm = (): string | null => {
-    if (!destination.trim()) return "Destination is required";
-    if (!destination.includes("/")) return "Destination must be in CIDR format (e.g. 10.0.0.0/24)";
+    if (!destination.trim()) return t("validation.destinationRequired");
+    if (!destination.includes("/")) return t("validation.destinationCidr");
 
     const validNhs = nextHops.filter((nh) => nh.address.trim());
     const validDhcps = dhcpInterfaces.filter((d) => d.name.trim());
 
     if (validNhs.length === 0 && validDhcps.length === 0) {
-      return "At least one next-hop or DHCP interface is required";
+      return t("validation.nextHopOrDhcpRequired");
     }
 
     for (let i = 0; i < validNhs.length; i++) {
       const nh = validNhs[i];
       if (!nh.address.includes(".") && !nh.address.includes(":")) {
-        return `Next-hop #${i + 1}: address must be a valid IP`;
+        return t("validation.nhInvalidAddress", { n: i + 1 });
       }
       if (nh.metric.trim()) {
         const val = parseInt(nh.metric.trim(), 10);
-        if (isNaN(val) || val < 1) return `Next-hop #${i + 1}: metric must be a positive number`;
+        if (isNaN(val) || val < 1) return t("validation.nhMetric", { n: i + 1 });
       }
       if (nh.checkType === "tcp" && !nh.checkPort.trim()) {
-        return `Next-hop #${i + 1}: port is required for TCP check type`;
+        return t("validation.nhTcpPort", { n: i + 1 });
       }
       for (let j = 0; j < nh.targets.length; j++) {
         if (!nh.targets[j].address.trim()) {
-          return `Next-hop #${i + 1}, target #${j + 1}: address is required`;
+          return t("validation.nhTargetAddress", { n: i + 1, m: j + 1 });
         }
       }
     }
@@ -408,11 +413,11 @@ export function FailoverRouteModal({
     for (let i = 0; i < validDhcps.length; i++) {
       const d = validDhcps[i];
       if (d.checkType === "tcp" && !d.checkPort.trim()) {
-        return `DHCP interface #${i + 1}: port is required for TCP check type`;
+        return t("validation.dhcpTcpPort", { n: i + 1 });
       }
       for (let j = 0; j < d.targets.length; j++) {
         if (!d.targets[j].address.trim()) {
-          return `DHCP interface #${i + 1}, target #${j + 1}: address is required`;
+          return t("validation.dhcpTargetAddress", { n: i + 1, m: j + 1 });
         }
       }
     }
@@ -443,7 +448,7 @@ export function FailoverRouteModal({
       await onSubmit(route);
       handleClose();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Operation failed";
+      const message = err instanceof Error ? err.message : tc("operationFailed");
       setError(message);
     } finally {
       setLoading(false);
@@ -464,40 +469,40 @@ export function FailoverRouteModal({
   ) => (
     <div className="space-y-3 mt-3">
       <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-        Health Check
+        {t("healthCheck.title")}
       </h5>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
-          <Label className="text-xs" htmlFor={`${prefix}-check-type`}>Type</Label>
+          <Label className="text-xs" htmlFor={`${prefix}-check-type`}>{t("healthCheck.type")}</Label>
           <Select
             value={entry.checkType || "__none__"}
             onValueChange={(v) => onUpdate({ checkType: v === "__none__" ? "" : v } as Partial<NextHopFormEntry>)}
           >
             <SelectTrigger id={`${prefix}-check-type`} className="h-8 text-xs">
-              <SelectValue placeholder="None" />
+              <SelectValue placeholder={tc("none")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__none__">None</SelectItem>
+              <SelectItem value="__none__">{tc("none")}</SelectItem>
               <SelectItem value="arp">ARP</SelectItem>
               <SelectItem value="icmp">ICMP</SelectItem>
               <SelectItem value="tcp">TCP</SelectItem>
-              <SelectItem value="none">Disabled</SelectItem>
+              <SelectItem value="none">{tc("disabled")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-1">
-          <Label className="text-xs" htmlFor={`${prefix}-check-policy`}>Policy</Label>
+          <Label className="text-xs" htmlFor={`${prefix}-check-policy`}>{t("healthCheck.policy")}</Label>
           <Select
             value={entry.checkPolicy || "__none__"}
             onValueChange={(v) => onUpdate({ checkPolicy: v === "__none__" ? "" : v } as Partial<NextHopFormEntry>)}
           >
             <SelectTrigger id={`${prefix}-check-policy`} className="h-8 text-xs">
-              <SelectValue placeholder="Default" />
+              <SelectValue placeholder={tc("default")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__none__">Default</SelectItem>
-              <SelectItem value="all-pass">All Pass</SelectItem>
-              <SelectItem value="any-pass">Any Pass</SelectItem>
+              <SelectItem value="__none__">{tc("default")}</SelectItem>
+              <SelectItem value="all-pass">{t("healthCheck.allPass")}</SelectItem>
+              <SelectItem value="any-pass">{t("healthCheck.anyPass")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -505,28 +510,28 @@ export function FailoverRouteModal({
       <div className="grid grid-cols-2 gap-3">
         {entry.checkType === "tcp" && (
           <div className="space-y-1">
-            <Label className="text-xs" htmlFor={`${prefix}-check-port`}>Port</Label>
+            <Label className="text-xs" htmlFor={`${prefix}-check-port`}>{t("healthCheck.port")}</Label>
             <Input
               id={`${prefix}-check-port`}
               type="number"
               className="h-8 text-xs"
               value={entry.checkPort}
               onChange={(e) => onUpdate({ checkPort: e.target.value } as Partial<NextHopFormEntry>)}
-              placeholder="e.g. 80"
+              placeholder={t("example", { value: "80" })}
               min={1}
               max={65535}
             />
           </div>
         )}
         <div className="space-y-1">
-          <Label className="text-xs" htmlFor={`${prefix}-check-timeout`}>Timeout</Label>
+          <Label className="text-xs" htmlFor={`${prefix}-check-timeout`}>{t("healthCheck.timeout")}</Label>
           <Input
             id={`${prefix}-check-timeout`}
             type="number"
             className="h-8 text-xs"
             value={entry.checkTimeout}
             onChange={(e) => onUpdate({ checkTimeout: e.target.value } as Partial<NextHopFormEntry>)}
-            placeholder="seconds"
+            placeholder={t("healthCheck.seconds")}
             min={1}
           />
         </div>
@@ -535,7 +540,7 @@ export function FailoverRouteModal({
       {/* Check Targets */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label className="text-xs">Check Targets</Label>
+          <Label className="text-xs">{t("healthCheck.checkTargets")}</Label>
           <Button
             type="button"
             variant="ghost"
@@ -544,7 +549,7 @@ export function FailoverRouteModal({
             onClick={onAddTarget}
           >
             <Plus className="h-3 w-3 mr-1" />
-            Add Target
+            {t("healthCheck.addTarget")}
           </Button>
         </div>
         {entry.targets.map((target, tIndex) => (
@@ -554,7 +559,7 @@ export function FailoverRouteModal({
                 className="h-8 text-xs"
                 value={target.address}
                 onChange={(e) => onUpdateTarget(tIndex, { address: e.target.value })}
-                placeholder="Target IP"
+                placeholder={t("healthCheck.targetIp")}
               />
               {showTargetProps && (
                 <>
@@ -562,14 +567,14 @@ export function FailoverRouteModal({
                     value={target.interface}
                     onChange={(v) => onUpdateTarget(tIndex, { interface: v })}
                     interfaces={availableInterfaces}
-                    placeholder="Interface"
+                    placeholder={t("modal.interface")}
                   />
                   <VrfSelect
                     className="h-8 text-xs"
                     value={target.vrf}
                     onValueChange={(v) => onUpdateTarget(tIndex, { vrf: v })}
                     placeholder="VRF"
-                    extraOptions={[{ label: "Default", value: "default" }]}
+                    extraOptions={[{ label: tc("default"), value: "default" }]}
                   />
                 </>
               )}
@@ -598,12 +603,12 @@ export function FailoverRouteModal({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit Failover Route" : "Add Failover Route"}
+            {isEditMode ? t("modal.editTitle") : t("modal.addTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? `Modify failover route configuration for ${existingRoute?.destination}.`
-              : "Configure a new failover route with health-checked next-hops."}
+              ? t("modal.editDescription", { destination: existingRoute?.destination ?? "" })
+              : t("modal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -611,17 +616,17 @@ export function FailoverRouteModal({
           <div className="space-y-6 pb-2">
             {/* Destination */}
             <div className="space-y-2">
-              <Label htmlFor="failover-destination">Destination</Label>
+              <Label htmlFor="failover-destination">{t("modal.destination")}</Label>
               <Input
                 id="failover-destination"
                 value={destination}
                 onChange={(e) => setDestination(e.target.value)}
-                placeholder="e.g. 10.0.0.0/24"
+                placeholder={t("example", { value: "10.0.0.0/24" })}
                 disabled={isEditMode}
                 className={isEditMode ? "bg-muted" : ""}
               />
               <p className="text-xs text-muted-foreground">
-                Network destination in CIDR notation.
+                {t("modal.destinationHelp")}
               </p>
             </div>
 
@@ -630,7 +635,7 @@ export function FailoverRouteModal({
             {/* Next-Hops Section */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium">Next-Hops</h4>
+                <h4 className="text-sm font-medium">{t("modal.nextHops")}</h4>
                 <Button
                   type="button"
                   variant="outline"
@@ -639,7 +644,7 @@ export function FailoverRouteModal({
                   onClick={() => setNextHops((prev) => [...prev, emptyNextHop()])}
                 >
                   <Plus className="h-3 w-3 mr-1" />
-                  Add Next-Hop
+                  {t("modal.addNextHop")}
                 </Button>
               </div>
 
@@ -647,7 +652,7 @@ export function FailoverRouteModal({
                 <div key={nhIndex} className="rounded-lg border p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-muted-foreground">
-                      Next-Hop #{nhIndex + 1}
+                      {t("modal.nextHopN", { n: nhIndex + 1 })}
                     </span>
                     {nextHops.length > 1 && (
                       <Button
@@ -664,24 +669,24 @@ export function FailoverRouteModal({
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <Label className="text-xs" htmlFor={`nh-${nhIndex}-addr`}>Address *</Label>
+                      <Label className="text-xs" htmlFor={`nh-${nhIndex}-addr`}>{t("modal.addressRequired")}</Label>
                       <Input
                         id={`nh-${nhIndex}-addr`}
                         className="h-8 text-xs"
                         value={nh.address}
                         onChange={(e) => updateNextHop(nhIndex, { address: e.target.value })}
-                        placeholder="e.g. 192.168.1.1"
+                        placeholder={t("example", { value: "192.168.1.1" })}
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs" htmlFor={`nh-${nhIndex}-metric`}>Metric</Label>
+                      <Label className="text-xs" htmlFor={`nh-${nhIndex}-metric`}>{t("modal.metric")}</Label>
                       <Input
                         id={`nh-${nhIndex}-metric`}
                         type="number"
                         className="h-8 text-xs"
                         value={nh.metric}
                         onChange={(e) => updateNextHop(nhIndex, { metric: e.target.value })}
-                        placeholder="e.g. 10"
+                        placeholder={t("example", { value: "10" })}
                         min={1}
                       />
                     </div>
@@ -689,7 +694,7 @@ export function FailoverRouteModal({
 
                   <div className="grid grid-cols-2 gap-3 items-end">
                     <div className="space-y-1">
-                      <Label className="text-xs" htmlFor={`nh-${nhIndex}-iface`}>Interface</Label>
+                      <Label className="text-xs" htmlFor={`nh-${nhIndex}-iface`}>{t("modal.interface")}</Label>
                       <InterfaceSelect
                         id={`nh-${nhIndex}-iface`}
                         value={nh.interface}
@@ -706,7 +711,7 @@ export function FailoverRouteModal({
                         }
                       />
                       <Label htmlFor={`nh-${nhIndex}-onlink`} className="text-xs cursor-pointer">
-                        Onlink
+                        {t("modal.onlink")}
                       </Label>
                     </div>
                   </div>
@@ -729,7 +734,7 @@ export function FailoverRouteModal({
                 <Separator />
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-medium">DHCP Interfaces</h4>
+                    <h4 className="text-sm font-medium">{t("modal.dhcpInterfaces")}</h4>
                     <Button
                       type="button"
                       variant="outline"
@@ -738,13 +743,13 @@ export function FailoverRouteModal({
                       onClick={() => setDhcpInterfaces((prev) => [...prev, emptyDhcpInterface()])}
                     >
                       <Plus className="h-3 w-3 mr-1" />
-                      Add DHCP Interface
+                      {t("modal.addDhcpInterface")}
                     </Button>
                   </div>
 
                   {dhcpInterfaces.length === 0 && (
                     <p className="text-xs text-muted-foreground">
-                      No DHCP interfaces configured. Click &quot;Add DHCP Interface&quot; to add one.
+                      {t("modal.noDhcp")}
                     </p>
                   )}
 
@@ -752,7 +757,7 @@ export function FailoverRouteModal({
                     <div key={dIndex} className="rounded-lg border p-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-medium text-muted-foreground">
-                          DHCP Interface #{dIndex + 1}
+                          {t("modal.dhcpInterfaceN", { n: dIndex + 1 })}
                         </span>
                         <Button
                           type="button"
@@ -767,24 +772,24 @@ export function FailoverRouteModal({
 
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <Label className="text-xs" htmlFor={`dhcp-${dIndex}-name`}>Name *</Label>
+                          <Label className="text-xs" htmlFor={`dhcp-${dIndex}-name`}>{t("modal.nameRequired")}</Label>
                           <InterfaceSelect
                             id={`dhcp-${dIndex}-name`}
                             value={d.name}
                             onChange={(v) => updateDhcpInterface(dIndex, { name: v })}
                             interfaces={availableInterfaces}
-                            placeholder="Select interface"
+                            placeholder={t("modal.selectInterface")}
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-xs" htmlFor={`dhcp-${dIndex}-metric`}>Metric</Label>
+                          <Label className="text-xs" htmlFor={`dhcp-${dIndex}-metric`}>{t("modal.metric")}</Label>
                           <Input
                             id={`dhcp-${dIndex}-metric`}
                             type="number"
                             className="h-8 text-xs"
                             value={d.metric}
                             onChange={(e) => updateDhcpInterface(dIndex, { metric: e.target.value })}
-                            placeholder="e.g. 10"
+                            placeholder={t("example", { value: "10" })}
                             min={1}
                           />
                         </div>
@@ -792,7 +797,7 @@ export function FailoverRouteModal({
 
                       <div className="grid grid-cols-2 gap-3 items-end">
                         <div className="space-y-1">
-                          <Label className="text-xs" htmlFor={`dhcp-${dIndex}-iface`}>Interface</Label>
+                          <Label className="text-xs" htmlFor={`dhcp-${dIndex}-iface`}>{t("modal.interface")}</Label>
                           <InterfaceSelect
                             id={`dhcp-${dIndex}-iface`}
                             value={d.interface}
@@ -809,7 +814,7 @@ export function FailoverRouteModal({
                             }
                           />
                           <Label htmlFor={`dhcp-${dIndex}-onlink`} className="text-xs cursor-pointer">
-                            Onlink
+                            {t("modal.onlink")}
                           </Label>
                         </div>
                       </div>
@@ -840,18 +845,18 @@ export function FailoverRouteModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Creating..."}
+                {isEditMode ? tc("saving") : t("modal.creating")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("modal.saveChanges")
             ) : (
-              "Add Route"
+              t("addRoute")
             )}
           </Button>
         </DialogFooter>

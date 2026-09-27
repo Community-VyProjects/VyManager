@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { RoutingTable } from "@/lib/api/static-routes";
 import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
 import {
@@ -37,6 +38,8 @@ export function RoutingTableModal({
   onSuccess,
   existing,
 }: RoutingTableModalProps) {
+  const t = useTranslations("routingExtras");
+  const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +62,7 @@ export function RoutingTableModal({
     if (!isEdit) {
       const validationError = validateRoutingTableCreate(draft);
       if (validationError) {
-        setError(validationError);
+        setError(t(`validation.${validationError}`));
         return;
       }
     }
@@ -74,13 +77,13 @@ export function RoutingTableModal({
           ? await submitRoutingTableUpdate(existing, draft)
           : await submitRoutingTableCreate(draft);
       if (result && result.success === false) {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
         return;
       }
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : isEdit ? "Failed to update routing table" : "Failed to create routing table");
+      setError(err instanceof Error ? err.message : isEdit ? t("routingTableModal.updateFailed") : t("routingTableModal.createFailed"));
     } finally {
       setLoading(false);
     }
@@ -91,12 +94,12 @@ export function RoutingTableModal({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? `Edit Routing Table ${existing.table_id}` : "Create Routing Table"}
+            {isEdit ? t("routingTableModal.editTitle", { id: String(existing.table_id) }) : t("routingTableModal.createTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Update the description for this routing table"
-              : "Create a custom routing table for policy-based routing"}
+              ? t("routingTableModal.editDescription")
+              : t("routingTableModal.createDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -109,7 +112,7 @@ export function RoutingTableModal({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="table-id">Table ID (1-200)</Label>
+            <Label htmlFor="table-id">{t("routingTableModal.tableId")}</Label>
             <Input
               id="table-id"
               type="number"
@@ -124,10 +127,10 @@ export function RoutingTableModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description (optional)</Label>
+            <Label htmlFor="description">{t("shared.descriptionOptional")}</Label>
             <Input
               id="description"
-              placeholder="Description for this routing table"
+              placeholder={t("routingTableModal.descriptionPlaceholder")}
               value={draft.description}
               onChange={(e) => patch({ description: e.target.value })}
             />
@@ -136,11 +139,11 @@ export function RoutingTableModal({
           {isEdit && (
             <div className="bg-muted/50 rounded-lg p-3 space-y-1">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">IPv4 Routes:</span>
+                <span className="text-muted-foreground">{t("routingTableModal.ipv4Routes")}</span>
                 <span className="font-mono">{existing.ipv4_routes.length}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">IPv6 Routes:</span>
+                <span className="text-muted-foreground">{t("routingTableModal.ipv6Routes")}</span>
                 <span className="font-mono">{existing.ipv6_routes.length}</span>
               </div>
             </div>
@@ -149,11 +152,11 @@ export function RoutingTableModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? "Save Changes" : "Create Table"}
+            {isEdit ? t("shared.saveChanges") : t("routingTableModal.createTable")}
           </Button>
         </DialogFooter>
       </DialogContent>

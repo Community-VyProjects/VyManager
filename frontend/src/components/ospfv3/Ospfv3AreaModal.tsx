@@ -23,6 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
 import type { Ospfv3Area, Ospfv3AreaRange } from "@/lib/api/ospfv3";
+import { useTranslations } from "next-intl";
 
 interface Ospfv3AreaModalProps {
   open: boolean;
@@ -39,6 +40,8 @@ export function Ospfv3AreaModal({
   existingArea,
   accessListNames = [],
 }: Ospfv3AreaModalProps) {
+  const t = useTranslations("ospfv3");
+  const tc = useTranslations("common");
   const isEditMode = !!existingArea;
 
   const [areaId, setAreaId] = useState("");
@@ -95,7 +98,7 @@ export function Ospfv3AreaModal({
     const prefix = newRangePrefix.trim();
     if (!prefix) return;
     if (ranges.some(r => r.prefix === prefix)) {
-      setError("Range prefix already exists");
+      setError(t("areaModal.rangeExists"));
       return;
     }
     setRanges([...ranges, {
@@ -113,7 +116,7 @@ export function Ospfv3AreaModal({
   };
 
   const validateForm = (): string | null => {
-    if (!areaId.trim()) return "Area ID is required";
+    if (!areaId.trim()) return t("areaModal.areaIdRequired");
     return null;
   };
 
@@ -142,7 +145,7 @@ export function Ospfv3AreaModal({
       await onSubmit(area);
       handleClose();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Operation failed";
+      const message = err instanceof Error ? err.message : tc("operationFailed");
       setError(message);
     } finally {
       setLoading(false);
@@ -156,12 +159,12 @@ export function Ospfv3AreaModal({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit OSPFv3 Area" : "Add OSPFv3 Area"}
+            {isEditMode ? t("areaModal.titleEdit") : t("areaModal.titleAdd")}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? `Modify OSPFv3 area ${existingArea?.area_id} configuration.`
-              : "Configure a new OSPFv3 area for IPv6 routing."}
+              ? t("areaModal.descriptionEdit", { areaId: existingArea?.area_id ?? "" })
+              : t("areaModal.descriptionAdd")}
           </DialogDescription>
         </DialogHeader>
 
@@ -169,30 +172,30 @@ export function Ospfv3AreaModal({
           <div className="space-y-4 pb-2">
             {/* Area ID */}
             <div className="space-y-2">
-              <Label htmlFor="ospfv3-area-id">Area ID</Label>
+              <Label htmlFor="ospfv3-area-id">{t("fields.areaId")}</Label>
               <Input
                 id="ospfv3-area-id"
                 value={areaId}
                 onChange={(e) => setAreaId(e.target.value)}
-                placeholder="0.0.0.0 or integer"
+                placeholder={t("areaModal.areaIdPlaceholder")}
                 disabled={isEditMode}
                 className={isEditMode ? "bg-muted" : ""}
               />
               <p className="text-xs text-muted-foreground">
-                Area identifier in dotted-decimal or integer format.
+                {t("areaModal.areaIdHelp")}
               </p>
             </div>
 
             {/* Area Type */}
             <div className="space-y-2">
-              <Label htmlFor="ospfv3-area-type">Area Type</Label>
+              <Label htmlFor="ospfv3-area-type">{t("areaModal.areaType")}</Label>
               <Select value={areaType} onValueChange={setAreaType}>
                 <SelectTrigger id="ospfv3-area-type">
-                  <SelectValue placeholder="Normal (default)" />
+                  <SelectValue placeholder={t("areaModal.areaTypePlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="normal">Normal</SelectItem>
-                  <SelectItem value="stub">Stub</SelectItem>
+                  <SelectItem value="normal">{t("areaModal.normal")}</SelectItem>
+                  <SelectItem value="stub">{t("areaModal.stub")}</SelectItem>
                   <SelectItem value="nssa">NSSA</SelectItem>
                 </SelectContent>
               </Select>
@@ -208,17 +211,17 @@ export function Ospfv3AreaModal({
                     onCheckedChange={(checked) => setNoSummary(checked === true)}
                   />
                   <Label htmlFor="ospfv3-area-no-summary" className="cursor-pointer">
-                    No Summary (Totally {areaType === "stub" ? "Stubby" : "NSSA"})
+                    {areaType === "stub" ? t("areaModal.noSummaryStub") : t("areaModal.noSummaryNssa")}
                   </Label>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ospfv3-area-default-cost">Default Cost</Label>
+                  <Label htmlFor="ospfv3-area-default-cost">{t("areaModal.defaultCost")}</Label>
                   <Input
                     id="ospfv3-area-default-cost"
                     type="number"
                     value={defaultCost}
                     onChange={(e) => setDefaultCost(e.target.value)}
-                    placeholder="Default cost for injected default route"
+                    placeholder={t("areaModal.defaultCostPlaceholder")}
                     min={0}
                   />
                 </div>
@@ -230,7 +233,7 @@ export function Ospfv3AreaModal({
                       onCheckedChange={(checked) => setNssaDefaultOriginate(checked === true)}
                     />
                     <Label htmlFor="ospfv3-area-nssa-originate" className="cursor-pointer">
-                      Default Information Originate
+                      {t("fields.defaultInformation")}
                     </Label>
                   </div>
                 )}
@@ -239,12 +242,12 @@ export function Ospfv3AreaModal({
 
             {/* Ranges */}
             <div className="space-y-2">
-              <Label>Ranges</Label>
+              <Label>{t("fields.ranges")}</Label>
               <div className="flex gap-2">
                 <Input
                   value={newRangePrefix}
                   onChange={(e) => setNewRangePrefix(e.target.value)}
-                  placeholder="e.g. 2001:db8::/32"
+                  placeholder={t("areaModal.rangePlaceholder")}
                   onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addRange())}
                   className="flex-1"
                 />
@@ -256,8 +259,8 @@ export function Ospfv3AreaModal({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="advertise">Advertise</SelectItem>
-                    <SelectItem value="not-advertise">Not Advertise</SelectItem>
+                    <SelectItem value="advertise">{t("areaModal.advertise")}</SelectItem>
+                    <SelectItem value="not-advertise">{t("areaModal.notAdvertise")}</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button type="button" variant="outline" size="icon" onClick={addRange}>
@@ -271,7 +274,7 @@ export function Ospfv3AreaModal({
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-mono">{range.prefix}</span>
                         <span className="text-xs text-muted-foreground">
-                          ({range.not_advertise ? "not advertised" : "advertised"})
+                          ({range.not_advertise ? t("areaModal.notAdvertised") : t("areaModal.advertised")})
                         </span>
                       </div>
                       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeRange(idx)}>
@@ -282,23 +285,23 @@ export function Ospfv3AreaModal({
                 </div>
               )}
               <p className="text-xs text-muted-foreground">
-                IPv6 CIDR prefixes to summarize in this area.
+                {t("areaModal.rangesHelp")}
               </p>
             </div>
 
             {/* Export/Import Lists */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="ospfv3-area-export">Export List</Label>
+                <Label htmlFor="ospfv3-area-export">{t("fields.exportList")}</Label>
                 <Select
                   value={exportList}
                   onValueChange={(v) => setExportList(v === "__none__" ? "" : v)}
                 >
                   <SelectTrigger id="ospfv3-area-export">
-                    <SelectValue placeholder="None" />
+                    <SelectValue placeholder={tc("none")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">None</SelectItem>
+                    <SelectItem value="__none__">{tc("none")}</SelectItem>
                     {accessListNames.map((name) => (
                       <SelectItem key={name} value={name}>{name}</SelectItem>
                     ))}
@@ -306,16 +309,16 @@ export function Ospfv3AreaModal({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ospfv3-area-import">Import List</Label>
+                <Label htmlFor="ospfv3-area-import">{t("fields.importList")}</Label>
                 <Select
                   value={importList}
                   onValueChange={(v) => setImportList(v === "__none__" ? "" : v)}
                 >
                   <SelectTrigger id="ospfv3-area-import">
-                    <SelectValue placeholder="None" />
+                    <SelectValue placeholder={tc("none")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">None</SelectItem>
+                    <SelectItem value="__none__">{tc("none")}</SelectItem>
                     {accessListNames.map((name) => (
                       <SelectItem key={name} value={name}>{name}</SelectItem>
                     ))}
@@ -335,18 +338,18 @@ export function Ospfv3AreaModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Creating..."}
+                {isEditMode ? tc("saving") : t("fields.creating")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("fields.saveChanges")
             ) : (
-              "Add Area"
+              t("fields.addArea")
             )}
           </Button>
         </DialogFooter>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -94,6 +95,8 @@ export function BgpNeighborModal({
   bfdProfileNames,
   capabilities,
 }: BgpNeighborModalProps) {
+  const t = useTranslations("bgp");
+  const tc = useTranslations("common");
   const isEditMode = !!existingNeighbor;
 
   // --------------------------------------------------------------------------
@@ -336,10 +339,10 @@ export function BgpNeighborModal({
   // --------------------------------------------------------------------------
   const validateForm = (): string | null => {
     if (!address.trim()) {
-      return "Neighbor address is required.";
+      return t("neighborModal.addressRequired");
     }
     if (!address.includes(".") && !address.includes(":")) {
-      return "Neighbor address must be a valid IPv4 or IPv6 address.";
+      return t("neighborModal.addressInvalid");
     }
     return null;
   };
@@ -423,7 +426,7 @@ export function BgpNeighborModal({
       handleClose();
     } catch (err: unknown) {
       const message =
-        err instanceof Error ? err.message : "Operation failed";
+        err instanceof Error ? err.message : tc("operationFailed");
       setError(message);
     } finally {
       setLoading(false);
@@ -438,12 +441,12 @@ export function BgpNeighborModal({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit BGP Neighbor" : "Add BGP Neighbor"}
+            {isEditMode ? t("neighborModal.editTitle") : t("neighborModal.addTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? `Modify the BGP neighbor configuration for ${existingNeighbor?.address}.`
-              : "Configure a new BGP neighbor session."}
+              ? t("neighborModal.editDescription", { address: existingNeighbor?.address ?? "" })
+              : t("neighborModal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -453,59 +456,58 @@ export function BgpNeighborModal({
             {/* SECTION 1 - BASIC SETTINGS                                   */}
             {/* ============================================================ */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium">Basic Settings</h4>
+              <h4 className="text-sm font-medium">{t("form.basicSettings")}</h4>
               <div className="space-y-4 rounded-lg border p-3">
                 {/* Address */}
                 <div className="space-y-2">
-                  <Label htmlFor="bgp-neighbor-address">Address</Label>
+                  <Label htmlFor="bgp-neighbor-address">{t("neighborModal.address")}</Label>
                   <Input
                     id="bgp-neighbor-address"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    placeholder="e.g. 192.0.2.1 or 2001:db8::1"
+                    placeholder={t("neighborModal.addressPlaceholder")}
                     disabled={isEditMode}
                     className={isEditMode ? "bg-muted" : ""}
                   />
                   <p className="text-xs text-muted-foreground">
-                    IPv4 or IPv6 address of the BGP neighbor.
+                    {t("neighborModal.addressHelp")}
                   </p>
                 </div>
 
                 {/* Remote AS */}
                 <div className="space-y-2">
-                  <Label htmlFor="bgp-neighbor-remote-as">Remote AS</Label>
+                  <Label htmlFor="bgp-neighbor-remote-as">{t("form.remoteAs")}</Label>
                   <Input
                     id="bgp-neighbor-remote-as"
                     value={remoteAs}
                     onChange={(e) => setRemoteAs(e.target.value)}
-                    placeholder='e.g. 65001, "internal", or "external"'
+                    placeholder={t("neighborModal.remoteAsPlaceholder")}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Autonomous System number, or &quot;internal&quot; /
-                    &quot;external&quot;.
+                    {t("neighborModal.remoteAsHelp")}
                   </p>
                 </div>
 
                 {/* Description */}
                 <div className="space-y-2">
-                  <Label htmlFor="bgp-neighbor-description">Description</Label>
+                  <Label htmlFor="bgp-neighbor-description">{tc("description")}</Label>
                   <Input
                     id="bgp-neighbor-description"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Optional description"
+                    placeholder={t("neighborModal.descriptionPlaceholder")}
                   />
                 </div>
 
                 {/* Peer Group */}
                 <div className="space-y-2">
-                  <Label htmlFor="bgp-neighbor-peer-group">Peer Group</Label>
+                  <Label htmlFor="bgp-neighbor-peer-group">{t("form.peerGroup")}</Label>
                   <Select value={peerGroup || "__none__"} onValueChange={setPeerGroup}>
                     <SelectTrigger id="bgp-neighbor-peer-group">
-                      <SelectValue placeholder="Select peer group (optional)" />
+                      <SelectValue placeholder={t("neighborModal.peerGroupPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">None</SelectItem>
+                      <SelectItem value="__none__">{tc("none")}</SelectItem>
                       {peerGroups.map((pg) => (
                         <SelectItem key={pg} value={pg}>
                           {pg}
@@ -518,16 +520,16 @@ export function BgpNeighborModal({
                 {/* Update Source */}
                 <div className="space-y-2">
                   <Label htmlFor="bgp-neighbor-update-source">
-                    Update Source
+                    {t("form.updateSource")}
                   </Label>
                   <Input
                     id="bgp-neighbor-update-source"
                     value={updateSource}
                     onChange={(e) => setUpdateSource(e.target.value)}
-                    placeholder="e.g. eth0 or 192.0.2.1"
+                    placeholder={t("form.updateSourcePlaceholder")}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Source address or interface for BGP sessions.
+                    {t("neighborModal.updateSourceHelp")}
                   </p>
                 </div>
               </div>
@@ -537,7 +539,7 @@ export function BgpNeighborModal({
             {/* SECTION 2 - STATUS & OPTIONS                                 */}
             {/* ============================================================ */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium">Status &amp; Options</h4>
+              <h4 className="text-sm font-medium">{t("form.statusOptions")}</h4>
               <div className="space-y-3 rounded-lg border p-3">
                 {/* Shutdown */}
                 <div className="flex items-center space-x-3">
@@ -553,10 +555,10 @@ export function BgpNeighborModal({
                       htmlFor="bgp-neighbor-shutdown"
                       className="cursor-pointer text-destructive"
                     >
-                      Shutdown
+                      {t("form.shutdown")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Administratively disable this neighbor.
+                      {t("neighborModal.shutdownHelp")}
                     </p>
                   </div>
                 </div>
@@ -575,10 +577,10 @@ export function BgpNeighborModal({
                       htmlFor="bgp-neighbor-passive"
                       className="cursor-pointer"
                     >
-                      Passive
+                      {t("form.passive")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Do not initiate a session; wait for remote peer.
+                      {t("neighborModal.passiveHelp")}
                     </p>
                   </div>
                 </div>
@@ -595,10 +597,10 @@ export function BgpNeighborModal({
                       htmlFor="bgp-neighbor-solo"
                       className="cursor-pointer"
                     >
-                      Solo
+                      {t("neighborModal.solo")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Solo peer (single adjacency in a group).
+                      {t("neighborModal.soloHelp")}
                     </p>
                   </div>
                 </div>
@@ -617,10 +619,10 @@ export function BgpNeighborModal({
                       htmlFor="bgp-neighbor-enforce-first-as"
                       className="cursor-pointer"
                     >
-                      Enforce First AS
+                      {t("neighborModal.enforceFirstAs")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Enforce the first AS in the AS path from this neighbor.
+                      {t("neighborModal.enforceFirstAsHelp")}
                     </p>
                   </div>
                 </div>
@@ -639,10 +641,10 @@ export function BgpNeighborModal({
                       htmlFor="bgp-neighbor-override-capability"
                       className="cursor-pointer"
                     >
-                      Override Capability
+                      {t("form.overrideCapability")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Override capability negotiation result.
+                      {t("form.overrideCapabilityHelp")}
                     </p>
                   </div>
                 </div>
@@ -661,10 +663,10 @@ export function BgpNeighborModal({
                       htmlFor="bgp-neighbor-disable-cap-negotiation"
                       className="cursor-pointer"
                     >
-                      Disable Capability Negotiation
+                      {t("form.disableCapNeg")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Suppress sending capability negotiation.
+                      {t("neighborModal.disableCapNegHelp")}
                     </p>
                   </div>
                 </div>
@@ -683,11 +685,10 @@ export function BgpNeighborModal({
                       htmlFor="bgp-neighbor-disable-connected-check"
                       className="cursor-pointer"
                     >
-                      Disable Connected Check
+                      {t("form.disableConnectedCheck")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Allow peering with eBGP neighbors not on a directly
-                      connected network.
+                      {t("neighborModal.disableConnectedCheckHelp")}
                     </p>
                   </div>
                 </div>
@@ -714,11 +715,10 @@ export function BgpNeighborModal({
                       htmlFor="bgp-neighbor-bfd-enabled"
                       className="cursor-pointer"
                     >
-                      Enable BFD
+                      {t("form.enableBfd")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Enable Bidirectional Forwarding Detection for this
-                      neighbor.
+                      {t("neighborModal.bfdHelp")}
                     </p>
                   </div>
                 </div>
@@ -739,23 +739,23 @@ export function BgpNeighborModal({
                           htmlFor="bgp-neighbor-bfd-control-plane"
                           className="cursor-pointer"
                         >
-                          Check Control Plane Failure
+                          {t("form.checkControlPlane")}
                         </Label>
                         <p className="text-xs text-muted-foreground">
-                          Detect control-plane failures via BFD.
+                          {t("neighborModal.checkControlPlaneHelp")}
                         </p>
                       </div>
                     </div>
 
                     {/* BFD Profile */}
                     <div className="space-y-2">
-                      <Label>BFD Profile</Label>
+                      <Label>{t("form.bfdProfile")}</Label>
                       <Select value={bfdProfile || "__none__"} onValueChange={(v) => setBfdProfile(v === "__none__" ? "" : v)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="None" />
+                          <SelectValue placeholder={tc("none")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="__none__">None</SelectItem>
+                          <SelectItem value="__none__">{tc("none")}</SelectItem>
                           {bfdProfileNames.map((name) => (
                             <SelectItem key={name} value={name}>{name}</SelectItem>
                           ))}
@@ -771,7 +771,7 @@ export function BgpNeighborModal({
             {/* SECTION 4 - CAPABILITY                                       */}
             {/* ============================================================ */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium">Capability</h4>
+              <h4 className="text-sm font-medium">{t("form.capability")}</h4>
               <div className="space-y-3 rounded-lg border p-3">
                 {/* Dynamic */}
                 <div className="flex items-center space-x-3">
@@ -787,10 +787,10 @@ export function BgpNeighborModal({
                       htmlFor="bgp-neighbor-cap-dynamic"
                       className="cursor-pointer"
                     >
-                      Dynamic
+                      {t("form.dynamic")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Advertise dynamic capability.
+                      {t("neighborModal.dynamicHelp")}
                     </p>
                   </div>
                 </div>
@@ -809,10 +809,10 @@ export function BgpNeighborModal({
                       htmlFor="bgp-neighbor-cap-extended-nexthop"
                       className="cursor-pointer"
                     >
-                      Extended Nexthop
+                      {t("form.extendedNexthop")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Advertise extended nexthop capability.
+                      {t("form.extendedNexthopHelp")}
                     </p>
                   </div>
                 </div>
@@ -831,10 +831,10 @@ export function BgpNeighborModal({
                       htmlFor="bgp-neighbor-cap-software-version"
                       className="cursor-pointer"
                     >
-                      Software Version
+                      {t("form.softwareVersion")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Advertise software version capability.
+                      {t("form.softwareVersionHelp")}
                     </p>
                   </div>
                 </div>
@@ -845,19 +845,19 @@ export function BgpNeighborModal({
             {/* SECTION 5 - TIMERS                                           */}
             {/* ============================================================ */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium">Timers</h4>
+              <h4 className="text-sm font-medium">{t("neighborModal.timers")}</h4>
               <div className="grid grid-cols-3 gap-4 rounded-lg border p-3">
                 {/* Connect Timer */}
                 <div className="space-y-2">
                   <Label htmlFor="bgp-neighbor-timer-connect">
-                    Connect Timer
+                    {t("neighborModal.connectTimer")}
                   </Label>
                   <Input
                     id="bgp-neighbor-timer-connect"
                     type="number"
                     value={timerConnect}
                     onChange={(e) => setTimerConnect(e.target.value)}
-                    placeholder="Seconds"
+                    placeholder={t("neighborModal.seconds")}
                     min={1}
                   />
                 </div>
@@ -865,27 +865,27 @@ export function BgpNeighborModal({
                 {/* Keepalive */}
                 <div className="space-y-2">
                   <Label htmlFor="bgp-neighbor-timer-keepalive">
-                    Keepalive
+                    {t("neighborModal.keepalive")}
                   </Label>
                   <Input
                     id="bgp-neighbor-timer-keepalive"
                     type="number"
                     value={timerKeepalive}
                     onChange={(e) => setTimerKeepalive(e.target.value)}
-                    placeholder="Seconds"
+                    placeholder={t("neighborModal.seconds")}
                     min={1}
                   />
                 </div>
 
                 {/* Holdtime */}
                 <div className="space-y-2">
-                  <Label htmlFor="bgp-neighbor-timer-holdtime">Holdtime</Label>
+                  <Label htmlFor="bgp-neighbor-timer-holdtime">{t("neighborModal.holdtime")}</Label>
                   <Input
                     id="bgp-neighbor-timer-holdtime"
                     type="number"
                     value={timerHoldtime}
                     onChange={(e) => setTimerHoldtime(e.target.value)}
-                    placeholder="Seconds"
+                    placeholder={t("neighborModal.seconds")}
                     min={0}
                   />
                 </div>
@@ -896,20 +896,20 @@ export function BgpNeighborModal({
             {/* SECTION 6 - ADVANCED                                         */}
             {/* ============================================================ */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium">Advanced</h4>
+              <h4 className="text-sm font-medium">{t("form.advanced")}</h4>
               <div className="space-y-4 rounded-lg border p-3">
                 <div className="grid grid-cols-2 gap-4">
                   {/* eBGP Multihop */}
                   <div className="space-y-2">
                     <Label htmlFor="bgp-neighbor-ebgp-multihop">
-                      eBGP Multihop
+                      {t("form.ebgpMultihop")}
                     </Label>
                     <Input
                       id="bgp-neighbor-ebgp-multihop"
                       type="number"
                       value={ebgpMultihop}
                       onChange={(e) => setEbgpMultihop(e.target.value)}
-                      placeholder="Max hops (1-255)"
+                      placeholder={t("neighborModal.ebgpMultihopPlaceholder")}
                       min={1}
                       max={255}
                     />
@@ -918,7 +918,7 @@ export function BgpNeighborModal({
                   {/* Advertisement Interval */}
                   <div className="space-y-2">
                     <Label htmlFor="bgp-neighbor-adv-interval">
-                      Advertisement Interval
+                      {t("neighborModal.advertisementInterval")}
                     </Label>
                     <Input
                       id="bgp-neighbor-adv-interval"
@@ -927,7 +927,7 @@ export function BgpNeighborModal({
                       onChange={(e) =>
                         setAdvertisementInterval(e.target.value)
                       }
-                      placeholder="Seconds"
+                      placeholder={t("neighborModal.seconds")}
                       min={0}
                     />
                   </div>
@@ -935,7 +935,7 @@ export function BgpNeighborModal({
                   {/* TTL Security Hops */}
                   <div className="space-y-2">
                     <Label htmlFor="bgp-neighbor-ttl-security-hops">
-                      TTL Security Hops
+                      {t("form.ttlSecurityHops")}
                     </Label>
                     <Input
                       id="bgp-neighbor-ttl-security-hops"
@@ -950,7 +950,7 @@ export function BgpNeighborModal({
 
                   {/* Port */}
                   <div className="space-y-2">
-                    <Label htmlFor="bgp-neighbor-port">Port</Label>
+                    <Label htmlFor="bgp-neighbor-port">{t("neighborModal.port")}</Label>
                     <Input
                       id="bgp-neighbor-port"
                       type="number"
@@ -965,33 +965,33 @@ export function BgpNeighborModal({
 
                 {/* Password */}
                 <div className="space-y-2">
-                  <Label htmlFor="bgp-neighbor-password">Password</Label>
+                  <Label htmlFor="bgp-neighbor-password">{t("form.password")}</Label>
                   <Input
                     id="bgp-neighbor-password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="BGP session password (optional)"
+                    placeholder={t("neighborModal.passwordPlaceholder")}
                   />
                 </div>
 
                 {/* Graceful Restart */}
                 <div className="space-y-2">
                   <Label htmlFor="bgp-neighbor-graceful-restart">
-                    Graceful Restart
+                    {t("form.gracefulRestart")}
                   </Label>
                   <Select
                     value={gracefulRestart || "__none__"}
                     onValueChange={setGracefulRestart}
                   >
                     <SelectTrigger id="bgp-neighbor-graceful-restart">
-                      <SelectValue placeholder="Select graceful restart mode" />
+                      <SelectValue placeholder={t("form.gracefulRestartPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">None</SelectItem>
-                      <SelectItem value="enable">Enable</SelectItem>
-                      <SelectItem value="disable">Disable</SelectItem>
-                      <SelectItem value="restart">Restart</SelectItem>
+                      <SelectItem value="__none__">{tc("none")}</SelectItem>
+                      <SelectItem value="enable">{t("form.grEnable")}</SelectItem>
+                      <SelectItem value="disable">{t("form.grDisable")}</SelectItem>
+                      <SelectItem value="restart">{t("form.grRestart")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -999,13 +999,13 @@ export function BgpNeighborModal({
                 {/* Local AS Number */}
                 <div className="space-y-2">
                   <Label htmlFor="bgp-neighbor-local-as">
-                    Local AS Number
+                    {t("form.localAs")}
                   </Label>
                   <Input
                     id="bgp-neighbor-local-as"
                     value={localAsAsn}
                     onChange={(e) => setLocalAsAsn(e.target.value)}
-                    placeholder="Local AS number"
+                    placeholder={t("neighborModal.localAsPlaceholder")}
                   />
                 </div>
                 {localAsAsn.trim() && (
@@ -1022,11 +1022,10 @@ export function BgpNeighborModal({
                         htmlFor="bgp-neighbor-local-as-no-prepend"
                         className="cursor-pointer"
                       >
-                        No Prepend Replace AS
+                        {t("form.noPrependReplaceAs")}
                       </Label>
                       <p className="text-xs text-muted-foreground">
-                        Do not prepend local-as to updates from this peer and
-                        replace the real AS in the AS path.
+                        {t("neighborModal.noPrependHelp")}
                       </p>
                     </div>
                   </div>
@@ -1037,22 +1036,22 @@ export function BgpNeighborModal({
                   <>
                     <div className="space-y-2">
                       <Label htmlFor="bgp-neighbor-local-role">
-                        Local Role
+                        {t("form.localRole")}
                       </Label>
                       <Select
                         value={localRole || "__none__"}
                         onValueChange={setLocalRole}
                       >
                         <SelectTrigger id="bgp-neighbor-local-role">
-                          <SelectValue placeholder="Select local role (optional)" />
+                          <SelectValue placeholder={t("neighborModal.localRolePlaceholder")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="__none__">None</SelectItem>
-                          <SelectItem value="provider">Provider</SelectItem>
-                          <SelectItem value="customer">Customer</SelectItem>
-                          <SelectItem value="rs-server">RS Server</SelectItem>
-                          <SelectItem value="rs-client">RS Client</SelectItem>
-                          <SelectItem value="peer">Peer</SelectItem>
+                          <SelectItem value="__none__">{tc("none")}</SelectItem>
+                          <SelectItem value="provider">{t("form.roleProvider")}</SelectItem>
+                          <SelectItem value="customer">{t("form.roleCustomer")}</SelectItem>
+                          <SelectItem value="rs-server">{t("form.roleRsServer")}</SelectItem>
+                          <SelectItem value="rs-client">{t("form.roleRsClient")}</SelectItem>
+                          <SelectItem value="peer">{t("form.rolePeer")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1070,10 +1069,10 @@ export function BgpNeighborModal({
                             htmlFor="bgp-neighbor-local-role-strict"
                             className="cursor-pointer"
                           >
-                            Strict Mode
+                            {t("form.strictMode")}
                           </Label>
                           <p className="text-xs text-muted-foreground">
-                            Require the remote peer to send the correct role.
+                            {t("neighborModal.strictModeHelp")}
                           </p>
                         </div>
                       </div>
@@ -1087,11 +1086,11 @@ export function BgpNeighborModal({
             {/* SECTION 7 - ADDRESS FAMILIES                                 */}
             {/* ============================================================ */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium">Address Families</h4>
+              <h4 className="text-sm font-medium">{t("form.addressFamilies")}</h4>
               <div className="space-y-4 rounded-lg border p-3">
                 {availableAFIs.length === 0 && (
                   <p className="text-sm text-muted-foreground">
-                    No address family types available. Load capabilities first.
+                    {t("neighborModal.noAfTypes")}
                   </p>
                 )}
 
@@ -1122,7 +1121,7 @@ export function BgpNeighborModal({
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <Label htmlFor={`bgp-af-${afi}-rm-import`}>
-                                Route Map Import
+                                {t("form.routeMapImport")}
                               </Label>
                               <Select
                                 value={afConfig.route_map_import || "__none__"}
@@ -1135,10 +1134,10 @@ export function BgpNeighborModal({
                                 }
                               >
                                 <SelectTrigger id={`bgp-af-${afi}-rm-import`}>
-                                  <SelectValue placeholder="None" />
+                                  <SelectValue placeholder={tc("none")} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="__none__">None</SelectItem>
+                                  <SelectItem value="__none__">{tc("none")}</SelectItem>
                                   {routeMapNames.map((name) => (
                                     <SelectItem key={name} value={name}>{name}</SelectItem>
                                   ))}
@@ -1147,7 +1146,7 @@ export function BgpNeighborModal({
                             </div>
                             <div className="space-y-2">
                               <Label htmlFor={`bgp-af-${afi}-rm-export`}>
-                                Route Map Export
+                                {t("form.routeMapExport")}
                               </Label>
                               <Select
                                 value={afConfig.route_map_export || "__none__"}
@@ -1160,10 +1159,10 @@ export function BgpNeighborModal({
                                 }
                               >
                                 <SelectTrigger id={`bgp-af-${afi}-rm-export`}>
-                                  <SelectValue placeholder="None" />
+                                  <SelectValue placeholder={tc("none")} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="__none__">None</SelectItem>
+                                  <SelectItem value="__none__">{tc("none")}</SelectItem>
                                   {routeMapNames.map((name) => (
                                     <SelectItem key={name} value={name}>{name}</SelectItem>
                                   ))}
@@ -1191,7 +1190,7 @@ export function BgpNeighborModal({
                                 htmlFor={`bgp-af-${afi}-soft-reconfig`}
                                 className="cursor-pointer"
                               >
-                                Soft Reconfiguration Inbound
+                                {t("form.softReconfig")}
                               </Label>
                             </div>
 
@@ -1212,7 +1211,7 @@ export function BgpNeighborModal({
                                 htmlFor={`bgp-af-${afi}-nexthop-self`}
                                 className="cursor-pointer"
                               >
-                                Next-Hop Self
+                                {t("neighborModal.nexthopSelf")}
                               </Label>
                             </div>
 
@@ -1234,7 +1233,7 @@ export function BgpNeighborModal({
                                   htmlFor={`bgp-af-${afi}-nexthop-self-force`}
                                   className="cursor-pointer"
                                 >
-                                  Force
+                                  {t("neighborModal.force")}
                                 </Label>
                               </div>
                             )}
@@ -1256,7 +1255,7 @@ export function BgpNeighborModal({
                                 htmlFor={`bgp-af-${afi}-rr-client`}
                                 className="cursor-pointer"
                               >
-                                Route Reflector Client
+                                {t("form.routeReflectorClient")}
                               </Label>
                             </div>
 
@@ -1277,7 +1276,7 @@ export function BgpNeighborModal({
                                 htmlFor={`bgp-af-${afi}-default-originate`}
                                 className="cursor-pointer"
                               >
-                                Default Originate
+                                {t("neighborModal.defaultOriginate")}
                               </Label>
                             </div>
 
@@ -1287,7 +1286,7 @@ export function BgpNeighborModal({
                                 <Label
                                   htmlFor={`bgp-af-${afi}-default-originate-rm`}
                                 >
-                                  Default Originate Route Map
+                                  {t("neighborModal.defaultOriginateRouteMap")}
                                 </Label>
                                 <Select
                                   value={afConfig.default_originate_route_map || "__none__"}
@@ -1300,10 +1299,10 @@ export function BgpNeighborModal({
                                   }
                                 >
                                   <SelectTrigger id={`bgp-af-${afi}-default-originate-rm`}>
-                                    <SelectValue placeholder="None" />
+                                    <SelectValue placeholder={tc("none")} />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="__none__">None</SelectItem>
+                                    <SelectItem value="__none__">{tc("none")}</SelectItem>
                                     {routeMapNames.map((name) => (
                                       <SelectItem key={name} value={name}>{name}</SelectItem>
                                     ))}
@@ -1329,7 +1328,7 @@ export function BgpNeighborModal({
                                 htmlFor={`bgp-af-${afi}-as-override`}
                                 className="cursor-pointer"
                               >
-                                AS Override
+                                {t("neighborModal.asOverride")}
                               </Label>
                             </div>
 
@@ -1350,7 +1349,7 @@ export function BgpNeighborModal({
                                 htmlFor={`bgp-af-${afi}-remove-private-as`}
                                 className="cursor-pointer"
                               >
-                                Remove Private AS
+                                {t("neighborModal.removePrivateAs")}
                               </Label>
                             </div>
 
@@ -1372,7 +1371,7 @@ export function BgpNeighborModal({
                                   htmlFor={`bgp-af-${afi}-remove-private-as-all`}
                                   className="cursor-pointer"
                                 >
-                                  All
+                                  {t("neighborModal.all")}
                                 </Label>
                               </div>
                             )}
@@ -1383,7 +1382,7 @@ export function BgpNeighborModal({
                             {/* Maximum Prefix */}
                             <div className="space-y-2">
                               <Label htmlFor={`bgp-af-${afi}-max-prefix`}>
-                                Maximum Prefix
+                                {t("neighborModal.maximumPrefix")}
                               </Label>
                               <Input
                                 id={`bgp-af-${afi}-max-prefix`}
@@ -1402,7 +1401,7 @@ export function BgpNeighborModal({
                                       : null
                                   )
                                 }
-                                placeholder="Max prefixes"
+                                placeholder={t("neighborModal.maxPrefixesPlaceholder")}
                                 min={1}
                               />
                             </div>
@@ -1410,7 +1409,7 @@ export function BgpNeighborModal({
                             {/* Allowas-In Number */}
                             <div className="space-y-2">
                               <Label htmlFor={`bgp-af-${afi}-allowas-in`}>
-                                Allowas-In Number
+                                {t("neighborModal.allowasIn")}
                               </Label>
                               <Input
                                 id={`bgp-af-${afi}-allowas-in`}
@@ -1429,7 +1428,7 @@ export function BgpNeighborModal({
                                       : null
                                   )
                                 }
-                                placeholder="Count"
+                                placeholder={t("neighborModal.count")}
                                 min={1}
                                 max={10}
                               />
@@ -1438,7 +1437,7 @@ export function BgpNeighborModal({
                             {/* Weight */}
                             <div className="space-y-2">
                               <Label htmlFor={`bgp-af-${afi}-weight`}>
-                                Weight
+                                {t("neighborModal.weight")}
                               </Label>
                               <Input
                                 id={`bgp-af-${afi}-weight`}
@@ -1457,7 +1456,7 @@ export function BgpNeighborModal({
                                       : null
                                   )
                                 }
-                                placeholder="Weight"
+                                placeholder={t("neighborModal.weight")}
                                 min={0}
                                 max={65535}
                               />
@@ -1483,18 +1482,18 @@ export function BgpNeighborModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Creating..."}
+                {isEditMode ? tc("saving") : t("form.creating")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("form.saveChanges")
             ) : (
-              "Add Neighbor"
+              t("neighborModal.submit")
             )}
           </Button>
         </DialogFooter>

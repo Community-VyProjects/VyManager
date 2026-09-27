@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
 export function TrafficEngineeringContent() {
+  const t = useTranslations("trafficEngineering");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWritePermission = canWrite(FeatureGroup.TRAFFIC_ENGINEERING);
 
@@ -71,12 +74,12 @@ export function TrafficEngineeringContent() {
       setCapabilities(capData);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to load Traffic Engineering configuration"
+        err instanceof Error ? err.message : t("errors.loadConfig")
       );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -141,7 +144,7 @@ export function TrafficEngineeringContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -156,20 +159,20 @@ export function TrafficEngineeringContent() {
             <div>
               <div className="flex items-center gap-2">
                 <GitBranch className="h-6 w-6 text-primary" />
-                <h1 className="text-2xl font-bold text-foreground">Traffic Engineering</h1>
+                <h1 className="text-2xl font-bold text-foreground">{t("header.title")}</h1>
                 {!hasWritePermission && (
                   <Badge variant="secondary" className="text-xs">
-                    Read Only
+                    {t("header.readOnly")}
                   </Badge>
                 )}
               </div>
               <p className="text-sm text-muted-foreground mt-1">
-                MPLS-TE link parameter configuration
+                {t("header.subtitle")}
               </p>
             </div>
             <Button variant="outline" size="sm" onClick={() => loadData(true)}>
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              {tc("refresh")}
             </Button>
           </div>
 
@@ -190,7 +193,7 @@ export function TrafficEngineeringContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{adminGroupCount}</p>
-                    <p className="text-xs text-muted-foreground">Admin Groups</p>
+                    <p className="text-xs text-muted-foreground">{t("adminGroups")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -203,7 +206,7 @@ export function TrafficEngineeringContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{interfaceCount}</p>
-                    <p className="text-xs text-muted-foreground">Configured Interfaces</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.configuredInterfaces")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -216,7 +219,7 @@ export function TrafficEngineeringContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{ifacesWithGroups}</p>
-                    <p className="text-xs text-muted-foreground">With Admin Groups</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.withAdminGroups")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -229,7 +232,7 @@ export function TrafficEngineeringContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{ifacesWithMetric}</p>
-                    <p className="text-xs text-muted-foreground">Custom Metrics</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.customMetrics")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -247,7 +250,7 @@ export function TrafficEngineeringContent() {
             }`}
             onClick={() => setActiveTab("admin-groups")}
           >
-            Admin Groups
+            {t("adminGroups")}
           </button>
           <button
             className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
@@ -257,7 +260,7 @@ export function TrafficEngineeringContent() {
             }`}
             onClick={() => setActiveTab("interfaces")}
           >
-            Interfaces
+            {t("tabs.interfaces")}
           </button>
         </div>
 
@@ -267,7 +270,7 @@ export function TrafficEngineeringContent() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
-                  Define admin groups to classify TE links by administrative category.
+                  {t("groups.description")}
                 </p>
                 {hasWritePermission && (
                   <Button
@@ -278,7 +281,7 @@ export function TrafficEngineeringContent() {
                     }}
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Admin Group
+                    {t("groups.add")}
                   </Button>
                 )}
               </div>
@@ -286,9 +289,9 @@ export function TrafficEngineeringContent() {
               {adminGroupCount === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                   <FolderTree className="h-12 w-12 mb-4 opacity-50" />
-                  <p className="text-lg font-medium">No admin groups configured</p>
+                  <p className="text-lg font-medium">{t("groups.empty")}</p>
                   <p className="text-sm mt-1">
-                    Add an admin group to classify TE links
+                    {t("groups.emptyHint")}
                   </p>
                   {hasWritePermission && (
                     <Button
@@ -299,7 +302,7 @@ export function TrafficEngineeringContent() {
                       }}
                     >
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Admin Group
+                      {t("groups.add")}
                     </Button>
                   )}
                 </div>
@@ -308,8 +311,8 @@ export function TrafficEngineeringContent() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Bit Position</TableHead>
+                        <TableHead>{tc("name")}</TableHead>
+                        <TableHead>{t("groups.bitPosition")}</TableHead>
                         {hasWritePermission && <TableHead className="w-20" />}
                       </TableRow>
                     </TableHeader>
@@ -358,7 +361,7 @@ export function TrafficEngineeringContent() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
-                  Configure Traffic Engineering parameters per interface.
+                  {t("interfaces.description")}
                 </p>
                 {hasWritePermission && (
                   <Button
@@ -369,7 +372,7 @@ export function TrafficEngineeringContent() {
                     }}
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Interface
+                    {t("interfaces.add")}
                   </Button>
                 )}
               </div>
@@ -377,9 +380,9 @@ export function TrafficEngineeringContent() {
               {interfaceCount === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                   <Network className="h-12 w-12 mb-4 opacity-50" />
-                  <p className="text-lg font-medium">No interfaces configured</p>
+                  <p className="text-lg font-medium">{t("interfaces.empty")}</p>
                   <p className="text-sm mt-1">
-                    Add an interface to configure TE parameters
+                    {t("interfaces.emptyHint")}
                   </p>
                   {hasWritePermission && (
                     <Button
@@ -390,7 +393,7 @@ export function TrafficEngineeringContent() {
                       }}
                     >
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Interface
+                      {t("interfaces.add")}
                     </Button>
                   )}
                 </div>
@@ -399,11 +402,11 @@ export function TrafficEngineeringContent() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Interface</TableHead>
-                        <TableHead>Admin Groups</TableHead>
-                        <TableHead>Max BW (Mbps)</TableHead>
-                        <TableHead>Max Reserv. BW (Mbps)</TableHead>
-                        <TableHead>Metric</TableHead>
+                        <TableHead>{t("interfaces.interface")}</TableHead>
+                        <TableHead>{t("adminGroups")}</TableHead>
+                        <TableHead>{t("interfaces.maxBw")}</TableHead>
+                        <TableHead>{t("interfaces.maxReservBw")}</TableHead>
+                        <TableHead>{t("interfaces.metric")}</TableHead>
                         {hasWritePermission && <TableHead className="w-20" />}
                       </TableRow>
                     </TableHeader>

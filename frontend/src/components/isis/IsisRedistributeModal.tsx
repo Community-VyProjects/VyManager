@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, AlertCircle } from "lucide-react";
 import { IsisRedistributeEntry, IsisCapabilities } from "@/lib/api/isis";
+import { useTranslations } from "next-intl";
 
 interface IsisRedistributeModalProps {
   open: boolean;
@@ -41,6 +42,8 @@ export function IsisRedistributeModal({
   routeMapNames,
   capabilities,
 }: IsisRedistributeModalProps) {
+  const t = useTranslations("isis");
+  const tc = useTranslations("common");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,9 +69,9 @@ export function IsisRedistributeModal({
     protocol && level && existingProtocols.includes(`${family}|${protocol}|${level}`);
 
   const handleSubmit = async () => {
-    if (!protocol) { setError("Protocol is required"); return; }
-    if (!level) { setError("Level is required"); return; }
-    if (isDuplicate) { setError(`${protocol} is already redistributed at ${level}`); return; }
+    if (!protocol) { setError(t("redistributeModal.protocolRequired")); return; }
+    if (!level) { setError(t("fields.levelRequired")); return; }
+    if (isDuplicate) { setError(t("redistributeModal.alreadyRedistributed", { protocol, level })); return; }
 
     const entry: IsisRedistributeEntry = {
       family,
@@ -84,7 +87,7 @@ export function IsisRedistributeModal({
       await onSubmit(entry);
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add redistribution");
+      setError(err instanceof Error ? err.message : t("redistributeModal.addFailed"));
     } finally {
       setSaving(false);
     }
@@ -94,9 +97,9 @@ export function IsisRedistributeModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Redistribution</DialogTitle>
+          <DialogTitle>{t("redistributeModal.title")}</DialogTitle>
           <DialogDescription>
-            Redistribute routes from another protocol into IS-IS.
+            {t("redistributeModal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -109,7 +112,7 @@ export function IsisRedistributeModal({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Address family <span className="text-destructive">*</span></Label>
+            <Label>{t("fields.addressFamily")} <span className="text-destructive">*</span></Label>
             <Select value={family} onValueChange={(v) => { setFamily(v as "ipv4" | "ipv6"); setProtocol(""); }}>
               <SelectTrigger>
                 <SelectValue />
@@ -124,10 +127,10 @@ export function IsisRedistributeModal({
           </div>
 
           <div className="space-y-2">
-            <Label>Protocol <span className="text-destructive">*</span></Label>
+            <Label>{t("fields.protocol")} <span className="text-destructive">*</span></Label>
             <Select value={protocol} onValueChange={setProtocol}>
               <SelectTrigger>
-                <SelectValue placeholder="Select protocol" />
+                <SelectValue placeholder={t("fields.selectProtocol")} />
               </SelectTrigger>
               <SelectContent>
                 {protocols.map((p) => (
@@ -138,14 +141,14 @@ export function IsisRedistributeModal({
           </div>
 
           <div className="space-y-2">
-            <Label>IS-IS Level <span className="text-destructive">*</span></Label>
+            <Label>{t("fields.isisLevel")} <span className="text-destructive">*</span></Label>
             <Select value={level} onValueChange={setLevel}>
               <SelectTrigger>
-                <SelectValue placeholder="Select level" />
+                <SelectValue placeholder={t("fields.selectLevel")} />
               </SelectTrigger>
               <SelectContent>
                 {LEVELS.map((l) => (
-                  <SelectItem key={l} value={l}>{l === "level-1" ? "Level 1" : "Level 2"}</SelectItem>
+                  <SelectItem key={l} value={l}>{l === "level-1" ? t("redistributeModal.level1") : t("redistributeModal.level2")}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -153,30 +156,30 @@ export function IsisRedistributeModal({
 
           {isDuplicate && (
             <p className="text-sm text-destructive">
-              {protocol} is already configured at {level}.
+              {t("redistributeModal.alreadyConfigured", { protocol, level })}
             </p>
           )}
 
           <div className="space-y-2">
-            <Label>Metric (optional)</Label>
+            <Label>{t("fields.metricOptional")}</Label>
             <Input
               type="number"
               value={metric}
               onChange={(e) => setMetric(e.target.value)}
-              placeholder="Default"
+              placeholder={tc("default")}
               min={1}
               max={16777214}
             />
           </div>
 
           <div className="space-y-2">
-            <Label>Route Map (optional)</Label>
+            <Label>{t("fields.routeMapOptional")}</Label>
             <Select value={routeMap} onValueChange={(v) => setRouteMap(v === "__none__" ? "" : v)}>
               <SelectTrigger>
-                <SelectValue placeholder="None" />
+                <SelectValue placeholder={tc("none")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">None</SelectItem>
+                <SelectItem value="__none__">{tc("none")}</SelectItem>
                 {routeMapNames.map((name) => (
                   <SelectItem key={name} value={name}>{name}</SelectItem>
                 ))}
@@ -187,11 +190,11 @@ export function IsisRedistributeModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={saving || !!isDuplicate}>
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Add Redistribute
+            {t("fields.addRedistribute")}
           </Button>
         </DialogFooter>
       </DialogContent>

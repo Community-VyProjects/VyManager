@@ -1,1 +1,121 @@
-{}
+{
+  "fields": {
+    "interface": "Interface",
+    "type": "Type",
+    "channel": "Channel",
+    "splitHorizon": "Split Horizon",
+    "editParameters": "Edit Parameters",
+    "addInterface": "Add Interface",
+    "saveChanges": "Save Changes",
+    "creating": "Creating..."
+  },
+  "values": {
+    "default": "default",
+    "on": "On",
+    "off": "Off",
+    "active": "Active"
+  },
+  "page": {
+    "title": "Babel Protocol",
+    "subtitle": "Distance-vector routing protocol for mesh networks",
+    "loadFailed": "Failed to load Babel configuration",
+    "saveParametersFailed": "Failed to save parameters",
+    "saveRedistributionFailed": "Failed to save redistribution",
+    "saveDistributeListFailed": "Failed to save distribute list"
+  },
+  "stats": {
+    "interfaces": "Interfaces",
+    "diversity": "Diversity",
+    "redistributed": "Redistributed",
+    "filters": "Filters"
+  },
+  "tabs": {
+    "interfaces": "Interfaces",
+    "parameters": "Parameters",
+    "redistribute": "Redistribute",
+    "distributeList": "Distribute List"
+  },
+  "interfaces": {
+    "description": "Configure Babel on network interfaces",
+    "emptyTitle": "No Babel interfaces configured",
+    "emptyHint": "Add an interface to start using Babel routing",
+    "helloInt": "Hello Int.",
+    "updateInt": "Update Int.",
+    "rxCost": "RX Cost",
+    "timestamps": "Timestamps"
+  },
+  "parameters": {
+    "description": "Global Babel protocol parameters",
+    "diversityRouting": "Diversity Routing",
+    "enableDiversity": "Enable diversity-aware routing",
+    "diversityFactor": "Diversity Factor",
+    "diversityFactorHelp": "Multiplicative factor (1-256, default: 256)",
+    "timing": "Timing",
+    "resendDelay": "Resend Delay",
+    "resendDelayHelp": "Time before resending (20-655340 ms, default: 2000)",
+    "smoothingHalfLife": "Smoothing Half-life",
+    "smoothingHalfLifeHelp": "Smoothing half-life (0-65534 seconds, default: 4)"
+  },
+  "redistribute": {
+    "description": "Select which protocols to redistribute into Babel",
+    "ipv4Protocols": "IPv4 Protocols",
+    "ipv6Protocols": "IPv6 Protocols"
+  },
+  "distributeList": {
+    "description": "Configure route filtering with access lists and prefix lists",
+    "ipv4Global": "IPv4 Global Filters",
+    "ipv6Global": "IPv6 Global Filters",
+    "accessListIn": "Access List In",
+    "accessListOut": "Access List Out",
+    "prefixListIn": "Prefix List In",
+    "prefixListOut": "Prefix List Out",
+    "perInterface": "Per-Interface Filters",
+    "addressFamily": "Address Family",
+    "aclIn": "ACL In",
+    "aclOut": "ACL Out",
+    "prefixIn": "Prefix In",
+    "prefixOut": "Prefix Out"
+  },
+  "delete": {
+    "title": "Delete Babel Interface",
+    "description": "Are you sure you want to delete the Babel interface <mono>{name}</mono>? This action cannot be undone.",
+    "confirm": "Delete Interface"
+  },
+  "interfaceModal": {
+    "titleEdit": "Edit Babel Interface",
+    "titleAdd": "Add Babel Interface",
+    "descriptionEdit": "Modify the Babel protocol configuration for {name}.",
+    "descriptionAdd": "Configure a new interface for the Babel routing protocol.",
+    "interfaceHelp": "The VyOS interface to enable Babel on.",
+    "typePlaceholder": "Select type (optional)",
+    "typeAuto": "Auto",
+    "typeWired": "Wired",
+    "typeWireless": "Wireless",
+    "typeHelp": "Interface type determines default cost and hello interval.",
+    "channelPlaceholder": "1-254, interfering, or non-interfering",
+    "channelHelp": "Babel channel number (1-254) or \"interfering\" / \"non-interfering\".",
+    "splitHorizonPlaceholder": "Select split horizon (optional)",
+    "enable": "Enable",
+    "disable": "Disable",
+    "splitHorizonHelp": "Controls the split-horizon optimization for this interface.",
+    "enableTimestamps": "Enable Timestamps",
+    "timestampsHelp": "Enable timestamps on Hello and IHU packets for RTT estimation.",
+    "timingCost": "Timing & Cost",
+    "helloInterval": "Hello Interval (ms)",
+    "updateInterval": "Update Interval (ms)",
+    "rttSettings": "RTT Settings",
+    "maxRttPenalty": "Max RTT Penalty (ms)",
+    "rttDecay": "RTT Decay",
+    "rttMin": "RTT Min (ms)",
+    "rttMax": "RTT Max (ms)",
+    "selectInterface": "Please select an interface",
+    "channelInvalid": "Channel must be 1-254, 'interfering', or 'non-interfering'",
+    "helloIntervalRange": "Hello interval must be between 20 and 655340 ms",
+    "updateIntervalRange": "Update interval must be between 20 and 655340 ms",
+    "rxCostRange": "RX cost must be between 1 and 65534",
+    "maxRttPenaltyRange": "Max RTT penalty must be between 0 and 65535 ms",
+    "rttDecayRange": "RTT decay must be between 1 and 256",
+    "rttMinRange": "RTT min must be between 1 and 65535 ms",
+    "rttMaxRange": "RTT max must be between 1 and 65535 ms"
+  }
+}

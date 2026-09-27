@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
 export function IgmpProxyContent() {
+  const t = useTranslations("igmpProxy");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWritePermission = canWrite(FeatureGroup.IGMP_PROXY);
 
@@ -71,11 +74,11 @@ export function IgmpProxyContent() {
       setConfig(configData);
       setCapabilities(capData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load IGMP proxy configuration");
+      setError(err instanceof Error ? err.message : t("content.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -116,7 +119,7 @@ export function IgmpProxyContent() {
       await igmpProxyService.setDisabled(newValue);
       await loadData(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update proxy status");
+      setError(err instanceof Error ? err.message : t("content.updateStatusFailed"));
     } finally {
       setDisableLoading(false);
     }
@@ -130,7 +133,7 @@ export function IgmpProxyContent() {
       await igmpProxyService.setDisableQuickleave(newValue);
       await loadData(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update quickleave setting");
+      setError(err instanceof Error ? err.message : t("content.updateQuickleaveFailed"));
     } finally {
       setQuickleaveLoading(false);
     }
@@ -174,20 +177,20 @@ export function IgmpProxyContent() {
         return (
           <Badge variant="secondary" className="bg-blue-500/10 text-blue-600">
             <ArrowUpFromLine className="h-3 w-3 mr-1" />
-            Upstream
+            {t("upstream")}
           </Badge>
         );
       case "downstream":
         return (
           <Badge variant="secondary" className="bg-green-500/10 text-green-600">
             <ArrowDownToLine className="h-3 w-3 mr-1" />
-            Downstream
+            {t("downstream")}
           </Badge>
         );
       case "disabled":
         return (
           <Badge variant="secondary" className="bg-red-500/10 text-red-600">
-            Disabled
+            {tc("disabled")}
           </Badge>
         );
       default:
@@ -212,7 +215,7 @@ export function IgmpProxyContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -225,9 +228,9 @@ export function IgmpProxyContent() {
         <div className="p-6 pb-4 border-b border-border">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-foreground">IGMP Proxy</h1>
+              <h1 className="text-2xl font-bold text-foreground">{t("content.title")}</h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Proxy multicast traffic between upstream and downstream networks
+                {t("content.subtitle")}
               </p>
             </div>
             <Button
@@ -236,7 +239,7 @@ export function IgmpProxyContent() {
               onClick={() => loadData(true)}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              {tc("refresh")}
             </Button>
           </div>
 
@@ -270,10 +273,10 @@ export function IgmpProxyContent() {
                         htmlFor="igmp-proxy-enabled"
                         className="text-sm font-medium cursor-pointer"
                       >
-                        Proxy Enabled
+                        {t("content.proxyEnabled")}
                       </label>
                       <p className="text-xs text-muted-foreground">
-                        {config?.disabled ? "Disabled" : "Active"}
+                        {config?.disabled ? tc("disabled") : t("content.active")}
                       </p>
                     </div>
                   </div>
@@ -303,10 +306,10 @@ export function IgmpProxyContent() {
                         htmlFor="igmp-quickleave"
                         className="text-sm font-medium cursor-pointer"
                       >
-                        Quickleave
+                        {t("content.quickleave")}
                       </label>
                       <p className="text-xs text-muted-foreground">
-                        {config?.disable_quickleave ? "Disabled" : "Enabled"}
+                        {config?.disable_quickleave ? tc("disabled") : tc("enabled")}
                       </p>
                     </div>
                   </div>
@@ -323,7 +326,7 @@ export function IgmpProxyContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{totalInterfaces}</p>
-                    <p className="text-xs text-muted-foreground">Interfaces</p>
+                    <p className="text-xs text-muted-foreground">{t("content.statInterfaces")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -338,7 +341,7 @@ export function IgmpProxyContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{upstreamCount}</p>
-                    <p className="text-xs text-muted-foreground">Upstream</p>
+                    <p className="text-xs text-muted-foreground">{t("upstream")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -353,7 +356,7 @@ export function IgmpProxyContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{downstreamCount}</p>
-                    <p className="text-xs text-muted-foreground">Downstream</p>
+                    <p className="text-xs text-muted-foreground">{t("downstream")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -371,7 +374,7 @@ export function IgmpProxyContent() {
                   <Input
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search interfaces..."
+                    placeholder={t("content.searchInterfaces")}
                     className="pl-9"
                   />
                 </div>
@@ -385,7 +388,7 @@ export function IgmpProxyContent() {
                   }}
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Interface
+                  {t("addInterface")}
                 </Button>
               )}
             </div>
@@ -396,16 +399,15 @@ export function IgmpProxyContent() {
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Wifi className="h-12 w-12 text-muted-foreground/30 mb-4" />
                 <p className="text-sm text-muted-foreground mb-2">
-                  No interfaces configured
+                  {t("content.noInterfaces")}
                 </p>
                 <p className="text-xs text-muted-foreground mb-4 text-center max-w-sm">
-                  IGMP proxy requires at least one upstream and one downstream interface.
-                  Use the setup wizard to configure both at once.
+                  {t("content.noInterfacesHint")}
                 </p>
                 {hasWritePermission && (
                   <Button size="sm" onClick={() => setSetupModalOpen(true)}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Setup IGMP Proxy
+                    {t("setupProxy")}
                   </Button>
                 )}
               </CardContent>
@@ -415,7 +417,7 @@ export function IgmpProxyContent() {
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Search className="h-12 w-12 text-muted-foreground/30 mb-4" />
                 <p className="text-sm text-muted-foreground">
-                  No interfaces match &quot;{searchQuery}&quot;
+                  {t("content.noMatch", { query: searchQuery })}
                 </p>
               </CardContent>
             </Card>
@@ -425,13 +427,13 @@ export function IgmpProxyContent() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Interface</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Threshold</TableHead>
-                      <TableHead>Alt Subnets</TableHead>
-                      <TableHead>Whitelist</TableHead>
+                      <TableHead>{t("content.colInterface")}</TableHead>
+                      <TableHead>{t("content.colRole")}</TableHead>
+                      <TableHead>{t("content.colThreshold")}</TableHead>
+                      <TableHead>{t("content.colAltSubnets")}</TableHead>
+                      <TableHead>{t("content.colWhitelist")}</TableHead>
                       {hasWritePermission && (
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead className="text-right">{tc("actions")}</TableHead>
                       )}
                     </TableRow>
                   </TableHeader>

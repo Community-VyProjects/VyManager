@@ -33,6 +33,7 @@ import {
   isisRemoteLfaSupported,
   isisTiLfaSupported,
 } from "@/lib/isis-feature-flags";
+import { useTranslations } from "next-intl";
 
 interface IsisInterfaceModalProps {
   open: boolean;
@@ -50,6 +51,8 @@ export function IsisInterfaceModal({
   existingInterface,
   capabilities,
 }: IsisInterfaceModalProps) {
+  const t = useTranslations("isis");
+  const tc = useTranslations("common");
   const isEdit = !!existingInterface;
   const tiLfaSupported = isisTiLfaSupported(capabilities?.features);
   const remoteLfaSupported = isisRemoteLfaSupported(capabilities?.features);
@@ -184,7 +187,7 @@ export function IsisInterfaceModal({
 
   const handleSubmit = async () => {
     if (!name) {
-      setError("Please select an interface");
+      setError(t("interfaceModal.selectInterfaceError"));
       return;
     }
 
@@ -237,7 +240,7 @@ export function IsisInterfaceModal({
       await onSubmit(iface);
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save interface");
+      setError(err instanceof Error ? err.message : t("interfaceModal.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -247,9 +250,9 @@ export function IsisInterfaceModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit IS-IS Interface" : "Add IS-IS Interface"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("interfaceModal.titleEdit") : t("interfaceModal.titleAdd")}</DialogTitle>
           <DialogDescription>
-            Configure IS-IS parameters for this interface.
+            {t("interfaceModal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -262,16 +265,16 @@ export function IsisInterfaceModal({
 
         <Tabs defaultValue="basic">
           <TabsList className="w-full">
-            <TabsTrigger value="basic" className="flex-1">Basic</TabsTrigger>
-            <TabsTrigger value="timers" className="flex-1">Timers</TabsTrigger>
-            <TabsTrigger value="auth" className="flex-1">Authentication</TabsTrigger>
-            <TabsTrigger value="frr" className="flex-1">Fast Reroute</TabsTrigger>
+            <TabsTrigger value="basic" className="flex-1">{t("interfaceModal.tabBasic")}</TabsTrigger>
+            <TabsTrigger value="timers" className="flex-1">{t("interfaceModal.tabTimers")}</TabsTrigger>
+            <TabsTrigger value="auth" className="flex-1">{t("interfaceModal.tabAuthentication")}</TabsTrigger>
+            <TabsTrigger value="frr" className="flex-1">{t("interfaceModal.tabFastReroute")}</TabsTrigger>
           </TabsList>
 
           {/* Basic Tab */}
           <TabsContent value="basic" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>Interface <span className="text-destructive">*</span></Label>
+              <Label>{t("fields.interface")} <span className="text-destructive">*</span></Label>
               {isEdit ? (
                 <div className="h-9 flex items-center px-3 rounded-md border border-input bg-muted text-sm font-mono">
                   {name}
@@ -282,44 +285,44 @@ export function IsisInterfaceModal({
                   onValueChange={setName}
                   disabled={interfacesLoading}
                   interfaces={interfaceNames}
-                  placeholder="Select interface"
+                  placeholder={t("interfaceModal.selectInterface")}
                 />
               )}
             </div>
 
             <div className="space-y-2">
-              <Label>Circuit Type</Label>
+              <Label>{t("fields.circuitType")}</Label>
               <Select value={circuitType} onValueChange={setCircuitType}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Inherit from level" />
+                  <SelectValue placeholder={t("interfaceModal.circuitTypePlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="level-1">Level 1 Only</SelectItem>
-                  <SelectItem value="level-2">Level 2 Only</SelectItem>
-                  <SelectItem value="level-1-2">Level 1 and 2</SelectItem>
+                  <SelectItem value="level-1">{t("fields.level1Only")}</SelectItem>
+                  <SelectItem value="level-2">{t("fields.level2Only")}</SelectItem>
+                  <SelectItem value="level-1-2">{t("fields.level1And2")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Metric</Label>
+                <Label>{t("fields.metric")}</Label>
                 <Input
                   type="number"
                   value={metric}
                   onChange={(e) => setMetric(e.target.value)}
-                  placeholder="Default"
+                  placeholder={tc("default")}
                   min={1}
                   max={16777214}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Priority (DR election)</Label>
+                <Label>{t("interfaceModal.priorityDr")}</Label>
                 <Input
                   type="number"
                   value={priority}
                   onChange={(e) => setPriority(e.target.value)}
-                  placeholder="Default (64)"
+                  placeholder={t("fields.defaultValue", { value: "64" })}
                   min={0}
                   max={127}
                 />
@@ -331,11 +334,11 @@ export function IsisInterfaceModal({
             <div className="grid grid-cols-2 gap-3">
               <div className="flex items-center gap-2">
                 <Checkbox id="passive" checked={passive} onCheckedChange={(c) => setPassive(!!c)} />
-                <Label htmlFor="passive">Passive (suppress hellos)</Label>
+                <Label htmlFor="passive">{t("interfaceModal.passiveSuppress")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="p2p" checked={pointToPoint} onCheckedChange={(c) => setPointToPoint(!!c)} />
-                <Label htmlFor="p2p">Point-to-Point</Label>
+                <Label htmlFor="p2p">{t("interfaceModal.pointToPoint")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="bfd" checked={bfd} onCheckedChange={(c) => setBfd(!!c)} />
@@ -343,17 +346,17 @@ export function IsisInterfaceModal({
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="hello-padding" checked={helloPadding} onCheckedChange={(c) => setHelloPadding(!!c)} />
-                <Label htmlFor="hello-padding">Hello Padding</Label>
+                <Label htmlFor="hello-padding">{t("interfaceModal.helloPadding")}</Label>
               </div>
             </div>
 
             {bfd && (
               <div className="space-y-2">
-                <Label>BFD Profile</Label>
+                <Label>{t("interfaceModal.bfdProfile")}</Label>
                 <Input
                   value={bfdProfile}
                   onChange={(e) => setBfdProfile(e.target.value)}
-                  placeholder="Optional BFD profile name"
+                  placeholder={t("interfaceModal.bfdProfilePlaceholder")}
                 />
               </div>
             )}
@@ -363,45 +366,45 @@ export function IsisInterfaceModal({
           <TabsContent value="timers" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Hello Interval (s)</Label>
+                <Label>{t("interfaceModal.helloInterval")}</Label>
                 <Input
                   type="number"
                   value={helloInterval}
                   onChange={(e) => setHelloInterval(e.target.value)}
-                  placeholder="Default (3)"
+                  placeholder={t("fields.defaultValue", { value: "3" })}
                   min={1}
                   max={600}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Hello Multiplier</Label>
+                <Label>{t("interfaceModal.helloMultiplier")}</Label>
                 <Input
                   type="number"
                   value={helloMultiplier}
                   onChange={(e) => setHelloMultiplier(e.target.value)}
-                  placeholder="Default (10)"
+                  placeholder={t("fields.defaultValue", { value: "10" })}
                   min={2}
                   max={100}
                 />
               </div>
               <div className="space-y-2">
-                <Label>PSNP Interval (ms)</Label>
+                <Label>{t("interfaceModal.psnpInterval")}</Label>
                 <Input
                   type="number"
                   value={psnpInterval}
                   onChange={(e) => setPsnpInterval(e.target.value)}
-                  placeholder="Default (2000)"
+                  placeholder={t("fields.defaultValue", { value: "2000" })}
                   min={100}
                   max={60000}
                 />
               </div>
               <div className="space-y-2">
-                <Label>LDP Sync Holddown (s)</Label>
+                <Label>{t("fields.ldpSyncHolddown")}</Label>
                 <Input
                   type="number"
                   value={ldpSyncHolddown}
                   onChange={(e) => setLdpSyncHolddown(e.target.value)}
-                  placeholder="Disabled"
+                  placeholder={tc("disabled")}
                   min={1}
                   max={10000}
                 />
@@ -413,11 +416,11 @@ export function IsisInterfaceModal({
             <div className="grid grid-cols-2 gap-3">
               <div className="flex items-center gap-2">
                 <Checkbox id="no-3way" checked={noThreeWayHandshake} onCheckedChange={(c) => setNoThreeWayHandshake(!!c)} />
-                <Label htmlFor="no-3way">Disable 3-Way Handshake</Label>
+                <Label htmlFor="no-3way">{t("interfaceModal.disableThreeWayHandshake")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="ldp-sync-disable" checked={ldpSyncDisable} onCheckedChange={(c) => setLdpSyncDisable(!!c)} />
-                <Label htmlFor="ldp-sync-disable">Disable LDP Sync</Label>
+                <Label htmlFor="ldp-sync-disable">{t("interfaceModal.disableLdpSync")}</Label>
               </div>
             </div>
           </TabsContent>
@@ -425,24 +428,24 @@ export function IsisInterfaceModal({
           {/* Authentication Tab */}
           <TabsContent value="auth" className="space-y-4 mt-4">
             <p className="text-sm text-muted-foreground">
-              Configure IS-IS authentication for this interface. Only one type can be active at a time.
+              {t("interfaceModal.authHelp")}
             </p>
             <div className="space-y-2">
-              <Label>MD5 Password</Label>
+              <Label>{t("interfaceModal.md5Password")}</Label>
               <Input
                 type="password"
                 value={passwordMd5}
                 onChange={(e) => setPasswordMd5(e.target.value)}
-                placeholder="MD5 authentication password"
+                placeholder={t("interfaceModal.md5PasswordPlaceholder")}
               />
             </div>
             <div className="space-y-2">
-              <Label>Plaintext Password</Label>
+              <Label>{t("interfaceModal.plaintextPassword")}</Label>
               <Input
                 type="password"
                 value={passwordPlaintext}
                 onChange={(e) => setPasswordPlaintext(e.target.value)}
-                placeholder="Plaintext authentication password"
+                placeholder={t("interfaceModal.plaintextPasswordPlaceholder")}
               />
             </div>
           </TabsContent>
@@ -451,15 +454,15 @@ export function IsisInterfaceModal({
           <TabsContent value="frr" className="space-y-4 mt-4">
             {/* LFA */}
             <div>
-              <h4 className="text-sm font-medium mb-3">LFA (Loop-Free Alternate)</h4>
+              <h4 className="text-sm font-medium mb-3">{t("interfaceModal.lfaTitle")}</h4>
               <div className="space-y-2 pl-4">
                 <div className="flex items-center gap-2">
                   <Checkbox id="lfa-l1" checked={lfaLevel1} onCheckedChange={(c) => setLfaLevel1(!!c)} />
-                  <Label htmlFor="lfa-l1">Enable LFA — Level 1</Label>
+                  <Label htmlFor="lfa-l1">{t("interfaceModal.enableLfaL1")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox id="lfa-l2" checked={lfaLevel2} onCheckedChange={(c) => setLfaLevel2(!!c)} />
-                  <Label htmlFor="lfa-l2">Enable LFA — Level 2</Label>
+                  <Label htmlFor="lfa-l2">{t("interfaceModal.enableLfaL2")}</Label>
                 </div>
               </div>
             </div>
@@ -470,38 +473,38 @@ export function IsisInterfaceModal({
                 <Separator />
                 <div>
                   <div className="flex items-center gap-2 mb-3">
-                    <h4 className="text-sm font-medium">TI-LFA (Topology Independent LFA)</h4>
+                    <h4 className="text-sm font-medium">{t("interfaceModal.tiLfaTitle")}</h4>
                   </div>
                   <div className="space-y-2 pl-4">
                     <div className="flex items-center gap-2">
                       <Checkbox id="tilfa-l1" checked={tiLfaLevel1} onCheckedChange={(c) => setTiLfaLevel1(!!c)} />
-                      <Label htmlFor="tilfa-l1">Enable TI-LFA — Level 1</Label>
+                      <Label htmlFor="tilfa-l1">{t("interfaceModal.enableTiLfaL1")}</Label>
                     </div>
                     {tiLfaLevel1 && (
                       <div className="pl-6 space-y-2">
                         <div className="flex items-center gap-2">
                           <Checkbox id="tilfa-l1-np" checked={tiLfaLevel1NodeProtection} onCheckedChange={(c) => setTiLfaLevel1NodeProtection(!!c)} />
-                          <Label htmlFor="tilfa-l1-np">Node Protection</Label>
+                          <Label htmlFor="tilfa-l1-np">{t("interfaceModal.nodeProtection")}</Label>
                         </div>
                         <div className="flex items-center gap-2">
                           <Checkbox id="tilfa-l1-lf" checked={tiLfaLevel1LinkFallback} onCheckedChange={(c) => setTiLfaLevel1LinkFallback(!!c)} />
-                          <Label htmlFor="tilfa-l1-lf">Link Fallback</Label>
+                          <Label htmlFor="tilfa-l1-lf">{t("interfaceModal.linkFallback")}</Label>
                         </div>
                       </div>
                     )}
                     <div className="flex items-center gap-2">
                       <Checkbox id="tilfa-l2" checked={tiLfaLevel2} onCheckedChange={(c) => setTiLfaLevel2(!!c)} />
-                      <Label htmlFor="tilfa-l2">Enable TI-LFA — Level 2</Label>
+                      <Label htmlFor="tilfa-l2">{t("interfaceModal.enableTiLfaL2")}</Label>
                     </div>
                     {tiLfaLevel2 && (
                       <div className="pl-6 space-y-2">
                         <div className="flex items-center gap-2">
                           <Checkbox id="tilfa-l2-np" checked={tiLfaLevel2NodeProtection} onCheckedChange={(c) => setTiLfaLevel2NodeProtection(!!c)} />
-                          <Label htmlFor="tilfa-l2-np">Node Protection</Label>
+                          <Label htmlFor="tilfa-l2-np">{t("interfaceModal.nodeProtection")}</Label>
                         </div>
                         <div className="flex items-center gap-2">
                           <Checkbox id="tilfa-l2-lf" checked={tiLfaLevel2LinkFallback} onCheckedChange={(c) => setTiLfaLevel2LinkFallback(!!c)} />
-                          <Label htmlFor="tilfa-l2-lf">Link Fallback</Label>
+                          <Label htmlFor="tilfa-l2-lf">{t("interfaceModal.linkFallback")}</Label>
                         </div>
                       </div>
                     )}
@@ -517,51 +520,51 @@ export function IsisInterfaceModal({
                 {/* Remote LFA */}
                 <div>
                   <div className="flex items-center gap-2 mb-3">
-                    <h4 className="text-sm font-medium">Remote LFA</h4>
+                    <h4 className="text-sm font-medium">{t("interfaceModal.remoteLfa")}</h4>
                   </div>
                   <div className="space-y-3 pl-4">
                     <div className="flex items-center gap-2">
                       <Checkbox id="rlfa-l1" checked={remoteLfaLevel1} onCheckedChange={(c) => setRemoteLfaLevel1(!!c)} />
-                      <Label htmlFor="rlfa-l1">Enable Remote LFA — Level 1</Label>
+                      <Label htmlFor="rlfa-l1">{t("interfaceModal.enableRemoteLfaL1")}</Label>
                     </div>
                     {remoteLfaLevel1 && (
                       <div className="pl-6 grid grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <Label className="text-xs">Max Metric</Label>
+                          <Label className="text-xs">{t("interfaceModal.maxMetric")}</Label>
                           <Input
                             type="number"
                             value={remoteLfaLevel1MaxMetric}
                             onChange={(e) => setRemoteLfaLevel1MaxMetric(e.target.value)}
-                            placeholder="Unlimited"
+                            placeholder={t("interfaceModal.unlimited")}
                           />
                         </div>
                         <div className="flex items-end pb-1">
                           <div className="flex items-center gap-2">
                             <Checkbox id="rlfa-l1-ldp" checked={remoteLfaLevel1TunnelMplsLdp} onCheckedChange={(c) => setRemoteLfaLevel1TunnelMplsLdp(!!c)} />
-                            <Label htmlFor="rlfa-l1-ldp">MPLS LDP Tunnel</Label>
+                            <Label htmlFor="rlfa-l1-ldp">{t("interfaceModal.mplsLdpTunnel")}</Label>
                           </div>
                         </div>
                       </div>
                     )}
                     <div className="flex items-center gap-2">
                       <Checkbox id="rlfa-l2" checked={remoteLfaLevel2} onCheckedChange={(c) => setRemoteLfaLevel2(!!c)} />
-                      <Label htmlFor="rlfa-l2">Enable Remote LFA — Level 2</Label>
+                      <Label htmlFor="rlfa-l2">{t("interfaceModal.enableRemoteLfaL2")}</Label>
                     </div>
                     {remoteLfaLevel2 && (
                       <div className="pl-6 grid grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <Label className="text-xs">Max Metric</Label>
+                          <Label className="text-xs">{t("interfaceModal.maxMetric")}</Label>
                           <Input
                             type="number"
                             value={remoteLfaLevel2MaxMetric}
                             onChange={(e) => setRemoteLfaLevel2MaxMetric(e.target.value)}
-                            placeholder="Unlimited"
+                            placeholder={t("interfaceModal.unlimited")}
                           />
                         </div>
                         <div className="flex items-end pb-1">
                           <div className="flex items-center gap-2">
                             <Checkbox id="rlfa-l2-ldp" checked={remoteLfaLevel2TunnelMplsLdp} onCheckedChange={(c) => setRemoteLfaLevel2TunnelMplsLdp(!!c)} />
-                            <Label htmlFor="rlfa-l2-ldp">MPLS LDP Tunnel</Label>
+                            <Label htmlFor="rlfa-l2-ldp">{t("interfaceModal.mplsLdpTunnel")}</Label>
                           </div>
                         </div>
                       </div>
@@ -573,7 +576,7 @@ export function IsisInterfaceModal({
 
             {!tiLfaSupported && !remoteLfaSupported && (
               <p className="text-sm text-muted-foreground">
-                TI-LFA and Remote LFA are not supported on this device.
+                {t("interfaceModal.frrNotSupported")}
               </p>
             )}
           </TabsContent>
@@ -581,11 +584,11 @@ export function IsisInterfaceModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={saving}>
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? "Save Changes" : "Add Interface"}
+            {isEdit ? t("fields.saveChanges") : t("fields.addInterface")}
           </Button>
         </DialogFooter>
       </DialogContent>

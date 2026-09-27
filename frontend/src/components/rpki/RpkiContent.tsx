@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,8 @@ import { FeatureGroup } from "@/lib/api/user-management";
 // ============================================================================
 
 export function RpkiContent() {
+  const t = useTranslations("rpki");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWritePermission = canWrite(FeatureGroup.RPKI);
 
@@ -79,11 +82,11 @@ export function RpkiContent() {
       setConfig(configData);
       setCapabilities(capData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load RPKI configuration");
+      setError(err instanceof Error ? err.message : t("errors.loadConfig"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -137,21 +140,21 @@ export function RpkiContent() {
     if (expireInterval) {
       const v = parseInt(expireInterval, 10);
       if (isNaN(v) || v < 600 || v > 172800) {
-        setSettingsError("Expire interval must be between 600 and 172800 seconds");
+        setSettingsError(t("errors.expireRange"));
         return;
       }
     }
     if (pollingPeriod) {
       const v = parseInt(pollingPeriod, 10);
       if (isNaN(v) || v < 1 || v > 86400) {
-        setSettingsError("Polling period must be between 1 and 86400 seconds");
+        setSettingsError(t("errors.pollingRange"));
         return;
       }
     }
     if (retryInterval) {
       const v = parseInt(retryInterval, 10);
       if (isNaN(v) || v < 1 || v > 7200) {
-        setSettingsError("Retry interval must be between 1 and 7200 seconds");
+        setSettingsError(t("errors.retryRange"));
         return;
       }
     }
@@ -175,7 +178,7 @@ export function RpkiContent() {
       setSettingsEditing(false);
       await loadData(true);
     } catch (err) {
-      setSettingsError(err instanceof Error ? err.message : "Failed to save settings");
+      setSettingsError(err instanceof Error ? err.message : t("errors.saveSettings"));
     } finally {
       setSettingsSaving(false);
     }
@@ -208,7 +211,7 @@ export function RpkiContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -225,16 +228,16 @@ export function RpkiContent() {
                 <Shield className="h-6 w-6 text-primary" />
                 <h1 className="text-2xl font-bold text-foreground">RPKI</h1>
                 {!hasWritePermission && (
-                  <Badge variant="secondary" className="text-xs">Read Only</Badge>
+                  <Badge variant="secondary" className="text-xs">{t("header.readOnly")}</Badge>
                 )}
               </div>
               <p className="text-sm text-muted-foreground mt-1">
-                Resource Public Key Infrastructure
+                {t("header.subtitle")}
               </p>
             </div>
             <Button variant="outline" size="sm" onClick={() => loadData(true)}>
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              {tc("refresh")}
             </Button>
           </div>
 
@@ -255,7 +258,7 @@ export function RpkiContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{cacheServerCount}</p>
-                    <p className="text-xs text-muted-foreground">Cache Servers</p>
+                    <p className="text-xs text-muted-foreground">{t("cacheServers")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -268,7 +271,7 @@ export function RpkiContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{sshEnabledCount}</p>
-                    <p className="text-xs text-muted-foreground">SSH-Enabled</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.sshEnabled")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -285,7 +288,7 @@ export function RpkiContent() {
                         ? `${config.polling_period}s`
                         : "300s"}
                     </p>
-                    <p className="text-xs text-muted-foreground">Polling Period</p>
+                    <p className="text-xs text-muted-foreground">{t("settings.pollingPeriod")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -302,7 +305,7 @@ export function RpkiContent() {
                         ? `${config.expire_interval}s`
                         : "7200s"}
                     </p>
-                    <p className="text-xs text-muted-foreground">Expire Interval</p>
+                    <p className="text-xs text-muted-foreground">{t("settings.expireInterval")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -320,7 +323,7 @@ export function RpkiContent() {
             }`}
             onClick={() => setActiveTab("cache-servers")}
           >
-            Cache Servers
+            {t("cacheServers")}
           </button>
           <button
             className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
@@ -330,7 +333,7 @@ export function RpkiContent() {
             }`}
             onClick={() => setActiveTab("settings")}
           >
-            Settings
+            {t("tabs.settings")}
           </button>
         </div>
 
@@ -340,7 +343,7 @@ export function RpkiContent() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
-                  Manage RPKI cache servers for BGP route origin validation.
+                  {t("servers.description")}
                 </p>
                 {hasWritePermission && (
                   <Button
@@ -351,7 +354,7 @@ export function RpkiContent() {
                     }}
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Cache Server
+                    {t("servers.add")}
                   </Button>
                 )}
               </div>
@@ -359,8 +362,8 @@ export function RpkiContent() {
               {cacheServerCount === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                   <Server className="h-12 w-12 mb-4 opacity-50" />
-                  <p className="text-lg font-medium">No cache servers configured</p>
-                  <p className="text-sm mt-1">Add a cache server to enable route origin validation</p>
+                  <p className="text-lg font-medium">{t("servers.empty")}</p>
+                  <p className="text-sm mt-1">{t("servers.emptyHint")}</p>
                   {hasWritePermission && (
                     <Button
                       className="mt-4"
@@ -370,7 +373,7 @@ export function RpkiContent() {
                       }}
                     >
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Cache Server
+                      {t("servers.add")}
                     </Button>
                   )}
                 </div>
@@ -379,10 +382,10 @@ export function RpkiContent() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Address</TableHead>
-                        <TableHead>Port</TableHead>
-                        <TableHead>Preference</TableHead>
-                        <TableHead>Source Address</TableHead>
+                        <TableHead>{t("servers.address")}</TableHead>
+                        <TableHead>{t("servers.port")}</TableHead>
+                        <TableHead>{t("servers.preference")}</TableHead>
+                        <TableHead>{t("servers.sourceAddress")}</TableHead>
                         <TableHead>SSH</TableHead>
                         {hasWritePermission && <TableHead className="w-20" />}
                       </TableRow>
@@ -399,7 +402,7 @@ export function RpkiContent() {
                           <TableCell>
                             {server.ssh ? (
                               <Badge variant="secondary" className="font-mono text-xs">
-                                {server.ssh.username ? server.ssh.username : "configured"}
+                                {server.ssh.username ? server.ssh.username : t("servers.configured")}
                               </Badge>
                             ) : (
                               "—"
@@ -442,7 +445,7 @@ export function RpkiContent() {
           {activeTab === "settings" && (
             <Card className="max-w-lg">
               <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                <CardTitle className="text-base">Global Timers</CardTitle>
+                <CardTitle className="text-base">{t("settings.globalTimers")}</CardTitle>
                 {hasWritePermission && !settingsEditing && (
                   <Button
                     variant="outline"
@@ -450,7 +453,7 @@ export function RpkiContent() {
                     onClick={() => setSettingsEditing(true)}
                   >
                     <Pencil className="h-4 w-4 mr-2" />
-                    Edit
+                    {tc("edit")}
                   </Button>
                 )}
               </CardHeader>
@@ -458,42 +461,42 @@ export function RpkiContent() {
                 {settingsEditing ? (
                   <>
                     <div className="space-y-1.5">
-                      <Label htmlFor="expire-interval">Expire Interval</Label>
+                      <Label htmlFor="expire-interval">{t("settings.expireInterval")}</Label>
                       <Input
                         id="expire-interval"
                         type="number"
                         value={expireInterval}
                         onChange={(e) => setExpireInterval(e.target.value)}
-                        placeholder="Default: 7200"
+                        placeholder={t("settings.expirePlaceholder")}
                       />
                       <p className="text-xs text-muted-foreground">
-                        Seconds before expiring cache data (600–172800)
+                        {t("settings.expireHelp")}
                       </p>
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="polling-period">Polling Period</Label>
+                      <Label htmlFor="polling-period">{t("settings.pollingPeriod")}</Label>
                       <Input
                         id="polling-period"
                         type="number"
                         value={pollingPeriod}
                         onChange={(e) => setPollingPeriod(e.target.value)}
-                        placeholder="Default: 300"
+                        placeholder={t("settings.pollingPlaceholder")}
                       />
                       <p className="text-xs text-muted-foreground">
-                        Cache polling interval in seconds (1–86400)
+                        {t("settings.pollingHelp")}
                       </p>
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="retry-interval">Retry Interval</Label>
+                      <Label htmlFor="retry-interval">{t("settings.retryInterval")}</Label>
                       <Input
                         id="retry-interval"
                         type="number"
                         value={retryInterval}
                         onChange={(e) => setRetryInterval(e.target.value)}
-                        placeholder="Default: 600"
+                        placeholder={t("settings.retryPlaceholder")}
                       />
                       <p className="text-xs text-muted-foreground">
-                        Retry interval to reconnect to cache server (1–7200)
+                        {t("settings.retryHelp")}
                       </p>
                     </div>
 
@@ -510,7 +513,7 @@ export function RpkiContent() {
                         onClick={handleSettingsSave}
                         disabled={settingsSaving}
                       >
-                        {settingsSaving ? "Saving..." : "Save"}
+                        {settingsSaving ? tc("saving") : tc("save")}
                       </Button>
                       <Button
                         variant="outline"
@@ -518,34 +521,34 @@ export function RpkiContent() {
                         onClick={handleSettingsCancel}
                         disabled={settingsSaving}
                       >
-                        Cancel
+                        {tc("cancel")}
                       </Button>
                     </div>
                   </>
                 ) : (
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between items-center py-1 border-b border-border">
-                      <span className="text-muted-foreground">Expire Interval</span>
+                      <span className="text-muted-foreground">{t("settings.expireInterval")}</span>
                       <span className="font-mono">
                         {config?.expire_interval != null
                           ? `${config.expire_interval}s`
-                          : <span className="text-muted-foreground">(default: 7200s)</span>}
+                          : <span className="text-muted-foreground">{t("settings.expireDefault")}</span>}
                       </span>
                     </div>
                     <div className="flex justify-between items-center py-1 border-b border-border">
-                      <span className="text-muted-foreground">Polling Period</span>
+                      <span className="text-muted-foreground">{t("settings.pollingPeriod")}</span>
                       <span className="font-mono">
                         {config?.polling_period != null
                           ? `${config.polling_period}s`
-                          : <span className="text-muted-foreground">(default: 300s)</span>}
+                          : <span className="text-muted-foreground">{t("settings.pollingDefault")}</span>}
                       </span>
                     </div>
                     <div className="flex justify-between items-center py-1">
-                      <span className="text-muted-foreground">Retry Interval</span>
+                      <span className="text-muted-foreground">{t("settings.retryInterval")}</span>
                       <span className="font-mono">
                         {config?.retry_interval != null
                           ? `${config.retry_interval}s`
-                          : <span className="text-muted-foreground">(default: 600s)</span>}
+                          : <span className="text-muted-foreground">{t("settings.retryDefault")}</span>}
                       </span>
                     </div>
                   </div>

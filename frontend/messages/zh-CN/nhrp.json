@@ -1,1 +1,114 @@
-{}
+{
+  "saveChanges": "保存更改",
+  "adding": "正在添加...",
+  "creating": "正在创建...",
+  "tunnelIpRequired": "隧道 IP 为必填项",
+  "errors": {
+    "loadConfig": "加载 NHRP 配置失败",
+    "deleteTunnel": "删除隧道失败",
+    "deleteMap": "删除映射失败",
+    "deleteNhs": "删除 NHS 条目失败",
+    "deleteDynamicMap": "删除动态映射失败",
+    "deleteShortcutTarget": "删除快捷目标失败",
+    "addMulticast": "添加组播失败",
+    "deleteMulticast": "删除组播失败"
+  },
+  "header": {
+    "readOnly": "只读",
+    "subtitle": "下一跳解析协议",
+    "addTunnel": "添加隧道"
+  },
+  "stats": {
+    "tunnels": "隧道",
+    "staticMaps": "静态映射",
+    "nhsEntries": "NHS 条目",
+    "dynamicMaps": "动态映射",
+    "multicast": "组播"
+  },
+  "empty": {
+    "title": "尚未配置 NHRP 隧道",
+    "hint": "添加一个隧道即可开始"
+  },
+  "tunnel": {
+    "mapCount": "{count} 个映射",
+    "generalSettings": "常规设置",
+    "authentication": "认证",
+    "holdingTime": "保持时间",
+    "networkId": "网络 ID",
+    "shortcutTargets": "快捷目标",
+    "noStaticMaps": "尚未配置静态映射",
+    "tunnelIp": "隧道 IP",
+    "nbmaAddress": "NBMA 地址",
+    "register": "注册",
+    "yes": "是",
+    "no": "否",
+    "noNhsEntries": "尚未配置 NHS 条目",
+    "nbmaAddresses": "NBMA 地址",
+    "noDynamicMaps": "尚未配置动态映射",
+    "network": "网络",
+    "nbmaDomainName": "NBMA 域名",
+    "noShortcutTargets": "尚未配置快捷目标",
+    "target": "目标",
+    "noneConfigured": "未配置",
+    "multicastPlaceholder": "例如 dynamic 或 NBMA 地址"
+  },
+  "placeholders": {
+    "tunnelIp": "例如 10.0.0.1",
+    "nbma": "例如 192.168.1.1"
+  },
+  "tunnelModal": {
+    "nameRequired": "隧道名称为必填项",
+    "nameInvalid": "隧道名称必须符合 tunN 格式（例如 tun0、tun1）",
+    "authTooLong": "认证口令不能超过 8 个字符",
+    "editTitle": "编辑隧道设置",
+    "addTitle": "添加 NHRP 隧道",
+    "tunnelName": "隧道名称",
+    "namePlaceholder": "例如 tun0",
+    "authPlaceholder": "口令（最多 8 个字符）",
+    "holdingTimeSeconds": "保持时间（秒）",
+    "redirect": "重定向",
+    "redirectHelp": "启用 Cisco 风格的 NHRP 流量指示报文",
+    "shortcut": "快捷路由",
+    "shortcutHelp": "启用通过 NHRP 创建快捷路由",
+    "nonCaching": "不缓存",
+    "nonCachingHelp": "减少大型 NBMA 子网上的内存占用",
+    "shortcutDestination": "快捷目的地",
+    "shortcutDestinationHelp": "对解析请求返回权威应答",
+    "registrationNoUnique": "注册不设唯一标志",
+    "registrationNoUniqueHelp": "在 NHRP 注册中不设置 unique 标志",
+    "createTunnel": "创建隧道"
+  },
+  "mapModal": {
+    "editTitle": "编辑静态映射",
+    "addTitle": "添加静态映射",
+    "ciscoHelp": "兼容 Cisco IOS 对等体",
+    "registerHelp": "启动时发送 NHRP 注册请求",
+    "addMap": "添加映射"
+  },
+  "nhsModal": {
+    "editTitle": "编辑 NHS 条目",
+    "addTitle": "添加 NHS 条目",
+    "tunnelIpPlaceholder": "例如 10.0.0.1 或 dynamic",
+    "addNhs": "添加 NHS"
+  },
+  "dynamicMapModal": {
+    "networkRequired": "网络为必填项",
+    "editTitle": "编辑动态映射",
+    "addTitle": "添加动态映射",
+    "networkPlaceholder": "例如 10.0.0.0/24",
+    "domainPlaceholder": "例如 nhrp.example.com"
+  },
+  "shortcutTargetModal": {
+    "prefixRequired": "目标前缀为必填项",
+    "editTitle": "编辑快捷目标",
+    "addTitle": "添加快捷目标",
+    "targetPrefix": "目标前缀",
+    "prefixPlaceholder": "例如 10.0.0.0/8",
+    "addTarget": "添加目标"
+  },
+  "deleteTunnel": {
+    "title": "删除 NHRP 隧道",
+    "description": "确定要删除隧道 <mono>{name}</mono> 吗？这将移除此隧道的所有 NHRP 配置，包括映射、NHS 条目和组播设置。",
+    "confirm": "删除隧道"
+  }
+}

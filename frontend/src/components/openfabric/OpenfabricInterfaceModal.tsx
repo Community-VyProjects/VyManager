@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -43,6 +44,8 @@ export function OpenfabricInterfaceModal({
   onSubmit,
   existingInterface,
 }: OpenfabricInterfaceModalProps) {
+  const t = useTranslations("openfabric");
+  const tc = useTranslations("common");
   const isEdit = !!existingInterface;
 
   const [saving, setSaving] = useState(false);
@@ -108,7 +111,7 @@ export function OpenfabricInterfaceModal({
 
   const handleSubmit = async () => {
     if (!name) {
-      setError("Please select an interface");
+      setError(t("interfaceModal.selectRequired"));
       return;
     }
 
@@ -132,7 +135,7 @@ export function OpenfabricInterfaceModal({
       await onSubmit(iface);
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save interface");
+      setError(err instanceof Error ? err.message : t("interfaceModal.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -142,9 +145,9 @@ export function OpenfabricInterfaceModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit OpenFabric Interface" : "Add OpenFabric Interface"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("interfaceModal.editTitle") : t("interfaceModal.addTitle")}</DialogTitle>
           <DialogDescription>
-            Configure OpenFabric parameters for this interface.
+            {t("interfaceModal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -157,15 +160,15 @@ export function OpenfabricInterfaceModal({
 
         <Tabs defaultValue="general">
           <TabsList className="w-full">
-            <TabsTrigger value="general" className="flex-1">General</TabsTrigger>
-            <TabsTrigger value="timers" className="flex-1">Timers</TabsTrigger>
-            <TabsTrigger value="auth" className="flex-1">Authentication</TabsTrigger>
+            <TabsTrigger value="general" className="flex-1">{t("modal.general")}</TabsTrigger>
+            <TabsTrigger value="timers" className="flex-1">{t("modal.timers")}</TabsTrigger>
+            <TabsTrigger value="auth" className="flex-1">{t("modal.authentication")}</TabsTrigger>
           </TabsList>
 
           {/* General Tab */}
           <TabsContent value="general" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>Interface <span className="text-destructive">*</span></Label>
+              <Label>{t("interfaceModal.interface")} <span className="text-destructive">*</span></Label>
               {isEdit ? (
                 <div className="h-9 flex items-center px-3 rounded-md border border-input bg-muted text-sm font-mono">
                   {name}
@@ -176,13 +179,13 @@ export function OpenfabricInterfaceModal({
                   onValueChange={setName}
                   disabled={interfacesLoading}
                   interfaces={interfaceNames}
-                  placeholder="Select interface"
+                  placeholder={t("interfaceModal.selectInterface")}
                 />
               )}
             </div>
 
             <div className="space-y-2">
-              <Label>Address Family</Label>
+              <Label>{t("interfaceModal.addressFamily")}</Label>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex items-center gap-2">
                   <Checkbox id="af-ipv4" checked={addressFamilyIpv4} onCheckedChange={(c) => setAddressFamilyIpv4(!!c)} />
@@ -196,12 +199,12 @@ export function OpenfabricInterfaceModal({
             </div>
 
             <div className="space-y-2">
-              <Label>Metric</Label>
+              <Label>{t("interfaceModal.metric")}</Label>
               <Input
                 type="number"
                 value={metric}
                 onChange={(e) => setMetric(e.target.value)}
-                placeholder="Default"
+                placeholder={tc("default")}
                 min={0}
                 max={16777215}
               />
@@ -209,7 +212,7 @@ export function OpenfabricInterfaceModal({
 
             <div className="flex items-center gap-2">
               <Checkbox id="passive" checked={passive} onCheckedChange={(c) => setPassive(!!c)} />
-              <Label htmlFor="passive">Passive (suppress hellos)</Label>
+              <Label htmlFor="passive">{t("interfaceModal.passive")}</Label>
             </div>
           </TabsContent>
 
@@ -217,45 +220,45 @@ export function OpenfabricInterfaceModal({
           <TabsContent value="timers" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>CSNP Interval (s)</Label>
+                <Label>{t("interfaceModal.csnpInterval")}</Label>
                 <Input
                   type="number"
                   value={csnpInterval}
                   onChange={(e) => setCsnpInterval(e.target.value)}
-                  placeholder="Default (10)"
+                  placeholder={t("interfaceModal.defaultWithValue", { value: "10" })}
                   min={1}
                   max={600}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Hello Interval (s)</Label>
+                <Label>{t("interfaceModal.helloInterval")}</Label>
                 <Input
                   type="number"
                   value={helloInterval}
                   onChange={(e) => setHelloInterval(e.target.value)}
-                  placeholder="Default (3)"
+                  placeholder={t("interfaceModal.defaultWithValue", { value: "3" })}
                   min={1}
                   max={600}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Hello Multiplier</Label>
+                <Label>{t("interfaceModal.helloMultiplier")}</Label>
                 <Input
                   type="number"
                   value={helloMultiplier}
                   onChange={(e) => setHelloMultiplier(e.target.value)}
-                  placeholder="Default (10)"
+                  placeholder={t("interfaceModal.defaultWithValue", { value: "10" })}
                   min={2}
                   max={100}
                 />
               </div>
               <div className="space-y-2">
-                <Label>PSNP Interval (s)</Label>
+                <Label>{t("interfaceModal.psnpInterval")}</Label>
                 <Input
                   type="number"
                   value={psnpInterval}
                   onChange={(e) => setPsnpInterval(e.target.value)}
-                  placeholder="Default (2)"
+                  placeholder={t("interfaceModal.defaultWithValue", { value: "2" })}
                   min={0}
                   max={120}
                 />
@@ -266,29 +269,29 @@ export function OpenfabricInterfaceModal({
           {/* Authentication Tab */}
           <TabsContent value="auth" className="space-y-4 mt-4">
             <p className="text-sm text-muted-foreground">
-              Configure per-interface authentication for OpenFabric.
+              {t("interfaceModal.authHelp")}
             </p>
             <div className="space-y-2">
-              <Label>Password Type</Label>
+              <Label>{t("modal.passwordType")}</Label>
               <Select value={passwordType} onValueChange={setPasswordType}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="none">{tc("none")}</SelectItem>
                   <SelectItem value="md5">MD5</SelectItem>
-                  <SelectItem value="plaintext">Plaintext</SelectItem>
+                  <SelectItem value="plaintext">{t("modal.plaintext")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             {passwordType !== "none" && (
               <div className="space-y-2">
-                <Label>Password</Label>
+                <Label>{t("modal.password")}</Label>
                 <Input
                   type="password"
                   value={passwordValue}
                   onChange={(e) => setPasswordValue(e.target.value)}
-                  placeholder={`${passwordType === "md5" ? "MD5" : "Plaintext"} password`}
+                  placeholder={passwordType === "md5" ? t("modal.md5Password") : t("modal.plaintextPassword")}
                 />
               </div>
             )}
@@ -297,11 +300,11 @@ export function OpenfabricInterfaceModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={saving}>
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? "Save Changes" : "Add Interface"}
+            {isEdit ? t("modal.saveChanges") : t("interfaceModal.submit")}
           </Button>
         </DialogFooter>
       </DialogContent>

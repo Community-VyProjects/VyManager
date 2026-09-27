@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Radio, ChevronRight, Wifi } from "lucide-react";
 import { useState, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
@@ -16,12 +17,13 @@ import { FeatureGroup } from "@/lib/api/user-management";
 type MulticastType = "igmp-proxy" | "pim" | "pim6";
 
 const allMulticast = [
-  { id: "igmp-proxy" as MulticastType, name: "IGMP Proxy", description: "Internet Group Management Protocol Proxy", icon: Wifi, permission: FeatureGroup.IGMP_PROXY },
-  { id: "pim" as MulticastType, name: "PIM", description: "Protocol Independent Multicast", icon: Radio, permission: FeatureGroup.PIM },
-  { id: "pim6" as MulticastType, name: "PIM6", description: "Protocol Independent Multicast for IPv6", icon: Radio, permission: FeatureGroup.PIM6 },
+  { id: "igmp-proxy" as MulticastType, icon: Wifi, permission: FeatureGroup.IGMP_PROXY },
+  { id: "pim" as MulticastType, icon: Radio, permission: FeatureGroup.PIM },
+  { id: "pim6" as MulticastType, icon: Radio, permission: FeatureGroup.PIM6 },
 ];
 
 export default function MulticastPage() {
+  const t = useTranslations("routingPages");
   const { canRead, isLoading } = usePermissions();
 
   // Filter multicast protocols based on user permissions
@@ -44,9 +46,9 @@ export default function MulticastPage() {
             <div className="flex items-center gap-3 mb-2">
               <Radio className="h-6 w-6 text-primary" />
               <div>
-                <h2 className="text-lg font-semibold text-foreground">Multicast</h2>
+                <h2 className="text-lg font-semibold text-foreground">{t("multicast.title")}</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Multicast routing protocols
+                  {t("multicast.subtitle")}
                 </p>
               </div>
             </div>
@@ -59,11 +61,11 @@ export default function MulticastPage() {
             <div className="space-y-1 py-3">
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
-                  <p className="text-sm text-muted-foreground">Loading multicast protocols...</p>
+                  <p className="text-sm text-muted-foreground">{t("multicast.loading")}</p>
                 </div>
               ) : multicast.length === 0 ? (
                 <div className="flex items-center justify-center py-8">
-                  <p className="text-sm text-muted-foreground">No accessible multicast protocols</p>
+                  <p className="text-sm text-muted-foreground">{t("multicast.empty")}</p>
                 </div>
               ) : (
                 multicast.map((protocol) => {
@@ -95,14 +97,14 @@ export default function MulticastPage() {
                               "font-medium text-sm",
                               selectedMulticast === protocol.id ? "text-foreground" : "text-foreground"
                             )}>
-                              {protocol.name}
+                              {t(`multicast.items.${protocol.id}.name`)}
                             </span>
                             {selectedMulticast === protocol.id && (
                               <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
                             )}
                           </div>
                           <span className="text-xs text-muted-foreground">
-                            {protocol.description}
+                            {t(`multicast.items.${protocol.id}.description`)}
                           </span>
                         </div>
                       </div>
@@ -124,7 +126,7 @@ export default function MulticastPage() {
             <Pim6Content />
           ) : selectedMulticast === null ? (
             <div className="flex items-center justify-center h-full">
-              <p className="text-sm text-muted-foreground">Loading multicast protocols...</p>
+              <p className="text-sm text-muted-foreground">{t("multicast.loading")}</p>
             </div>
           ) : (
             <InProgress />

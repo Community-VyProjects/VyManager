@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { MapPin, ChevronRight, Route, Activity } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
@@ -13,8 +14,8 @@ import { FeatureGroup } from "@/lib/api/user-management";
 type RouteType = "static" | "failover";
 
 const allRoutes = [
-  { id: "static" as RouteType, name: "Static Routes", description: "Manually configured routes", icon: Route, href: "/routing/static-failover/static-routes", permission: FeatureGroup.STATIC_ROUTES },
-  { id: "failover" as RouteType, name: "Failover / Tracking", description: "Route failover and health tracking", icon: Activity, href: "/routing/static-failover/failover", permission: FeatureGroup.FAILOVER },
+  { id: "static" as RouteType, icon: Route, href: "/routing/static-failover/static-routes", permission: FeatureGroup.STATIC_ROUTES },
+  { id: "failover" as RouteType, icon: Activity, href: "/routing/static-failover/failover", permission: FeatureGroup.FAILOVER },
 ];
 
 export default function StaticFailoverLayout({
@@ -22,6 +23,7 @@ export default function StaticFailoverLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const t = useTranslations("staticRoutes");
   const router = useRouter();
   const pathname = usePathname();
   const { canRead, isLoading } = usePermissions();
@@ -51,9 +53,9 @@ export default function StaticFailoverLayout({
             <div className="flex items-center gap-3 mb-2">
               <MapPin className="h-6 w-6 text-primary" />
               <div>
-                <h2 className="text-lg font-semibold text-foreground">Static & Failover</h2>
+                <h2 className="text-lg font-semibold text-foreground">{t("layout.title")}</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Static routes and failover
+                  {t("layout.subtitle")}
                 </p>
               </div>
             </div>
@@ -94,14 +96,14 @@ export default function StaticFailoverLayout({
                             "font-medium text-sm",
                             active ? "text-foreground" : "text-foreground"
                           )}>
-                            {route.name}
+                            {t(`layout.routes.${route.id}.name`)}
                           </span>
                           {active && (
                             <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
                           )}
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          {route.description}
+                          {t(`layout.routes.${route.id}.description`)}
                         </span>
                       </div>
                     </div>

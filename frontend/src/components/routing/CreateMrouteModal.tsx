@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { staticRoutesService, type MrouteNextHop, type MrouteInterface } from "@/lib/api/static-routes";
 import { showService, InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
@@ -41,6 +42,8 @@ export function CreateMrouteModal({
   onOpenChange,
   onSuccess,
 }: CreateMrouteModalProps) {
+  const t = useTranslations("routingExtras");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
@@ -106,19 +109,19 @@ export function CreateMrouteModal({
 
     // Validation
     if (!prefix) {
-      setError("Prefix is required");
+      setError(t("mrouteModal.prefixRequired"));
       return;
     }
 
     // Validate prefix format (IPv4 CIDR)
     const prefixRegex = /^(\d{1,3}\.){3}\d{1,3}\/\d{1,2}$/;
     if (!prefixRegex.test(prefix)) {
-      setError("Invalid prefix format (use CIDR notation like 224.0.0.0/4)");
+      setError(t("mrouteModal.invalidPrefix"));
       return;
     }
 
     if (nextHops.length === 0 && interfaces.length === 0) {
-      setError("At least one next-hop or interface is required");
+      setError(t("mrouteModal.nextHopOrInterfaceRequired"));
       return;
     }
 
@@ -148,7 +151,7 @@ export function CreateMrouteModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create multicast route");
+      setError(err instanceof Error ? err.message : t("mrouteModal.createFailed"));
     } finally {
       setLoading(false);
     }
@@ -158,9 +161,9 @@ export function CreateMrouteModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Multicast Route</DialogTitle>
+          <DialogTitle>{t("mrouteModal.title")}</DialogTitle>
           <DialogDescription>
-            Add a static multicast route for the Multicast RIB
+            {t("mrouteModal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -173,7 +176,7 @@ export function CreateMrouteModal({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="prefix">Prefix (CIDR)</Label>
+            <Label htmlFor="prefix">{t("mrouteModal.prefixCidr")}</Label>
             <Input
               id="prefix"
               placeholder="224.0.0.0/4"
@@ -185,23 +188,23 @@ export function CreateMrouteModal({
           {/* Next Hops */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Next Hops</Label>
+              <Label>{t("shared.nextHops")}</Label>
               <Button type="button" variant="outline" size="sm" onClick={addNextHop}>
                 <Plus className="h-4 w-4 mr-1" />
-                Add
+                {tc("add")}
               </Button>
             </div>
             {nextHops.map((nh, index) => (
               <div key={index} className="border rounded-lg p-3 space-y-2">
                 <div className="flex items-center gap-2">
                   <Input
-                    placeholder="Next-hop address"
+                    placeholder={t("shared.nextHopAddress")}
                     value={nh.address}
                     onChange={(e) => updateNextHop(index, "address", e.target.value)}
                     className="flex-1"
                   />
                   <Input
-                    placeholder="Distance"
+                    placeholder={t("shared.distance")}
                     type="number"
                     min="1"
                     max="255"
@@ -224,7 +227,7 @@ export function CreateMrouteModal({
                     checked={nh.disable}
                     onCheckedChange={(checked) => updateNextHop(index, "disable", !!checked)}
                   />
-                  <Label htmlFor={`nh-disable-${index}`} className="text-sm">Disable</Label>
+                  <Label htmlFor={`nh-disable-${index}`} className="text-sm">{t("shared.disable")}</Label>
                 </div>
               </div>
             ))}
@@ -233,10 +236,10 @@ export function CreateMrouteModal({
           {/* Interfaces */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Interfaces</Label>
+              <Label>{t("shared.interfaces")}</Label>
               <Button type="button" variant="outline" size="sm" onClick={addInterface}>
                 <Plus className="h-4 w-4 mr-1" />
-                Add
+                {tc("add")}
               </Button>
             </div>
             {interfaces.map((iface, index) => (
@@ -247,10 +250,10 @@ export function CreateMrouteModal({
                     onValueChange={(value) => updateInterface(index, "interface", value)}
                     interfaces={availableInterfaces}
                     className="flex-1"
-                    placeholder="Select interface..."
+                    placeholder={t("shared.selectInterface")}
                   />
                   <Input
-                    placeholder="Distance"
+                    placeholder={t("shared.distance")}
                     type="number"
                     min="1"
                     max="255"
@@ -273,7 +276,7 @@ export function CreateMrouteModal({
                     checked={iface.disable}
                     onCheckedChange={(checked) => updateInterface(index, "disable", !!checked)}
                   />
-                  <Label htmlFor={`iface-disable-${index}`} className="text-sm">Disable</Label>
+                  <Label htmlFor={`iface-disable-${index}`} className="text-sm">{t("shared.disable")}</Label>
                 </div>
               </div>
             ))}
@@ -282,11 +285,11 @@ export function CreateMrouteModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Create Route
+            {t("shared.createRoute")}
           </Button>
         </DialogFooter>
       </DialogContent>

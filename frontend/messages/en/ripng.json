@@ -1,1 +1,124 @@
-{}
+{
+  "header": {
+    "title": "RIPng Protocol",
+    "readOnly": "Read Only",
+    "subtitle": "Routing Information Protocol Next Generation — IPv6 distance-vector routing"
+  },
+  "errors": {
+    "loadFailed": "Failed to load RIPng configuration",
+    "saveSettingsFailed": "Failed to save settings",
+    "addNetworkFailed": "Failed to add network",
+    "removeNetworkFailed": "Failed to remove network",
+    "addAggregateFailed": "Failed to add aggregate address",
+    "removeAggregateFailed": "Failed to remove aggregate address",
+    "addRouteFailed": "Failed to add route",
+    "removeRouteFailed": "Failed to remove route",
+    "addPassiveIfaceFailed": "Failed to add passive interface",
+    "removePassiveIfaceFailed": "Failed to remove passive interface",
+    "saveFiltersFailed": "Failed to save filters"
+  },
+  "stats": {
+    "networks": "Networks",
+    "aggregateAddresses": "Aggregate Addresses",
+    "interfaces": "Interfaces",
+    "redistribute": "Redistribute"
+  },
+  "tabs": {
+    "overview": "Overview",
+    "networks": "Networks",
+    "interfaces": "Interfaces",
+    "redistribute": "Redistribute",
+    "filters": "Filters"
+  },
+  "overview": {
+    "description": "Global RIPng settings and timers",
+    "globalSettings": "Global Settings",
+    "defaultMetric": "Default Metric",
+    "defaultMetricHelp": "Metric for redistributed routes (1–16)",
+    "routeMap": "Route Map",
+    "originate": "Default Information Originate",
+    "timers": "Timers",
+    "updateInterval": "Update Interval (seconds)",
+    "updateHelp": "How often to send routing updates (default: 30)",
+    "timeoutInterval": "Timeout Interval (seconds)",
+    "timeoutHelp": "Time before a route is marked invalid (default: 180)",
+    "garbageCollection": "Garbage Collection (seconds)",
+    "gcHelp": "Time before a stale route is removed (default: 120)"
+  },
+  "networks": {
+    "description": "Configure RIPng networks, aggregate addresses, static routes, and passive interfaces",
+    "ripngNetworks": "RIPng Networks",
+    "aggregateAddresses": "Aggregate Addresses",
+    "staticRoutes": "Static Routes",
+    "passiveInterfaces": "Passive Interfaces",
+    "selectOrTypeInterface": "Select or type interface",
+    "noneConfigured": "None configured"
+  },
+  "interfaces": {
+    "description": "Per-interface split-horizon settings",
+    "addInterface": "Add Interface",
+    "empty": "No interface settings configured",
+    "emptyHint": "Add one to configure split-horizon.",
+    "interface": "Interface",
+    "splitHorizon": "Split Horizon"
+  },
+  "redistribute": {
+    "description": "Redistribute routes from other protocols into RIPng",
+    "empty": "No redistribution configured",
+    "protocol": "Protocol",
+    "metric": "Metric",
+    "routeMap": "Route Map"
+  },
+  "filters": {
+    "distributeLists": "Distribute Lists",
+    "globalFilters": "Global Filters",
+    "accessListIn": "Access List In",
+    "accessListOut": "Access List Out",
+    "prefixListIn": "Prefix List In",
+    "prefixListOut": "Prefix List Out",
+    "perInterfaceFilters": "Per-Interface Filters",
+    "perInterfaceEmpty": "No per-interface filters configured",
+    "aclIn": "ACL In",
+    "aclOut": "ACL Out",
+    "plIn": "PL In",
+    "plOut": "PL Out"
+  },
+  "deleteModal": {
+    "title": "Delete RIPng {type, select, interface {Interface} redistribution {Redistribution} other {Interface Filter}}",
+    "description": "Are you sure you want to delete the RIPng {type, select, interface {interface} redistribution {redistribution} other {interface filter}} <mono>{name}</mono>? This action cannot be undone.",
+    "confirm": "Delete {type, select, interface {Interface} redistribution {Redistribution} other {Interface Filter}}"
+  },
+  "modal": {
+    "adding": "Adding...",
+    "saveChanges": "Save Changes",
+    "optionalHint": "(optional)"
+  },
+  "validation": {
+    "selectInterface": "Please select an interface",
+    "selectProtocol": "Please select a protocol",
+    "metricRange": "Metric must be between 1 and 16"
+  },
+  "interfaceModal": {
+    "editTitle": "Edit RIPng Interface",
+    "addTitle": "Add RIPng Interface",
+    "editDescription": "Modify RIPng settings for {name}.",
+    "addDescription": "Configure per-interface RIPng split-horizon settings.",
+    "disable": "Disable",
+    "poisonReverse": "Poison Reverse"
+  },
+  "dlModal": {
+    "editTitle": "Edit Interface Filter",
+    "addTitle": "Add Interface Filter",
+    "description": "Configure distribute list filters for a specific interface.",
+    "selectInterface": "Select interface",
+    "addFilter": "Add Filter"
+  },
+  "redistModal": {
+    "editTitle": "Edit Redistribution",
+    "addTitle": "Add Redistribution",
+    "editDescription": "Modify redistribution settings for {protocol}.",
+    "addDescription": "Configure a new protocol to redistribute into RIPng.",
+    "selectProtocol": "Select protocol",
+    "metricHint": "(optional, 1–16)"
+  }
+}

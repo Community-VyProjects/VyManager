@@ -42,8 +42,11 @@ import {
 } from "@/lib/api/babel";
 import { BabelInterfaceModal } from "./BabelInterfaceModal";
 import { DeleteBabelInterfaceModal } from "./DeleteBabelInterfaceModal";
+import { useTranslations } from "next-intl";
 
 export function BabelContent() {
+  const t = useTranslations("babel");
+  const tc = useTranslations("common");
   const [config, setConfig] = useState<BabelConfig | null>(null);
   const [capabilities, setCapabilities] = useState<BabelCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
@@ -82,11 +85,11 @@ export function BabelContent() {
       setConfig(configData);
       setCapabilities(capData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load Babel configuration");
+      setError(err instanceof Error ? err.message : t("page.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -154,7 +157,7 @@ export function BabelContent() {
       setEditingParams(false);
       setParamsDraft(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save parameters");
+      setError(err instanceof Error ? err.message : t("page.saveParametersFailed"));
     } finally {
       setSavingParams(false);
     }
@@ -187,7 +190,7 @@ export function BabelContent() {
       setEditingRedist(false);
       setRedistDraft(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save redistribution");
+      setError(err instanceof Error ? err.message : t("page.saveRedistributionFailed"));
     } finally {
       setSavingRedist(false);
     }
@@ -233,7 +236,7 @@ export function BabelContent() {
       setDistListIpv4Draft(null);
       setDistListIpv6Draft(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save distribute list");
+      setError(err instanceof Error ? err.message : t("page.saveDistributeListFailed"));
     } finally {
       setSavingDistList(false);
     }
@@ -256,7 +259,7 @@ export function BabelContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -269,9 +272,9 @@ export function BabelContent() {
         <div className="p-6 pb-4 border-b border-border">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Babel Protocol</h1>
+              <h1 className="text-2xl font-bold text-foreground">{t("page.title")}</h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Distance-vector routing protocol for mesh networks
+                {t("page.subtitle")}
               </p>
             </div>
             <Button
@@ -280,7 +283,7 @@ export function BabelContent() {
               onClick={() => loadData(true)}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              {tc("refresh")}
             </Button>
           </div>
 
@@ -300,7 +303,7 @@ export function BabelContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{interfaceCount}</p>
-                    <p className="text-xs text-muted-foreground">Interfaces</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.interfaces")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -313,9 +316,9 @@ export function BabelContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">
-                      {config?.parameters.diversity ? "On" : "Off"}
+                      {config?.parameters.diversity ? t("values.on") : t("values.off")}
                     </p>
-                    <p className="text-xs text-muted-foreground">Diversity</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.diversity")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -328,7 +331,7 @@ export function BabelContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{redistCount}</p>
-                    <p className="text-xs text-muted-foreground">Redistributed</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.redistributed")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -340,8 +343,8 @@ export function BabelContent() {
                     <Filter className="h-4 w-4 text-orange-500" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">{hasDistList ? "Active" : "None"}</p>
-                    <p className="text-xs text-muted-foreground">Filters</p>
+                    <p className="text-2xl font-bold">{hasDistList ? t("values.active") : tc("none")}</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.filters")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -354,19 +357,19 @@ export function BabelContent() {
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
               <TabsTrigger value="interfaces">
-                Interfaces
+                {t("tabs.interfaces")}
                 {interfaceCount > 0 && (
                   <Badge variant="secondary" className="ml-2">{interfaceCount}</Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="parameters">Parameters</TabsTrigger>
+              <TabsTrigger value="parameters">{t("tabs.parameters")}</TabsTrigger>
               <TabsTrigger value="redistribute">
-                Redistribute
+                {t("tabs.redistribute")}
                 {redistCount > 0 && (
                   <Badge variant="secondary" className="ml-2">{redistCount}</Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="distribute-list">Distribute List</TabsTrigger>
+              <TabsTrigger value="distribute-list">{t("tabs.distributeList")}</TabsTrigger>
             </TabsList>
 
             {/* ============================================================ */}
@@ -375,11 +378,11 @@ export function BabelContent() {
             <TabsContent value="interfaces">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Configure Babel on network interfaces
+                  {t("interfaces.description")}
                 </p>
                 <Button size="sm" onClick={() => { setEditingInterface(null); setInterfaceModalOpen(true); }}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Interface
+                  {t("fields.addInterface")}
                 </Button>
               </div>
 
@@ -387,13 +390,13 @@ export function BabelContent() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <Network className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">No Babel interfaces configured</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("interfaces.emptyTitle")}</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      Add an interface to start using Babel routing
+                      {t("interfaces.emptyHint")}
                     </p>
                     <Button size="sm" onClick={() => { setEditingInterface(null); setInterfaceModalOpen(true); }}>
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Interface
+                      {t("fields.addInterface")}
                     </Button>
                   </CardContent>
                 </Card>
@@ -403,15 +406,15 @@ export function BabelContent() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Interface</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Channel</TableHead>
-                          <TableHead>Hello Int.</TableHead>
-                          <TableHead>Update Int.</TableHead>
-                          <TableHead>RX Cost</TableHead>
-                          <TableHead>Split Horizon</TableHead>
-                          <TableHead>Timestamps</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead>{t("fields.interface")}</TableHead>
+                          <TableHead>{t("fields.type")}</TableHead>
+                          <TableHead>{t("fields.channel")}</TableHead>
+                          <TableHead>{t("interfaces.helloInt")}</TableHead>
+                          <TableHead>{t("interfaces.updateInt")}</TableHead>
+                          <TableHead>{t("interfaces.rxCost")}</TableHead>
+                          <TableHead>{t("fields.splitHorizon")}</TableHead>
+                          <TableHead>{t("interfaces.timestamps")}</TableHead>
+                          <TableHead className="text-right">{tc("actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -429,24 +432,24 @@ export function BabelContent() {
                               {iface.channel ?? <span className="text-muted-foreground">-</span>}
                             </TableCell>
                             <TableCell>
-                              {iface.hello_interval ? `${iface.hello_interval}ms` : <span className="text-muted-foreground">default</span>}
+                              {iface.hello_interval ? `${iface.hello_interval}ms` : <span className="text-muted-foreground">{t("values.default")}</span>}
                             </TableCell>
                             <TableCell>
-                              {iface.update_interval ? `${iface.update_interval}ms` : <span className="text-muted-foreground">default</span>}
+                              {iface.update_interval ? `${iface.update_interval}ms` : <span className="text-muted-foreground">{t("values.default")}</span>}
                             </TableCell>
                             <TableCell>
-                              {iface.rxcost ?? <span className="text-muted-foreground">default</span>}
+                              {iface.rxcost ?? <span className="text-muted-foreground">{t("values.default")}</span>}
                             </TableCell>
                             <TableCell>
                               {iface.split_horizon ? (
                                 <Badge variant="outline">{iface.split_horizon}</Badge>
                               ) : (
-                                <span className="text-muted-foreground">default</span>
+                                <span className="text-muted-foreground">{t("values.default")}</span>
                               )}
                             </TableCell>
                             <TableCell>
                               {iface.enable_timestamps ? (
-                                <Badge variant="secondary">Enabled</Badge>
+                                <Badge variant="secondary">{tc("enabled")}</Badge>
                               ) : (
                                 <span className="text-muted-foreground">-</span>
                               )}
@@ -489,21 +492,21 @@ export function BabelContent() {
             <TabsContent value="parameters">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Global Babel protocol parameters
+                  {t("parameters.description")}
                 </p>
                 {!editingParams ? (
                   <Button size="sm" variant="outline" onClick={startEditParams}>
                     <Pencil className="h-4 w-4 mr-2" />
-                    Edit Parameters
+                    {t("fields.editParameters")}
                   </Button>
                 ) : (
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline" onClick={cancelEditParams}>
-                      Cancel
+                      {tc("cancel")}
                     </Button>
                     <Button size="sm" onClick={saveParams} disabled={savingParams}>
                       {savingParams ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                      Save
+                      {tc("save")}
                     </Button>
                   </div>
                 )}
@@ -512,7 +515,7 @@ export function BabelContent() {
               <div className="grid grid-cols-2 gap-6">
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4">Diversity Routing</h3>
+                    <h3 className="font-semibold mb-4">{t("parameters.diversityRouting")}</h3>
                     <div className="space-y-4">
                       <div className="flex items-center gap-3">
                         <Checkbox
@@ -523,11 +526,11 @@ export function BabelContent() {
                             paramsDraft && setParamsDraft({ ...paramsDraft, diversity: !!checked })
                           }
                         />
-                        <Label htmlFor="diversity">Enable diversity-aware routing</Label>
+                        <Label htmlFor="diversity">{t("parameters.enableDiversity")}</Label>
                       </div>
                       <div>
-                        <Label className="text-sm">Diversity Factor</Label>
-                        <p className="text-xs text-muted-foreground mb-1">Multiplicative factor (1-256, default: 256)</p>
+                        <Label className="text-sm">{t("parameters.diversityFactor")}</Label>
+                        <p className="text-xs text-muted-foreground mb-1">{t("parameters.diversityFactorHelp")}</p>
                         <Input
                           type="number"
                           min={1}
@@ -549,11 +552,11 @@ export function BabelContent() {
 
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4">Timing</h3>
+                    <h3 className="font-semibold mb-4">{t("parameters.timing")}</h3>
                     <div className="space-y-4">
                       <div>
-                        <Label className="text-sm">Resend Delay</Label>
-                        <p className="text-xs text-muted-foreground mb-1">Time before resending (20-655340 ms, default: 2000)</p>
+                        <Label className="text-sm">{t("parameters.resendDelay")}</Label>
+                        <p className="text-xs text-muted-foreground mb-1">{t("parameters.resendDelayHelp")}</p>
                         <Input
                           type="number"
                           min={20}
@@ -570,8 +573,8 @@ export function BabelContent() {
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">Smoothing Half-life</Label>
-                        <p className="text-xs text-muted-foreground mb-1">Smoothing half-life (0-65534 seconds, default: 4)</p>
+                        <Label className="text-sm">{t("parameters.smoothingHalfLife")}</Label>
+                        <p className="text-xs text-muted-foreground mb-1">{t("parameters.smoothingHalfLifeHelp")}</p>
                         <Input
                           type="number"
                           min={0}
@@ -599,21 +602,21 @@ export function BabelContent() {
             <TabsContent value="redistribute">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Select which protocols to redistribute into Babel
+                  {t("redistribute.description")}
                 </p>
                 {!editingRedist ? (
                   <Button size="sm" variant="outline" onClick={startEditRedist}>
                     <Pencil className="h-4 w-4 mr-2" />
-                    Edit
+                    {tc("edit")}
                   </Button>
                 ) : (
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline" onClick={cancelEditRedist}>
-                      Cancel
+                      {tc("cancel")}
                     </Button>
                     <Button size="sm" onClick={saveRedist} disabled={savingRedist}>
                       {savingRedist ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                      Save
+                      {tc("save")}
                     </Button>
                   </div>
                 )}
@@ -622,7 +625,7 @@ export function BabelContent() {
               <div className="grid grid-cols-2 gap-6">
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4">IPv4 Protocols</h3>
+                    <h3 className="font-semibold mb-4">{t("redistribute.ipv4Protocols")}</h3>
                     <div className="space-y-3">
                       {(capabilities?.redistribute_protocols.ipv4 ?? []).map((proto) => (
                         <div key={proto} className="flex items-center gap-3">
@@ -647,7 +650,7 @@ export function BabelContent() {
 
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4">IPv6 Protocols</h3>
+                    <h3 className="font-semibold mb-4">{t("redistribute.ipv6Protocols")}</h3>
                     <div className="space-y-3">
                       {(capabilities?.redistribute_protocols.ipv6 ?? []).map((proto) => (
                         <div key={proto} className="flex items-center gap-3">
@@ -678,21 +681,21 @@ export function BabelContent() {
             <TabsContent value="distribute-list">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Configure route filtering with access lists and prefix lists
+                  {t("distributeList.description")}
                 </p>
                 {!editingDistList ? (
                   <Button size="sm" variant="outline" onClick={startEditDistList}>
                     <Pencil className="h-4 w-4 mr-2" />
-                    Edit
+                    {tc("edit")}
                   </Button>
                 ) : (
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline" onClick={cancelEditDistList}>
-                      Cancel
+                      {tc("cancel")}
                     </Button>
                     <Button size="sm" onClick={saveDistList} disabled={savingDistList}>
                       {savingDistList ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                      Save
+                      {tc("save")}
                     </Button>
                   </div>
                 )}
@@ -702,12 +705,12 @@ export function BabelContent() {
                 {/* IPv4 Global */}
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4">IPv4 Global Filters</h3>
+                    <h3 className="font-semibold mb-4">{t("distributeList.ipv4Global")}</h3>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label className="text-sm">Access List In</Label>
+                        <Label className="text-sm">{t("distributeList.accessListIn")}</Label>
                         <Input
-                          placeholder="Not set"
+                          placeholder={tc("notSet")}
                           value={
                             editingDistList
                               ? (distListIpv4Draft?.access_list_in ?? "")
@@ -721,9 +724,9 @@ export function BabelContent() {
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">Access List Out</Label>
+                        <Label className="text-sm">{t("distributeList.accessListOut")}</Label>
                         <Input
-                          placeholder="Not set"
+                          placeholder={tc("notSet")}
                           value={
                             editingDistList
                               ? (distListIpv4Draft?.access_list_out ?? "")
@@ -737,9 +740,9 @@ export function BabelContent() {
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">Prefix List In</Label>
+                        <Label className="text-sm">{t("distributeList.prefixListIn")}</Label>
                         <Input
-                          placeholder="Not set"
+                          placeholder={tc("notSet")}
                           value={
                             editingDistList
                               ? (distListIpv4Draft?.prefix_list_in ?? "")
@@ -753,9 +756,9 @@ export function BabelContent() {
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">Prefix List Out</Label>
+                        <Label className="text-sm">{t("distributeList.prefixListOut")}</Label>
                         <Input
-                          placeholder="Not set"
+                          placeholder={tc("notSet")}
                           value={
                             editingDistList
                               ? (distListIpv4Draft?.prefix_list_out ?? "")
@@ -775,12 +778,12 @@ export function BabelContent() {
                 {/* IPv6 Global */}
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4">IPv6 Global Filters</h3>
+                    <h3 className="font-semibold mb-4">{t("distributeList.ipv6Global")}</h3>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label className="text-sm">Access List In</Label>
+                        <Label className="text-sm">{t("distributeList.accessListIn")}</Label>
                         <Input
-                          placeholder="Not set"
+                          placeholder={tc("notSet")}
                           value={
                             editingDistList
                               ? (distListIpv6Draft?.access_list_in ?? "")
@@ -794,9 +797,9 @@ export function BabelContent() {
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">Access List Out</Label>
+                        <Label className="text-sm">{t("distributeList.accessListOut")}</Label>
                         <Input
-                          placeholder="Not set"
+                          placeholder={tc("notSet")}
                           value={
                             editingDistList
                               ? (distListIpv6Draft?.access_list_out ?? "")
@@ -810,9 +813,9 @@ export function BabelContent() {
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">Prefix List In</Label>
+                        <Label className="text-sm">{t("distributeList.prefixListIn")}</Label>
                         <Input
-                          placeholder="Not set"
+                          placeholder={tc("notSet")}
                           value={
                             editingDistList
                               ? (distListIpv6Draft?.prefix_list_in ?? "")
@@ -826,9 +829,9 @@ export function BabelContent() {
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">Prefix List Out</Label>
+                        <Label className="text-sm">{t("distributeList.prefixListOut")}</Label>
                         <Input
-                          placeholder="Not set"
+                          placeholder={tc("notSet")}
                           value={
                             editingDistList
                               ? (distListIpv6Draft?.prefix_list_out ?? "")
@@ -850,16 +853,16 @@ export function BabelContent() {
                   (config?.distribute_list.ipv6_interfaces.length ?? 0) > 0) && (
                   <Card>
                     <CardContent className="p-6">
-                      <h3 className="font-semibold mb-4">Per-Interface Filters</h3>
+                      <h3 className="font-semibold mb-4">{t("distributeList.perInterface")}</h3>
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Address Family</TableHead>
-                            <TableHead>Interface</TableHead>
-                            <TableHead>ACL In</TableHead>
-                            <TableHead>ACL Out</TableHead>
-                            <TableHead>Prefix In</TableHead>
-                            <TableHead>Prefix Out</TableHead>
+                            <TableHead>{t("distributeList.addressFamily")}</TableHead>
+                            <TableHead>{t("fields.interface")}</TableHead>
+                            <TableHead>{t("distributeList.aclIn")}</TableHead>
+                            <TableHead>{t("distributeList.aclOut")}</TableHead>
+                            <TableHead>{t("distributeList.prefixIn")}</TableHead>
+                            <TableHead>{t("distributeList.prefixOut")}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>

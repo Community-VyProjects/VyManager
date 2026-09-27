@@ -1,1 +1,114 @@
-{}
+{
+  "saveChanges": "Save Changes",
+  "adding": "Adding...",
+  "creating": "Creating...",
+  "tunnelIpRequired": "Tunnel IP is required",
+  "errors": {
+    "loadConfig": "Failed to load NHRP configuration",
+    "deleteTunnel": "Failed to delete tunnel",
+    "deleteMap": "Failed to delete map",
+    "deleteNhs": "Failed to delete NHS entry",
+    "deleteDynamicMap": "Failed to delete dynamic map",
+    "deleteShortcutTarget": "Failed to delete shortcut target",
+    "addMulticast": "Failed to add multicast",
+    "deleteMulticast": "Failed to delete multicast"
+  },
+  "header": {
+    "readOnly": "Read Only",
+    "subtitle": "Next Hop Resolution Protocol",
+    "addTunnel": "Add Tunnel"
+  },
+  "stats": {
+    "tunnels": "Tunnels",
+    "staticMaps": "Static Maps",
+    "nhsEntries": "NHS Entries",
+    "dynamicMaps": "Dynamic Maps",
+    "multicast": "Multicast"
+  },
+  "empty": {
+    "title": "No NHRP tunnels configured",
+    "hint": "Add a tunnel to get started"
+  },
+  "tunnel": {
+    "mapCount": "{count, plural, one {# map} other {# maps}}",
+    "generalSettings": "General Settings",
+    "authentication": "Authentication",
+    "holdingTime": "Holding Time",
+    "networkId": "Network ID",
+    "shortcutTargets": "Shortcut Targets",
+    "noStaticMaps": "No static maps configured",
+    "tunnelIp": "Tunnel IP",
+    "nbmaAddress": "NBMA Address",
+    "register": "Register",
+    "yes": "Yes",
+    "no": "No",
+    "noNhsEntries": "No NHS entries configured",
+    "nbmaAddresses": "NBMA Addresses",
+    "noDynamicMaps": "No dynamic maps configured",
+    "network": "Network",
+    "nbmaDomainName": "NBMA Domain Name",
+    "noShortcutTargets": "No shortcut targets configured",
+    "target": "Target",
+    "noneConfigured": "None configured",
+    "multicastPlaceholder": "e.g. dynamic or NBMA address"
+  },
+  "placeholders": {
+    "tunnelIp": "e.g. 10.0.0.1",
+    "nbma": "e.g. 192.168.1.1"
+  },
+  "tunnelModal": {
+    "nameRequired": "Tunnel name is required",
+    "nameInvalid": "Tunnel name must match format tunN (e.g. tun0, tun1)",
+    "authTooLong": "Authentication passphrase must be 8 characters or fewer",
+    "editTitle": "Edit Tunnel Settings",
+    "addTitle": "Add NHRP Tunnel",
+    "tunnelName": "Tunnel Name",
+    "namePlaceholder": "e.g. tun0",
+    "authPlaceholder": "Passphrase (max 8 chars)",
+    "holdingTimeSeconds": "Holding Time (seconds)",
+    "redirect": "Redirect",
+    "redirectHelp": "Enable Cisco-style NHRP Traffic Indication packets",
+    "shortcut": "Shortcut",
+    "shortcutHelp": "Enable shortcut route creation via NHRP",
+    "nonCaching": "Non-Caching",
+    "nonCachingHelp": "Reduce memory usage on large NBMA subnets",
+    "shortcutDestination": "Shortcut Destination",
+    "shortcutDestinationHelp": "Reply with authoritative answers on resolution requests",
+    "registrationNoUnique": "Registration No-Unique",
+    "registrationNoUniqueHelp": "Don't set unique flag in NHRP registration",
+    "createTunnel": "Create Tunnel"
+  },
+  "mapModal": {
+    "editTitle": "Edit Static Map",
+    "addTitle": "Add Static Map",
+    "ciscoHelp": "Cisco IOS peer compatibility",
+    "registerHelp": "Send NHRP registration request on startup",
+    "addMap": "Add Map"
+  },
+  "nhsModal": {
+    "editTitle": "Edit NHS Entry",
+    "addTitle": "Add NHS Entry",
+    "tunnelIpPlaceholder": "e.g. 10.0.0.1 or dynamic",
+    "addNhs": "Add NHS"
+  },
+  "dynamicMapModal": {
+    "networkRequired": "Network is required",
+    "editTitle": "Edit Dynamic Map",
+    "addTitle": "Add Dynamic Map",
+    "networkPlaceholder": "e.g. 10.0.0.0/24",
+    "domainPlaceholder": "e.g. nhrp.example.com"
+  },
+  "shortcutTargetModal": {
+    "prefixRequired": "Target prefix is required",
+    "editTitle": "Edit Shortcut Target",
+    "addTitle": "Add Shortcut Target",
+    "targetPrefix": "Target Prefix",
+    "prefixPlaceholder": "e.g. 10.0.0.0/8",
+    "addTarget": "Add Target"
+  },
+  "deleteTunnel": {
+    "title": "Delete NHRP Tunnel",
+    "description": "Are you sure you want to delete tunnel <mono>{name}</mono>? This will remove all NHRP configuration for this tunnel including maps, NHS entries, and multicast settings.",
+    "confirm": "Delete Tunnel"
+  }
+}

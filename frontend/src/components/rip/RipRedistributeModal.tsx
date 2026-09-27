@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useTranslations } from "next-intl";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { RipRedistribute } from "@/lib/api/rip";
 
@@ -41,6 +42,8 @@ export function RipRedistributeModal({
   existingProtocols,
   routeMapNames,
 }: RipRedistributeModalProps) {
+  const t = useTranslations("rip");
+  const tc = useTranslations("common");
   const isEditMode = !!existingEntry;
 
   const [protocol, setProtocol] = useState("");
@@ -77,10 +80,10 @@ export function RipRedistributeModal({
   };
 
   const validate = (): string | null => {
-    if (!protocol) return "Please select a protocol";
+    if (!protocol) return t("validation.selectProtocol");
     if (metric.trim()) {
       const val = parseInt(metric.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 16) return "Metric must be between 1 and 16";
+      if (isNaN(val) || val < 1 || val > 16) return t("validation.metricRange");
     }
     return null;
   };
@@ -104,7 +107,7 @@ export function RipRedistributeModal({
       await onSubmit(entry);
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -115,22 +118,22 @@ export function RipRedistributeModal({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit Redistribution" : "Add Redistribution"}
+            {isEditMode ? t("redistModal.editTitle") : t("redistModal.addTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? `Modify redistribution settings for ${existingEntry?.protocol}.`
-              : "Configure a new protocol to redistribute into RIP."}
+              ? t("redistModal.editDescription", { protocol: existingEntry?.protocol ?? "" })
+              : t("redistModal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* Protocol */}
           <div className="space-y-2">
-            <Label>Protocol</Label>
+            <Label>{t("redistribute.protocol")}</Label>
             <Select value={protocol} onValueChange={setProtocol} disabled={isEditMode}>
               <SelectTrigger className={isEditMode ? "bg-muted" : ""}>
-                <SelectValue placeholder="Select protocol" />
+                <SelectValue placeholder={t("redistModal.selectProtocol")} />
               </SelectTrigger>
               <SelectContent>
                 {availableProtocols.map((p) => (
@@ -142,12 +145,12 @@ export function RipRedistributeModal({
 
           {/* Metric */}
           <div className="space-y-2">
-            <Label>Metric <span className="text-muted-foreground text-xs">(optional, 1-16)</span></Label>
+            <Label>{t("redistribute.metric")} <span className="text-muted-foreground text-xs">{t("redistModal.metricHint")}</span></Label>
             <Input
               type="number"
               min={1}
               max={16}
-              placeholder="Default"
+              placeholder={tc("default")}
               value={metric}
               onChange={(e) => setMetric(e.target.value)}
             />
@@ -155,13 +158,13 @@ export function RipRedistributeModal({
 
           {/* Route Map */}
           <div className="space-y-2">
-            <Label>Route Map <span className="text-muted-foreground text-xs">(optional)</span></Label>
+            <Label>{t("redistribute.routeMap")} <span className="text-muted-foreground text-xs">{t("modal.optionalHint")}</span></Label>
             <Select value={routeMap || "none"} onValueChange={(v) => setRouteMap(v === "none" ? "" : v)}>
               <SelectTrigger>
-                <SelectValue placeholder="None" />
+                <SelectValue placeholder={tc("none")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">None</SelectItem>
+                <SelectItem value="none">{tc("none")}</SelectItem>
                 {routeMapNames.map((rm) => (
                   <SelectItem key={rm} value={rm} className="font-mono">{rm}</SelectItem>
                 ))}
@@ -179,18 +182,18 @@ export function RipRedistributeModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Adding..."}
+                {isEditMode ? tc("saving") : t("modal.adding")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("modal.saveChanges")
             ) : (
-              "Add"
+              tc("add")
             )}
           </Button>
         </DialogFooter>

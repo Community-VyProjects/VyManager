@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +42,8 @@ export function Pim6InterfaceModal({
   onSubmit,
   existingInterface,
 }: Pim6InterfaceModalProps) {
+  const t = useTranslations("pim6");
+  const tc = useTranslations("common");
   const isEditMode = !!existingInterface;
 
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
@@ -145,11 +148,11 @@ export function Pim6InterfaceModal({
     const group = newJoinGroup.trim();
     if (!group) return;
     if (!isValidIPv6(group) || group === "") {
-      setError(`Invalid IPv6 group address: ${group}`);
+      setError(t("interfaceModal.invalidGroup", { group }));
       return;
     }
     if (mldJoins.some((j) => j.group === group)) {
-      setError("Join group already exists");
+      setError(t("interfaceModal.joinExists"));
       return;
     }
     setMldJoins([...mldJoins, { group, sources: [] }]);
@@ -168,12 +171,12 @@ export function Pim6InterfaceModal({
     const source = (joinSourceInputs[joinIndex] || "").trim();
     if (!source) return;
     if (!isValidIPv6(source) || source === "") {
-      setError(`Invalid IPv6 source address: ${source}`);
+      setError(t("interfaceModal.invalidSource", { source }));
       return;
     }
     const join = mldJoins[joinIndex];
     if (join.sources.includes(source)) {
-      setError("Source address already exists in this join group");
+      setError(t("interfaceModal.sourceExists"));
       return;
     }
     const updated = [...mldJoins];
@@ -193,31 +196,31 @@ export function Pim6InterfaceModal({
   };
 
   const validateForm = (): string | null => {
-    if (!name) return "Interface is required";
+    if (!name) return t("interfaceModal.interfaceRequired");
 
     if (drPriority.trim()) {
       const val = parseInt(drPriority.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 4294967295) return "DR Priority must be between 1 and 4294967295";
+      if (isNaN(val) || val < 1 || val > 4294967295) return t("interfaceModal.drPriorityRange");
     }
     if (hello.trim()) {
       const val = parseInt(hello.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 180) return "Hello interval must be between 1 and 180";
+      if (isNaN(val) || val < 1 || val > 180) return t("interfaceModal.helloRange");
     }
     if (mldInterval.trim()) {
       const val = parseInt(mldInterval.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 65535) return "MLD query interval must be between 1 and 65535";
+      if (isNaN(val) || val < 1 || val > 65535) return t("interfaceModal.mldIntervalRange");
     }
     if (mldLastMemberQueryCount.trim()) {
       const val = parseInt(mldLastMemberQueryCount.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 255) return "MLD last-member query count must be between 1 and 255";
+      if (isNaN(val) || val < 1 || val > 255) return t("interfaceModal.mldLmqcRange");
     }
     if (mldLastMemberQueryInterval.trim()) {
       const val = parseInt(mldLastMemberQueryInterval.trim(), 10);
-      if (isNaN(val) || val < 100 || val > 6553500) return "MLD last-member query interval must be between 100 and 6553500 ms";
+      if (isNaN(val) || val < 100 || val > 6553500) return t("interfaceModal.mldLmqiRange");
     }
     if (mldMaxResponseTime.trim()) {
       const val = parseInt(mldMaxResponseTime.trim(), 10);
-      if (isNaN(val) || val < 100 || val > 6553500) return "MLD max response time must be between 100 and 6553500 ms";
+      if (isNaN(val) || val < 100 || val > 6553500) return t("interfaceModal.mldMaxResponseRange");
     }
     return null;
   };
@@ -265,7 +268,7 @@ export function Pim6InterfaceModal({
       await onSubmit(iface);
       handleClose();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Operation failed";
+      const message = err instanceof Error ? err.message : tc("operationFailed");
       setError(message);
     } finally {
       setLoading(false);
@@ -277,19 +280,19 @@ export function Pim6InterfaceModal({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit PIMv6 Interface" : "Add PIMv6 Interface"}
+            {isEditMode ? t("interfaceModal.editTitle") : t("interfaceModal.addTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? `Modify PIMv6 and MLD settings for ${existingInterface?.name}.`
-              : "Add a new interface to PIMv6 multicast routing."}
+              ? t("interfaceModal.editDescription", { name: String(existingInterface?.name) })
+              : t("interfaceModal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="pim6">PIMv6 Settings</TabsTrigger>
-            <TabsTrigger value="mld">MLD Settings</TabsTrigger>
+            <TabsTrigger value="pim6">{t("interfaceModal.tabPim6")}</TabsTrigger>
+            <TabsTrigger value="mld">{t("interfaceModal.tabMld")}</TabsTrigger>
           </TabsList>
 
           {/* PIMv6 Settings Tab */}
@@ -297,7 +300,7 @@ export function Pim6InterfaceModal({
             <ScrollArea className="max-h-[55vh] pr-4">
               <div className="space-y-5 pb-2">
                 <div className="space-y-2">
-                  <Label>Interface</Label>
+                  <Label>{t("interfaceModal.interface")}</Label>
                   {isEditMode ? (
                     <Input value={name} disabled className="bg-muted font-mono" />
                   ) : (
@@ -305,13 +308,13 @@ export function Pim6InterfaceModal({
                       value={name}
                       onValueChange={setName}
                       interfaces={availableInterfaces}
-                      placeholder="Select interface"
+                      placeholder={t("interfaceModal.selectInterface")}
                     />
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="pim6-dr-priority">DR Priority</Label>
+                  <Label htmlFor="pim6-dr-priority">{t("interfaceModal.drPriority")}</Label>
                   <Input
                     id="pim6-dr-priority"
                     type="number"
@@ -322,12 +325,12 @@ export function Pim6InterfaceModal({
                     max={4294967295}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Designated Router election priority. Higher wins.
+                    {t("interfaceModal.drPriorityHelp")}
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="pim6-hello">Hello Interval (seconds)</Label>
+                  <Label htmlFor="pim6-hello">{t("interfaceModal.helloInterval")}</Label>
                   <Input
                     id="pim6-hello"
                     type="number"
@@ -340,19 +343,19 @@ export function Pim6InterfaceModal({
                 </div>
 
                 <div className="space-y-3">
-                  <Label>Flags</Label>
+                  <Label>{t("interfaceModal.flags")}</Label>
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2">
                       <Checkbox id="pim6-passive" checked={passive} onCheckedChange={(c) => setPassive(!!c)} />
-                      <Label htmlFor="pim6-passive">Passive (no PIMv6 hello packets)</Label>
+                      <Label htmlFor="pim6-passive">{t("interfaceModal.passive")}</Label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Checkbox id="pim6-no-bsm" checked={noBsm} onCheckedChange={(c) => setNoBsm(!!c)} />
-                      <Label htmlFor="pim6-no-bsm">No BSM (do not process bootstrap messages)</Label>
+                      <Label htmlFor="pim6-no-bsm">{t("interfaceModal.noBsm")}</Label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Checkbox id="pim6-no-unicast-bsm" checked={noUnicastBsm} onCheckedChange={(c) => setNoUnicastBsm(!!c)} />
-                      <Label htmlFor="pim6-no-unicast-bsm">No Unicast BSM (block unicast bootstrap messages)</Label>
+                      <Label htmlFor="pim6-no-unicast-bsm">{t("interfaceModal.noUnicastBsm")}</Label>
                     </div>
                   </div>
                 </div>
@@ -366,25 +369,25 @@ export function Pim6InterfaceModal({
               <div className="space-y-5 pb-2">
                 <div className="flex items-center space-x-2">
                   <Checkbox id="mld-disable" checked={mldDisabled} onCheckedChange={(c) => setMldDisabled(!!c)} />
-                  <Label htmlFor="mld-disable">Disable MLD on this interface</Label>
+                  <Label htmlFor="mld-disable">{t("interfaceModal.disableMld")}</Label>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>MLD Version</Label>
+                  <Label>{t("interfaceModal.mldVersion")}</Label>
                   <Select value={mldVersion || "default"} onValueChange={setMldVersion}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Default" />
+                      <SelectValue placeholder={tc("default")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="default">Default</SelectItem>
-                      <SelectItem value="1">Version 1</SelectItem>
-                      <SelectItem value="2">Version 2</SelectItem>
+                      <SelectItem value="default">{tc("default")}</SelectItem>
+                      <SelectItem value="1">{t("interfaceModal.version", { version: "1" })}</SelectItem>
+                      <SelectItem value="2">{t("interfaceModal.version", { version: "2" })}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="mld-interval">Query Interval (seconds)</Label>
+                  <Label htmlFor="mld-interval">{t("interfaceModal.queryInterval")}</Label>
                   <Input
                     id="mld-interval"
                     type="number"
@@ -397,7 +400,7 @@ export function Pim6InterfaceModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="mld-lmqc">Last Member Query Count</Label>
+                  <Label htmlFor="mld-lmqc">{t("interfaceModal.lastMemberQueryCount")}</Label>
                   <Input
                     id="mld-lmqc"
                     type="number"
@@ -410,7 +413,7 @@ export function Pim6InterfaceModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="mld-lmqi">Last Member Query Interval (milliseconds)</Label>
+                  <Label htmlFor="mld-lmqi">{t("interfaceModal.lastMemberQueryInterval")}</Label>
                   <Input
                     id="mld-lmqi"
                     type="number"
@@ -423,7 +426,7 @@ export function Pim6InterfaceModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="mld-mrt">Max Response Time (milliseconds)</Label>
+                  <Label htmlFor="mld-mrt">{t("interfaceModal.maxResponseTime")}</Label>
                   <Input
                     id="mld-mrt"
                     type="number"
@@ -438,9 +441,9 @@ export function Pim6InterfaceModal({
                 {/* MLD Joins */}
                 <div className="space-y-3">
                   <div>
-                    <Label>MLD Join Groups</Label>
+                    <Label>{t("interfaceModal.joinGroups")}</Label>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Statically join IPv6 multicast groups on this interface.
+                      {t("interfaceModal.joinGroupsHelp")}
                     </p>
                   </div>
 
@@ -460,7 +463,7 @@ export function Pim6InterfaceModal({
 
                       {join.sources.length > 0 && (
                         <div className="ml-2 space-y-1">
-                          <p className="text-xs text-muted-foreground">Source Addresses:</p>
+                          <p className="text-xs text-muted-foreground">{t("interfaceModal.sourceAddresses")}</p>
                           {join.sources.map((src, srcIndex) => (
                             <div key={srcIndex} className="flex items-center gap-2">
                               <span className="flex-1 px-2 py-1 rounded border bg-muted font-mono text-xs">{src}</span>
@@ -483,7 +486,7 @@ export function Pim6InterfaceModal({
                           onChange={(e) =>
                             setJoinSourceInputs({ ...joinSourceInputs, [joinIndex]: e.target.value })
                           }
-                          placeholder="Add IPv6 source address"
+                          placeholder={t("interfaceModal.addSourcePlaceholder")}
                           className="h-8 text-xs font-mono"
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
@@ -508,7 +511,7 @@ export function Pim6InterfaceModal({
                     <Input
                       value={newJoinGroup}
                       onChange={(e) => setNewJoinGroup(e.target.value)}
-                      placeholder="e.g. ff38::1234"
+                      placeholder={t("interfaceModal.groupPlaceholder")}
                       className="font-mono"
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
@@ -536,18 +539,18 @@ export function Pim6InterfaceModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Adding..."}
+                {isEditMode ? tc("saving") : t("adding")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("saveChanges")
             ) : (
-              "Add Interface"
+              t("addInterface")
             )}
           </Button>
         </DialogFooter>

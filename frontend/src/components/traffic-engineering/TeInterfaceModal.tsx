@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,8 @@ export function TeInterfaceModal({
   existingInterface,
   adminGroups,
 }: TeInterfaceModalProps) {
+  const t = useTranslations("trafficEngineering");
+  const tc = useTranslations("common");
   const isEditMode = !!existingInterface;
 
   const [name, setName] = useState("");
@@ -79,19 +82,19 @@ export function TeInterfaceModal({
   const validateBandwidth = (val: string, label: string): string | null => {
     if (!val) return null;
     const v = parseInt(val, 10);
-    if (isNaN(v) || v < 1 || v > 4294967295) return `${label} must be between 1 and 4294967295`;
+    if (isNaN(v) || v < 1 || v > 4294967295) return t("interfaceModal.bandwidthRange", { label });
     return null;
   };
 
   const validate = (): string | null => {
-    if (!name) return "Interface is required";
-    const bwErr = validateBandwidth(maxBandwidth, "Max Bandwidth");
+    if (!name) return t("interfaceModal.interfaceRequired");
+    const bwErr = validateBandwidth(maxBandwidth, t("interfaceModal.maxBandwidth"));
     if (bwErr) return bwErr;
-    const rbwErr = validateBandwidth(maxReservableBandwidth, "Max Reservable Bandwidth");
+    const rbwErr = validateBandwidth(maxReservableBandwidth, t("interfaceModal.maxReservableBandwidth"));
     if (rbwErr) return rbwErr;
     if (metric) {
       const v = parseInt(metric, 10);
-      if (isNaN(v) || v < 1 || v > 4294967295) return "Metric must be between 1 and 4294967295";
+      if (isNaN(v) || v < 1 || v > 4294967295) return t("interfaceModal.metricRange");
     }
     return null;
   };
@@ -128,7 +131,7 @@ export function TeInterfaceModal({
       });
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -139,17 +142,17 @@ export function TeInterfaceModal({
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit Interface Parameters" : "Add Interface Parameters"}
+            {isEditMode ? t("interfaceModal.editTitle") : t("interfaceModal.addTitle")}
           </DialogTitle>
           <DialogDescription>
-            Configure Traffic Engineering parameters for a network interface.
+            {t("interfaceModal.description")}
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[60vh] pr-4">
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label>Interface</Label>
+              <Label>{t("interfaces.interface")}</Label>
               {isEditMode ? (
                 <Input value={name} disabled className="bg-muted" />
               ) : (
@@ -158,16 +161,16 @@ export function TeInterfaceModal({
                   onValueChange={setName}
                   disabled={interfacesLoading}
                   interfaces={availableInterfaces}
-                  placeholder="Select interface"
+                  placeholder={t("interfaceModal.selectInterface")}
                 />
               )}
             </div>
 
             <div className="space-y-1.5">
-              <Label>Admin Groups</Label>
+              <Label>{t("adminGroups")}</Label>
               {adminGroups.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-1">
-                  No admin groups configured — add one in the Admin Groups tab
+                  {t("interfaceModal.noGroups")}
                 </p>
               ) : (
                 <div className="rounded-md border border-border divide-y divide-border max-h-40 overflow-y-auto">
@@ -182,7 +185,7 @@ export function TeInterfaceModal({
                         <span className="font-mono">{group.name}</span>
                         {group.bit_position != null && (
                           <span className="ml-2 text-xs text-muted-foreground">
-                            bit {group.bit_position}
+                            {t("interfaceModal.bit", { position: String(group.bit_position) })}
                           </span>
                         )}
                       </Label>
@@ -194,38 +197,38 @@ export function TeInterfaceModal({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="te-max-bw">Max BW (Mbps)</Label>
+                <Label htmlFor="te-max-bw">{t("interfaces.maxBw")}</Label>
                 <Input
                   id="te-max-bw"
                   type="number"
                   min={1}
                   value={maxBandwidth}
                   onChange={(e) => setMaxBandwidth(e.target.value)}
-                  placeholder="Optional"
+                  placeholder={tc("optional")}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="te-max-rbw">Max Reserv. BW (Mbps)</Label>
+                <Label htmlFor="te-max-rbw">{t("interfaces.maxReservBw")}</Label>
                 <Input
                   id="te-max-rbw"
                   type="number"
                   min={1}
                   value={maxReservableBandwidth}
                   onChange={(e) => setMaxReservableBandwidth(e.target.value)}
-                  placeholder="Optional"
+                  placeholder={tc("optional")}
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="te-metric">Metric</Label>
+              <Label htmlFor="te-metric">{t("interfaces.metric")}</Label>
               <Input
                 id="te-metric"
                 type="number"
                 min={1}
                 value={metric}
                 onChange={(e) => setMetric(e.target.value)}
-                placeholder="Optional"
+                placeholder={tc("optional")}
               />
             </div>
           </div>
@@ -240,18 +243,18 @@ export function TeInterfaceModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Creating..."}
+                {isEditMode ? tc("saving") : t("creating")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("saveChanges")
             ) : (
-              "Add Interface"
+              t("interfaces.add")
             )}
           </Button>
         </DialogFooter>

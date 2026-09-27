@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -61,6 +62,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
 export function RipngContent() {
+  const t = useTranslations("ripng");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWritePermission = canWrite(FeatureGroup.RIPNG);
 
@@ -153,11 +156,11 @@ export function RipngContent() {
       setPrefixListNames(prefixLists);
       setSystemInterfaces(interfaces);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load RIPng configuration");
+      setError(err instanceof Error ? err.message : t("errors.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -207,7 +210,7 @@ export function RipngContent() {
       await loadData(true);
       setOverviewEditing(false);
     } catch (err) {
-      setOverviewError(err instanceof Error ? err.message : "Failed to save settings");
+      setOverviewError(err instanceof Error ? err.message : t("errors.saveSettingsFailed"));
     } finally {
       setOverviewSaving(false);
     }
@@ -225,7 +228,7 @@ export function RipngContent() {
       setNewNetwork("");
       await loadData(true);
     } catch (err) {
-      setNetworksError(err instanceof Error ? err.message : "Failed to add network");
+      setNetworksError(err instanceof Error ? err.message : t("errors.addNetworkFailed"));
     }
   };
 
@@ -235,7 +238,7 @@ export function RipngContent() {
       await ripNgService.removeNetwork(network);
       await loadData(true);
     } catch (err) {
-      setNetworksError(err instanceof Error ? err.message : "Failed to remove network");
+      setNetworksError(err instanceof Error ? err.message : t("errors.removeNetworkFailed"));
     }
   };
 
@@ -247,7 +250,7 @@ export function RipngContent() {
       setNewAggregateAddress("");
       await loadData(true);
     } catch (err) {
-      setAggregateAddressesError(err instanceof Error ? err.message : "Failed to add aggregate address");
+      setAggregateAddressesError(err instanceof Error ? err.message : t("errors.addAggregateFailed"));
     }
   };
 
@@ -257,7 +260,7 @@ export function RipngContent() {
       await ripNgService.removeAggregateAddress(prefix);
       await loadData(true);
     } catch (err) {
-      setAggregateAddressesError(err instanceof Error ? err.message : "Failed to remove aggregate address");
+      setAggregateAddressesError(err instanceof Error ? err.message : t("errors.removeAggregateFailed"));
     }
   };
 
@@ -269,7 +272,7 @@ export function RipngContent() {
       setNewRoute("");
       await loadData(true);
     } catch (err) {
-      setRoutesError(err instanceof Error ? err.message : "Failed to add route");
+      setRoutesError(err instanceof Error ? err.message : t("errors.addRouteFailed"));
     }
   };
 
@@ -279,7 +282,7 @@ export function RipngContent() {
       await ripNgService.removeRoute(prefix);
       await loadData(true);
     } catch (err) {
-      setRoutesError(err instanceof Error ? err.message : "Failed to remove route");
+      setRoutesError(err instanceof Error ? err.message : t("errors.removeRouteFailed"));
     }
   };
 
@@ -291,7 +294,7 @@ export function RipngContent() {
       setNewPassiveIface("");
       await loadData(true);
     } catch (err) {
-      setPassiveIfaceError(err instanceof Error ? err.message : "Failed to add passive interface");
+      setPassiveIfaceError(err instanceof Error ? err.message : t("errors.addPassiveIfaceFailed"));
     }
   };
 
@@ -301,7 +304,7 @@ export function RipngContent() {
       await ripNgService.removePassiveInterface(iface);
       await loadData(true);
     } catch (err) {
-      setPassiveIfaceError(err instanceof Error ? err.message : "Failed to remove passive interface");
+      setPassiveIfaceError(err instanceof Error ? err.message : t("errors.removePassiveIfaceFailed"));
     }
   };
 
@@ -377,7 +380,7 @@ export function RipngContent() {
       await loadData(true);
       setDlGlobalEditing(false);
     } catch (err) {
-      setDlGlobalError(err instanceof Error ? err.message : "Failed to save filters");
+      setDlGlobalError(err instanceof Error ? err.message : t("errors.saveFiltersFailed"));
     } finally {
       setDlGlobalSaving(false);
     }
@@ -469,7 +472,7 @@ export function RipngContent() {
           <p className="text-sm text-destructive mb-2">{err}</p>
         )}
         {items.length === 0 ? (
-          <p className="text-xs text-muted-foreground">None configured</p>
+          <p className="text-xs text-muted-foreground">{t("networks.noneConfigured")}</p>
         ) : (
           <div className="space-y-1">
             {items.map((item) => (
@@ -509,7 +512,7 @@ export function RipngContent() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => loadData()}>Retry</Button>
+        <Button variant="outline" onClick={() => loadData()}>{tc("retry")}</Button>
       </div>
     );
   }
@@ -526,21 +529,21 @@ export function RipngContent() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold text-foreground">RIPng Protocol</h1>
+                <h1 className="text-2xl font-bold text-foreground">{t("header.title")}</h1>
                 {!hasWritePermission && (
                   <Badge variant="secondary" className="flex items-center gap-1">
                     <Lock className="h-3 w-3" />
-                    Read Only
+                    {t("header.readOnly")}
                   </Badge>
                 )}
               </div>
               <p className="text-sm text-muted-foreground mt-1">
-                Routing Information Protocol Next Generation — IPv6 distance-vector routing
+                {t("header.subtitle")}
               </p>
             </div>
             <Button variant="outline" size="sm" onClick={() => loadData(true)}>
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              {tc("refresh")}
             </Button>
           </div>
 
@@ -560,7 +563,7 @@ export function RipngContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{networkCount}</p>
-                    <p className="text-xs text-muted-foreground">Networks</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.networks")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -573,7 +576,7 @@ export function RipngContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{aggregateCount}</p>
-                    <p className="text-xs text-muted-foreground">Aggregate Addresses</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.aggregateAddresses")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -586,7 +589,7 @@ export function RipngContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{ifaceCount}</p>
-                    <p className="text-xs text-muted-foreground">Interfaces</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.interfaces")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -599,7 +602,7 @@ export function RipngContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{redistCount}</p>
-                    <p className="text-xs text-muted-foreground">Redistribute</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.redistribute")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -611,22 +614,22 @@ export function RipngContent() {
         <div className="flex-1 p-6 pt-4 overflow-auto">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="overview">{t("tabs.overview")}</TabsTrigger>
               <TabsTrigger value="networks">
-                Networks
+                {t("tabs.networks")}
                 {networkCount > 0 && (
                   <Badge variant="secondary" className="ml-2">{networkCount}</Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger value="interfaces">
-                Interfaces
+                {t("tabs.interfaces")}
                 {ifaceCount > 0 && <Badge variant="secondary" className="ml-2">{ifaceCount}</Badge>}
               </TabsTrigger>
               <TabsTrigger value="redistribute">
-                Redistribute
+                {t("tabs.redistribute")}
                 {redistCount > 0 && <Badge variant="secondary" className="ml-2">{redistCount}</Badge>}
               </TabsTrigger>
-              <TabsTrigger value="filters">Filters</TabsTrigger>
+              <TabsTrigger value="filters">{t("tabs.filters")}</TabsTrigger>
             </TabsList>
 
             {/* ============================================================ */}
@@ -634,19 +637,19 @@ export function RipngContent() {
             {/* ============================================================ */}
             <TabsContent value="overview">
               <div className="flex items-center justify-between mb-4">
-                <p className="text-sm text-muted-foreground">Global RIPng settings and timers</p>
+                <p className="text-sm text-muted-foreground">{t("overview.description")}</p>
                 {hasWritePermission && (
                   !overviewEditing ? (
                     <Button size="sm" variant="outline" onClick={startEditOverview}>
                       <Pencil className="h-4 w-4 mr-2" />
-                      Edit
+                      {tc("edit")}
                     </Button>
                   ) : (
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={cancelEditOverview}>Cancel</Button>
+                      <Button size="sm" variant="outline" onClick={cancelEditOverview}>{tc("cancel")}</Button>
                       <Button size="sm" onClick={saveOverview} disabled={overviewSaving}>
                         {overviewSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                        Save
+                        {tc("save")}
                       </Button>
                     </div>
                   )
@@ -662,12 +665,12 @@ export function RipngContent() {
               <div className="grid grid-cols-2 gap-6">
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4">Global Settings</h3>
+                    <h3 className="font-semibold mb-4">{t("overview.globalSettings")}</h3>
                     <div className="space-y-4">
                       {/* Default Metric */}
                       <div className="space-y-2">
-                        <Label>Default Metric</Label>
-                        <p className="text-xs text-muted-foreground">Metric for redistributed routes (1–16)</p>
+                        <Label>{t("overview.defaultMetric")}</Label>
+                        <p className="text-xs text-muted-foreground">{t("overview.defaultMetricHelp")}</p>
                         <Input
                           type="number"
                           min={1}
@@ -681,14 +684,14 @@ export function RipngContent() {
 
                       {/* Route Map */}
                       <div className="space-y-2">
-                        <Label>Route Map</Label>
+                        <Label>{t("overview.routeMap")}</Label>
                         {overviewEditing ? (
                           <Select value={ovRouteMap || "none"} onValueChange={(v) => setOvRouteMap(v === "none" ? "" : v)}>
                             <SelectTrigger>
-                              <SelectValue placeholder="None" />
+                              <SelectValue placeholder={tc("none")} />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="none">None</SelectItem>
+                              <SelectItem value="none">{tc("none")}</SelectItem>
                               {routeMapNames.map((rm) => (
                                 <SelectItem key={rm} value={rm} className="font-mono">{rm}</SelectItem>
                               ))}
@@ -698,7 +701,7 @@ export function RipngContent() {
                           <Input
                             value={config?.route_map ?? ""}
                             disabled
-                            placeholder="None"
+                            placeholder={tc("none")}
                             className="font-mono"
                           />
                         )}
@@ -713,7 +716,7 @@ export function RipngContent() {
                           onCheckedChange={(checked) => setOvOriginate(!!checked)}
                         />
                         <Label htmlFor="ripng-originate" className="cursor-pointer">
-                          Default Information Originate
+                          {t("overview.originate")}
                         </Label>
                       </div>
                     </div>
@@ -722,11 +725,11 @@ export function RipngContent() {
 
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4">Timers</h3>
+                    <h3 className="font-semibold mb-4">{t("overview.timers")}</h3>
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label>Update Interval (seconds)</Label>
-                        <p className="text-xs text-muted-foreground">How often to send routing updates (default: 30)</p>
+                        <Label>{t("overview.updateInterval")}</Label>
+                        <p className="text-xs text-muted-foreground">{t("overview.updateHelp")}</p>
                         <Input
                           type="number"
                           min={5}
@@ -738,8 +741,8 @@ export function RipngContent() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Timeout Interval (seconds)</Label>
-                        <p className="text-xs text-muted-foreground">Time before a route is marked invalid (default: 180)</p>
+                        <Label>{t("overview.timeoutInterval")}</Label>
+                        <p className="text-xs text-muted-foreground">{t("overview.timeoutHelp")}</p>
                         <Input
                           type="number"
                           min={5}
@@ -751,8 +754,8 @@ export function RipngContent() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Garbage Collection (seconds)</Label>
-                        <p className="text-xs text-muted-foreground">Time before a stale route is removed (default: 120)</p>
+                        <Label>{t("overview.garbageCollection")}</Label>
+                        <p className="text-xs text-muted-foreground">{t("overview.gcHelp")}</p>
                         <Input
                           type="number"
                           min={5}
@@ -774,11 +777,11 @@ export function RipngContent() {
             {/* ============================================================ */}
             <TabsContent value="networks">
               <p className="text-sm text-muted-foreground mb-4">
-                Configure RIPng networks, aggregate addresses, static routes, and passive interfaces
+                {t("networks.description")}
               </p>
               <div className="grid grid-cols-2 gap-4">
                 {renderListSection(
-                  "RIPng Networks",
+                  t("networks.ripngNetworks"),
                   config?.networks ?? [],
                   newNetwork,
                   setNewNetwork,
@@ -788,7 +791,7 @@ export function RipngContent() {
                   "2001:db8::/32"
                 )}
                 {renderListSection(
-                  "Aggregate Addresses",
+                  t("networks.aggregateAddresses"),
                   config?.aggregate_addresses ?? [],
                   newAggregateAddress,
                   setNewAggregateAddress,
@@ -798,7 +801,7 @@ export function RipngContent() {
                   "2001:db8::/48"
                 )}
                 {renderListSection(
-                  "Static Routes",
+                  t("networks.staticRoutes"),
                   config?.routes ?? [],
                   newRoute,
                   setNewRoute,
@@ -808,14 +811,14 @@ export function RipngContent() {
                   "2001:db8::/32"
                 )}
                 {renderListSection(
-                  "Passive Interfaces",
+                  t("networks.passiveInterfaces"),
                   config?.passive_interfaces ?? [],
                   newPassiveIface,
                   setNewPassiveIface,
                   handleAddPassiveIface,
                   handleRemovePassiveIface,
                   passiveIfaceError,
-                  "Select or type interface",
+                  t("networks.selectOrTypeInterface"),
                   true,
                   systemInterfaces
                 )}
@@ -828,12 +831,12 @@ export function RipngContent() {
             <TabsContent value="interfaces">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Per-interface split-horizon settings
+                  {t("interfaces.description")}
                 </p>
                 {hasWritePermission && (
                   <Button size="sm" onClick={() => { setEditingIface(null); setIfaceModalOpen(true); }}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Interface
+                    {t("interfaces.addInterface")}
                   </Button>
                 )}
               </div>
@@ -842,14 +845,14 @@ export function RipngContent() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <Network className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">No interface settings configured</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("interfaces.empty")}</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      Add one to configure split-horizon.
+                      {t("interfaces.emptyHint")}
                     </p>
                     {hasWritePermission && (
                       <Button size="sm" onClick={() => { setEditingIface(null); setIfaceModalOpen(true); }}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Interface
+                        {t("interfaces.addInterface")}
                       </Button>
                     )}
                   </CardContent>
@@ -860,9 +863,9 @@ export function RipngContent() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Interface</TableHead>
-                          <TableHead>Split Horizon</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead>{t("interfaces.interface")}</TableHead>
+                          <TableHead>{t("interfaces.splitHorizon")}</TableHead>
+                          <TableHead className="text-right">{tc("actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -909,12 +912,12 @@ export function RipngContent() {
             <TabsContent value="redistribute">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Redistribute routes from other protocols into RIPng
+                  {t("redistribute.description")}
                 </p>
                 {hasWritePermission && (
                   <Button size="sm" onClick={() => { setEditingRedist(null); setRedistModalOpen(true); }}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add
+                    {tc("add")}
                   </Button>
                 )}
               </div>
@@ -923,11 +926,11 @@ export function RipngContent() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <ArrowLeftRight className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">No redistribution configured</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("redistribute.empty")}</p>
                     {hasWritePermission && (
                       <Button size="sm" onClick={() => { setEditingRedist(null); setRedistModalOpen(true); }}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Add
+                        {tc("add")}
                       </Button>
                     )}
                   </CardContent>
@@ -938,10 +941,10 @@ export function RipngContent() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Protocol</TableHead>
-                          <TableHead>Metric</TableHead>
-                          <TableHead>Route Map</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead>{t("redistribute.protocol")}</TableHead>
+                          <TableHead>{t("redistribute.metric")}</TableHead>
+                          <TableHead>{t("redistribute.routeMap")}</TableHead>
+                          <TableHead className="text-right">{tc("actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -991,24 +994,24 @@ export function RipngContent() {
             <TabsContent value="filters">
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-base font-semibold mb-3">Distribute Lists</h2>
+                  <h2 className="text-base font-semibold mb-3">{t("filters.distributeLists")}</h2>
 
                   {/* Global Filters */}
                   <div className="mb-4">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-medium text-muted-foreground">Global Filters</h3>
+                      <h3 className="text-sm font-medium text-muted-foreground">{t("filters.globalFilters")}</h3>
                       {hasWritePermission && (
                         !dlGlobalEditing ? (
                           <Button size="sm" variant="outline" onClick={startEditDlGlobal}>
                             <Pencil className="h-4 w-4 mr-2" />
-                            Edit
+                            {tc("edit")}
                           </Button>
                         ) : (
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={cancelEditDlGlobal}>Cancel</Button>
+                            <Button size="sm" variant="outline" onClick={cancelEditDlGlobal}>{tc("cancel")}</Button>
                             <Button size="sm" onClick={saveDlGlobal} disabled={dlGlobalSaving}>
                               {dlGlobalSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                              Save
+                              {tc("save")}
                             </Button>
                           </div>
                         )
@@ -1025,10 +1028,10 @@ export function RipngContent() {
                       <CardContent className="p-4">
                         <div className="grid grid-cols-2 gap-4">
                           {(["access_list_in", "access_list_out", "prefix_list_in", "prefix_list_out"] as const).map((field) => {
-                            const label = field === "access_list_in" ? "Access List In"
-                              : field === "access_list_out" ? "Access List Out"
-                              : field === "prefix_list_in" ? "Prefix List In"
-                              : "Prefix List Out";
+                            const label = field === "access_list_in" ? t("filters.accessListIn")
+                              : field === "access_list_out" ? t("filters.accessListOut")
+                              : field === "prefix_list_in" ? t("filters.prefixListIn")
+                              : t("filters.prefixListOut");
                             const isAcl = field.startsWith("access");
                             const names = isAcl ? accessListNames : prefixListNames;
                             const currentVal = dlGlobalEditing
@@ -1044,10 +1047,10 @@ export function RipngContent() {
                                     onValueChange={(v) => setDlGlobalDraft({ ...dlGlobalDraft, [field]: v === "none" ? null : v })}
                                   >
                                     <SelectTrigger>
-                                      <SelectValue placeholder="None" />
+                                      <SelectValue placeholder={tc("none")} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      <SelectItem value="none">None</SelectItem>
+                                      <SelectItem value="none">{tc("none")}</SelectItem>
                                       {names.map((n) => (
                                         <SelectItem key={n} value={n} className="font-mono">{n}</SelectItem>
                                       ))}
@@ -1057,7 +1060,7 @@ export function RipngContent() {
                                   <Input
                                     value={currentVal}
                                     disabled
-                                    placeholder="None"
+                                    placeholder={tc("none")}
                                     className="font-mono"
                                   />
                                 )}
@@ -1072,11 +1075,11 @@ export function RipngContent() {
                   {/* Per-Interface Filters */}
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-medium text-muted-foreground">Per-Interface Filters</h3>
+                      <h3 className="text-sm font-medium text-muted-foreground">{t("filters.perInterfaceFilters")}</h3>
                       {hasWritePermission && (
                         <Button size="sm" onClick={() => { setEditingDlIface(null); setDlIfaceModalOpen(true); }}>
                           <Plus className="h-4 w-4 mr-2" />
-                          Add
+                          {tc("add")}
                         </Button>
                       )}
                     </div>
@@ -1084,7 +1087,7 @@ export function RipngContent() {
                     {(config?.distribute_list.interface_filters.length ?? 0) === 0 ? (
                       <Card>
                         <CardContent className="flex flex-col items-center justify-center py-8">
-                          <p className="text-sm text-muted-foreground">No per-interface filters configured</p>
+                          <p className="text-sm text-muted-foreground">{t("filters.perInterfaceEmpty")}</p>
                         </CardContent>
                       </Card>
                     ) : (
@@ -1093,12 +1096,12 @@ export function RipngContent() {
                           <Table>
                             <TableHeader>
                               <TableRow>
-                                <TableHead>Interface</TableHead>
-                                <TableHead>ACL In</TableHead>
-                                <TableHead>ACL Out</TableHead>
-                                <TableHead>PL In</TableHead>
-                                <TableHead>PL Out</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                <TableHead>{t("interfaces.interface")}</TableHead>
+                                <TableHead>{t("filters.aclIn")}</TableHead>
+                                <TableHead>{t("filters.aclOut")}</TableHead>
+                                <TableHead>{t("filters.plIn")}</TableHead>
+                                <TableHead>{t("filters.plOut")}</TableHead>
+                                <TableHead className="text-right">{tc("actions")}</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1156,7 +1159,7 @@ export function RipngContent() {
       <DeleteRipngModal
         open={!!deletingIface}
         onOpenChange={(open) => { if (!open) setDeletingIface(null); }}
-        itemType="Interface"
+        itemType="interface"
         itemName={deletingIface?.name ?? ""}
         onConfirm={handleDeleteIface}
       />
@@ -1177,7 +1180,7 @@ export function RipngContent() {
       <DeleteRipngModal
         open={!!deletingRedist}
         onOpenChange={(open) => { if (!open) setDeletingRedist(null); }}
-        itemType="Redistribution"
+        itemType="redistribution"
         itemName={deletingRedist?.protocol ?? ""}
         onConfirm={handleDeleteRedist}
       />
@@ -1199,7 +1202,7 @@ export function RipngContent() {
       <DeleteRipngModal
         open={!!deletingDlIface}
         onOpenChange={(open) => { if (!open) setDeletingDlIface(null); }}
-        itemType="Interface Filter"
+        itemType="interfaceFilter"
         itemName={deletingDlIface?.interface ?? ""}
         onConfirm={handleDeleteDlIface}
       />
