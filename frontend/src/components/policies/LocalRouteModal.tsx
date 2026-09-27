@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import { AlertCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { localRouteService, type LocalRouteCapabilitiesResponse, type LocalRouteRule } from "@/lib/api/local-route";
 import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
 import {
@@ -35,6 +36,8 @@ export function LocalRouteModal({
   ruleType,
   existing,
 }: LocalRouteModalProps) {
+  const t = useTranslations("localRoute");
+  const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -170,7 +173,7 @@ export function LocalRouteModal({
     const draft = collectDraft();
     const validationError = validateLocalRoute(draft, ruleType);
     if (validationError) {
-      setError(validationError);
+      setError(t(`validation.${validationError.key}`, "values" in validationError ? validationError.values : undefined));
       return;
     }
 
@@ -183,13 +186,13 @@ export function LocalRouteModal({
           ? await submitLocalRouteUpdate(existing, draft, ruleType)
           : await submitLocalRouteCreate(draft, ruleType);
       if (result && result.success === false) {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
         return;
       }
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : isEdit ? "Failed to update rule" : "Failed to create rule");
+      setError(err instanceof Error ? err.message : isEdit ? t("modal.updateFailed") : t("modal.createFailed"));
     } finally {
       setLoading(false);
     }
@@ -199,16 +202,16 @@ export function LocalRouteModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? `Edit ${ruleType.toUpperCase()} Local Route Rule #${lockedIdentity(existing, (r) => String(r.rule_number), String(ruleNumber)).value}` : `Create ${ruleType.toUpperCase()} Local Route Rule`}</DialogTitle>
+          <DialogTitle>{isEdit ? t("modal.editTitle", { type: ruleType.toUpperCase(), number: lockedIdentity(existing, (r) => String(r.rule_number), String(ruleNumber)).value }) : t("modal.createTitle", { type: ruleType.toUpperCase() })}</DialogTitle>
           <DialogDescription>
-            {isEdit ? `Update policy-based routing rule #${existing.rule_number}` : `Create a new policy-based routing rule for ${ruleType.toUpperCase()} traffic`}
+            {isEdit ? t("modal.editDescription", { number: String(existing.rule_number) }) : t("modal.createDescription", { type: ruleType.toUpperCase() })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           {/* Rule Number */}
           <div className="space-y-2">
-            <Label htmlFor="rule-number">Rule Number</Label>
+            <Label htmlFor="rule-number">{t("modal.ruleNumber")}</Label>
             <Input
               id="rule-number"
               type="number"
@@ -217,76 +220,76 @@ export function LocalRouteModal({
               className="bg-muted"
             />
             <p className="text-xs text-muted-foreground">
-              Auto-calculated based on existing rules
+              {t("modal.autoCalculated")}
             </p>
           </div>
 
           {/* Source */}
           <div className="space-y-2">
-            <Label htmlFor="source">Source Address/Prefix</Label>
+            <Label htmlFor="source">{t("modal.sourceLabel")}</Label>
             <Input
               id="source"
               value={source}
               onChange={(e) => setSource(e.target.value)}
-              placeholder={ruleType === "ipv4" ? "e.g., 192.168.1.0/24 or 10.0.0.1" : "e.g., 2001:db8::/32"}
+              placeholder={ruleType === "ipv4" ? t("modal.exampleOr", { first: "192.168.1.0/24", second: "10.0.0.1" }) : t("modal.example", { value: "2001:db8::/32" })}
               disabled={loading}
             />
             <p className="text-xs text-muted-foreground">
-              Match traffic from this source (optional)
+              {t("modal.sourceHelp")}
             </p>
           </div>
 
           {/* Destination */}
           <div className="space-y-2">
-            <Label htmlFor="destination">Destination Address/Prefix</Label>
+            <Label htmlFor="destination">{t("modal.destinationLabel")}</Label>
             <Input
               id="destination"
               value={destination}
               onChange={(e) => setDestination(e.target.value)}
-              placeholder={ruleType === "ipv4" ? "e.g., 172.16.0.0/16 or 8.8.8.8" : "e.g., 2001:4860::/32"}
+              placeholder={ruleType === "ipv4" ? t("modal.exampleOr", { first: "172.16.0.0/16", second: "8.8.8.8" }) : t("modal.example", { value: "2001:4860::/32" })}
               disabled={loading}
             />
             <p className="text-xs text-muted-foreground">
-              Match traffic to this destination (optional)
+              {t("modal.destinationHelp")}
             </p>
           </div>
 
           {/* Inbound Interface */}
           <div className="space-y-2">
-            <Label htmlFor="inbound-interface">Inbound Interface</Label>
+            <Label htmlFor="inbound-interface">{t("modal.inboundInterface")}</Label>
             <InterfaceSelect
               value={inboundInterface || "__none__"}
               onValueChange={setInboundInterface}
               disabled={loading}
               id="inbound-interface"
               interfaces={interfaces.map((n) => ({ name: n, type: "", description: null }))}
-              noneOption={{ label: "None", value: "__none__" }}
-              placeholder="Select interface (optional)"
+              noneOption={{ label: tc("none"), value: "__none__" }}
+              placeholder={t("modal.selectInterface")}
             />
             <p className="text-xs text-muted-foreground">
-              Match traffic arriving on this interface (optional)
+              {t("modal.interfaceHelp")}
             </p>
           </div>
 
           {capabilities?.features.protocol_matching?.supported !== false && (
             <div className="space-y-2">
-              <Label htmlFor="protocol">Protocol</Label>
+              <Label htmlFor="protocol">{t("modal.protocol")}</Label>
               <Input
                 id="protocol"
                 value={protocol}
                 onChange={(e) => setProtocol(e.target.value)}
-                placeholder="e.g. tcp, udp, or 6"
+                placeholder={t("modal.protocolPlaceholder")}
                 disabled={loading}
               />
               <p className="text-xs text-muted-foreground">
-                Match this IP protocol name or number (optional)
+                {t("modal.protocolHelp")}
               </p>
             </div>
           )}
 
           {capabilities?.features.source_port_matching?.supported !== false && (
             <div className="space-y-2">
-              <Label htmlFor="source-port">Source Port</Label>
+              <Label htmlFor="source-port">{t("modal.sourcePort")}</Label>
               <Input
                 id="source-port"
                 type="number"
@@ -302,7 +305,7 @@ export function LocalRouteModal({
 
           {capabilities?.features.destination_port_matching?.supported !== false && (
             <div className="space-y-2">
-              <Label htmlFor="destination-port">Destination Port</Label>
+              <Label htmlFor="destination-port">{t("modal.destinationPort")}</Label>
               <Input
                 id="destination-port"
                 type="number"
@@ -318,7 +321,7 @@ export function LocalRouteModal({
 
           {capabilities?.features.fwmark_matching?.supported !== false && (
             <div className="space-y-2">
-              <Label htmlFor="fwmark">Fwmark</Label>
+              <Label htmlFor="fwmark">{t("modal.fwmark")}</Label>
               <Input
                 id="fwmark"
                 type="number"
@@ -330,14 +333,14 @@ export function LocalRouteModal({
                 disabled={loading}
               />
               <p className="text-xs text-muted-foreground">
-                Match this firewall mark (optional)
+                {t("modal.fwmarkHelp")}
               </p>
             </div>
           )}
 
           {/* Routing Selection - Table or VRF */}
           <div className="space-y-3 border border-border rounded-lg p-4">
-            <Label>Routing Destination *</Label>
+            <Label>{t("modal.routingDestination")} *</Label>
 
             {/* Radio buttons for selection */}
             <div className="flex items-center gap-6">
@@ -351,7 +354,7 @@ export function LocalRouteModal({
                   className="h-4 w-4"
                 />
                 <Label htmlFor="routing-table" className="font-normal cursor-pointer">
-                  Routing Table
+                  {t("modal.routingTable")}
                 </Label>
               </div>
 
@@ -366,7 +369,7 @@ export function LocalRouteModal({
                     className="h-4 w-4"
                   />
                   <Label htmlFor="routing-vrf" className="font-normal cursor-pointer">
-                    VRF Instance
+                    {t("modal.vrfInstance")}
                   </Label>
                 </div>
               )}
@@ -379,11 +382,11 @@ export function LocalRouteModal({
                   id="table"
                   value={table}
                   onChange={(e) => setTable(e.target.value)}
-                  placeholder="Enter 'main' or table number (1-200)"
+                  placeholder={t("modal.tablePlaceholder")}
                   disabled={loading}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Routing table to use for matched traffic
+                  {t("modal.tableHelp")}
                 </p>
               </div>
             ) : (
@@ -394,11 +397,11 @@ export function LocalRouteModal({
                   onValueChange={setVrf}
                   disabled={loading}
                   includeNone={false}
-                  placeholder="Select VRF"
-                  extraOptions={[{ label: "Default", value: "default" }]}
+                  placeholder={t("modal.selectVrf")}
+                  extraOptions={[{ label: tc("default"), value: "default" }]}
                 />
                 <p className="text-xs text-muted-foreground">
-                  VRF instance to use for matched traffic
+                  {t("modal.vrfHelp")}
                 </p>
               </div>
             )}
@@ -409,17 +412,17 @@ export function LocalRouteModal({
             <div className="flex gap-2">
               <AlertCircle className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
               <div className="text-sm text-muted-foreground">
-                <p className="font-medium text-foreground mb-1">Policy-Based Routing</p>
+                <p className="font-medium text-foreground mb-1">{t("modal.infoTitle")}</p>
                 <ul className="space-y-1 text-xs">
-                  <li>• At least one matching criterion (address, port, protocol, interface, or fwmark) is required</li>
-                  <li>• Choose either Routing Table OR VRF - you cannot specify both</li>
+                  <li>• {t("modal.infoMatch")}</li>
+                  <li>• {t("modal.infoTableOrVrf")}</li>
                   {capabilities?.features.vrf_support.supported ? (
-                    <li>• VRF option is available on this device</li>
+                    <li>• {t("modal.infoVrfAvailable")}</li>
                   ) : (
-                    <li>• This device does not support VRF</li>
+                    <li>• {t("modal.infoVrfUnsupported")}</li>
                   )}
-                  <li>• Traffic matching all specified criteria will use the specified destination</li>
-                  <li>• Rules are processed in numerical order</li>
+                  <li>• {t("modal.infoTraffic")}</li>
+                  <li>• {t("modal.infoOrder")}</li>
                 </ul>
               </div>
             </div>
@@ -435,10 +438,10 @@ export function LocalRouteModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? (isEdit ? "Saving..." : "Creating...") : isEdit ? "Save Changes" : "Create Rule"}
+            {loading ? (isEdit ? tc("saving") : t("modal.creating")) : isEdit ? t("modal.saveChanges") : t("modal.createRule")}
           </Button>
         </DialogFooter>
       </DialogContent>

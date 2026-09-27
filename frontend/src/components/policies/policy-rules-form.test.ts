@@ -281,7 +281,7 @@ describe("local route create", () => {
   it("rejects a table route with no match", () => {
     const draft = emptyLocalRouteDraft();
     draft.table = "main";
-    assert.match(validateLocalRoute(draft, "ipv4") ?? "", /matching criterion/);
+    assert.deepEqual(validateLocalRoute(draft, "ipv4"), { key: "matchRequired" });
   });
 
   it("maps __none__ to an omitted interface", async () => {

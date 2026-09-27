@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { localRouteService, type LocalRouteRule } from "@/lib/api/local-route";
 
 interface DeleteLocalRouteModalProps {
@@ -22,6 +23,8 @@ export function DeleteLocalRouteModal({
   rule,
   ruleType,
 }: DeleteLocalRouteModalProps) {
+  const t = useTranslations("localRoute");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,7 +42,7 @@ export function DeleteLocalRouteModal({
       handleClose();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete rule");
+      setError(err instanceof Error ? err.message : t("delete.failed"));
     } finally {
       setLoading(false);
     }
@@ -49,9 +52,9 @@ export function DeleteLocalRouteModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Delete Local Route Rule</DialogTitle>
+          <DialogTitle>{t("delete.title")}</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete this rule? This action cannot be undone.
+            {t("delete.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -62,7 +65,7 @@ export function DeleteLocalRouteModal({
               <div className="space-y-2 flex-1">
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="font-mono">
-                    Rule {rule.rule_number}
+                    {t("delete.ruleBadge", { number: String(rule.rule_number) })}
                   </Badge>
                   <Badge variant="outline" className="uppercase">
                     {ruleType}
@@ -71,19 +74,19 @@ export function DeleteLocalRouteModal({
                 <div className="space-y-1 text-sm">
                   {rule.source && (
                     <div className="flex gap-2">
-                      <span className="text-muted-foreground min-w-32">Source:</span>
+                      <span className="text-muted-foreground min-w-32">{t("delete.source")}</span>
                       <span className="font-mono">{rule.source}</span>
                     </div>
                   )}
                   {rule.destination && (
                     <div className="flex gap-2">
-                      <span className="text-muted-foreground min-w-32">Destination:</span>
+                      <span className="text-muted-foreground min-w-32">{t("delete.destination")}</span>
                       <span className="font-mono">{rule.destination}</span>
                     </div>
                   )}
                   {rule.inbound_interface && (
                     <div className="flex gap-2">
-                      <span className="text-muted-foreground min-w-32">Inbound Interface:</span>
+                      <span className="text-muted-foreground min-w-32">{t("delete.inboundInterface")}</span>
                       <Badge variant="outline" className="font-mono">
                         {rule.inbound_interface}
                       </Badge>
@@ -91,7 +94,7 @@ export function DeleteLocalRouteModal({
                   )}
                   {rule.table && (
                     <div className="flex gap-2">
-                      <span className="text-muted-foreground min-w-32">Routing Table:</span>
+                      <span className="text-muted-foreground min-w-32">{t("delete.routingTable")}</span>
                       <Badge
                         variant="secondary"
                         className={rule.table === "main" ? "bg-blue-500/10 text-blue-500 border-blue-500/20" : ""}
@@ -102,7 +105,7 @@ export function DeleteLocalRouteModal({
                   )}
                   {rule.vrf && (
                     <div className="flex gap-2">
-                      <span className="text-muted-foreground min-w-32">VRF Instance:</span>
+                      <span className="text-muted-foreground min-w-32">{t("delete.vrfInstance")}</span>
                       <Badge
                         variant="secondary"
                         className={rule.vrf === "default" ? "bg-blue-500/10 text-blue-500 border-blue-500/20" : ""}
@@ -121,10 +124,10 @@ export function DeleteLocalRouteModal({
             <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
             <div className="space-y-1">
               <p className="text-sm font-medium text-destructive">
-                This will permanently delete the rule
+                {t("delete.warning")}
               </p>
               <p className="text-sm text-muted-foreground">
-                Traffic matching this rule will no longer use policy-based routing.
+                {t("delete.warningDetail")}
               </p>
             </div>
           </div>
@@ -139,10 +142,10 @@ export function DeleteLocalRouteModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
-            {loading ? "Deleting..." : "Delete Rule"}
+            {loading ? tc("deleting") : t("delete.submit")}
           </Button>
         </DialogFooter>
       </DialogContent>
