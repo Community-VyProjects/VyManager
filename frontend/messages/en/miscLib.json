@@ -1,1 +1,25 @@
-{}
+{
+  "twoFactor": {
+    "loginFailed": "Login failed"
+  },
+  "session": {
+    "connectRouterFailed": "Failed to connect to this router",
+    "loadFailed": "Failed to load session",
+    "connectInstanceFailed": "Failed to connect to instance",
+    "disconnectFailed": "Failed to disconnect"
+  },
+  "monitoring": {
+    "unknownError": "Unknown error",
+    "sessionEnded": "Session ended",
+    "connectionError": "WebSocket connection error"
+  },
+  "console": {
+    "connectionFailed": "WebSocket connection failed"
+  },
+  "siteUpdates": {
+    "checkFailed": "Failed to check for updates"
+  },
+  "permissions": {
+    "fetchFailed": "Failed to fetch permissions"
+  }
+}

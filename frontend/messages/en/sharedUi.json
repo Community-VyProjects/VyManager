@@ -1,1 +1,72 @@
-{}
+{
+  "vrfSelect": {
+    "placeholder": "Select VRF",
+    "loading": "Loading VRFs...",
+    "empty": "No VRFs available"
+  },
+  "interfaceSelect": {
+    "placeholder": "Select an interface",
+    "loading": "Loading interfaces...",
+    "empty": "No interfaces available"
+  },
+  "theme": {
+    "title": "Theme",
+    "createCustom": "Create custom theme"
+  },
+  "themeEditor": {
+    "defaultName": "My Theme",
+    "editTitle": "Edit theme",
+    "variant": "Variant",
+    "dark": "Dark",
+    "light": "Light",
+    "primaryHue": "Primary hue — {hue}°",
+    "preview": "Preview",
+    "saveChanges": "Save changes",
+    "saveTheme": "Save theme"
+  },
+  "clickable": {
+    "unknownNetwork": "Unknown Network",
+    "unknownInterface": "Unknown Interface"
+  },
+  "unifiedView": {
+    "noInformation": "No information available",
+    "noItems": "No items to display",
+    "notSet": "Not set",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "subnet": {
+      "title": "Subnet Overview",
+      "headerTitle": "Subnet: {subnet}",
+      "headerDescription": "DHCP subnet in shared network \"{name}\"",
+      "defaultRouter": "Default Router",
+      "leaseTime": "Lease Time",
+      "dnsServers": "DNS Servers",
+      "clientsTab": "Clients",
+      "activeLeases": "Active Leases",
+      "activeLeasesDescription": "Currently active DHCP leases for this subnet",
+      "noActiveLeases": "No active leases for this subnet",
+      "staticMappings": "Static Mappings",
+      "staticMappingsDescription": "Configured static DHCP mappings",
+      "noStaticMappings": "No static mappings for this subnet",
+      "mappingSubtitle": "IP: {ip} | MAC: {mac}"
+    },
+    "client": {
+      "title": "Client Overview",
+      "headerTitle": "WireGuard Peer: {name}",
+      "headerDescription": "Peer on interface {name}",
+      "publicKey": "Public Key",
+      "endpoint": "Endpoint",
+      "allowedIps": "Allowed IPs",
+      "description": "Description"
+    }
+  },
+  "inProgress": {
+    "title": "In Progress",
+    "subtitle": "We're building something amazing",
+    "comingSoon": "Coming Soon",
+    "inDevelopment": "In Development"
+  },
+  "appLayout": {
+    "redirecting": "Redirecting to site manager..."
+  }
+}

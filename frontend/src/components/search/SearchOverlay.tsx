@@ -87,7 +87,7 @@ export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
     () => new Set(["title", "context", "kind", "description"])
   );
 
-  const { isIndexing, indexReady, facets, runSearch, toggleFavorite, getFavoriteResults } =
+  const { i18n, isIndexing, indexReady, facets, runSearch, toggleFavorite, getFavoriteResults } =
     useSearch();
 
   const filters: SearchFilters = useMemo(
@@ -245,7 +245,7 @@ export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
               <option value="">{t("allTypes")}</option>
               {facets.kinds.map((k) => (
                 <option key={k} value={k}>
-                  {humanizeKind(k)}
+                  {humanizeKind(k, i18n)}
                 </option>
               ))}
             </select>
@@ -316,7 +316,7 @@ export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
                         <div className="flex flex-wrap items-center gap-2">
                           {visibleColumns.has("title") && (
                             <span className="text-sm font-medium leading-tight">
-                              {result.kind === "page" ? navTitle(result.title) : result.title}
+                              {result.title}
                             </span>
                           )}
                           {visibleColumns.has("context") && result.subtitle && (
@@ -332,7 +332,7 @@ export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
                           </Badge>
                           {visibleColumns.has("kind") && (
                             <span className="text-[10px] text-muted-foreground">
-                              {getResultTypeLabel(result)}
+                              {getResultTypeLabel(result, i18n)}
                             </span>
                           )}
                         </div>

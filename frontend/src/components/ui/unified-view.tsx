@@ -8,7 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 import { Loader2 } from "lucide-react";
-import { getUnifiedViewConfig, type UnifiedViewSection } from "@/lib/unified-view/registry";
+import { useTranslations } from "next-intl";
+import {
+  getUnifiedViewConfig,
+  type UnifiedViewSection,
+  type UnifiedViewText,
+} from "@/lib/unified-view/registry";
 
 interface UnifiedViewProps {
   isOpen: boolean;
@@ -18,6 +23,7 @@ interface UnifiedViewProps {
 }
 
 export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
+  const t = useTranslations("sharedUi");
   const [fetchedData, setFetchedData] = useState<unknown>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -42,6 +48,7 @@ export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
     } else {
       setFetchedData(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch when the dialog opens; data changes alone must not refetch
   }, [isOpen, type, config]);
 
   if (!config) {
@@ -52,6 +59,15 @@ export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
 
   // Merge original data with fetched data
   const mergedData = fetchedData ? { ...(data as Record<string, unknown>), ...(fetchedData as Record<string, unknown>) } : data;
+
+  // Registry texts are message keys (translated here) or plain router data.
+  const tx = (text: UnifiedViewText): string => {
+    if (typeof text === "string") return text;
+    const values = text.values
+      ? Object.fromEntries(Object.entries(text.values).map(([k, v]) => [k, tx(v)]))
+      : undefined;
+    return t(`unifiedView.${text.key}`, values);
+  };
 
   const renderField = (label: string, value: string | number | boolean | undefined, format?: string) => {
     if (value === undefined || value === null || value === "") {
@@ -101,9 +117,11 @@ export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
 
     if (section.type === "info") {
       const fields = typeof section.fields === "function" ? section.fields(sectionData) : section.fields || [];
-      const title = typeof section.title === "function" ? section.title(sectionData) : section.title;
-      const description = typeof section.description === "function" ? section.description(sectionData) : section.description;
-      
+      const rawTitle = typeof section.title === "function" ? section.title(sectionData) : section.title;
+      const rawDescription = typeof section.description === "function" ? section.description(sectionData) : section.description;
+      const title = rawTitle !== undefined ? tx(rawTitle) : undefined;
+      const description = rawDescription !== undefined ? tx(rawDescription) : undefined;
+
       return (
         <Card>
           <CardHeader>
@@ -117,13 +135,13 @@ export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
             {fields.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 {section.emptyIcon && <section.emptyIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />}
-                <p>{section.emptyMessage || "No information available"}</p>
+                <p>{(section.emptyMessage && tx(section.emptyMessage)) || t("unifiedView.noInformation")}</p>
               </div>
             ) : (
               <ScrollArea className="h-64">
                 <div className="grid grid-cols-2 gap-4 pr-4">
                   {fields.map((field, idx) => (
-                    <div key={idx}>{renderField(field.label, field.value, field.format)}</div>
+                    <div key={idx}>{renderField(tx(field.label), field.value, field.format)}</div>
                   ))}
                 </div>
               </ScrollArea>
@@ -135,9 +153,11 @@ export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
 
     if (section.type === "list") {
       const items = typeof section.items === "function" ? section.items(sectionData) : section.items || [];
-      const title = typeof section.title === "function" ? section.title(sectionData) : section.title;
-      const description = typeof section.description === "function" ? section.description(sectionData) : section.description;
-      
+      const rawTitle = typeof section.title === "function" ? section.title(sectionData) : section.title;
+      const rawDescription = typeof section.description === "function" ? section.description(sectionData) : section.description;
+      const title = rawTitle !== undefined ? tx(rawTitle) : undefined;
+      const description = rawDescription !== undefined ? tx(rawDescription) : undefined;
+
       return (
         <Card>
           <CardHeader>
@@ -155,7 +175,7 @@ export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
             ) : items.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 {section.emptyIcon && <section.emptyIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />}
-                <p>{section.emptyMessage || "No items to display"}</p>
+                <p>{(section.emptyMessage && tx(section.emptyMessage)) || t("unifiedView.noItems")}</p>
               </div>
             ) : (
               <ScrollArea className="h-64">
@@ -163,9 +183,9 @@ export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
                   {items.map((item) => (
                     <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
                       <div>
-                        <p className="font-medium">{item.title}</p>
+                        <p className="font-medium">{tx(item.title)}</p>
                         {item.subtitle && (
-                          <p className="text-sm text-muted-foreground">{item.subtitle}</p>
+                          <p className="text-sm text-muted-foreground">{tx(item.subtitle)}</p>
                         )}
                       </div>
                       {item.badge && (
@@ -176,7 +196,7 @@ export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
                               : item.badge.variant || "secondary"
                           }
                         >
-                          {typeof item.badge === "string" ? item.badge : item.badge.text}
+                          {typeof item.badge === "string" ? item.badge : tx(item.badge.text)}
                         </Badge>
                       )}
                     </div>
@@ -224,7 +244,7 @@ export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
                 return (
                   <TabsTrigger key={tab.id} value={tab.id}>
                     {TabIcon && <TabIcon className="h-4 w-4 mr-2" />}
-                    {tab.label}
+                    {tx(tab.label)}
                   </TabsTrigger>
                 );
               })}
@@ -250,7 +270,7 @@ export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {Icon && <Icon className="h-5 w-5" />}
-            {config.title}
+            {tx(config.title)}
           </DialogTitle>
         </DialogHeader>
         <div className="pr-1">{renderTabs()}</div>

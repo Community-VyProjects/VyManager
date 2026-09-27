@@ -1,1 +1,11 @@
-{}
+{
+  "title": "设置",
+  "description": "管理系统电源和配置设置",
+  "powerManagement": "电源管理",
+  "rebootTitle": "重启系统",
+  "rebootDescription": "重启 VyOS 系统以应用更改或排查问题",
+  "scheduleReboot": "计划重启",
+  "poweroffTitle": "关闭系统",
+  "poweroffDescription": "完全关闭 VyOS 系统（需要手动开机）",
+  "schedulePoweroff": "计划关机"
+}

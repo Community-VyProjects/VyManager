@@ -1,1 +1,38 @@
-{}
+{
+  "error": {
+    "title": "Something went wrong",
+    "description": "This part of the app hit an unexpected error. You can report it (the error details are attached automatically) or try reloading.",
+    "report": "Report a Bug",
+    "tryAgain": "Try again"
+  },
+  "noInstance": {
+    "title": "No VyOS Instance Connected",
+    "message": "You need to connect to a VyOS instance before accessing this page. Please select an instance from the Site Manager.",
+    "unreachable": "This router is unreachable. Check the API and try again.",
+    "connect": "Connect to Instance"
+  },
+  "interfaceForm": {
+    "createTitle": "Create New Interface",
+    "editTitle": "Edit Interface: {name}",
+    "createDescription": "Configure a new network interface for your VyOS router.",
+    "editDescription": "Update the configuration for this network interface.",
+    "name": "Interface Name *",
+    "type": "Type *",
+    "types": {
+      "ethernet": "Ethernet",
+      "dummy": "Dummy",
+      "loopback": "Loopback"
+    },
+    "descriptionPlaceholder": "e.g., LAN Interface",
+    "addresses": "IP Addresses",
+    "example": "e.g., {value}",
+    "hwId": "Hardware ID (MAC Address)",
+    "sourceInterface": "Source Interface",
+    "create": "Create Interface",
+    "update": "Update Interface"
+  },
+  "deleteInterface": {
+    "title": "Delete Interface",
+    "description": "Are you sure you want to delete interface <iface>{name}</iface>? This action cannot be undone and may disrupt network connectivity."
+  }
+}

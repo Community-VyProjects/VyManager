@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import type { SearchI18n } from "./i18n";
 
 /** Entity kinds for filtering and display — distinct from nav "page" sections */
 export type SearchEntityKind =
@@ -82,5 +83,6 @@ export interface SearchIndexerContext {
 
 export interface SearchIndexer {
   id: string;
-  index: () => Promise<SearchResult[]>;
+  /** Fetches the config once and builds results in the UI language (see buildLocalized) */
+  index: (i18n: SearchI18n) => Promise<SearchResult[]>;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { AlertTriangle, Save, FileText, CheckCircle, Clock, RotateCcw, Loader2 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -19,6 +20,8 @@ interface UnsavedChangesBannerProps {
 }
 
 export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChangesBannerProps) {
+  const t = useTranslations("configChanges");
+  const tc = useTranslations("common");
   const [diff, setDiff] = useState<ConfigDiff | null>(null);
   const [cc, setCc] = useState<CommitConfirmStatus | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -62,20 +65,20 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
     try {
       const result = await configService.confirmCommit();
       if (!result.success) {
-        const msg = result.error || "Failed to confirm commit";
+        const msg = result.error || t("banner.confirmFailed");
         setError(msg);
-        toast.error("Confirm Failed", msg);
+        toast.error(t("banner.confirmFailedTitle"), msg);
         return;
       }
-      toast.success("Changes Confirmed", "Your changes are live. Save configuration when ready.");
+      toast.success(t("banner.confirmedTitle"), t("banner.confirmedMessage"));
       setCc({ active: false });
       // SSE will push updated diff shortly; also fetch eagerly
       const newDiff = await configService.getDiff();
       setDiff(newDiff);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to confirm commit";
+      const msg = err instanceof Error ? err.message : t("banner.confirmFailed");
       setError(msg);
-      toast.error("Confirm Failed", msg);
+      toast.error(t("banner.confirmFailedTitle"), msg);
     } finally {
       setConfirming(false);
     }
@@ -87,20 +90,20 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
     try {
       const result = await configService.saveConfig();
       if (!result.success) {
-        const msg = result.error || "Failed to save configuration";
+        const msg = result.error || t("banner.saveFailed");
         setError(msg);
-        toast.error("Save Failed", msg);
+        toast.error(t("banner.saveFailedTitle"), msg);
         return;
       }
-      toast.success("Configuration Saved", "Your changes have been written to disk successfully.");
+      toast.success(t("banner.savedTitle"), t("banner.savedMessage"));
       // SSE will push updated diff shortly; also fetch eagerly
       const newDiff = await configService.getDiff();
       setDiff(newDiff);
       setError(null);
     } catch (err) {
-      const msg = err instanceof Error ? (err as ApiError).message : "Failed to save configuration";
+      const msg = err instanceof Error ? (err as ApiError).message : t("banner.saveFailed");
       setError(msg);
-      toast.error("Save Failed", msg);
+      toast.error(t("banner.saveFailedTitle"), msg);
     } finally {
       setSaving(false);
     }
@@ -112,17 +115,17 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
     try {
       const result = await configService.discardConfig();
       if (!result.success) {
-        const msg = result.error || "Failed to discard configuration changes";
+        const msg = result.error || t("banner.discardFailed");
         setError(msg);
-        toast.error("Discard Failed", msg);
+        toast.error(t("banner.discardFailedTitle"), msg);
         return;
       }
-      toast.success("Changes Discarded", "Configuration has been reverted to the last saved state.");
+      toast.success(t("banner.discardedTitle"), t("banner.discardedMessage"));
       window.location.reload();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to discard configuration changes";
+      const msg = err instanceof Error ? err.message : t("banner.discardFailed");
       setError(msg);
-      toast.error("Discard Failed", msg);
+      toast.error(t("banner.discardFailedTitle"), msg);
     } finally {
       setDiscarding(false);
       setShowDiscardDialog(false);
@@ -145,6 +148,13 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
   // ── Commit-confirm active: show countdown banner (highest priority) ──
   if (cc?.active) {
     const isUrgent = secondsRemaining <= 60;
+    const action = cc.action ?? "reload";
+    const actionLabel =
+      action === "reload"
+        ? t("banner.actionReload")
+        : action === "rollback"
+          ? t("banner.actionRollback")
+          : action;
     return (
       <>
       <div
@@ -162,14 +172,19 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
               <Clock className="h-5 w-5 text-white flex-shrink-0" />
               <div className="flex flex-col">
                 <p className="text-sm font-semibold text-white">
-                  Commit-Confirm Active — confirm before changes revert
+                  {t("banner.commitConfirmTitle")}
                 </p>
                 <p className="text-xs text-white/80">
-                  Auto-{cc.action ?? "reload"} in{" "}
-                  <span className={cn("font-mono font-bold", isUrgent && "text-white")}>
-                    {formatCountdown(secondsRemaining)}
-                  </span>
-                  {" "}· {cc.confirm_time_minutes} min window
+                  {t.rich("banner.countdown", {
+                    action: actionLabel,
+                    time: formatCountdown(secondsRemaining),
+                    minutes: String(cc.confirm_time_minutes ?? ""),
+                    countdown: (chunks) => (
+                      <span className={cn("font-mono font-bold", isUrgent && "text-white")}>
+                        {chunks}
+                      </span>
+                    ),
+                  })}
                 </p>
               </div>
             </div>
@@ -187,7 +202,7 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
                 className="bg-white text-amber-600 hover:bg-amber-50 font-semibold"
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
-                {confirming ? "Confirming..." : "Confirm Changes"}
+                {confirming ? t("banner.confirming") : t("banner.confirm")}
               </Button>
             </div>
           </div>
@@ -205,6 +220,14 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
 
   const { added, removed, modified } = diff.summary;
   const totalChanges = added + removed + modified;
+  const changeDetails = [
+    added > 0 ? t("banner.addedPart", { count: added }) : null,
+    removed > 0 ? t("banner.removedPart", { count: removed }) : null,
+    modified > 0 ? t("banner.modifiedPart", { count: modified }) : null,
+  ]
+    .filter(Boolean)
+    .join(t("banner.separator"));
+  const changeSummary = t("banner.detected", { count: totalChanges });
 
   return (
     <>
@@ -222,14 +245,12 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
               </div>
               <div className="flex flex-col">
                 <p className="text-sm font-semibold text-white">
-                  Unsaved Configuration Changes
+                  {t("banner.unsavedTitle")}
                 </p>
                 <p className="text-xs text-blue-100">
-                  {totalChanges} change{totalChanges !== 1 ? "s" : ""} detected
-                  {added > 0 && ` (${added} added`}
-                  {removed > 0 && `, ${removed} removed`}
-                  {modified > 0 && `, ${modified} modified`}
-                  {(added > 0 || removed > 0 || modified > 0) && ")"}
+                  {changeDetails
+                    ? t("banner.withDetails", { summary: changeSummary, details: changeDetails })
+                    : changeSummary}
                 </p>
               </div>
             </div>
@@ -248,7 +269,7 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
                 className="bg-white/20 text-white border-white/40 hover:bg-white/30 hover:text-white font-medium shadow-sm"
               >
                 <FileText className="h-4 w-4 mr-2" />
-                Show Diffs
+                {t("banner.showDiffs")}
               </Button>
 
               <Button
@@ -259,7 +280,7 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
                 className="bg-red-500/20 text-white border-red-400/40 hover:bg-red-500/30 hover:text-white font-medium shadow-sm"
               >
                 <RotateCcw className="h-4 w-4 mr-2" />
-                Discard Changes
+                {t("banner.discard")}
               </Button>
 
               <Button
@@ -269,7 +290,7 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
                 className="bg-white text-blue-600 hover:bg-blue-50 font-semibold"
               >
                 <Save className="h-4 w-4 mr-2" />
-                {saving ? "Saving..." : "Save Configuration"}
+                {saving ? tc("saving") : t("banner.save")}
               </Button>
             </div>
           </div>
@@ -285,23 +306,21 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
       <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Discard All Changes?</AlertDialogTitle>
+            <AlertDialogTitle>{t("banner.discardTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently discard all unsaved changes to the running
-              configuration, reverting it to the last saved state.
-              This action cannot be undone.
+              {t("banner.discardDescription")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={discarding}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={discarding}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={async (e) => { e.preventDefault(); await handleDiscard(); }}
               disabled={discarding}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {discarding ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Discarding...</>
-              ) : "Discard Changes"}
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("banner.discarding")}</>
+              ) : t("banner.discard")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

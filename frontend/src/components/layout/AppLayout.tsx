@@ -9,6 +9,7 @@ import { Toaster } from "../ui/toaster";
 import { useSessionStore } from "@/store/session-store";
 import { shouldRedirectToSites } from "@/lib/appliance";
 import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { UnifiedView } from "../ui/unified-view";
 import { useUnifiedView } from "@/contexts/UnifiedViewContext";
 import { useBannerEvents } from "@/hooks/useBannerEvents";
@@ -34,6 +35,8 @@ function isPublicRoute(pathname: string) {
 
 function AppLayoutInner({ children, allowWithoutInstance = false }: AppLayoutProps) {
   const router = useRouter();
+  const t = useTranslations("sharedUi");
+  const tc = useTranslations("common");
   const { activeSession, loadSession, appliance } = useSessionStore();
   const [isChecking, setIsChecking] = useState(true);
   const { unifiedViewData, closeUnifiedView } = useUnifiedView();
@@ -71,7 +74,7 @@ function AppLayoutInner({ children, allowWithoutInstance = false }: AppLayoutPro
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <p className="text-sm text-muted-foreground">{tc("loading")}</p>
         </div>
       </div>
     );
@@ -83,7 +86,7 @@ function AppLayoutInner({ children, allowWithoutInstance = false }: AppLayoutPro
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Redirecting to site manager...</p>
+          <p className="text-sm text-muted-foreground">{t("appLayout.redirecting")}</p>
         </div>
       </div>
     );

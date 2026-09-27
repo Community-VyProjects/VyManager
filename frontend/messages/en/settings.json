@@ -1,1 +1,11 @@
-{}
+{
+  "title": "Settings",
+  "description": "Manage system power and configuration settings",
+  "powerManagement": "Power Management",
+  "rebootTitle": "Reboot System",
+  "rebootDescription": "Restart the VyOS system to apply changes or troubleshoot issues",
+  "scheduleReboot": "Schedule Reboot",
+  "poweroffTitle": "Poweroff System",
+  "poweroffDescription": "Completely shut down the VyOS system (requires manual power-on)",
+  "schedulePoweroff": "Schedule Poweroff"
+}

@@ -9,6 +9,10 @@
 // No React components needed for simple cases. For complex custom UI, you can
 // provide a custom renderer component in the registry entry.
 //
+// User-visible texts (titles, labels, descriptions, empty messages) are
+// `UnifiedViewText`: `{ key, values }` pointing into the `sharedUi.unifiedView`
+// messages (translated at render time), or a plain string for router data.
+//
 // ─── Full UnifiedViewConfig reference ─────────────────────────────────────────────
 //
 // {
@@ -84,41 +88,76 @@ import type { LucideIcon } from "lucide-react";
 import { Network, Users, Activity, Database } from "lucide-react";
 import { dhcpService, type DHCPLease } from "@/lib/api/dhcp";
 
+/** Keys under the `sharedUi.unifiedView` messages namespace. */
+export type UnifiedViewMessageKey =
+  | "subnet.title"
+  | "subnet.headerTitle"
+  | "subnet.headerDescription"
+  | "subnet.defaultRouter"
+  | "subnet.leaseTime"
+  | "subnet.dnsServers"
+  | "subnet.clientsTab"
+  | "subnet.activeLeases"
+  | "subnet.activeLeasesDescription"
+  | "subnet.noActiveLeases"
+  | "subnet.staticMappings"
+  | "subnet.staticMappingsDescription"
+  | "subnet.noStaticMappings"
+  | "subnet.mappingSubtitle"
+  | "client.title"
+  | "client.headerTitle"
+  | "client.headerDescription"
+  | "client.publicKey"
+  | "client.endpoint"
+  | "client.allowedIps"
+  | "client.description"
+  | "notSet"
+  | "enabled"
+  | "disabled";
+
+/**
+ * Text shown by the unified view. A plain string is displayed as-is (data from
+ * the router); a `{ key, values }` object is translated at render time.
+ */
+export type UnifiedViewText =
+  | string
+  | { key: UnifiedViewMessageKey; values?: Record<string, UnifiedViewText> };
+
 export interface UnifiedViewField {
-  label: string;
+  label: UnifiedViewText;
   value: string | number | boolean | undefined;
   format?: "text" | "badge" | "badge-array";
 }
 
 export interface UnifiedViewListItem {
   id: string;
-  title: string;
-  subtitle?: string;
-  badge?: string | { text: string; variant?: "default" | "secondary" | "destructive" };
+  title: UnifiedViewText;
+  subtitle?: UnifiedViewText;
+  badge?: string | { text: UnifiedViewText; variant?: "default" | "secondary" | "destructive" };
 }
 
 export interface UnifiedViewSection {
   type: "info" | "list" | "custom";
-  title?: string | ((data: unknown) => string);
+  title?: UnifiedViewText | ((data: unknown) => UnifiedViewText);
   icon?: LucideIcon;
-  description?: string | ((data: unknown) => string);
+  description?: UnifiedViewText | ((data: unknown) => UnifiedViewText);
   fields?: UnifiedViewField[] | ((data: unknown) => UnifiedViewField[]);
   items?: UnifiedViewListItem[] | ((data: unknown) => UnifiedViewListItem[]);
-  emptyMessage?: string;
+  emptyMessage?: UnifiedViewText;
   emptyIcon?: LucideIcon;
   component?: React.ComponentType<{ data: unknown }>;
 }
 
 export interface UnifiedViewTab {
   id: string;
-  label: string;
+  label: UnifiedViewText;
   icon?: LucideIcon;
   sections: UnifiedViewSection[];
 }
 
 export interface UnifiedViewConfig {
   id: string;
-  title: string;
+  title: UnifiedViewText;
   icon?: LucideIcon;
   dataFetcher?: (data: unknown) => Promise<unknown>;
   dataTransformer?: (data: unknown) => unknown;
@@ -160,7 +199,7 @@ async function fetchLeasesForSubnet(data: unknown): Promise<{ leases: DHCPLease[
 export const UNIFIED_VIEW_REGISTRY: UnifiedViewConfig[] = [
   {
     id: "subnet",
-    title: "Subnet Overview",
+    title: { key: "subnet.title" },
     icon: Network,
     dataFetcher: fetchLeasesForSubnet,
     headerSections: [
@@ -168,12 +207,12 @@ export const UNIFIED_VIEW_REGISTRY: UnifiedViewConfig[] = [
         type: "info",
         title: (data: unknown) => {
           const { subnet } = data as { subnet: { subnet: string } };
-          return `Subnet: ${subnet.subnet}`;
+          return { key: "subnet.headerTitle", values: { subnet: subnet.subnet } };
         },
         icon: Network,
         description: (data: unknown) => {
           const { network } = data as { network: { name: string } };
-          return `DHCP subnet in shared network "${network.name}"`;
+          return { key: "subnet.headerDescription", values: { name: network.name } };
         },
         fields: (data: unknown) => {
           const { subnet } = data as {
@@ -186,17 +225,17 @@ export const UNIFIED_VIEW_REGISTRY: UnifiedViewConfig[] = [
           if (!subnet) return [];
           return [
             {
-              label: "Default Router",
+              label: { key: "subnet.defaultRouter" },
               value: subnet.default_router,
               format: "text",
             },
             {
-              label: "Lease Time",
+              label: { key: "subnet.leaseTime" },
               value: subnet.lease,
               format: "text",
             },
             {
-              label: "DNS Servers",
+              label: { key: "subnet.dnsServers" },
               value: subnet.name_servers?.join(", ") || "",
               format: "badge-array",
             },
@@ -207,14 +246,14 @@ export const UNIFIED_VIEW_REGISTRY: UnifiedViewConfig[] = [
     tabs: [
       {
         id: "clients",
-        label: "Clients",
+        label: { key: "subnet.clientsTab" },
         icon: Users,
         sections: [
           {
             type: "list",
-            title: "Active Leases",
+            title: { key: "subnet.activeLeases" },
             icon: Activity,
-            description: "Currently active DHCP leases for this subnet",
+            description: { key: "subnet.activeLeasesDescription" },
             items: (data: unknown) => {
               const { leases } = data as { leases?: DHCPLease[] };
               if (!leases || !Array.isArray(leases)) return [];
@@ -228,14 +267,14 @@ export const UNIFIED_VIEW_REGISTRY: UnifiedViewConfig[] = [
                 },
               }));
             },
-            emptyMessage: "No active leases for this subnet",
+            emptyMessage: { key: "subnet.noActiveLeases" },
             emptyIcon: Activity,
           },
           {
             type: "list",
-            title: "Static Mappings",
+            title: { key: "subnet.staticMappings" },
             icon: Users,
-            description: "Configured static DHCP mappings",
+            description: { key: "subnet.staticMappingsDescription" },
             items: (data: unknown) => {
               const { subnet } = data as {
                 subnet?: {
@@ -251,14 +290,20 @@ export const UNIFIED_VIEW_REGISTRY: UnifiedViewConfig[] = [
               return subnet.static_mappings.map((mapping) => ({
                 id: mapping.name,
                 title: mapping.name,
-                subtitle: `IP: ${mapping.ip_address || "Not set"} | MAC: ${mapping.mac_address || "Not set"}`,
+                subtitle: {
+                  key: "subnet.mappingSubtitle",
+                  values: {
+                    ip: mapping.ip_address || { key: "notSet" },
+                    mac: mapping.mac_address || { key: "notSet" },
+                  },
+                },
                 badge: {
-                  text: mapping.disable ? "Disabled" : "Enabled",
+                  text: mapping.disable ? { key: "disabled" } : { key: "enabled" },
                   variant: mapping.disable ? "destructive" : "default",
                 },
               }));
             },
-            emptyMessage: "No static mappings for this subnet",
+            emptyMessage: { key: "subnet.noStaticMappings" },
             emptyIcon: Users,
           },
         ],
@@ -267,19 +312,19 @@ export const UNIFIED_VIEW_REGISTRY: UnifiedViewConfig[] = [
   },
   {
     id: "client",
-    title: "Client Overview",
+    title: { key: "client.title" },
     icon: Database,
     headerSections: [
       {
         type: "info",
         title: (data: unknown) => {
           const { peer } = data as { peer: { name: string } };
-          return `WireGuard Peer: ${peer.name}`;
+          return { key: "client.headerTitle", values: { name: peer.name } };
         },
         icon: Database,
         description: (data: unknown) => {
           const { interface: wgInterface } = data as { interface: { name: string } };
-          return `Peer on interface ${wgInterface.name}`;
+          return { key: "client.headerDescription", values: { name: wgInterface.name } };
         },
         fields: (data: unknown) => {
           const { peer } = data as {
@@ -293,22 +338,22 @@ export const UNIFIED_VIEW_REGISTRY: UnifiedViewConfig[] = [
           };
           return [
             {
-              label: "Public Key",
+              label: { key: "client.publicKey" },
               value: peer.public_key,
               format: "text",
             },
             {
-              label: "Endpoint",
+              label: { key: "client.endpoint" },
               value: peer.address && peer.port ? `${peer.address}:${peer.port}` : undefined,
               format: "text",
             },
             {
-              label: "Allowed IPs",
+              label: { key: "client.allowedIps" },
               value: peer.allowed_ips.join(", "),
               format: "badge-array",
             },
             {
-              label: "Description",
+              label: { key: "client.description" },
               value: peer.description,
               format: "text",
             },
