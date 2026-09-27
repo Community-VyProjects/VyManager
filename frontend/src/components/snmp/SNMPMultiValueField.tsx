@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, KeyboardEvent } from "react";
+import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,7 @@ export function SNMPMultiValueField({
   onChange,
   validate,
 }: SNMPMultiValueFieldProps) {
+  const t = useTranslations("snmp");
   const [input, setInput] = useState("");
   const [fieldError, setFieldError] = useState<string | null>(null);
 
@@ -39,7 +41,7 @@ export function SNMPMultiValueField({
       }
     }
     if (values.includes(val)) {
-      setFieldError("Already added");
+      setFieldError(t("multiValue.alreadyAdded"));
       return;
     }
     onChange([...values, val]);

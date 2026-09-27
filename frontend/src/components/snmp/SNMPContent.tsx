@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -67,6 +68,8 @@ function Dash() {
 }
 
 export function SNMPContent() {
+  const t = useTranslations("snmp");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWrite = canWrite(FeatureGroup.SNMP);
 
@@ -98,7 +101,7 @@ export function SNMPContent() {
       setConfig(cfg);
       setCapabilities(caps);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load SNMP configuration");
+      setError(err instanceof Error ? err.message : t("content.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -123,7 +126,7 @@ export function SNMPContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -157,10 +160,10 @@ export function SNMPContent() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-2xl font-bold text-foreground">SNMP</h1>
-                  {!hasWrite && <Badge variant="secondary">Read Only</Badge>}
+                  {!hasWrite && <Badge variant="secondary">{t("content.readOnly")}</Badge>}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Simple Network Management Protocol — expose device metrics and send traps
+                  {t("content.subtitle")}
                 </p>
               </div>
             </div>
@@ -169,12 +172,12 @@ export function SNMPContent() {
               {hasWrite && (
                 <Button size="sm" onClick={() => setGeneralOpen(true)}>
                   <Pencil className="h-4 w-4 mr-2" />
-                  General Settings
+                  {t("content.generalSettings")}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={refresh}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -191,25 +194,25 @@ export function SNMPContent() {
         <div className="flex-1 p-6 pt-4 overflow-auto">
           <Tabs defaultValue="general" className="w-full">
             <TabsList>
-              <TabsTrigger value="general">General</TabsTrigger>
+              <TabsTrigger value="general">{t("content.tabs.general")}</TabsTrigger>
               <TabsTrigger value="communities">
-                Communities
+                {t("content.tabs.communities")}
                 {config.communities.length > 0 && (
                   <Badge variant="secondary" className="ml-2">{config.communities.length}</Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger value="traps">
-                Trap Targets
+                {t("content.tabs.trapTargets")}
                 {config.trap_targets.length > 0 && (
                   <Badge variant="secondary" className="ml-2">{config.trap_targets.length}</Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger value="v3">
                 SNMPv3
-                {v3Configured && <Badge variant="secondary" className="ml-2">Active</Badge>}
+                {v3Configured && <Badge variant="secondary" className="ml-2">{t("content.active")}</Badge>}
               </TabsTrigger>
               <TabsTrigger value="extensions">
-                Extensions
+                {t("content.tabs.extensions")}
                 {config.script_extensions.length > 0 && (
                   <Badge variant="secondary" className="ml-2">{config.script_extensions.length}</Badge>
                 )}
@@ -222,46 +225,46 @@ export function SNMPContent() {
                 <CardHeader className="pb-2 pt-4 px-4">
                   <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
                     <Globe className="h-4 w-4" />
-                    System Information
+                    {t("content.systemInformation")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="px-4 pb-4">
                   <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
-                    <Field label="Contact" value={config.contact} />
-                    <Field label="Location" value={config.location} />
-                    <Field label="Description" value={config.description} />
+                    <Field label={t("content.contact")} value={config.contact} />
+                    <Field label={t("content.location")} value={config.location} />
+                    <Field label={tc("description")} value={config.description} />
                     <Field
-                      label="Protocol"
+                      label={t("content.protocol")}
                       value={(config.protocol ?? capabilities.features.protocol.default).toUpperCase()}
                     />
-                    <Field label="Trap Source" value={config.trap_source} mono />
+                    <Field label={t("content.trapSource")} value={config.trap_source} mono />
                     <Field label="VRF" value={config.vrf} mono />
-                    <Field label="SNMPv3 Engine ID" value={config.v3.engineid} mono />
-                    <Field label="Max IF-MIB Interfaces" value={config.mib_interface_max} />
+                    <Field label={t("content.engineId")} value={config.v3.engineid} mono />
+                    <Field label={t("content.maxIfMibInterfaces")} value={config.mib_interface_max} />
                   </dl>
 
                   <div className="mt-4 space-y-3">
-                    <BadgeRow label="Enabled OIDs" values={config.oid_enable} empty="None" />
-                    <BadgeRow label="IF-MIB Prefixes" values={config.mib_interfaces} empty="All interfaces" />
-                    <BadgeRow label="SMUX Peers" values={config.smux_peers} empty="None" />
+                    <BadgeRow label={t("content.enabledOids")} values={config.oid_enable} empty={tc("none")} />
+                    <BadgeRow label={t("content.ifMibPrefixes")} values={config.mib_interfaces} empty={t("content.allInterfaces")} />
+                    <BadgeRow label={t("content.smuxPeers")} values={config.smux_peers} empty={tc("none")} />
                   </div>
                 </CardContent>
               </Card>
 
               <SectionCard
                 icon={<Radio className="h-4 w-4" />}
-                title="Listen Addresses"
+                title={t("content.listenAddresses")}
                 count={config.listen_addresses.length}
                 hasWrite={hasWrite}
                 onAdd={() => setListenModal({ open: true, edit: null })}
-                emptyText="Listening on all addresses. Add one to restrict binding."
+                emptyText={t("content.listenAddressesEmpty")}
                 isEmpty={config.listen_addresses.length === 0}
               >
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Address</TableHead>
-                      <TableHead>Port</TableHead>
+                      <TableHead>{t("content.address")}</TableHead>
+                      <TableHead>{t("content.port")}</TableHead>
                       {hasWrite && <TableHead className="w-[80px]" />}
                     </TableRow>
                   </TableHeader>
@@ -275,7 +278,7 @@ export function SNMPContent() {
                             onEdit={() => setListenModal({ open: true, edit: a })}
                             onDelete={() =>
                               setDeleteTarget({
-                                title: "Remove Listen Address",
+                                title: t("content.removeListenAddress"),
                                 itemName: a.address,
                                 onConfirm: () => snmpService.deleteListenAddress(a.address).then(() => {}),
                               })
@@ -293,20 +296,20 @@ export function SNMPContent() {
             <TabsContent value="communities" className="mt-4">
               <SectionCard
                 icon={<Users className="h-4 w-4" />}
-                title="Communities (v1/v2c)"
+                title={t("content.communitiesTitle")}
                 count={config.communities.length}
                 hasWrite={hasWrite}
                 onAdd={() => setCommunityModal({ open: true, edit: null })}
-                emptyText="No communities configured. Add one to allow v1/v2c access."
+                emptyText={t("content.communitiesEmpty")}
                 isEmpty={config.communities.length === 0}
               >
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Authorization</TableHead>
-                      <TableHead>Clients</TableHead>
-                      <TableHead>Networks</TableHead>
+                      <TableHead>{tc("name")}</TableHead>
+                      <TableHead>{t("content.authorization")}</TableHead>
+                      <TableHead>{t("content.clients")}</TableHead>
+                      <TableHead>{t("content.networks")}</TableHead>
                       {hasWrite && <TableHead className="w-[80px]" />}
                     </TableRow>
                   </TableHeader>
@@ -317,8 +320,8 @@ export function SNMPContent() {
                         <TableCell>
                           <Badge variant="secondary">
                             {(c.authorization ?? capabilities.features.community.default_authorization) === "rw"
-                              ? "Read-Write"
-                              : "Read-Only"}
+                              ? t("content.readWrite")
+                              : t("content.readOnlyAuth")}
                           </Badge>
                         </TableCell>
                         <TableCell>{c.clients.length > 0 ? c.clients.length : <Dash />}</TableCell>
@@ -328,7 +331,7 @@ export function SNMPContent() {
                             onEdit={() => setCommunityModal({ open: true, edit: c })}
                             onDelete={() =>
                               setDeleteTarget({
-                                title: "Remove Community",
+                                title: t("content.removeCommunity"),
                                 itemName: c.name,
                                 onConfirm: () => snmpService.deleteCommunity(c.name).then(() => {}),
                               })
@@ -346,36 +349,36 @@ export function SNMPContent() {
             <TabsContent value="traps" className="mt-4">
               <SectionCard
                 icon={<Send className="h-4 w-4" />}
-                title="Trap Targets (v1/v2c)"
+                title={t("content.trapTargetsV2Title")}
                 count={config.trap_targets.length}
                 hasWrite={hasWrite}
                 onAdd={() => setTrapModal({ open: true, edit: null })}
-                emptyText="No trap targets configured."
+                emptyText={t("content.trapTargetsEmpty")}
                 isEmpty={config.trap_targets.length === 0}
               >
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Address</TableHead>
-                      <TableHead>Community</TableHead>
-                      <TableHead>Port</TableHead>
+                      <TableHead>{t("content.address")}</TableHead>
+                      <TableHead>{t("content.community")}</TableHead>
+                      <TableHead>{t("content.port")}</TableHead>
                       {hasWrite && <TableHead className="w-[80px]" />}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {config.trap_targets.map((t) => (
-                      <TableRow key={t.address}>
-                        <TableCell className="font-mono font-medium">{t.address}</TableCell>
-                        <TableCell className="font-mono">{t.community ?? <Dash />}</TableCell>
-                        <TableCell>{t.port ?? <Dash />}</TableCell>
+                    {config.trap_targets.map((tt) => (
+                      <TableRow key={tt.address}>
+                        <TableCell className="font-mono font-medium">{tt.address}</TableCell>
+                        <TableCell className="font-mono">{tt.community ?? <Dash />}</TableCell>
+                        <TableCell>{tt.port ?? <Dash />}</TableCell>
                         {hasWrite && (
                           <RowActions
-                            onEdit={() => setTrapModal({ open: true, edit: t })}
+                            onEdit={() => setTrapModal({ open: true, edit: tt })}
                             onDelete={() =>
                               setDeleteTarget({
-                                title: "Remove Trap Target",
-                                itemName: t.address,
-                                onConfirm: () => snmpService.deleteTrapTarget(t.address).then(() => {}),
+                                title: t("content.removeTrapTarget"),
+                                itemName: tt.address,
+                                onConfirm: () => snmpService.deleteTrapTarget(tt.address).then(() => {}),
                               })
                             }
                           />
@@ -392,21 +395,21 @@ export function SNMPContent() {
               {/* Users */}
               <SectionCard
                 icon={<Users className="h-4 w-4" />}
-                title="Users"
+                title={t("content.users")}
                 count={v3.users.length}
                 hasWrite={hasWrite}
                 onAdd={() => setUserModal({ open: true, edit: null })}
-                emptyText="No SNMPv3 users configured."
+                emptyText={t("content.usersEmpty")}
                 isEmpty={v3.users.length === 0}
               >
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Username</TableHead>
-                      <TableHead>Group</TableHead>
-                      <TableHead>Mode</TableHead>
-                      <TableHead>Auth</TableHead>
-                      <TableHead>Privacy</TableHead>
+                      <TableHead>{t("content.username")}</TableHead>
+                      <TableHead>{t("content.group")}</TableHead>
+                      <TableHead>{t("content.mode")}</TableHead>
+                      <TableHead>{t("content.auth")}</TableHead>
+                      <TableHead>{t("content.privacy")}</TableHead>
                       {hasWrite && <TableHead className="w-[80px]" />}
                     </TableRow>
                   </TableHeader>
@@ -423,7 +426,7 @@ export function SNMPContent() {
                             onEdit={() => setUserModal({ open: true, edit: u })}
                             onDelete={() =>
                               setDeleteTarget({
-                                title: "Remove User",
+                                title: t("content.removeUser"),
                                 itemName: u.name,
                                 onConfirm: () => snmpService.deleteV3User(u.name).then(() => {}),
                               })
@@ -439,20 +442,20 @@ export function SNMPContent() {
               {/* Groups */}
               <SectionCard
                 icon={<Layers className="h-4 w-4" />}
-                title="Groups"
+                title={t("content.groups")}
                 count={v3.groups.length}
                 hasWrite={hasWrite}
                 onAdd={() => setGroupModal({ open: true, edit: null })}
-                emptyText="No SNMPv3 groups configured."
+                emptyText={t("content.groupsEmpty")}
                 isEmpty={v3.groups.length === 0}
               >
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Mode</TableHead>
-                      <TableHead>Security Level</TableHead>
-                      <TableHead>View</TableHead>
+                      <TableHead>{tc("name")}</TableHead>
+                      <TableHead>{t("content.mode")}</TableHead>
+                      <TableHead>{t("content.securityLevel")}</TableHead>
+                      <TableHead>{t("content.view")}</TableHead>
                       {hasWrite && <TableHead className="w-[80px]" />}
                     </TableRow>
                   </TableHeader>
@@ -468,7 +471,7 @@ export function SNMPContent() {
                             onEdit={() => setGroupModal({ open: true, edit: g })}
                             onDelete={() =>
                               setDeleteTarget({
-                                title: "Remove Group",
+                                title: t("content.removeGroup"),
                                 itemName: g.name,
                                 onConfirm: () => snmpService.deleteV3Group(g.name).then(() => {}),
                               })
@@ -484,18 +487,18 @@ export function SNMPContent() {
               {/* Views */}
               <SectionCard
                 icon={<Eye className="h-4 w-4" />}
-                title="Views"
+                title={t("content.views")}
                 count={v3.views.length}
                 hasWrite={hasWrite}
                 onAdd={() => setViewModal({ open: true, edit: null })}
-                emptyText="No SNMPv3 views configured."
+                emptyText={t("content.viewsEmpty")}
                 isEmpty={v3.views.length === 0}
               >
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>OID Subtrees</TableHead>
+                      <TableHead>{tc("name")}</TableHead>
+                      <TableHead>{t("content.oidSubtrees")}</TableHead>
                       {hasWrite && <TableHead className="w-[80px]" />}
                     </TableRow>
                   </TableHeader>
@@ -521,7 +524,7 @@ export function SNMPContent() {
                             onEdit={() => setViewModal({ open: true, edit: v })}
                             onDelete={() =>
                               setDeleteTarget({
-                                title: "Remove View",
+                                title: t("content.removeView"),
                                 itemName: v.name,
                                 onConfirm: () => snmpService.deleteV3View(v.name).then(() => {}),
                               })
@@ -537,40 +540,40 @@ export function SNMPContent() {
               {/* v3 trap targets */}
               <SectionCard
                 icon={<Send className="h-4 w-4" />}
-                title="Trap Targets"
+                title={t("content.tabs.trapTargets")}
                 count={v3.trap_targets.length}
                 hasWrite={hasWrite}
                 onAdd={() => setV3TrapModal({ open: true, edit: null })}
-                emptyText="No SNMPv3 trap targets configured."
+                emptyText={t("content.v3TrapTargetsEmpty")}
                 isEmpty={v3.trap_targets.length === 0}
               >
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Address</TableHead>
-                      <TableHead>User</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Protocol</TableHead>
-                      <TableHead>Port</TableHead>
+                      <TableHead>{t("content.address")}</TableHead>
+                      <TableHead>{t("content.user")}</TableHead>
+                      <TableHead>{t("content.type")}</TableHead>
+                      <TableHead>{t("content.protocol")}</TableHead>
+                      <TableHead>{t("content.port")}</TableHead>
                       {hasWrite && <TableHead className="w-[80px]" />}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {v3.trap_targets.map((t) => (
-                      <TableRow key={t.address}>
-                        <TableCell className="font-mono font-medium">{t.address}</TableCell>
-                        <TableCell className="font-mono">{t.user ?? <Dash />}</TableCell>
-                        <TableCell>{t.type ?? <Dash />}</TableCell>
-                        <TableCell>{t.protocol ? t.protocol.toUpperCase() : <Dash />}</TableCell>
-                        <TableCell>{t.port ?? <Dash />}</TableCell>
+                    {v3.trap_targets.map((tt) => (
+                      <TableRow key={tt.address}>
+                        <TableCell className="font-mono font-medium">{tt.address}</TableCell>
+                        <TableCell className="font-mono">{tt.user ?? <Dash />}</TableCell>
+                        <TableCell>{tt.type ?? <Dash />}</TableCell>
+                        <TableCell>{tt.protocol ? tt.protocol.toUpperCase() : <Dash />}</TableCell>
+                        <TableCell>{tt.port ?? <Dash />}</TableCell>
                         {hasWrite && (
                           <RowActions
-                            onEdit={() => setV3TrapModal({ open: true, edit: t })}
+                            onEdit={() => setV3TrapModal({ open: true, edit: tt })}
                             onDelete={() =>
                               setDeleteTarget({
-                                title: "Remove SNMPv3 Trap Target",
-                                itemName: t.address,
-                                onConfirm: () => snmpService.deleteV3TrapTarget(t.address).then(() => {}),
+                                title: t("content.removeV3TrapTarget"),
+                                itemName: tt.address,
+                                onConfirm: () => snmpService.deleteV3TrapTarget(tt.address).then(() => {}),
                               })
                             }
                           />
@@ -586,18 +589,18 @@ export function SNMPContent() {
             <TabsContent value="extensions" className="mt-4">
               <SectionCard
                 icon={<Terminal className="h-4 w-4" />}
-                title="Script Extensions"
+                title={t("content.scriptExtensions")}
                 count={config.script_extensions.length}
                 hasWrite={hasWrite}
                 onAdd={() => setExtModal({ open: true, edit: null })}
-                emptyText="No script extensions configured."
+                emptyText={t("content.scriptExtensionsEmpty")}
                 isEmpty={config.script_extensions.length === 0}
               >
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Script</TableHead>
+                      <TableHead>{tc("name")}</TableHead>
+                      <TableHead>{t("content.script")}</TableHead>
                       {hasWrite && <TableHead className="w-[80px]" />}
                     </TableRow>
                   </TableHeader>
@@ -611,7 +614,7 @@ export function SNMPContent() {
                             onEdit={() => setExtModal({ open: true, edit: e })}
                             onDelete={() =>
                               setDeleteTarget({
-                                title: "Remove Script Extension",
+                                title: t("content.removeScriptExtension"),
                                 itemName: e.name,
                                 onConfirm: () => snmpService.deleteScriptExtension(e.name).then(() => {}),
                               })
@@ -805,6 +808,7 @@ interface SectionCardProps {
 }
 
 function SectionCard({ icon, title, count, hasWrite, onAdd, emptyText, isEmpty, children }: SectionCardProps) {
+  const tc = useTranslations("common");
   return (
     <Card>
       <CardHeader className="pb-2 pt-4 px-4">
@@ -817,7 +821,7 @@ function SectionCard({ icon, title, count, hasWrite, onAdd, emptyText, isEmpty, 
           {hasWrite && (
             <Button size="sm" variant="outline" onClick={onAdd}>
               <Plus className="h-4 w-4 mr-1" />
-              Add
+              {tc("add")}
             </Button>
           )}
         </div>

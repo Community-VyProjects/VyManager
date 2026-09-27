@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -49,6 +50,8 @@ export function SNMPGeneralSettingsModal({
   capabilities,
   onSuccess,
 }: SNMPGeneralSettingsModalProps) {
+  const t = useTranslations("snmp");
+  const tc = useTranslations("common");
   const [contact, setContact] = useState(config.contact ?? "");
   const [description, setDescription] = useState(config.description ?? "");
   const [location, setLocation] = useState(config.location ?? "");
@@ -90,7 +93,7 @@ export function SNMPGeneralSettingsModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -100,9 +103,9 @@ export function SNMPGeneralSettingsModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>SNMP General Settings</DialogTitle>
+          <DialogTitle>{t("general.title")}</DialogTitle>
           <DialogDescription>
-            System identification, transport, and agent-wide options
+            {t("general.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -110,28 +113,28 @@ export function SNMPGeneralSettingsModal({
           <div className="space-y-5 py-1">
             {/* Identity */}
             <div className="space-y-1.5">
-              <Label htmlFor="snmp-contact">Contact</Label>
+              <Label htmlFor="snmp-contact">{t("content.contact")}</Label>
               <Input
                 id="snmp-contact"
-                placeholder="e.g. admin@example.com"
+                placeholder={t("general.contactPlaceholder")}
                 value={contact}
                 onChange={(e) => setContact(e.target.value)}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="snmp-location">Location</Label>
+              <Label htmlFor="snmp-location">{t("content.location")}</Label>
               <Input
                 id="snmp-location"
-                placeholder="e.g. Data Center 1, Rack 4"
+                placeholder={t("general.locationPlaceholder")}
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="snmp-description">Description</Label>
+              <Label htmlFor="snmp-description">{tc("description")}</Label>
               <Input
                 id="snmp-description"
-                placeholder="Free-text description of this agent"
+                placeholder={t("general.descriptionPlaceholder")}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
@@ -141,9 +144,9 @@ export function SNMPGeneralSettingsModal({
 
             {/* Transport */}
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Transport Protocol</Label>
+              <Label className="text-sm font-medium">{t("general.transportProtocol")}</Label>
               <p className="text-xs text-muted-foreground">
-                Protocol the SNMP agent listens on
+                {t("general.transportProtocolHelp")}
               </p>
               <Select value={protocol} onValueChange={setProtocol}>
                 <SelectTrigger>
@@ -151,7 +154,7 @@ export function SNMPGeneralSettingsModal({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={DEFAULT_PROTOCOL}>
-                    Default ({capabilities.features.protocol.default.toUpperCase()})
+                    {t("general.defaultValue", { value: capabilities.features.protocol.default.toUpperCase() })}
                   </SelectItem>
                   {capabilities.features.protocol.values.map((v) => (
                     <SelectItem key={v} value={v}>
@@ -163,29 +166,29 @@ export function SNMPGeneralSettingsModal({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="snmp-trap-source">Trap Source Address</Label>
+              <Label htmlFor="snmp-trap-source">{t("general.trapSourceAddress")}</Label>
               <p className="text-xs text-muted-foreground">
-                Source IP used as the origin for outgoing traps
+                {t("general.trapSourceHelp")}
               </p>
               <Input
                 id="snmp-trap-source"
-                placeholder="e.g. 192.0.2.1"
+                placeholder={t("general.trapSourcePlaceholder")}
                 value={trapSource}
                 onChange={(e) => setTrapSource(e.target.value)}
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="snmp-vrf">VRF Instance</Label>
+              <Label htmlFor="snmp-vrf">{t("general.vrfInstance")}</Label>
               <p className="text-xs text-muted-foreground">
-                Bind the agent to a VRF. Leave empty for the default routing table.
+                {t("general.vrfHelp")}
               </p>
               <VrfSelect
                 id="snmp-vrf"
-                placeholder="Default routing table"
+                placeholder={t("general.defaultRoutingTable")}
                 value={vrf}
                 onValueChange={setVrf}
-                extraOptions={[{ label: "Default", value: "default" }]}
+                extraOptions={[{ label: tc("default"), value: "default" }]}
               />
             </div>
 
@@ -193,14 +196,13 @@ export function SNMPGeneralSettingsModal({
 
             {/* SNMPv3 engine id */}
             <div className="space-y-1.5">
-              <Label htmlFor="snmp-engineid">SNMPv3 Engine ID</Label>
+              <Label htmlFor="snmp-engineid">{t("content.engineId")}</Label>
               <p className="text-xs text-muted-foreground">
-                Even number of hex digits (2–36) uniquely identifying this agent.
-                Leave empty to auto-generate.
+                {t("general.engineIdHelp")}
               </p>
               <Input
                 id="snmp-engineid"
-                placeholder="e.g. 000000000000000000000002"
+                placeholder={t("general.engineIdPlaceholder")}
                 value={engineid}
                 onChange={(e) => setEngineid(e.target.value)}
                 className="font-mono"
@@ -212,9 +214,9 @@ export function SNMPGeneralSettingsModal({
             {/* OID enable */}
             <div className="space-y-2">
               <div>
-                <Label className="text-sm font-medium">Enable Additional OIDs</Label>
+                <Label className="text-sm font-medium">{t("general.enableOids")}</Label>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  OIDs disabled by default — enable only what you need
+                  {t("general.enableOidsHelp")}
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-2">
@@ -238,10 +240,9 @@ export function SNMPGeneralSettingsModal({
             {/* MIB interface collection */}
             <div className="space-y-2">
               <div>
-                <Label className="text-sm font-medium">IF-MIB Interface Prefixes</Label>
+                <Label className="text-sm font-medium">{t("general.ifMibPrefixes")}</Label>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Restrict IF-MIB collection to specific interface types. None
-                  selected = all interfaces.
+                  {t("general.ifMibPrefixesHelp")}
                 </p>
               </div>
               <div className="grid grid-cols-3 gap-2">
@@ -261,16 +262,15 @@ export function SNMPGeneralSettingsModal({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="snmp-mib-max">Max IF-MIB Interfaces</Label>
+              <Label htmlFor="snmp-mib-max">{t("content.maxIfMibInterfaces")}</Label>
               <p className="text-xs text-muted-foreground">
-                Cap the number of interfaces included in IF-MIB data. Leave empty
-                for no limit.
+                {t("general.maxIfMibHelp")}
               </p>
               <Input
                 id="snmp-mib-max"
                 type="number"
                 min={1}
-                placeholder="e.g. 64"
+                placeholder={t("general.maxIfMibPlaceholder")}
                 value={mibInterfaceMax}
                 onChange={(e) => setMibInterfaceMax(e.target.value)}
               />
@@ -280,9 +280,9 @@ export function SNMPGeneralSettingsModal({
 
             {/* SMUX peers */}
             <SNMPMultiValueField
-              label="SMUX Peers"
-              description="Register subtree OIDs for SMUX-based processing"
-              placeholder="e.g. 1.3.6.1.4.1.3317.1.2.2"
+              label={t("content.smuxPeers")}
+              description={t("general.smuxPeersHelp")}
+              placeholder={t("general.smuxPeersPlaceholder")}
               values={smuxPeers}
               onChange={setSmuxPeers}
             />
@@ -298,11 +298,11 @@ export function SNMPGeneralSettingsModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>
