@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,8 @@ const empty = (): SquidGuardSourceGroup => ({
 });
 
 export function WebProxySourceGroupModal({ open, onOpenChange, sourceGroup, existingNames, onSubmit }: Props) {
+  const t = useTranslations("webproxy");
+  const tc = useTranslations("common");
   const isEdit = !!sourceGroup;
   const [form, setForm] = useState<SquidGuardSourceGroup>(empty());
   const [loading, setLoading] = useState(false);
@@ -51,11 +54,11 @@ export function WebProxySourceGroupModal({ open, onOpenChange, sourceGroup, exis
   const handleSubmit = async () => {
     const name = form.name.trim();
     if (!name) {
-      setError("Source group name is required");
+      setError(t("group.nameRequired"));
       return;
     }
     if (!isEdit && existingNames.includes(name)) {
-      setError(`Source group "${name}" already exists`);
+      setError(t("group.exists", { name }));
       return;
     }
     setLoading(true);
@@ -64,7 +67,7 @@ export function WebProxySourceGroupModal({ open, onOpenChange, sourceGroup, exis
       await onSubmit({ ...form, name }, isEdit);
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -74,29 +77,29 @@ export function WebProxySourceGroupModal({ open, onOpenChange, sourceGroup, exis
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEdit ? `Edit Source Group ${sourceGroup?.name}` : "Add Source Group"}</DialogTitle>
-          <DialogDescription>Group clients by address, domain or LDAP membership for use in filter rules.</DialogDescription>
+          <DialogTitle>{isEdit ? t("group.editTitle", { name: sourceGroup?.name ?? "" }) : t("group.addTitle")}</DialogTitle>
+          <DialogDescription>{t("group.description")}</DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[60vh] pr-4">
           <div className="space-y-5 pb-2">
             <div className="space-y-2">
-              <Label htmlFor="sgrp-name">Name</Label>
+              <Label htmlFor="sgrp-name">{tc("name")}</Label>
               <Input id="sgrp-name" value={form.name} onChange={(e) => update({ name: e.target.value })} placeholder="lan-users" disabled={isEdit} className={isEdit ? "bg-muted font-mono" : "font-mono"} />
-              {isEdit && <p className="text-xs text-muted-foreground">Name cannot be changed after creation.</p>}
+              {isEdit && <p className="text-xs text-muted-foreground">{t("common.nameImmutable")}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="sgrp-desc">Description</Label>
-              <Input id="sgrp-desc" value={form.description ?? ""} onChange={(e) => update({ description: e.target.value })} placeholder="Optional description" />
+              <Label htmlFor="sgrp-desc">{tc("description")}</Label>
+              <Input id="sgrp-desc" value={form.description ?? ""} onChange={(e) => update({ description: e.target.value })} placeholder={t("common.optionalDescription")} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="sgrp-user">User</Label>
+              <Label htmlFor="sgrp-user">{t("group.user")}</Label>
               <Input id="sgrp-user" value={form.user ?? ""} onChange={(e) => update({ user: e.target.value })} placeholder="username" className="font-mono" />
             </div>
-            <MultiValueInput label="Addresses" values={form.address} onChange={(v) => update({ address: v })} placeholder="IP, prefix or range" />
-            <MultiValueInput label="Domains" values={form.domain} onChange={(v) => update({ domain: v })} placeholder="example.com" />
-            <MultiValueInput label="LDAP IP Search" values={form.ldap_ip_search} onChange={(v) => update({ ldap_ip_search: v })} placeholder="LDAP search expression" />
-            <MultiValueInput label="LDAP User Search" values={form.ldap_user_search} onChange={(v) => update({ ldap_user_search: v })} placeholder="LDAP search expression" />
+            <MultiValueInput label={t("content.addresses")} values={form.address} onChange={(v) => update({ address: v })} placeholder={t("group.addressesPlaceholder")} />
+            <MultiValueInput label={t("content.domains")} values={form.domain} onChange={(v) => update({ domain: v })} placeholder="example.com" />
+            <MultiValueInput label={t("group.ldapIpSearch")} values={form.ldap_ip_search} onChange={(v) => update({ ldap_ip_search: v })} placeholder={t("group.ldapSearchPlaceholder")} />
+            <MultiValueInput label={t("group.ldapUserSearch")} values={form.ldap_user_search} onChange={(v) => update({ ldap_user_search: v })} placeholder={t("group.ldapSearchPlaceholder")} />
           </div>
         </ScrollArea>
 
@@ -108,9 +111,9 @@ export function WebProxySourceGroupModal({ open, onOpenChange, sourceGroup, exis
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : isEdit ? "Save Changes" : "Add Group"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : isEdit ? t("common.saveChanges") : t("content.addGroup")}
           </Button>
         </DialogFooter>
       </DialogContent>

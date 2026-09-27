@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,8 @@ const numOrNull = (s: string): number | null => {
 };
 
 export function WebProxySettingsModal({ open, onOpenChange, config, caps, onSubmit }: Props) {
+  const t = useTranslations("webproxy");
+  const tc = useTranslations("common");
   const [appendDomain, setAppendDomain] = useState("");
   const [defaultPort, setDefaultPort] = useState("");
   const [cacheSize, setCacheSize] = useState("");
@@ -94,7 +97,7 @@ export function WebProxySettingsModal({ open, onOpenChange, config, caps, onSubm
       });
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -104,63 +107,63 @@ export function WebProxySettingsModal({ open, onOpenChange, config, caps, onSubm
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Web Proxy Settings</DialogTitle>
-          <DialogDescription>Global Squid proxy ports, cache sizing and content controls.</DialogDescription>
+          <DialogTitle>{t("settings.title")}</DialogTitle>
+          <DialogDescription>{t("settings.description")}</DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[65vh] pr-4">
           <div className="space-y-5 pb-2">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="wp-default-port">Default Port</Label>
+                <Label htmlFor="wp-default-port">{t("content.defaultPort")}</Label>
                 <Input id="wp-default-port" type="number" value={defaultPort} onChange={(e) => setDefaultPort(e.target.value)} placeholder="3128" className="font-mono" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="wp-outgoing">Outgoing Address</Label>
-                <Input id="wp-outgoing" value={outgoingAddress} onChange={(e) => setOutgoingAddress(e.target.value)} placeholder="e.g. 203.0.113.1" className="font-mono" />
+                <Label htmlFor="wp-outgoing">{t("content.outgoingAddress")}</Label>
+                <Input id="wp-outgoing" value={outgoingAddress} onChange={(e) => setOutgoingAddress(e.target.value)} placeholder={t("settings.outgoingPlaceholder")} className="font-mono" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="wp-cache-size">Disk Cache Size (MB)</Label>
-                <Input id="wp-cache-size" type="number" value={cacheSize} onChange={(e) => setCacheSize(e.target.value)} placeholder="100 (0 disables)" className="font-mono" />
+                <Label htmlFor="wp-cache-size">{t("settings.diskCacheSizeMb")}</Label>
+                <Input id="wp-cache-size" type="number" value={cacheSize} onChange={(e) => setCacheSize(e.target.value)} placeholder={t("settings.diskCachePlaceholder")} className="font-mono" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="wp-mem-cache">Memory Cache Size (MB)</Label>
+                <Label htmlFor="wp-mem-cache">{t("settings.memCacheSizeMb")}</Label>
                 <Input id="wp-mem-cache" type="number" value={memCacheSize} onChange={(e) => setMemCacheSize(e.target.value)} placeholder="20" className="font-mono" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="wp-max-obj">Max Object Size (KB)</Label>
+                <Label htmlFor="wp-max-obj">{t("settings.maxObjectSizeKb")}</Label>
                 <Input id="wp-max-obj" type="number" value={maxObjectSize} onChange={(e) => setMaxObjectSize(e.target.value)} className="font-mono" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="wp-min-obj">Min Object Size (KB)</Label>
+                <Label htmlFor="wp-min-obj">{t("settings.minObjectSizeKb")}</Label>
                 <Input id="wp-min-obj" type="number" value={minObjectSize} onChange={(e) => setMinObjectSize(e.target.value)} className="font-mono" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="wp-reply-max">Reply Body Max Size (KB)</Label>
+                <Label htmlFor="wp-reply-max">{t("settings.replyBodyMaxSizeKb")}</Label>
                 <Input id="wp-reply-max" type="number" value={replyBodyMaxSize} onChange={(e) => setReplyBodyMaxSize(e.target.value)} className="font-mono" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="wp-append">Append Domain</Label>
+                <Label htmlFor="wp-append">{t("content.appendDomain")}</Label>
                 <Input id="wp-append" value={appendDomain} onChange={(e) => setAppendDomain(e.target.value)} placeholder=".example.com" className="font-mono" />
               </div>
             </div>
 
             <div className="flex items-center gap-2">
               <Checkbox id="wp-disable-log" checked={disableAccessLog} onCheckedChange={(c) => setDisableAccessLog(c === true)} />
-              <Label htmlFor="wp-disable-log" className="cursor-pointer">Disable access logging</Label>
+              <Label htmlFor="wp-disable-log" className="cursor-pointer">{t("settings.disableAccessLog")}</Label>
             </div>
 
-            <MultiValueInput label="Safe Ports" values={safePorts} onChange={setSafePorts} type="number" placeholder="e.g. 8080" hint="Allowed destination ports (1-1024). Common ports are allowed by default." />
-            <MultiValueInput label="SSL Safe Ports" values={sslSafePorts} onChange={setSslSafePorts} type="number" placeholder="e.g. 8443" hint="Allowed CONNECT (HTTPS) ports. 443 is allowed by default." />
-            <MultiValueInput label="Blocked Domains" values={domainBlock} onChange={setDomainBlock} placeholder="e.g. bad.example.com" />
-            <MultiValueInput label="Non-cached Domains" values={domainNoncache} onChange={setDomainNoncache} placeholder="e.g. dynamic.example.com" />
+            <MultiValueInput label={t("content.safePorts")} values={safePorts} onChange={setSafePorts} type="number" placeholder={t("settings.safePortsPlaceholder")} hint={t("settings.safePortsHint")} />
+            <MultiValueInput label={t("content.sslSafePorts")} values={sslSafePorts} onChange={setSslSafePorts} type="number" placeholder={t("settings.sslSafePortsPlaceholder")} hint={t("settings.sslSafePortsHint")} />
+            <MultiValueInput label={t("content.blockedDomains")} values={domainBlock} onChange={setDomainBlock} placeholder={t("settings.blockedDomainsPlaceholder")} />
+            <MultiValueInput label={t("content.noncachedDomains")} values={domainNoncache} onChange={setDomainNoncache} placeholder={t("settings.noncachedDomainsPlaceholder")} />
             <MultiValueInput
-              label="Blocked MIME Types"
+              label={t("content.blockedMimeTypes")}
               values={replyBlockMime}
               onChange={setReplyBlockMime}
-              placeholder="e.g. application/pdf"
+              placeholder={t("settings.mimePlaceholder")}
               suggestions={caps?.options.reply_block_mime}
-              hint="Reply content types to block."
+              hint={t("settings.mimeHint")}
             />
           </div>
         </ScrollArea>
@@ -173,9 +176,9 @@ export function WebProxySettingsModal({ open, onOpenChange, config, caps, onSubm
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save Settings"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : t("settings.save")}
           </Button>
         </DialogFooter>
       </DialogContent>

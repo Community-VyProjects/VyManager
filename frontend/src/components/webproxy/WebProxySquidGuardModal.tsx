@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -39,9 +40,9 @@ const numOrNull = (s: string): number | null => {
   return Number.isNaN(n) ? null : n;
 };
 
-const CATEGORY_HINT = "Categories come from the squidGuard blacklist database installed on the router.";
-
 export function WebProxySquidGuardModal({ open, onOpenChange, squidguard, caps, onSubmit }: Props) {
+  const t = useTranslations("webproxy");
+  const tc = useTranslations("common");
   const [defaultAction, setDefaultAction] = useState("");
   const [redirectUrl, setRedirectUrl] = useState("");
   const [autoUpdateHour, setAutoUpdateHour] = useState("");
@@ -100,7 +101,7 @@ export function WebProxySquidGuardModal({ open, onOpenChange, squidguard, caps, 
       });
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -110,15 +111,15 @@ export function WebProxySquidGuardModal({ open, onOpenChange, squidguard, caps, 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>squidGuard Filtering</DialogTitle>
-          <DialogDescription>Default policy and global allow/block lists applied to all traffic.</DialogDescription>
+          <DialogTitle>{t("squidguard.title")}</DialogTitle>
+          <DialogDescription>{t("squidguard.description")}</DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[65vh] pr-4">
           <div className="space-y-5 pb-2">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Default Action</Label>
+                <Label>{t("content.defaultAction")}</Label>
                 <Select value={defaultAction} onValueChange={setDefaultAction}>
                   <SelectTrigger><SelectValue placeholder="allow" /></SelectTrigger>
                   <SelectContent>
@@ -129,11 +130,11 @@ export function WebProxySquidGuardModal({ open, onOpenChange, squidguard, caps, 
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="sg-update-hour">Auto-update Hour (0-23)</Label>
+                <Label htmlFor="sg-update-hour">{t("squidguard.autoUpdateHour")}</Label>
                 <Input id="sg-update-hour" type="number" min={0} max={23} value={autoUpdateHour} onChange={(e) => setAutoUpdateHour(e.target.value)} placeholder="0" className="font-mono" />
               </div>
               <div className="space-y-2 col-span-2">
-                <Label htmlFor="sg-redirect">Redirect URL</Label>
+                <Label htmlFor="sg-redirect">{t("content.redirectUrl")}</Label>
                 <Input id="sg-redirect" value={redirectUrl} onChange={(e) => setRedirectUrl(e.target.value)} placeholder="block.vyos.net" className="font-mono" />
               </div>
             </div>
@@ -141,22 +142,22 @@ export function WebProxySquidGuardModal({ open, onOpenChange, squidguard, caps, 
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
                 <Checkbox id="sg-ipaddr" checked={allowIpaddrUrl} onCheckedChange={(c) => setAllowIpaddrUrl(c === true)} />
-                <Label htmlFor="sg-ipaddr" className="cursor-pointer">Allow IP-address URLs</Label>
+                <Label htmlFor="sg-ipaddr" className="cursor-pointer">{t("content.allowIpaddrUrl")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="sg-safe" checked={enableSafeSearch} onCheckedChange={(c) => setEnableSafeSearch(c === true)} />
-                <Label htmlFor="sg-safe" className="cursor-pointer">Enable safe search</Label>
+                <Label htmlFor="sg-safe" className="cursor-pointer">{t("filter.enableSafeSearch")}</Label>
               </div>
             </div>
 
-            <MultiValueInput label="Allow Categories" values={allowCategories} onChange={setAllowCategories} placeholder="e.g. news" hint={CATEGORY_HINT} />
-            <MultiValueInput label="Block Categories" values={blockCategories} onChange={setBlockCategories} placeholder="e.g. ads" hint={CATEGORY_HINT} />
-            <MultiValueInput label="Log Categories" values={log} onChange={setLog} placeholder="all or a category" />
-            <MultiValueInput label="Local Block (sites)" values={localBlock} onChange={setLocalBlock} placeholder="IP or FQDN" />
-            <MultiValueInput label="Local Block Keywords" values={localBlockKeyword} onChange={setLocalBlockKeyword} placeholder="keyword or regex" />
-            <MultiValueInput label="Local Block URLs" values={localBlockUrl} onChange={setLocalBlockUrl} placeholder="example.com/path" />
-            <MultiValueInput label="Local Allow (sites)" values={localOk} onChange={setLocalOk} placeholder="IP or FQDN" />
-            <MultiValueInput label="Local Allow URLs" values={localOkUrl} onChange={setLocalOkUrl} placeholder="example.com/path" />
+            <MultiValueInput label={t("content.allowCategories")} values={allowCategories} onChange={setAllowCategories} placeholder={t("filter.allowCategoriesPlaceholder")} hint={t("filter.categoryHint")} />
+            <MultiValueInput label={t("content.blockCategories")} values={blockCategories} onChange={setBlockCategories} placeholder={t("filter.blockCategoriesPlaceholder")} hint={t("filter.categoryHint")} />
+            <MultiValueInput label={t("filter.logCategories")} values={log} onChange={setLog} placeholder={t("filter.logCategoriesPlaceholder")} />
+            <MultiValueInput label={t("filter.localBlockSites")} values={localBlock} onChange={setLocalBlock} placeholder={t("filter.ipOrFqdn")} />
+            <MultiValueInput label={t("filter.localBlockKeywords")} values={localBlockKeyword} onChange={setLocalBlockKeyword} placeholder={t("filter.keywordPlaceholder")} />
+            <MultiValueInput label={t("filter.localBlockUrls")} values={localBlockUrl} onChange={setLocalBlockUrl} placeholder="example.com/path" />
+            <MultiValueInput label={t("filter.localAllowSites")} values={localOk} onChange={setLocalOk} placeholder={t("filter.ipOrFqdn")} />
+            <MultiValueInput label={t("filter.localAllowUrls")} values={localOkUrl} onChange={setLocalOkUrl} placeholder="example.com/path" />
           </div>
         </ScrollArea>
 
@@ -168,9 +169,9 @@ export function WebProxySquidGuardModal({ open, onOpenChange, squidguard, caps, 
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save Filtering"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : t("squidguard.save")}
           </Button>
         </DialogFooter>
       </DialogContent>
