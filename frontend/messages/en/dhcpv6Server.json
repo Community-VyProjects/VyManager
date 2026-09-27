@@ -1,1 +1,198 @@
-{}
+{
+  "subnet": "Subnet",
+  "selectSubnet": "Select subnet",
+  "networkLine": "Network: {network}",
+  "subnetSuffix": " / Subnet: {subnet}",
+  "optionalExample": "{example} (optional)",
+  "range": {
+    "errors": {
+      "selectSubnet": "Select a subnet",
+      "startStopRequired": "Start and Stop are required",
+      "prefixRequired": "Prefix is required"
+    },
+    "editTitle": "Edit Address Range",
+    "addTitle": "Add Address Range",
+    "startAddress": "Start Address",
+    "stopAddress": "Stop Address",
+    "prefix": "Prefix",
+    "modeStartStop": "Start / Stop",
+    "temporary": "Temporary addresses",
+    "addRange": "Add Range"
+  },
+  "global": {
+    "title": "Global DHCPv6 Server Settings",
+    "disableServer": "Disable DHCPv6 Server",
+    "preference": "Server Preference (0–255)",
+    "preferencePlaceholder": "Optional (default 0)",
+    "nameServers": "Global Name Servers",
+    "listenInterfaces": "Listen Interfaces",
+    "disableRouteAutoinstall": "Disable Route Autoinstall",
+    "disableRouteAutoinstallHint": "(do not install delegated-prefix routes)"
+  },
+  "pd": {
+    "errors": {
+      "delegatedLengthRequired": "Delegated length is required"
+    },
+    "editTitle": "Edit Prefix Delegation",
+    "addTitle": "Add Prefix Delegation",
+    "delegatedLength": "Delegated Length",
+    "delegatedLengthPlaceholder": "e.g. 64",
+    "prefixLengthOptional": "Prefix Length (optional)",
+    "excludedPrefix": "Excluded Prefix (optional)",
+    "excludedPrefixLength": "Excluded Prefix Length (optional)",
+    "start": "Start",
+    "stop": "Stop",
+    "prefixLength14": "Prefix Length (32–64)",
+    "addDelegation": "Add Delegation"
+  },
+  "mapping": {
+    "clientIdentifier": "Client Identifier",
+    "errors": {
+      "nameRequired": "Mapping name is required"
+    },
+    "editTitle": "Edit Static Mapping",
+    "addTitle": "Add Static Mapping",
+    "name": "Mapping Name",
+    "disable": "Disable this mapping",
+    "macAddress": "MAC Address",
+    "ipv6Address": "IPv6 Address",
+    "ipv6Prefix": "IPv6 Prefix",
+    "addMapping": "Add Mapping"
+  },
+  "sharedNetwork": "Shared Network",
+  "subnetModal": {
+    "errors": {
+      "selectNetwork": "Select a network",
+      "cidrRequired": "Subnet CIDR is required"
+    },
+    "editTitle": "Edit Subnet",
+    "addTitle": "Add Subnet",
+    "tabs": {
+      "basic": "Basic",
+      "options": "Options"
+    },
+    "selectNetwork": "Select network",
+    "subnetCidr": "Subnet CIDR",
+    "interfaces": "Interfaces",
+    "leaseDefault": "Default Lease (s)",
+    "leaseMin": "Min Lease (s)",
+    "leaseMax": "Max Lease (s)",
+    "nameServers": "Name Servers",
+    "domainSearch": "Domain Search",
+    "infoRefreshTime": "Info Refresh Time (seconds)",
+    "capwapController": "CAPWAP Controller",
+    "nisDomain": "NIS Domain",
+    "nisplusDomain": "NIS+ Domain",
+    "nisServers": "NIS Servers",
+    "nisplusServers": "NIS+ Servers",
+    "sipServers": "SIP Servers",
+    "sipPlaceholder": "2001:db8::1 or sip.example.com",
+    "sntpServers": "SNTP Servers",
+    "ciscoTftpServers": "Cisco TFTP Servers",
+    "addSubnet": "Add Subnet"
+  },
+  "optionalDescription": "Optional description",
+  "networkModal": {
+    "errors": {
+      "nameRequired": "Network name is required",
+      "saveFailed": "Failed to save network",
+      "createFailed": "Failed to create network"
+    },
+    "tabs": {
+      "network": "Network",
+      "dhcpOptions": "DHCP Options",
+      "ranges": "Ranges"
+    },
+    "editTitle": "Edit Shared Network",
+    "addTitle": "Add Shared Network",
+    "name": "Network Name",
+    "disable": "Disable this network",
+    "firstSubnet": "First Subnet",
+    "subnetInterfaces": "Subnet Interfaces",
+    "sipPlaceholder": "2001:db8::1 or hostname",
+    "rangesHint": "Optional — you can add address ranges after creating the network.",
+    "create": "Create Network"
+  },
+  "content": {
+    "loadFailed": "Failed to load DHCPv6 server configuration",
+    "loading": "Loading DHCPv6 server configuration...",
+    "errorTitle": "Error Loading DHCPv6 Server",
+    "title": "DHCPv6 Server",
+    "globalSettings": "Global Settings",
+    "newServer": "New Server",
+    "noServersShort": "No servers configured",
+    "noServersHint": "Click \"New Server\" to create one",
+    "enableNetwork": "Enable network",
+    "disableNetwork": "Disable network",
+    "deleteNetwork": "Delete network",
+    "stats": {
+      "networks": "Networks",
+      "subnets": "Subnets",
+      "static": "Static"
+    },
+    "globallyDisabled": "DHCPv6 server is globally disabled — no networks are serving requests.",
+    "nameServersLine": "Name Servers: {servers}",
+    "refreshLine": "Refresh: {seconds}s",
+    "editNetwork": "Edit Network",
+    "enableDhcpv6": "Enable DHCPv6",
+    "disableDhcpv6": "Disable DHCPv6",
+    "tabs": {
+      "subnets": "Subnets",
+      "ranges": "Address Ranges",
+      "delegation": "Prefix Delegation",
+      "static": "Static Mappings"
+    },
+    "subnetCount": "{count, plural, one {# subnet} other {# subnets}}",
+    "noSubnets": "No Subnets",
+    "noSubnetsHint": "Add a subnet to this network",
+    "columns": {
+      "leaseDefault": "Lease Default",
+      "mappings": "Mappings",
+      "rangeId": "Range ID",
+      "temporary": "Temporary",
+      "delegatedLen": "Delegated Len",
+      "prefixLen": "Prefix Len",
+      "excludedPrefix": "Excluded Prefix",
+      "excludedLen": "Excl. Len",
+      "prefixLength": "Prefix Length",
+      "clientId": "Client ID"
+    },
+    "seconds": "{value}s",
+    "subnetLabel": "Subnet:",
+    "allSubnets": "All Subnets",
+    "rangeCount": "{count, plural, one {# range} other {# ranges}}",
+    "noRanges": "No Address Ranges",
+    "noRangesHint": "No address ranges configured",
+    "yes": "Yes",
+    "delegationCount": "{count, plural, one {# delegation} other {# delegations}}",
+    "noDelegations": "No Prefix Delegations",
+    "noDelegationsHint": "No prefix delegations configured",
+    "mappingCount": "{count, plural, one {# mapping} other {# mappings}}",
+    "noMappings": "No Static Mappings",
+    "noMappingsHint": "No static IPv6 mappings configured",
+    "active": "Active",
+    "noServers": "No DHCPv6 Servers",
+    "noServersDescription": "Get started by creating your first DHCPv6 server to manage IPv6 address allocation."
+  },
+  "deleteDialog": {
+    "network": "Delete Network \"{name}\"?",
+    "subnet": "Delete Subnet \"{subnet}\"?",
+    "range": "Delete Address Range?",
+    "pd": "Delete Prefix Delegation?",
+    "mapping": "Delete Mapping \"{name}\"?",
+    "description": "This action cannot be undone and will remove the configuration from VyOS."
+  },
+  "toggle": {
+    "enableServerTitle": "Enable DHCPv6 Server",
+    "disableServerTitle": "Disable DHCPv6 Server",
+    "enableNetworkTitle": "Enable Network \"{name}\"",
+    "disableNetworkTitle": "Disable Network \"{name}\"",
+    "enableServerDescription": "This will enable the DHCPv6 server globally.",
+    "disableServerDescription": "This will disable the DHCPv6 server globally. No networks will serve requests until re-enabled.",
+    "enableNetworkDescription": "Enable network \"{name}\"? It will resume serving DHCPv6 requests.",
+    "disableNetworkDescription": "Disable network \"{name}\"? It will stop serving DHCPv6 requests.",
+    "processing": "Processing...",
+    "enable": "Enable",
+    "disable": "Disable"
+  }
+}

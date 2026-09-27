@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,8 @@ interface Props {
 }
 
 export function DHCPv6ServerGlobalModal({ open, config, caps, onClose, onSuccess }: Props) {
+  const t = useTranslations("dhcpv6Server");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -93,7 +96,7 @@ export function DHCPv6ServerGlobalModal({ open, config, caps, onClose, onSuccess
 
     setLoading(false);
     if (!result.success) {
-      setError(result.error ?? "Operation failed");
+      setError(result.error ?? tc("operationFailed"));
       return;
     }
     onSuccess();
@@ -104,7 +107,7 @@ export function DHCPv6ServerGlobalModal({ open, config, caps, onClose, onSuccess
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Global DHCPv6 Server Settings</DialogTitle>
+          <DialogTitle>{t("global.title")}</DialogTitle>
         </DialogHeader>
 
         <ScrollArea className="max-h-[60vh] pr-2">
@@ -116,18 +119,18 @@ export function DHCPv6ServerGlobalModal({ open, config, caps, onClose, onSuccess
                 checked={serverDisabled}
                 onCheckedChange={(v) => setServerDisabled(Boolean(v))}
               />
-              <Label htmlFor="server-disabled" className="cursor-pointer">Disable DHCPv6 Server</Label>
+              <Label htmlFor="server-disabled" className="cursor-pointer">{t("global.disableServer")}</Label>
             </div>
 
             {/* Preference */}
             <div className="space-y-1.5">
-              <Label htmlFor="preference">Server Preference (0–255)</Label>
+              <Label htmlFor="preference">{t("global.preference")}</Label>
               <Input
                 id="preference"
                 type="number"
                 min={0}
                 max={255}
-                placeholder="Optional (default 0)"
+                placeholder={t("global.preferencePlaceholder")}
                 value={preference}
                 onChange={(e) => setPreference(e.target.value)}
               />
@@ -135,7 +138,7 @@ export function DHCPv6ServerGlobalModal({ open, config, caps, onClose, onSuccess
 
             {/* Global Name Servers */}
             <div className="space-y-1.5">
-              <Label>Global Name Servers</Label>
+              <Label>{t("global.nameServers")}</Label>
               <div className="flex gap-2">
                 <Input
                   placeholder="2001:db8::1"
@@ -164,7 +167,7 @@ export function DHCPv6ServerGlobalModal({ open, config, caps, onClose, onSuccess
             {/* Listen Interfaces (1.5 only) */}
             {caps.features.listen_interface.supported && (
               <div className="space-y-1.5">
-                <Label>Listen Interfaces</Label>
+                <Label>{t("global.listenInterfaces")}</Label>
                 <div className="flex gap-2">
                   <Input
                     placeholder="eth0"
@@ -200,8 +203,8 @@ export function DHCPv6ServerGlobalModal({ open, config, caps, onClose, onSuccess
                   onCheckedChange={(v) => setDisableRouteAutoinstall(Boolean(v))}
                 />
                 <Label htmlFor="disable-route-autoinstall" className="cursor-pointer">
-                  Disable Route Autoinstall
-                  <span className="ml-1 text-xs text-muted-foreground">(do not install delegated-prefix routes)</span>
+                  {t("global.disableRouteAutoinstall")}
+                  <span className="ml-1 text-xs text-muted-foreground">{t("global.disableRouteAutoinstallHint")}</span>
                 </Label>
               </div>
             )}
@@ -217,11 +220,11 @@ export function DHCPv6ServerGlobalModal({ open, config, caps, onClose, onSuccess
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>
