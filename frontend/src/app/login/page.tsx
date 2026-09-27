@@ -23,6 +23,7 @@ import { interpretSignInResult, leftoverPasswordSessions, mustEnrollTwoFactor, p
 
 export default function LoginPage() {
   const t = useTranslations("login");
+  const tm = useTranslations("miscLib");
   const router = useRouter();
   const [appliance, setAppliance] = useState<boolean | null>(null);
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
@@ -123,7 +124,7 @@ export default function LoginPage() {
 
       const outcome = interpretSignInResult(result);
       if (outcome.kind === "error") {
-        setError(outcome.message);
+        setError(outcome.messageKey ? tm(outcome.messageKey) : outcome.message);
         setIsLoading(false);
         return;
       }

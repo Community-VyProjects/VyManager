@@ -130,10 +130,11 @@ function DroppableColumnOverlay({
 export default function Home() {
   const t = useTranslations("dashboard");
   const tc = useTranslations("common");
+  const tm = useTranslations("miscLib");
   const router = useRouter();
   const [isChecking, setIsChecking] = useState(true);
   const { data: session, isPending } = useSession();
-  const { activeSession, loadSession, appliance, error: sessionError } = useSessionStore();
+  const { activeSession, loadSession, appliance, error: sessionError, errorKey: sessionErrorKey } = useSessionStore();
   // null = not determined yet; true = no instance exists anywhere the user can see
   const [noInstances, setNoInstances] = useState<boolean | null>(null);
 
@@ -287,7 +288,7 @@ export default function Home() {
         <AppLayout allowWithoutInstance>
           <div className="flex min-h-[60vh] items-center justify-center p-8">
             <p className="text-sm text-muted-foreground text-center max-w-md">
-              {sessionError || t("routerUnreachable")}
+              {(sessionErrorKey ? tm(sessionErrorKey) : sessionError) || t("routerUnreachable")}
             </p>
           </div>
         </AppLayout>
