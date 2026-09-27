@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,8 @@ export function PimInterfaceModal({
   onSubmit,
   existingInterface,
 }: PimInterfaceModalProps) {
+  const t = useTranslations("pim");
+  const tc = useTranslations("common");
   const isEditMode = !!existingInterface;
 
   // Available interfaces
@@ -149,7 +152,7 @@ export function PimInterfaceModal({
     const group = newJoinGroup.trim();
     if (!group) return;
     if (igmpJoins.some((j) => j.group === group)) {
-      setError("Join group already exists");
+      setError(t("interfaceModal.joinExists"));
       return;
     }
     setIgmpJoins([...igmpJoins, { group, source_addresses: [] }]);
@@ -166,7 +169,7 @@ export function PimInterfaceModal({
     if (!source) return;
     const join = igmpJoins[joinIndex];
     if (join.source_addresses.includes(source)) {
-      setError("Source address already exists in this join group");
+      setError(t("interfaceModal.sourceExists"));
       return;
     }
     const updated = [...igmpJoins];
@@ -189,23 +192,23 @@ export function PimInterfaceModal({
   };
 
   const validateForm = (): string | null => {
-    if (!name) return "Interface is required";
+    if (!name) return t("interfaceModal.interfaceRequired");
 
     if (drPriority.trim()) {
       const val = parseInt(drPriority.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 4294967295) return "DR Priority must be between 1 and 4294967295";
+      if (isNaN(val) || val < 1 || val > 4294967295) return t("interfaceModal.drPriorityRange");
     }
     if (hello.trim()) {
       const val = parseInt(hello.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 180) return "Hello interval must be between 1 and 180";
+      if (isNaN(val) || val < 1 || val > 180) return t("interfaceModal.helloRange");
     }
     if (igmpQueryInterval.trim()) {
       const val = parseInt(igmpQueryInterval.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 1800) return "IGMP query interval must be between 1 and 1800";
+      if (isNaN(val) || val < 1 || val > 1800) return t("interfaceModal.igmpQueryIntervalRange");
     }
     if (igmpQueryMaxResponseTime.trim()) {
       const val = parseInt(igmpQueryMaxResponseTime.trim(), 10);
-      if (isNaN(val) || val < 10 || val > 250) return "IGMP query max response time must be between 10 and 250";
+      if (isNaN(val) || val < 10 || val > 250) return t("interfaceModal.igmpMaxResponseRange");
     }
     return null;
   };
@@ -252,7 +255,7 @@ export function PimInterfaceModal({
       await onSubmit(iface);
       handleClose();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Operation failed";
+      const message = err instanceof Error ? err.message : tc("operationFailed");
       setError(message);
     } finally {
       setLoading(false);
@@ -264,19 +267,19 @@ export function PimInterfaceModal({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit PIM Interface" : "Add PIM Interface"}
+            {isEditMode ? t("interfaceModal.editTitle") : t("interfaceModal.addTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? `Modify PIM and IGMP settings for ${existingInterface?.name}.`
-              : "Add a new interface to PIM multicast routing."}
+              ? t("interfaceModal.editDescription", { name: String(existingInterface?.name) })
+              : t("interfaceModal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="pim">PIM Settings</TabsTrigger>
-            <TabsTrigger value="igmp">IGMP Settings</TabsTrigger>
+            <TabsTrigger value="pim">{t("interfaceModal.tabPim")}</TabsTrigger>
+            <TabsTrigger value="igmp">{t("interfaceModal.tabIgmp")}</TabsTrigger>
           </TabsList>
 
           {/* PIM Settings Tab */}
@@ -285,7 +288,7 @@ export function PimInterfaceModal({
               <div className="space-y-5 pb-2">
                 {/* Interface Name */}
                 <div className="space-y-2">
-                  <Label>Interface</Label>
+                  <Label>{t("interfaceModal.interface")}</Label>
                   {isEditMode ? (
                     <Input value={name} disabled className="bg-muted font-mono" />
                   ) : (
@@ -293,7 +296,7 @@ export function PimInterfaceModal({
                       value={name}
                       onValueChange={setName}
                       interfaces={availableInterfaces}
-                      placeholder="Select interface"
+                      placeholder={t("interfaceModal.selectInterface")}
                     />
                   )}
                 </div>
@@ -302,16 +305,16 @@ export function PimInterfaceModal({
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
                     <Checkbox id="pim-bfd" checked={bfd} onCheckedChange={(c) => setBfd(!!c)} />
-                    <Label htmlFor="pim-bfd">Enable BFD (Bidirectional Forwarding Detection)</Label>
+                    <Label htmlFor="pim-bfd">{t("interfaceModal.enableBfd")}</Label>
                   </div>
                   {bfd && (
                     <div className="ml-6 space-y-2">
-                      <Label htmlFor="pim-bfd-profile">BFD Profile</Label>
+                      <Label htmlFor="pim-bfd-profile">{t("interfaceModal.bfdProfile")}</Label>
                       <Input
                         id="pim-bfd-profile"
                         value={bfdProfile}
                         onChange={(e) => setBfdProfile(e.target.value)}
-                        placeholder="Optional BFD profile name"
+                        placeholder={t("interfaceModal.bfdProfilePlaceholder")}
                       />
                     </div>
                   )}
@@ -319,7 +322,7 @@ export function PimInterfaceModal({
 
                 {/* DR Priority */}
                 <div className="space-y-2">
-                  <Label htmlFor="pim-dr-priority">DR Priority</Label>
+                  <Label htmlFor="pim-dr-priority">{t("interfaceModal.drPriority")}</Label>
                   <Input
                     id="pim-dr-priority"
                     type="number"
@@ -330,13 +333,13 @@ export function PimInterfaceModal({
                     max={4294967295}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Designated Router election priority. Higher wins.
+                    {t("interfaceModal.drPriorityHelp")}
                   </p>
                 </div>
 
                 {/* Hello Interval */}
                 <div className="space-y-2">
-                  <Label htmlFor="pim-hello">Hello Interval (seconds)</Label>
+                  <Label htmlFor="pim-hello">{t("interfaceModal.helloInterval")}</Label>
                   <Input
                     id="pim-hello"
                     type="number"
@@ -350,31 +353,31 @@ export function PimInterfaceModal({
 
                 {/* Source Address */}
                 <div className="space-y-2">
-                  <Label htmlFor="pim-source-addr">Source Address</Label>
+                  <Label htmlFor="pim-source-addr">{t("interfaceModal.sourceAddress")}</Label>
                   <Input
                     id="pim-source-addr"
                     value={sourceAddress}
                     onChange={(e) => setSourceAddress(e.target.value)}
-                    placeholder="IPv4 source address (optional)"
+                    placeholder={t("interfaceModal.sourceAddressPlaceholder")}
                     className="font-mono"
                   />
                 </div>
 
                 {/* Flags */}
                 <div className="space-y-3">
-                  <Label>Flags</Label>
+                  <Label>{t("interfaceModal.flags")}</Label>
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2">
                       <Checkbox id="pim-passive" checked={passive} onCheckedChange={(c) => setPassive(!!c)} />
-                      <Label htmlFor="pim-passive">Passive (no PIM hello packets)</Label>
+                      <Label htmlFor="pim-passive">{t("interfaceModal.passive")}</Label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Checkbox id="pim-no-bsm" checked={noBsm} onCheckedChange={(c) => setNoBsm(!!c)} />
-                      <Label htmlFor="pim-no-bsm">No BSM (do not process bootstrap messages)</Label>
+                      <Label htmlFor="pim-no-bsm">{t("interfaceModal.noBsm")}</Label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Checkbox id="pim-no-unicast-bsm" checked={noUnicastBsm} onCheckedChange={(c) => setNoUnicastBsm(!!c)} />
-                      <Label htmlFor="pim-no-unicast-bsm">No Unicast BSM (block unicast bootstrap messages)</Label>
+                      <Label htmlFor="pim-no-unicast-bsm">{t("interfaceModal.noUnicastBsm")}</Label>
                     </div>
                   </div>
                 </div>
@@ -389,12 +392,12 @@ export function PimInterfaceModal({
                 {/* Disable IGMP */}
                 <div className="flex items-center space-x-2">
                   <Checkbox id="igmp-disable" checked={igmpDisabled} onCheckedChange={(c) => setIgmpDisabled(!!c)} />
-                  <Label htmlFor="igmp-disable">Disable IGMP on this interface</Label>
+                  <Label htmlFor="igmp-disable">{t("interfaceModal.disableIgmp")}</Label>
                 </div>
 
                 {/* Query Interval */}
                 <div className="space-y-2">
-                  <Label htmlFor="igmp-query-interval">Query Interval (seconds)</Label>
+                  <Label htmlFor="igmp-query-interval">{t("interfaceModal.queryInterval")}</Label>
                   <Input
                     id="igmp-query-interval"
                     type="number"
@@ -408,7 +411,7 @@ export function PimInterfaceModal({
 
                 {/* Query Max Response Time */}
                 <div className="space-y-2">
-                  <Label htmlFor="igmp-query-max-response">Query Max Response Time (deciseconds)</Label>
+                  <Label htmlFor="igmp-query-max-response">{t("interfaceModal.queryMaxResponseTime")}</Label>
                   <Input
                     id="igmp-query-max-response"
                     type="number"
@@ -422,15 +425,15 @@ export function PimInterfaceModal({
 
                 {/* IGMP Version */}
                 <div className="space-y-2">
-                  <Label>IGMP Version</Label>
+                  <Label>{t("interfaceModal.igmpVersion")}</Label>
                   <Select value={igmpVersion} onValueChange={setIgmpVersion}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Default" />
+                      <SelectValue placeholder={tc("default")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="default">Default</SelectItem>
-                      <SelectItem value="2">Version 2</SelectItem>
-                      <SelectItem value="3">Version 3</SelectItem>
+                      <SelectItem value="default">{tc("default")}</SelectItem>
+                      <SelectItem value="2">{t("interfaceModal.version", { version: "2" })}</SelectItem>
+                      <SelectItem value="3">{t("interfaceModal.version", { version: "3" })}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -438,9 +441,9 @@ export function PimInterfaceModal({
                 {/* IGMP Joins */}
                 <div className="space-y-3">
                   <div>
-                    <Label>IGMP Join Groups</Label>
+                    <Label>{t("interfaceModal.joinGroups")}</Label>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Statically join multicast groups on this interface.
+                      {t("interfaceModal.joinGroupsHelp")}
                     </p>
                   </div>
 
@@ -461,7 +464,7 @@ export function PimInterfaceModal({
                       {/* Source addresses for this join */}
                       {join.source_addresses.length > 0 && (
                         <div className="ml-2 space-y-1">
-                          <p className="text-xs text-muted-foreground">Source Addresses:</p>
+                          <p className="text-xs text-muted-foreground">{t("interfaceModal.sourceAddresses")}</p>
                           {join.source_addresses.map((src, srcIndex) => (
                             <div key={srcIndex} className="flex items-center gap-2">
                               <span className="flex-1 px-2 py-1 rounded border bg-muted font-mono text-xs">{src}</span>
@@ -487,7 +490,7 @@ export function PimInterfaceModal({
                               setNewJoinSource(e.target.value);
                             }
                           }}
-                          placeholder="Add source address"
+                          placeholder={t("interfaceModal.addSourcePlaceholder")}
                           className="h-8 text-xs font-mono"
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
@@ -516,7 +519,7 @@ export function PimInterfaceModal({
                     <Input
                       value={newJoinGroup}
                       onChange={(e) => setNewJoinGroup(e.target.value)}
-                      placeholder="e.g. 239.1.1.1"
+                      placeholder={t("interfaceModal.groupPlaceholder")}
                       className="font-mono"
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
@@ -544,18 +547,18 @@ export function PimInterfaceModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Adding..."}
+                {isEditMode ? tc("saving") : t("adding")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("saveChanges")
             ) : (
-              "Add Interface"
+              t("addInterface")
             )}
           </Button>
         </DialogFooter>
