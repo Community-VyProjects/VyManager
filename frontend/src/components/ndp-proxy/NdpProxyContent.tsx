@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,8 @@ function formatMs(value: number | null, defaultLabel: string): string {
 }
 
 export function NdpProxyContent() {
+  const t = useTranslations("ndpProxy");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWrite = canWrite(FeatureGroup.NDP_PROXY);
 
@@ -61,12 +64,12 @@ export function NdpProxyContent() {
       setConfig(cfg);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to load NDP proxy configuration"
+        err instanceof Error ? err.message : t("content.loadFailed")
       );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -85,7 +88,7 @@ export function NdpProxyContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -107,13 +110,13 @@ export function NdpProxyContent() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold text-foreground">NDP Proxy</h1>
+                  <h1 className="text-2xl font-bold text-foreground">{t("content.title")}</h1>
                   {!hasWrite && (
-                    <Badge variant="secondary">Read Only</Badge>
+                    <Badge variant="secondary">{t("content.readOnly")}</Badge>
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Neighbor Discovery Protocol Proxy — forward NDP between interfaces
+                  {t("content.subtitle")}
                 </p>
               </div>
             </div>
@@ -122,12 +125,12 @@ export function NdpProxyContent() {
               {hasWrite && (
                 <Button size="sm" onClick={() => setGlobalModalOpen(true)}>
                   <Pencil className="h-4 w-4 mr-2" />
-                  Edit Settings
+                  {t("content.editSettings")}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={() => loadData(true)}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -147,19 +150,19 @@ export function NdpProxyContent() {
             <StatCard
               icon={<Network className="h-4 w-4 text-primary" />}
               iconBg="bg-primary/10"
-              label="Total Interfaces"
+              label={t("content.totalInterfaces")}
               value={String(config?.interfaces.length ?? 0)}
             />
             <StatCard
               icon={<Network className="h-4 w-4 text-primary" />}
               iconBg="bg-primary/10"
-              label="Total Prefixes"
+              label={t("content.totalPrefixes")}
               value={String(totalPrefixes)}
             />
             <StatCard
               icon={<Network className="h-4 w-4 text-amber-500" />}
               iconBg="bg-amber-500/10"
-              label="Disabled Interfaces"
+              label={t("content.disabledInterfaces")}
               value={String(disabledInterfaces)}
             />
           </div>
@@ -169,16 +172,16 @@ export function NdpProxyContent() {
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
                 <Network className="h-4 w-4" />
-                Global Settings
+                {t("content.globalSettings")}
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <div className="flex items-center gap-4 text-sm">
-                <span className="text-muted-foreground">Route Refresh Interval</span>
+                <span className="text-muted-foreground">{t("content.routeRefresh")}</span>
                 <span className="font-mono">
                   {config?.route_refresh !== null && config?.route_refresh !== undefined
                     ? `${config.route_refresh} ms`
-                    : "30000 ms (default)"}
+                    : t("content.routeRefreshDefault")}
                 </span>
               </div>
             </CardContent>
@@ -190,7 +193,7 @@ export function NdpProxyContent() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
                   <Network className="h-4 w-4" />
-                  Interfaces
+                  {t("content.interfaces")}
                 </CardTitle>
                 {hasWrite && (
                   <Button
@@ -202,7 +205,7 @@ export function NdpProxyContent() {
                     }}
                   >
                     <Plus className="h-4 w-4 mr-1" />
-                    Add Interface
+                    {t("content.addInterface")}
                   </Button>
                 )}
               </div>
@@ -213,11 +216,11 @@ export function NdpProxyContent() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-8" />
-                      <TableHead>Interface</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Timeout</TableHead>
+                      <TableHead>{t("content.colInterface")}</TableHead>
+                      <TableHead>{tc("status")}</TableHead>
+                      <TableHead>{t("content.colTimeout")}</TableHead>
                       <TableHead>TTL</TableHead>
-                      <TableHead>Prefixes</TableHead>
+                      <TableHead>{t("content.colPrefixes")}</TableHead>
                       {hasWrite && <TableHead className="w-[80px]" />}
                     </TableRow>
                   </TableHeader>
@@ -255,14 +258,14 @@ export function NdpProxyContent() {
                                   : "bg-green-500/10 text-green-600 dark:text-green-500"
                               }
                             >
-                              {iface.disabled ? "Disabled" : "Enabled"}
+                              {iface.disabled ? tc("disabled") : tc("enabled")}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground font-mono">
-                            {formatMs(iface.timeout, "500 (default)")}
+                            {formatMs(iface.timeout, t("content.defaultValue", { value: "500" }))}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground font-mono">
-                            {formatMs(iface.ttl, "30000 (default)")}
+                            {formatMs(iface.ttl, t("content.defaultValue", { value: "30000" }))}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {iface.prefixes.length}
@@ -301,10 +304,10 @@ export function NdpProxyContent() {
                               <Table>
                                 <TableHeader>
                                   <TableRow>
-                                    <TableHead className="text-xs h-7">Prefix</TableHead>
-                                    <TableHead className="text-xs h-7">Status</TableHead>
-                                    <TableHead className="text-xs h-7">Mode</TableHead>
-                                    <TableHead className="text-xs h-7">Fwd Interface</TableHead>
+                                    <TableHead className="text-xs h-7">{t("content.colPrefix")}</TableHead>
+                                    <TableHead className="text-xs h-7">{tc("status")}</TableHead>
+                                    <TableHead className="text-xs h-7">{t("content.colMode")}</TableHead>
+                                    <TableHead className="text-xs h-7">{t("content.colFwdInterface")}</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -316,11 +319,11 @@ export function NdpProxyContent() {
                                       <TableCell className="py-1.5">
                                         {prefix.disabled ? (
                                           <Badge variant="secondary" className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                                            Disabled
+                                            {tc("disabled")}
                                           </Badge>
                                         ) : (
                                           <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-600 dark:text-green-500">
-                                            Enabled
+                                            {tc("enabled")}
                                           </Badge>
                                         )}
                                       </TableCell>
@@ -343,7 +346,7 @@ export function NdpProxyContent() {
                         {expandedInterface === iface.name && iface.prefixes.length === 0 && (
                           <TableRow key={`${iface.name}-empty`}>
                             <TableCell colSpan={hasWrite ? 7 : 6} className="bg-muted/30 py-3 px-4 text-sm text-muted-foreground text-center">
-                              No prefixes configured for this interface
+                              {t("content.noPrefixes")}
                             </TableCell>
                           </TableRow>
                         )}
@@ -356,9 +359,9 @@ export function NdpProxyContent() {
                   <div className="rounded-full p-3 bg-muted mb-3">
                     <Network className="h-6 w-6 text-muted-foreground/50" />
                   </div>
-                  <p className="text-sm font-medium mb-1">No interfaces configured</p>
+                  <p className="text-sm font-medium mb-1">{t("content.emptyTitle")}</p>
                   <p className="text-xs text-muted-foreground">
-                    Add a listener interface to start proxying NDP
+                    {t("content.emptyHint")}
                   </p>
                   {hasWrite && (
                     <Button
@@ -371,7 +374,7 @@ export function NdpProxyContent() {
                       }}
                     >
                       <Plus className="h-4 w-4 mr-1" />
-                      Add Interface
+                      {t("content.addInterface")}
                     </Button>
                   )}
                 </div>

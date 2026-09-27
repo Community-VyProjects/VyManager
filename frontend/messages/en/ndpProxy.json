@@ -1,1 +1,76 @@
-{}
+{
+  "content": {
+    "loadFailed": "Failed to load NDP proxy configuration",
+    "title": "NDP Proxy",
+    "readOnly": "Read Only",
+    "subtitle": "Neighbor Discovery Protocol Proxy — forward NDP between interfaces",
+    "editSettings": "Edit Settings",
+    "totalInterfaces": "Total Interfaces",
+    "totalPrefixes": "Total Prefixes",
+    "disabledInterfaces": "Disabled Interfaces",
+    "globalSettings": "Global Settings",
+    "routeRefresh": "Route Refresh Interval",
+    "routeRefreshDefault": "30000 ms (default)",
+    "interfaces": "Interfaces",
+    "addInterface": "Add Interface",
+    "colInterface": "Interface",
+    "colTimeout": "Timeout",
+    "colPrefixes": "Prefixes",
+    "defaultValue": "{value} (default)",
+    "colPrefix": "Prefix",
+    "colMode": "Mode",
+    "colFwdInterface": "Fwd Interface",
+    "noPrefixes": "No prefixes configured for this interface",
+    "emptyTitle": "No interfaces configured",
+    "emptyHint": "Add a listener interface to start proxying NDP"
+  },
+  "delete": {
+    "title": "Remove NDP Proxy Interface",
+    "description": "Remove NDP proxy configuration for <mono>{name}</mono>?",
+    "alsoRemove": "This will also remove <b>{count}</b> {count, plural, one {prefix} other {prefixes}}.",
+    "remove": "Remove"
+  },
+  "global": {
+    "wholeNumber": "Must be a whole number",
+    "outOfRange": "Value must be between 10000 and 120000 ms",
+    "title": "Edit Global Settings",
+    "description": "Configure global NDP proxy service settings",
+    "routeRefresh": "Route Refresh Interval (ms)",
+    "routeRefreshPlaceholder": "30000 (default)",
+    "routeRefreshHint": "How often to refresh IPv6 routes. Leave empty to use the default (30000 ms). Valid range: 10000–120000 ms."
+  },
+  "validation": {
+    "prefixRequired": "Prefix is required",
+    "prefixInvalid": "Enter a valid IPv6 prefix or address (e.g. 2001:db8::/64)",
+    "prefixDuplicate": "This prefix is already in the list",
+    "fwdInterfaceRequired": "Forwarding interface is required for interface mode",
+    "interfaceRequired": "Interface name is required",
+    "interfaceExists": "Interface \"{name}\" is already configured",
+    "timeoutRange": "Timeout must be between 500 and 120000 ms",
+    "ttlRange": "TTL must be between 10000 and 120000 ms",
+    "prefixFormOpen": "Save or cancel the open prefix form before submitting"
+  },
+  "modal": {
+    "editTitle": "Edit Interface",
+    "addTitle": "Add Interface",
+    "description": "Configure an NDP proxy listener interface and its prefixes",
+    "interfaceName": "Interface Name",
+    "selectInterface": "Select interface",
+    "disableInterface": "Disable this interface",
+    "routerBit": "Enable router bit in Neighbor Advertisement",
+    "timeout": "Timeout (ms)",
+    "timeoutPlaceholder": "500 (default)",
+    "timeoutHint": "NA response timeout. Valid range: 500–120000 ms. Leave empty for default.",
+    "ttlPlaceholder": "30000 (default)",
+    "ttlHint": "Proxy entry cache TTL. Valid range: 10000–120000 ms. Leave empty for default.",
+    "prefixes": "Prefixes",
+    "addPrefix": "Add Prefix",
+    "noPrefixes": "No prefixes configured. Add at least one prefix for this interface to proxy.",
+    "ipv6Prefix": "IPv6 Prefix",
+    "ipv6PrefixPlaceholder": "e.g. 2001:db8::/64",
+    "disablePrefix": "Disable this prefix",
+    "mode": "Mode",
+    "fwdInterface": "Forwarding Interface",
+    "fwdInterfacePlaceholder": "e.g. eth1"
+  }
+}
