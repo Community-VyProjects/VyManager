@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,6 +36,8 @@ interface OpenSSHModalProps {
 }
 
 export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: OpenSSHModalProps) {
+  const t = useTranslations("pki");
+  const tc = useTranslations("common");
   const isEdit = !!existingKey;
 
   const [mode, setMode] = useState<"import" | "generate">("import");
@@ -79,7 +82,7 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: Ope
   }, [open, existingKey]);
 
   const handleImportSubmit = async () => {
-    if (!name.trim()) { setError("Name is required"); return; }
+    if (!name.trim()) { setError(t("shared.nameRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -106,17 +109,17 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: Ope
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Operation failed");
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   const handleGenerateSubmit = async () => {
-    if (!genName.trim()) { setError("Name is required"); return; }
+    if (!genName.trim()) { setError(t("shared.nameRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -131,10 +134,10 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: Ope
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Generation failed");
+        setError(result.error || t("shared.generationFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Generation failed");
+      setError((err as ApiError).message || t("shared.generationFailed"));
     } finally {
       setLoading(false);
     }
@@ -148,10 +151,10 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: Ope
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Terminal className="h-5 w-5" />
-            {isEdit ? "Edit" : "Add"} OpenSSH Key
+            {isEdit ? t("openssh.titleEdit") : t("openssh.titleAdd")}
           </DialogTitle>
           <DialogDescription>
-            {isEdit ? `Editing OpenSSH key: ${existingKey?.name}` : "Import an existing key or generate a new one"}
+            {isEdit ? t("openssh.editing", { name: existingKey?.name ?? "" }) : t("openssh.importOrGenerate")}
           </DialogDescription>
         </DialogHeader>
 
@@ -160,18 +163,18 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: Ope
             {!isEdit ? (
               <Tabs value={mode} onValueChange={(v) => { setMode(v as "import" | "generate"); setError(null); }}>
                 <TabsList className="w-full">
-                  <TabsTrigger value="import" className="flex-1">Import</TabsTrigger>
-                  <TabsTrigger value="generate" className="flex-1">Generate</TabsTrigger>
+                  <TabsTrigger value="import" className="flex-1">{t("shared.import")}</TabsTrigger>
+                  <TabsTrigger value="generate" className="flex-1">{t("shared.generate")}</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="import" className="space-y-4 mt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="ssh-name">Name</Label>
+                    <Label htmlFor="ssh-name">{tc("name")}</Label>
                     <Input id="ssh-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="my-ssh-key" />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="ssh-privkey">Private Key (PEM)</Label>
+                    <Label htmlFor="ssh-privkey">{t("shared.privateKeyPem")}</Label>
                     <Textarea
                       id="ssh-privkey"
                       value={privateKey}
@@ -183,7 +186,7 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: Ope
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="ssh-pubkey">Public Key</Label>
+                    <Label htmlFor="ssh-pubkey">{t("shared.publicKey")}</Label>
                     <Textarea
                       id="ssh-pubkey"
                       value={publicKey}
@@ -195,10 +198,10 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: Ope
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="ssh-type">Public Key Type</Label>
+                    <Label htmlFor="ssh-type">{t("shared.publicKeyType")}</Label>
                     <Select value={publicType} onValueChange={setPublicType}>
                       <SelectTrigger id="ssh-type">
-                        <SelectValue placeholder="Select type" />
+                        <SelectValue placeholder={t("shared.selectType")} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="ssh-rsa">ssh-rsa</SelectItem>
@@ -208,18 +211,18 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: Ope
 
                   <div className="flex items-center space-x-2">
                     <Checkbox id="ssh-pwd" checked={passwordProtected} onCheckedChange={(v) => setPasswordProtected(!!v)} />
-                    <Label htmlFor="ssh-pwd">Password Protected</Label>
+                    <Label htmlFor="ssh-pwd">{t("shared.passwordProtected")}</Label>
                   </div>
                 </TabsContent>
 
                 <TabsContent value="generate" className="space-y-4 mt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="gen-ssh-name">Name</Label>
+                    <Label htmlFor="gen-ssh-name">{tc("name")}</Label>
                     <Input id="gen-ssh-name" value={genName} onChange={(e) => setGenName(e.target.value)} placeholder="my-ssh-key" />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="gen-ssh-keysize">RSA Key Size</Label>
+                    <Label htmlFor="gen-ssh-keysize">{t("shared.rsaKeySize")}</Label>
                     <Select value={keySize} onValueChange={setKeySize}>
                       <SelectTrigger id="gen-ssh-keysize">
                         <SelectValue />
@@ -227,7 +230,7 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: Ope
                       <SelectContent>
                         {rsaKeySizes.map((size) => (
                           <SelectItem key={size} value={size}>
-                            {size} bits
+                            {t("shared.bits", { size })}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -235,41 +238,41 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: Ope
                   </div>
 
                   <p className="text-xs text-muted-foreground">
-                    An RSA key pair will be generated and installed on the device automatically.
+                    {t("openssh.generateHint")}
                   </p>
                 </TabsContent>
               </Tabs>
             ) : (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="ssh-privkey-edit">Private Key (PEM)</Label>
+                  <Label htmlFor="ssh-privkey-edit">{t("shared.privateKeyPem")}</Label>
                   <Textarea
                     id="ssh-privkey-edit"
                     value={privateKey}
                     onChange={(e) => setPrivateKey(e.target.value)}
-                    placeholder="Leave empty to keep current"
+                    placeholder={t("shared.leaveEmpty")}
                     className="font-mono text-xs"
                     rows={4}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="ssh-pubkey-edit">Public Key</Label>
+                  <Label htmlFor="ssh-pubkey-edit">{t("shared.publicKey")}</Label>
                   <Textarea
                     id="ssh-pubkey-edit"
                     value={publicKey}
                     onChange={(e) => setPublicKey(e.target.value)}
-                    placeholder="Leave empty to keep current"
+                    placeholder={t("shared.leaveEmpty")}
                     className="font-mono text-xs"
                     rows={3}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="ssh-type-edit">Public Key Type</Label>
+                  <Label htmlFor="ssh-type-edit">{t("shared.publicKeyType")}</Label>
                   <Select value={publicType} onValueChange={setPublicType}>
                     <SelectTrigger id="ssh-type-edit">
-                      <SelectValue placeholder="Select type" />
+                      <SelectValue placeholder={t("shared.selectType")} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="ssh-rsa">ssh-rsa</SelectItem>
@@ -279,7 +282,7 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: Ope
 
                 <div className="flex items-center space-x-2">
                   <Checkbox id="ssh-pwd-edit" checked={passwordProtected} onCheckedChange={(v) => setPasswordProtected(!!v)} />
-                  <Label htmlFor="ssh-pwd-edit">Password Protected</Label>
+                  <Label htmlFor="ssh-pwd-edit">{t("shared.passwordProtected")}</Label>
                 </div>
               </>
             )}
@@ -294,11 +297,11 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: Ope
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{mode === "generate" && !isEdit ? "Generating..." : "Saving..."}</>
-            ) : isEdit ? "Save Changes" : mode === "generate" ? "Generate OpenSSH Key" : "Import OpenSSH Key"}
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{mode === "generate" && !isEdit ? t("shared.generating") : tc("saving")}</>
+            ) : isEdit ? t("shared.saveChanges") : mode === "generate" ? t("openssh.generateButton") : t("openssh.importButton")}
           </Button>
         </DialogFooter>
       </DialogContent>

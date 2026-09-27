@@ -10,6 +10,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { useLocale, useTranslations } from "next-intl";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { VyOSResponse } from "@/lib/api/pki";
 import { ApiError } from "@/lib/types/api";
@@ -31,6 +32,11 @@ export function DeletePKIItemModal({
   itemName,
   onDelete,
 }: DeletePKIItemModalProps) {
+  const t = useTranslations("pki");
+  const tc = useTranslations("common");
+  const locale = useLocale();
+  // English puts the type mid-sentence in lower case; other languages keep it as-is.
+  const inlineType = locale.startsWith("en") ? itemType.toLowerCase() : itemType;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,10 +49,10 @@ export function DeletePKIItemModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || `Failed to delete ${itemType.toLowerCase()}`);
+        setError(result.error || t("delete.failed", { type: inlineType }));
       }
     } catch (err) {
-      setError((err as ApiError).message || `Failed to delete ${itemType.toLowerCase()}`);
+      setError((err as ApiError).message || t("delete.failed", { type: inlineType }));
     } finally {
       setLoading(false);
     }
@@ -58,11 +64,10 @@ export function DeletePKIItemModal({
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            Delete {itemType}: {itemName}
+            {t("delete.title", { type: itemType, name: itemName })}
           </AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete this {itemType.toLowerCase()}? This
-            action cannot be undone.
+            {t("delete.confirm", { type: inlineType })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -74,16 +79,16 @@ export function DeletePKIItemModal({
 
         <AlertDialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              `Delete ${itemType}`
+              t("delete.button", { type: itemType })
             )}
           </Button>
         </AlertDialogFooter>

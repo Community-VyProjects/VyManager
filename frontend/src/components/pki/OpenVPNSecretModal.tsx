@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,6 +27,8 @@ interface OpenVPNSecretModalProps {
 }
 
 export function OpenVPNSecretModal({ open, onOpenChange, onSuccess, existingSecret }: OpenVPNSecretModalProps) {
+  const t = useTranslations("pki");
+  const tc = useTranslations("common");
   const isEdit = !!existingSecret;
 
   const [mode, setMode] = useState<"import" | "generate">("import");
@@ -60,7 +63,7 @@ export function OpenVPNSecretModal({ open, onOpenChange, onSuccess, existingSecr
   }, [open, existingSecret]);
 
   const handleImportSubmit = async () => {
-    if (!name.trim()) { setError("Name is required"); return; }
+    if (!name.trim()) { setError(t("shared.nameRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -83,17 +86,17 @@ export function OpenVPNSecretModal({ open, onOpenChange, onSuccess, existingSecr
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Operation failed");
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   const handleGenerateSubmit = async () => {
-    if (!genName.trim()) { setError("Name is required"); return; }
+    if (!genName.trim()) { setError(t("shared.nameRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -105,10 +108,10 @@ export function OpenVPNSecretModal({ open, onOpenChange, onSuccess, existingSecr
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Generation failed");
+        setError(result.error || t("shared.generationFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Generation failed");
+      setError((err as ApiError).message || t("shared.generationFailed"));
     } finally {
       setLoading(false);
     }
@@ -122,10 +125,10 @@ export function OpenVPNSecretModal({ open, onOpenChange, onSuccess, existingSecr
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Lock className="h-5 w-5" />
-            {isEdit ? "Edit" : "Add"} OpenVPN Shared Secret
+            {isEdit ? t("openvpn.titleEdit") : t("openvpn.titleAdd")}
           </DialogTitle>
           <DialogDescription>
-            {isEdit ? `Editing secret: ${existingSecret?.name}` : "Import an existing shared secret or generate a new one"}
+            {isEdit ? t("openvpn.editing", { name: existingSecret?.name ?? "" }) : t("openvpn.importOrGenerate")}
           </DialogDescription>
         </DialogHeader>
 
@@ -133,61 +136,61 @@ export function OpenVPNSecretModal({ open, onOpenChange, onSuccess, existingSecr
           {!isEdit ? (
             <Tabs value={mode} onValueChange={(v) => { setMode(v as "import" | "generate"); setError(null); }}>
               <TabsList className="w-full">
-                <TabsTrigger value="import" className="flex-1">Import</TabsTrigger>
-                <TabsTrigger value="generate" className="flex-1">Generate</TabsTrigger>
+                <TabsTrigger value="import" className="flex-1">{t("shared.import")}</TabsTrigger>
+                <TabsTrigger value="generate" className="flex-1">{t("shared.generate")}</TabsTrigger>
               </TabsList>
 
               <TabsContent value="import" className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <Label htmlFor="ovpn-name">Name</Label>
+                  <Label htmlFor="ovpn-name">{tc("name")}</Label>
                   <Input id="ovpn-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="my-secret" />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="ovpn-key">Key</Label>
+                  <Label htmlFor="ovpn-key">{t("shared.key")}</Label>
                   <Textarea
                     id="ovpn-key"
                     value={key}
                     onChange={(e) => setKey(e.target.value)}
-                    placeholder="Shared secret key"
+                    placeholder={t("openvpn.keyPlaceholder")}
                     className="font-mono text-xs"
                     rows={6}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="ovpn-version">Version</Label>
-                  <Input id="ovpn-version" value={version} onChange={(e) => setVersion(e.target.value)} placeholder="e.g., 1" />
+                  <Label htmlFor="ovpn-version">{t("shared.version")}</Label>
+                  <Input id="ovpn-version" value={version} onChange={(e) => setVersion(e.target.value)} placeholder={t("shared.eg", { value: "1" })} />
                 </div>
               </TabsContent>
 
               <TabsContent value="generate" className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <Label htmlFor="gen-ovpn-name">Name</Label>
+                  <Label htmlFor="gen-ovpn-name">{tc("name")}</Label>
                   <Input id="gen-ovpn-name" value={genName} onChange={(e) => setGenName(e.target.value)} placeholder="my-secret" />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  The shared secret will be generated and installed on the device automatically using VyOS&apos;s built-in generator.
+                  {t("openvpn.generateHint")}
                 </p>
               </TabsContent>
             </Tabs>
           ) : (
             <>
               <div className="space-y-2">
-                <Label htmlFor="ovpn-key-edit">Key</Label>
+                <Label htmlFor="ovpn-key-edit">{t("shared.key")}</Label>
                 <Textarea
                   id="ovpn-key-edit"
                   value={key}
                   onChange={(e) => setKey(e.target.value)}
-                  placeholder="Leave empty to keep current"
+                  placeholder={t("shared.leaveEmpty")}
                   className="font-mono text-xs"
                   rows={6}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="ovpn-version-edit">Version</Label>
-                <Input id="ovpn-version-edit" value={version} onChange={(e) => setVersion(e.target.value)} placeholder="e.g., 1" />
+                <Label htmlFor="ovpn-version-edit">{t("shared.version")}</Label>
+                <Input id="ovpn-version-edit" value={version} onChange={(e) => setVersion(e.target.value)} placeholder={t("shared.eg", { value: "1" })} />
               </div>
             </>
           )}
@@ -201,11 +204,11 @@ export function OpenVPNSecretModal({ open, onOpenChange, onSuccess, existingSecr
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{mode === "generate" && !isEdit ? "Generating..." : "Saving..."}</>
-            ) : isEdit ? "Save Changes" : mode === "generate" ? "Generate Secret" : "Import Secret"}
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{mode === "generate" && !isEdit ? t("shared.generating") : tc("saving")}</>
+            ) : isEdit ? t("shared.saveChanges") : mode === "generate" ? t("openvpn.generateButton") : t("openvpn.importButton")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -59,6 +60,7 @@ function formatPem(value: string, field: string): string {
 // ============================================================================
 
 function CopyButton({ value, label }: { value: string; label?: string }) {
+  const t = useTranslations("pki");
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(async () => {
@@ -83,7 +85,7 @@ function CopyButton({ value, label }: { value: string; label?: string }) {
   return (
     <Button variant="ghost" size="sm" onClick={handleCopy} className="h-7 px-2 text-xs">
       {copied ? <Check className="h-3 w-3 mr-1 text-green-600" /> : <Copy className="h-3 w-3 mr-1" />}
-      {copied ? "Copied" : label || "Copy"}
+      {copied ? t("detail.copied") : label || t("detail.copy")}
     </Button>
   );
 }
@@ -103,6 +105,7 @@ function RevealableField({
   isMasked: boolean;
   pemField?: string;
 }) {
+  const t = useTranslations("pki");
   const [revealed, setRevealed] = useState(false);
   const [value, setValue] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -136,9 +139,9 @@ function RevealableField({
             {loading ? (
               <Loader2 className="h-3 w-3 animate-spin" />
             ) : revealed ? (
-              <><EyeOff className="h-3 w-3 mr-1" />Hide</>
+              <><EyeOff className="h-3 w-3 mr-1" />{t("detail.hide")}</>
             ) : (
-              <><Eye className="h-3 w-3 mr-1" />Reveal</>
+              <><Eye className="h-3 w-3 mr-1" />{t("detail.reveal")}</>
             )}
           </Button>
         </div>
@@ -185,29 +188,31 @@ function DetailRow({ label, value }: { label: string; value: string | null | und
 // ============================================================================
 
 function CADetail({ item }: { item: PKICA }) {
+  const t = useTranslations("pki");
+  const tc = useTranslations("common");
   return (
     <div className="space-y-4">
-      <DetailRow label="Description" value={item.description} />
+      <DetailRow label={tc("description")} value={item.description} />
       <div className="flex flex-wrap gap-1.5">
-        {item.revoke && <Badge variant="destructive">Revoked</Badge>}
-        {item.system_install && <Badge variant="outline">System Install</Badge>}
-        {item.password_protected && <Badge variant="outline">Password Protected</Badge>}
-        {item.crl?.length > 0 && <Badge variant="outline">CRL ({item.crl.length})</Badge>}
+        {item.revoke && <Badge variant="destructive">{t("shared.revoked")}</Badge>}
+        {item.system_install && <Badge variant="outline">{t("shared.systemInstall")}</Badge>}
+        {item.password_protected && <Badge variant="outline">{t("shared.passwordProtected")}</Badge>}
+        {item.crl?.length > 0 && <Badge variant="outline">{t("shared.crlCount", { count: item.crl.length })}</Badge>}
       </div>
       <Separator />
       {item.certificate && item.certificate !== "***" && (
-        <ValueField label="Certificate" value={item.certificate} pemField="certificate" />
+        <ValueField label={t("shared.certificate")} value={item.certificate} pemField="certificate" />
       )}
-      <RevealableField itemType="ca" itemName={item.name} field="private_key" label="Private Key" isMasked={!!item.private_key} />
+      <RevealableField itemType="ca" itemName={item.name} field="private_key" label={t("shared.privateKey")} isMasked={!!item.private_key} />
       {item.crl?.length > 0 && (
         <div className="space-y-2">
-          <span className="text-sm font-medium">CRL Entries ({item.crl.length})</span>
+          <span className="text-sm font-medium">{t("detail.crlEntries", { count: item.crl.length })}</span>
           {item.crl.map((c, i) => {
             const formattedCrl = formatPem(c, "crl");
             return (
             <div key={i} className="space-y-1">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">CRL #{i + 1}</span>
+                <span className="text-xs text-muted-foreground">{t("detail.crlNumber", { number: String(i + 1) })}</span>
                 <CopyButton value={formattedCrl} />
               </div>
               <pre className="text-xs font-mono bg-muted rounded-md p-3 break-all whitespace-pre-wrap max-h-32 overflow-auto border">
@@ -223,32 +228,34 @@ function CADetail({ item }: { item: PKICA }) {
 }
 
 function CertDetail({ item }: { item: PKICertificate }) {
+  const t = useTranslations("pki");
+  const tc = useTranslations("common");
   return (
     <div className="space-y-4">
-      <DetailRow label="Description" value={item.description} />
+      <DetailRow label={tc("description")} value={item.description} />
       <div className="flex flex-wrap gap-1.5">
         {item.acme ? (
           <Badge variant="secondary" className="bg-blue-500/10 text-blue-600">ACME</Badge>
         ) : (
-          <Badge variant="secondary">Manual</Badge>
+          <Badge variant="secondary">{t("shared.manual")}</Badge>
         )}
-        {item.revoke && <Badge variant="destructive">Revoked</Badge>}
-        {item.password_protected && <Badge variant="outline">Password Protected</Badge>}
+        {item.revoke && <Badge variant="destructive">{t("shared.revoked")}</Badge>}
+        {item.password_protected && <Badge variant="outline">{t("shared.passwordProtected")}</Badge>}
       </div>
       <Separator />
       {item.certificate && item.certificate !== "***" && (
-        <ValueField label="Certificate" value={item.certificate} pemField="certificate" />
+        <ValueField label={t("shared.certificate")} value={item.certificate} pemField="certificate" />
       )}
-      <RevealableField itemType="certificate" itemName={item.name} field="private_key" label="Private Key" isMasked={!!item.private_key} />
+      <RevealableField itemType="certificate" itemName={item.name} field="private_key" label={t("shared.privateKey")} isMasked={!!item.private_key} />
       {item.acme && (
         <>
           <Separator />
           <div className="space-y-3">
-            <span className="text-sm font-medium">ACME Configuration</span>
+            <span className="text-sm font-medium">{t("detail.acmeConfig")}</span>
             <div className="grid grid-cols-2 gap-3">
               {item.acme.domain_names?.length > 0 && (
                 <div className="col-span-2">
-                  <span className="text-xs text-muted-foreground">Domains</span>
+                  <span className="text-xs text-muted-foreground">{t("detail.domains")}</span>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {item.acme.domain_names.map((d) => (
                       <Badge key={d} variant="secondary" className="text-xs">{d}</Badge>
@@ -256,9 +263,9 @@ function CertDetail({ item }: { item: PKICertificate }) {
                   </div>
                 </div>
               )}
-              <DetailRow label="Email" value={item.acme.email} />
-              <DetailRow label="Listen Address" value={item.acme.listen_address} />
-              <DetailRow label="RSA Key Size" value={item.acme.rsa_key_size} />
+              <DetailRow label={t("detail.email")} value={item.acme.email} />
+              <DetailRow label={t("detail.listenAddress")} value={item.acme.listen_address} />
+              <DetailRow label={t("shared.rsaKeySize")} value={item.acme.rsa_key_size} />
               {item.acme.url && (
                 <div className="col-span-2">
                   <span className="text-xs text-muted-foreground">URL</span>
@@ -274,47 +281,51 @@ function CertDetail({ item }: { item: PKICertificate }) {
 }
 
 function KeyPairDetail({ item }: { item: PKIKeyPair }) {
+  const t = useTranslations("pki");
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-1.5">
-        {item.password_protected && <Badge variant="outline">Password Protected</Badge>}
+        {item.password_protected && <Badge variant="outline">{t("shared.passwordProtected")}</Badge>}
       </div>
       {item.public_key && item.public_key !== "***" && (
-        <ValueField label="Public Key" value={item.public_key} pemField="public_key" />
+        <ValueField label={t("shared.publicKey")} value={item.public_key} pemField="public_key" />
       )}
-      <RevealableField itemType="key_pair" itemName={item.name} field="private_key" label="Private Key" isMasked={!!item.private_key} />
+      <RevealableField itemType="key_pair" itemName={item.name} field="private_key" label={t("shared.privateKey")} isMasked={!!item.private_key} />
     </div>
   );
 }
 
 function DHDetail({ item }: { item: PKIDH }) {
+  const t = useTranslations("pki");
   return (
     <div className="space-y-4">
-      <RevealableField itemType="dh" itemName={item.name} field="parameters" label="DH Parameters" isMasked={!!item.parameters} />
+      <RevealableField itemType="dh" itemName={item.name} field="parameters" label={t("shared.dhParameters")} isMasked={!!item.parameters} />
     </div>
   );
 }
 
 function OpenSSHDetail({ item }: { item: PKIOpenSSH }) {
+  const t = useTranslations("pki");
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-1.5">
         {item.public_type && <Badge variant="secondary">{item.public_type}</Badge>}
-        {item.password_protected && <Badge variant="outline">Password Protected</Badge>}
+        {item.password_protected && <Badge variant="outline">{t("shared.passwordProtected")}</Badge>}
       </div>
       {item.public_key && item.public_key !== "***" && (
-        <ValueField label="Public Key" value={item.public_type ? `${item.public_type} ${item.public_key}` : item.public_key} />
+        <ValueField label={t("shared.publicKey")} value={item.public_type ? `${item.public_type} ${item.public_key}` : item.public_key} />
       )}
-      <RevealableField itemType="openssh" itemName={item.name} field="private_key" label="Private Key" isMasked={!!item.private_key} pemField="openssh_private_key" />
+      <RevealableField itemType="openssh" itemName={item.name} field="private_key" label={t("shared.privateKey")} isMasked={!!item.private_key} pemField="openssh_private_key" />
     </div>
   );
 }
 
 function OpenVPNDetail({ item }: { item: PKIOpenVPNSharedSecret }) {
+  const t = useTranslations("pki");
   return (
     <div className="space-y-4">
-      <DetailRow label="Version" value={item.version} />
-      <RevealableField itemType="openvpn" itemName={item.name} field="key" label="Shared Secret Key" isMasked={!!item.key} />
+      <DetailRow label={t("shared.version")} value={item.version} />
+      <RevealableField itemType="openvpn" itemName={item.name} field="key" label={t("detail.sharedSecretKey")} isMasked={!!item.key} />
     </div>
   );
 }
@@ -331,13 +342,14 @@ export type PKIViewingItem =
   | { type: "openssh"; item: PKIOpenSSH }
   | { type: "openvpn"; item: PKIOpenVPNSharedSecret };
 
-const TYPE_META: Record<string, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
-  ca: { label: "Certificate Authority", icon: ShieldCheck },
-  certificate: { label: "Certificate", icon: FileText },
-  dh: { label: "DH Parameters", icon: Key },
-  key_pair: { label: "Key Pair", icon: Key },
-  openssh: { label: "OpenSSH Key", icon: Terminal },
-  openvpn: { label: "OpenVPN Shared Secret", icon: Lock },
+// labelKey is a message key under `pki.detail.types`.
+const TYPE_META: Record<string, { labelKey: "ca" | "certificate" | "dh" | "keyPair" | "openssh" | "openvpn"; icon: React.ComponentType<{ className?: string }> }> = {
+  ca: { labelKey: "ca", icon: ShieldCheck },
+  certificate: { labelKey: "certificate", icon: FileText },
+  dh: { labelKey: "dh", icon: Key },
+  key_pair: { labelKey: "keyPair", icon: Key },
+  openssh: { labelKey: "openssh", icon: Terminal },
+  openvpn: { labelKey: "openvpn", icon: Lock },
 };
 
 // ============================================================================
@@ -350,6 +362,7 @@ interface PKIDetailSheetProps {
 }
 
 export function PKIDetailSheet({ viewing, onClose }: PKIDetailSheetProps) {
+  const t = useTranslations("pki");
   const meta = viewing ? TYPE_META[viewing.type] : null;
   const Icon = meta?.icon;
 
@@ -363,7 +376,7 @@ export function PKIDetailSheet({ viewing, onClose }: PKIDetailSheetProps) {
                 <Icon className="h-5 w-5 text-muted-foreground" />
                 <SheetTitle>{viewing.item.name}</SheetTitle>
               </div>
-              <SheetDescription>{meta.label}</SheetDescription>
+              <SheetDescription>{t(`detail.types.${meta.labelKey}`)}</SheetDescription>
             </SheetHeader>
             <Separator className="my-4" />
             {viewing.type === "ca" && <CADetail item={viewing.item} />}

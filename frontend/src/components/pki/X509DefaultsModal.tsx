@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Loader2, Settings } from "lucide-react";
@@ -24,6 +25,8 @@ interface X509DefaultsModalProps {
 }
 
 export function X509DefaultsModal({ open, onOpenChange, onSuccess, current }: X509DefaultsModalProps) {
+  const t = useTranslations("pki");
+  const tc = useTranslations("common");
   const [country, setCountry] = useState("");
   const [locality, setLocality] = useState("");
   const [organization, setOrganization] = useState("");
@@ -58,10 +61,10 @@ export function X509DefaultsModal({ open, onOpenChange, onSuccess, current }: X5
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Operation failed");
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -73,32 +76,32 @@ export function X509DefaultsModal({ open, onOpenChange, onSuccess, current }: X5
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
-            Edit X509 Defaults
+            {t("x509.title")}
           </DialogTitle>
           <DialogDescription>
-            Default values used when generating X509 certificates
+            {t("x509.description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="x509-country">Country</Label>
-            <Input id="x509-country" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="e.g., US" maxLength={2} />
+            <Label htmlFor="x509-country">{t("shared.country")}</Label>
+            <Input id="x509-country" value={country} onChange={(e) => setCountry(e.target.value)} placeholder={t("x509.countryPlaceholder")} maxLength={2} />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="x509-state">State</Label>
-            <Input id="x509-state" value={state} onChange={(e) => setState(e.target.value)} placeholder="e.g., California" />
+            <Label htmlFor="x509-state">{t("shared.state")}</Label>
+            <Input id="x509-state" value={state} onChange={(e) => setState(e.target.value)} placeholder={t("x509.statePlaceholder")} />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="x509-locality">Locality</Label>
-            <Input id="x509-locality" value={locality} onChange={(e) => setLocality(e.target.value)} placeholder="e.g., San Francisco" />
+            <Label htmlFor="x509-locality">{t("shared.locality")}</Label>
+            <Input id="x509-locality" value={locality} onChange={(e) => setLocality(e.target.value)} placeholder={t("x509.localityPlaceholder")} />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="x509-org">Organization</Label>
-            <Input id="x509-org" value={organization} onChange={(e) => setOrganization(e.target.value)} placeholder="e.g., My Company" />
+            <Label htmlFor="x509-org">{t("shared.organization")}</Label>
+            <Input id="x509-org" value={organization} onChange={(e) => setOrganization(e.target.value)} placeholder={t("x509.organizationPlaceholder")} />
           </div>
         </div>
 
@@ -110,9 +113,9 @@ export function X509DefaultsModal({ open, onOpenChange, onSuccess, current }: X5
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save Changes"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : t("shared.saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

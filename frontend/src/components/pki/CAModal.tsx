@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,6 +37,8 @@ interface CAModalProps {
 }
 
 export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Defaults }: CAModalProps) {
+  const t = useTranslations("pkiCerts");
+  const tc = useTranslations("common");
   const isEdit = !!existingCA;
 
   const [mode, setMode] = useState<"import" | "generate">("import");
@@ -121,7 +124,7 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
   }, [keyType]);
 
   const handleImportSubmit = async () => {
-    if (!name.trim()) { setError("Name is required"); return; }
+    if (!name.trim()) { setError(t("shared.nameRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -155,22 +158,22 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Operation failed");
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   const handleGenerateSubmit = async () => {
-    if (!genName.trim()) { setError("Name is required"); return; }
-    if (!commonName.trim()) { setError("Common Name is required"); return; }
-    if (encryptKey && !passphrase) { setError("Passphrase is required when encrypting the key"); return; }
+    if (!genName.trim()) { setError(t("shared.nameRequired")); return; }
+    if (!commonName.trim()) { setError(t("shared.commonNameRequired")); return; }
+    if (encryptKey && !passphrase) { setError(t("shared.passphraseRequired")); return; }
 
     const daysNum = parseInt(days, 10);
-    if (isNaN(daysNum) || daysNum < 1) { setError("Days must be a positive number"); return; }
+    if (isNaN(daysNum) || daysNum < 1) { setError(t("ca.daysPositive")); return; }
 
     setLoading(true);
     setError(null);
@@ -196,10 +199,10 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Generation failed");
+        setError(result.error || t("shared.generationFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Generation failed");
+      setError((err as ApiError).message || t("shared.generationFailed"));
     } finally {
       setLoading(false);
     }
@@ -213,10 +216,10 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5" />
-            {isEdit ? "Edit" : "Add"} Certificate Authority
+            {isEdit ? t("ca.titleEdit") : t("ca.titleAdd")}
           </DialogTitle>
           <DialogDescription>
-            {isEdit ? `Editing CA: ${existingCA?.name}` : "Import an existing CA or generate a new self-signed CA"}
+            {isEdit ? t("ca.editing", { name: existingCA?.name ?? "" }) : t("ca.importOrGenerate")}
           </DialogDescription>
         </DialogHeader>
 
@@ -225,18 +228,18 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
             {!isEdit && (
               <Tabs value={mode} onValueChange={(v) => { setMode(v as "import" | "generate"); setError(null); }}>
                 <TabsList className="w-full">
-                  <TabsTrigger value="import" className="flex-1">Import</TabsTrigger>
-                  <TabsTrigger value="generate" className="flex-1">Generate</TabsTrigger>
+                  <TabsTrigger value="import" className="flex-1">{t("shared.import")}</TabsTrigger>
+                  <TabsTrigger value="generate" className="flex-1">{t("shared.generate")}</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="import" className="space-y-4 mt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="ca-name">Name</Label>
+                    <Label htmlFor="ca-name">{tc("name")}</Label>
                     <Input id="ca-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="my-ca" />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="ca-cert">Certificate (PEM)</Label>
+                    <Label htmlFor="ca-cert">{t("shared.certificatePem")}</Label>
                     <Textarea
                       id="ca-cert"
                       value={certificate}
@@ -248,12 +251,12 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="ca-desc">Description</Label>
-                    <Input id="ca-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description" />
+                    <Label htmlFor="ca-desc">{tc("description")}</Label>
+                    <Input id="ca-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("shared.descriptionPlaceholder")} />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="ca-key">Private Key (PEM)</Label>
+                    <Label htmlFor="ca-key">{t("shared.privateKeyPem")}</Label>
                     <Textarea
                       id="ca-key"
                       value={privateKey}
@@ -266,16 +269,16 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
 
                   <div className="flex items-center space-x-2">
                     <Checkbox id="ca-pwd" checked={passwordProtected} onCheckedChange={(v) => setPasswordProtected(!!v)} />
-                    <Label htmlFor="ca-pwd">Password Protected</Label>
+                    <Label htmlFor="ca-pwd">{t("shared.passwordProtected")}</Label>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="ca-crl">CRL (one per line)</Label>
+                    <Label htmlFor="ca-crl">{t("ca.crl")}</Label>
                     <Textarea
                       id="ca-crl"
                       value={crl}
                       onChange={(e) => setCrl(e.target.value)}
-                      placeholder="Certificate Revocation List entries"
+                      placeholder={t("ca.crlPlaceholder")}
                       className="font-mono text-xs"
                       rows={3}
                     />
@@ -284,31 +287,31 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
 
                 <TabsContent value="generate" className="space-y-4 mt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="gen-name">Name</Label>
+                    <Label htmlFor="gen-name">{tc("name")}</Label>
                     <Input id="gen-name" value={genName} onChange={(e) => setGenName(e.target.value)} placeholder="my-ca" />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="gen-cn">Common Name (CN)</Label>
-                    <Input id="gen-cn" value={commonName} onChange={(e) => setCommonName(e.target.value)} placeholder="My Root CA" />
+                    <Label htmlFor="gen-cn">{t("shared.commonName")}</Label>
+                    <Input id="gen-cn" value={commonName} onChange={(e) => setCommonName(e.target.value)} placeholder={t("ca.cnPlaceholder")} />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label htmlFor="gen-keytype">Key Type</Label>
+                      <Label htmlFor="gen-keytype">{t("shared.keyType")}</Label>
                       <Select value={keyType} onValueChange={(v) => setKeyType(v as "rsa" | "ec")}>
                         <SelectTrigger id="gen-keytype">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="rsa">RSA</SelectItem>
-                          <SelectItem value="ec">EC (Elliptic Curve)</SelectItem>
+                          <SelectItem value="ec">{t("shared.ecLabel")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="gen-keysize">Key Size</Label>
+                      <Label htmlFor="gen-keysize">{t("shared.keySize")}</Label>
                       <Select value={keySize} onValueChange={setKeySize}>
                         <SelectTrigger id="gen-keysize">
                           <SelectValue />
@@ -316,7 +319,7 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
                         <SelectContent>
                           {(keyType === "rsa" ? rsaKeySizes : ecKeySizes).map((size) => (
                             <SelectItem key={size} value={size}>
-                              {size}{keyType === "rsa" ? " bits" : keyType === "ec" ? ` (P-${size})` : ""}
+                              {keyType === "rsa" ? t("shared.bits", { size }) : keyType === "ec" ? `${size} (P-${size})` : size}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -326,53 +329,53 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label htmlFor="gen-country">Country</Label>
+                      <Label htmlFor="gen-country">{t("shared.country")}</Label>
                       <Input id="gen-country" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="US" maxLength={2} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="gen-state">State</Label>
+                      <Label htmlFor="gen-state">{t("shared.state")}</Label>
                       <Input id="gen-state" value={state} onChange={(e) => setState(e.target.value)} placeholder="California" />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label htmlFor="gen-locality">Locality</Label>
+                      <Label htmlFor="gen-locality">{t("shared.locality")}</Label>
                       <Input id="gen-locality" value={locality} onChange={(e) => setLocality(e.target.value)} placeholder="San Francisco" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="gen-org">Organization</Label>
-                      <Input id="gen-org" value={organization} onChange={(e) => setOrganization(e.target.value)} placeholder="My Company" />
+                      <Label htmlFor="gen-org">{t("shared.organization")}</Label>
+                      <Input id="gen-org" value={organization} onChange={(e) => setOrganization(e.target.value)} placeholder={t("ca.orgPlaceholder")} />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="gen-days">Validity (days)</Label>
+                    <Label htmlFor="gen-days">{t("shared.validityDays")}</Label>
                     <Input id="gen-days" type="number" value={days} onChange={(e) => setDays(e.target.value)} placeholder="3650" min={1} />
                   </div>
 
                   <div className="space-y-3">
                     <div className="flex items-center space-x-2">
                       <Checkbox id="gen-encrypt" checked={encryptKey} onCheckedChange={(v) => setEncryptKey(!!v)} />
-                      <Label htmlFor="gen-encrypt">Encrypt Private Key</Label>
+                      <Label htmlFor="gen-encrypt">{t("shared.encryptPrivateKey")}</Label>
                     </div>
 
                     <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 p-3">
                       <Info className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                       <p className="text-xs text-amber-600">
-                        If you plan to use the generated key on this router, do not encrypt the private key.
+                        {t("shared.encryptKeyWarning")}
                       </p>
                     </div>
 
                     {encryptKey && (
                       <div className="space-y-2">
-                        <Label htmlFor="gen-passphrase">Passphrase</Label>
+                        <Label htmlFor="gen-passphrase">{t("shared.passphrase")}</Label>
                         <Input
                           id="gen-passphrase"
                           type="password"
                           value={passphrase}
                           onChange={(e) => setPassphrase(e.target.value)}
-                          placeholder="Enter passphrase"
+                          placeholder={t("shared.enterPassphrase")}
                         />
                       </div>
                     )}
@@ -385,29 +388,29 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
             {isEdit && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="ca-cert-edit">Certificate (PEM)</Label>
+                  <Label htmlFor="ca-cert-edit">{t("shared.certificatePem")}</Label>
                   <Textarea
                     id="ca-cert-edit"
                     value={certificate}
                     onChange={(e) => setCertificate(e.target.value)}
-                    placeholder="Leave empty to keep current"
+                    placeholder={t("shared.leaveEmpty")}
                     className="font-mono text-xs"
                     rows={4}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="ca-desc-edit">Description</Label>
-                  <Input id="ca-desc-edit" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description" />
+                  <Label htmlFor="ca-desc-edit">{tc("description")}</Label>
+                  <Input id="ca-desc-edit" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("shared.descriptionPlaceholder")} />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="ca-key-edit">Private Key (PEM)</Label>
+                  <Label htmlFor="ca-key-edit">{t("shared.privateKeyPem")}</Label>
                   <Textarea
                     id="ca-key-edit"
                     value={privateKey}
                     onChange={(e) => setPrivateKey(e.target.value)}
-                    placeholder="Leave empty to keep current"
+                    placeholder={t("shared.leaveEmpty")}
                     className="font-mono text-xs"
                     rows={4}
                   />
@@ -415,16 +418,16 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
 
                 <div className="flex items-center space-x-2">
                   <Checkbox id="ca-pwd-edit" checked={passwordProtected} onCheckedChange={(v) => setPasswordProtected(!!v)} />
-                  <Label htmlFor="ca-pwd-edit">Password Protected</Label>
+                  <Label htmlFor="ca-pwd-edit">{t("shared.passwordProtected")}</Label>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="ca-crl-edit">CRL (one per line)</Label>
+                  <Label htmlFor="ca-crl-edit">{t("ca.crl")}</Label>
                   <Textarea
                     id="ca-crl-edit"
                     value={crl}
                     onChange={(e) => setCrl(e.target.value)}
-                    placeholder="Certificate Revocation List entries"
+                    placeholder={t("ca.crlPlaceholder")}
                     className="font-mono text-xs"
                     rows={3}
                   />
@@ -435,12 +438,12 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
             {/* Shared fields */}
             <div className="flex items-center space-x-2">
               <Checkbox id="ca-revoke-shared" checked={revoke} onCheckedChange={(v) => setRevoke(!!v)} />
-              <Label htmlFor="ca-revoke-shared">Revoke</Label>
+              <Label htmlFor="ca-revoke-shared">{t("shared.revoke")}</Label>
             </div>
 
             <div className="flex items-center space-x-2">
               <Checkbox id="ca-sysinstall-shared" checked={systemInstall} onCheckedChange={(v) => setSystemInstall(!!v)} />
-              <Label htmlFor="ca-sysinstall-shared">System Install</Label>
+              <Label htmlFor="ca-sysinstall-shared">{t("ca.systemInstall")}</Label>
             </div>
           </div>
         </ScrollArea>
@@ -453,11 +456,11 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{mode === "generate" ? "Generating..." : "Saving..."}</>
-            ) : isEdit ? "Save Changes" : mode === "generate" ? "Generate CA" : "Import CA"}
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{mode === "generate" ? t("shared.generating") : tc("saving")}</>
+            ) : isEdit ? t("shared.saveChanges") : mode === "generate" ? t("ca.generateButton") : t("ca.importButton")}
           </Button>
         </DialogFooter>
       </DialogContent>

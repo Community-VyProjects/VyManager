@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,6 +34,8 @@ interface DHModalProps {
 }
 
 export function DHModal({ open, onOpenChange, onSuccess, existingDH }: DHModalProps) {
+  const t = useTranslations("pki");
+  const tc = useTranslations("common");
   const isEdit = !!existingDH;
 
   const [mode, setMode] = useState<"import" | "generate">("import");
@@ -68,7 +71,7 @@ export function DHModal({ open, onOpenChange, onSuccess, existingDH }: DHModalPr
   }, [open, existingDH]);
 
   const handleImportSubmit = async () => {
-    if (!name.trim()) { setError("Name is required"); return; }
+    if (!name.trim()) { setError(t("shared.nameRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -89,17 +92,17 @@ export function DHModal({ open, onOpenChange, onSuccess, existingDH }: DHModalPr
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Operation failed");
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   const handleGenerateSubmit = async () => {
-    if (!genName.trim()) { setError("Name is required"); return; }
+    if (!genName.trim()) { setError(t("shared.nameRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -114,10 +117,10 @@ export function DHModal({ open, onOpenChange, onSuccess, existingDH }: DHModalPr
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Generation failed");
+        setError(result.error || t("shared.generationFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Generation failed");
+      setError((err as ApiError).message || t("shared.generationFailed"));
     } finally {
       setLoading(false);
     }
@@ -131,10 +134,10 @@ export function DHModal({ open, onOpenChange, onSuccess, existingDH }: DHModalPr
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Key className="h-5 w-5" />
-            {isEdit ? "Edit" : "Add"} DH Parameters
+            {isEdit ? t("dh.titleEdit") : t("dh.titleAdd")}
           </DialogTitle>
           <DialogDescription>
-            {isEdit ? `Editing DH: ${existingDH?.name}` : "Import existing DH parameters or generate new ones"}
+            {isEdit ? t("dh.editing", { name: existingDH?.name ?? "" }) : t("dh.importOrGenerate")}
           </DialogDescription>
         </DialogHeader>
 
@@ -142,18 +145,18 @@ export function DHModal({ open, onOpenChange, onSuccess, existingDH }: DHModalPr
           {!isEdit ? (
             <Tabs value={mode} onValueChange={(v) => { setMode(v as "import" | "generate"); setError(null); }}>
               <TabsList className="w-full">
-                <TabsTrigger value="import" className="flex-1">Import</TabsTrigger>
-                <TabsTrigger value="generate" className="flex-1">Generate</TabsTrigger>
+                <TabsTrigger value="import" className="flex-1">{t("shared.import")}</TabsTrigger>
+                <TabsTrigger value="generate" className="flex-1">{t("shared.generate")}</TabsTrigger>
               </TabsList>
 
               <TabsContent value="import" className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <Label htmlFor="dh-name">Name</Label>
+                  <Label htmlFor="dh-name">{tc("name")}</Label>
                   <Input id="dh-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="my-dh" />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="dh-params">Parameters (PEM)</Label>
+                  <Label htmlFor="dh-params">{t("shared.parametersPem")}</Label>
                   <Textarea
                     id="dh-params"
                     value={parameters}
@@ -167,12 +170,12 @@ export function DHModal({ open, onOpenChange, onSuccess, existingDH }: DHModalPr
 
               <TabsContent value="generate" className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <Label htmlFor="gen-dh-name">Name</Label>
+                  <Label htmlFor="gen-dh-name">{tc("name")}</Label>
                   <Input id="gen-dh-name" value={genName} onChange={(e) => setGenName(e.target.value)} placeholder="my-dh" />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="gen-dh-keysize">Key Size</Label>
+                  <Label htmlFor="gen-dh-keysize">{t("shared.keySize")}</Label>
                   <Select value={keySize} onValueChange={setKeySize}>
                     <SelectTrigger id="gen-dh-keysize">
                       <SelectValue />
@@ -180,7 +183,7 @@ export function DHModal({ open, onOpenChange, onSuccess, existingDH }: DHModalPr
                     <SelectContent>
                       {dhKeySizes.map((size) => (
                         <SelectItem key={size} value={size}>
-                          {size} bits
+                          {t("shared.bits", { size })}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -190,7 +193,7 @@ export function DHModal({ open, onOpenChange, onSuccess, existingDH }: DHModalPr
                 <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 p-3">
                   <Info className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-600">
-                    DH parameter generation is computationally intensive and may take a minute or more for larger key sizes.
+                    {t("dh.generationWarning")}
                   </p>
                 </div>
               </TabsContent>
@@ -198,12 +201,12 @@ export function DHModal({ open, onOpenChange, onSuccess, existingDH }: DHModalPr
           ) : (
             <>
               <div className="space-y-2">
-                <Label htmlFor="dh-params-edit">Parameters (PEM)</Label>
+                <Label htmlFor="dh-params-edit">{t("shared.parametersPem")}</Label>
                 <Textarea
                   id="dh-params-edit"
                   value={parameters}
                   onChange={(e) => setParameters(e.target.value)}
-                  placeholder="Leave empty to keep current"
+                  placeholder={t("shared.leaveEmpty")}
                   className="font-mono text-xs"
                   rows={6}
                 />
@@ -220,11 +223,11 @@ export function DHModal({ open, onOpenChange, onSuccess, existingDH }: DHModalPr
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{mode === "generate" && !isEdit ? "Generating..." : "Saving..."}</>
-            ) : isEdit ? "Save Changes" : mode === "generate" ? "Generate DH Parameters" : "Import DH Parameters"}
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{mode === "generate" && !isEdit ? t("shared.generating") : tc("saving")}</>
+            ) : isEdit ? t("shared.saveChanges") : mode === "generate" ? t("dh.generateButton") : t("dh.importButton")}
           </Button>
         </DialogFooter>
       </DialogContent>
