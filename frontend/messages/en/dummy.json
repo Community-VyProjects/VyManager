@@ -1,1 +1,58 @@
-{}
+{
+  "delete": {
+    "failed": "Failed to delete dummy interface",
+    "title": "Delete Interface: {name}",
+    "confirm": "Are you sure you want to delete this dummy interface? This action cannot be undone.",
+    "addressCount": "{count, plural, one {# address} other {# addresses}}",
+    "submit": "Delete Interface"
+  },
+  "modal": {
+    "editTitle": "Edit Dummy Interface",
+    "createTitle": "Create Dummy Interface",
+    "editingInterface": "Editing interface <code>{name}</code>",
+    "createDescription": "Create a new software-only dummy interface.",
+    "tabs": {
+      "basic": "Basic",
+      "addresses": "Addresses",
+      "advanced": "Advanced"
+    },
+    "interfaceName": "Interface Name",
+    "nameImmutable": "Interface name cannot be changed.",
+    "namePatternHint": "Must match pattern: dum0, dum1, dum2, …",
+    "descriptionPlaceholder": "Optional description",
+    "mtuHint": "Valid range: 68–16000",
+    "disableInterface": "Disable Interface",
+    "ipAddresses": "IP Addresses",
+    "addressesHint": "One address per line, IPv4 or IPv6 CIDR notation",
+    "eui64Prefixes": "IPv6 EUI-64 Prefixes",
+    "eui64Hint": "One /64 prefix per line",
+    "noDefaultLinkLocal": "No Default Link-Local",
+    "ipSettings": "IP Settings",
+    "disableIpv4Forwarding": "Disable IPv4 Forwarding",
+    "sourceValidation": "Source Validation",
+    "sourceValidationStrict": "Strict",
+    "sourceValidationLoose": "Loose",
+    "sourceValidationDisable": "Disable",
+    "ipv6Settings": "IPv6 Settings",
+    "disableIpv6Forwarding": "Disable IPv6 Forwarding",
+    "trafficMirroring": "Traffic Mirroring",
+    "mirrorIngress": "Mirror Ingress →",
+    "mirrorEgress": "Mirror Egress →",
+    "redirectTo": "Redirect To",
+    "hardware": "Hardware",
+    "macAddress": "MAC Address",
+    "networkNamespace": "Network Namespace",
+    "namespacePlaceholder": "Namespace name",
+    "creating": "Creating...",
+    "saveChanges": "Save Changes",
+    "createInterface": "Create Interface",
+    "errors": {
+      "mtuRange": "MTU must be between 68 and 16000",
+      "nameRequired": "Interface name is required",
+      "namePattern": "Name must be dum0, dum1, etc.",
+      "nameExists": "Interface {name} already exists",
+      "updateFailed": "Failed to update dummy interface",
+      "createFailed": "Failed to create dummy interface"
+    }
+  }
+}
