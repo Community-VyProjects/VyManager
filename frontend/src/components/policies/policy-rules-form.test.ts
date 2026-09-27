@@ -397,7 +397,7 @@ describe("route rule create", () => {
   it("rejects a missing rule number", () => {
     const draft = emptyRouteRuleDraft();
     draft.ruleNumber = 0;
-    assert.equal(validateRouteRuleCreate(draft), "Rule number is required");
+    assert.equal(validateRouteRuleCreate(draft), "ruleNumberRequired");
   });
 
   it("emits only filled match and set fields", async () => {

@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AlertCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { routeService, RouteCapabilitiesResponse, type PolicyRouteRule } from "@/lib/api/route";
 import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
 import {
@@ -80,6 +81,23 @@ export function RouteRuleModal({
   capabilities,
   existing,
 }: RouteRuleModalProps) {
+  const t = useTranslations("routeRuleModal");
+  const tc = useTranslations("common");
+  const stateLabels: Record<string, string> = {
+    established: t("state.states.established"),
+    invalid: t("state.states.invalid"),
+    new: t("state.states.new"),
+    related: t("state.states.related"),
+  };
+  const weekdayLabels: Record<string, string> = {
+    Monday: t("time.days.mon"),
+    Tuesday: t("time.days.tue"),
+    Wednesday: t("time.days.wed"),
+    Thursday: t("time.days.thu"),
+    Friday: t("time.days.fri"),
+    Saturday: t("time.days.sat"),
+    Sunday: t("time.days.sun"),
+  };
   const isEdit = modalIsEdit(existing);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -398,7 +416,7 @@ export function RouteRuleModal({
     const draft = collectDraft();
     const validationError = isEdit ? validateRouteRuleEdit() : validateRouteRuleCreate(draft);
     if (validationError) {
-      setError(validationError);
+      setError(t(`errors.${validationError}`));
       return;
     }
 
@@ -413,13 +431,13 @@ export function RouteRuleModal({
           ? await submitRouteRuleUpdate(policyType, policyName, existing, draft, directional)
           : await submitRouteRuleCreate(policyType, policyName, draft, directional);
       if (result && result.success === false) {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
         return;
       }
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError((err as ApiError).message || (isEdit ? "Failed to update rule" : "Failed to create rule"));
+      setError((err as ApiError).message || (isEdit ? t("errors.updateFailed") : t("errors.createFailed")));
     } finally {
       setLoading(false);
     }
@@ -455,9 +473,9 @@ export function RouteRuleModal({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? `Edit Rule ${existing.rule_number} - Policy: ${policyName}` : `Create Rule for Policy: ${policyName}`}</DialogTitle>
+          <DialogTitle>{isEdit ? t("title.edit", { number: String(existing.rule_number), policyName }) : t("title.create", { policyName })}</DialogTitle>
           <DialogDescription>
-            {isEdit ? `Update the ${policyType === "route" ? "IPv4" : "IPv6"} policy rule` : `Add a new rule to the ${policyType === "route" ? "IPv4" : "IPv6"} policy`}
+            {isEdit ? t("description.edit", { family: policyType === "route" ? "IPv4" : "IPv6" }) : t("description.create", { family: policyType === "route" ? "IPv4" : "IPv6" })}
           </DialogDescription>
         </DialogHeader>
 
@@ -470,16 +488,16 @@ export function RouteRuleModal({
 
         <Tabs defaultValue="basic" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="basic">Basic</TabsTrigger>
-            <TabsTrigger value="match">Match Conditions</TabsTrigger>
-            <TabsTrigger value="set">Set Actions</TabsTrigger>
+            <TabsTrigger value="basic">{t("tabs.basic")}</TabsTrigger>
+            <TabsTrigger value="match">{t("tabs.match")}</TabsTrigger>
+            <TabsTrigger value="set">{t("tabs.set")}</TabsTrigger>
           </TabsList>
 
           {/* Basic Tab */}
           <TabsContent value="basic" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="ruleNumber">Rule Number *</Label>
+                <Label htmlFor="ruleNumber">{t("basic.ruleNumber")}</Label>
                 <Input
                   id="ruleNumber"
                   type="number"
@@ -490,16 +508,16 @@ export function RouteRuleModal({
                 />
                 {isEdit && (
                   <p className="text-xs text-muted-foreground">
-                    Rule number cannot be changed
+                    {t("basic.ruleNumberLocked")}
                   </p>
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">{tc("description")}</Label>
                 <Input
                   id="description"
-                  placeholder="Rule description"
+                  placeholder={t("basic.descriptionPlaceholder")}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   disabled={loading}
@@ -516,7 +534,7 @@ export function RouteRuleModal({
                   disabled={loading}
                 />
                 <Label htmlFor="disable" className="text-sm font-normal cursor-pointer">
-                  Disable this rule
+                  {t("basic.disable")}
                 </Label>
               </div>
 
@@ -528,7 +546,7 @@ export function RouteRuleModal({
                   disabled={loading}
                 />
                 <Label htmlFor="log" className="text-sm font-normal cursor-pointer">
-                  Enable logging for this rule
+                  {t("basic.log")}
                 </Label>
               </div>
             </div>
@@ -538,10 +556,10 @@ export function RouteRuleModal({
           <TabsContent value="match" className="space-y-6">
             {/* Address Section */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-sm">Address Matching</h3>
+              <h3 className="font-semibold text-sm">{t("address.title")}</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="sourceAddress">Source Address</Label>
+                  <Label htmlFor="sourceAddress">{t("address.source")}</Label>
                   <Input
                     id="sourceAddress"
                     placeholder={policyType === "route6" ? "2001:db8::/32" : "192.168.1.0/24"}
@@ -557,13 +575,13 @@ export function RouteRuleModal({
                       disabled={loading}
                     />
                     <Label htmlFor="sourceAddressInvert" className="text-sm font-normal cursor-pointer">
-                      Invert match
+                      {t("invertMatch")}
                     </Label>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="destAddress">Destination Address</Label>
+                  <Label htmlFor="destAddress">{t("address.destination")}</Label>
                   <Input
                     id="destAddress"
                     placeholder={policyType === "route6" ? "fd00::/8" : "10.0.0.0/8"}
@@ -579,13 +597,13 @@ export function RouteRuleModal({
                       disabled={loading}
                     />
                     <Label htmlFor="destAddressInvert" className="text-sm font-normal cursor-pointer">
-                      Invert match
+                      {t("invertMatch")}
                     </Label>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="sourceMac">Source MAC Address</Label>
+                  <Label htmlFor="sourceMac">{t("address.sourceMac")}</Label>
                   <Input
                     id="sourceMac"
                     placeholder="00:11:22:33:44:55"
@@ -601,13 +619,13 @@ export function RouteRuleModal({
                       disabled={loading}
                     />
                     <Label htmlFor="sourceMacInvert" className="text-sm font-normal cursor-pointer">
-                      Invert match
+                      {t("invertMatch")}
                     </Label>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="destMac">Destination MAC Address</Label>
+                  <Label htmlFor="destMac">{t("address.destinationMac")}</Label>
                   <Input
                     id="destMac"
                     placeholder="00:11:22:33:44:66"
@@ -623,7 +641,7 @@ export function RouteRuleModal({
                       disabled={loading}
                     />
                     <Label htmlFor="destMacInvert" className="text-sm font-normal cursor-pointer">
-                      Invert match
+                      {t("invertMatch")}
                     </Label>
                   </div>
                 </div>
@@ -632,12 +650,12 @@ export function RouteRuleModal({
 
             {capabilities?.features.geoip_matching?.supported && (
               <div className="space-y-4">
-                <h3 className="font-semibold text-sm">GeoIP Matching</h3>
+                <h3 className="font-semibold text-sm">{t("geoip.title")}</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <CountryMultiSelect
                       id="sourceGeoipCountry"
-                      label="Source GeoIP Countries"
+                      label={t("geoip.source")}
                       value={sourceGeoipCountry}
                       onChange={setSourceGeoipCountry}
                     />
@@ -649,14 +667,14 @@ export function RouteRuleModal({
                         disabled={loading}
                       />
                       <Label htmlFor="sourceGeoipInverse" className="text-sm font-normal cursor-pointer">
-                        Exclude countries (inverse match)
+                        {t("geoip.exclude")}
                       </Label>
                     </div>
                   </div>
                   <div className="space-y-2">
                     <CountryMultiSelect
                       id="destGeoipCountry"
-                      label="Destination GeoIP Countries"
+                      label={t("geoip.destination")}
                       value={destGeoipCountry}
                       onChange={setDestGeoipCountry}
                     />
@@ -668,7 +686,7 @@ export function RouteRuleModal({
                         disabled={loading}
                       />
                       <Label htmlFor="destGeoipInverse" className="text-sm font-normal cursor-pointer">
-                        Exclude countries (inverse match)
+                        {t("geoip.exclude")}
                       </Label>
                     </div>
                   </div>
@@ -678,31 +696,31 @@ export function RouteRuleModal({
 
             {/* Groups Section */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-sm">Firewall Groups</h3>
+              <h3 className="font-semibold text-sm">{t("groups.title")}</h3>
               <div className="grid grid-cols-2 gap-6">
                 {/* Source Groups */}
                 <div className="space-y-4">
                   <div>
-                    <Label className="text-sm font-medium mb-2 block">Source Address/Network/Domain Group (choose one)</Label>
+                    <Label className="text-sm font-medium mb-2 block">{t("groups.sourceAddressGroup")}</Label>
                     <RadioGroup value={sourceAddressDomainType} onValueChange={(value) => {
                       setSourceAddressDomainType(value);
                       setSourceAddressDomainValue("");
                     }} disabled={loading}>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="none" id="src-ad-none" />
-                        <Label htmlFor="src-ad-none" className="font-normal cursor-pointer">None</Label>
+                        <Label htmlFor="src-ad-none" className="font-normal cursor-pointer">{tc("none")}</Label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="address" id="src-address" />
-                        <Label htmlFor="src-address" className="font-normal cursor-pointer">Address Group</Label>
+                        <Label htmlFor="src-address" className="font-normal cursor-pointer">{t("groups.addressGroup")}</Label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="network" id="src-network" />
-                        <Label htmlFor="src-network" className="font-normal cursor-pointer">Network Group</Label>
+                        <Label htmlFor="src-network" className="font-normal cursor-pointer">{t("groups.networkGroup")}</Label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="domain" id="src-domain" />
-                        <Label htmlFor="src-domain" className="font-normal cursor-pointer">Domain Group</Label>
+                        <Label htmlFor="src-domain" className="font-normal cursor-pointer">{t("groups.domainGroup")}</Label>
                       </div>
                     </RadioGroup>
 
@@ -710,7 +728,7 @@ export function RouteRuleModal({
                       <div className="space-y-2 mt-2">
                         <Select value={sourceAddressDomainValue} onValueChange={setSourceAddressDomainValue} disabled={loading}>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select group" />
+                            <SelectValue placeholder={t("groups.selectGroup")} />
                           </SelectTrigger>
                           <SelectContent>
                             {getGroupsByType(
@@ -734,7 +752,7 @@ export function RouteRuleModal({
                             disabled={loading}
                           />
                           <Label htmlFor="sourceGroupInvert" className="text-sm font-normal cursor-pointer">
-                            Invert match
+                            {t("invertMatch")}
                           </Label>
                         </div>
                       </div>
@@ -742,10 +760,10 @@ export function RouteRuleModal({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="sourceMacGroup">Source MAC Group (optional)</Label>
+                    <Label htmlFor="sourceMacGroup">{t("groups.sourceMacGroup")}</Label>
                     <Select value={sourceMacGroup} onValueChange={setSourceMacGroup} disabled={loading}>
                       <SelectTrigger>
-                        <SelectValue placeholder="None" />
+                        <SelectValue placeholder={tc("none")} />
                       </SelectTrigger>
                       <SelectContent>
                         {getGroupsByType("mac-group").map((g) => (
@@ -764,17 +782,17 @@ export function RouteRuleModal({
                           disabled={loading}
                         />
                         <Label htmlFor="sourceMacGroupInvert" className="text-sm font-normal cursor-pointer">
-                          Invert match
+                          {t("invertMatch")}
                         </Label>
                       </div>
                     )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="sourcePortGroup">Source Port Group (optional)</Label>
+                    <Label htmlFor="sourcePortGroup">{t("groups.sourcePortGroup")}</Label>
                     <Select value={sourcePortGroup} onValueChange={setSourcePortGroup} disabled={loading}>
                       <SelectTrigger>
-                        <SelectValue placeholder="None" />
+                        <SelectValue placeholder={tc("none")} />
                       </SelectTrigger>
                       <SelectContent>
                         {getGroupsByType("port-group").map((g) => (
@@ -794,10 +812,10 @@ export function RouteRuleModal({
                             disabled={loading}
                           />
                           <Label htmlFor="sourcePortGroupInvert" className="text-sm font-normal cursor-pointer">
-                            Invert match
+                            {t("invertMatch")}
                           </Label>
                         </div>
-                        <p className="text-xs text-muted-foreground">Protocol will be restricted to TCP/UDP</p>
+                        <p className="text-xs text-muted-foreground">{t("groups.protocolRestricted")}</p>
                       </>
                     )}
                   </div>
@@ -806,26 +824,26 @@ export function RouteRuleModal({
                 {/* Destination Groups */}
                 <div className="space-y-4">
                   <div>
-                    <Label className="text-sm font-medium mb-2 block">Destination Address/Network/Domain Group (choose one)</Label>
+                    <Label className="text-sm font-medium mb-2 block">{t("groups.destinationAddressGroup")}</Label>
                     <RadioGroup value={destAddressDomainType} onValueChange={(value) => {
                       setDestAddressDomainType(value);
                       setDestAddressDomainValue("");
                     }} disabled={loading}>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="none" id="dst-ad-none" />
-                        <Label htmlFor="dst-ad-none" className="font-normal cursor-pointer">None</Label>
+                        <Label htmlFor="dst-ad-none" className="font-normal cursor-pointer">{tc("none")}</Label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="address" id="dst-address" />
-                        <Label htmlFor="dst-address" className="font-normal cursor-pointer">Address Group</Label>
+                        <Label htmlFor="dst-address" className="font-normal cursor-pointer">{t("groups.addressGroup")}</Label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="network" id="dst-network" />
-                        <Label htmlFor="dst-network" className="font-normal cursor-pointer">Network Group</Label>
+                        <Label htmlFor="dst-network" className="font-normal cursor-pointer">{t("groups.networkGroup")}</Label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="domain" id="dst-domain" />
-                        <Label htmlFor="dst-domain" className="font-normal cursor-pointer">Domain Group</Label>
+                        <Label htmlFor="dst-domain" className="font-normal cursor-pointer">{t("groups.domainGroup")}</Label>
                       </div>
                     </RadioGroup>
 
@@ -833,7 +851,7 @@ export function RouteRuleModal({
                       <div className="space-y-2 mt-2">
                         <Select value={destAddressDomainValue} onValueChange={setDestAddressDomainValue} disabled={loading}>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select group" />
+                            <SelectValue placeholder={t("groups.selectGroup")} />
                           </SelectTrigger>
                           <SelectContent>
                             {getGroupsByType(
@@ -857,7 +875,7 @@ export function RouteRuleModal({
                             disabled={loading}
                           />
                           <Label htmlFor="destGroupInvert" className="text-sm font-normal cursor-pointer">
-                            Invert match
+                            {t("invertMatch")}
                           </Label>
                         </div>
                       </div>
@@ -865,10 +883,10 @@ export function RouteRuleModal({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="destMacGroup">Destination MAC Group (optional)</Label>
+                    <Label htmlFor="destMacGroup">{t("groups.destinationMacGroup")}</Label>
                     <Select value={destMacGroup} onValueChange={setDestMacGroup} disabled={loading}>
                       <SelectTrigger>
-                        <SelectValue placeholder="None" />
+                        <SelectValue placeholder={tc("none")} />
                       </SelectTrigger>
                       <SelectContent>
                         {getGroupsByType("mac-group").map((g) => (
@@ -887,17 +905,17 @@ export function RouteRuleModal({
                           disabled={loading}
                         />
                         <Label htmlFor="destMacGroupInvert" className="text-sm font-normal cursor-pointer">
-                          Invert match
+                          {t("invertMatch")}
                         </Label>
                       </div>
                     )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="destPortGroup">Destination Port Group (optional)</Label>
+                    <Label htmlFor="destPortGroup">{t("groups.destinationPortGroup")}</Label>
                     <Select value={destPortGroup} onValueChange={setDestPortGroup} disabled={loading}>
                       <SelectTrigger>
-                        <SelectValue placeholder="None" />
+                        <SelectValue placeholder={tc("none")} />
                       </SelectTrigger>
                       <SelectContent>
                         {getGroupsByType("port-group").map((g) => (
@@ -917,10 +935,10 @@ export function RouteRuleModal({
                             disabled={loading}
                           />
                           <Label htmlFor="destPortGroupInvert" className="text-sm font-normal cursor-pointer">
-                            Invert match
+                            {t("invertMatch")}
                           </Label>
                         </div>
-                        <p className="text-xs text-muted-foreground">Protocol will be restricted to TCP/UDP</p>
+                        <p className="text-xs text-muted-foreground">{t("groups.protocolRestricted")}</p>
                       </>
                     )}
                   </div>
@@ -930,13 +948,13 @@ export function RouteRuleModal({
 
             {/* Port & Protocol Section */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-sm">Port & Protocol</h3>
+              <h3 className="font-semibold text-sm">{t("portProtocol.title")}</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="sourcePort">Source Port</Label>
+                  <Label htmlFor="sourcePort">{t("portProtocol.sourcePort")}</Label>
                   <Input
                     id="sourcePort"
-                    placeholder="80 or 80,443 or 8000-9000"
+                    placeholder={t("portProtocol.portPlaceholder")}
                     value={sourcePort}
                     onChange={(e) => setSourcePort(e.target.value)}
                     disabled={loading}
@@ -944,10 +962,10 @@ export function RouteRuleModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="destPort">Destination Port</Label>
+                  <Label htmlFor="destPort">{t("portProtocol.destinationPort")}</Label>
                   <Input
                     id="destPort"
-                    placeholder="80 or 80,443 or 8000-9000"
+                    placeholder={t("portProtocol.portPlaceholder")}
                     value={destPort}
                     onChange={(e) => setDestPort(e.target.value)}
                     disabled={loading}
@@ -955,10 +973,10 @@ export function RouteRuleModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="protocol">Protocol</Label>
+                  <Label htmlFor="protocol">{t("portProtocol.protocol")}</Label>
                   <Select value={protocol} onValueChange={setProtocol} disabled={loading}>
                     <SelectTrigger>
-                      <SelectValue placeholder="All protocols" />
+                      <SelectValue placeholder={t("portProtocol.allProtocols")} />
                     </SelectTrigger>
                     <SelectContent>
                       {(sourcePort || destPort || sourcePortGroup || destPortGroup ?
@@ -972,13 +990,13 @@ export function RouteRuleModal({
                     </SelectContent>
                   </Select>
                   {(sourcePort || destPort || sourcePortGroup || destPortGroup) && (
-                    <p className="text-xs text-muted-foreground">Protocol restricted to TCP/UDP when using ports</p>
+                    <p className="text-xs text-muted-foreground">{t("portProtocol.restrictedWithPorts")}</p>
                   )}
                 </div>
 
                 {protocol === "tcp" && (
                   <div className="space-y-2">
-                    <Label>TCP Flags</Label>
+                    <Label>{t("portProtocol.tcpFlags")}</Label>
                     <div className="flex flex-wrap gap-2">
                       {TCP_FLAGS.map((flag) => (
                         <div key={flag} className="flex items-center space-x-2">
@@ -999,10 +1017,10 @@ export function RouteRuleModal({
 
                 {capabilities?.features.tcp_mss_matching?.supported && (
                   <div className="space-y-2">
-                    <Label htmlFor="matchTcpMss">TCP MSS Match</Label>
+                    <Label htmlFor="matchTcpMss">{t("portProtocol.tcpMssMatch")}</Label>
                     <Input
                       id="matchTcpMss"
-                      placeholder="1400 or 500-1460"
+                      placeholder={t("portProtocol.tcpMssPlaceholder")}
                       value={matchTcpMss}
                       onChange={(e) => setMatchTcpMss(e.target.value)}
                       disabled={loading}
@@ -1015,10 +1033,10 @@ export function RouteRuleModal({
             {/* ICMP Section */}
             {policyType === "route" && (
               <div className="space-y-4">
-                <h3 className="font-semibold text-sm">ICMP Matching (IPv4 only)</h3>
+                <h3 className="font-semibold text-sm">{t("icmp.title")}</h3>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="icmpType">ICMP Type</Label>
+                    <Label htmlFor="icmpType">{t("icmp.type")}</Label>
                     <Input
                       id="icmpType"
                       placeholder="0-255"
@@ -1029,10 +1047,10 @@ export function RouteRuleModal({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="icmpTypeName">ICMP Type Name</Label>
+                    <Label htmlFor="icmpTypeName">{t("icmp.typeName")}</Label>
                     <Select value={icmpTypeName} onValueChange={setIcmpTypeName} disabled={loading}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select type" />
+                        <SelectValue placeholder={t("icmp.selectType")} />
                       </SelectTrigger>
                       <SelectContent>
                         {ICMP_TYPE_NAMES.map((t) => (
@@ -1045,7 +1063,7 @@ export function RouteRuleModal({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="icmpCode">ICMP Code</Label>
+                    <Label htmlFor="icmpCode">{t("icmp.code")}</Label>
                     <Input
                       id="icmpCode"
                       placeholder="0-255"
@@ -1060,10 +1078,10 @@ export function RouteRuleModal({
 
             {policyType === "route6" && (
               <div className="space-y-4">
-                <h3 className="font-semibold text-sm">ICMPv6 Matching (IPv6 only)</h3>
+                <h3 className="font-semibold text-sm">{t("icmp.v6Title")}</h3>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="icmpv6Type">ICMPv6 Type</Label>
+                    <Label htmlFor="icmpv6Type">{t("icmp.v6Type")}</Label>
                     <Input
                       id="icmpv6Type"
                       placeholder="0-255"
@@ -1074,10 +1092,10 @@ export function RouteRuleModal({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="icmpv6TypeName">ICMPv6 Type Name</Label>
+                    <Label htmlFor="icmpv6TypeName">{t("icmp.v6TypeName")}</Label>
                     <Select value={icmpv6TypeName} onValueChange={setIcmpv6TypeName} disabled={loading}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select type" />
+                        <SelectValue placeholder={t("icmp.selectType")} />
                       </SelectTrigger>
                       <SelectContent>
                         {ICMPV6_TYPE_NAMES.map((t) => (
@@ -1090,7 +1108,7 @@ export function RouteRuleModal({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="icmpv6Code">ICMPv6 Code</Label>
+                    <Label htmlFor="icmpv6Code">{t("icmp.v6Code")}</Label>
                     <Input
                       id="icmpv6Code"
                       placeholder="0-255"
@@ -1105,10 +1123,10 @@ export function RouteRuleModal({
 
             {/* Packet Characteristics Section */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-sm">Packet Characteristics</h3>
+              <h3 className="font-semibold text-sm">{t("packet.title")}</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Fragment Matching</Label>
+                  <Label>{t("packet.fragment")}</Label>
                   <div className="flex gap-4">
                     <div className="flex items-center space-x-2">
                       <Checkbox
@@ -1118,7 +1136,7 @@ export function RouteRuleModal({
                         disabled={loading}
                       />
                       <Label htmlFor="fragment-match" className="text-sm font-normal cursor-pointer">
-                        Match fragments
+                        {t("packet.matchFragments")}
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -1129,17 +1147,17 @@ export function RouteRuleModal({
                         disabled={loading}
                       />
                       <Label htmlFor="fragment-exclude" className="text-sm font-normal cursor-pointer">
-                        Exclude fragments
+                        {t("packet.excludeFragments")}
                       </Label>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="packetType">Packet Type</Label>
+                  <Label htmlFor="packetType">{t("packet.type")}</Label>
                   <Select value={packetType} onValueChange={setPacketType} disabled={loading}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
+                      <SelectValue placeholder={t("icmp.selectType")} />
                     </SelectTrigger>
                     <SelectContent>
                       {PACKET_TYPES.map((t) => (
@@ -1152,10 +1170,10 @@ export function RouteRuleModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="packetLength">Packet Length</Label>
+                  <Label htmlFor="packetLength">{t("packet.length")}</Label>
                   <Input
                     id="packetLength"
-                    placeholder="64 or 64-128"
+                    placeholder={t("packet.lengthPlaceholder")}
                     value={packetLength}
                     onChange={(e) => setPacketLength(e.target.value)}
                     disabled={loading}
@@ -1163,10 +1181,10 @@ export function RouteRuleModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="packetLengthExclude">Packet Length (Exclude)</Label>
+                  <Label htmlFor="packetLengthExclude">{t("packet.lengthExclude")}</Label>
                   <Input
                     id="packetLengthExclude"
-                    placeholder="64 or 64-128"
+                    placeholder={t("packet.lengthPlaceholder")}
                     value={packetLengthExclude}
                     onChange={(e) => setPacketLengthExclude(e.target.value)}
                     disabled={loading}
@@ -1177,7 +1195,7 @@ export function RouteRuleModal({
                   <Label htmlFor="dscp">DSCP</Label>
                   <Input
                     id="dscp"
-                    placeholder="0-63 or range 0-10"
+                    placeholder={t("packet.dscpPlaceholder")}
                     value={dscp}
                     onChange={(e) => setDscp(e.target.value)}
                     disabled={loading}
@@ -1185,10 +1203,10 @@ export function RouteRuleModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="dscpExclude">DSCP (Exclude)</Label>
+                  <Label htmlFor="dscpExclude">{t("packet.dscpExclude")}</Label>
                   <Input
                     id="dscpExclude"
-                    placeholder="0-63 or range 0-10"
+                    placeholder={t("packet.dscpPlaceholder")}
                     value={dscpExclude}
                     onChange={(e) => setDscpExclude(e.target.value)}
                     disabled={loading}
@@ -1199,10 +1217,10 @@ export function RouteRuleModal({
 
             {/* State & Marks Section */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-sm">Connection State & Marks</h3>
+              <h3 className="font-semibold text-sm">{t("state.title")}</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Connection State</Label>
+                  <Label>{t("state.connectionState")}</Label>
                   <div className="flex flex-wrap gap-2">
                     {CONNECTION_STATES.map((state) => (
                       <div key={state} className="flex items-center space-x-2">
@@ -1213,7 +1231,7 @@ export function RouteRuleModal({
                           disabled={loading}
                         />
                         <Label htmlFor={`state-${state}`} className="text-sm font-normal cursor-pointer">
-                          {state}
+                          {stateLabels[state] ?? state}
                         </Label>
                       </div>
                     ))}
@@ -1221,32 +1239,32 @@ export function RouteRuleModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>IPsec Status</Label>
+                  <Label>{t("state.ipsecStatus")}</Label>
                   {capabilities?.features.ipsec_directional?.supported ? (
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="ipsecInbound">Inbound</Label>
+                        <Label htmlFor="ipsecInbound">{t("state.inbound")}</Label>
                         <Select value={ipsecInbound} onValueChange={(v: "none" | "match-ipsec" | "match-none") => setIpsecInbound(v)} disabled={loading}>
                           <SelectTrigger id="ipsecInbound">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">No match</SelectItem>
-                            <SelectItem value="match-ipsec">Match IPsec</SelectItem>
-                            <SelectItem value="match-none">Match non-IPsec</SelectItem>
+                            <SelectItem value="none">{t("state.noMatch")}</SelectItem>
+                            <SelectItem value="match-ipsec">{t("state.matchIpsec")}</SelectItem>
+                            <SelectItem value="match-none">{t("state.matchNonIpsec")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="ipsecOutbound">Outbound</Label>
+                        <Label htmlFor="ipsecOutbound">{t("state.outbound")}</Label>
                         <Select value={ipsecOutbound} onValueChange={(v: "none" | "match-ipsec" | "match-none") => setIpsecOutbound(v)} disabled={loading}>
                           <SelectTrigger id="ipsecOutbound">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">No match</SelectItem>
-                            <SelectItem value="match-ipsec">Match IPsec</SelectItem>
-                            <SelectItem value="match-none">Match non-IPsec</SelectItem>
+                            <SelectItem value="none">{t("state.noMatch")}</SelectItem>
+                            <SelectItem value="match-ipsec">{t("state.matchIpsec")}</SelectItem>
+                            <SelectItem value="match-none">{t("state.matchNonIpsec")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -1261,7 +1279,7 @@ export function RouteRuleModal({
                           disabled={loading}
                         />
                         <Label htmlFor="ipsec-match" className="text-sm font-normal cursor-pointer">
-                          Match IPsec
+                          {t("state.matchIpsec")}
                         </Label>
                       </div>
                       <div className="flex items-center space-x-2">
@@ -1272,7 +1290,7 @@ export function RouteRuleModal({
                           disabled={loading}
                         />
                         <Label htmlFor="ipsec-exclude" className="text-sm font-normal cursor-pointer">
-                          Exclude IPsec
+                          {t("state.excludeIpsec")}
                         </Label>
                       </div>
                     </div>
@@ -1280,7 +1298,7 @@ export function RouteRuleModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="connectionMark">Connection Mark</Label>
+                  <Label htmlFor="connectionMark">{t("state.connectionMark")}</Label>
                   <Input
                     id="connectionMark"
                     placeholder="0-2147483647"
@@ -1291,7 +1309,7 @@ export function RouteRuleModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="mark">Mark</Label>
+                  <Label htmlFor="mark">{t("state.mark")}</Label>
                   <Input
                     id="mark"
                     placeholder="0-2147483647"
@@ -1306,23 +1324,23 @@ export function RouteRuleModal({
             {/* TTL / Hop Limit Section */}
             {policyType === "route" && (
               <div className="space-y-4">
-                <h3 className="font-semibold text-sm">TTL (IPv4 only)</h3>
+                <h3 className="font-semibold text-sm">{t("ttl.title")}</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="ttlOperator">TTL Operator</Label>
+                    <Label htmlFor="ttlOperator">{t("ttl.operator")}</Label>
                     <Select value={ttlOperator} onValueChange={setTtlOperator} disabled={loading}>
                       <SelectTrigger>
-                        <SelectValue placeholder="None" />
+                        <SelectValue placeholder={tc("none")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="eq">Equal to (eq)</SelectItem>
-                        <SelectItem value="gt">Greater than (gt)</SelectItem>
-                        <SelectItem value="lt">Less than (lt)</SelectItem>
+                        <SelectItem value="eq">{t("ttl.eq")}</SelectItem>
+                        <SelectItem value="gt">{t("ttl.gt")}</SelectItem>
+                        <SelectItem value="lt">{t("ttl.lt")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="ttlValue">TTL Value</Label>
+                    <Label htmlFor="ttlValue">{t("ttl.value")}</Label>
                     <Input
                       id="ttlValue"
                       type="number"
@@ -1340,23 +1358,23 @@ export function RouteRuleModal({
 
             {policyType === "route6" && (
               <div className="space-y-4">
-                <h3 className="font-semibold text-sm">Hop Limit (IPv6 only)</h3>
+                <h3 className="font-semibold text-sm">{t("ttl.hopTitle")}</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="hopLimitOperator">Hop Limit Operator</Label>
+                    <Label htmlFor="hopLimitOperator">{t("ttl.hopOperator")}</Label>
                     <Select value={hopLimitOperator} onValueChange={setHopLimitOperator} disabled={loading}>
                       <SelectTrigger>
-                        <SelectValue placeholder="None" />
+                        <SelectValue placeholder={tc("none")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="eq">Equal to (eq)</SelectItem>
-                        <SelectItem value="gt">Greater than (gt)</SelectItem>
-                        <SelectItem value="lt">Less than (lt)</SelectItem>
+                        <SelectItem value="eq">{t("ttl.eq")}</SelectItem>
+                        <SelectItem value="gt">{t("ttl.gt")}</SelectItem>
+                        <SelectItem value="lt">{t("ttl.lt")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="hopLimitValue">Hop Limit Value</Label>
+                    <Label htmlFor="hopLimitValue">{t("ttl.hopValue")}</Label>
                     <Input
                       id="hopLimitValue"
                       type="number"
@@ -1374,22 +1392,22 @@ export function RouteRuleModal({
 
             {/* Time-based Section */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-sm">Time-based Matching</h3>
+              <h3 className="font-semibold text-sm">{t("time.title")}</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="monthdays">Month Days</Label>
+                  <Label htmlFor="monthdays">{t("time.monthDays")}</Label>
                   <Input
                     id="monthdays"
-                    placeholder="1-31 (comma-separated)"
+                    placeholder={t("time.monthDaysPlaceholder")}
                     value={monthdays}
                     onChange={(e) => setMonthdays(e.target.value)}
                     disabled={loading}
                   />
-                  <p className="text-xs text-muted-foreground">Example: 1,15,30</p>
+                  <p className="text-xs text-muted-foreground">{t("time.monthDaysExample")}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Weekdays</Label>
+                  <Label>{t("time.weekdays")}</Label>
                   <div className="flex flex-wrap gap-2">
                     {WEEKDAYS.map((day) => (
                       <div key={day} className="flex items-center space-x-2">
@@ -1400,7 +1418,7 @@ export function RouteRuleModal({
                           disabled={loading}
                         />
                         <Label htmlFor={`day-${day}`} className="text-sm font-normal cursor-pointer">
-                          {day.substring(0, 3)}
+                          {weekdayLabels[day] ?? day.substring(0, 3)}
                         </Label>
                       </div>
                     ))}
@@ -1408,7 +1426,7 @@ export function RouteRuleModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="startDate">Start Date</Label>
+                  <Label htmlFor="startDate">{t("time.startDate")}</Label>
                   <Input
                     id="startDate"
                     placeholder="YYYY-MM-DD"
@@ -1419,7 +1437,7 @@ export function RouteRuleModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="stopDate">Stop Date</Label>
+                  <Label htmlFor="stopDate">{t("time.stopDate")}</Label>
                   <Input
                     id="stopDate"
                     placeholder="YYYY-MM-DD"
@@ -1430,7 +1448,7 @@ export function RouteRuleModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="startTime">Start Time</Label>
+                  <Label htmlFor="startTime">{t("time.startTime")}</Label>
                   <Input
                     id="startTime"
                     placeholder="HH:MM:SS"
@@ -1441,7 +1459,7 @@ export function RouteRuleModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="stopTime">Stop Time</Label>
+                  <Label htmlFor="stopTime">{t("time.stopTime")}</Label>
                   <Input
                     id="stopTime"
                     placeholder="HH:MM:SS"
@@ -1459,7 +1477,7 @@ export function RouteRuleModal({
                     disabled={loading}
                   />
                   <Label htmlFor="utc" className="text-sm font-normal cursor-pointer">
-                    Use UTC time
+                    {t("time.utc")}
                   </Label>
                 </div>
               </div>
@@ -1467,41 +1485,41 @@ export function RouteRuleModal({
 
             {/* Rate Limiting Section */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-sm">Rate Limiting</h3>
+              <h3 className="font-semibold text-sm">{t("rate.title")}</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="limitBurst">Limit Burst</Label>
+                  <Label htmlFor="limitBurst">{t("rate.limitBurst")}</Label>
                   <Input
                     id="limitBurst"
-                    placeholder="Number of packets"
+                    placeholder={t("rate.packetsPlaceholder")}
                     value={limitBurst}
                     onChange={(e) => setLimitBurst(e.target.value)}
                     disabled={loading}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Maximum burst before rate limiting applies
+                    {t("rate.limitBurstHelp")}
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="limitRate">Limit Rate</Label>
+                  <Label htmlFor="limitRate">{t("rate.limitRate")}</Label>
                   <Input
                     id="limitRate"
-                    placeholder="packets/second, packets/minute, etc."
+                    placeholder={t("rate.limitRatePlaceholder")}
                     value={limitRate}
                     onChange={(e) => setLimitRate(e.target.value)}
                     disabled={loading}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Example: 10/second, 100/minute
+                    {t("rate.limitRateExample")}
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="recentCount">Recent Count</Label>
+                  <Label htmlFor="recentCount">{t("rate.recentCount")}</Label>
                   <Input
                     id="recentCount"
-                    placeholder="Number of packets"
+                    placeholder={t("rate.packetsPlaceholder")}
                     value={recentCount}
                     onChange={(e) => setRecentCount(e.target.value)}
                     disabled={loading}
@@ -1509,10 +1527,10 @@ export function RouteRuleModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="recentTime">Recent Time</Label>
+                  <Label htmlFor="recentTime">{t("rate.recentTime")}</Label>
                   <Input
                     id="recentTime"
-                    placeholder="Seconds"
+                    placeholder={t("rate.seconds")}
                     value={recentTime}
                     onChange={(e) => setRecentTime(e.target.value)}
                     disabled={loading}
@@ -1533,16 +1551,16 @@ export function RouteRuleModal({
                   disabled={loading}
                 />
                 <Label htmlFor="actionDrop" className="text-sm font-normal cursor-pointer">
-                  Drop matching packets
+                  {t("actions.drop")}
                 </Label>
               </div>
             </div>
 
             <div className="space-y-4">
-              <h3 className="font-semibold text-sm">Packet Marking</h3>
+              <h3 className="font-semibold text-sm">{t("actions.marking")}</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="actionConnectionMark">Connection Mark</Label>
+                  <Label htmlFor="actionConnectionMark">{t("actions.connectionMark")}</Label>
                   <Input
                     id="actionConnectionMark"
                     placeholder="0-2147483647"
@@ -1553,7 +1571,7 @@ export function RouteRuleModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="actionMark">Mark</Label>
+                  <Label htmlFor="actionMark">{t("actions.mark")}</Label>
                   <Input
                     id="actionMark"
                     placeholder="0-2147483647"
@@ -1577,31 +1595,31 @@ export function RouteRuleModal({
             </div>
 
             <div className="space-y-4">
-              <h3 className="font-semibold text-sm">Routing</h3>
+              <h3 className="font-semibold text-sm">{t("actions.routing")}</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium mb-2 block">Routing Table</Label>
+                  <Label className="text-sm font-medium mb-2 block">{t("actions.routingTable")}</Label>
                   <RadioGroup value={actionTableMode} onValueChange={(value) => {
                     setActionTableMode(value as "none" | "main" | "custom");
                     if (value !== "custom") setActionTable("");
                   }} disabled={loading}>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="none" id="table-none" />
-                      <Label htmlFor="table-none" className="font-normal cursor-pointer">None</Label>
+                      <Label htmlFor="table-none" className="font-normal cursor-pointer">{tc("none")}</Label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="main" id="table-main" />
-                      <Label htmlFor="table-main" className="font-normal cursor-pointer">Main table</Label>
+                      <Label htmlFor="table-main" className="font-normal cursor-pointer">{t("actions.mainTable")}</Label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="custom" id="table-custom" />
-                      <Label htmlFor="table-custom" className="font-normal cursor-pointer">Custom table</Label>
+                      <Label htmlFor="table-custom" className="font-normal cursor-pointer">{t("actions.customTable")}</Label>
                     </div>
                   </RadioGroup>
                   {actionTableMode === "custom" && (
                     <Input
                       id="actionTable"
-                      placeholder="Table number or name"
+                      placeholder={t("actions.tablePlaceholder")}
                       value={actionTable}
                       onChange={(e) => setActionTable(e.target.value)}
                       disabled={loading}
@@ -1618,10 +1636,10 @@ export function RouteRuleModal({
                       value={actionVrf}
                       onValueChange={setActionVrf}
                       disabled={loading}
-                      extraOptions={[{ label: "Default", value: "default" }]}
+                      extraOptions={[{ label: tc("default"), value: "default" }]}
                     />
                     <p className="text-xs text-muted-foreground">
-                      VRF routing
+                      {t("actions.vrfHelp")}
                     </p>
                   </div>
                 )}
@@ -1629,19 +1647,19 @@ export function RouteRuleModal({
             </div>
 
             <div className="space-y-4">
-              <h3 className="font-semibold text-sm">TCP Options</h3>
+              <h3 className="font-semibold text-sm">{t("actions.tcpOptions")}</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="actionTcpMss">TCP MSS</Label>
                   <Input
                     id="actionTcpMss"
-                    placeholder="500-1460 or 'clamp-mss-to-pmtu'"
+                    placeholder={t("actions.tcpMssPlaceholder")}
                     value={actionTcpMss}
                     onChange={(e) => setActionTcpMss(e.target.value)}
                     disabled={loading}
                   />
                   <p className="text-xs text-muted-foreground">
-                    TCP Maximum Segment Size
+                    {t("actions.tcpMssHelp")}
                   </p>
                 </div>
               </div>
@@ -1651,10 +1669,10 @@ export function RouteRuleModal({
 
         <div className="flex justify-end gap-2 mt-4">
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? (isEdit ? "Saving..." : "Creating...") : isEdit ? "Save Changes" : "Create Rule"}
+            {loading ? (isEdit ? tc("saving") : t("buttons.creating")) : isEdit ? t("buttons.saveChanges") : t("buttons.createRule")}
           </Button>
         </div>
       </DialogContent>
