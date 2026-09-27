@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
@@ -94,6 +95,8 @@ interface Props {
 }
 
 export function HAProxyServiceModal({ open, onOpenChange, service, backends, capabilities, onSuccess }: Props) {
+  const t = useTranslations("haproxy");
+  const tc = useTranslations("common");
   const isEdit = !!service;
   const isV15 = capabilities?.features.http_compression.supported ?? false;
 
@@ -155,8 +158,8 @@ export function HAProxyServiceModal({ open, onOpenChange, service, backends, cap
     }));
 
   const handleSubmit = async () => {
-    if (!form.name.trim()) { setError("Service name is required"); return; }
-    if (!form.port) { setError("Port is required"); return; }
+    if (!form.name.trim()) { setError(t("serviceModal.nameRequired")); return; }
+    if (!form.port) { setError(t("portRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -170,7 +173,7 @@ export function HAProxyServiceModal({ open, onOpenChange, service, backends, cap
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -180,17 +183,17 @@ export function HAProxyServiceModal({ open, onOpenChange, service, backends, cap
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Service" : "Add Service"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("serviceModal.editTitle") : t("serviceModal.addTitle")}</DialogTitle>
           <DialogDescription>
-            Configure a HAProxy frontend service (listener).
-            {isEdit && " Routing rules are managed on the service detail page."}
+            {t("serviceModal.description")}
+            {isEdit && t("serviceModal.descriptionEdit")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 py-2">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Name <span className="text-destructive">*</span></Label>
+              <Label>{tc("name")} <span className="text-destructive">*</span></Label>
               <Input
                 value={form.name}
                 onChange={(e) => set("name", e.target.value)}
@@ -199,18 +202,18 @@ export function HAProxyServiceModal({ open, onOpenChange, service, backends, cap
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Description</Label>
+              <Label>{tc("description")}</Label>
               <Input
                 value={form.description}
                 onChange={(e) => set("description", e.target.value)}
-                placeholder="Optional description"
+                placeholder={t("optionalDescription")}
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Mode</Label>
+              <Label>{t("mode")}</Label>
               <Select value={form.mode} onValueChange={(v) => set("mode", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -220,7 +223,7 @@ export function HAProxyServiceModal({ open, onOpenChange, service, backends, cap
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Port <span className="text-destructive">*</span></Label>
+              <Label>{t("port")} <span className="text-destructive">*</span></Label>
               <Input
                 value={form.port}
                 onChange={(e) => set("port", e.target.value)}
@@ -231,13 +234,13 @@ export function HAProxyServiceModal({ open, onOpenChange, service, backends, cap
           </div>
 
           <div className="space-y-2">
-            <Label>Listen Addresses</Label>
+            <Label>{t("serviceDetail.listenAddresses")}</Label>
             <div className="flex gap-2">
               <Input
                 value={form.new_address}
                 onChange={(e) => set("new_address", e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addAddress())}
-                placeholder="0.0.0.0 or 192.168.1.1"
+                placeholder={t("serviceModal.listenAddressPlaceholder")}
               />
               <Button type="button" variant="outline" size="sm" onClick={addAddress}>
                 <Plus className="h-3.5 w-3.5" />
@@ -258,9 +261,9 @@ export function HAProxyServiceModal({ open, onOpenChange, service, backends, cap
           </div>
 
           <div className="space-y-2">
-            <Label>Backends</Label>
+            <Label>{t("backends")}</Label>
             {backends.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No backends configured yet.</p>
+              <p className="text-sm text-muted-foreground">{t("serviceModal.noBackendsYet")}</p>
             ) : (
               <div className="grid grid-cols-2 gap-1.5">
                 {backends.map((be) => (
@@ -282,14 +285,14 @@ export function HAProxyServiceModal({ open, onOpenChange, service, backends, cap
               checked={form.redirect_http_to_https}
               onCheckedChange={(c) => set("redirect_http_to_https", !!c)}
             />
-            Redirect HTTP to HTTPS
+            {t("redirectHttpToHttps")}
           </label>
 
           <Separator />
 
           <Collapsible open={sslOpen} onOpenChange={setSslOpen}>
             <CollapsibleTrigger className="flex w-full items-center justify-between py-1 text-sm font-semibold hover:text-foreground text-muted-foreground transition-colors">
-              SSL/TLS Settings
+              {t("serviceModal.sslTlsSettings")}
               <ChevronDown className={cn("h-4 w-4 transition-transform", sslOpen && "rotate-180")} />
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-3 pt-3">
@@ -298,7 +301,7 @@ export function HAProxyServiceModal({ open, onOpenChange, service, backends, cap
                   value={form.new_cert}
                   onChange={(e) => set("new_cert", e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCert())}
-                  placeholder="Certificate name (from PKI)"
+                  placeholder={t("certNamePlaceholder")}
                 />
                 <Button type="button" variant="outline" size="sm" onClick={addCert}>
                   <Plus className="h-3.5 w-3.5" />
@@ -322,7 +325,7 @@ export function HAProxyServiceModal({ open, onOpenChange, service, backends, cap
           {isV15 && (
             <Collapsible open={compressionOpen} onOpenChange={setCompressionOpen}>
               <CollapsibleTrigger className="flex w-full items-center justify-between py-1 text-sm font-semibold hover:text-foreground text-muted-foreground transition-colors">
-                HTTP Compression
+                {t("serviceModal.httpCompression")}
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-xs">VyOS 1.5+</Badge>
                   <ChevronDown className={cn("h-4 w-4 transition-transform", compressionOpen && "rotate-180")} />
@@ -330,14 +333,14 @@ export function HAProxyServiceModal({ open, onOpenChange, service, backends, cap
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-3 pt-3">
                 <div className="space-y-1.5">
-                  <Label className="text-sm">Algorithm</Label>
+                  <Label className="text-sm">{t("serviceModal.algorithm")}</Label>
                   <Select
                     value={form.http_compression_algorithm || "_none"}
                     onValueChange={(v) => set("http_compression_algorithm", v === "_none" ? "" : v)}
                   >
-                    <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="_none">None</SelectItem>
+                      <SelectItem value="_none">{tc("none")}</SelectItem>
                       <SelectItem value="gzip">gzip</SelectItem>
                       <SelectItem value="deflate">deflate</SelectItem>
                       <SelectItem value="raw-deflate">raw-deflate</SelectItem>
@@ -346,7 +349,7 @@ export function HAProxyServiceModal({ open, onOpenChange, service, backends, cap
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-sm">MIME Types</Label>
+                  <Label className="text-sm">{t("serviceModal.mimeTypes")}</Label>
                   <div className="flex gap-2">
                     <Input
                       value={form.new_mime}
@@ -384,10 +387,10 @@ export function HAProxyServiceModal({ open, onOpenChange, service, backends, cap
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? "Save Changes" : "Create Service"}
+            {isEdit ? t("saveChanges") : t("serviceModal.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

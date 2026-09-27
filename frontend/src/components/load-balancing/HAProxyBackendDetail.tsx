@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,12 +46,13 @@ function ruleMatchSummary(rule: LBBackendRule): string {
   return parts.join("  ·  ") || "—";
 }
 
-function ruleActionSummary(rule: LBBackendRule): { label: string; variant: "default" | "secondary" | "outline" } {
+// label null = no action (translated at render time)
+function ruleActionSummary(rule: LBBackendRule): { label: string | null; variant: "default" | "secondary" | "outline" } {
   if (rule.set.server)
     return { label: `→ ${rule.set.server}`, variant: "secondary" };
   if (rule.set.redirect_location)
     return { label: `↪ ${rule.set.redirect_location}`, variant: "outline" };
-  return { label: "No action", variant: "outline" };
+  return { label: null, variant: "outline" };
 }
 
 // ============================================================================
@@ -65,6 +67,8 @@ function DeleteRuleDialog({
   ruleId: string;
   onConfirm: () => Promise<void>;
 }) {
+  const t = useTranslations("haproxy");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,8 +78,8 @@ function DeleteRuleDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Delete Rule {ruleId}?</DialogTitle>
-          <DialogDescription>This will permanently remove this routing rule.</DialogDescription>
+          <DialogTitle>{t("deleteRuleTitle", { id: ruleId })}</DialogTitle>
+          <DialogDescription>{t("deleteRuleDescription")}</DialogDescription>
         </DialogHeader>
         {error && (
           <div className="flex gap-2 rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
@@ -84,16 +88,16 @@ function DeleteRuleDialog({
           </div>
         )}
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button variant="destructive" disabled={loading} onClick={async () => {
             setLoading(true);
             setError(null);
             try { await onConfirm(); onOpenChange(false); }
-            catch (err) { setError(err instanceof Error ? err.message : "Delete failed"); }
+            catch (err) { setError(err instanceof Error ? err.message : t("deleteFailed")); }
             finally { setLoading(false); }
           }}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Delete
+            {tc("delete")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -108,6 +112,8 @@ function DeleteRuleDialog({
 interface Props { backendName: string }
 
 export function HAProxyBackendDetail({ backendName }: Props) {
+  const t = useTranslations("haproxy");
+  const tc = useTranslations("common");
   const router = useRouter();
   const { canWrite } = usePermissions();
   const canEdit = canWrite(FeatureGroup.LOAD_BALANCING);
@@ -133,11 +139,11 @@ export function HAProxyBackendDetail({ backendName }: Props) {
       setConfig(cfg);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load configuration");
+      setError(err instanceof Error ? err.message : t("failedToLoad"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -167,7 +173,7 @@ export function HAProxyBackendDetail({ backendName }: Props) {
         </Button>
         <div className="flex gap-2 rounded-md bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive">
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-          Backend &quot;{backendName}&quot; not found.
+          {t("backendDetail.notFound", { name: backendName })}
         </div>
       </div>
     );
@@ -203,7 +209,7 @@ export function HAProxyBackendDetail({ backendName }: Props) {
           </div>
           <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
             <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
+            {tc("refresh")}
           </Button>
         </div>
       </div>
@@ -217,9 +223,9 @@ export function HAProxyBackendDetail({ backendName }: Props) {
 
       <Tabs defaultValue="config">
         <TabsList>
-          <TabsTrigger value="config">Configuration</TabsTrigger>
+          <TabsTrigger value="config">{t("configuration")}</TabsTrigger>
           <TabsTrigger value="rules">
-            Rules
+            {t("rules")}
             {rules.length > 0 && (
               <Badge variant="secondary" className="ml-2 text-xs">{rules.length}</Badge>
             )}
@@ -233,26 +239,26 @@ export function HAProxyBackendDetail({ backendName }: Props) {
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Card>
               <CardContent className="pt-4 pb-3">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Mode</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">{t("mode")}</p>
                 <p className="font-semibold">{backend.mode ?? "—"}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-4 pb-3">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Balance</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">{t("balance")}</p>
                 <p className="font-semibold">{backend.balance ?? "—"}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-4 pb-3">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Servers</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">{t("servers")}</p>
                 <p className="font-semibold">{backend.servers.length}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-4 pb-3">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Health Check</p>
-                <p className="font-semibold">{backend.health_check ?? "None"}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">{t("healthCheck")}</p>
+                <p className="font-semibold">{backend.health_check ?? tc("none")}</p>
               </CardContent>
             </Card>
           </div>
@@ -260,10 +266,10 @@ export function HAProxyBackendDetail({ backendName }: Props) {
           <Card>
             <CardContent className="pt-4 pb-4 space-y-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold">Backend Details</p>
+                <p className="text-sm font-semibold">{t("backendDetail.details")}</p>
                 {canEdit && (
                   <Button size="sm" variant="outline" onClick={() => setEditConfigOpen(true)}>
-                    <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit Configuration
+                    <Pencil className="h-3.5 w-3.5 mr-1.5" /> {t("editConfiguration")}
                   </Button>
                 )}
               </div>
@@ -271,14 +277,14 @@ export function HAProxyBackendDetail({ backendName }: Props) {
               {/* Servers table */}
               {backend.servers.length > 0 && (
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Servers</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">{t("servers")}</p>
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="h-8 text-xs">Name</TableHead>
-                        <TableHead className="h-8 text-xs">Address</TableHead>
-                        <TableHead className="h-8 text-xs">Port</TableHead>
-                        <TableHead className="h-8 text-xs">Flags</TableHead>
+                        <TableHead className="h-8 text-xs">{tc("name")}</TableHead>
+                        <TableHead className="h-8 text-xs">{t("address")}</TableHead>
+                        <TableHead className="h-8 text-xs">{t("port")}</TableHead>
+                        <TableHead className="h-8 text-xs">{t("backendDetail.flags")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -315,9 +321,9 @@ export function HAProxyBackendDetail({ backendName }: Props) {
                 <div className="space-y-1 text-sm">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">SSL</p>
                   {backend.ssl.ca_certificate && (
-                    <p>CA Certificate: <Badge variant="secondary" className="text-xs">{backend.ssl.ca_certificate}</Badge></p>
+                    <p>{t("backendDetail.caCertificate")} <Badge variant="secondary" className="text-xs">{backend.ssl.ca_certificate}</Badge></p>
                   )}
-                  {backend.ssl.no_verify && <p className="text-muted-foreground">SSL verification disabled</p>}
+                  {backend.ssl.no_verify && <p className="text-muted-foreground">{t("backendDetail.sslVerificationDisabled")}</p>}
                 </div>
               )}
             </CardContent>
@@ -331,28 +337,27 @@ export function HAProxyBackendDetail({ backendName }: Props) {
           <div className="rounded-lg border border-border bg-card">
             <div className="flex items-center justify-between p-4 border-b border-border">
               <div>
-                <p className="text-sm font-semibold">Routing Rules</p>
+                <p className="text-sm font-semibold">{t("routingRules")}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Rules are evaluated in order. The first matching rule wins.
+                  {t("rulesEvaluatedInOrder")}
                 </p>
               </div>
               {canEdit && (
                 <Button size="sm" onClick={() => { setEditRule(null); setRuleModalOpen(true); }}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Rule
+                  <Plus className="h-3.5 w-3.5 mr-1" /> {t("addRule")}
                 </Button>
               )}
             </div>
 
             {rules.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-14 text-center">
-                <p className="text-sm font-medium">No routing rules</p>
+                <p className="text-sm font-medium">{t("noRoutingRules")}</p>
                 <p className="text-xs text-muted-foreground mt-1 mb-4">
-                  All requests are forwarded according to the balance algorithm.
-                  Add rules to route specific traffic to individual servers.
+                  {t("backendDetail.noRulesHint")}
                 </p>
                 {canEdit && (
                   <Button size="sm" onClick={() => { setEditRule(null); setRuleModalOpen(true); }}>
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Add First Rule
+                    <Plus className="h-3.5 w-3.5 mr-1" /> {t("addFirstRule")}
                   </Button>
                 )}
               </div>
@@ -360,9 +365,9 @@ export function HAProxyBackendDetail({ backendName }: Props) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-20">Rule ID</TableHead>
-                    <TableHead>Match Conditions</TableHead>
-                    <TableHead className="w-56">Action</TableHead>
+                    <TableHead className="w-20">{t("ruleId")}</TableHead>
+                    <TableHead>{t("matchConditions")}</TableHead>
+                    <TableHead className="w-56">{t("action")}</TableHead>
                     {canEdit && <TableHead className="w-20" />}
                   </TableRow>
                 </TableHeader>
@@ -379,7 +384,7 @@ export function HAProxyBackendDetail({ backendName }: Props) {
                         </TableCell>
                         <TableCell>
                           <Badge variant={action.variant} className="text-xs font-mono">
-                            {action.label}
+                            {action.label ?? t("noAction")}
                           </Badge>
                         </TableCell>
                         {canEdit && (

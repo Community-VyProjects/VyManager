@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
@@ -125,6 +126,8 @@ interface Props {
 }
 
 export function HAProxyBackendModal({ open, onOpenChange, backend, capabilities, onSuccess }: Props) {
+  const t = useTranslations("haproxy");
+  const tc = useTranslations("common");
   const isEdit = !!backend;
   const isV15 = capabilities?.features.server_check_port.supported ?? false;
 
@@ -156,7 +159,7 @@ export function HAProxyBackendModal({ open, onOpenChange, backend, capabilities,
     setForm((f) => ({ ...f, servers: f.servers.filter((_, i) => i !== idx) }));
 
   const handleSubmit = async () => {
-    if (!form.name.trim()) { setError("Backend name is required"); return; }
+    if (!form.name.trim()) { setError(t("backendModal.nameRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -170,7 +173,7 @@ export function HAProxyBackendModal({ open, onOpenChange, backend, capabilities,
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -180,17 +183,17 @@ export function HAProxyBackendModal({ open, onOpenChange, backend, capabilities,
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Backend" : "Add Backend"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("backendModal.editTitle") : t("backendModal.addTitle")}</DialogTitle>
           <DialogDescription>
-            Configure a HAProxy backend pool with servers and load balancing settings.
-            {isEdit && " Routing rules are managed on the backend detail page."}
+            {t("backendModal.description")}
+            {isEdit && t("backendModal.descriptionEdit")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 py-2">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Name <span className="text-destructive">*</span></Label>
+              <Label>{tc("name")} <span className="text-destructive">*</span></Label>
               <Input
                 value={form.name}
                 onChange={(e) => set("name", e.target.value)}
@@ -199,18 +202,18 @@ export function HAProxyBackendModal({ open, onOpenChange, backend, capabilities,
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Description</Label>
+              <Label>{tc("description")}</Label>
               <Input
                 value={form.description}
                 onChange={(e) => set("description", e.target.value)}
-                placeholder="Optional description"
+                placeholder={t("optionalDescription")}
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Mode</Label>
+              <Label>{t("mode")}</Label>
               <Select value={form.mode} onValueChange={(v) => set("mode", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -220,13 +223,13 @@ export function HAProxyBackendModal({ open, onOpenChange, backend, capabilities,
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Balance Algorithm</Label>
+              <Label>{t("balanceAlgorithm")}</Label>
               <Select value={form.balance} onValueChange={(v) => set("balance", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="round-robin">Round Robin</SelectItem>
-                  <SelectItem value="least-conn">Least Connections</SelectItem>
-                  <SelectItem value="source-hash">Source Hash</SelectItem>
+                  <SelectItem value="round-robin">{t("balanceRoundRobin")}</SelectItem>
+                  <SelectItem value="least-conn">{t("balanceLeastConn")}</SelectItem>
+                  <SelectItem value="source-hash">{t("balanceSourceHash")}</SelectItem>
                   <SelectItem value="uri">URI</SelectItem>
                 </SelectContent>
               </Select>
@@ -234,14 +237,14 @@ export function HAProxyBackendModal({ open, onOpenChange, backend, capabilities,
           </div>
 
           <div className="space-y-1.5">
-            <Label>Health Check</Label>
+            <Label>{t("healthCheck")}</Label>
             <Select
               value={form.health_check || "_none"}
               onValueChange={(v) => set("health_check", v === "_none" ? "" : v)}
             >
-              <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="_none">None</SelectItem>
+                <SelectItem value="_none">{tc("none")}</SelectItem>
                 <SelectItem value="tcp">TCP</SelectItem>
                 <SelectItem value="http">HTTP</SelectItem>
               </SelectContent>
@@ -252,16 +255,16 @@ export function HAProxyBackendModal({ open, onOpenChange, backend, capabilities,
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-semibold">Servers</Label>
+              <Label className="text-sm font-semibold">{t("servers")}</Label>
               <Button type="button" variant="outline" size="sm" onClick={addServer}>
-                <Plus className="h-3.5 w-3.5 mr-1" /> Add Server
+                <Plus className="h-3.5 w-3.5 mr-1" /> {t("addServer")}
               </Button>
             </div>
 
             {form.servers.map((srv, idx) => (
               <div key={idx} className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-muted-foreground">Server {idx + 1}</span>
+                  <span className="text-xs font-medium text-muted-foreground">{t("serverN", { n: idx + 1 })}</span>
                   {form.servers.length > 1 && (
                     <Button
                       type="button" variant="ghost" size="sm"
@@ -275,17 +278,17 @@ export function HAProxyBackendModal({ open, onOpenChange, backend, capabilities,
 
                 <div className="grid grid-cols-3 gap-2">
                   <div className="space-y-1">
-                    <Label className="text-xs">Name</Label>
+                    <Label className="text-xs">{tc("name")}</Label>
                     <Input className="h-8 text-sm" value={srv.name}
                       onChange={(e) => setServer(idx, "name", e.target.value)} placeholder="web1" />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Address</Label>
+                    <Label className="text-xs">{t("address")}</Label>
                     <Input className="h-8 text-sm" value={srv.address}
                       onChange={(e) => setServer(idx, "address", e.target.value)} placeholder="10.0.0.10" />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Port</Label>
+                    <Label className="text-xs">{t("port")}</Label>
                     <Input className="h-8 text-sm" value={srv.port}
                       onChange={(e) => setServer(idx, "port", e.target.value)} placeholder="8080" />
                   </div>
@@ -294,22 +297,22 @@ export function HAProxyBackendModal({ open, onOpenChange, backend, capabilities,
                 <div className="flex flex-wrap gap-4">
                   <label className="flex items-center gap-2 text-sm cursor-pointer">
                     <Checkbox checked={srv.check} onCheckedChange={(c) => setServer(idx, "check", !!c)} />
-                    Health check
+                    {t("serverHealthCheck")}
                   </label>
                   {isV15 && srv.check && (
                     <div className="flex items-center gap-2">
-                      <Label className="text-xs whitespace-nowrap">Check port</Label>
+                      <Label className="text-xs whitespace-nowrap">{t("checkPort")}</Label>
                       <Input className="h-7 w-20 text-xs" value={srv.check_port}
                         onChange={(e) => setServer(idx, "check_port", e.target.value)} placeholder="80" />
                     </div>
                   )}
                   <label className="flex items-center gap-2 text-sm cursor-pointer">
                     <Checkbox checked={srv.backup} onCheckedChange={(c) => setServer(idx, "backup", !!c)} />
-                    Backup
+                    {t("backup")}
                   </label>
                   <label className="flex items-center gap-2 text-sm cursor-pointer">
                     <Checkbox checked={srv.send_proxy} onCheckedChange={(c) => setServer(idx, "send_proxy", !!c)} />
-                    Send PROXY protocol
+                    {t("sendProxy")}
                   </label>
                 </div>
               </div>
@@ -320,19 +323,19 @@ export function HAProxyBackendModal({ open, onOpenChange, backend, capabilities,
 
           <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
             <CollapsibleTrigger className="flex w-full items-center justify-between py-1 text-sm font-semibold hover:text-foreground text-muted-foreground transition-colors">
-              Advanced Options
+              {t("advancedOptions")}
               <ChevronDown className={cn("h-4 w-4 transition-transform", advancedOpen && "rotate-180")} />
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-4 pt-3">
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">HTTP Health Check</p>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{t("backendModal.httpHealthCheck")}</p>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-sm">Method</Label>
+                  <Label className="text-sm">{t("backendModal.method")}</Label>
                   <Select value={form.http_check_method || "_none"}
                     onValueChange={(v) => set("http_check_method", v === "_none" ? "" : v)}>
-                    <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="_none">None</SelectItem>
+                      <SelectItem value="_none">{tc("none")}</SelectItem>
                       <SelectItem value="GET">GET</SelectItem>
                       <SelectItem value="HEAD">HEAD</SelectItem>
                       <SelectItem value="OPTIONS">OPTIONS</SelectItem>
@@ -347,12 +350,12 @@ export function HAProxyBackendModal({ open, onOpenChange, backend, capabilities,
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-sm">Expect Status</Label>
+                  <Label className="text-sm">{t("backendModal.expectStatus")}</Label>
                   <Input value={form.http_check_expect_status}
                     onChange={(e) => set("http_check_expect_status", e.target.value)} placeholder="200" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-sm">Expect String</Label>
+                  <Label className="text-sm">{t("backendModal.expectString")}</Label>
                   <Input value={form.http_check_expect_string}
                     onChange={(e) => set("http_check_expect_string", e.target.value)} placeholder="OK" />
                 </div>
@@ -360,16 +363,16 @@ export function HAProxyBackendModal({ open, onOpenChange, backend, capabilities,
 
               <Separator />
 
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">SSL/TLS (Backend)</p>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{t("backendModal.sslTlsBackend")}</p>
               <div className="space-y-1.5">
-                <Label className="text-sm">CA Certificate</Label>
+                <Label className="text-sm">{t("backendModal.caCertificate")}</Label>
                 <Input value={form.ssl_ca_certificate}
-                  onChange={(e) => set("ssl_ca_certificate", e.target.value)} placeholder="ca-cert name" />
+                  onChange={(e) => set("ssl_ca_certificate", e.target.value)} placeholder={t("backendModal.caCertPlaceholder")} />
               </div>
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <Checkbox checked={form.ssl_no_verify}
                   onCheckedChange={(c) => set("ssl_no_verify", !!c)} />
-                Disable SSL verification (no-verify)
+                {t("backendModal.disableSslVerify")}
               </label>
             </CollapsibleContent>
           </Collapsible>
@@ -383,10 +386,10 @@ export function HAProxyBackendModal({ open, onOpenChange, backend, capabilities,
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? "Save Changes" : "Create Backend"}
+            {isEdit ? t("saveChanges") : t("backendModal.create")}
           </Button>
         </DialogFooter>
       </DialogContent>
