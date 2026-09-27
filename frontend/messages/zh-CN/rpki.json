@@ -1,1 +1,74 @@
-{}
+{
+  "cacheServers": "缓存服务器",
+  "errors": {
+    "loadConfig": "加载 RPKI 配置失败",
+    "expireRange": "过期间隔必须介于 600 到 172800 秒之间",
+    "pollingRange": "轮询周期必须介于 1 到 86400 秒之间",
+    "retryRange": "重试间隔必须介于 1 到 7200 秒之间",
+    "saveSettings": "保存设置失败"
+  },
+  "header": {
+    "readOnly": "只读",
+    "subtitle": "资源公钥基础设施"
+  },
+  "stats": {
+    "sshEnabled": "已启用 SSH"
+  },
+  "tabs": {
+    "settings": "设置"
+  },
+  "servers": {
+    "description": "管理用于 BGP 路由起源验证的 RPKI 缓存服务器。",
+    "add": "添加缓存服务器",
+    "empty": "尚未配置缓存服务器",
+    "emptyHint": "添加缓存服务器以启用路由起源验证",
+    "address": "地址",
+    "port": "端口",
+    "preference": "首选项",
+    "sourceAddress": "源地址",
+    "configured": "已配置"
+  },
+  "settings": {
+    "globalTimers": "全局定时器",
+    "expireInterval": "过期间隔",
+    "expirePlaceholder": "默认：7200",
+    "expireHelp": "缓存数据过期前的秒数（600–172800）",
+    "expireDefault": "（默认：7200s）",
+    "pollingPeriod": "轮询周期",
+    "pollingPlaceholder": "默认：300",
+    "pollingHelp": "缓存轮询间隔，单位为秒（1–86400）",
+    "pollingDefault": "（默认：300s）",
+    "retryInterval": "重试间隔",
+    "retryPlaceholder": "默认：600",
+    "retryHelp": "重新连接缓存服务器的重试间隔（1–7200）",
+    "retryDefault": "（默认：600s）"
+  },
+  "modal": {
+    "addressRequired": "缓存服务器地址为必填项",
+    "portRange": "端口必须是 1 到 65535 之间的整数",
+    "preferenceRange": "首选项必须是 1 到 255 之间的整数",
+    "sshRequired": "启用 SSH 传输时，必须填写 SSH 密钥或用户名",
+    "editTitle": "编辑缓存服务器",
+    "description": "配置用于 BGP 路由起源验证的 RPKI 缓存服务器。",
+    "address": "缓存服务器地址",
+    "addressPlaceholder": "例如 192.0.2.1 或 rpki.example.com",
+    "addressHelp": "IPv4 地址、IPv6 地址或完全限定域名",
+    "preferencePlaceholder": "可选（1–255）",
+    "sourceAddressPlaceholder": "可选的 IPv4 源地址",
+    "useSsh": "使用 SSH 传输",
+    "useSshHelp": "通过 SSH 而非普通 TCP 连接",
+    "sshKey": "SSH 密钥",
+    "noSshKeys": "尚未配置 SSH 密钥 — 请在 PKI → OpenSSH 中添加",
+    "selectKey": "选择密钥",
+    "keyHelp": "在 PKI → OpenSSH 中配置",
+    "sshUsername": "SSH 用户名",
+    "usernamePlaceholder": "例如 rpki-user",
+    "creating": "正在创建...",
+    "saveChanges": "保存更改"
+  },
+  "delete": {
+    "title": "删除 RPKI 缓存服务器",
+    "description": "确定要移除缓存服务器 <mono>{address}</mono> 吗？这将影响 BGP 路由起源验证。",
+    "confirm": "删除服务器"
+  }
+}

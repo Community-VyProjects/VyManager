@@ -1,1 +1,74 @@
-{}
+{
+  "cacheServers": "Cache Servers",
+  "errors": {
+    "loadConfig": "Failed to load RPKI configuration",
+    "expireRange": "Expire interval must be between 600 and 172800 seconds",
+    "pollingRange": "Polling period must be between 1 and 86400 seconds",
+    "retryRange": "Retry interval must be between 1 and 7200 seconds",
+    "saveSettings": "Failed to save settings"
+  },
+  "header": {
+    "readOnly": "Read Only",
+    "subtitle": "Resource Public Key Infrastructure"
+  },
+  "stats": {
+    "sshEnabled": "SSH-Enabled"
+  },
+  "tabs": {
+    "settings": "Settings"
+  },
+  "servers": {
+    "description": "Manage RPKI cache servers for BGP route origin validation.",
+    "add": "Add Cache Server",
+    "empty": "No cache servers configured",
+    "emptyHint": "Add a cache server to enable route origin validation",
+    "address": "Address",
+    "port": "Port",
+    "preference": "Preference",
+    "sourceAddress": "Source Address",
+    "configured": "configured"
+  },
+  "settings": {
+    "globalTimers": "Global Timers",
+    "expireInterval": "Expire Interval",
+    "expirePlaceholder": "Default: 7200",
+    "expireHelp": "Seconds before expiring cache data (600–172800)",
+    "expireDefault": "(default: 7200s)",
+    "pollingPeriod": "Polling Period",
+    "pollingPlaceholder": "Default: 300",
+    "pollingHelp": "Cache polling interval in seconds (1–86400)",
+    "pollingDefault": "(default: 300s)",
+    "retryInterval": "Retry Interval",
+    "retryPlaceholder": "Default: 600",
+    "retryHelp": "Retry interval to reconnect to cache server (1–7200)",
+    "retryDefault": "(default: 600s)"
+  },
+  "modal": {
+    "addressRequired": "Cache server address is required",
+    "portRange": "Port must be an integer between 1 and 65535",
+    "preferenceRange": "Preference must be an integer between 1 and 255",
+    "sshRequired": "SSH key or username is required when SSH transport is enabled",
+    "editTitle": "Edit Cache Server",
+    "description": "Configure an RPKI cache server for BGP route origin validation.",
+    "address": "Cache Server Address",
+    "addressPlaceholder": "e.g. 192.0.2.1 or rpki.example.com",
+    "addressHelp": "IPv4 address, IPv6 address, or fully-qualified domain name",
+    "preferencePlaceholder": "Optional (1–255)",
+    "sourceAddressPlaceholder": "Optional IPv4 source address",
+    "useSsh": "Use SSH Transport",
+    "useSshHelp": "Connect via SSH instead of plain TCP",
+    "sshKey": "SSH Key",
+    "noSshKeys": "No SSH keys configured — add one in PKI → OpenSSH",
+    "selectKey": "Select a key",
+    "keyHelp": "Configured in PKI → OpenSSH",
+    "sshUsername": "SSH Username",
+    "usernamePlaceholder": "e.g. rpki-user",
+    "creating": "Creating...",
+    "saveChanges": "Save Changes"
+  },
+  "delete": {
+    "title": "Delete RPKI Cache Server",
+    "description": "Remove cache server <mono>{address}</mono>? This will affect BGP route origin validation.",
+    "confirm": "Delete Server"
+  }
+}
