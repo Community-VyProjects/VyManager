@@ -105,13 +105,13 @@ describe("static route create", () => {
   it("rejects a missing destination", () => {
     const draft = emptyStaticRouteDraft("ipv4");
     draft.isBlackhole = true;
-    assert.equal(validateStaticRouteCreate(draft), "Destination is required");
+    assert.equal(validateStaticRouteCreate(draft), "destinationRequired");
   });
 
   it("rejects an IPv4 route with no routing method", () => {
     const draft = emptyStaticRouteDraft("ipv4");
     draft.destination = "10.0.0.0/8";
-    assert.match(validateStaticRouteCreate(draft) ?? "", /routing method/);
+    assert.equal(validateStaticRouteCreate(draft), "routingMethodRequired");
   });
 
   it("emits only the fields the operator filled in", async () => {

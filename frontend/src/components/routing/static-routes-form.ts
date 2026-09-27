@@ -180,18 +180,21 @@ export function staticRouteDraftFrom(current: StaticRoute): StaticRouteDraft {
   return draft;
 }
 
-export function validateStaticRouteCreate(draft: StaticRouteDraft): string | null {
+/** Message keys (staticRoutes.validation.*) returned by the static route validators. */
+export type StaticRouteValidationError = "destinationRequired" | "routingMethodRequired";
+
+export function validateStaticRouteCreate(draft: StaticRouteDraft): StaticRouteValidationError | null {
   if (!draft.destination.trim()) {
-    return "Destination is required";
+    return "destinationRequired";
   }
   return validateStaticRouteShared(draft);
 }
 
-export function validateStaticRouteEdit(draft: StaticRouteDraft): string | null {
+export function validateStaticRouteEdit(draft: StaticRouteDraft): StaticRouteValidationError | null {
   return validateStaticRouteShared(draft);
 }
 
-function validateStaticRouteShared(draft: StaticRouteDraft): string | null {
+function validateStaticRouteShared(draft: StaticRouteDraft): StaticRouteValidationError | null {
   const hops = nextHopsPayload(draft.nextHops);
   const ifaces = interfacesPayload(draft.interfaces);
   if (
@@ -202,7 +205,7 @@ function validateStaticRouteShared(draft: StaticRouteDraft): string | null {
     !draft.isReject &&
     !draft.dhcpInterface.trim()
   ) {
-    return "At least one routing method is required (next-hop, interface, blackhole, or reject)";
+    return "routingMethodRequired";
   }
   return null;
 }

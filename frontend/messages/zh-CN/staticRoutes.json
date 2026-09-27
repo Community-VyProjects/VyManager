@@ -1,1 +1,146 @@
-{}
+{
+  "layout": {
+    "title": "静态路由与故障转移",
+    "subtitle": "静态路由和故障转移",
+    "routes": {
+      "static": {
+        "name": "静态路由",
+        "description": "手动配置的路由"
+      },
+      "failover": {
+        "name": "故障转移 / 跟踪",
+        "description": "路由故障转移和健康跟踪"
+      }
+    }
+  },
+  "errors": {
+    "loadFailed": "加载静态路由配置失败"
+  },
+  "page": {
+    "errorTitle": "加载静态路由出错",
+    "title": "静态路由",
+    "subtitle": "管理静态路由、ARP 条目、组播路由和邻居代理"
+  },
+  "stats": {
+    "totalRoutes": "路由总数",
+    "ipv4Routes": "IPv4 路由",
+    "ipv6Routes": "IPv6 路由",
+    "arpEntries": "ARP 条目",
+    "multicast": "组播",
+    "neighborProxy": "邻居代理"
+  },
+  "tabs": {
+    "routes": "静态路由",
+    "arp": "静态 ARP",
+    "mroute": "组播路由",
+    "neighborProxy": "邻居代理",
+    "tables": "路由表"
+  },
+  "routes": {
+    "searchPlaceholder": "搜索路由...",
+    "createRoute": "创建 {type} 路由",
+    "emptyTitle": "未找到路由",
+    "noMatch": "没有符合搜索条件的路由",
+    "emptyType": "未配置 {type} 静态路由",
+    "destination": "目标",
+    "nextHops": "下一跳",
+    "interfaces": "接口",
+    "distance": "距离",
+    "type": "类型",
+    "blackhole": "黑洞",
+    "disabledSuffix": "（已禁用）",
+    "active": "生效中"
+  },
+  "arp": {
+    "searchPlaceholder": "搜索 ARP 条目...",
+    "create": "创建 ARP 条目",
+    "emptyTitle": "没有静态 ARP 条目",
+    "emptyDescription": "未配置静态 ARP 条目",
+    "interface": "接口",
+    "ipAddress": "IP 地址",
+    "macAddress": "MAC 地址"
+  },
+  "mroute": {
+    "searchPlaceholder": "搜索组播路由...",
+    "create": "创建组播路由",
+    "emptyTitle": "没有组播路由",
+    "emptyDescription": "未配置静态组播路由",
+    "prefix": "前缀",
+    "distanceSuffix": "（距离:{distance}）"
+  },
+  "neighborProxy": {
+    "searchPlaceholder": "搜索邻居代理条目...",
+    "create": "创建邻居代理",
+    "emptyTitle": "没有邻居代理条目",
+    "emptyDescription": "未配置邻居代理条目（ARP 或 ND）"
+  },
+  "tables": {
+    "create": "创建路由表"
+  },
+  "validation": {
+    "destinationRequired": "目标为必填项",
+    "routingMethodRequired": "至少需要一种路由方式（下一跳、接口、黑洞或拒绝）"
+  },
+  "modal": {
+    "updateFailed": "更新路由失败",
+    "createFailed": "创建路由失败",
+    "editTitle": "编辑静态路由",
+    "createTitle": "创建 {type} 静态路由",
+    "editDescription": "修改 {destination} 的配置",
+    "createDescription": "为 {family} 流量配置新的静态路由",
+    "tabs": {
+      "basic": "基本",
+      "routing": "路由",
+      "advanced": "高级"
+    },
+    "destinationNetwork": "目标网络",
+    "example": "例如 {value}",
+    "destinationLocked": "目标无法更改。如需更改目标，请删除后重新创建。",
+    "cidrHint": "CIDR 格式的网络",
+    "descriptionPlaceholder": "此路由的可选描述",
+    "nextHops": "下一跳",
+    "addNextHop": "添加下一跳",
+    "nextHopN": "下一跳 #{n}",
+    "address": "地址",
+    "distanceMetric": "距离（度量值）",
+    "defaultOne": "默认：1",
+    "enableBfd": "启用 BFD 监测",
+    "bfdProfile": "BFD 配置文件",
+    "bfdProfilePlaceholder": "BFD 配置文件名称（可选）",
+    "disableNextHop": "禁用此下一跳",
+    "noNextHops": "未配置下一跳。点击“添加下一跳”进行添加。",
+    "interfaceRoutes": "接口路由",
+    "addInterface": "添加接口",
+    "interfaceN": "接口 #{n}",
+    "interface": "接口",
+    "selectInterface": "选择接口",
+    "disableInterface": "禁用此接口路由",
+    "noInterfaces": "未配置接口路由。点击“添加接口”进行添加。",
+    "blackholeRoute": "黑洞路由（静默丢弃）",
+    "blackholeHelp": "匹配此路由的数据包将被丢弃且不发送通知。",
+    "tag": "标记",
+    "rejectRoute": "拒绝路由（ICMP 不可达）",
+    "rejectHelp": "匹配此路由的数据包将被拒绝，并返回 ICMP 不可达响应。",
+    "dhcpInterface": "DHCP 接口",
+    "dhcpHelp": "使用此接口上通过 DHCP 获取的网关",
+    "noAdvanced": "此设备上没有可用的高级选项。",
+    "updating": "正在更新...",
+    "creating": "正在创建...",
+    "updateRoute": "更新路由",
+    "createRoute": "创建路由"
+  },
+  "deleteModal": {
+    "failed": "删除路由失败",
+    "title": "删除静态路由",
+    "description": "确定要删除此路由吗？此操作无法撤销。",
+    "blackholeRoute": "黑洞路由",
+    "distance": "距离：{distance}",
+    "nextHops": "下一跳：",
+    "interfaces": "接口：",
+    "distSuffix": "（距离：{distance}）",
+    "dhcpInterfaces": "DHCP 接口：",
+    "warningTitle": "这将永久删除该路由",
+    "warningBody": "发往 {destination} 的流量将不再使用此路由。如有需要，请确保已配置备用路由。",
+    "deleteRoute": "删除路由"
+  }
+}
