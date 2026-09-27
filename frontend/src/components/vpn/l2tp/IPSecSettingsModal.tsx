@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +37,8 @@ export function IPSecSettingsModal({
   onSuccess,
   currentSettings,
 }: IPSecSettingsModalProps) {
+  const t = useTranslations("l2tp");
+  const tc = useTranslations("common");
   const [authMode, setAuthMode] = useState("");
   const [psk, setPsk] = useState("");
   const [x509CaCert, setX509CaCert] = useState("");
@@ -83,10 +86,10 @@ export function IPSecSettingsModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to update IPSec settings");
+        setError(result.error || t("ipsec.updateFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to update IPSec settings");
+      setError((err as ApiError).message || t("ipsec.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -98,64 +101,64 @@ export function IPSecSettingsModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
-            IPSec Settings
+            {t("ipsec.title")}
           </DialogTitle>
-          <DialogDescription>Configure IPSec transport encryption for L2TP.</DialogDescription>
+          <DialogDescription>{t("ipsec.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Authentication Mode</Label>
+            <Label>{t("shared.authMode")}</Label>
             <Select value={authMode} onValueChange={setAuthMode}>
-              <SelectTrigger><SelectValue placeholder="Select mode" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t("shared.selectMode")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="pre-shared-secret">Pre-Shared Secret</SelectItem>
-                <SelectItem value="x509">X.509 Certificate</SelectItem>
+                <SelectItem value="pre-shared-secret">{t("ipsec.preSharedSecret")}</SelectItem>
+                <SelectItem value="x509">{t("ipsec.x509Certificate")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           {authMode === "pre-shared-secret" && (
             <div className="space-y-2">
-              <Label>Pre-Shared Secret</Label>
-              <Input type="password" value={psk} onChange={(e) => setPsk(e.target.value)} placeholder={currentSettings.psk ? "Leave blank to keep current" : "Enter secret"} />
+              <Label>{t("ipsec.preSharedSecret")}</Label>
+              <Input type="password" value={psk} onChange={(e) => setPsk(e.target.value)} placeholder={currentSettings.psk ? t("shared.keepCurrentBlank") : t("shared.enterSecret")} />
             </div>
           )}
 
           {authMode === "x509" && (
             <>
               <div className="space-y-2">
-                <Label>CA Certificate</Label>
-                <Input value={x509CaCert} onChange={(e) => setX509CaCert(e.target.value)} placeholder="CA certificate name" />
+                <Label>{t("ipsec.caCertificate")}</Label>
+                <Input value={x509CaCert} onChange={(e) => setX509CaCert(e.target.value)} placeholder={t("ipsec.caCertName")} />
               </div>
               <div className="space-y-2">
-                <Label>Certificate</Label>
-                <Input value={x509Cert} onChange={(e) => setX509Cert(e.target.value)} placeholder="Certificate name" />
+                <Label>{t("ipsec.certificate")}</Label>
+                <Input value={x509Cert} onChange={(e) => setX509Cert(e.target.value)} placeholder={t("ipsec.certName")} />
               </div>
               <div className="space-y-2">
-                <Label>Passphrase</Label>
-                <Input type="password" value={x509Passphrase} onChange={(e) => setX509Passphrase(e.target.value)} placeholder="Certificate passphrase (optional)" />
+                <Label>{t("ipsec.passphrase")}</Label>
+                <Input type="password" value={x509Passphrase} onChange={(e) => setX509Passphrase(e.target.value)} placeholder={t("ipsec.passphrasePlaceholder")} />
               </div>
             </>
           )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>IKE Group</Label>
-              <Input value={ikeGroup} onChange={(e) => setIkeGroup(e.target.value)} placeholder="IKE group name" />
+              <Label>{t("ipsec.ikeGroup")}</Label>
+              <Input value={ikeGroup} onChange={(e) => setIkeGroup(e.target.value)} placeholder={t("ipsec.ikeGroupName")} />
             </div>
             <div className="space-y-2">
-              <Label>ESP Group</Label>
-              <Input value={espGroup} onChange={(e) => setEspGroup(e.target.value)} placeholder="ESP group name" />
+              <Label>{t("ipsec.espGroup")}</Label>
+              <Input value={espGroup} onChange={(e) => setEspGroup(e.target.value)} placeholder={t("ipsec.espGroupName")} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>IKE Lifetime</Label>
+              <Label>{t("ipsec.ikeLifetime")}</Label>
               <Input value={ikeLifetime} onChange={(e) => setIkeLifetime(e.target.value)} placeholder="3600" />
             </div>
             <div className="space-y-2">
-              <Label>ESP Lifetime</Label>
+              <Label>{t("ipsec.espLifetime")}</Label>
               <Input value={lifetime} onChange={(e) => setLifetime(e.target.value)} placeholder="1800" />
             </div>
           </div>
@@ -169,9 +172,9 @@ export function IPSecSettingsModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save Changes"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : t("shared.saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

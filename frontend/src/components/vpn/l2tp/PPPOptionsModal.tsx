@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,8 @@ export function PPPOptionsModal({
   currentOptions,
   capabilities,
 }: PPPOptionsModalProps) {
+  const t = useTranslations("l2tp");
+  const tc = useTranslations("common");
   const [ipv4, setIpv4] = useState("");
   const [ipv6, setIpv6] = useState("");
   const [mppe, setMppe] = useState("");
@@ -101,10 +104,10 @@ export function PPPOptionsModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to update PPP options");
+        setError(result.error || t("ppp.updateFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to update PPP options");
+      setError((err as ApiError).message || t("ppp.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -120,29 +123,29 @@ export function PPPOptionsModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5 text-primary" />
-            PPP Options
+            {t("ppp.title")}
           </DialogTitle>
-          <DialogDescription>Configure PPP protocol options.</DialogDescription>
+          <DialogDescription>{t("ppp.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>IPv4 Mode</Label>
+              <Label>{t("ppp.ipv4Mode")}</Label>
               <Select value={ipv4} onValueChange={setIpv4}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("shared.select")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__clear__">Default</SelectItem>
+                  <SelectItem value="__clear__">{tc("default")}</SelectItem>
                   {ipv4Modes.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>IPv6 Mode</Label>
+              <Label>{t("ppp.ipv6Mode")}</Label>
               <Select value={ipv6} onValueChange={setIpv6}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("shared.select")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__clear__">Default</SelectItem>
+                  <SelectItem value="__clear__">{tc("default")}</SelectItem>
                   {ipv6Modes.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -151,31 +154,31 @@ export function PPPOptionsModal({
           <div className="space-y-2">
             <Label>MPPE</Label>
             <Select value={mppe} onValueChange={setMppe}>
-              <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t("shared.select")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="__clear__">Default</SelectItem>
+                <SelectItem value="__clear__">{tc("default")}</SelectItem>
                 {mppeModes.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="flex items-center gap-2">
             <Checkbox id="disable-ccp" checked={disableCcp} onCheckedChange={(v) => setDisableCcp(!!v)} />
-            <Label htmlFor="disable-ccp" className="cursor-pointer">Disable CCP</Label>
+            <Label htmlFor="disable-ccp" className="cursor-pointer">{t("ppp.disableCcp")}</Label>
           </div>
 
           <Separator />
           <h4 className="text-sm font-medium">LCP Echo</h4>
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Failure</Label>
+              <Label>{t("ppp.failure")}</Label>
               <Input value={lcpEchoFailure} onChange={(e) => setLcpEchoFailure(e.target.value)} placeholder="5" />
             </div>
             <div className="space-y-2">
-              <Label>Interval</Label>
+              <Label>{t("ppp.interval")}</Label>
               <Input value={lcpEchoInterval} onChange={(e) => setLcpEchoInterval(e.target.value)} placeholder="30" />
             </div>
             <div className="space-y-2">
-              <Label>Timeout</Label>
+              <Label>{t("shared.timeout")}</Label>
               <Input value={lcpEchoTimeout} onChange={(e) => setLcpEchoTimeout(e.target.value)} placeholder="0" />
             </div>
           </div>
@@ -184,7 +187,7 @@ export function PPPOptionsModal({
           <h4 className="text-sm font-medium">MTU/MRU</h4>
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Min MTU</Label>
+              <Label>{t("ppp.minMtu")}</Label>
               <Input value={minMtu} onChange={(e) => setMinMtu(e.target.value)} placeholder="100" />
             </div>
             <div className="space-y-2">
@@ -192,26 +195,26 @@ export function PPPOptionsModal({
               <Input value={mru} onChange={(e) => setMru(e.target.value)} placeholder="1500" />
             </div>
             <div className="space-y-2">
-              <Label>Interface Cache</Label>
+              <Label>{t("ppp.interfaceCache")}</Label>
               <Input value={interfaceCache} onChange={(e) => setInterfaceCache(e.target.value)} placeholder="1000" />
             </div>
           </div>
 
           <Separator />
-          <h4 className="text-sm font-medium">IPv6 Interface IDs</h4>
+          <h4 className="text-sm font-medium">{t("ppp.ipv6InterfaceIds")}</h4>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Interface ID</Label>
+              <Label>{t("ppp.interfaceId")}</Label>
               <Input value={ipv6InterfaceId} onChange={(e) => setIpv6InterfaceId(e.target.value)} placeholder="::1" />
             </div>
             <div className="space-y-2">
-              <Label>Peer Interface ID</Label>
+              <Label>{t("ppp.peerInterfaceId")}</Label>
               <Input value={ipv6PeerInterfaceId} onChange={(e) => setIpv6PeerInterfaceId(e.target.value)} placeholder="::2" />
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Checkbox id="accept-peer-id" checked={ipv6AcceptPeerInterfaceId} onCheckedChange={(v) => setIpv6AcceptPeerInterfaceId(!!v)} />
-            <Label htmlFor="accept-peer-id" className="cursor-pointer">Accept Peer Interface ID</Label>
+            <Label htmlFor="accept-peer-id" className="cursor-pointer">{t("ppp.acceptPeerInterfaceId")}</Label>
           </div>
         </div>
 
@@ -223,9 +226,9 @@ export function PPPOptionsModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save Changes"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : t("shared.saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

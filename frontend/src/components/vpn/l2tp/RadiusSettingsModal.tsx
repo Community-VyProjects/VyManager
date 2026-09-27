@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,8 @@ export function RadiusSettingsModal({
   onSuccess,
   currentSettings,
 }: RadiusSettingsModalProps) {
+  const t = useTranslations("l2tp");
+  const tc = useTranslations("common");
   const [sourceAddress, setSourceAddress] = useState("");
   const [timeout, setTimeout] = useState("");
   const [maxTry, setMaxTry] = useState("");
@@ -99,10 +102,10 @@ export function RadiusSettingsModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to update RADIUS settings");
+        setError(result.error || t("radiusSettings.updateFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to update RADIUS settings");
+      setError((err as ApiError).message || t("radiusSettings.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -114,93 +117,93 @@ export function RadiusSettingsModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5 text-primary" />
-            RADIUS Global Settings
+            {t("radiusSettings.title")}
           </DialogTitle>
-          <DialogDescription>Configure global RADIUS parameters.</DialogDescription>
+          <DialogDescription>{t("radiusSettings.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Source Address</Label>
+              <Label>{t("radiusSettings.sourceAddress")}</Label>
               <Input value={sourceAddress} onChange={(e) => setSourceAddress(e.target.value)} placeholder="10.0.0.1" />
             </div>
             <div className="space-y-2">
-              <Label>Timeout</Label>
+              <Label>{t("shared.timeout")}</Label>
               <Input value={timeout} onChange={(e) => setTimeout(e.target.value)} placeholder="3" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Max Try</Label>
+              <Label>{t("radiusSettings.maxTry")}</Label>
               <Input value={maxTry} onChange={(e) => setMaxTry(e.target.value)} placeholder="3" />
             </div>
             <div className="space-y-2">
-              <Label>NAS Identifier</Label>
+              <Label>{t("radiusSettings.nasIdentifier")}</Label>
               <Input value={nasIdentifier} onChange={(e) => setNasIdentifier(e.target.value)} placeholder="vyos-l2tp" />
             </div>
           </div>
           <div className="space-y-2">
-            <Label>NAS IP Address</Label>
+            <Label>{t("radiusSettings.nasIpAddress")}</Label>
             <Input value={nasIpAddress} onChange={(e) => setNasIpAddress(e.target.value)} placeholder="10.0.0.1" />
           </div>
           <div className="flex items-center gap-2">
             <Checkbox id="preallocate-vif" checked={preallocateVif} onCheckedChange={(v) => setPreallocateVif(!!v)} />
-            <Label htmlFor="preallocate-vif" className="cursor-pointer">Preallocate VIF</Label>
+            <Label htmlFor="preallocate-vif" className="cursor-pointer">{t("radiusSettings.preallocateVif")}</Label>
           </div>
 
           <Separator />
-          <h4 className="text-sm font-medium">Accounting</h4>
+          <h4 className="text-sm font-medium">{t("radiusSettings.accounting")}</h4>
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Interim Interval</Label>
+              <Label>{t("radiusSettings.interimInterval")}</Label>
               <Input value={acctInterval} onChange={(e) => setAcctInterval(e.target.value)} placeholder="60" />
             </div>
             <div className="space-y-2">
-              <Label>Interim Jitter</Label>
+              <Label>{t("radiusSettings.interimJitter")}</Label>
               <Input value={acctJitter} onChange={(e) => setAcctJitter(e.target.value)} placeholder="10" />
             </div>
             <div className="space-y-2">
-              <Label>Acct Timeout</Label>
+              <Label>{t("radiusSettings.acctTimeout")}</Label>
               <Input value={acctTimeout} onChange={(e) => setAcctTimeout(e.target.value)} placeholder="3" />
             </div>
           </div>
 
           <Separator />
-          <h4 className="text-sm font-medium">Dynamic Authorization (DAE)</h4>
+          <h4 className="text-sm font-medium">{t("radiusSettings.dae")}</h4>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>DAE Server</Label>
+              <Label>{t("radiusSettings.daeServer")}</Label>
               <Input value={daeServer} onChange={(e) => setDaeServer(e.target.value)} placeholder="10.0.0.100" />
             </div>
             <div className="space-y-2">
-              <Label>DAE Port</Label>
+              <Label>{t("radiusSettings.daePort")}</Label>
               <Input value={daePort} onChange={(e) => setDaePort(e.target.value)} placeholder="3799" />
             </div>
           </div>
           <div className="space-y-2">
-            <Label>DAE Key</Label>
-            <Input type="password" value={daeKey} onChange={(e) => setDaeKey(e.target.value)} placeholder={currentSettings.dynamic_author?.key ? "Leave blank to keep" : "Enter DAE key"} />
+            <Label>{t("radiusSettings.daeKey")}</Label>
+            <Input type="password" value={daeKey} onChange={(e) => setDaeKey(e.target.value)} placeholder={currentSettings.dynamic_author?.key ? t("radiusSettings.keepBlank") : t("radiusSettings.enterDaeKey")} />
           </div>
 
           <Separator />
-          <h4 className="text-sm font-medium">Rate Limiting</h4>
+          <h4 className="text-sm font-medium">{t("radiusSettings.rateLimiting")}</h4>
           <div className="flex items-center gap-2">
             <Checkbox id="rate-limit-enable" checked={rateLimitEnable} onCheckedChange={(v) => setRateLimitEnable(!!v)} />
-            <Label htmlFor="rate-limit-enable" className="cursor-pointer">Enable Rate Limiting</Label>
+            <Label htmlFor="rate-limit-enable" className="cursor-pointer">{t("radiusSettings.enableRateLimiting")}</Label>
           </div>
           {rateLimitEnable && (
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Attribute</Label>
+                <Label>{t("radiusSettings.attribute")}</Label>
                 <Input value={rateLimitAttribute} onChange={(e) => setRateLimitAttribute(e.target.value)} placeholder="Filter-Id" />
               </div>
               <div className="space-y-2">
-                <Label>Vendor</Label>
-                <Input value={rateLimitVendor} onChange={(e) => setRateLimitVendor(e.target.value)} placeholder="Vendor" />
+                <Label>{t("radiusSettings.vendor")}</Label>
+                <Input value={rateLimitVendor} onChange={(e) => setRateLimitVendor(e.target.value)} placeholder={t("radiusSettings.vendor")} />
               </div>
               <div className="space-y-2">
-                <Label>Multiplier</Label>
+                <Label>{t("radiusSettings.multiplier")}</Label>
                 <Input value={rateLimitMultiplier} onChange={(e) => setRateLimitMultiplier(e.target.value)} placeholder="1" />
               </div>
             </div>
@@ -215,9 +218,9 @@ export function RadiusSettingsModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save Changes"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : t("shared.saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>
