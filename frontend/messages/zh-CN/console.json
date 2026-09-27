@@ -1,1 +1,18 @@
-{}
+{
+  "loadFailed": "加载控制台状态失败",
+  "title": "SSH 控制台",
+  "subtitle": "在当前 VyOS 设备上的交互式 Shell 会话",
+  "status": {
+    "disconnected": "已断开",
+    "connecting": "正在连接...",
+    "connected": "已连接",
+    "error": "错误"
+  },
+  "connect": "连接",
+  "disconnect": "断开",
+  "sshNotConfigured": {
+    "title": "SSH 未配置",
+    "description": "使用控制台前，必须先生成 SSH 密钥并将其添加到 VyOS 设备。",
+    "openSiteManager": "<link>打开站点管理</link>进行设置。"
+  }
+}

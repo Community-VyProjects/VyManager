@@ -1,1 +1,18 @@
-{}
+{
+  "loadFailed": "Failed to load console status",
+  "title": "SSH Console",
+  "subtitle": "Interactive shell session on the active VyOS device",
+  "status": {
+    "disconnected": "Disconnected",
+    "connecting": "Connecting...",
+    "connected": "Connected",
+    "error": "Error"
+  },
+  "connect": "Connect",
+  "disconnect": "Disconnect",
+  "sshNotConfigured": {
+    "title": "SSH not configured",
+    "description": "An SSH key must be generated and added to the VyOS device before using the console.",
+    "openSiteManager": "<link>Open Site Manager</link> to set it up."
+  }
+}
