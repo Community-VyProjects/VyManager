@@ -1,1 +1,55 @@
-{}
+{
+  "content": {
+    "loadFailed": "Failed to load Salt Minion configuration",
+    "readOnly": "Read Only",
+    "subtitle": "Configuration management agent — connects to a Salt master for automated state enforcement",
+    "editSettings": "Edit Settings",
+    "masters": "Masters",
+    "minionId": "Minion ID",
+    "hostname": "Hostname",
+    "interval": "Interval",
+    "intervalValue": "{value} min",
+    "intervalDefault": "60 min (default)",
+    "hash": "Hash",
+    "hashDefault": "sha256 (default)",
+    "masterServers": "Master Servers",
+    "noMasters": "No masters configured",
+    "noMastersHint": "At least one master server is required for the minion to connect",
+    "configuration": "Configuration",
+    "masterKeyUrl": "Master Key URL",
+    "notConfigured": "Not configured",
+    "sourceInterface": "Source Interface",
+    "defaultRoute": "Default route"
+  },
+  "hash": {
+    "defaultLabel": "Default (SHA-256)",
+    "default": "Use VyOS default — sha256",
+    "sha256": "Recommended — explicit sha256",
+    "sha384": "Higher security variant of SHA-2",
+    "sha512": "Strongest SHA-2 variant",
+    "sha224": "Truncated SHA-2 variant",
+    "sha1": "Legacy — not recommended for new deployments",
+    "md5": "Legacy — not recommended for new deployments"
+  },
+  "settings": {
+    "alreadyAdded": "Already added",
+    "title": "Edit Salt Minion Settings",
+    "description": "Configure master servers, minion identity, and connection options",
+    "masterServers": "Master Servers",
+    "masterServersHint": "Hostname or IP address of each Salt master. At least one is required for the minion to connect.",
+    "masterServersPlaceholder": "e.g. salt-master.example.com or 10.0.0.1",
+    "minionId": "Minion ID",
+    "minionIdHint": "Unique identifier for this minion. Leave empty to use the system hostname.",
+    "minionIdPlaceholder": "Hostname (default)",
+    "interval": "Update Interval",
+    "intervalHint": "How often (in minutes) the minion checks in with the master. Range: 1–1440. Leave empty to use the default (60 min).",
+    "intervalPlaceholder": "60 (default)",
+    "minutes": "minutes",
+    "hash": "Hash Algorithm",
+    "hashHint": "Hash used when discovering files on the master server.",
+    "masterKeyUrl": "Master Key URL",
+    "masterKeyUrlHint": "URL containing the master's public key signature for auth reply verification. Leave empty to skip verification.",
+    "sourceInterface": "Source Interface",
+    "sourceInterfaceHint": "Network interface used to establish the connection to the master. Leave unset to use the default route."
+  }
+}
