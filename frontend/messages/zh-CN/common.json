@@ -3,6 +3,11 @@
   "add": "添加",
   "cancel": "取消",
   "close": "关闭",
+  "columnToggle": {
+    "columns": "列",
+    "hint": "勾选并拖动以调整顺序",
+    "reset": "恢复默认"
+  },
   "default": "默认",
   "delete": "删除",
   "deleting": "正在删除...",

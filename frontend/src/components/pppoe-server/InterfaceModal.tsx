@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,8 @@ interface InterfaceModalProps {
 }
 
 export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterface, capabilities }: InterfaceModalProps) {
+  const t = useTranslations("pppoeServer.interfaceModal");
+  const tc = useTranslations("common");
   const isEdit = !!existingInterface;
 
   const [ifaceName, setIfaceName] = useState("");
@@ -80,7 +83,7 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
   };
 
   const handleSubmit = async () => {
-    if (!ifaceName.trim()) { setError("Interface name is required"); return; }
+    if (!ifaceName.trim()) { setError(t("nameRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -99,10 +102,10 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to save interface");
+        setError(result.error || t("saveFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to save interface");
+      setError((err as ApiError).message || t("saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -114,14 +117,14 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Network className="h-5 w-5 text-primary" />
-            {isEdit ? "Edit" : "Add"} Interface
+            {isEdit ? t("editTitle") : t("addTitle")}
           </DialogTitle>
-          <DialogDescription>Configure a PPPoE server interface.</DialogDescription>
+          <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Interface</Label>
+            <Label>{t("interface")}</Label>
             {isEdit ? (
               <Input value={ifaceName} disabled />
             ) : (
@@ -129,7 +132,7 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
                 value={ifaceName}
                 onValueChange={setIfaceName}
                 interfaces={availableInterfaces}
-                placeholder="Select an interface"
+                placeholder={t("selectInterface")}
               />
             )}
           </div>
@@ -140,11 +143,11 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
               <Input
                 value={vlanInput}
                 onChange={(e) => setVlanInput(e.target.value)}
-                placeholder="100 or 100-200"
+                placeholder={t("vlanPlaceholder")}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addVlan(); } }}
                 className="flex-1"
               />
-              <Button type="button" variant="outline" size="sm" onClick={addVlan}>Add</Button>
+              <Button type="button" variant="outline" size="sm" onClick={addVlan}>{tc("add")}</Button>
             </div>
             <div className="flex flex-wrap gap-1">
               {vlans.map((vlan) => (
@@ -161,7 +164,7 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
           {showVlanMon && (
             <div className="flex items-center gap-2">
               <Checkbox id="vlan-mon" checked={vlanMon} onCheckedChange={(v) => setVlanMon(!!v)} />
-              <Label htmlFor="vlan-mon" className="cursor-pointer">VLAN Monitoring</Label>
+              <Label htmlFor="vlan-mon" className="cursor-pointer">{t("vlanMonitoring")}</Label>
             </div>
           )}
 
@@ -173,7 +176,7 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
           )}
 
           <div className="space-y-2">
-            <Label>Combined (simultaneous sessions)</Label>
+            <Label>{t("combined")}</Label>
             <Input value={combined} onChange={(e) => setCombined(e.target.value)} placeholder="4" />
           </div>
         </div>
@@ -186,9 +189,9 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? "Saving..." : "Adding..."}</> : isEdit ? "Save Changes" : "Add Interface"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("adding")}</> : isEdit ? t("saveChanges") : t("addTitle")}
           </Button>
         </DialogFooter>
       </DialogContent>

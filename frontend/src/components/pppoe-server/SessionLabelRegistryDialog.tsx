@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2, Plus, Save, Trash2, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,11 +21,11 @@ import {
 } from "@/components/ui/dialog";
 import type { PPPoESessionLabelDefinition, PPPoESessionLabelRule } from "@/lib/api/pppoe-server";
 
-const METRIC_OPTIONS: { value: NonNullable<PPPoESessionLabelRule["numerator"]>; label: string }[] = [
-  { value: "rx_bytes", label: "Upload total (RX bytes)" },
-  { value: "tx_bytes", label: "Download total (TX bytes)" },
-  { value: "rxRate", label: "Upload rate (RX)" },
-  { value: "txRate", label: "Download rate (TX)" },
+const METRIC_OPTIONS: { value: NonNullable<PPPoESessionLabelRule["numerator"]>; label: "rxBytes" | "txBytes" | "rxRate" | "txRate" }[] = [
+  { value: "rx_bytes", label: "rxBytes" },
+  { value: "tx_bytes", label: "txBytes" },
+  { value: "rxRate", label: "rxRate" },
+  { value: "txRate", label: "txRate" },
 ];
 
 interface SessionLabelRegistryDialogProps {
@@ -46,6 +47,8 @@ export function SessionLabelRegistryDialog({
   saving,
   error,
 }: SessionLabelRegistryDialogProps) {
+  const t = useTranslations("pppoeServer.labelRegistry");
+  const tc = useTranslations("common");
   const updateAt = (index: number, patch: Partial<PPPoESessionLabelDefinition>) => {
     onDraftChange(draft.map((item, i) => (i === index ? { ...item, ...patch } : item)));
   };
@@ -89,9 +92,9 @@ export function SessionLabelRegistryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col gap-0 p-0">
         <DialogHeader className="px-6 py-4 border-b shrink-0">
-          <DialogTitle>Session label registry</DialogTitle>
+          <DialogTitle>{t("title")}</DialogTitle>
           <DialogDescription>
-            Rules are stored in Postgres and evaluated on the client. PPPoE RX is upload and TX is download.
+            {t("description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -104,7 +107,7 @@ export function SessionLabelRegistryDialog({
 
           {draft.length === 0 ? (
             <p className="text-sm text-muted-foreground py-6 text-center">
-              No labels yet. Add one or save to restore the default traffic-skew rule.
+              {t("empty")}
             </p>
           ) : (
             draft.map((label, index) => (
@@ -115,7 +118,7 @@ export function SessionLabelRegistryDialog({
                 <div className="flex items-start justify-between gap-2">
                   <div className="grid gap-3 sm:grid-cols-2 flex-1">
                     <div className="space-y-1.5">
-                      <Label htmlFor={`label-code-${index}`}>Code</Label>
+                      <Label htmlFor={`label-code-${index}`}>{t("code")}</Label>
                       <Input
                         id={`label-code-${index}`}
                         value={label.code ?? ""}
@@ -124,7 +127,7 @@ export function SessionLabelRegistryDialog({
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor={`label-name-${index}`}>Display name</Label>
+                      <Label htmlFor={`label-name-${index}`}>{t("displayName")}</Label>
                       <Input
                         id={`label-name-${index}`}
                         value={label.name ?? ""}
@@ -132,7 +135,7 @@ export function SessionLabelRegistryDialog({
                       />
                     </div>
                     <div className="space-y-1.5 sm:col-span-2">
-                      <Label htmlFor={`label-desc-${index}`}>Description</Label>
+                      <Label htmlFor={`label-desc-${index}`}>{tc("description")}</Label>
                       <Input
                         id={`label-desc-${index}`}
                         value={label.description ?? ""}
@@ -140,7 +143,7 @@ export function SessionLabelRegistryDialog({
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor={`label-priority-${index}`}>Priority</Label>
+                      <Label htmlFor={`label-priority-${index}`}>{t("priority")}</Label>
                       <Input
                         id={`label-priority-${index}`}
                         type="number"
@@ -150,7 +153,7 @@ export function SessionLabelRegistryDialog({
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <Label htmlFor={`label-severity-${index}`}>Severity</Label>
+                        <Label htmlFor={`label-severity-${index}`}>{t("severity")}</Label>
                         <Select
                           value={label.severity ?? "info"}
                           onValueChange={(value) => updateAt(index, { severity: value })}
@@ -159,14 +162,14 @@ export function SessionLabelRegistryDialog({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="info">Info</SelectItem>
-                            <SelectItem value="warning">Warning</SelectItem>
-                            <SelectItem value="danger">Danger</SelectItem>
+                            <SelectItem value="info">{t("severityInfo")}</SelectItem>
+                            <SelectItem value="warning">{t("severityWarning")}</SelectItem>
+                            <SelectItem value="danger">{t("severityDanger")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-1.5">
-                        <Label htmlFor={`label-enabled-${index}`}>Enabled</Label>
+                        <Label htmlFor={`label-enabled-${index}`}>{tc("enabled")}</Label>
                         <Select
                           value={label.enabled === false ? "false" : "true"}
                           onValueChange={(value) => updateAt(index, { enabled: value === "true" })}
@@ -175,8 +178,8 @@ export function SessionLabelRegistryDialog({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="true">Yes</SelectItem>
-                            <SelectItem value="false">No</SelectItem>
+                            <SelectItem value="true">{t("yes")}</SelectItem>
+                            <SelectItem value="false">{t("no")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -187,7 +190,7 @@ export function SessionLabelRegistryDialog({
                     size="icon"
                     className="shrink-0 hover:bg-destructive/10"
                     onClick={() => removeAt(index)}
-                    title="Remove label"
+                    title={t("removeLabel")}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
@@ -195,11 +198,11 @@ export function SessionLabelRegistryDialog({
 
                 <div className="rounded-md border border-dashed p-3 space-y-3">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Ratio rule
+                    {t("ratioRule")}
                   </p>
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="space-y-1.5">
-                      <Label>Numerator</Label>
+                      <Label>{t("numerator")}</Label>
                       <Select
                         value={label.rules?.numerator ?? "rx_bytes"}
                         onValueChange={(value) =>
@@ -211,13 +214,13 @@ export function SessionLabelRegistryDialog({
                         <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {METRIC_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            <SelectItem key={opt.value} value={opt.value}>{t(`metrics.${opt.label}`)}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Denominator</Label>
+                      <Label>{t("denominator")}</Label>
                       <Select
                         value={label.rules?.denominator ?? "tx_bytes"}
                         onValueChange={(value) =>
@@ -229,13 +232,13 @@ export function SessionLabelRegistryDialog({
                         <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {METRIC_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            <SelectItem key={opt.value} value={opt.value}>{t(`metrics.${opt.label}`)}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Operator</Label>
+                      <Label>{t("operator")}</Label>
                       <Select
                         value={label.rules?.operator ?? ">"}
                         onValueChange={(value) =>
@@ -254,7 +257,7 @@ export function SessionLabelRegistryDialog({
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Factor</Label>
+                      <Label>{t("factor")}</Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -272,11 +275,11 @@ export function SessionLabelRegistryDialog({
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-t px-6 py-4 shrink-0">
           <Button variant="outline" size="sm" onClick={addLabel}>
-            <Plus className="h-4 w-4 mr-2" /> New label
+            <Plus className="h-4 w-4 mr-2" /> {t("newLabel")}
           </Button>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
-              <X className="h-4 w-4 mr-2" /> Cancel
+              <X className="h-4 w-4 mr-2" /> {tc("cancel")}
             </Button>
             <Button size="sm" onClick={onSave} disabled={saving}>
               {saving ? (
@@ -284,7 +287,7 @@ export function SessionLabelRegistryDialog({
               ) : (
                 <Save className="h-4 w-4 mr-2" />
               )}
-              {saving ? "Saving…" : "Save registry"}
+              {saving ? t("saving") : t("saveRegistry")}
             </Button>
           </div>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { SlidersHorizontal, GripVertical, RotateCcw } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
@@ -75,6 +76,7 @@ export function ColumnToggleButton({
   onReorder,
   onReset,
 }: ColumnToggleButtonProps) {
+  const t = useTranslations("common.columnToggle");
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
@@ -91,11 +93,11 @@ export function ColumnToggleButton({
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm">
           <SlidersHorizontal className="h-4 w-4 mr-2" />
-          Columns
+          {t("columns")}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-52 p-2" align="end">
-        <p className="text-xs font-medium text-muted-foreground px-2 py-1">Toggle &amp; drag to reorder</p>
+        <p className="text-xs font-medium text-muted-foreground px-2 py-1">{t("hint")}</p>
         <Separator className="my-1" />
         <DndContext
           sensors={sensors}
@@ -124,7 +126,7 @@ export function ColumnToggleButton({
           onClick={onReset}
         >
           <RotateCcw className="h-3.5 w-3.5 mr-2" />
-          Reset to Default
+          {t("reset")}
         </Button>
       </PopoverContent>
     </Popover>

@@ -3,6 +3,11 @@
   "add": "Add",
   "cancel": "Cancel",
   "close": "Close",
+  "columnToggle": {
+    "columns": "Columns",
+    "hint": "Toggle & drag to reorder",
+    "reset": "Reset to Default"
+  },
   "default": "Default",
   "delete": "Delete",
   "deleting": "Deleting...",
