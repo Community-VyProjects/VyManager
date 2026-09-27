@@ -52,19 +52,22 @@ export function nextRuleNumber(rules: { rule_number: number }[]): number {
   return Math.max(...rules.map((r) => r.rule_number)) + 1;
 }
 
-export function validateRegexListRule(draft: RegexListRuleDraft): string | null {
+/** Validation errors are message keys under `bgpLists.validation`. */
+export type RegexListRuleError = "regexRequired" | "largeCommunityFormat";
+
+export function validateRegexListRule(draft: RegexListRuleDraft): RegexListRuleError | null {
   if (!draft.regex.trim()) {
-    return "Regex pattern is required";
+    return "regexRequired";
   }
   return null;
 }
 
-export function validateLargeCommunityRule(draft: RegexListRuleDraft): string | null {
+export function validateLargeCommunityRule(draft: RegexListRuleDraft): RegexListRuleError | null {
   const required = validateRegexListRule(draft);
   if (required) return required;
   const parts = draft.regex.trim().split(":");
   if (parts.length !== 3) {
-    return "Large community must be in format ASN:NN:NN or IP:NN:NN (e.g., 4242420696:10[0-1]:.*)";
+    return "largeCommunityFormat";
   }
   return null;
 }
@@ -139,30 +142,40 @@ export function buildExtCommunityRegex(draft: ExtCommunityRuleDraft): string {
   return `${draft.matchType} ${draft.adminField.trim()}:${draft.assignedNum1.trim()}:${draft.assignedNum2.trim()}`;
 }
 
-export function validateExtCommunityRule(draft: ExtCommunityRuleDraft): string | null {
+/** Validation errors are message keys under `bgpLists.validation`. */
+export type ExtCommunityRuleError =
+  | "regexRequired"
+  | "adminFieldRequired"
+  | "assignedNum1Required"
+  | "assignedNum2Required"
+  | "adminFieldNumber"
+  | "assignedNum1Number"
+  | "assignedNum2Number";
+
+export function validateExtCommunityRule(draft: ExtCommunityRuleDraft): ExtCommunityRuleError | null {
   if (draft.matchType === "regex") {
     if (!draft.rawRegex.trim()) {
-      return "Regex pattern is required";
+      return "regexRequired";
     }
     return null;
   }
   if (!draft.adminField.trim()) {
-    return "Administrator field (AS Number) is required";
+    return "adminFieldRequired";
   }
   if (!draft.assignedNum1.trim()) {
-    return "Assigned Number 1 is required";
+    return "assignedNum1Required";
   }
   if (!draft.assignedNum2.trim()) {
-    return "Assigned Number 2 is required";
+    return "assignedNum2Required";
   }
   if (!/^\d+$/.test(draft.adminField.trim())) {
-    return "Administrator field must be a valid number (e.g., 65000)";
+    return "adminFieldNumber";
   }
   if (!/^\d+$/.test(draft.assignedNum1.trim())) {
-    return "Assigned Number 1 must be a valid number";
+    return "assignedNum1Number";
   }
   if (!/^\d+$/.test(draft.assignedNum2.trim())) {
-    return "Assigned Number 2 must be a valid number";
+    return "assignedNum2Number";
   }
   return null;
 }

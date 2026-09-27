@@ -1,1 +1,173 @@
-{}
+{
+  "title": {
+    "edit": "编辑规则 {number} - 策略：{policyName}",
+    "create": "为策略 {policyName} 创建规则"
+  },
+  "description": {
+    "edit": "更新 {family} 策略规则",
+    "create": "向 {family} 策略添加新规则"
+  },
+  "errors": {
+    "ruleNumberRequired": "规则编号为必填项",
+    "updateFailed": "更新规则失败",
+    "createFailed": "创建规则失败"
+  },
+  "tabs": {
+    "basic": "基本",
+    "match": "匹配条件",
+    "set": "设置动作"
+  },
+  "basic": {
+    "ruleNumber": "规则编号 *",
+    "ruleNumberLocked": "规则编号不可更改",
+    "descriptionPlaceholder": "规则描述",
+    "disable": "禁用此规则",
+    "log": "为此规则启用日志"
+  },
+  "invertMatch": "反向匹配",
+  "address": {
+    "title": "地址匹配",
+    "source": "源地址",
+    "destination": "目标地址",
+    "sourceMac": "源 MAC 地址",
+    "destinationMac": "目标 MAC 地址"
+  },
+  "geoip": {
+    "title": "GeoIP 匹配",
+    "source": "源 GeoIP 国家/地区",
+    "destination": "目标 GeoIP 国家/地区",
+    "exclude": "排除这些国家/地区（反向匹配）"
+  },
+  "groups": {
+    "title": "防火墙组",
+    "sourceAddressGroup": "源地址/网络/域名组（选择一个）",
+    "destinationAddressGroup": "目标地址/网络/域名组（选择一个）",
+    "addressGroup": "地址组",
+    "networkGroup": "网络组",
+    "domainGroup": "域名组",
+    "selectGroup": "选择组",
+    "sourceMacGroup": "源 MAC 组（可选）",
+    "sourcePortGroup": "源端口组（可选）",
+    "destinationMacGroup": "目标 MAC 组（可选）",
+    "destinationPortGroup": "目标端口组（可选）",
+    "protocolRestricted": "协议将被限制为 TCP/UDP"
+  },
+  "portProtocol": {
+    "title": "端口与协议",
+    "sourcePort": "源端口",
+    "destinationPort": "目标端口",
+    "portPlaceholder": "80 或 80,443 或 8000-9000",
+    "protocol": "协议",
+    "allProtocols": "所有协议",
+    "restrictedWithPorts": "使用端口时协议限制为 TCP/UDP",
+    "tcpFlags": "TCP 标志",
+    "tcpMssMatch": "TCP MSS 匹配",
+    "tcpMssPlaceholder": "1400 或 500-1460"
+  },
+  "icmp": {
+    "title": "ICMP 匹配（仅 IPv4）",
+    "type": "ICMP 类型",
+    "typeName": "ICMP 类型名称",
+    "code": "ICMP 代码",
+    "selectType": "选择类型",
+    "v6Title": "ICMPv6 匹配（仅 IPv6）",
+    "v6Type": "ICMPv6 类型",
+    "v6TypeName": "ICMPv6 类型名称",
+    "v6Code": "ICMPv6 代码"
+  },
+  "packet": {
+    "title": "数据包特征",
+    "fragment": "分片匹配",
+    "matchFragments": "匹配分片",
+    "excludeFragments": "排除分片",
+    "type": "数据包类型",
+    "length": "数据包长度",
+    "lengthExclude": "数据包长度（排除）",
+    "lengthPlaceholder": "64 或 64-128",
+    "dscpExclude": "DSCP（排除）",
+    "dscpPlaceholder": "0-63 或范围 0-10"
+  },
+  "state": {
+    "title": "连接状态与标记",
+    "connectionState": "连接状态",
+    "states": {
+      "established": "已建立",
+      "invalid": "无效",
+      "new": "新建",
+      "related": "相关"
+    },
+    "ipsecStatus": "IPsec 状态",
+    "inbound": "入站",
+    "outbound": "出站",
+    "noMatch": "不匹配",
+    "matchIpsec": "匹配 IPsec",
+    "matchNonIpsec": "匹配非 IPsec",
+    "excludeIpsec": "排除 IPsec",
+    "connectionMark": "连接标记",
+    "mark": "标记"
+  },
+  "ttl": {
+    "title": "TTL（仅 IPv4）",
+    "operator": "TTL 运算符",
+    "value": "TTL 值",
+    "hopTitle": "跳数限制（仅 IPv6）",
+    "hopOperator": "跳数限制运算符",
+    "hopValue": "跳数限制值",
+    "eq": "等于 (eq)",
+    "gt": "大于 (gt)",
+    "lt": "小于 (lt)"
+  },
+  "time": {
+    "title": "基于时间的匹配",
+    "monthDays": "每月日期",
+    "monthDaysPlaceholder": "1-31（逗号分隔）",
+    "monthDaysExample": "示例：1,15,30",
+    "weekdays": "星期",
+    "days": {
+      "mon": "周一",
+      "tue": "周二",
+      "wed": "周三",
+      "thu": "周四",
+      "fri": "周五",
+      "sat": "周六",
+      "sun": "周日"
+    },
+    "startDate": "开始日期",
+    "stopDate": "结束日期",
+    "startTime": "开始时间",
+    "stopTime": "结束时间",
+    "utc": "使用 UTC 时间"
+  },
+  "rate": {
+    "title": "速率限制",
+    "limitBurst": "突发限制",
+    "packetsPlaceholder": "数据包数量",
+    "limitBurstHelp": "速率限制生效前允许的最大突发量",
+    "limitRate": "速率限制",
+    "limitRatePlaceholder": "packets/second、packets/minute 等",
+    "limitRateExample": "示例：10/second, 100/minute",
+    "recentCount": "近期次数",
+    "recentTime": "近期时间",
+    "seconds": "秒"
+  },
+  "actions": {
+    "drop": "丢弃匹配的数据包",
+    "marking": "数据包标记",
+    "connectionMark": "连接标记",
+    "mark": "标记",
+    "routing": "路由",
+    "routingTable": "路由表",
+    "mainTable": "主路由表 (main)",
+    "customTable": "自定义路由表",
+    "tablePlaceholder": "路由表编号或名称",
+    "vrfHelp": "VRF 路由",
+    "tcpOptions": "TCP 选项",
+    "tcpMssPlaceholder": "500-1460 或 'clamp-mss-to-pmtu'",
+    "tcpMssHelp": "TCP 最大报文段长度"
+  },
+  "buttons": {
+    "creating": "正在创建...",
+    "saveChanges": "保存更改",
+    "createRule": "创建规则"
+  }
+}

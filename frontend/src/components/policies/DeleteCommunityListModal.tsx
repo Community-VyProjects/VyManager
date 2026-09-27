@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, AlertTriangle } from "lucide-react";
 import { communityListService, type CommunityList } from "@/lib/api/community-list";
@@ -19,6 +20,8 @@ export function DeleteCommunityListModal({
   onSuccess,
   communityList,
 }: DeleteCommunityListModalProps) {
+  const t = useTranslations("bgpLists");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,7 +36,7 @@ export function DeleteCommunityListModal({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete Community list");
+      setError(err instanceof Error ? err.message : t("shared.failedToDeleteList", { listType: t("types.community.modalName") }));
     } finally {
       setLoading(false);
     }
@@ -45,9 +48,9 @@ export function DeleteCommunityListModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete Community List</DialogTitle>
+          <DialogTitle>{t("shared.deleteList", { listType: t("types.community.title") })}</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete this Community list? This action cannot be undone.
+            {t("shared.deleteListConfirm", { listType: t("types.community.modalName") })}
           </DialogDescription>
         </DialogHeader>
 
@@ -56,7 +59,7 @@ export function DeleteCommunityListModal({
             <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm font-medium text-destructive">
-                Deleting Community list: {communityList.name}
+                {t("shared.deletingList", { listType: t("types.community.modalName"), name: communityList.name })}
               </p>
               {communityList.description && (
                 <p className="text-sm text-muted-foreground mt-1">
@@ -64,7 +67,7 @@ export function DeleteCommunityListModal({
                 </p>
               )}
               <p className="text-sm text-muted-foreground mt-2">
-                This will delete {communityList.rules.length} rule{communityList.rules.length !== 1 ? "s" : ""}.
+                {t("shared.willDeleteRules", { count: communityList.rules.length })}
               </p>
             </div>
           </div>
@@ -79,10 +82,10 @@ export function DeleteCommunityListModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
-            {loading ? "Deleting..." : "Delete Community List"}
+            {loading ? tc("deleting") : t("shared.deleteList", { listType: t("types.community.title") })}
           </Button>
         </DialogFooter>
       </DialogContent>

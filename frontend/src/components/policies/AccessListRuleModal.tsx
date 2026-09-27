@@ -9,6 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { type AccessList, type AccessListRule } from "@/lib/api/access-list";
 import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
 import {
@@ -35,6 +36,8 @@ export function AccessListRuleModal({
   accessList,
   existing,
 }: AccessListRuleModalProps) {
+  const t = useTranslations("accessList");
+  const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -166,7 +169,7 @@ export function AccessListRuleModal({
     const draft = collectDraft();
     const validationError = validateAccessListRule(draft, listType);
     if (validationError) {
-      setError(validationError);
+      setError(t(`validation.${validationError}`));
       return;
     }
     const write = modalWriteKind(existing ? { name: String(existing.rule_number) } : null);
@@ -178,13 +181,13 @@ export function AccessListRuleModal({
           ? await submitAccessListUpdate(accessList.number, listType, existing, draft)
           : await submitAccessListCreate(accessList.number, listType, draft);
       if (result && result.success === false) {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
         return;
       }
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : isEdit ? "Failed to update rule" : "Failed to add rule");
+      setError(err instanceof Error ? err.message : isEdit ? t("ruleModal.updateFailed") : t("ruleModal.addFailed"));
     } finally {
       setLoading(false);
     }
@@ -198,16 +201,16 @@ export function AccessListRuleModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? `Edit Rule #${lockedIdentity(existing, (r) => String(r.rule_number), String(ruleNumber)).value}` : `Add Rule to ${accessList.number}`}</DialogTitle>
+          <DialogTitle>{isEdit ? t("ruleModal.editTitle", { number: lockedIdentity(existing, (r) => String(r.rule_number), String(ruleNumber)).value }) : t("ruleModal.addTitle", { list: accessList.number })}</DialogTitle>
           <DialogDescription>
-            {isEdit ? "Update this access list rule" : "Create a new rule for this access list"}
+            {isEdit ? t("ruleModal.editDescription") : t("ruleModal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="rule-number">Rule Number</Label>
+              <Label htmlFor="rule-number">{t("form.ruleNumber")}</Label>
               <Input
                 id="rule-number"
                 type="number"
@@ -215,37 +218,37 @@ export function AccessListRuleModal({
                 disabled
                 className="bg-muted"
               />
-              <p className="text-xs text-muted-foreground">Auto-calculated based on existing rules</p>
+              <p className="text-xs text-muted-foreground">{t("ruleModal.autoCalculated")}</p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="action">Action *</Label>
+              <Label htmlFor="action">{t("form.action")} *</Label>
               <Select value={action} onValueChange={(v) => setAction(v as "permit" | "deny")} disabled={loading}>
                 <SelectTrigger id="action">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="permit">Permit</SelectItem>
-                  <SelectItem value="deny">Deny</SelectItem>
+                  <SelectItem value="permit">{t("form.permit")}</SelectItem>
+                  <SelectItem value="deny">{t("form.deny")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="rule-description">Rule Description</Label>
+            <Label htmlFor="rule-description">{t("form.ruleDescription")}</Label>
             <Input
               id="rule-description"
               value={ruleDescription}
               onChange={(e) => setRuleDescription(e.target.value)}
-              placeholder="Enter rule description (optional)"
+              placeholder={t("form.ruleDescriptionPlaceholder")}
               disabled={loading}
             />
           </div>
 
           {/* Source Configuration */}
           <div className="space-y-3 border rounded-lg p-4">
-            <Label>Source</Label>
+            <Label>{t("form.source")}</Label>
 
             {listType === "ipv4" ? (
               /* IPv4 Source - Radio Buttons */
@@ -253,26 +256,26 @@ export function AccessListRuleModal({
                 <RadioGroup value={sourceType} onValueChange={(v) => setSourceType(v as "any" | "host" | "network")} disabled={loading}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="any" id="source-any" />
-                    <Label htmlFor="source-any" className="font-normal cursor-pointer">Any</Label>
+                    <Label htmlFor="source-any" className="font-normal cursor-pointer">{t("form.any")}</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="host" id="source-host" />
-                    <Label htmlFor="source-host" className="font-normal cursor-pointer">Host</Label>
+                    <Label htmlFor="source-host" className="font-normal cursor-pointer">{t("form.host")}</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="network" id="source-network" />
-                    <Label htmlFor="source-network" className="font-normal cursor-pointer">Network</Label>
+                    <Label htmlFor="source-network" className="font-normal cursor-pointer">{t("form.network")}</Label>
                   </div>
                 </RadioGroup>
 
                 {sourceType === "host" && (
                   <div className="space-y-2 mt-3">
-                    <Label htmlFor="source-address">Host Address *</Label>
+                    <Label htmlFor="source-address">{t("form.hostAddress")} *</Label>
                     <Input
                       id="source-address"
                       value={sourceAddress}
                       onChange={(e) => setSourceAddress(e.target.value)}
-                      placeholder="e.g., 192.168.1.1"
+                      placeholder={t("form.example", { value: "192.168.1.1" })}
                       disabled={loading}
                     />
                   </div>
@@ -281,22 +284,22 @@ export function AccessListRuleModal({
                 {sourceType === "network" && (
                   <div className="grid grid-cols-2 gap-4 mt-3">
                     <div className="space-y-2">
-                      <Label htmlFor="source-address-net">Network Address *</Label>
+                      <Label htmlFor="source-address-net">{t("form.networkAddress")} *</Label>
                       <Input
                         id="source-address-net"
                         value={sourceAddress}
                         onChange={(e) => setSourceAddress(e.target.value)}
-                        placeholder="e.g., 192.168.1.0"
+                        placeholder={t("form.example", { value: "192.168.1.0" })}
                         disabled={loading}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="source-mask-net">Inverse Mask *</Label>
+                      <Label htmlFor="source-mask-net">{t("form.inverseMask")} *</Label>
                       <Input
                         id="source-mask-net"
                         value={sourceMask}
                         onChange={(e) => setSourceMask(e.target.value)}
-                        placeholder="e.g., 0.0.0.255"
+                        placeholder={t("form.example", { value: "0.0.0.255" })}
                         disabled={loading}
                       />
                     </div>
@@ -314,7 +317,7 @@ export function AccessListRuleModal({
                       onCheckedChange={(checked) => setSourceAny(checked as boolean)}
                       disabled={loading}
                     />
-                    <Label htmlFor="source-any-v6" className="font-normal cursor-pointer">Any</Label>
+                    <Label htmlFor="source-any-v6" className="font-normal cursor-pointer">{t("form.any")}</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Checkbox
@@ -323,24 +326,24 @@ export function AccessListRuleModal({
                       onCheckedChange={(checked) => setSourceExactMatch(checked as boolean)}
                       disabled={loading || !!sourceNetwork.trim()}
                     />
-                    <Label htmlFor="source-exact-match" className="font-normal cursor-pointer">Exact Match</Label>
+                    <Label htmlFor="source-exact-match" className="font-normal cursor-pointer">{t("ruleModal.exactMatch")}</Label>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Any can coexist with Exact Match OR Network. Exact Match and Network are mutually exclusive.
+                    {t("ruleModal.ipv6SourceHelp")}
                   </p>
                 </div>
 
                 <div className="space-y-2 mt-4">
-                  <Label htmlFor="source-network-v6">Network (CIDR)</Label>
+                  <Label htmlFor="source-network-v6">{t("form.networkCidr")}</Label>
                   <Input
                     id="source-network-v6"
                     value={sourceNetwork}
                     onChange={(e) => setSourceNetwork(e.target.value)}
-                    placeholder="e.g., 2001:db8::/32"
+                    placeholder={t("form.example", { value: "2001:db8::/32" })}
                     disabled={loading || sourceExactMatch}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Must include prefix length (e.g., /32, /64). Can coexist with Any, but not Exact Match.
+                    {t("ruleModal.ipv6NetworkHelp")}
                   </p>
                 </div>
               </>
@@ -350,30 +353,30 @@ export function AccessListRuleModal({
           {/* Destination Configuration (IPv4 only) */}
           {listType === "ipv4" && (
             <div className="space-y-3 border rounded-lg p-4">
-              <Label>Destination</Label>
+              <Label>{t("form.destination")}</Label>
             <RadioGroup value={destinationType} onValueChange={(v) => setDestinationType(v as "any" | "host" | "network")} disabled={loading}>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="any" id="dest-any" />
-                <Label htmlFor="dest-any" className="font-normal cursor-pointer">Any</Label>
+                <Label htmlFor="dest-any" className="font-normal cursor-pointer">{t("form.any")}</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="host" id="dest-host" />
-                <Label htmlFor="dest-host" className="font-normal cursor-pointer">Host</Label>
+                <Label htmlFor="dest-host" className="font-normal cursor-pointer">{t("form.host")}</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="network" id="dest-network" />
-                <Label htmlFor="dest-network" className="font-normal cursor-pointer">Network</Label>
+                <Label htmlFor="dest-network" className="font-normal cursor-pointer">{t("form.network")}</Label>
               </div>
             </RadioGroup>
 
             {destinationType === "host" && (
               <div className="space-y-2 mt-3">
-                <Label htmlFor="dest-address">Host Address *</Label>
+                <Label htmlFor="dest-address">{t("form.hostAddress")} *</Label>
                 <Input
                   id="dest-address"
                   value={destinationAddress}
                   onChange={(e) => setDestinationAddress(e.target.value)}
-                  placeholder={listType === "ipv4" ? "e.g., 10.0.0.1" : "e.g., 2001:db8::2"}
+                  placeholder={listType === "ipv4" ? t("form.example", { value: "10.0.0.1" }) : t("form.example", { value: "2001:db8::2" })}
                   disabled={loading}
                 />
               </div>
@@ -384,34 +387,34 @@ export function AccessListRuleModal({
                 {listType === "ipv4" ? (
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="dest-address-net">Network Address *</Label>
+                      <Label htmlFor="dest-address-net">{t("form.networkAddress")} *</Label>
                       <Input
                         id="dest-address-net"
                         value={destinationAddress}
                         onChange={(e) => setDestinationAddress(e.target.value)}
-                        placeholder="e.g., 10.0.0.0"
+                        placeholder={t("form.example", { value: "10.0.0.0" })}
                         disabled={loading}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="dest-mask-net">Inverse Mask *</Label>
+                      <Label htmlFor="dest-mask-net">{t("form.inverseMask")} *</Label>
                       <Input
                         id="dest-mask-net"
                         value={destinationMask}
                         onChange={(e) => setDestinationMask(e.target.value)}
-                        placeholder="e.g., 0.0.0.255"
+                        placeholder={t("form.example", { value: "0.0.0.255" })}
                         disabled={loading}
                       />
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <Label htmlFor="dest-address-net6">Network (CIDR) *</Label>
+                    <Label htmlFor="dest-address-net6">{t("form.networkCidr")} *</Label>
                     <Input
                       id="dest-address-net6"
                       value={destinationAddress}
                       onChange={(e) => setDestinationAddress(e.target.value)}
-                      placeholder="e.g., 2001:db8:1::/48"
+                      placeholder={t("form.example", { value: "2001:db8:1::/48" })}
                       disabled={loading}
                     />
                   </div>
@@ -431,10 +434,10 @@ export function AccessListRuleModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? (isEdit ? "Saving..." : "Adding...") : isEdit ? "Save Changes" : "Add Rule"}
+            {loading ? (isEdit ? tc("saving") : t("ruleModal.adding")) : isEdit ? t("ruleModal.saveChanges") : t("ruleModal.addRule")}
           </Button>
         </DialogFooter>
       </DialogContent>

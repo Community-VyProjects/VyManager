@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, AlertTriangle } from "lucide-react";
 import { largeCommunityListService, type LargeCommunityList } from "@/lib/api/large-community-list";
@@ -19,6 +20,8 @@ export function DeleteLargeCommunityListModal({
   onSuccess,
   largeCommunityList,
 }: DeleteLargeCommunityListModalProps) {
+  const t = useTranslations("bgpLists");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,7 +36,7 @@ export function DeleteLargeCommunityListModal({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete large community list");
+      setError(err instanceof Error ? err.message : t("shared.failedToDeleteList", { listType: t("types.largeCommunity.modalName") }));
     } finally {
       setLoading(false);
     }
@@ -45,9 +48,9 @@ export function DeleteLargeCommunityListModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete Large Community List</DialogTitle>
+          <DialogTitle>{t("shared.deleteList", { listType: t("types.largeCommunity.title") })}</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete this large community list? This action cannot be undone.
+            {t("shared.deleteListConfirm", { listType: t("types.largeCommunity.modalName") })}
           </DialogDescription>
         </DialogHeader>
 
@@ -56,7 +59,7 @@ export function DeleteLargeCommunityListModal({
             <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm font-medium text-destructive">
-                Deleting large community list: {largeCommunityList.name}
+                {t("shared.deletingList", { listType: t("types.largeCommunity.modalName"), name: largeCommunityList.name })}
               </p>
               {largeCommunityList.description && (
                 <p className="text-sm text-muted-foreground mt-1">
@@ -64,7 +67,7 @@ export function DeleteLargeCommunityListModal({
                 </p>
               )}
               <p className="text-sm text-muted-foreground mt-2">
-                This will delete {largeCommunityList.rules.length} rule{largeCommunityList.rules.length !== 1 ? "s" : ""}.
+                {t("shared.willDeleteRules", { count: largeCommunityList.rules.length })}
               </p>
             </div>
           </div>
@@ -79,10 +82,10 @@ export function DeleteLargeCommunityListModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
-            {loading ? "Deleting..." : "Delete Large Community List"}
+            {loading ? tc("deleting") : t("shared.deleteList", { listType: t("types.largeCommunity.title") })}
           </Button>
         </DialogFooter>
       </DialogContent>

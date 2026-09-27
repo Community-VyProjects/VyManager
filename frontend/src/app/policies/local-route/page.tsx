@@ -20,8 +20,11 @@ import { LocalRouteReorderBanner } from "@/components/policies/LocalRouteReorder
 import { LocalRouteRuleRow } from "@/components/policies/LocalRouteRuleRow";
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { useTranslations } from "next-intl";
 
 function LocalRoutePageInner() {
+  const t = useTranslations("localRoute");
+  const tc = useTranslations("common");
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +53,7 @@ function LocalRoutePageInner() {
 
   useEffect(() => {
     fetchConfig();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount; a language switch re-renders via router.refresh()
   }, []);
 
   useEffect(() => {
@@ -66,7 +70,7 @@ function LocalRoutePageInner() {
       const data = await localRouteService.getConfig(refresh);
       setConfig(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load local route rules");
+      setError(err instanceof Error ? err.message : t("page.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -143,7 +147,7 @@ function LocalRoutePageInner() {
       setOriginalRules([]);
     } catch (err) {
       console.error("Error saving reordered rules:", err);
-      setError(err instanceof Error ? err.message : "Failed to save reordered rules");
+      setError(err instanceof Error ? err.message : t("page.reorderFailed"));
     } finally {
       setSavingReorder(false);
     }
@@ -190,11 +194,11 @@ function LocalRoutePageInner() {
         <div className="flex items-center justify-center h-full">
           <div className="text-center space-y-4">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-            <h2 className="text-xl font-semibold text-foreground">Error Loading Local Route Rules</h2>
+            <h2 className="text-xl font-semibold text-foreground">{t("page.errorLoading")}</h2>
             <p className="text-muted-foreground max-w-md">{error}</p>
             <Button onClick={() => fetchConfig(true)} variant="outline">
               <RefreshCw className="h-4 w-4 mr-2" />
-              Retry
+              {tc("retry")}
             </Button>
           </div>
         </div>
@@ -213,20 +217,20 @@ function LocalRoutePageInner() {
                 <Route className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-foreground">Local Route</h1>
+                <h1 className="text-2xl font-bold text-foreground">{t("page.title")}</h1>
                 <p className="text-sm text-muted-foreground">
-                  Policy-based routing for IPv4 and IPv6 traffic
+                  {t("page.subtitle")}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <Button onClick={() => fetchConfig(true)} variant="outline" size="sm">
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {tc("refresh")}
               </Button>
               <Button onClick={() => setCreateModalOpen(true)} size="sm">
                 <Plus className="h-4 w-4 mr-2" />
-                Create Rule
+                {t("page.createRule")}
               </Button>
             </div>
           </div>
@@ -268,11 +272,11 @@ function LocalRoutePageInner() {
           <div className="mx-6 mt-4 bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-destructive">Error</p>
+              <p className="text-sm font-medium text-destructive">{t("page.error")}</p>
               <p className="text-sm text-muted-foreground mt-1">{error}</p>
             </div>
             <Button variant="ghost" size="sm" onClick={() => setError(null)}>
-              Dismiss
+              {t("page.dismiss")}
             </Button>
           </div>
         )}
@@ -286,7 +290,7 @@ function LocalRoutePageInner() {
                 <div className="relative max-w-sm">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search rules..."
+                    placeholder={t("page.searchRules")}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10"
@@ -299,17 +303,17 @@ function LocalRoutePageInner() {
                 <div className="border-2 border-dashed border-border rounded-lg p-12 text-center">
                   <Route className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-foreground mb-2">
-                    {searchQuery ? "No rules match your search" : "No IPv4 local route rules configured"}
+                    {searchQuery ? t("page.noRulesMatch") : t("page.noRulesConfigured", { type: "IPv4" })}
                   </h3>
                   {!searchQuery && (
                     <p className="text-sm text-muted-foreground mb-6">
-                      Create your first rule to start policy-based routing
+                      {t("page.createFirstHint")}
                     </p>
                   )}
                   {!searchQuery && (
                     <Button onClick={() => setCreateModalOpen(true)}>
                       <Plus className="h-4 w-4 mr-2" />
-                      Create IPv4 Rule
+                      {t("page.createTypeRule", { type: "IPv4" })}
                     </Button>
                   )}
                 </div>
@@ -320,15 +324,15 @@ function LocalRoutePageInner() {
                       <TableHeader>
                         <TableRow>
                           <TableHead className="w-12"></TableHead>
-                          <TableHead className="w-24">Rule</TableHead>
-                          <TableHead>Source</TableHead>
-                          <TableHead>Destination</TableHead>
-                          <TableHead>Protocol</TableHead>
-                          <TableHead>Fwmark</TableHead>
-                          <TableHead>Interface</TableHead>
-                          <TableHead>Table</TableHead>
+                          <TableHead className="w-24">{t("page.colRule")}</TableHead>
+                          <TableHead>{t("page.colSource")}</TableHead>
+                          <TableHead>{t("page.colDestination")}</TableHead>
+                          <TableHead>{t("page.colProtocol")}</TableHead>
+                          <TableHead>{t("page.colFwmark")}</TableHead>
+                          <TableHead>{t("page.colInterface")}</TableHead>
+                          <TableHead>{t("page.colTable")}</TableHead>
                           <TableHead>VRF</TableHead>
-                          <TableHead className="w-24 text-right">Actions</TableHead>
+                          <TableHead className="w-24 text-right">{tc("actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -355,7 +359,7 @@ function LocalRoutePageInner() {
                 <div className="relative max-w-sm">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search rules..."
+                    placeholder={t("page.searchRules")}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10"
@@ -368,17 +372,17 @@ function LocalRoutePageInner() {
                 <div className="border-2 border-dashed border-border rounded-lg p-12 text-center">
                   <Route className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-foreground mb-2">
-                    {searchQuery ? "No rules match your search" : "No IPv6 local route rules configured"}
+                    {searchQuery ? t("page.noRulesMatch") : t("page.noRulesConfigured", { type: "IPv6" })}
                   </h3>
                   {!searchQuery && (
                     <p className="text-sm text-muted-foreground mb-6">
-                      Create your first rule to start policy-based routing
+                      {t("page.createFirstHint")}
                     </p>
                   )}
                   {!searchQuery && (
                     <Button onClick={() => setCreateModalOpen(true)}>
                       <Plus className="h-4 w-4 mr-2" />
-                      Create IPv6 Rule
+                      {t("page.createTypeRule", { type: "IPv6" })}
                     </Button>
                   )}
                 </div>
@@ -389,15 +393,15 @@ function LocalRoutePageInner() {
                       <TableHeader>
                         <TableRow>
                           <TableHead className="w-12"></TableHead>
-                          <TableHead className="w-24">Rule</TableHead>
-                          <TableHead>Source</TableHead>
-                          <TableHead>Destination</TableHead>
-                          <TableHead>Protocol</TableHead>
-                          <TableHead>Fwmark</TableHead>
-                          <TableHead>Interface</TableHead>
-                          <TableHead>Table</TableHead>
+                          <TableHead className="w-24">{t("page.colRule")}</TableHead>
+                          <TableHead>{t("page.colSource")}</TableHead>
+                          <TableHead>{t("page.colDestination")}</TableHead>
+                          <TableHead>{t("page.colProtocol")}</TableHead>
+                          <TableHead>{t("page.colFwmark")}</TableHead>
+                          <TableHead>{t("page.colInterface")}</TableHead>
+                          <TableHead>{t("page.colTable")}</TableHead>
                           <TableHead>VRF</TableHead>
-                          <TableHead className="w-24 text-right">Actions</TableHead>
+                          <TableHead className="w-24 text-right">{tc("actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>

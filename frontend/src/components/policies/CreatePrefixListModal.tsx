@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { prefixListService, type PrefixListCapabilitiesResponse } from "@/lib/api/prefix-list";
 
 interface CreatePrefixListModalProps {
@@ -19,6 +20,8 @@ interface CreatePrefixListModalProps {
 }
 
 export function CreatePrefixListModal({ open, onOpenChange, onSuccess, listType }: CreatePrefixListModalProps) {
+  const t = useTranslations("prefixList");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("basic");
@@ -84,32 +87,32 @@ export function CreatePrefixListModal({ open, onOpenChange, onSuccess, listType 
   const handleSubmit = async () => {
     // Validation
     if (!listName.trim()) {
-      setError("Please enter a prefix list name");
+      setError(t("validation.nameRequired"));
       setActiveTab("basic");
       return;
     }
 
     if (!prefix.trim()) {
-      setError("Please enter a prefix in CIDR notation");
+      setError(t("validation.prefixRequired"));
       setActiveTab("rule");
       return;
     }
 
     if (!validateCIDR(prefix)) {
-      setError(`Invalid ${listType.toUpperCase()} CIDR notation. Format: ${listType === "ipv4" ? "192.168.1.0/24" : "2001:db8::/32"}`);
+      setError(t("validation.invalidCidr", { type: listType.toUpperCase(), example: listType === "ipv4" ? "192.168.1.0/24" : "2001:db8::/32" }));
       setActiveTab("rule");
       return;
     }
 
     // Validate ge/le if provided
     if (ge && isNaN(parseInt(ge, 10))) {
-      setError("GE must be a valid number");
+      setError(t("validation.geNotNumber"));
       setActiveTab("rule");
       return;
     }
 
     if (le && isNaN(parseInt(le, 10))) {
-      setError("LE must be a valid number");
+      setError(t("validation.leNotNumber"));
       setActiveTab("rule");
       return;
     }
@@ -121,7 +124,7 @@ export function CreatePrefixListModal({ open, onOpenChange, onSuccess, listType 
     if (ge) {
       const geNum = parseInt(ge, 10);
       if (geNum < prefixLength || geNum > maxLength) {
-        setError(`GE must be between ${prefixLength} (prefix length) and ${maxLength}`);
+        setError(t("validation.geRange", { min: String(prefixLength), max: String(maxLength) }));
         setActiveTab("rule");
         return;
       }
@@ -130,7 +133,7 @@ export function CreatePrefixListModal({ open, onOpenChange, onSuccess, listType 
     if (le) {
       const leNum = parseInt(le, 10);
       if (leNum < prefixLength || leNum > maxLength) {
-        setError(`LE must be between ${prefixLength} (prefix length) and ${maxLength}`);
+        setError(t("validation.leRange", { min: String(prefixLength), max: String(maxLength) }));
         setActiveTab("rule");
         return;
       }
@@ -140,7 +143,7 @@ export function CreatePrefixListModal({ open, onOpenChange, onSuccess, listType 
       const geNum = parseInt(ge, 10);
       const leNum = parseInt(le, 10);
       if (geNum > leNum) {
-        setError("GE must be less than or equal to LE");
+        setError(t("validation.geAboveLe"));
         setActiveTab("rule");
         return;
       }
@@ -169,7 +172,7 @@ export function CreatePrefixListModal({ open, onOpenChange, onSuccess, listType 
       handleClose();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create prefix list");
+      setError(err instanceof Error ? err.message : t("create.failed"));
     } finally {
       setLoading(false);
     }
@@ -179,41 +182,41 @@ export function CreatePrefixListModal({ open, onOpenChange, onSuccess, listType 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create {listType.toUpperCase()} Prefix List</DialogTitle>
+          <DialogTitle>{t("create.title", { type: listType.toUpperCase() })}</DialogTitle>
           <DialogDescription>
-            Create a new prefix list with the first rule
+            {t("create.description")}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="basic">Basic</TabsTrigger>
-            <TabsTrigger value="rule">First Rule</TabsTrigger>
+            <TabsTrigger value="basic">{t("create.basic")}</TabsTrigger>
+            <TabsTrigger value="rule">{t("create.firstRule")}</TabsTrigger>
           </TabsList>
 
           {/* Basic Tab */}
           <TabsContent value="basic" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="list-name">Prefix List Name *</Label>
+              <Label htmlFor="list-name">{t("create.listName")} *</Label>
               <Input
                 id="list-name"
                 value={listName}
                 onChange={(e) => setListName(e.target.value)}
-                placeholder="e.g., MY-PREFIXES"
+                placeholder={t("form.example", { value: "MY-PREFIXES" })}
                 disabled={loading}
               />
               <p className="text-xs text-muted-foreground">
-                Enter a unique name for the prefix list
+                {t("create.nameHelp")}
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="list-description">Description</Label>
+              <Label htmlFor="list-description">{tc("description")}</Label>
               <Input
                 id="list-description"
                 value={listDescription}
                 onChange={(e) => setListDescription(e.target.value)}
-                placeholder="Enter prefix list description (optional)"
+                placeholder={t("create.descriptionPlaceholder")}
                 disabled={loading}
               />
             </div>
@@ -223,7 +226,7 @@ export function CreatePrefixListModal({ open, onOpenChange, onSuccess, listType 
           <TabsContent value="rule" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="rule-number">Rule Number</Label>
+                <Label htmlFor="rule-number">{t("form.ruleNumber")}</Label>
                 <Input
                   id="rule-number"
                   type="number"
@@ -231,80 +234,80 @@ export function CreatePrefixListModal({ open, onOpenChange, onSuccess, listType 
                   disabled
                   className="bg-muted"
                 />
-                <p className="text-xs text-muted-foreground">Starting at 100</p>
+                <p className="text-xs text-muted-foreground">{t("create.startingAt")}</p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="action">Action *</Label>
+                <Label htmlFor="action">{t("form.action")} *</Label>
                 <Select value={action} onValueChange={(v) => setAction(v as "permit" | "deny")} disabled={loading}>
                   <SelectTrigger id="action">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="permit">Permit</SelectItem>
-                    <SelectItem value="deny">Deny</SelectItem>
+                    <SelectItem value="permit">{t("form.permit")}</SelectItem>
+                    <SelectItem value="deny">{t("form.deny")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="rule-description">Rule Description</Label>
+              <Label htmlFor="rule-description">{t("form.ruleDescription")}</Label>
               <Input
                 id="rule-description"
                 value={ruleDescription}
                 onChange={(e) => setRuleDescription(e.target.value)}
-                placeholder="Enter rule description (optional)"
+                placeholder={t("form.ruleDescriptionPlaceholder")}
                 disabled={loading}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="prefix">Prefix (CIDR) *</Label>
+              <Label htmlFor="prefix">{t("form.prefixCidr")} *</Label>
               <Input
                 id="prefix"
                 value={prefix}
                 onChange={(e) => setPrefix(e.target.value)}
-                placeholder={listType === "ipv4" ? "e.g., 192.168.1.0/24" : "e.g., 2001:db8::/32"}
+                placeholder={listType === "ipv4" ? t("form.example", { value: "192.168.1.0/24" }) : t("form.example", { value: "2001:db8::/32" })}
                 disabled={loading}
               />
               <p className="text-xs text-muted-foreground">
-                Enter prefix in CIDR notation
+                {t("form.prefixHelp")}
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="ge">GE (Greater-than-or-equal)</Label>
+                <Label htmlFor="ge">{t("form.geLabel")}</Label>
                 <Input
                   id="ge"
                   type="number"
                   value={ge}
                   onChange={(e) => setGe(e.target.value)}
-                  placeholder="Optional"
+                  placeholder={tc("optional")}
                   disabled={loading}
                   min={prefix ? parseInt(prefix.split('/')[1] || "0", 10) : 0}
                   max={listType === "ipv4" ? 32 : 128}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Minimum prefix length to match
+                  {t("form.geHelp")}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="le">LE (Less-than-or-equal)</Label>
+                <Label htmlFor="le">{t("form.leLabel")}</Label>
                 <Input
                   id="le"
                   type="number"
                   value={le}
                   onChange={(e) => setLe(e.target.value)}
-                  placeholder="Optional"
+                  placeholder={tc("optional")}
                   disabled={loading}
                   min={prefix ? parseInt(prefix.split('/')[1] || "0", 10) : 0}
                   max={listType === "ipv4" ? 32 : 128}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Maximum prefix length to match
+                  {t("form.leHelp")}
                 </p>
               </div>
             </div>
@@ -313,12 +316,12 @@ export function CreatePrefixListModal({ open, onOpenChange, onSuccess, listType 
               <div className="flex gap-2">
                 <AlertCircle className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
                 <div className="text-sm text-muted-foreground">
-                  <p className="font-medium text-foreground mb-1">About GE/LE</p>
+                  <p className="font-medium text-foreground mb-1">{t("form.aboutTitle")}</p>
                   <ul className="space-y-1 text-xs">
-                    <li>• GE specifies the minimum prefix length to match</li>
-                    <li>• LE specifies the maximum prefix length to match</li>
-                    <li>• Both are optional and refine the prefix match</li>
-                    <li>• Example: 10.0.0.0/8 ge 16 le 24 matches 10.x.y.0/16 through 10.x.y.z/24</li>
+                    <li>• {t("form.aboutGe")}</li>
+                    <li>• {t("form.aboutLe")}</li>
+                    <li>• {t("form.aboutOptional")}</li>
+                    <li>• {t("form.aboutExample")}</li>
                   </ul>
                 </div>
               </div>
@@ -335,10 +338,10 @@ export function CreatePrefixListModal({ open, onOpenChange, onSuccess, listType 
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Creating..." : "Create Prefix List"}
+            {loading ? t("create.creating") : t("create.submit")}
           </Button>
         </DialogFooter>
       </DialogContent>

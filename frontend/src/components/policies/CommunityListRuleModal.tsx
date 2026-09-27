@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,6 +36,8 @@ export function CommunityListRuleModal({
   communityListName,
   existing,
 }: CommunityListRuleModalProps) {
+  const t = useTranslations("bgpLists");
+  const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +65,7 @@ export function CommunityListRuleModal({
   const handleSubmit = async () => {
     const validationError = validateRegexListRule(draft);
     if (validationError) {
-      setError(validationError);
+      setError(t(`validation.${validationError}`));
       return;
     }
 
@@ -76,13 +79,13 @@ export function CommunityListRuleModal({
           ? await submitCommunityRuleUpdate(communityListName, existing, draft)
           : await submitCommunityRuleCreate(communityListName, draft);
       if (result && result.success === false) {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
         return;
       }
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : isEdit ? "Failed to update rule" : "Failed to create rule");
+      setError(err instanceof Error ? err.message : isEdit ? t("shared.failedToUpdateRule") : t("shared.failedToCreateRule"));
     } finally {
       setLoading(false);
     }
@@ -92,47 +95,47 @@ export function CommunityListRuleModal({
     <Dialog open={open} onOpenChange={(next) => { if (!next && !loading) onOpenChange(false); }}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>{isEdit ? `Edit Rule #${lockedRule.value}` : "Add Rule"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("shared.editRuleTitle", { number: lockedRule.value }) : t("shared.addRule")}</DialogTitle>
           <DialogDescription>
             {isEdit
-              ? `Editing rule in community list: ${communityListName}`
-              : `Add a new rule to community list: ${communityListName} (Rule #${draft.ruleNumber})`}
+              ? t("shared.editingRuleIn", { listType: t("types.community.name"), name: communityListName })
+              : t("shared.addRuleTo", { listType: t("types.community.name"), name: communityListName, number: String(draft.ruleNumber) })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="action">Action *</Label>
+            <Label htmlFor="action">{t("shared.actionRequired")}</Label>
             <Select value={draft.action} onValueChange={(v) => patch({ action: v as "permit" | "deny" })} disabled={loading}>
               <SelectTrigger id="action">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="permit">Permit</SelectItem>
-                <SelectItem value="deny">Deny</SelectItem>
+                <SelectItem value="permit">{t("shared.permit")}</SelectItem>
+                <SelectItem value="deny">{t("shared.deny")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="regex">Regex Pattern *</Label>
+            <Label htmlFor="regex">{t("shared.regexPatternRequired")}</Label>
             <Input
               id="regex"
-              placeholder="e.g., _65000:"
+              placeholder={t("shared.eg", { value: "_65000:" })}
               value={draft.regex}
               onChange={(e) => patch({ regex: e.target.value })}
               disabled={loading}
             />
             <p className="text-xs text-muted-foreground">
-              Regular expression to match BGP communities (e.g., &quot;64501 64502&quot;)
+              {t("community.regexHelp")}
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{tc("description")}</Label>
             <Input
               id="description"
-              placeholder="Optional description"
+              placeholder={t("shared.descriptionPlaceholder")}
               value={draft.description}
               onChange={(e) => patch({ description: e.target.value })}
               disabled={loading}
@@ -149,11 +152,11 @@ export function CommunityListRuleModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {loading ? (isEdit ? "Saving..." : "Creating...") : isEdit ? "Save Changes" : "Create Rule"}
+            {loading ? (isEdit ? tc("saving") : t("shared.creating")) : isEdit ? t("shared.saveChanges") : t("shared.createRule")}
           </Button>
         </DialogFooter>
       </DialogContent>

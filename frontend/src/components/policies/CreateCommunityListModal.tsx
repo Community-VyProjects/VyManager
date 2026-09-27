@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,8 @@ export function CreateCommunityListModal({
   onOpenChange,
   onSuccess,
 }: CreateCommunityListModalProps) {
+  const t = useTranslations("bgpLists");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,12 +45,12 @@ export function CreateCommunityListModal({
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      setError("Community list name is required");
+      setError(t("community.nameRequired"));
       return;
     }
 
     if (!regex.trim()) {
-      setError("Regex pattern is required");
+      setError(t("validation.regexRequired"));
       return;
     }
 
@@ -70,7 +73,7 @@ export function CreateCommunityListModal({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create Community list");
+      setError(err instanceof Error ? err.message : t("shared.failedToCreateList", { listType: t("types.community.modalName") }));
     } finally {
       setLoading(false);
     }
@@ -87,19 +90,19 @@ export function CreateCommunityListModal({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Create Community List</DialogTitle>
+          <DialogTitle>{t("shared.createList", { listType: t("types.community.title") })}</DialogTitle>
           <DialogDescription>
-            Create a new BGP Community list with an initial rule
+            {t("shared.createDescription", { listType: t("types.community.modalName") })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           {/* Community List Fields */}
           <div className="space-y-2">
-            <Label htmlFor="name">Community List Name *</Label>
+            <Label htmlFor="name">{t("shared.listNameRequired", { listType: t("types.community.title") })}</Label>
             <Input
               id="name"
-              placeholder="e.g., ALLOW_AS65000"
+              placeholder={t("shared.eg", { value: "ALLOW_AS65000" })}
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={loading}
@@ -107,10 +110,10 @@ export function CreateCommunityListModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{tc("description")}</Label>
             <Textarea
               id="description"
-              placeholder="Optional description"
+              placeholder={t("shared.descriptionPlaceholder")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={loading}
@@ -120,41 +123,41 @@ export function CreateCommunityListModal({
 
           {/* Initial Rule */}
           <div className="pt-4 border-t">
-            <h3 className="font-semibold text-sm mb-4">Initial Rule</h3>
+            <h3 className="font-semibold text-sm mb-4">{t("shared.initialRule")}</h3>
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="action">Action *</Label>
+                <Label htmlFor="action">{t("shared.actionRequired")}</Label>
                 <Select value={action} onValueChange={(v) => setAction(v as "permit" | "deny")} disabled={loading}>
                   <SelectTrigger id="action">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="permit">Permit</SelectItem>
-                    <SelectItem value="deny">Deny</SelectItem>
+                    <SelectItem value="permit">{t("shared.permit")}</SelectItem>
+                    <SelectItem value="deny">{t("shared.deny")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="regex">Regex Pattern *</Label>
+                <Label htmlFor="regex">{t("shared.regexPatternRequired")}</Label>
                 <Input
                   id="regex"
-                  placeholder="e.g., ^65000_"
+                  placeholder={t("shared.eg", { value: "^65000_" })}
                   value={regex}
                   onChange={(e) => setRegex(e.target.value)}
                   disabled={loading}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Regular expression to match AS paths (e.g., &quot;64501 64502&quot;)
+                  {t("asPath.regexHelp")}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="ruleDescription">Rule Description</Label>
+                <Label htmlFor="ruleDescription">{t("shared.ruleDescription")}</Label>
                 <Input
                   id="ruleDescription"
-                  placeholder="Optional rule description"
+                  placeholder={t("shared.ruleDescriptionPlaceholder")}
                   value={ruleDescription}
                   onChange={(e) => setRuleDescription(e.target.value)}
                   disabled={loading}
@@ -173,11 +176,11 @@ export function CreateCommunityListModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {loading ? "Creating..." : "Create Community List"}
+            {loading ? t("shared.creating") : t("shared.createList", { listType: t("types.community.title") })}
           </Button>
         </DialogFooter>
       </DialogContent>

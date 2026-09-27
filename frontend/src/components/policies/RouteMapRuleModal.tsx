@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { VrfSelect } from "@/components/ui/vrf-select";
 import { InterfaceSelect } from "@/components/ui/interface-select";
@@ -46,6 +47,8 @@ export function RouteMapRuleModal({
   existingRules,
   existing,
 }: RouteMapRuleModalProps) {
+  const t = useTranslations("routeMapRuleModal");
+  const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -728,13 +731,13 @@ export function RouteMapRuleModal({
           ? await submitRouteMapUpdate(routeMapName, existing, draft)
           : await submitRouteMapCreate(routeMapName, draft);
       if (result && result.success === false) {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
         return;
       }
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add rule");
+      setError(err instanceof Error ? err.message : t("addFailed"));
     } finally {
       setLoading(false);
     }
@@ -744,25 +747,25 @@ export function RouteMapRuleModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? `Edit Rule #${lockedIdentity(existing, (r) => String(r.rule_number), String(ruleNumber)).value}` : `Add Rule to ${routeMapName}`}</DialogTitle>
+          <DialogTitle>{isEdit ? t("titleEdit", { number: lockedIdentity(existing, (r) => String(r.rule_number), String(ruleNumber)).value }) : t("titleAdd", { name: routeMapName })}</DialogTitle>
           <DialogDescription>
-            Add a new rule with match conditions and set actions to this route-map
+            {t("description")}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="basic">Basic</TabsTrigger>
-            <TabsTrigger value="match">Match Conditions</TabsTrigger>
-            <TabsTrigger value="set">Set Actions</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            <TabsTrigger value="basic">{t("tabBasic")}</TabsTrigger>
+            <TabsTrigger value="match">{t("tabMatch")}</TabsTrigger>
+            <TabsTrigger value="set">{t("tabSet")}</TabsTrigger>
+            <TabsTrigger value="advanced">{t("tabAdvanced")}</TabsTrigger>
           </TabsList>
 
           {/* Basic Tab */}
           <TabsContent value="basic" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="ruleNumber">Rule Number</Label>
+                <Label htmlFor="ruleNumber">{t("ruleNumber")}</Label>
                 <Input
                   id="ruleNumber"
                   type="number"
@@ -771,32 +774,32 @@ export function RouteMapRuleModal({
                   className="bg-muted"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Auto-calculated as next available number
+                  {t("ruleNumberHint")}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="action">Action *</Label>
+                <Label htmlFor="action">{t("actionLabel")}</Label>
                 <Select value={action} onValueChange={setAction}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="permit">Permit</SelectItem>
-                    <SelectItem value="deny">Deny</SelectItem>
+                    <SelectItem value="permit">{t("permit")}</SelectItem>
+                    <SelectItem value="deny">{t("deny")}</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Permit allows matching routes, Deny blocks them
+                  {t("actionHint")}
                 </p>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="ruleDescription">Rule Description</Label>
+              <Label htmlFor="ruleDescription">{t("ruleDescription")}</Label>
               <Input
                 id="ruleDescription"
-                placeholder="Optional description for this rule"
+                placeholder={t("ruleDescriptionPlaceholder")}
                 value={ruleDescription}
                 onChange={(e) => setRuleDescription(e.target.value)}
               />
@@ -806,23 +809,23 @@ export function RouteMapRuleModal({
           {/* Match Conditions Tab */}
           <TabsContent value="match" className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Define conditions that routes must match. All specified conditions must match (AND logic).
+              {t("match.intro")}
             </p>
 
             <Accordion type="multiple" className="w-full">
               {/* BGP Attributes */}
               <AccordionItem value="bgp">
-                <AccordionTrigger>BGP Attributes</AccordionTrigger>
+                <AccordionTrigger>{t("match.bgpAttributes")}</AccordionTrigger>
                 <AccordionContent className="space-y-4 pt-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="matchAsPath">AS Path List</Label>
+                      <Label htmlFor="matchAsPath">{t("match.asPathList")}</Label>
                       <Select value={matchAsPath || "none"} onValueChange={(val) => setMatchAsPath(val === "none" ? "" : val)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select AS path list" />
+                          <SelectValue placeholder={t("match.selectAsPathList")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="none">{tc("none")}</SelectItem>
                           {asPathLists.map((name) => (
                             <SelectItem key={name} value={name}>{name}</SelectItem>
                           ))}
@@ -831,28 +834,28 @@ export function RouteMapRuleModal({
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="matchOrigin">Origin</Label>
+                      <Label htmlFor="matchOrigin">{t("match.origin")}</Label>
                       <Select value={matchOrigin || "none"} onValueChange={(val) => setMatchOrigin(val === "none" ? "" : val)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select origin" />
+                          <SelectValue placeholder={t("match.selectOrigin")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="none">{tc("none")}</SelectItem>
                           <SelectItem value="egp">EGP</SelectItem>
                           <SelectItem value="igp">IGP</SelectItem>
-                          <SelectItem value="incomplete">Incomplete</SelectItem>
+                          <SelectItem value="incomplete">{t("match.incomplete")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="matchCommunityList">Community List</Label>
+                      <Label htmlFor="matchCommunityList">{t("match.communityList")}</Label>
                       <Select value={matchCommunityList || "none"} onValueChange={(val) => setMatchCommunityList(val === "none" ? "" : val)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select community list" />
+                          <SelectValue placeholder={t("match.selectCommunityList")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="none">{tc("none")}</SelectItem>
                           {communityLists.map((name) => (
                             <SelectItem key={name} value={name}>{name}</SelectItem>
                           ))}
@@ -865,19 +868,19 @@ export function RouteMapRuleModal({
                           onCheckedChange={(checked) => setMatchCommunityExact(checked as boolean)}
                         />
                         <Label htmlFor="matchCommunityExact" className="text-sm font-normal">
-                          Exact match
+                          {t("match.exactMatch")}
                         </Label>
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="matchExtcommunity">Extended Community</Label>
+                      <Label htmlFor="matchExtcommunity">{t("match.extendedCommunity")}</Label>
                       <Select value={matchExtcommunity || "none"} onValueChange={(val) => setMatchExtcommunity(val === "none" ? "" : val)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select extended community list" />
+                          <SelectValue placeholder={t("match.selectExtcommunityList")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="none">{tc("none")}</SelectItem>
                           {extcommunityLists.map((name) => (
                             <SelectItem key={name} value={name}>{name}</SelectItem>
                           ))}
@@ -886,13 +889,13 @@ export function RouteMapRuleModal({
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="matchLargeCommunityList">Large Community List</Label>
+                      <Label htmlFor="matchLargeCommunityList">{t("match.largeCommunityList")}</Label>
                       <Select value={matchLargeCommunityList || "none"} onValueChange={(val) => setMatchLargeCommunityList(val === "none" ? "" : val)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select large community list" />
+                          <SelectValue placeholder={t("match.selectLargeCommunityList")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="none">{tc("none")}</SelectItem>
                           {largeCommunityLists.map((name) => (
                             <SelectItem key={name} value={name}>{name}</SelectItem>
                           ))}
@@ -901,7 +904,7 @@ export function RouteMapRuleModal({
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="matchLocalPref">Local Preference</Label>
+                      <Label htmlFor="matchLocalPref">{t("match.localPreference")}</Label>
                       <Input
                         id="matchLocalPref"
                         type="number"
@@ -912,7 +915,7 @@ export function RouteMapRuleModal({
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="matchMetric">Metric (MED)</Label>
+                      <Label htmlFor="matchMetric">{t("match.metricMed")}</Label>
                       <Input
                         id="matchMetric"
                         type="number"
@@ -923,26 +926,26 @@ export function RouteMapRuleModal({
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="matchPeer">Peer Address</Label>
+                      <Label htmlFor="matchPeer">{t("match.peerAddress")}</Label>
                       <Input
                         id="matchPeer"
-                        placeholder="e.g., 192.168.1.1"
+                        placeholder={t("example", { value: "192.168.1.1" })}
                         value={matchPeer}
                         onChange={(e) => setMatchPeer(e.target.value)}
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="matchRpki">RPKI Validation</Label>
+                      <Label htmlFor="matchRpki">{t("match.rpkiValidation")}</Label>
                       <Select value={matchRpki || "none"} onValueChange={(val) => setMatchRpki(val === "none" ? "" : val)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select RPKI state" />
+                          <SelectValue placeholder={t("match.selectRpkiState")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
-                          <SelectItem value="valid">Valid</SelectItem>
-                          <SelectItem value="invalid">Invalid</SelectItem>
-                          <SelectItem value="notfound">Not Found</SelectItem>
+                          <SelectItem value="none">{tc("none")}</SelectItem>
+                          <SelectItem value="valid">{t("match.rpkiValid")}</SelectItem>
+                          <SelectItem value="invalid">{t("match.rpkiInvalid")}</SelectItem>
+                          <SelectItem value="notfound">{t("match.rpkiNotFound")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -952,31 +955,31 @@ export function RouteMapRuleModal({
 
               {/* IP/IPv6 Address */}
               <AccordionItem value="address">
-                <AccordionTrigger>IP/IPv6 Address Matching</AccordionTrigger>
+                <AccordionTrigger>{t("match.addressMatching")}</AccordionTrigger>
                 <AccordionContent className="space-y-4 pt-4">
                   <div className="space-y-4">
-                    <h4 className="font-medium text-sm">IPv4 Address</h4>
+                    <h4 className="font-medium text-sm">{t("match.ipv4Address")}</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="matchIpAddressAccessList">Access List</Label>
+                        <Label htmlFor="matchIpAddressAccessList">{t("match.accessList")}</Label>
                         <Input
                           id="matchIpAddressAccessList"
-                          placeholder="Access list number/name"
+                          placeholder={t("match.accessListPlaceholder")}
                           value={matchIpAddressAccessList}
                           onChange={(e) => setMatchIpAddressAccessList(e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="matchIpAddressPrefixList">Prefix List</Label>
+                        <Label htmlFor="matchIpAddressPrefixList">{t("match.prefixList")}</Label>
                         <Input
                           id="matchIpAddressPrefixList"
-                          placeholder="Prefix list name"
+                          placeholder={t("match.prefixListPlaceholder")}
                           value={matchIpAddressPrefixList}
                           onChange={(e) => setMatchIpAddressPrefixList(e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="matchIpAddressPrefixLen">Prefix Length</Label>
+                        <Label htmlFor="matchIpAddressPrefixLen">{t("match.prefixLength")}</Label>
                         <Input
                           id="matchIpAddressPrefixLen"
                           type="number"
@@ -987,28 +990,28 @@ export function RouteMapRuleModal({
                       </div>
                     </div>
 
-                    <h4 className="font-medium text-sm pt-4">IPv6 Address</h4>
+                    <h4 className="font-medium text-sm pt-4">{t("match.ipv6Address")}</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="matchIpv6AddressAccessList">Access List</Label>
+                        <Label htmlFor="matchIpv6AddressAccessList">{t("match.accessList")}</Label>
                         <Input
                           id="matchIpv6AddressAccessList"
-                          placeholder="Access list number/name"
+                          placeholder={t("match.accessListPlaceholder")}
                           value={matchIpv6AddressAccessList}
                           onChange={(e) => setMatchIpv6AddressAccessList(e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="matchIpv6AddressPrefixList">Prefix List</Label>
+                        <Label htmlFor="matchIpv6AddressPrefixList">{t("match.prefixList")}</Label>
                         <Input
                           id="matchIpv6AddressPrefixList"
-                          placeholder="Prefix list name"
+                          placeholder={t("match.prefixListPlaceholder")}
                           value={matchIpv6AddressPrefixList}
                           onChange={(e) => setMatchIpv6AddressPrefixList(e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="matchIpv6AddressPrefixLen">Prefix Length</Label>
+                        <Label htmlFor="matchIpv6AddressPrefixLen">{t("match.prefixLength")}</Label>
                         <Input
                           id="matchIpv6AddressPrefixLen"
                           type="number"
@@ -1024,19 +1027,19 @@ export function RouteMapRuleModal({
 
               {/* Next-Hop */}
               <AccordionItem value="nexthop">
-                <AccordionTrigger>Next-Hop Matching</AccordionTrigger>
+                <AccordionTrigger>{t("match.nexthopMatching")}</AccordionTrigger>
                 <AccordionContent className="space-y-4 pt-4">
                   <div className="space-y-4">
-                    <h4 className="font-medium text-sm">IPv4 Next-Hop</h4>
+                    <h4 className="font-medium text-sm">{t("match.ipv4Nexthop")}</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="matchIpNexthopAccessList">Access List</Label>
+                        <Label htmlFor="matchIpNexthopAccessList">{t("match.accessList")}</Label>
                         <Select value={matchIpNexthopAccessList || "none"} onValueChange={(val) => setMatchIpNexthopAccessList(val === "none" ? "" : val)}>
                           <SelectTrigger id="matchIpNexthopAccessList">
-                            <SelectValue placeholder="Select access list" />
+                            <SelectValue placeholder={t("match.selectAccessList")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
+                            <SelectItem value="none">{tc("none")}</SelectItem>
                             {ipv4AccessLists.map((number) => (
                               <SelectItem key={number} value={number}>{number}</SelectItem>
                             ))}
@@ -1044,22 +1047,22 @@ export function RouteMapRuleModal({
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="matchIpNexthopAddress">Address</Label>
+                        <Label htmlFor="matchIpNexthopAddress">{t("match.address")}</Label>
                         <Input
                           id="matchIpNexthopAddress"
-                          placeholder="e.g., 192.168.1.1"
+                          placeholder={t("example", { value: "192.168.1.1" })}
                           value={matchIpNexthopAddress}
                           onChange={(e) => setMatchIpNexthopAddress(e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="matchIpNexthopPrefixList">Prefix List</Label>
+                        <Label htmlFor="matchIpNexthopPrefixList">{t("match.prefixList")}</Label>
                         <Select value={matchIpNexthopPrefixList || "none"} onValueChange={(val) => setMatchIpNexthopPrefixList(val === "none" ? "" : val)}>
                           <SelectTrigger id="matchIpNexthopPrefixList">
-                            <SelectValue placeholder="Select prefix list" />
+                            <SelectValue placeholder={t("match.selectPrefixList")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
+                            <SelectItem value="none">{tc("none")}</SelectItem>
                             {ipv4PrefixLists.map((name) => (
                               <SelectItem key={name} value={name}>{name}</SelectItem>
                             ))}
@@ -1067,7 +1070,7 @@ export function RouteMapRuleModal({
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="matchIpNexthopPrefixLen">Prefix Length</Label>
+                        <Label htmlFor="matchIpNexthopPrefixLen">{t("match.prefixLength")}</Label>
                         <Input
                           id="matchIpNexthopPrefixLen"
                           type="number"
@@ -1084,22 +1087,22 @@ export function RouteMapRuleModal({
                             onCheckedChange={(checked) => setMatchIpNexthopType(checked as boolean)}
                           />
                           <Label htmlFor="matchIpNexthopType" className="cursor-pointer">
-                            Blackhole Type
+                            {t("match.blackholeType")}
                           </Label>
                         </div>
                       </div>
                     </div>
 
-                    <h4 className="font-medium text-sm pt-4">IPv6 Next-Hop</h4>
+                    <h4 className="font-medium text-sm pt-4">{t("match.ipv6Nexthop")}</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="matchIpv6NexthopAccessList">Access List</Label>
+                        <Label htmlFor="matchIpv6NexthopAccessList">{t("match.accessList")}</Label>
                         <Select value={matchIpv6NexthopAccessList || "none"} onValueChange={(val) => setMatchIpv6NexthopAccessList(val === "none" ? "" : val)}>
                           <SelectTrigger id="matchIpv6NexthopAccessList">
-                            <SelectValue placeholder="Select access list" />
+                            <SelectValue placeholder={t("match.selectAccessList")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
+                            <SelectItem value="none">{tc("none")}</SelectItem>
                             {ipv6AccessLists.map((number) => (
                               <SelectItem key={number} value={number}>{number}</SelectItem>
                             ))}
@@ -1107,22 +1110,22 @@ export function RouteMapRuleModal({
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="matchIpv6NexthopAddress">Address</Label>
+                        <Label htmlFor="matchIpv6NexthopAddress">{t("match.address")}</Label>
                         <Input
                           id="matchIpv6NexthopAddress"
-                          placeholder="e.g., 2001:db8::1"
+                          placeholder={t("example", { value: "2001:db8::1" })}
                           value={matchIpv6NexthopAddress}
                           onChange={(e) => setMatchIpv6NexthopAddress(e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="matchIpv6NexthopPrefixList">Prefix List</Label>
+                        <Label htmlFor="matchIpv6NexthopPrefixList">{t("match.prefixList")}</Label>
                         <Select value={matchIpv6NexthopPrefixList || "none"} onValueChange={(val) => setMatchIpv6NexthopPrefixList(val === "none" ? "" : val)}>
                           <SelectTrigger id="matchIpv6NexthopPrefixList">
-                            <SelectValue placeholder="Select prefix list" />
+                            <SelectValue placeholder={t("match.selectPrefixList")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
+                            <SelectItem value="none">{tc("none")}</SelectItem>
                             {ipv6PrefixLists.map((name) => (
                               <SelectItem key={name} value={name}>{name}</SelectItem>
                             ))}
@@ -1130,7 +1133,7 @@ export function RouteMapRuleModal({
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="matchIpv6NexthopPrefixLen">Prefix Length</Label>
+                        <Label htmlFor="matchIpv6NexthopPrefixLen">{t("match.prefixLength")}</Label>
                         <Input
                           id="matchIpv6NexthopPrefixLen"
                           type="number"
@@ -1147,7 +1150,7 @@ export function RouteMapRuleModal({
                             onCheckedChange={(checked) => setMatchIpv6NexthopType(checked as boolean)}
                           />
                           <Label htmlFor="matchIpv6NexthopType" className="cursor-pointer">
-                            Blackhole Type
+                            {t("match.blackholeType")}
                           </Label>
                         </div>
                       </div>
@@ -1158,71 +1161,71 @@ export function RouteMapRuleModal({
 
               {/* Other Conditions */}
               <AccordionItem value="other">
-                <AccordionTrigger>Other Conditions</AccordionTrigger>
+                <AccordionTrigger>{t("match.otherConditions")}</AccordionTrigger>
                 <AccordionContent className="space-y-4 pt-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="matchIpRouteSourceAccessList">Route Source Access List</Label>
+                      <Label htmlFor="matchIpRouteSourceAccessList">{t("match.routeSourceAccessList")}</Label>
                       <Input
                         id="matchIpRouteSourceAccessList"
-                        placeholder="Access list number/name"
+                        placeholder={t("match.accessListPlaceholder")}
                         value={matchIpRouteSourceAccessList}
                         onChange={(e) => setMatchIpRouteSourceAccessList(e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="matchIpRouteSourcePrefixList">Route Source Prefix List</Label>
+                      <Label htmlFor="matchIpRouteSourcePrefixList">{t("match.routeSourcePrefixList")}</Label>
                       <Input
                         id="matchIpRouteSourcePrefixList"
-                        placeholder="Prefix list name"
+                        placeholder={t("match.prefixListPlaceholder")}
                         value={matchIpRouteSourcePrefixList}
                         onChange={(e) => setMatchIpRouteSourcePrefixList(e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="matchInterface">Interface</Label>
+                      <Label htmlFor="matchInterface">{t("match.interface")}</Label>
                       <InterfaceSelect
                         id="matchInterface"
                         value={matchInterface || "__none__"}
                         onValueChange={(v) => setMatchInterface(v === "__none__" ? "" : v)}
-                        noneOption={{ label: "None", value: "__none__" }}
-                        placeholder="Select interface"
+                        noneOption={{ label: tc("none"), value: "__none__" }}
+                        placeholder={t("match.selectInterface")}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="matchProtocol">Protocol</Label>
+                      <Label htmlFor="matchProtocol">{t("match.protocol")}</Label>
                       <Select value={matchProtocol || "none"} onValueChange={(val) => setMatchProtocol(val === "none" ? "" : val)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select protocol" />
+                          <SelectValue placeholder={t("match.selectProtocol")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="none">{tc("none")}</SelectItem>
                           <SelectItem value="babel">Babel</SelectItem>
                           <SelectItem value="bgp">BGP</SelectItem>
-                          <SelectItem value="connected">Connected</SelectItem>
+                          <SelectItem value="connected">{t("match.protocolConnected")}</SelectItem>
                           <SelectItem value="isis">IS-IS</SelectItem>
-                          <SelectItem value="kernel">Kernel</SelectItem>
+                          <SelectItem value="kernel">{t("match.protocolKernel")}</SelectItem>
                           <SelectItem value="ospf">OSPF</SelectItem>
                           <SelectItem value="ospfv3">OSPFv3</SelectItem>
                           <SelectItem value="rip">RIP</SelectItem>
                           <SelectItem value="ripng">RIPng</SelectItem>
-                          <SelectItem value="static">Static</SelectItem>
-                          <SelectItem value="table">Table</SelectItem>
+                          <SelectItem value="static">{t("match.protocolStatic")}</SelectItem>
+                          <SelectItem value="table">{t("match.protocolTable")}</SelectItem>
                           <SelectItem value="vnc">VNC</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="matchSourceVrf">Source VRF</Label>
+                      <Label htmlFor="matchSourceVrf">{t("match.sourceVrf")}</Label>
                       <VrfSelect
                         id="matchSourceVrf"
                         value={matchSourceVrf}
                         onValueChange={setMatchSourceVrf}
-                        extraOptions={[{ label: "Default", value: "default" }]}
+                        extraOptions={[{ label: tc("default"), value: "default" }]}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="matchTag">Tag</Label>
+                      <Label htmlFor="matchTag">{t("match.tag")}</Label>
                       <Input
                         id="matchTag"
                         type="number"
@@ -1240,39 +1243,39 @@ export function RouteMapRuleModal({
           {/* Set Actions Tab */}
           <TabsContent value="set" className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Define actions to apply to matching routes. Multiple actions can be combined.
+              {t("set.intro")}
             </p>
 
             <Accordion type="multiple" className="w-full">
               {/* BGP AS Path */}
               <AccordionItem value="aspath">
-                <AccordionTrigger>BGP AS Path</AccordionTrigger>
+                <AccordionTrigger>{t("set.bgpAsPath")}</AccordionTrigger>
                 <AccordionContent className="space-y-4 pt-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="setAsPathExclude">Exclude AS</Label>
+                      <Label htmlFor="setAsPathExclude">{t("set.excludeAs")}</Label>
                       <Input
                         id="setAsPathExclude"
-                        placeholder="AS numbers to exclude"
+                        placeholder={t("set.excludeAsPlaceholder")}
                         value={setAsPathExclude}
                         onChange={(e) => setSetAsPathExclude(e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="setAsPathPrepend">Prepend AS</Label>
+                      <Label htmlFor="setAsPathPrepend">{t("set.prependAs")}</Label>
                       <Input
                         id="setAsPathPrepend"
-                        placeholder="AS numbers to prepend"
+                        placeholder={t("set.prependAsPlaceholder")}
                         value={setAsPathPrepend}
                         onChange={(e) => setSetAsPathPrepend(e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="setAsPathPrependLastAs">Prepend Last AS (count)</Label>
+                      <Label htmlFor="setAsPathPrependLastAs">{t("set.prependLastAs")}</Label>
                       <Input
                         id="setAsPathPrependLastAs"
                         type="number"
-                        placeholder="Number of times"
+                        placeholder={t("set.numberOfTimes")}
                         value={setAsPathPrependLastAs}
                         onChange={(e) => setSetAsPathPrependLastAs(e.target.value)}
                       />
@@ -1283,10 +1286,10 @@ export function RouteMapRuleModal({
 
               {/* BGP Communities */}
               <AccordionItem value="communities">
-                <AccordionTrigger>BGP Communities</AccordionTrigger>
+                <AccordionTrigger>{t("set.bgpCommunities")}</AccordionTrigger>
                 <AccordionContent className="space-y-4 pt-4">
                   <div className="space-y-4">
-                    <h4 className="font-medium text-sm">Standard Community</h4>
+                    <h4 className="font-medium text-sm">{t("set.standardCommunity")}</h4>
                     <div className="space-y-4 border border-border rounded-lg p-4">
                       {/* Add Communities */}
                       <div className="space-y-2">
@@ -1298,7 +1301,7 @@ export function RouteMapRuleModal({
                             disabled={loading || communityReplaceEnabled || communityRemoveAll}
                           />
                           <Label htmlFor="communityAdd" className="font-medium cursor-pointer">
-                            Add Communities
+                            {t("set.addCommunities")}
                           </Label>
                         </div>
                         {communityAddEnabled && (
@@ -1315,12 +1318,12 @@ export function RouteMapRuleModal({
                               <Input
                                 value={newCommunityAdd}
                                 onChange={(e) => setNewCommunityAdd(e.target.value)}
-                                placeholder="e.g., 65000:100 or local-as"
+                                placeholder={t("set.communityValuePlaceholder")}
                                 onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCommunityAdd())}
                               />
                               <Button type="button" variant="outline" size="sm" onClick={handleAddCommunityAdd}>
                                 <Plus className="h-4 w-4 mr-1" />
-                                Add
+                                {tc("add")}
                               </Button>
                             </div>
                           </div>
@@ -1337,7 +1340,7 @@ export function RouteMapRuleModal({
                             disabled={loading || communityReplaceEnabled || communityRemoveAll}
                           />
                           <Label htmlFor="communityDelete" className="font-medium cursor-pointer">
-                            Delete Communities
+                            {t("set.deleteCommunities")}
                           </Label>
                         </div>
                         {communityDeleteEnabled && (
@@ -1360,10 +1363,10 @@ export function RouteMapRuleModal({
                                 }}
                               >
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Select community list to delete" />
+                                  <SelectValue placeholder={t("set.selectCommunityListToDelete")} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="none">Select community list...</SelectItem>
+                                  <SelectItem value="none">{t("set.selectCommunityListEllipsis")}</SelectItem>
                                   {communityLists.map((listName) => (
                                     <SelectItem key={listName} value={listName} disabled={communityDeleteValues.includes(listName)}>
                                       {listName}
@@ -1372,7 +1375,7 @@ export function RouteMapRuleModal({
                                 </SelectContent>
                               </Select>
                               <p className="text-xs text-muted-foreground">
-                                Select community list(s) to delete all matching communities
+                                {t("set.deleteCommunitiesHint")}
                               </p>
                             </div>
                           </div>
@@ -1389,7 +1392,7 @@ export function RouteMapRuleModal({
                             disabled={loading || communityAddEnabled || communityDeleteEnabled || communityRemoveAll}
                           />
                           <Label htmlFor="communityReplace" className="font-medium cursor-pointer">
-                            Replace All With
+                            {t("set.replaceAllWith")}
                           </Label>
                         </div>
                         {communityReplaceEnabled && (
@@ -1406,12 +1409,12 @@ export function RouteMapRuleModal({
                               <Input
                                 value={newCommunityReplace}
                                 onChange={(e) => setNewCommunityReplace(e.target.value)}
-                                placeholder="e.g., 65000:300"
+                                placeholder={t("example", { value: "65000:300" })}
                                 onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCommunityReplace())}
                               />
                               <Button type="button" variant="outline" size="sm" onClick={handleAddCommunityReplace}>
                                 <Plus className="h-4 w-4 mr-1" />
-                                Add
+                                {tc("add")}
                               </Button>
                             </div>
                           </div>
@@ -1427,12 +1430,12 @@ export function RouteMapRuleModal({
                           disabled={loading || communityAddEnabled || communityDeleteEnabled || communityReplaceEnabled}
                         />
                         <Label htmlFor="communityRemoveAll" className="font-medium cursor-pointer">
-                          Remove All Communities
+                          {t("set.removeAllCommunities")}
                         </Label>
                       </div>
                     </div>
 
-                    <h4 className="font-medium text-sm pt-4">Large Community</h4>
+                    <h4 className="font-medium text-sm pt-4">{t("set.largeCommunity")}</h4>
                     <div className="space-y-4 border border-border rounded-lg p-4">
                       {/* Add Large Communities */}
                       <div className="space-y-2">
@@ -1444,7 +1447,7 @@ export function RouteMapRuleModal({
                             disabled={loading || largeCommunityReplaceEnabled || largeCommunityRemoveAll}
                           />
                           <Label htmlFor="largeCommunityAdd" className="font-medium cursor-pointer">
-                            Add Large Communities
+                            {t("set.addLargeCommunities")}
                           </Label>
                         </div>
                         {largeCommunityAddEnabled && (
@@ -1461,12 +1464,12 @@ export function RouteMapRuleModal({
                               <Input
                                 value={newLargeCommunityAdd}
                                 onChange={(e) => setNewLargeCommunityAdd(e.target.value)}
-                                placeholder="e.g., 65000:1:100"
+                                placeholder={t("example", { value: "65000:1:100" })}
                                 onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddLargeCommunityAdd())}
                               />
                               <Button type="button" variant="outline" size="sm" onClick={handleAddLargeCommunityAdd}>
                                 <Plus className="h-4 w-4 mr-1" />
-                                Add
+                                {tc("add")}
                               </Button>
                             </div>
                           </div>
@@ -1483,7 +1486,7 @@ export function RouteMapRuleModal({
                             disabled={loading || largeCommunityReplaceEnabled || largeCommunityRemoveAll}
                           />
                           <Label htmlFor="largeCommunityDelete" className="font-medium cursor-pointer">
-                            Delete Large Communities
+                            {t("set.deleteLargeCommunities")}
                           </Label>
                         </div>
                         {largeCommunityDeleteEnabled && (
@@ -1506,10 +1509,10 @@ export function RouteMapRuleModal({
                                 }}
                               >
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Select large community list to delete" />
+                                  <SelectValue placeholder={t("set.selectLargeCommunityListToDelete")} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="none">Select large community list...</SelectItem>
+                                  <SelectItem value="none">{t("set.selectLargeCommunityListEllipsis")}</SelectItem>
                                   {largeCommunityLists.map((listName) => (
                                     <SelectItem key={listName} value={listName} disabled={largeCommunityDeleteValues.includes(listName)}>
                                       {listName}
@@ -1518,7 +1521,7 @@ export function RouteMapRuleModal({
                                 </SelectContent>
                               </Select>
                               <p className="text-xs text-muted-foreground">
-                                Select large community list(s) to delete all matching communities
+                                {t("set.deleteLargeCommunitiesHint")}
                               </p>
                             </div>
                           </div>
@@ -1535,7 +1538,7 @@ export function RouteMapRuleModal({
                             disabled={loading || largeCommunityAddEnabled || largeCommunityDeleteEnabled || largeCommunityRemoveAll}
                           />
                           <Label htmlFor="largeCommunityReplace" className="font-medium cursor-pointer">
-                            Replace All With
+                            {t("set.replaceAllWith")}
                           </Label>
                         </div>
                         {largeCommunityReplaceEnabled && (
@@ -1552,12 +1555,12 @@ export function RouteMapRuleModal({
                               <Input
                                 value={newLargeCommunityReplace}
                                 onChange={(e) => setNewLargeCommunityReplace(e.target.value)}
-                                placeholder="e.g., 65000:3:300"
+                                placeholder={t("example", { value: "65000:3:300" })}
                                 onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddLargeCommunityReplace())}
                               />
                               <Button type="button" variant="outline" size="sm" onClick={handleAddLargeCommunityReplace}>
                                 <Plus className="h-4 w-4 mr-1" />
-                                Add
+                                {tc("add")}
                               </Button>
                             </div>
                           </div>
@@ -1573,36 +1576,36 @@ export function RouteMapRuleModal({
                           disabled={loading || largeCommunityAddEnabled || largeCommunityDeleteEnabled || largeCommunityReplaceEnabled}
                         />
                         <Label htmlFor="largeCommunityRemoveAll" className="font-medium cursor-pointer">
-                          Remove All Large Communities
+                          {t("set.removeAllLargeCommunities")}
                         </Label>
                       </div>
                     </div>
 
-                    <h4 className="font-medium text-sm pt-4">Extended Community</h4>
+                    <h4 className="font-medium text-sm pt-4">{t("set.extendedCommunity")}</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="setExtcommunityBandwidth">Bandwidth</Label>
+                        <Label htmlFor="setExtcommunityBandwidth">{t("set.bandwidth")}</Label>
                         <Input
                           id="setExtcommunityBandwidth"
-                          placeholder="Bandwidth value"
+                          placeholder={t("set.bandwidthPlaceholder")}
                           value={setExtcommunityBandwidth}
                           onChange={(e) => setSetExtcommunityBandwidth(e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="setExtcommunityRt">Route Target (RT)</Label>
+                        <Label htmlFor="setExtcommunityRt">{t("set.routeTarget")}</Label>
                         <Input
                           id="setExtcommunityRt"
-                          placeholder="e.g., 65000:100"
+                          placeholder={t("example", { value: "65000:100" })}
                           value={setExtcommunityRt}
                           onChange={(e) => setSetExtcommunityRt(e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="setExtcommunitySoo">Site of Origin (SOO)</Label>
+                        <Label htmlFor="setExtcommunitySoo">{t("set.siteOfOrigin")}</Label>
                         <Input
                           id="setExtcommunitySoo"
-                          placeholder="e.g., 65000:1"
+                          placeholder={t("example", { value: "65000:1" })}
                           value={setExtcommunitySoo}
                           onChange={(e) => setSetExtcommunitySoo(e.target.value)}
                         />
@@ -1614,7 +1617,7 @@ export function RouteMapRuleModal({
                           onCheckedChange={(checked) => setSetExtcommunityNone(checked as boolean)}
                         />
                         <Label htmlFor="setExtcommunityNone" className="text-sm font-normal">
-                          Remove all extcommunities
+                          {t("set.removeAllExtcommunities")}
                         </Label>
                       </div>
                     </div>
@@ -1624,7 +1627,7 @@ export function RouteMapRuleModal({
 
               {/* BGP Attributes */}
               <AccordionItem value="bgp-attrs">
-                <AccordionTrigger>BGP Attributes</AccordionTrigger>
+                <AccordionTrigger>{t("set.bgpAttributes")}</AccordionTrigger>
                 <AccordionContent className="space-y-4 pt-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex items-center space-x-2">
@@ -1634,11 +1637,11 @@ export function RouteMapRuleModal({
                         onCheckedChange={(checked) => setSetAtomicAggregate(checked as boolean)}
                       />
                       <Label htmlFor="setAtomicAggregate" className="text-sm font-normal">
-                        Atomic Aggregate
+                        {t("set.atomicAggregate")}
                       </Label>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="setLocalPref">Local Preference</Label>
+                      <Label htmlFor="setLocalPref">{t("set.localPreference")}</Label>
                       <Input
                         id="setLocalPref"
                         type="number"
@@ -1648,48 +1651,48 @@ export function RouteMapRuleModal({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="setAggregatorAs">Aggregator AS</Label>
+                      <Label htmlFor="setAggregatorAs">{t("set.aggregatorAs")}</Label>
                       <Input
                         id="setAggregatorAs"
-                        placeholder="AS number"
+                        placeholder={t("set.asNumber")}
                         value={setAggregatorAs}
                         onChange={(e) => setSetAggregatorAs(e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="setAggregatorIp">Aggregator IP</Label>
+                      <Label htmlFor="setAggregatorIp">{t("set.aggregatorIp")}</Label>
                       <Input
                         id="setAggregatorIp"
-                        placeholder="e.g., 192.168.1.1"
+                        placeholder={t("example", { value: "192.168.1.1" })}
                         value={setAggregatorIp}
                         onChange={(e) => setSetAggregatorIp(e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="setOrigin">Origin</Label>
+                      <Label htmlFor="setOrigin">{t("set.origin")}</Label>
                       <Select value={setOrigin || "none"} onValueChange={(val) => setSetOrigin(val === "none" ? "" : val)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select origin" />
+                          <SelectValue placeholder={t("set.selectOrigin")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="none">{tc("none")}</SelectItem>
                           <SelectItem value="egp">EGP</SelectItem>
                           <SelectItem value="igp">IGP</SelectItem>
-                          <SelectItem value="incomplete">Incomplete</SelectItem>
+                          <SelectItem value="incomplete">{t("set.incomplete")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="setOriginatorId">Originator ID</Label>
+                      <Label htmlFor="setOriginatorId">{t("set.originatorId")}</Label>
                       <Input
                         id="setOriginatorId"
-                        placeholder="e.g., 192.168.1.1"
+                        placeholder={t("example", { value: "192.168.1.1" })}
                         value={setOriginatorId}
                         onChange={(e) => setSetOriginatorId(e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="setWeight">Weight</Label>
+                      <Label htmlFor="setWeight">{t("set.weight")}</Label>
                       <Input
                         id="setWeight"
                         type="number"
@@ -1704,23 +1707,23 @@ export function RouteMapRuleModal({
 
               {/* Next-Hop */}
               <AccordionItem value="nexthop-set">
-                <AccordionTrigger>Next-Hop</AccordionTrigger>
+                <AccordionTrigger>{t("set.nexthop")}</AccordionTrigger>
                 <AccordionContent className="space-y-4 pt-4">
                   <div className="space-y-4">
-                    <h4 className="font-medium text-sm">IPv4 Next-Hop</h4>
+                    <h4 className="font-medium text-sm">{t("set.ipv4Nexthop")}</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="setIpNexthop">Address</Label>
+                        <Label htmlFor="setIpNexthop">{t("set.address")}</Label>
                         <Input
                           id="setIpNexthop"
-                          placeholder="e.g., 192.168.1.1"
+                          placeholder={t("example", { value: "192.168.1.1" })}
                           value={setIpNexthop}
                           onChange={(e) => setSetIpNexthop(e.target.value)}
                           disabled={setIpNexthopPeerAddress || setIpNexthopUnchanged}
                           className={setIpNexthopPeerAddress || setIpNexthopUnchanged ? "bg-muted" : ""}
                         />
                         <p className="text-xs text-muted-foreground">
-                          Only one option can be selected at a time
+                          {t("set.oneOptionHint")}
                         </p>
                       </div>
                       <div className="flex flex-col gap-2">
@@ -1737,7 +1740,7 @@ export function RouteMapRuleModal({
                             }}
                           />
                           <Label htmlFor="setIpNexthopPeerAddress" className="text-sm font-normal">
-                            Use peer address
+                            {t("set.usePeerAddress")}
                           </Label>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -1753,28 +1756,28 @@ export function RouteMapRuleModal({
                             }}
                           />
                           <Label htmlFor="setIpNexthopUnchanged" className="text-sm font-normal">
-                            Keep unchanged
+                            {t("set.keepUnchanged")}
                           </Label>
                         </div>
                       </div>
                     </div>
 
-                    <h4 className="font-medium text-sm pt-4">IPv6 Next-Hop</h4>
+                    <h4 className="font-medium text-sm pt-4">{t("set.ipv6Nexthop")}</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="setIpv6NexthopGlobal">Global Address</Label>
+                        <Label htmlFor="setIpv6NexthopGlobal">{t("set.globalAddress")}</Label>
                         <Input
                           id="setIpv6NexthopGlobal"
-                          placeholder="e.g., 2001:db8::1"
+                          placeholder={t("example", { value: "2001:db8::1" })}
                           value={setIpv6NexthopGlobal}
                           onChange={(e) => setSetIpv6NexthopGlobal(e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="setIpv6NexthopLocal">Link-Local Address</Label>
+                        <Label htmlFor="setIpv6NexthopLocal">{t("set.linkLocalAddress")}</Label>
                         <Input
                           id="setIpv6NexthopLocal"
-                          placeholder="e.g., fe80::1"
+                          placeholder={t("example", { value: "fe80::1" })}
                           value={setIpv6NexthopLocal}
                           onChange={(e) => setSetIpv6NexthopLocal(e.target.value)}
                         />
@@ -1786,7 +1789,7 @@ export function RouteMapRuleModal({
                           onCheckedChange={(checked) => setSetIpv6NexthopPeerAddress(checked as boolean)}
                         />
                         <Label htmlFor="setIpv6NexthopPeerAddress" className="text-sm font-normal">
-                          Use peer address
+                          {t("set.usePeerAddress")}
                         </Label>
                       </div>
                       <div className="flex items-center space-x-2">
@@ -1796,7 +1799,7 @@ export function RouteMapRuleModal({
                           onCheckedChange={(checked) => setSetIpv6NexthopPreferGlobal(checked as boolean)}
                         />
                         <Label htmlFor="setIpv6NexthopPreferGlobal" className="text-sm font-normal">
-                          Prefer global
+                          {t("set.preferGlobal")}
                         </Label>
                       </div>
                     </div>
@@ -1806,11 +1809,11 @@ export function RouteMapRuleModal({
 
               {/* Route Properties */}
               <AccordionItem value="route-props">
-                <AccordionTrigger>Route Properties</AccordionTrigger>
+                <AccordionTrigger>{t("set.routeProperties")}</AccordionTrigger>
                 <AccordionContent className="space-y-4 pt-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="setDistance">Administrative Distance</Label>
+                      <Label htmlFor="setDistance">{t("set.adminDistance")}</Label>
                       <Input
                         id="setDistance"
                         type="number"
@@ -1820,51 +1823,51 @@ export function RouteMapRuleModal({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="setMetric">Metric</Label>
+                      <Label htmlFor="setMetric">{t("set.metric")}</Label>
                       <Input
                         id="setMetric"
-                        placeholder="Value or +/-N"
+                        placeholder={t("set.metricPlaceholder")}
                         value={setMetric}
                         onChange={(e) => setSetMetric(e.target.value)}
                       />
                       <p className="text-xs text-muted-foreground">
-                        Use +N or -N for relative changes
+                        {t("set.metricHint")}
                       </p>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="setMetricType">Metric Type (OSPF)</Label>
+                      <Label htmlFor="setMetricType">{t("set.metricTypeOspf")}</Label>
                       <Select value={setMetricType || "none"} onValueChange={(val) => setSetMetricType(val === "none" ? "" : val)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select type" />
+                          <SelectValue placeholder={t("set.selectType")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
-                          <SelectItem value="type-1">Type 1</SelectItem>
-                          <SelectItem value="type-2">Type 2</SelectItem>
+                          <SelectItem value="none">{tc("none")}</SelectItem>
+                          <SelectItem value="type-1">{t("set.type1")}</SelectItem>
+                          <SelectItem value="type-2">{t("set.type2")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="setSrc">Source Address</Label>
+                      <Label htmlFor="setSrc">{t("set.sourceAddress")}</Label>
                       <Input
                         id="setSrc"
-                        placeholder="e.g., 192.168.1.1"
+                        placeholder={t("example", { value: "192.168.1.1" })}
                         value={setSrc}
                         onChange={(e) => setSetSrc(e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="setTable">Routing Table</Label>
+                      <Label htmlFor="setTable">{t("set.routingTable")}</Label>
                       <Input
                         id="setTable"
                         type="number"
-                        placeholder="Table number"
+                        placeholder={t("set.tableNumber")}
                         value={setTable}
                         onChange={(e) => setSetTable(e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="setTag">Tag</Label>
+                      <Label htmlFor="setTag">{t("set.tag")}</Label>
                       <Input
                         id="setTag"
                         type="number"
@@ -1882,48 +1885,48 @@ export function RouteMapRuleModal({
           {/* Advanced Tab */}
           <TabsContent value="advanced" className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Advanced rule flow control options for calling other route-maps or jumping to different rules.
+              {t("advanced.intro")}
             </p>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="call">Call Route-Map</Label>
+                <Label htmlFor="call">{t("advanced.callRouteMap")}</Label>
                 <Input
                   id="call"
-                  placeholder="Route-map name to call"
+                  placeholder={t("advanced.callPlaceholder")}
                   value={call}
                   onChange={(e) => setCall(e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Jump to another route-map on match
+                  {t("advanced.callHint")}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="continueRule">Continue to Rule</Label>
+                <Label htmlFor="continueRule">{t("advanced.continueToRule")}</Label>
                 <Input
                   id="continueRule"
                   type="number"
-                  placeholder="Rule number"
+                  placeholder={t("advanced.ruleNumberPlaceholder")}
                   value={continueRule}
                   onChange={(e) => setContinueRule(e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Continue processing at specified rule
+                  {t("advanced.continueHint")}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="onMatchGoto">On-Match Goto</Label>
+                <Label htmlFor="onMatchGoto">{t("advanced.onMatchGoto")}</Label>
                 <Input
                   id="onMatchGoto"
                   type="number"
-                  placeholder="Rule number"
+                  placeholder={t("advanced.ruleNumberPlaceholder")}
                   value={onMatchGoto}
                   onChange={(e) => setOnMatchGoto(e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Jump to rule number on match
+                  {t("advanced.onMatchGotoHint")}
                 </p>
               </div>
 
@@ -1934,7 +1937,7 @@ export function RouteMapRuleModal({
                   onCheckedChange={(checked) => setOnMatchNext(checked as boolean)}
                 />
                 <Label htmlFor="onMatchNext" className="text-sm font-normal">
-                  On-Match Next (go to next sequence number)
+                  {t("advanced.onMatchNext")}
                 </Label>
               </div>
             </div>
@@ -1950,10 +1953,10 @@ export function RouteMapRuleModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? (isEdit ? "Saving..." : "Adding...") : isEdit ? "Save Changes" : "Add Rule"}
+            {loading ? (isEdit ? tc("saving") : t("adding")) : isEdit ? t("saveChanges") : t("addRule")}
           </Button>
         </DialogFooter>
       </DialogContent>

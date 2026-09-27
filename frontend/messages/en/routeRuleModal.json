@@ -1,1 +1,173 @@
-{}
+{
+  "title": {
+    "edit": "Edit Rule {number} - Policy: {policyName}",
+    "create": "Create Rule for Policy: {policyName}"
+  },
+  "description": {
+    "edit": "Update the {family} policy rule",
+    "create": "Add a new rule to the {family} policy"
+  },
+  "errors": {
+    "ruleNumberRequired": "Rule number is required",
+    "updateFailed": "Failed to update rule",
+    "createFailed": "Failed to create rule"
+  },
+  "tabs": {
+    "basic": "Basic",
+    "match": "Match Conditions",
+    "set": "Set Actions"
+  },
+  "basic": {
+    "ruleNumber": "Rule Number *",
+    "ruleNumberLocked": "Rule number cannot be changed",
+    "descriptionPlaceholder": "Rule description",
+    "disable": "Disable this rule",
+    "log": "Enable logging for this rule"
+  },
+  "invertMatch": "Invert match",
+  "address": {
+    "title": "Address Matching",
+    "source": "Source Address",
+    "destination": "Destination Address",
+    "sourceMac": "Source MAC Address",
+    "destinationMac": "Destination MAC Address"
+  },
+  "geoip": {
+    "title": "GeoIP Matching",
+    "source": "Source GeoIP Countries",
+    "destination": "Destination GeoIP Countries",
+    "exclude": "Exclude countries (inverse match)"
+  },
+  "groups": {
+    "title": "Firewall Groups",
+    "sourceAddressGroup": "Source Address/Network/Domain Group (choose one)",
+    "destinationAddressGroup": "Destination Address/Network/Domain Group (choose one)",
+    "addressGroup": "Address Group",
+    "networkGroup": "Network Group",
+    "domainGroup": "Domain Group",
+    "selectGroup": "Select group",
+    "sourceMacGroup": "Source MAC Group (optional)",
+    "sourcePortGroup": "Source Port Group (optional)",
+    "destinationMacGroup": "Destination MAC Group (optional)",
+    "destinationPortGroup": "Destination Port Group (optional)",
+    "protocolRestricted": "Protocol will be restricted to TCP/UDP"
+  },
+  "portProtocol": {
+    "title": "Port & Protocol",
+    "sourcePort": "Source Port",
+    "destinationPort": "Destination Port",
+    "portPlaceholder": "80 or 80,443 or 8000-9000",
+    "protocol": "Protocol",
+    "allProtocols": "All protocols",
+    "restrictedWithPorts": "Protocol restricted to TCP/UDP when using ports",
+    "tcpFlags": "TCP Flags",
+    "tcpMssMatch": "TCP MSS Match",
+    "tcpMssPlaceholder": "1400 or 500-1460"
+  },
+  "icmp": {
+    "title": "ICMP Matching (IPv4 only)",
+    "type": "ICMP Type",
+    "typeName": "ICMP Type Name",
+    "code": "ICMP Code",
+    "selectType": "Select type",
+    "v6Title": "ICMPv6 Matching (IPv6 only)",
+    "v6Type": "ICMPv6 Type",
+    "v6TypeName": "ICMPv6 Type Name",
+    "v6Code": "ICMPv6 Code"
+  },
+  "packet": {
+    "title": "Packet Characteristics",
+    "fragment": "Fragment Matching",
+    "matchFragments": "Match fragments",
+    "excludeFragments": "Exclude fragments",
+    "type": "Packet Type",
+    "length": "Packet Length",
+    "lengthExclude": "Packet Length (Exclude)",
+    "lengthPlaceholder": "64 or 64-128",
+    "dscpExclude": "DSCP (Exclude)",
+    "dscpPlaceholder": "0-63 or range 0-10"
+  },
+  "state": {
+    "title": "Connection State & Marks",
+    "connectionState": "Connection State",
+    "states": {
+      "established": "established",
+      "invalid": "invalid",
+      "new": "new",
+      "related": "related"
+    },
+    "ipsecStatus": "IPsec Status",
+    "inbound": "Inbound",
+    "outbound": "Outbound",
+    "noMatch": "No match",
+    "matchIpsec": "Match IPsec",
+    "matchNonIpsec": "Match non-IPsec",
+    "excludeIpsec": "Exclude IPsec",
+    "connectionMark": "Connection Mark",
+    "mark": "Mark"
+  },
+  "ttl": {
+    "title": "TTL (IPv4 only)",
+    "operator": "TTL Operator",
+    "value": "TTL Value",
+    "hopTitle": "Hop Limit (IPv6 only)",
+    "hopOperator": "Hop Limit Operator",
+    "hopValue": "Hop Limit Value",
+    "eq": "Equal to (eq)",
+    "gt": "Greater than (gt)",
+    "lt": "Less than (lt)"
+  },
+  "time": {
+    "title": "Time-based Matching",
+    "monthDays": "Month Days",
+    "monthDaysPlaceholder": "1-31 (comma-separated)",
+    "monthDaysExample": "Example: 1,15,30",
+    "weekdays": "Weekdays",
+    "days": {
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat",
+      "sun": "Sun"
+    },
+    "startDate": "Start Date",
+    "stopDate": "Stop Date",
+    "startTime": "Start Time",
+    "stopTime": "Stop Time",
+    "utc": "Use UTC time"
+  },
+  "rate": {
+    "title": "Rate Limiting",
+    "limitBurst": "Limit Burst",
+    "packetsPlaceholder": "Number of packets",
+    "limitBurstHelp": "Maximum burst before rate limiting applies",
+    "limitRate": "Limit Rate",
+    "limitRatePlaceholder": "packets/second, packets/minute, etc.",
+    "limitRateExample": "Example: 10/second, 100/minute",
+    "recentCount": "Recent Count",
+    "recentTime": "Recent Time",
+    "seconds": "Seconds"
+  },
+  "actions": {
+    "drop": "Drop matching packets",
+    "marking": "Packet Marking",
+    "connectionMark": "Connection Mark",
+    "mark": "Mark",
+    "routing": "Routing",
+    "routingTable": "Routing Table",
+    "mainTable": "Main table",
+    "customTable": "Custom table",
+    "tablePlaceholder": "Table number or name",
+    "vrfHelp": "VRF routing",
+    "tcpOptions": "TCP Options",
+    "tcpMssPlaceholder": "500-1460 or 'clamp-mss-to-pmtu'",
+    "tcpMssHelp": "TCP Maximum Segment Size"
+  },
+  "buttons": {
+    "creating": "Creating...",
+    "saveChanges": "Save Changes",
+    "createRule": "Create Rule"
+  }
+}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,8 @@ export function EditExtCommunityListModal({
   onSuccess,
   extcommunityList,
 }: EditExtCommunityListModalProps) {
+  const t = useTranslations("bgpLists");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +50,7 @@ export function EditExtCommunityListModal({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update ExtCommunity list");
+      setError(err instanceof Error ? err.message : t("shared.failedToUpdateList", { listType: t("types.extCommunity.modalName") }));
     } finally {
       setLoading(false);
     }
@@ -64,18 +67,18 @@ export function EditExtCommunityListModal({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Edit ExtCommunity List</DialogTitle>
+          <DialogTitle>{t("shared.editList", { listType: t("types.extCommunity.title") })}</DialogTitle>
           <DialogDescription>
-            Update ExtCommunity list: {extcommunityList.name}
+            {t("shared.updateList", { listType: t("types.extCommunity.modalName"), name: extcommunityList.name })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{tc("description")}</Label>
             <Textarea
               id="description"
-              placeholder="Optional description"
+              placeholder={t("shared.descriptionPlaceholder")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={loading}
@@ -93,11 +96,11 @@ export function EditExtCommunityListModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {loading ? "Saving..." : "Save Changes"}
+            {loading ? tc("saving") : t("shared.saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

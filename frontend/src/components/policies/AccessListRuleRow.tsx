@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TableRow, TableCell } from "@/components/ui/table";
 import type { AccessListRule } from "@/lib/api/access-list";
+import { useTranslations } from "next-intl";
 
 interface AccessListRuleRowProps {
   rule: AccessListRule;
@@ -16,6 +17,8 @@ interface AccessListRuleRowProps {
 }
 
 export function AccessListRuleRow({ rule, listType, onEdit, onDelete }: AccessListRuleRowProps) {
+  const t = useTranslations("accessList");
+  const tc = useTranslations("common");
   const {
     attributes,
     listeners,
@@ -50,17 +53,17 @@ export function AccessListRuleRow({ rule, listType, onEdit, onDelete }: AccessLi
 
       // Check for "any" flag
       if (rule.source_type === "any") {
-        parts.push("Any");
+        parts.push(t("row.any"));
       }
 
       // Check for exact-match flag
       if (rule.source_exact_match) {
-        parts.push("Exact-Match");
+        parts.push(t("row.exactMatch"));
       }
 
       // Check for network address
       if (rule.source_address) {
-        parts.push(`Network:${rule.source_address}`);
+        parts.push(t("row.networkCompact", { address: rule.source_address }));
       }
 
       if (parts.length > 0) {
@@ -78,24 +81,24 @@ export function AccessListRuleRow({ rule, listType, onEdit, onDelete }: AccessLi
     if (!rule.source_type) return <span className="text-muted-foreground text-sm">—</span>;
 
     if (rule.source_type === "any") {
-      return <Badge variant="secondary" className="text-xs">Any</Badge>;
+      return <Badge variant="secondary" className="text-xs">{t("row.any")}</Badge>;
     } else if (rule.source_type === "host" && rule.source_address) {
       return (
         <Badge variant="secondary" className="text-xs font-mono">
-          Host: {rule.source_address}
+          {t("row.host", { address: rule.source_address })}
         </Badge>
       );
     } else if (rule.source_type === "inverse-mask" && rule.source_address && rule.source_mask) {
       const cidr = inverseMaskToCIDR(rule.source_mask);
       return (
         <Badge variant="secondary" className="text-xs font-mono">
-          Network: {rule.source_address}/{cidr}
+          {t("row.network", { address: `${rule.source_address}/${cidr}` })}
         </Badge>
       );
     } else if (rule.source_type === "network" && rule.source_address) {
       return (
         <Badge variant="secondary" className="text-xs font-mono">
-          Network: {rule.source_mask ? `${rule.source_address}/${rule.source_mask}` : rule.source_address}
+          {t("row.network", { address: rule.source_mask ? `${rule.source_address}/${rule.source_mask}` : rule.source_address })}
         </Badge>
       );
     }
@@ -108,24 +111,24 @@ export function AccessListRuleRow({ rule, listType, onEdit, onDelete }: AccessLi
     if (!rule.destination_type) return <span className="text-muted-foreground text-sm">—</span>;
 
     if (rule.destination_type === "any") {
-      return <Badge variant="secondary" className="text-xs">Any</Badge>;
+      return <Badge variant="secondary" className="text-xs">{t("row.any")}</Badge>;
     } else if (rule.destination_type === "host" && rule.destination_address) {
       return (
         <Badge variant="secondary" className="text-xs font-mono">
-          Host: {rule.destination_address}
+          {t("row.host", { address: rule.destination_address })}
         </Badge>
       );
     } else if (rule.destination_type === "inverse-mask" && rule.destination_address && rule.destination_mask) {
       const cidr = inverseMaskToCIDR(rule.destination_mask);
       return (
         <Badge variant="secondary" className="text-xs font-mono">
-          Network: {rule.destination_address}/{cidr}
+          {t("row.network", { address: `${rule.destination_address}/${cidr}` })}
         </Badge>
       );
     } else if (rule.destination_type === "network" && rule.destination_address) {
       return (
         <Badge variant="secondary" className="text-xs font-mono">
-          Network: {rule.destination_mask ? `${rule.destination_address}/${rule.destination_mask}` : rule.destination_address}
+          {t("row.network", { address: rule.destination_mask ? `${rule.destination_address}/${rule.destination_mask}` : rule.destination_address })}
         </Badge>
       );
     }
@@ -156,7 +159,7 @@ export function AccessListRuleRow({ rule, listType, onEdit, onDelete }: AccessLi
               : "capitalize bg-red-500/10 text-red-500 border-red-500/20"
           }
         >
-          {rule.action}
+          {rule.action === "permit" ? t("form.permit") : rule.action === "deny" ? t("form.deny") : rule.action}
         </Badge>
       </TableCell>
       <TableCell>
@@ -181,7 +184,7 @@ export function AccessListRuleRow({ rule, listType, onEdit, onDelete }: AccessLi
             className="h-8"
           >
             <Pencil className="h-4 w-4 mr-1" />
-            Edit
+            {tc("edit")}
           </Button>
           <Button
             variant="ghost"
@@ -190,7 +193,7 @@ export function AccessListRuleRow({ rule, listType, onEdit, onDelete }: AccessLi
             className="h-8 text-destructive hover:text-destructive"
           >
             <Trash2 className="h-4 w-4 mr-1" />
-            Delete
+            {tc("delete")}
           </Button>
         </div>
       </TableCell>

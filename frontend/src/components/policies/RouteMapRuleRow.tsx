@@ -3,6 +3,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Pencil, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TableRow, TableCell } from "@/components/ui/table";
@@ -16,6 +17,8 @@ interface RouteMapRuleRowProps {
 }
 
 export function RouteMapRuleRow({ rule, onEdit, onDelete }: RouteMapRuleRowProps) {
+  const t = useTranslations("routeMap");
+  const tc = useTranslations("common");
   const {
     attributes,
     listeners,
@@ -76,7 +79,11 @@ export function RouteMapRuleRow({ rule, onEdit, onDelete }: RouteMapRuleRowProps
               : "capitalize bg-red-500/10 text-red-500 border-red-500/20"
           }
         >
-          {rule.action}
+          {rule.action === "permit"
+            ? t("row.actionPermit")
+            : rule.action === "deny"
+              ? t("row.actionDeny")
+              : rule.action}
         </Badge>
       </TableCell>
       <TableCell>
@@ -89,12 +96,12 @@ export function RouteMapRuleRow({ rule, onEdit, onDelete }: RouteMapRuleRowProps
           <div className="flex flex-wrap gap-1">
             {matchCount > 0 && (
               <Badge variant="secondary" className="text-xs">
-                {matchCount} condition{matchCount !== 1 ? "s" : ""}
+                {t("row.conditions", { count: matchCount })}
               </Badge>
             )}
             {routeMapMatchOverviewBadges(rule.match).map((badge) => (
-              <Badge key={badge.label} variant="secondary" className="text-xs">
-                {badge.label}: {badge.value}
+              <Badge key={badge.labelKey} variant="secondary" className="text-xs">
+                {t("row.badge", { label: t(`overview.${badge.labelKey}`), value: badge.value })}
               </Badge>
             ))}
           </div>
@@ -107,27 +114,27 @@ export function RouteMapRuleRow({ rule, onEdit, onDelete }: RouteMapRuleRowProps
           <div className="flex flex-wrap gap-1">
             {setCount > 0 && (
               <Badge variant="secondary" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">
-                {setCount} action{setCount !== 1 ? "s" : ""}
+                {t("row.actions", { count: setCount })}
               </Badge>
             )}
             {rule.set.local_preference !== null && rule.set.local_preference !== undefined && (
               <Badge variant="secondary" className="text-xs bg-purple-500/10 text-purple-500 border-purple-500/20">
-                Local Pref: {rule.set.local_preference}
+                {t("row.localPref", { value: String(rule.set.local_preference) })}
               </Badge>
             )}
             {rule.set.metric && (
               <Badge variant="secondary" className="text-xs bg-yellow-500/10 text-yellow-500 border-yellow-500/20">
-                Metric: {rule.set.metric}
+                {t("row.metric", { value: String(rule.set.metric) })}
               </Badge>
             )}
             {rule.set.as_path_prepend && (
               <Badge variant="secondary" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">
-                AS Prepend: {rule.set.as_path_prepend}
+                {t("row.asPrepend", { value: String(rule.set.as_path_prepend) })}
               </Badge>
             )}
             {(rule.set.community_add_values && rule.set.community_add_values.length > 0) && (
               <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-500 border-green-500/20">
-                Community: {rule.set.community_add_values.join(", ")}
+                {t("row.community", { value: rule.set.community_add_values.join(", ") })}
               </Badge>
             )}
           </div>
@@ -144,7 +151,7 @@ export function RouteMapRuleRow({ rule, onEdit, onDelete }: RouteMapRuleRowProps
             className="h-8"
           >
             <Pencil className="h-4 w-4 mr-1" />
-            Edit
+            {tc("edit")}
           </Button>
           <Button
             variant="ghost"
@@ -153,7 +160,7 @@ export function RouteMapRuleRow({ rule, onEdit, onDelete }: RouteMapRuleRowProps
             className="h-8 text-destructive hover:text-destructive"
           >
             <Trash2 className="h-4 w-4 mr-1" />
-            Delete
+            {tc("delete")}
           </Button>
         </div>
       </TableCell>

@@ -195,7 +195,7 @@ const storedMap: RouteMapRule = {
 
 describe("as-path list rule create", () => {
   it("rejects a missing regex", () => {
-    assert.equal(validateRegexListRule(emptyRegexListRuleDraft()), "Regex pattern is required");
+    assert.equal(validateRegexListRule(emptyRegexListRuleDraft()), "regexRequired");
   });
 
   it("emits only the fields the operator filled in", async () => {
@@ -281,7 +281,7 @@ describe("local route create", () => {
   it("rejects a table route with no match", () => {
     const draft = emptyLocalRouteDraft();
     draft.table = "main";
-    assert.match(validateLocalRoute(draft, "ipv4") ?? "", /matching criterion/);
+    assert.deepEqual(validateLocalRoute(draft, "ipv4"), { key: "matchRequired" });
   });
 
   it("maps __none__ to an omitted interface", async () => {
@@ -325,9 +325,9 @@ describe("local route update", () => {
 
 describe("prefix-list rule", () => {
   it("rejects a missing prefix", () => {
-    assert.equal(
+    assert.deepEqual(
       validatePrefixListRule(emptyPrefixListRuleDraft(), "ipv4"),
-      "Please enter a prefix in CIDR notation",
+      { key: "prefixRequired" },
     );
   });
 
@@ -359,7 +359,7 @@ describe("access-list rule", () => {
     draft.sourceType = "host";
     assert.equal(
       validateAccessListRule(draft, "ipv4"),
-      "Please enter a source address for host type",
+      "sourceHostAddress",
     );
   });
 
@@ -397,7 +397,7 @@ describe("route rule create", () => {
   it("rejects a missing rule number", () => {
     const draft = emptyRouteRuleDraft();
     draft.ruleNumber = 0;
-    assert.equal(validateRouteRuleCreate(draft), "Rule number is required");
+    assert.equal(validateRouteRuleCreate(draft), "ruleNumberRequired");
   });
 
   it("emits only filled match and set fields", async () => {

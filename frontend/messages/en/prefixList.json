@@ -1,1 +1,114 @@
-{}
+{
+  "ruleCount": "{count, plural, one {# rule} other {# rules}}",
+  "page": {
+    "title": "Prefix Lists",
+    "totals": "{ipv4} IPv4 · {ipv6} IPv6",
+    "errorLoading": "Error Loading Prefix Lists",
+    "loadFailed": "Failed to load prefix-list configuration",
+    "reorderFailed": "Failed to save reordered rules",
+    "searchLists": "Search lists...",
+    "createList": "Create Prefix List",
+    "noListsMatch": "No lists match your search",
+    "noListsConfigured": "No prefix lists configured",
+    "createFirst": "Create your first prefix list",
+    "addRule": "Add Rule",
+    "searchRules": "Search rules...",
+    "noRulesMatch": "No Rules Match Search",
+    "noRulesConfigured": "No Rules Configured",
+    "adjustSearch": "Try adjusting your search criteria",
+    "addRulesHint": "Add rules to this prefix list to control route filtering",
+    "addFirstRule": "Add First Rule",
+    "noSelection": "No Prefix List Selected",
+    "createToStart": "Create a prefix list to get started",
+    "selectFromSidebar": "Select a prefix list from the sidebar to view its rules",
+    "colRule": "Rule",
+    "colAction": "Action",
+    "colPrefix": "Prefix"
+  },
+  "form": {
+    "ruleNumber": "Rule Number",
+    "action": "Action",
+    "permit": "Permit",
+    "deny": "Deny",
+    "ruleDescription": "Rule Description",
+    "ruleDescriptionPlaceholder": "Enter rule description (optional)",
+    "prefixCidr": "Prefix (CIDR)",
+    "prefixHelp": "Enter prefix in CIDR notation",
+    "example": "e.g., {value}",
+    "geLabel": "GE (Greater-than-or-equal)",
+    "leLabel": "LE (Less-than-or-equal)",
+    "geHelp": "Minimum prefix length to match",
+    "leHelp": "Maximum prefix length to match",
+    "aboutTitle": "About GE/LE",
+    "aboutGe": "GE specifies the minimum prefix length to match",
+    "aboutLe": "LE specifies the maximum prefix length to match",
+    "aboutOptional": "Both are optional and refine the prefix match",
+    "aboutExample": "Example: 10.0.0.0/8 ge 16 le 24 matches 10.x.y.0/16 through 10.x.y.z/24"
+  },
+  "validation": {
+    "nameRequired": "Please enter a prefix list name",
+    "prefixRequired": "Please enter a prefix in CIDR notation",
+    "invalidCidr": "Invalid {type} CIDR notation. Format: {example}",
+    "geNotNumber": "GE must be a valid number",
+    "leNotNumber": "LE must be a valid number",
+    "geRange": "GE must be between {min} (prefix length) and {max}",
+    "leRange": "LE must be between {min} (prefix length) and {max}",
+    "geAboveLe": "GE must be less than or equal to LE"
+  },
+  "ruleModal": {
+    "editTitle": "Edit Rule #{number}",
+    "addTitle": "Add Rule to {list}",
+    "editDescription": "Update this prefix list rule",
+    "addDescription": "Create a new rule for this prefix list",
+    "autoCalculated": "Auto-calculated based on existing rules",
+    "updateFailed": "Failed to update rule",
+    "addFailed": "Failed to add rule",
+    "adding": "Adding...",
+    "saveChanges": "Save Changes",
+    "addRule": "Add Rule"
+  },
+  "banner": {
+    "title": "Reorder in Progress",
+    "renumbered": "{count, plural, one {# rule will be renumbered} other {# rules will be renumbered}}",
+    "saveOrder": "Save Order"
+  },
+  "create": {
+    "title": "Create {type} Prefix List",
+    "description": "Create a new prefix list with the first rule",
+    "basic": "Basic",
+    "firstRule": "First Rule",
+    "listName": "Prefix List Name",
+    "nameHelp": "Enter a unique name for the prefix list",
+    "descriptionPlaceholder": "Enter prefix list description (optional)",
+    "startingAt": "Starting at 100",
+    "failed": "Failed to create prefix list",
+    "creating": "Creating...",
+    "submit": "Create Prefix List"
+  },
+  "edit": {
+    "title": "Edit Prefix List",
+    "description": "Update the description for this prefix list",
+    "leaveEmpty": "Leave empty to remove the description",
+    "failed": "Failed to update prefix list",
+    "updating": "Updating...",
+    "submit": "Update Prefix List"
+  },
+  "delete": {
+    "title": "Delete Prefix List",
+    "description": "Are you sure you want to delete this prefix list? This action cannot be undone.",
+    "warning": "This will permanently delete the prefix list and all its rules",
+    "warningDetail": "Any route filtering configured with this prefix list will be affected.",
+    "failed": "Failed to delete prefix list",
+    "submit": "Delete Prefix List"
+  },
+  "deleteRule": {
+    "title": "Delete Prefix List Rule",
+    "description": "Are you sure you want to delete this rule? This action cannot be undone.",
+    "ruleBadge": "Rule {number}",
+    "prefixLabel": "Prefix:",
+    "warning": "This will permanently delete the rule",
+    "warningDetail": "Route filtering configured in this rule will be removed.",
+    "failed": "Failed to delete rule",
+    "submit": "Delete Rule"
+  }
+}

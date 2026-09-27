@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, AlertTriangle } from "lucide-react";
 import { extcommunityListService, type ExtCommunityList } from "@/lib/api/extcommunity-list";
@@ -19,6 +20,8 @@ export function DeleteExtCommunityListModal({
   onSuccess,
   extcommunityList,
 }: DeleteExtCommunityListModalProps) {
+  const t = useTranslations("bgpLists");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,7 +36,7 @@ export function DeleteExtCommunityListModal({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete ExtCommunity list");
+      setError(err instanceof Error ? err.message : t("shared.failedToDeleteList", { listType: t("types.extCommunity.modalName") }));
     } finally {
       setLoading(false);
     }
@@ -45,9 +48,9 @@ export function DeleteExtCommunityListModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete ExtCommunity List</DialogTitle>
+          <DialogTitle>{t("shared.deleteList", { listType: t("types.extCommunity.title") })}</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete this ExtCommunity list? This action cannot be undone.
+            {t("shared.deleteListConfirm", { listType: t("types.extCommunity.modalName") })}
           </DialogDescription>
         </DialogHeader>
 
@@ -56,7 +59,7 @@ export function DeleteExtCommunityListModal({
             <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm font-medium text-destructive">
-                Deleting ExtCommunity list: {extcommunityList.name}
+                {t("shared.deletingList", { listType: t("types.extCommunity.modalName"), name: extcommunityList.name })}
               </p>
               {extcommunityList.description && (
                 <p className="text-sm text-muted-foreground mt-1">
@@ -64,7 +67,7 @@ export function DeleteExtCommunityListModal({
                 </p>
               )}
               <p className="text-sm text-muted-foreground mt-2">
-                This will delete {extcommunityList.rules.length} rule{extcommunityList.rules.length !== 1 ? "s" : ""}.
+                {t("shared.willDeleteRules", { count: extcommunityList.rules.length })}
               </p>
             </div>
           </div>
@@ -79,10 +82,10 @@ export function DeleteExtCommunityListModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
-            {loading ? "Deleting..." : "Delete ExtCommunity List"}
+            {loading ? tc("deleting") : t("shared.deleteList", { listType: t("types.extCommunity.title") })}
           </Button>
         </DialogFooter>
       </DialogContent>

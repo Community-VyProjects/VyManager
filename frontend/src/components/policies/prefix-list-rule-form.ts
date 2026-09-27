@@ -64,29 +64,38 @@ const validateCIDR = (prefix: string, listType: string): boolean => {
   return addr.includes(":") && prefixLength >= 0 && prefixLength <= 128;
 };
 
-export function validatePrefixListRule(draft: PrefixListRuleDraft, listType: string): string | null {
-  if (!draft.prefix.trim()) return "Please enter a prefix in CIDR notation";
+/** Message key (under `prefixList.validation`) plus its values. */
+export type PrefixListRuleError =
+  | { key: "prefixRequired" | "geNotNumber" | "leNotNumber" | "geAboveLe" }
+  | { key: "invalidCidr"; values: { type: string; example: string } }
+  | { key: "geRange" | "leRange"; values: { min: string; max: string } };
+
+export function validatePrefixListRule(draft: PrefixListRuleDraft, listType: string): PrefixListRuleError | null {
+  if (!draft.prefix.trim()) return { key: "prefixRequired" };
   if (!validateCIDR(draft.prefix.trim(), listType)) {
-    return `Invalid ${listType.toUpperCase()} CIDR notation. Format: ${listType === "ipv4" ? "192.168.1.0/24" : "2001:db8::/32"}`;
+    return {
+      key: "invalidCidr",
+      values: { type: listType.toUpperCase(), example: listType === "ipv4" ? "192.168.1.0/24" : "2001:db8::/32" },
+    };
   }
-  if (draft.ge && isNaN(parseInt(draft.ge, 10))) return "GE must be a valid number";
-  if (draft.le && isNaN(parseInt(draft.le, 10))) return "LE must be a valid number";
+  if (draft.ge && isNaN(parseInt(draft.ge, 10))) return { key: "geNotNumber" };
+  if (draft.le && isNaN(parseInt(draft.le, 10))) return { key: "leNotNumber" };
   const prefixLength = parseInt(draft.prefix.trim().split("/")[1], 10);
   const maxLength = listType === "ipv4" ? 32 : 128;
   if (draft.ge) {
     const geNum = parseInt(draft.ge, 10);
     if (geNum < prefixLength || geNum > maxLength) {
-      return `GE must be between ${prefixLength} (prefix length) and ${maxLength}`;
+      return { key: "geRange", values: { min: String(prefixLength), max: String(maxLength) } };
     }
   }
   if (draft.le) {
     const leNum = parseInt(draft.le, 10);
     if (leNum < prefixLength || leNum > maxLength) {
-      return `LE must be between ${prefixLength} (prefix length) and ${maxLength}`;
+      return { key: "leRange", values: { min: String(prefixLength), max: String(maxLength) } };
     }
   }
   if (draft.ge && draft.le && parseInt(draft.ge, 10) > parseInt(draft.le, 10)) {
-    return "GE must be less than or equal to LE";
+    return { key: "geAboveLe" };
   }
   return null;
 }

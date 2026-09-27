@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Check, X, Loader2 } from "lucide-react";
 
@@ -16,6 +17,8 @@ export function CommunityListReorderBanner({
   saving,
   count,
 }: CommunityListReorderBannerProps) {
+  const t = useTranslations("bgpLists");
+  const tc = useTranslations("common");
   return (
     <div className="bg-primary/10 border-y border-primary/20 px-6 py-3">
       <div className="flex items-center justify-between">
@@ -23,10 +26,10 @@ export function CommunityListReorderBanner({
           <AlertCircle className="h-5 w-5 text-primary" />
           <div>
             <p className="text-sm font-medium text-foreground">
-              You have reordered {count} rule{count !== 1 ? "s" : ""}
+              {t("shared.reorderedCount", { count })}
             </p>
             <p className="text-xs text-muted-foreground">
-              Click &quot;Save Changes&quot; to apply the new order or &quot;Cancel&quot; to discard changes
+              {t("shared.reorderHint")}
             </p>
           </div>
         </div>
@@ -38,7 +41,7 @@ export function CommunityListReorderBanner({
             disabled={saving}
           >
             <X className="h-4 w-4 mr-2" />
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button
             size="sm"
@@ -47,7 +50,7 @@ export function CommunityListReorderBanner({
           >
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {!saving && <Check className="h-4 w-4 mr-2" />}
-            {saving ? "Saving..." : "Save Changes"}
+            {saving ? tc("saving") : t("shared.saveChanges")}
           </Button>
         </div>
       </div>

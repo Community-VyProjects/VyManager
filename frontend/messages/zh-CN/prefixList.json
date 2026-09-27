@@ -1,1 +1,114 @@
-{}
+{
+  "ruleCount": "{count} 条规则",
+  "page": {
+    "title": "前缀列表",
+    "totals": "{ipv4} 个 IPv4 · {ipv6} 个 IPv6",
+    "errorLoading": "加载前缀列表出错",
+    "loadFailed": "加载前缀列表配置失败",
+    "reorderFailed": "保存规则顺序失败",
+    "searchLists": "搜索列表...",
+    "createList": "创建前缀列表",
+    "noListsMatch": "没有匹配搜索的列表",
+    "noListsConfigured": "尚未配置前缀列表",
+    "createFirst": "创建你的第一个前缀列表",
+    "addRule": "添加规则",
+    "searchRules": "搜索规则...",
+    "noRulesMatch": "没有匹配搜索的规则",
+    "noRulesConfigured": "尚未配置规则",
+    "adjustSearch": "请尝试调整搜索条件",
+    "addRulesHint": "向此前缀列表添加规则以控制路由过滤",
+    "addFirstRule": "添加第一条规则",
+    "noSelection": "未选择前缀列表",
+    "createToStart": "创建一个前缀列表以开始使用",
+    "selectFromSidebar": "从侧边栏选择一个前缀列表以查看其规则",
+    "colRule": "规则",
+    "colAction": "动作",
+    "colPrefix": "前缀"
+  },
+  "form": {
+    "ruleNumber": "规则编号",
+    "action": "动作",
+    "permit": "允许",
+    "deny": "拒绝",
+    "ruleDescription": "规则描述",
+    "ruleDescriptionPlaceholder": "输入规则描述（可选）",
+    "prefixCidr": "前缀（CIDR）",
+    "prefixHelp": "以 CIDR 格式输入前缀",
+    "example": "例如：{value}",
+    "geLabel": "GE（大于等于）",
+    "leLabel": "LE（小于等于）",
+    "geHelp": "要匹配的最小前缀长度",
+    "leHelp": "要匹配的最大前缀长度",
+    "aboutTitle": "关于 GE/LE",
+    "aboutGe": "GE（大于等于）指定要匹配的最小前缀长度",
+    "aboutLe": "LE（小于等于）指定要匹配的最大前缀长度",
+    "aboutOptional": "两者均为可选，用于细化前缀匹配",
+    "aboutExample": "示例：10.0.0.0/8 ge 16 le 24 匹配 10.x.y.0/16 到 10.x.y.z/24"
+  },
+  "validation": {
+    "nameRequired": "请输入前缀列表名称",
+    "prefixRequired": "请以 CIDR 格式输入前缀",
+    "invalidCidr": "{type} CIDR 格式无效。格式：{example}",
+    "geNotNumber": "GE 必须是有效数字",
+    "leNotNumber": "LE 必须是有效数字",
+    "geRange": "GE 必须介于 {min}（前缀长度）和 {max} 之间",
+    "leRange": "LE 必须介于 {min}（前缀长度）和 {max} 之间",
+    "geAboveLe": "GE 必须小于或等于 LE"
+  },
+  "ruleModal": {
+    "editTitle": "编辑规则 #{number}",
+    "addTitle": "向 {list} 添加规则",
+    "editDescription": "更新此前缀列表规则",
+    "addDescription": "为此前缀列表创建新规则",
+    "autoCalculated": "根据现有规则自动计算",
+    "updateFailed": "更新规则失败",
+    "addFailed": "添加规则失败",
+    "adding": "正在添加...",
+    "saveChanges": "保存更改",
+    "addRule": "添加规则"
+  },
+  "banner": {
+    "title": "正在调整顺序",
+    "renumbered": "{count} 条规则将被重新编号",
+    "saveOrder": "保存顺序"
+  },
+  "create": {
+    "title": "创建 {type} 前缀列表",
+    "description": "创建新的前缀列表及其第一条规则",
+    "basic": "基本",
+    "firstRule": "第一条规则",
+    "listName": "前缀列表名称",
+    "nameHelp": "为前缀列表输入唯一名称",
+    "descriptionPlaceholder": "输入前缀列表描述（可选）",
+    "startingAt": "从 100 开始",
+    "failed": "创建前缀列表失败",
+    "creating": "正在创建...",
+    "submit": "创建前缀列表"
+  },
+  "edit": {
+    "title": "编辑前缀列表",
+    "description": "更新此前缀列表的描述",
+    "leaveEmpty": "留空以删除描述",
+    "failed": "更新前缀列表失败",
+    "updating": "正在更新...",
+    "submit": "更新前缀列表"
+  },
+  "delete": {
+    "title": "删除前缀列表",
+    "description": "确定要删除此前缀列表吗？此操作无法撤销。",
+    "warning": "这将永久删除该前缀列表及其所有规则",
+    "warningDetail": "使用此前缀列表配置的所有路由过滤都将受到影响。",
+    "failed": "删除前缀列表失败",
+    "submit": "删除前缀列表"
+  },
+  "deleteRule": {
+    "title": "删除前缀列表规则",
+    "description": "确定要删除此规则吗？此操作无法撤销。",
+    "ruleBadge": "规则 {number}",
+    "prefixLabel": "前缀：",
+    "warning": "这将永久删除该规则",
+    "warningDetail": "此规则中配置的路由过滤将被移除。",
+    "failed": "删除规则失败",
+    "submit": "删除规则"
+  }
+}
