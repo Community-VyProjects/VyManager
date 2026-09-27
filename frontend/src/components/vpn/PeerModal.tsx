@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -54,6 +55,8 @@ export function PeerModal({
   interfaceData,
   existing,
 }: PeerModalProps) {
+  const t = useTranslations("wireguard");
+  const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
 
   // Form state
@@ -128,7 +131,7 @@ export function PeerModal({
         setPresharedKey(result.preshared_key);
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to generate preshared key");
+      setError((err as ApiError).message || t("peerModal.generatePskFailed"));
     } finally {
       setGenerating(false);
     }
@@ -155,11 +158,13 @@ export function PeerModal({
 
   // Create checks the identity fields the operator can only set once; both
   // modes check the fields VyOS requires on a peer.
-  const validate = (isCreate: boolean): string | null =>
-    validatePeer(draft(), {
+  const validate = (isCreate: boolean): string | null => {
+    const error = validatePeer(draft(), {
       isCreate,
       existingPeerNames: interfaceData?.peers.map((p) => p.name) ?? [],
     });
+    return error && t(`validation.${error}`, { name: draft().name });
+  };
 
   const submitCreate = async (target: WireGuardInterface) =>
     wireguardService.createPeer(target.name, buildPeerCreateConfig(draft()));
@@ -215,11 +220,11 @@ export function PeerModal({
         handleClose();
         onSuccess();
       } else {
-        setError(result.error || (isEdit ? "Failed to update peer" : "Failed to add peer"));
+        setError(result.error || (isEdit ? t("peerModal.updateFailed") : t("peerModal.addFailed")));
       }
     } catch (err) {
       setError(
-        (err as ApiError).message || (isEdit ? "Failed to update peer" : "Failed to add peer")
+        (err as ApiError).message || (isEdit ? t("peerModal.updateFailed") : t("peerModal.addFailed"))
       );
     } finally {
       setLoading(false);
@@ -238,25 +243,25 @@ export function PeerModal({
             ) : (
               <UserPlus className="h-5 w-5 text-primary" />
             )}
-            {isEdit ? `Edit Peer: ${existing.name}` : `Add Peer to ${interfaceData.name}`}
+            {isEdit ? t("peerModal.editTitle", { name: existing.name }) : t("peerModal.addTitle", { interface: interfaceData.name })}
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? `Modify the peer configuration on ${interfaceData.name}. Peer name cannot be changed.`
-              : "Configure a new WireGuard peer connection."}
+              ? t("peerModal.editDescription", { interface: interfaceData.name })
+              : t("peerModal.createDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="basic">Basic</TabsTrigger>
-            <TabsTrigger value="endpoint">Endpoint</TabsTrigger>
+            <TabsTrigger value="basic">{t("peerModal.tabBasic")}</TabsTrigger>
+            <TabsTrigger value="endpoint">{t("peerModal.tabEndpoint")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="basic" className="space-y-4 mt-4">
             {/* Peer Name */}
             <div className="space-y-2">
-              <Label htmlFor="peer-name">Peer Name</Label>
+              <Label htmlFor="peer-name">{t("peerModal.peerName")}</Label>
               <Input
                 id="peer-name"
                 value={lockedName.value}
@@ -267,49 +272,49 @@ export function PeerModal({
               />
               <p className="text-xs text-muted-foreground">
                 {isEdit
-                  ? "Peer name cannot be changed."
-                  : "A friendly name to identify this peer (no spaces)."}
+                  ? t("peerModal.nameLocked")
+                  : t("peerModal.nameHint")}
               </p>
             </div>
 
             {/* Description */}
             <div className="space-y-2">
               <Label htmlFor="peer-description">
-                {isEdit ? "Description" : "Description (optional)"}
+                {isEdit ? tc("description") : t("peerModal.descriptionOptional")}
               </Label>
               <Input
                 id="peer-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder={isEdit ? "Description for this peer" : "John's laptop for remote work"}
+                placeholder={isEdit ? t("peerModal.descriptionPlaceholderEdit") : t("peerModal.descriptionPlaceholder")}
               />
               <p className="text-xs text-muted-foreground">
-                A description to help identify this peer.
+                {t("peerModal.descriptionHint")}
               </p>
             </div>
 
             {/* Public Key */}
             <div className="space-y-2">
-              <Label htmlFor="peer-public-key">Public Key</Label>
+              <Label htmlFor="peer-public-key">{t("peerModal.publicKey")}</Label>
               <Input
                 id="peer-public-key"
                 value={publicKey}
                 onChange={(e) => setPublicKey(e.target.value)}
                 placeholder={
-                  isEdit ? "Base64 encoded public key" : "Base64 encoded public key from peer"
+                  isEdit ? t("peerModal.publicKeyPlaceholderEdit") : t("peerModal.publicKeyPlaceholder")
                 }
                 className="font-mono text-sm"
               />
               <p className="text-xs text-muted-foreground">
                 {isEdit
-                  ? "The peer\u2019s WireGuard public key."
-                  : "The peer\u2019s WireGuard public key. Get this from the peer device."}
+                  ? t("peerModal.publicKeyHintEdit")
+                  : t("peerModal.publicKeyHint")}
               </p>
             </div>
 
             {/* Allowed IPs */}
             <div className="space-y-2">
-              <Label htmlFor="peer-allowed-ips">Allowed IPs</Label>
+              <Label htmlFor="peer-allowed-ips">{t("peerModal.allowedIps")}</Label>
               <Input
                 id="peer-allowed-ips"
                 value={allowedIps}
@@ -318,15 +323,15 @@ export function PeerModal({
               />
               <p className="text-xs text-muted-foreground">
                 {isEdit
-                  ? "Comma-separated IPs/networks this peer can route."
-                  : "Comma-separated IPs/networks this peer can route. Use x.x.x.x/32 for single client or 0.0.0.0/0 for all traffic."}
+                  ? t("peerModal.allowedIpsHintEdit")
+                  : t("peerModal.allowedIpsHint")}
               </p>
             </div>
 
             {/* Preshared Key */}
             <div className="space-y-2">
               <Label htmlFor="peer-psk">
-                {isEdit ? "Preshared Key" : "Preshared Key (optional)"}
+                {isEdit ? t("peerModal.presharedKey") : t("peerModal.presharedKeyOptional")}
               </Label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
@@ -337,8 +342,8 @@ export function PeerModal({
                     onChange={(e) => setPresharedKey(e.target.value)}
                     placeholder={
                       isEdit
-                        ? "Leave as *** to keep current key"
-                        : "Optional additional encryption"
+                        ? t("peerModal.keepKeyPlaceholder")
+                        : t("peerModal.pskPlaceholder")
                     }
                     className="pr-10 font-mono text-sm"
                   />
@@ -368,13 +373,13 @@ export function PeerModal({
                   ) : (
                     <Sparkles className="h-4 w-4" />
                   )}
-                  {presharedKey === "***" ? "Replace" : "Generate"}
+                  {presharedKey === "***" ? t("peerModal.replace") : t("peerModal.generate")}
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
                 {isEdit
-                  ? "Keep as \u201c***\u201d to preserve existing key, or generate/enter a new one. Clear to remove."
-                  : "Adds an extra layer of symmetric encryption for post-quantum security."}
+                  ? t("peerModal.pskHintEdit")
+                  : t("peerModal.pskHint")}
               </p>
             </div>
           </TabsContent>
@@ -383,15 +388,14 @@ export function PeerModal({
             {!isEdit && (
               <div className="rounded-lg bg-muted/50 border p-3 mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Endpoint settings are for connecting to peers that act as servers.
-                  Leave these empty if this peer will connect to your VyOS device.
+                  {t("peerModal.endpointNotice")}
                 </p>
               </div>
             )}
 
             {/* Endpoint Address (IP) */}
             <div className="space-y-2">
-              <Label htmlFor="peer-address">Endpoint IP Address</Label>
+              <Label htmlFor="peer-address">{t("peerModal.endpointAddress")}</Label>
               <Input
                 id="peer-address"
                 value={address}
@@ -399,13 +403,13 @@ export function PeerModal({
                 placeholder="203.0.113.1"
               />
               <p className="text-xs text-muted-foreground">
-                IP address of the remote peer. Use this OR hostname below.
+                {t("peerModal.endpointAddressHint")}
               </p>
             </div>
 
             {/* Endpoint Hostname */}
             <div className="space-y-2">
-              <Label htmlFor="peer-hostname">Endpoint Hostname</Label>
+              <Label htmlFor="peer-hostname">{t("peerModal.endpointHostname")}</Label>
               <Input
                 id="peer-hostname"
                 value={hostName}
@@ -413,13 +417,13 @@ export function PeerModal({
                 placeholder="vpn.example.com"
               />
               <p className="text-xs text-muted-foreground">
-                Hostname of the remote peer. Use this OR IP address above.
+                {t("peerModal.endpointHostnameHint")}
               </p>
             </div>
 
             {/* Endpoint Port */}
             <div className="space-y-2">
-              <Label htmlFor="peer-port">Endpoint Port</Label>
+              <Label htmlFor="peer-port">{t("peerModal.endpointPort")}</Label>
               <Input
                 id="peer-port"
                 type="number"
@@ -429,14 +433,14 @@ export function PeerModal({
               />
               {!isEdit && (
                 <p className="text-xs text-muted-foreground">
-                  UDP port on the remote peer. Default: 51820
+                  {t("peerModal.endpointPortHint", { port: "51820" })}
                 </p>
               )}
             </div>
 
             {/* Persistent Keepalive */}
             <div className="space-y-2">
-              <Label htmlFor="peer-keepalive">Persistent Keepalive (seconds)</Label>
+              <Label htmlFor="peer-keepalive">{t("peerModal.keepalive")}</Label>
               <Input
                 id="peer-keepalive"
                 type="number"
@@ -446,8 +450,8 @@ export function PeerModal({
               />
               <p className="text-xs text-muted-foreground">
                 {isEdit
-                  ? "Send keepalive packets every N seconds. Useful for NAT traversal."
-                  : "Send keepalive packets every N seconds. Useful for NAT traversal (typically 25 seconds)."}
+                  ? t("peerModal.keepaliveHintEdit")
+                  : t("peerModal.keepaliveHint")}
               </p>
             </div>
 
@@ -461,12 +465,12 @@ export function PeerModal({
               <div className="space-y-0.5">
                 <Label htmlFor="peer-disabled" className="flex items-center gap-2 cursor-pointer">
                   <Ban className="h-4 w-4 text-muted-foreground" />
-                  Disable Peer
+                  {t("peerModal.disablePeer")}
                 </Label>
                 <p className="text-xs text-muted-foreground">
                   {isEdit
-                    ? "Disable this peer connection."
-                    : "Create the peer in a disabled state."}
+                    ? t("peerModal.disablePeerHintEdit")
+                    : t("peerModal.disablePeerHint")}
                 </p>
               </div>
             </div>
@@ -483,18 +487,18 @@ export function PeerModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? "Saving..." : "Adding..."}
+                {isEdit ? tc("saving") : t("peerModal.adding")}
               </>
             ) : isEdit ? (
-              "Save Changes"
+              t("peerModal.saveChanges")
             ) : (
-              "Add Peer"
+              t("peerModal.addPeer")
             )}
           </Button>
         </DialogFooter>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +49,8 @@ export function ESPGroupModal({
   onSuccess,
   existingGroup,
 }: ESPGroupModalProps) {
+  const t = useTranslations("ipsecSettings");
+  const tc = useTranslations("common");
   const isEdit = !!existingGroup;
 
   const [name, setName] = useState("");
@@ -114,7 +117,7 @@ export function ESPGroupModal({
   };
 
   const handleSubmit = async () => {
-    if (!name.trim()) { setError("Name is required"); return; }
+    if (!name.trim()) { setError(t("shared.nameRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -141,10 +144,10 @@ export function ESPGroupModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to save ESP group");
+        setError(result.error || t("esp.saveFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to save ESP group");
+      setError((err as ApiError).message || t("esp.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -156,31 +159,31 @@ export function ESPGroupModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
-            {isEdit ? "Edit" : "Create"} ESP Group
+            {isEdit ? t("esp.titleEdit") : t("esp.titleCreate")}
           </DialogTitle>
           <DialogDescription>
-            Configure Encapsulating Security Payload group parameters.
+            {t("esp.description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Name</Label>
+            <Label>{tc("name")}</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="ESP-GROUP-1" disabled={isEdit} />
           </div>
 
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Lifetime (seconds)</Label>
+              <Label>{t("shared.lifetimeSeconds")}</Label>
               <Input value={lifetime} onChange={(e) => setLifetime(e.target.value)} placeholder="3600" />
             </div>
             <div className="space-y-2">
-              <Label>Mode</Label>
+              <Label>{t("shared.mode")}</Label>
               <Select value={mode} onValueChange={setMode}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="tunnel">Tunnel</SelectItem>
-                  <SelectItem value="transport">Transport</SelectItem>
+                  <SelectItem value="tunnel">{t("esp.modeTunnel")}</SelectItem>
+                  <SelectItem value="transport">{t("esp.modeTransport")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -197,39 +200,39 @@ export function ESPGroupModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Life Bytes (optional)</Label>
-              <Input value={lifeBytes} onChange={(e) => setLifeBytes(e.target.value)} placeholder="e.g. 1000000" />
+              <Label>{t("esp.lifeBytes")}</Label>
+              <Input value={lifeBytes} onChange={(e) => setLifeBytes(e.target.value)} placeholder={t("esp.lifeBytesPlaceholder")} />
             </div>
             <div className="space-y-2">
-              <Label>Life Packets (optional)</Label>
-              <Input value={lifePackets} onChange={(e) => setLifePackets(e.target.value)} placeholder="e.g. 100000" />
+              <Label>{t("esp.lifePackets")}</Label>
+              <Input value={lifePackets} onChange={(e) => setLifePackets(e.target.value)} placeholder={t("esp.lifePacketsPlaceholder")} />
             </div>
           </div>
 
           <div className="flex gap-6">
             <div className="flex items-center gap-2">
               <Checkbox id="compression" checked={compression} onCheckedChange={(c) => setCompression(c === true)} />
-              <Label htmlFor="compression" className="cursor-pointer text-sm">Compression</Label>
+              <Label htmlFor="compression" className="cursor-pointer text-sm">{t("esp.compression")}</Label>
             </div>
             <div className="flex items-center gap-2">
               <Checkbox id="disableRekey" checked={disableRekey} onCheckedChange={(c) => setDisableRekey(c === true)} />
-              <Label htmlFor="disableRekey" className="cursor-pointer text-sm">Disable Rekey</Label>
+              <Label htmlFor="disableRekey" className="cursor-pointer text-sm">{t("esp.disableRekey")}</Label>
             </div>
           </div>
 
           {/* Proposals */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Proposals</Label>
+              <Label className="text-sm font-medium">{t("shared.proposals")}</Label>
               <Button type="button" variant="outline" size="sm" onClick={addProposal}>
-                <Plus className="h-4 w-4 mr-1" /> Add
+                <Plus className="h-4 w-4 mr-1" /> {tc("add")}
               </Button>
             </div>
             {proposals.map((p) => (
               <div key={p.id} className="grid grid-cols-[auto_1fr_1fr_auto] gap-2 items-end rounded-lg border p-3">
                 <div className="text-xs text-muted-foreground font-mono w-6 text-center pt-5">#{p.id}</div>
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Encryption</Label>
+                  <Label className="text-xs text-muted-foreground">{t("shared.encryption")}</Label>
                   <Select value={p.encryption} onValueChange={(v) => updateProposal(p.id, "encryption", v)}>
                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -238,7 +241,7 @@ export function ESPGroupModal({
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Hash</Label>
+                  <Label className="text-xs text-muted-foreground">{t("shared.hash")}</Label>
                   <Select value={p.hash} onValueChange={(v) => updateProposal(p.id, "hash", v)}>
                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -262,9 +265,9 @@ export function ESPGroupModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? "Saving..." : "Creating..."}</> : isEdit ? "Save Changes" : "Create ESP Group"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("shared.creating")}</> : isEdit ? t("shared.saveChanges") : t("esp.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

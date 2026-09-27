@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -55,6 +56,8 @@ export function SettingsModal({
   currentInterfaces,
   disableUniqreqids: currentDisableUniqreqids,
 }: SettingsModalProps) {
+  const t = useTranslations("ipsecSettings");
+  const tc = useTranslations("common");
   const [allInterfaces, setAllInterfaces] = useState<InterfaceName[]>([]);
 
   // Options
@@ -214,7 +217,7 @@ export function SettingsModal({
       for (const batch of toggleOps) {
         const result = await ipsecService.executeBatch(batch.itemName, batch.ops);
         if (!result.success) {
-          setError(result.error || "Failed to update settings");
+          setError(result.error || t("settings.updateFailed"));
           setLoading(false);
           return;
         }
@@ -223,7 +226,7 @@ export function SettingsModal({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError((err as ApiError).message || "Failed to update settings");
+      setError((err as ApiError).message || t("settings.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -235,21 +238,21 @@ export function SettingsModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5 text-primary" />
-            IPSec Global Settings
+            {t("settings.title")}
           </DialogTitle>
           <DialogDescription>
-            Configure global IPSec options, logging, and interfaces.
+            {t("settings.description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
           {/* Options */}
           <div className="space-y-3">
-            <Label className="text-sm font-medium">Options</Label>
+            <Label className="text-sm font-medium">{t("settings.options")}</Label>
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Checkbox id="disableRouteAutoinstall" checked={disableRouteAutoinstall} onCheckedChange={(c) => setDisableRouteAutoinstall(c === true)} />
-                <Label htmlFor="disableRouteAutoinstall" className="cursor-pointer text-sm">Disable Route Auto-install</Label>
+                <Label htmlFor="disableRouteAutoinstall" className="cursor-pointer text-sm">{t("settings.disableRouteAutoinstall")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="flexvpn" checked={flexvpn} onCheckedChange={(c) => setFlexvpn(c === true)} />
@@ -257,18 +260,18 @@ export function SettingsModal({
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="virtualIp" checked={virtualIp} onCheckedChange={(c) => setVirtualIp(c === true)} />
-                <Label htmlFor="virtualIp" className="cursor-pointer text-sm">Virtual IP</Label>
+                <Label htmlFor="virtualIp" className="cursor-pointer text-sm">{t("settings.virtualIp")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="disableUniqreqids" checked={disableUniqreqids} onCheckedChange={(c) => setDisableUniqreqids(c === true)} />
-                <Label htmlFor="disableUniqreqids" className="cursor-pointer text-sm">Disable Unique Request IDs</Label>
+                <Label htmlFor="disableUniqreqids" className="cursor-pointer text-sm">{t("settings.disableUniqReqIds")}</Label>
               </div>
             </div>
           </div>
 
           {/* Interfaces */}
           <div className="space-y-2">
-            <Label>Interfaces</Label>
+            <Label>{t("settings.interfaces")}</Label>
             {allInterfaces.length > 0 ? (
               <div className="grid grid-cols-3 gap-2">
                 {allInterfaces.map((iface) => {
@@ -293,26 +296,26 @@ export function SettingsModal({
                 })}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No interfaces available</p>
+              <p className="text-sm text-muted-foreground">{t("settings.noInterfaces")}</p>
             )}
-            <p className="text-xs text-muted-foreground">Select interfaces to listen on</p>
+            <p className="text-xs text-muted-foreground">{t("settings.interfacesHelp")}</p>
           </div>
 
           {/* Logging */}
           <div className="space-y-3">
-            <Label className="text-sm font-medium">Logging</Label>
+            <Label className="text-sm font-medium">{t("settings.logging")}</Label>
             <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Log Level</Label>
+              <Label className="text-xs text-muted-foreground">{t("settings.logLevel")}</Label>
               <Select value={logLevel || "_default"} onValueChange={(v) => setLogLevel(v === "_default" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="Default" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={tc("default")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="_default">Default</SelectItem>
+                  <SelectItem value="_default">{tc("default")}</SelectItem>
                   {LOG_LEVELS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Subsystems</Label>
+              <Label className="text-xs text-muted-foreground">{t("settings.subsystems")}</Label>
               <div className="grid grid-cols-4 gap-2">
                 {LOG_SUBSYSTEMS.map((sub) => (
                   <div key={sub} className="flex items-center gap-1.5">
@@ -331,19 +334,19 @@ export function SettingsModal({
           {/* Retransmission (1.5 only) */}
           {capabilities?.features.retransmission_options.supported && (
             <div className="space-y-3">
-              <Label className="text-sm font-medium">Retransmission</Label>
+              <Label className="text-sm font-medium">{t("settings.retransmission")}</Label>
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Attempts</Label>
-                  <Input value={retransmissionAttempts} onChange={(e) => setRetransmissionAttempts(e.target.value)} placeholder="Default" />
+                  <Label className="text-xs text-muted-foreground">{t("settings.attempts")}</Label>
+                  <Input value={retransmissionAttempts} onChange={(e) => setRetransmissionAttempts(e.target.value)} placeholder={tc("default")} />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Base</Label>
-                  <Input value={retransmissionBase} onChange={(e) => setRetransmissionBase(e.target.value)} placeholder="Default" />
+                  <Label className="text-xs text-muted-foreground">{t("settings.base")}</Label>
+                  <Input value={retransmissionBase} onChange={(e) => setRetransmissionBase(e.target.value)} placeholder={tc("default")} />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Timeout</Label>
-                  <Input value={retransmissionTimeout} onChange={(e) => setRetransmissionTimeout(e.target.value)} placeholder="Default" />
+                  <Label className="text-xs text-muted-foreground">{t("settings.timeout")}</Label>
+                  <Input value={retransmissionTimeout} onChange={(e) => setRetransmissionTimeout(e.target.value)} placeholder={tc("default")} />
                 </div>
               </div>
             </div>
@@ -358,9 +361,9 @@ export function SettingsModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save Settings"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : t("settings.save")}
           </Button>
         </DialogFooter>
       </DialogContent>

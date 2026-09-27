@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -27,6 +28,8 @@ export function DeleteInterfaceModal({
   onSuccess,
   interfaceData,
 }: DeleteInterfaceModalProps) {
+  const t = useTranslations("wireguard");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,10 +46,10 @@ export function DeleteInterfaceModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to delete interface");
+        setError(result.error || t("deleteInterface.failed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to delete interface");
+      setError((err as ApiError).message || t("deleteInterface.failed"));
     } finally {
       setLoading(false);
     }
@@ -60,21 +63,19 @@ export function DeleteInterfaceModal({
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            Delete Interface: {interfaceData.name}
+            {t("deleteInterface.title", { name: interfaceData.name })}
           </AlertDialogTitle>
           <AlertDialogDescription className="space-y-2">
             <p>
-              Are you sure you want to delete this WireGuard interface? This action
-              cannot be undone.
+              {t("deleteInterface.confirm")}
             </p>
             {interfaceData.peer_count > 0 && (
               <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 mt-2">
                 <p className="text-sm text-amber-600 font-medium">
-                  Warning: This interface has {interfaceData.peer_count} peer
-                  {interfaceData.peer_count !== 1 ? "s" : ""} configured.
+                  {t("deleteInterface.peerWarning", { count: interfaceData.peer_count })}
                 </p>
                 <p className="text-xs text-amber-600/80 mt-1">
-                  Deleting the interface will remove all peer configurations.
+                  {t("deleteInterface.peerWarningHint")}
                 </p>
               </div>
             )}
@@ -93,16 +94,16 @@ export function DeleteInterfaceModal({
             onClick={() => onOpenChange(false)}
             disabled={loading}
           >
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Interface"
+              t("deleteInterface.submit")
             )}
           </Button>
         </AlertDialogFooter>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -58,6 +59,8 @@ export function InterfaceModal({
   existingInterfaces,
   existing,
 }: InterfaceModalProps) {
+  const t = useTranslations("wireguard");
+  const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
 
   // Form state
@@ -147,10 +150,10 @@ export function InterfaceModal({
         setGeneratedPublicKey(result.public_key || null);
       } else if (result.raw_output) {
         // Try to parse from raw output
-        setError("Key generated but couldn't parse. Raw output: " + result.raw_output);
+        setError(t("interfaceModal.keyParseFailed", { output: result.raw_output }));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to generate keypair");
+      setError((err as ApiError).message || t("interfaceModal.generateKeypairFailed"));
     } finally {
       setGenerating(false);
     }
@@ -185,8 +188,10 @@ export function InterfaceModal({
   });
 
   // Validate create-only identity rules
-  const validateCreate = (): string | null =>
-    validateInterfaceCreate(draft(), existingInterfaces);
+  const validateCreate = (): string | null => {
+    const error = validateInterfaceCreate(draft(), existingInterfaces);
+    return error && t(`validation.${error}`, { name: draft().name });
+  };
 
   const submitCreate = async () => {
     const config = buildInterfaceCreateConfig(
@@ -243,13 +248,13 @@ export function InterfaceModal({
       } else {
         setError(
           result.error ||
-            (isEdit ? "Failed to update interface" : "Failed to create interface")
+            (isEdit ? t("interfaceModal.updateFailed") : t("interfaceModal.createFailed"))
         );
       }
     } catch (err) {
       setError(
         (err as ApiError).message ||
-          (isEdit ? "Failed to update interface" : "Failed to create interface")
+          (isEdit ? t("interfaceModal.updateFailed") : t("interfaceModal.createFailed"))
       );
     } finally {
       setLoading(false);
@@ -266,19 +271,19 @@ export function InterfaceModal({
             ) : (
               <Key className="h-5 w-5 text-primary" />
             )}
-            {isEdit ? `Edit Interface: ${existing.name}` : "Create WireGuard Interface"}
+            {isEdit ? t("interfaceModal.editTitle", { name: existing.name }) : t("interfaceModal.createTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Modify the WireGuard interface configuration. Interface name cannot be changed."
-              : "Create a new WireGuard tunnel interface with encryption keys."}
+              ? t("interfaceModal.editDescription")
+              : t("interfaceModal.createDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="basic">Basic</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            <TabsTrigger value="basic">{t("interfaceModal.tabBasic")}</TabsTrigger>
+            <TabsTrigger value="advanced">{t("interfaceModal.tabAdvanced")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="basic" className="space-y-4 mt-4">
@@ -292,10 +297,10 @@ export function InterfaceModal({
                 />
                 <div className="flex-1">
                   <Label htmlFor="wg-disabled" className="cursor-pointer">
-                    Disable Interface
+                    {t("interfaceModal.disableInterface")}
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    When disabled, the interface will be inactive and all peers will be disconnected.
+                    {t("interfaceModal.disableInterfaceHint")}
                   </p>
                 </div>
               </div>
@@ -303,7 +308,7 @@ export function InterfaceModal({
 
             {/* Interface Name */}
             <div className="space-y-2">
-              <Label htmlFor="wg-name">Interface Name</Label>
+              <Label htmlFor="wg-name">{t("interfaceModal.interfaceName")}</Label>
               <Input
                 id="wg-name"
                 value={lockedName.value}
@@ -314,25 +319,25 @@ export function InterfaceModal({
               />
               <p className="text-xs text-muted-foreground">
                 {isEdit
-                  ? "Interface name cannot be changed."
-                  : "Must be in format wg0, wg1, etc."}
+                  ? t("interfaceModal.nameLocked")
+                  : t("interfaceModal.nameFormat")}
               </p>
             </div>
 
             {/* Description */}
             <div className="space-y-2">
-              <Label htmlFor="wg-description">Description (optional)</Label>
+              <Label htmlFor="wg-description">{t("interfaceModal.descriptionOptional")}</Label>
               <Input
                 id="wg-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Main VPN tunnel"
+                placeholder={t("interfaceModal.descriptionPlaceholder")}
               />
             </div>
 
             {/* Private Key */}
             <div className="space-y-2">
-              <Label htmlFor="wg-privateKey">Private Key</Label>
+              <Label htmlFor="wg-privateKey">{t("interfaceModal.privateKey")}</Label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Input
@@ -345,8 +350,8 @@ export function InterfaceModal({
                     }}
                     placeholder={
                       isEdit
-                        ? "Leave as *** to keep current key"
-                        : "Base64 encoded private key"
+                        ? t("interfaceModal.keepKeyPlaceholder")
+                        : t("interfaceModal.privateKeyPlaceholder")
                     }
                     className="pr-10 font-mono text-sm"
                   />
@@ -376,13 +381,13 @@ export function InterfaceModal({
                   ) : (
                     <Sparkles className="h-4 w-4" />
                   )}
-                  {isEdit ? "Regenerate" : "Generate"}
+                  {isEdit ? t("interfaceModal.regenerate") : t("interfaceModal.generate")}
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
                 {isEdit
-                  ? "Keep as \u201c***\u201d to preserve existing key, or generate/enter a new one."
-                  : "Generate a new keypair or paste an existing private key."}
+                  ? t("interfaceModal.privateKeyEditHint")
+                  : t("interfaceModal.privateKeyCreateHint")}
               </p>
             </div>
 
@@ -392,8 +397,8 @@ export function InterfaceModal({
                 <div className="flex items-center justify-between mb-1">
                   <Label className="text-sm font-medium text-green-600">
                     {isEdit
-                      ? "New Public Key (share with peers)"
-                      : "Public Key (share with peers)"}
+                      ? t("interfaceModal.newPublicKeyShare")
+                      : t("interfaceModal.publicKeyShare")}
                   </Label>
                   <Button
                     type="button"
@@ -405,12 +410,12 @@ export function InterfaceModal({
                     {copied ? (
                       <>
                         <Check className="h-3 w-3" />
-                        Copied
+                        {t("interfaceModal.copied")}
                       </>
                     ) : (
                       <>
                         <Copy className="h-3 w-3" />
-                        Copy
+                        {t("interfaceModal.copy")}
                       </>
                     )}
                   </Button>
@@ -424,7 +429,7 @@ export function InterfaceModal({
             {/* Addresses */}
             <div className="space-y-2">
               <Label htmlFor="wg-addresses">
-                {isEdit ? "Interface Addresses" : "Interface Addresses (optional)"}
+                {isEdit ? t("interfaceModal.addresses") : t("interfaceModal.addressesOptional")}
               </Label>
               <Input
                 id="wg-addresses"
@@ -433,13 +438,13 @@ export function InterfaceModal({
                 placeholder="10.0.0.1/24, fd00::1/64"
               />
               <p className="text-xs text-muted-foreground">
-                Comma-separated list of IP addresses with CIDR notation.
+                {t("interfaceModal.addressesHint")}
               </p>
             </div>
 
             {/* Listen Port */}
             <div className="space-y-2">
-              <Label htmlFor="wg-port">Listen Port</Label>
+              <Label htmlFor="wg-port">{t("interfaceModal.listenPort")}</Label>
               <Input
                 id="wg-port"
                 type="number"
@@ -448,7 +453,7 @@ export function InterfaceModal({
                 placeholder="51820"
               />
               <p className="text-xs text-muted-foreground">
-                UDP port for incoming connections. Default: 51820
+                {t("interfaceModal.listenPortHint", { port: "51820" })}
               </p>
             </div>
           </TabsContent>
@@ -456,7 +461,7 @@ export function InterfaceModal({
           <TabsContent value="advanced" className="space-y-4 mt-4">
             {/* MTU */}
             <div className="space-y-2">
-              <Label htmlFor="wg-mtu">MTU (optional)</Label>
+              <Label htmlFor="wg-mtu">{t("interfaceModal.mtuOptional")}</Label>
               <Input
                 id="wg-mtu"
                 type="number"
@@ -465,7 +470,7 @@ export function InterfaceModal({
                 placeholder="1420"
               />
               <p className="text-xs text-muted-foreground">
-                Maximum transmission unit. Leave empty for automatic.
+                {t("interfaceModal.mtuHint")}
               </p>
             </div>
 
@@ -481,7 +486,7 @@ export function InterfaceModal({
                 />
                 <div className="flex-1">
                   <Label htmlFor="wg-perClientThread" className="cursor-pointer">
-                    Per-Client Thread
+                    {t("interfaceModal.perClientThread")}
                   </Label>
                   <p className="text-xs text-muted-foreground">
                     {capabilities.features.per_client_thread.description}
@@ -491,15 +496,15 @@ export function InterfaceModal({
             )}
 
             <div className="space-y-2 rounded-lg border p-3">
-              <Label>TCP MSS Clamping</Label>
+              <Label>{t("interfaceModal.mssClamping")}</Label>
               <Select value={mssClamping} onValueChange={setMssClamping}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Disabled" />
+                  <SelectValue placeholder={tc("disabled")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="off">Disabled</SelectItem>
-                  <SelectItem value="auto">Auto (clamp-mss-to-pmtu)</SelectItem>
-                  <SelectItem value="custom">Custom value</SelectItem>
+                  <SelectItem value="off">{tc("disabled")}</SelectItem>
+                  <SelectItem value="auto">{t("interfaceModal.mssAuto")}</SelectItem>
+                  <SelectItem value="custom">{t("interfaceModal.mssCustom")}</SelectItem>
                 </SelectContent>
               </Select>
               {mssClamping === "custom" && (
@@ -514,10 +519,10 @@ export function InterfaceModal({
               )}
               <p className="text-xs text-muted-foreground">
                 {mssClamping === "auto"
-                  ? "Automatically sets MSS to the path MTU (clamp-mss-to-pmtu)."
+                  ? t("interfaceModal.mssAutoHint")
                   : mssClamping === "custom"
-                    ? "Set a specific TCP MSS value in bytes (536–65535)."
-                    : "No MSS adjustment applied to this interface."}
+                    ? t("interfaceModal.mssCustomHint")
+                    : t("interfaceModal.mssOffHint")}
               </p>
             </div>
           </TabsContent>
@@ -528,7 +533,9 @@ export function InterfaceModal({
           <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 p-3">
             <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
             <p className="text-sm text-amber-700">
-              This device requires at least one peer when creating an interface. Please use the <strong>Quick Setup Wizard</strong> instead, which creates an interface and peer together.
+              {t.rich("interfaceModal.peerRequiredNotice", {
+                strong: (chunks) => <strong>{chunks}</strong>,
+              })}
             </p>
           </div>
         )}
@@ -543,7 +550,7 @@ export function InterfaceModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button
             onClick={handleSubmit}
@@ -555,12 +562,12 @@ export function InterfaceModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? "Saving..." : "Creating..."}
+                {isEdit ? tc("saving") : t("interfaceModal.creating")}
               </>
             ) : isEdit ? (
-              "Save Changes"
+              t("interfaceModal.saveChanges")
             ) : (
-              "Create Interface"
+              t("interfaceModal.createInterface")
             )}
           </Button>
         </DialogFooter>

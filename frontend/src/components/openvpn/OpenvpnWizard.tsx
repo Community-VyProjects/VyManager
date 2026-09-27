@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -53,13 +54,13 @@ interface OpenvpnWizardProps {
 }
 
 const STEP_TITLES = [
-  "Mode",
-  "Basics",
-  "Network",
-  "Encryption",
-  "Authentication",
-  "Review",
-];
+  "mode",
+  "basics",
+  "network",
+  "encryption",
+  "authentication",
+  "review",
+] as const;
 
 export function OpenvpnWizard({
   open,
@@ -68,6 +69,8 @@ export function OpenvpnWizard({
   capabilities,
   existingNames,
 }: OpenvpnWizardProps) {
+  const t = useTranslations("openvpnTools");
+  const tc = useTranslations("common");
   const is15 = capabilities?.version_info.is_1_5 ?? false;
 
   const [step, setStep] = useState(0);
@@ -210,22 +213,22 @@ export function OpenvpnWizard({
   };
 
   const validateStep = (): string | null => {
-    if (step === 0 && !mode) return "Please select a mode.";
+    if (step === 0 && !mode) return t("wizard.errors.selectMode");
     if (step === 1) {
-      if (!name.trim()) return "Interface name is required.";
-      if (existingNames.includes(name)) return `Interface "${name}" already exists.`;
+      if (!name.trim()) return t("wizard.errors.nameRequired");
+      if (existingNames.includes(name)) return t("wizard.errors.alreadyExists", { name });
     }
     if (step === 2) {
       if (mode === "server") {
-        if (!localPort) return "Local port is required for server mode.";
-        if (!serverSubnetText.trim()) return "At least one server subnet is required.";
+        if (!localPort) return t("wizard.errors.localPortRequired");
+        if (!serverSubnetText.trim()) return t("wizard.errors.subnetRequired");
       }
       if (mode === "client") {
-        if (!remoteHostText.trim()) return "Remote host is required for client mode.";
+        if (!remoteHostText.trim()) return t("wizard.errors.remoteHostRequired");
       }
       if (mode === "site-to-site") {
         if (!localAddress || !remoteAddressText.trim()) {
-          return "Local and remote addresses are required for site-to-site mode.";
+          return t("wizard.errors.addressesRequired");
         }
       }
     }
@@ -256,10 +259,10 @@ export function OpenvpnWizard({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to create OpenVPN interface");
+        setError(result.error || t("wizard.errors.createFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to create OpenVPN interface");
+      setError((err as ApiError).message || t("wizard.errors.createFailed"));
     } finally {
       setLoading(false);
     }
@@ -271,9 +274,13 @@ export function OpenvpnWizard({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>OpenVPN Quick Setup</DialogTitle>
+          <DialogTitle>{t("wizard.title")}</DialogTitle>
           <DialogDescription>
-            Step {step + 1} of {STEP_TITLES.length}: {STEP_TITLES[step]}
+            {t("wizard.stepOf", {
+              current: String(step + 1),
+              total: String(STEP_TITLES.length),
+              title: t(`wizard.steps.${STEP_TITLES[step]}`),
+            })}
           </DialogDescription>
         </DialogHeader>
 
@@ -284,29 +291,29 @@ export function OpenvpnWizard({
           {step === 0 && (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                Select the OpenVPN deployment mode.
+                {t("wizard.selectModeHint")}
               </p>
               <div className="grid grid-cols-1 gap-3">
                 <ModeCard
                   selected={mode === "server"}
                   onClick={() => setMode("server")}
                   icon={Server}
-                  title="Server"
-                  description="Accept incoming connections from multiple clients."
+                  title={t("modes.server")}
+                  description={t("wizard.modeDesc.server")}
                 />
                 <ModeCard
                   selected={mode === "client"}
                   onClick={() => setMode("client")}
                   icon={Users}
-                  title="Client"
-                  description="Connect to a remote OpenVPN server."
+                  title={t("modes.client")}
+                  description={t("wizard.modeDesc.client")}
                 />
                 <ModeCard
                   selected={mode === "site-to-site"}
                   onClick={() => setMode("site-to-site")}
                   icon={ArrowLeftRight}
-                  title="Site-to-Site"
-                  description="Establish a point-to-point tunnel between two sites."
+                  title={t("modes.siteToSite")}
+                  description={t("wizard.modeDesc.siteToSite")}
                 />
               </div>
             </div>
@@ -316,11 +323,11 @@ export function OpenvpnWizard({
           {step === 1 && (
             <div className="space-y-4">
               <div>
-                <Label htmlFor="wname">Interface Name *</Label>
+                <Label htmlFor="wname">{t("wizard.interfaceNameRequired")}</Label>
                 <Input id="wname" value={name} onChange={(e) => setName(e.target.value)} />
               </div>
               <div>
-                <Label htmlFor="wdesc">Description</Label>
+                <Label htmlFor="wdesc">{tc("description")}</Label>
                 <Input
                   id="wdesc"
                   value={description}
@@ -329,7 +336,7 @@ export function OpenvpnWizard({
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="wdev">Device Type</Label>
+                  <Label htmlFor="wdev">{t("fields.deviceType")}</Label>
                   <Select value={deviceType} onValueChange={setDeviceType}>
                     <SelectTrigger id="wdev">
                       <SelectValue />
@@ -341,7 +348,7 @@ export function OpenvpnWizard({
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="wproto">Protocol</Label>
+                  <Label htmlFor="wproto">{t("fields.protocol")}</Label>
                   <Select value={protocol} onValueChange={setProtocol}>
                     <SelectTrigger id="wproto">
                       <SelectValue />
@@ -364,7 +371,7 @@ export function OpenvpnWizard({
                 <>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="wlhost">Listen Host</Label>
+                      <Label htmlFor="wlhost">{t("wizard.listenHost")}</Label>
                       <Input
                         id="wlhost"
                         value={localHost}
@@ -373,7 +380,7 @@ export function OpenvpnWizard({
                       />
                     </div>
                     <div>
-                      <Label htmlFor="wlport">Listen Port *</Label>
+                      <Label htmlFor="wlport">{t("wizard.listenPortRequired")}</Label>
                       <Input
                         id="wlport"
                         value={localPort}
@@ -382,7 +389,7 @@ export function OpenvpnWizard({
                     </div>
                   </div>
                   <div>
-                    <Label htmlFor="wsubnet">Server Subnets * (one per line)</Label>
+                    <Label htmlFor="wsubnet">{t("wizard.serverSubnetsRequired")}</Label>
                     <Textarea
                       id="wsubnet"
                       value={serverSubnetText}
@@ -392,7 +399,7 @@ export function OpenvpnWizard({
                     />
                   </div>
                   <div>
-                    <Label htmlFor="wtopo">Topology</Label>
+                    <Label htmlFor="wtopo">{t("fields.topology")}</Label>
                     <Select value={serverTopology} onValueChange={setServerTopology}>
                       <SelectTrigger id="wtopo">
                         <SelectValue />
@@ -405,7 +412,7 @@ export function OpenvpnWizard({
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="wpush">Push Routes (one per line)</Label>
+                    <Label htmlFor="wpush">{t("wizard.pushRoutesPerLine")}</Label>
                     <Textarea
                       id="wpush"
                       value={serverPushRoutesText}
@@ -419,7 +426,7 @@ export function OpenvpnWizard({
               {mode === "client" && (
                 <>
                   <div>
-                    <Label htmlFor="wrhost">Remote Host(s) * (one per line)</Label>
+                    <Label htmlFor="wrhost">{t("wizard.remoteHostsRequired")}</Label>
                     <Textarea
                       id="wrhost"
                       value={remoteHostText}
@@ -428,7 +435,7 @@ export function OpenvpnWizard({
                     />
                   </div>
                   <div>
-                    <Label htmlFor="wrport">Remote Port</Label>
+                    <Label htmlFor="wrport">{t("fields.remotePort")}</Label>
                     <Input
                       id="wrport"
                       value={remotePort}
@@ -443,7 +450,7 @@ export function OpenvpnWizard({
                 <>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="wlhost">Local Host</Label>
+                      <Label htmlFor="wlhost">{t("fields.localHost")}</Label>
                       <Input
                         id="wlhost"
                         value={localHost}
@@ -451,7 +458,7 @@ export function OpenvpnWizard({
                       />
                     </div>
                     <div>
-                      <Label htmlFor="wlport">Local Port</Label>
+                      <Label htmlFor="wlport">{t("fields.localPort")}</Label>
                       <Input
                         id="wlport"
                         value={localPort}
@@ -461,7 +468,7 @@ export function OpenvpnWizard({
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="wrhost">Remote Host</Label>
+                      <Label htmlFor="wrhost">{t("fields.remoteHost")}</Label>
                       <Input
                         id="wrhost"
                         value={remoteHostText}
@@ -469,7 +476,7 @@ export function OpenvpnWizard({
                       />
                     </div>
                     <div>
-                      <Label htmlFor="wrport">Remote Port</Label>
+                      <Label htmlFor="wrport">{t("fields.remotePort")}</Label>
                       <Input
                         id="wrport"
                         value={remotePort}
@@ -479,7 +486,7 @@ export function OpenvpnWizard({
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="wladdr">Local Address *</Label>
+                      <Label htmlFor="wladdr">{t("wizard.localAddressRequired")}</Label>
                       <Input
                         id="wladdr"
                         value={localAddress}
@@ -488,7 +495,7 @@ export function OpenvpnWizard({
                       />
                     </div>
                     <div>
-                      <Label htmlFor="wlmask">Local Subnet Mask</Label>
+                      <Label htmlFor="wlmask">{t("wizard.localSubnetMask")}</Label>
                       <Input
                         id="wlmask"
                         value={localAddressMask}
@@ -498,7 +505,7 @@ export function OpenvpnWizard({
                     </div>
                   </div>
                   <div>
-                    <Label htmlFor="wraddr">Remote Address(es) * (one per line)</Label>
+                    <Label htmlFor="wraddr">{t("wizard.remoteAddressesRequired")}</Label>
                     <Textarea
                       id="wraddr"
                       value={remoteAddressText}
@@ -516,10 +523,10 @@ export function OpenvpnWizard({
             <div className="space-y-4">
               {mode === "site-to-site" && (
                 <div>
-                  <Label htmlFor="wssk">Shared Secret Key</Label>
+                  <Label htmlFor="wssk">{t("fields.sharedSecretKey")}</Label>
                   <Select value={sharedSecretKey} onValueChange={setSharedSecretKey}>
                     <SelectTrigger id="wssk">
-                      <SelectValue placeholder="Select from PKI" />
+                      <SelectValue placeholder={t("wizard.selectFromPki")} />
                     </SelectTrigger>
                     <SelectContent>
                       {pki?.openvpn_shared_secrets.map((s) => (
@@ -530,7 +537,7 @@ export function OpenvpnWizard({
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground mt-1">
-                    For site-to-site tunnels using pre-shared key.
+                    {t("wizard.sharedSecretHint")}
                   </p>
                 </div>
               )}
@@ -539,9 +546,9 @@ export function OpenvpnWizard({
                 <>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>CA Certificate(s)</Label>
+                      <Label>{t("wizard.caCertificates")}</Label>
                       <p className="text-xs text-muted-foreground mb-2">
-                        Select one or more CAs (e.g. an intermediate CA chain).
+                        {t("wizard.caHint")}
                       </p>
                       <div className="grid grid-cols-2 gap-2 rounded-md border p-3">
                         {pki?.ca.map((c) => (
@@ -560,10 +567,10 @@ export function OpenvpnWizard({
                       </div>
                     </div>
                     <div>
-                      <Label htmlFor="wcert">Certificate</Label>
+                      <Label htmlFor="wcert">{t("fields.certificate")}</Label>
                       <Select value={tlsCert} onValueChange={setTlsCert}>
                         <SelectTrigger id="wcert">
-                          <SelectValue placeholder="Select cert" />
+                          <SelectValue placeholder={t("wizard.selectCert")} />
                         </SelectTrigger>
                         <SelectContent>
                           {pki?.certificates.map((c) => (
@@ -577,10 +584,10 @@ export function OpenvpnWizard({
                   </div>
                   {mode === "server" && (
                     <div>
-                      <Label htmlFor="wdh">DH Parameters</Label>
+                      <Label htmlFor="wdh">{t("fields.dhParameters")}</Label>
                       <Select value={tlsDh} onValueChange={setTlsDh}>
                         <SelectTrigger id="wdh">
-                          <SelectValue placeholder="Select DH" />
+                          <SelectValue placeholder={t("wizard.selectDh")} />
                         </SelectTrigger>
                         <SelectContent>
                           {pki?.dh.map((d) => (
@@ -593,10 +600,10 @@ export function OpenvpnWizard({
                     </div>
                   )}
                   <div>
-                    <Label htmlFor="wauthkey">TLS Auth Key (optional)</Label>
+                    <Label htmlFor="wauthkey">{t("wizard.tlsAuthKeyOptional")}</Label>
                     <Select value={tlsAuthKey} onValueChange={setTlsAuthKey}>
                       <SelectTrigger id="wauthkey">
-                        <SelectValue placeholder="Select shared secret" />
+                        <SelectValue placeholder={t("wizard.selectSharedSecret")} />
                       </SelectTrigger>
                       <SelectContent>
                         {pki?.openvpn_shared_secrets.map((s) => (
@@ -613,10 +620,10 @@ export function OpenvpnWizard({
               <Separator />
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="wcipher">Legacy Cipher</Label>
+                  <Label htmlFor="wcipher">{t("wizard.legacyCipher")}</Label>
                   <Select value={cipher} onValueChange={setCipher}>
                     <SelectTrigger id="wcipher">
-                      <SelectValue placeholder="Select cipher" />
+                      <SelectValue placeholder={t("wizard.selectCipher")} />
                     </SelectTrigger>
                     <SelectContent>
                       {LEGACY_CIPHERS.map((c) => (
@@ -628,10 +635,10 @@ export function OpenvpnWizard({
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="whash">Hash</Label>
+                  <Label htmlFor="whash">{t("fields.hash")}</Label>
                   <Select value={hash} onValueChange={setHash}>
                     <SelectTrigger id="whash">
-                      <SelectValue placeholder="Select hash" />
+                      <SelectValue placeholder={t("wizard.selectHash")} />
                     </SelectTrigger>
                     <SelectContent>
                       {HASH_ALGORITHMS.map((h) => (
@@ -645,9 +652,9 @@ export function OpenvpnWizard({
               </div>
               {is15 && (
                 <div>
-                  <Label>Data Ciphers</Label>
+                  <Label>{t("fields.dataCiphers")}</Label>
                   <p className="text-xs text-muted-foreground mb-2">
-                    Select one or more ciphers the peer may negotiate.
+                    {t("wizard.dataCiphersHint")}
                   </p>
                   <div className="grid grid-cols-4 gap-2 rounded-md border p-3">
                     {DATA_CIPHERS.map((c) => (
@@ -675,10 +682,10 @@ export function OpenvpnWizard({
               {mode === "client" ? (
                 <>
                   <p className="text-sm text-muted-foreground">
-                    Optional username/password authentication for this client.
+                    {t("wizard.authHint")}
                   </p>
                   <div>
-                    <Label htmlFor="wauser">Username</Label>
+                    <Label htmlFor="wauser">{t("fields.username")}</Label>
                     <Input
                       id="wauser"
                       value={authUsername}
@@ -687,7 +694,7 @@ export function OpenvpnWizard({
                     />
                   </div>
                   <div>
-                    <Label htmlFor="wapass">Password</Label>
+                    <Label htmlFor="wapass">{t("fields.password")}</Label>
                     <Input
                       id="wapass"
                       type="password"
@@ -700,7 +707,7 @@ export function OpenvpnWizard({
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  No authentication configuration required for this mode.
+                  {t("wizard.noAuthRequired")}
                 </p>
               )}
               <label className="flex items-center gap-2">
@@ -708,7 +715,7 @@ export function OpenvpnWizard({
                   checked={persistentTunnel}
                   onCheckedChange={(v) => setPersistentTunnel(!!v)}
                 />
-                <span>Persistent tunnel (recommended)</span>
+                <span>{t("wizard.persistentTunnelRecommended")}</span>
               </label>
             </div>
           )}
@@ -718,58 +725,58 @@ export function OpenvpnWizard({
             <div className="space-y-3 text-sm">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
-                <span className="font-semibold">Review your configuration</span>
+                <span className="font-semibold">{t("wizard.reviewTitle")}</span>
               </div>
               <div className="rounded-md border bg-muted/30 p-3 space-y-1 font-mono text-xs">
-                <ReviewRow label="Mode" value={mode} />
-                <ReviewRow label="Interface" value={name} />
-                {description && <ReviewRow label="Description" value={description} />}
-                <ReviewRow label="Device" value={deviceType} />
-                <ReviewRow label="Protocol" value={protocol} />
-                {localHost && <ReviewRow label="Local Host" value={localHost} />}
-                {localPort && <ReviewRow label="Local Port" value={localPort} />}
+                <ReviewRow label={t("fields.mode")} value={mode} />
+                <ReviewRow label={t("fields.interface")} value={name} />
+                {description && <ReviewRow label={tc("description")} value={description} />}
+                <ReviewRow label={t("fields.device")} value={deviceType} />
+                <ReviewRow label={t("fields.protocol")} value={protocol} />
+                {localHost && <ReviewRow label={t("fields.localHost")} value={localHost} />}
+                {localPort && <ReviewRow label={t("fields.localPort")} value={localPort} />}
                 {remoteHostText && (
                   <ReviewRow
-                    label="Remote Host(s)"
+                    label={t("fields.remoteHosts")}
                     value={splitLines(remoteHostText).join(", ")}
                   />
                 )}
-                {remotePort && <ReviewRow label="Remote Port" value={remotePort} />}
+                {remotePort && <ReviewRow label={t("fields.remotePort")} value={remotePort} />}
                 {localAddress && (
                   <ReviewRow
-                    label="Local Address"
+                    label={t("fields.localAddress")}
                     value={`${localAddress}${localAddressMask ? " / " + localAddressMask : ""}`}
                   />
                 )}
                 {remoteAddressText && (
                   <ReviewRow
-                    label="Remote Addresses"
+                    label={t("fields.remoteAddresses")}
                     value={splitLines(remoteAddressText).join(", ")}
                   />
                 )}
                 {serverSubnetText && (
                   <ReviewRow
-                    label="Server Subnets"
+                    label={t("fields.serverSubnets")}
                     value={splitLines(serverSubnetText).join(", ")}
                   />
                 )}
                 {mode === "server" && serverTopology && (
-                  <ReviewRow label="Topology" value={serverTopology} />
+                  <ReviewRow label={t("fields.topology")} value={serverTopology} />
                 )}
-                {cipher && <ReviewRow label="Cipher" value={cipher} />}
+                {cipher && <ReviewRow label={t("fields.cipher")} value={cipher} />}
                 {dataCiphers.length > 0 && (
-                  <ReviewRow label="Data Ciphers" value={dataCiphers.join(", ")} />
+                  <ReviewRow label={t("fields.dataCiphers")} value={dataCiphers.join(", ")} />
                 )}
-                {hash && <ReviewRow label="Hash" value={hash} />}
+                {hash && <ReviewRow label={t("fields.hash")} value={hash} />}
                 {tlsCas.length > 0 && <ReviewRow label="CA" value={tlsCas.join(", ")} />}
-                {tlsCert && <ReviewRow label="Certificate" value={tlsCert} />}
-                {tlsDh && <ReviewRow label="DH Params" value={tlsDh} />}
-                {tlsAuthKey && <ReviewRow label="TLS Auth Key" value={tlsAuthKey} />}
+                {tlsCert && <ReviewRow label={t("fields.certificate")} value={tlsCert} />}
+                {tlsDh && <ReviewRow label={t("fields.dhParams")} value={tlsDh} />}
+                {tlsAuthKey && <ReviewRow label={t("fields.tlsAuthKey")} value={tlsAuthKey} />}
                 {sharedSecretKey && (
-                  <ReviewRow label="Shared Secret" value={sharedSecretKey} />
+                  <ReviewRow label={t("fields.sharedSecret")} value={sharedSecretKey} />
                 )}
-                {authUsername && <ReviewRow label="Username" value={authUsername} />}
-                {persistentTunnel && <ReviewRow label="Persistent Tunnel" value="Yes" />}
+                {authUsername && <ReviewRow label={t("fields.username")} value={authUsername} />}
+                {persistentTunnel && <ReviewRow label={t("fields.persistentTunnel")} value={t("yes")} />}
               </div>
             </div>
           )}
@@ -787,21 +794,21 @@ export function OpenvpnWizard({
             onClick={handlePrev}
             disabled={step === 0 || loading}
           >
-            <ChevronLeft className="h-4 w-4 mr-1" /> Back
+            <ChevronLeft className="h-4 w-4 mr-1" /> {t("back")}
           </Button>
           {step < STEP_TITLES.length - 1 ? (
             <Button onClick={handleNext} disabled={loading}>
-              Next <ChevronRight className="h-4 w-4 ml-1" />
+              {t("wizard.next")} <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           ) : (
             <Button onClick={handleSubmit} disabled={loading}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
+                  {t("wizard.creating")}
                 </>
               ) : (
-                "Create Interface"
+                t("wizard.createInterface")
               )}
             </Button>
           )}

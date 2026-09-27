@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -39,6 +40,8 @@ export function AuthPSKModal({
   onSuccess,
   existingPSK,
 }: AuthPSKModalProps) {
+  const t = useTranslations("ipsecSettings");
+  const tc = useTranslations("common");
   const isEdit = !!existingPSK;
 
   const [name, setName] = useState("");
@@ -84,8 +87,8 @@ export function AuthPSKModal({
   }, [open, existingPSK]);
 
   const handleSubmit = async () => {
-    if (!name.trim()) { setError("PSK name is required"); return; }
-    if (!isEdit && !secret.trim()) { setError("Secret is required"); return; }
+    if (!name.trim()) { setError(t("psk.nameRequired")); return; }
+    if (!isEdit && !secret.trim()) { setError(t("psk.secretRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -106,10 +109,10 @@ export function AuthPSKModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to save PSK");
+        setError(result.error || t("psk.saveFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to save PSK");
+      setError((err as ApiError).message || t("psk.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -121,21 +124,21 @@ export function AuthPSKModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Key className="h-5 w-5 text-primary" />
-            {isEdit ? "Edit" : "Create"} Pre-Shared Key
+            {isEdit ? t("psk.titleEdit") : t("psk.titleCreate")}
           </DialogTitle>
-          <DialogDescription>Configure a pre-shared key for IPSec authentication.</DialogDescription>
+          <DialogDescription>{t("psk.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Name</Label>
+            <Label>{tc("name")}</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="psk-1" disabled={isEdit} />
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Secret {isEdit && "(leave blank to keep current)"}</Label>
+              <Label>{t("psk.secret")} {isEdit && t("psk.keepCurrent")}</Label>
               <Button type="button" variant="outline" size="sm" onClick={generatePsk}>
-                <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Generate
+                <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> {t("psk.generate")}
               </Button>
             </div>
             <div className="relative">
@@ -143,7 +146,7 @@ export function AuthPSKModal({
                 type={showSecret ? "text" : "password"}
                 value={secret}
                 onChange={(e) => setSecret(e.target.value)}
-                placeholder={isEdit ? "Enter new secret or leave blank" : "Enter secret"}
+                placeholder={isEdit ? t("psk.newSecretPlaceholder") : t("psk.secretPlaceholder")}
                 className="pr-10"
               />
               <Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-full px-3" onClick={() => setShowSecret(!showSecret)}>
@@ -152,34 +155,34 @@ export function AuthPSKModal({
             </div>
           </div>
           <div className="space-y-2">
-            <Label>Identities</Label>
+            <Label>{t("psk.identities")}</Label>
             <Textarea
               value={identities}
               onChange={(e) => setIdentities(e.target.value)}
               placeholder={"@local-id\n@remote-id\n192.168.1.1"}
               rows={4}
             />
-            <p className="text-xs text-muted-foreground">One identity per line (e.g., @id, IP, %any)</p>
+            <p className="text-xs text-muted-foreground">{t("psk.identitiesHelp")}</p>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Secret Type (optional)</Label>
+              <Label>{t("psk.secretType")}</Label>
               <Select value={secretType || "_none"} onValueChange={(v) => setSecretType(v === "_none" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="Default" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={tc("default")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="_none">Default</SelectItem>
+                  <SelectItem value="_none">{tc("default")}</SelectItem>
                   <SelectItem value="base64">Base64</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>DHCP Interface (optional)</Label>
+              <Label>{t("psk.dhcpInterface")}</Label>
               <InterfaceSelect
                 value={dhcpInterface || "_none"}
                 onValueChange={(v) => setDhcpInterface(v === "_none" ? "" : v)}
                 interfaces={allInterfaces}
-                noneOption={{ label: "None", value: "_none" }}
-                placeholder="None"
+                noneOption={{ label: tc("none"), value: "_none" }}
+                placeholder={tc("none")}
               />
             </div>
           </div>
@@ -193,9 +196,9 @@ export function AuthPSKModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? "Saving..." : "Creating..."}</> : isEdit ? "Save Changes" : "Create PSK"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("shared.creating")}</> : isEdit ? t("shared.saveChanges") : t("psk.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,8 @@ export function PoolModal({
   capabilities,
   existingPool,
 }: PoolModalProps) {
+  const t = useTranslations("ipsecSettings");
+  const tc = useTranslations("common");
   const isEdit = !!existingPool;
 
   const [name, setName] = useState("");
@@ -67,7 +70,7 @@ export function PoolModal({
   const splitValues = (str: string) => str.split(",").map((s) => s.trim()).filter(Boolean);
 
   const handleSubmit = async () => {
-    if (!name.trim()) { setError("Pool name is required"); return; }
+    if (!name.trim()) { setError(t("pool.nameRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -87,10 +90,10 @@ export function PoolModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to save pool");
+        setError(result.error || t("pool.saveFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to save pool");
+      setError((err as ApiError).message || t("pool.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -102,38 +105,38 @@ export function PoolModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Database className="h-5 w-5 text-primary" />
-            {isEdit ? "Edit" : "Create"} Address Pool
+            {isEdit ? t("pool.titleEdit") : t("pool.titleCreate")}
           </DialogTitle>
-          <DialogDescription>Configure an IP address pool for remote access clients.</DialogDescription>
+          <DialogDescription>{t("pool.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Name</Label>
+            <Label>{tc("name")}</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="ra-pool" disabled={isEdit} />
           </div>
           <div className="space-y-2">
-            <Label>Prefix(es)</Label>
+            <Label>{t("pool.prefixes")}</Label>
             <Input value={prefix} onChange={(e) => setPrefix(e.target.value)} placeholder="10.10.0.0/24, 10.10.1.0/24" />
-            <p className="text-xs text-muted-foreground">Comma-separated CIDR blocks</p>
+            <p className="text-xs text-muted-foreground">{t("pool.prefixesHelp")}</p>
           </div>
           <div className="space-y-2">
-            <Label>DNS Servers</Label>
+            <Label>{t("pool.dnsServers")}</Label>
             <Input value={nameServers} onChange={(e) => setNameServers(e.target.value)} placeholder="8.8.8.8, 8.8.4.4" />
           </div>
           <div className="space-y-2">
-            <Label>Exclude</Label>
+            <Label>{t("pool.exclude")}</Label>
             <Input value={exclude} onChange={(e) => setExclude(e.target.value)} placeholder="10.10.0.1, 10.10.0.254" />
-            <p className="text-xs text-muted-foreground">Addresses to exclude from the pool</p>
+            <p className="text-xs text-muted-foreground">{t("pool.excludeHelp")}</p>
           </div>
           {capabilities?.features.pool_range.supported && (
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Range Start</Label>
+                <Label>{t("pool.rangeStart")}</Label>
                 <Input value={rangeStart} onChange={(e) => setRangeStart(e.target.value)} placeholder="10.10.0.10" />
               </div>
               <div className="space-y-2">
-                <Label>Range Stop</Label>
+                <Label>{t("pool.rangeStop")}</Label>
                 <Input value={rangeStop} onChange={(e) => setRangeStop(e.target.value)} placeholder="10.10.0.250" />
               </div>
             </div>
@@ -148,9 +151,9 @@ export function PoolModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? "Saving..." : "Creating..."}</> : isEdit ? "Save Changes" : "Create Pool"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("shared.creating")}</> : isEdit ? t("shared.saveChanges") : t("pool.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

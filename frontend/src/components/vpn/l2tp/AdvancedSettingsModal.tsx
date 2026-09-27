@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,8 @@ export function AdvancedSettingsModal({
   config,
   capabilities,
 }: AdvancedSettingsModalProps) {
+  const t = useTranslations("l2tp");
+  const tc = useTranslations("common");
   const [lnsHostName, setLnsHostName] = useState("");
   const [lnsSharedSecret, setLnsSharedSecret] = useState("");
   const [limitsConnLimit, setLimitsConnLimit] = useState("");
@@ -96,10 +99,10 @@ export function AdvancedSettingsModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to update advanced settings");
+        setError(result.error || t("advanced.updateFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to update advanced settings");
+      setError((err as ApiError).message || t("advanced.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -113,83 +116,83 @@ export function AdvancedSettingsModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5 text-primary" />
-            Advanced Settings
+            {t("advanced.title")}
           </DialogTitle>
-          <DialogDescription>Configure LNS, limits, logging, and more.</DialogDescription>
+          <DialogDescription>{t("advanced.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          <h4 className="text-sm font-medium">LNS Settings</h4>
+          <h4 className="text-sm font-medium">{t("advanced.lnsSettings")}</h4>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Host Name</Label>
+              <Label>{t("advanced.hostName")}</Label>
               <Input value={lnsHostName} onChange={(e) => setLnsHostName(e.target.value)} placeholder="l2tp-server" />
             </div>
             <div className="space-y-2">
-              <Label>Shared Secret</Label>
-              <Input type="password" value={lnsSharedSecret} onChange={(e) => setLnsSharedSecret(e.target.value)} placeholder={config.lns?.shared_secret ? "Keep current" : "Enter secret"} />
+              <Label>{t("advanced.sharedSecret")}</Label>
+              <Input type="password" value={lnsSharedSecret} onChange={(e) => setLnsSharedSecret(e.target.value)} placeholder={config.lns?.shared_secret ? t("advanced.keepCurrent") : t("shared.enterSecret")} />
             </div>
           </div>
 
           <Separator />
-          <h4 className="text-sm font-medium">Connection Limits</h4>
+          <h4 className="text-sm font-medium">{t("advanced.connectionLimits")}</h4>
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Conn. Limit</Label>
+              <Label>{t("advanced.connLimit")}</Label>
               <Input value={limitsConnLimit} onChange={(e) => setLimitsConnLimit(e.target.value)} placeholder="100" />
             </div>
             <div className="space-y-2">
-              <Label>Burst</Label>
+              <Label>{t("advanced.burst")}</Label>
               <Input value={limitsBurst} onChange={(e) => setLimitsBurst(e.target.value)} placeholder="10" />
             </div>
             <div className="space-y-2">
-              <Label>Timeout</Label>
+              <Label>{t("shared.timeout")}</Label>
               <Input value={limitsTimeout} onChange={(e) => setLimitsTimeout(e.target.value)} placeholder="60" />
             </div>
           </div>
 
           <Separator />
-          <h4 className="text-sm font-medium">Logging & Misc</h4>
+          <h4 className="text-sm font-medium">{t("advanced.loggingMisc")}</h4>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Log Level</Label>
+              <Label>{t("advanced.logLevel")}</Label>
               <Select value={logLevel} onValueChange={setLogLevel}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("shared.select")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__clear__">Default</SelectItem>
+                  <SelectItem value="__clear__">{tc("default")}</SelectItem>
                   {logLevels.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Shaper FWMark</Label>
+              <Label>{t("advanced.shaperFwmark")}</Label>
               <Input value={shaperFwmark} onChange={(e) => setShaperFwmark(e.target.value)} placeholder="0x1000" />
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Checkbox id="snmp-agent" checked={snmpMasterAgent} onCheckedChange={(v) => setSnmpMasterAgent(!!v)} />
-            <Label htmlFor="snmp-agent" className="cursor-pointer">SNMP Master Agent</Label>
+            <Label htmlFor="snmp-agent" className="cursor-pointer">{t("advanced.snmpMasterAgent")}</Label>
           </div>
 
           <Separator />
-          <h4 className="text-sm font-medium">Extended Scripts</h4>
+          <h4 className="text-sm font-medium">{t("advanced.extendedScripts")}</h4>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>On Change</Label>
+              <Label>{t("advanced.onChange")}</Label>
               <Input value={scriptsOnChange} onChange={(e) => setScriptsOnChange(e.target.value)} placeholder="/path/to/script" />
             </div>
             <div className="space-y-2">
-              <Label>On Down</Label>
+              <Label>{t("advanced.onDown")}</Label>
               <Input value={scriptsOnDown} onChange={(e) => setScriptsOnDown(e.target.value)} placeholder="/path/to/script" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>On Pre-Up</Label>
+              <Label>{t("advanced.onPreUp")}</Label>
               <Input value={scriptsOnPreUp} onChange={(e) => setScriptsOnPreUp(e.target.value)} placeholder="/path/to/script" />
             </div>
             <div className="space-y-2">
-              <Label>On Up</Label>
+              <Label>{t("advanced.onUp")}</Label>
               <Input value={scriptsOnUp} onChange={(e) => setScriptsOnUp(e.target.value)} placeholder="/path/to/script" />
             </div>
           </div>
@@ -203,9 +206,9 @@ export function AdvancedSettingsModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save Changes"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : t("shared.saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

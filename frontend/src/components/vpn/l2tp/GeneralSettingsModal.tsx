@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,8 @@ export function GeneralSettingsModal({
   onSuccess,
   config,
 }: GeneralSettingsModalProps) {
+  const t = useTranslations("l2tp");
+  const tc = useTranslations("common");
   const [description, setDescription] = useState("");
   const [outsideAddress, setOutsideAddress] = useState("");
   const [gatewayAddress, setGatewayAddress] = useState("");
@@ -81,10 +84,10 @@ export function GeneralSettingsModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to update settings");
+        setError(result.error || t("general.updateFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to update settings");
+      setError((err as ApiError).message || t("general.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -96,57 +99,57 @@ export function GeneralSettingsModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5 text-primary" />
-            General Settings
+            {t("general.title")}
           </DialogTitle>
-          <DialogDescription>Configure L2TP general settings.</DialogDescription>
+          <DialogDescription>{t("general.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Description</Label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="L2TP VPN server" />
+            <Label>{tc("description")}</Label>
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("general.descriptionPlaceholder")} />
           </div>
           <div className="space-y-2">
-            <Label>Outside Address</Label>
+            <Label>{t("general.outsideAddress")}</Label>
             <Input value={outsideAddress} onChange={(e) => setOutsideAddress(e.target.value)} placeholder="203.0.113.1" />
-            <p className="text-xs text-muted-foreground">External IP for L2TP connections</p>
+            <p className="text-xs text-muted-foreground">{t("general.outsideAddressHelp")}</p>
           </div>
           <div className="space-y-2">
-            <Label>Gateway Address</Label>
+            <Label>{t("general.gatewayAddress")}</Label>
             <Input value={gatewayAddress} onChange={(e) => setGatewayAddress(e.target.value)} placeholder="10.255.0.1" />
-            <p className="text-xs text-muted-foreground">Gateway address sent to clients</p>
+            <p className="text-xs text-muted-foreground">{t("general.gatewayAddressHelp")}</p>
           </div>
           <div className="space-y-2">
             <Label>MTU</Label>
             <Input value={mtu} onChange={(e) => setMtu(e.target.value)} placeholder="1460" />
           </div>
           <div className="space-y-2">
-            <Label>Name Servers</Label>
+            <Label>{t("general.nameServers")}</Label>
             <Input value={nameServers} onChange={(e) => setNameServers(e.target.value)} placeholder="8.8.8.8, 8.8.4.4" />
-            <p className="text-xs text-muted-foreground">Comma-separated DNS servers</p>
+            <p className="text-xs text-muted-foreground">{t("general.nameServersHelp")}</p>
           </div>
           <div className="space-y-2">
-            <Label>WINS Servers</Label>
+            <Label>{t("general.winsServers")}</Label>
             <Input value={winsServers} onChange={(e) => setWinsServers(e.target.value)} placeholder="10.0.0.10" />
-            <p className="text-xs text-muted-foreground">Comma-separated WINS servers</p>
+            <p className="text-xs text-muted-foreground">{t("general.winsServersHelp")}</p>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Default Pool</Label>
+              <Label>{t("general.defaultPool")}</Label>
               <Input value={defaultPool} onChange={(e) => setDefaultPool(e.target.value)} placeholder="pool-name" />
             </div>
             <div className="space-y-2">
-              <Label>Default IPv6 Pool</Label>
+              <Label>{t("general.defaultIpv6Pool")}</Label>
               <Input value={defaultIpv6Pool} onChange={(e) => setDefaultIpv6Pool(e.target.value)} placeholder="ipv6-pool" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Max Sessions</Label>
+              <Label>{t("general.maxSessions")}</Label>
               <Input value={maxSessions} onChange={(e) => setMaxSessions(e.target.value)} placeholder="128" />
             </div>
             <div className="space-y-2">
-              <Label>Thread Count</Label>
+              <Label>{t("general.threadCount")}</Label>
               <Input value={threadCount} onChange={(e) => setThreadCount(e.target.value)} placeholder="4" />
             </div>
           </div>
@@ -160,9 +163,9 @@ export function GeneralSettingsModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save Changes"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : t("shared.saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>
