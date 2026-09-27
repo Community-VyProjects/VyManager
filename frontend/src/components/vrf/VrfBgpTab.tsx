@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +29,7 @@ interface VrfBgpTabProps {
 }
 
 export function VrfBgpTab({ vrf, capabilities, canWrite, onRefresh }: VrfBgpTabProps) {
+  const t = useTranslations("vrfProtocols");
   const [rawConfigOpen, setRawConfigOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const bgp = vrf.bgp;
@@ -36,9 +38,10 @@ export function VrfBgpTab({ vrf, capabilities, canWrite, onRefresh }: VrfBgpTabP
     <SchemaEditor
       open={editOpen}
       onOpenChange={setEditOpen}
-      title={`BGP Settings — ${vrf.name}`}
+      title={t("bgp.settingsTitle", { vrf: vrf.name })}
       vrfName={vrf.name}
       sections={BGP_SCHEMA}
+      scope="bgp"
       rawConfig={bgp?.raw_config}
       capabilities={capabilities}
       canWrite={canWrite}
@@ -51,11 +54,11 @@ export function VrfBgpTab({ vrf, capabilities, canWrite, onRefresh }: VrfBgpTabP
       <div className="flex flex-col items-center justify-center py-16">
         <Network className="h-12 w-12 text-muted-foreground mb-4" />
         <h3 className="text-lg font-semibold mb-2">BGP</h3>
-        <p className="text-sm text-muted-foreground mb-4">Not configured</p>
+        <p className="text-sm text-muted-foreground mb-4">{t("tabs.notConfigured")}</p>
         {canWrite && (
           <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
             <Settings2 className="h-3.5 w-3.5 mr-1.5" />
-            Configure BGP
+            {t("bgp.configure")}
           </Button>
         )}
         {editor}
@@ -68,37 +71,37 @@ export function VrfBgpTab({ vrf, capabilities, canWrite, onRefresh }: VrfBgpTabP
       <div className="grid grid-cols-6 gap-4">
         <Card className="border-0 shadow-none bg-muted/50">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">System AS</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("bgp.systemAs")}</p>
             <p className="text-sm font-mono font-medium">{bgp.system_as ?? "—"}</p>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-none bg-muted/50">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Router ID</p>
-            <p className="text-sm font-mono font-medium">{bgp.router_id || "auto"}</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("tabs.routerId")}</p>
+            <p className="text-sm font-mono font-medium">{bgp.router_id || t("tabs.auto")}</p>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-none bg-muted/50">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Neighbors</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("bgp.neighbors")}</p>
             <p className="text-lg font-semibold">{bgp.neighbors.length}</p>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-none bg-muted/50">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Peer Groups</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("bgp.peerGroups")}</p>
             <p className="text-lg font-semibold">{bgp.peer_groups.length}</p>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-none bg-muted/50">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Address Families</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("bgp.addressFamilies")}</p>
             <p className="text-lg font-semibold">{bgp.address_families.length}</p>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-none bg-muted/50">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Networks</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("bgp.networks")}</p>
             <p className="text-lg font-semibold">
               {bgp.address_families.reduce((sum, af) => sum + af.networks.length, 0)}
             </p>
@@ -137,13 +140,13 @@ export function VrfBgpTab({ vrf, capabilities, canWrite, onRefresh }: VrfBgpTabP
         {canWrite && (
           <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
             <Settings2 className="h-3.5 w-3.5 mr-1.5" />
-            Edit Settings
+            {t("tabs.editSettings")}
           </Button>
         )}
         {bgp.raw_config && (
           <Button variant="outline" size="sm" onClick={() => setRawConfigOpen(true)}>
             <Code className="h-3.5 w-3.5 mr-1.5" />
-            View Raw Config
+            {t("tabs.viewRawConfig")}
           </Button>
         )}
       </div>
@@ -152,7 +155,7 @@ export function VrfBgpTab({ vrf, capabilities, canWrite, onRefresh }: VrfBgpTabP
       <Dialog open={rawConfigOpen} onOpenChange={setRawConfigOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle>BGP Raw Configuration — {vrf.name}</DialogTitle>
+            <DialogTitle>{t("bgp.rawTitle", { vrf: vrf.name })}</DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[60vh]">
             <pre className="text-xs font-mono bg-muted p-4 rounded-lg overflow-x-auto">

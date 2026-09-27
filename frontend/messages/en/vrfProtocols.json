@@ -1,1 +1,1483 @@
-{}
+{
+  "tabs": {
+    "notConfigured": "Not configured",
+    "editSettings": "Edit Settings",
+    "viewRawConfig": "View Raw Config",
+    "routerId": "Router ID",
+    "auto": "auto",
+    "areas": "Areas",
+    "interfaces": "Interfaces",
+    "redistribute": "Redistribute",
+    "active": "Active",
+    "sharedNetworks": "Shared Networks",
+    "subnets": "Subnets",
+    "staticMappings": "Static Mappings"
+  },
+  "bgp": {
+    "settingsTitle": "BGP Settings — {vrf}",
+    "rawTitle": "BGP Raw Configuration — {vrf}",
+    "configure": "Configure BGP",
+    "systemAs": "System AS",
+    "neighbors": "Neighbors",
+    "peerGroups": "Peer Groups",
+    "addressFamilies": "Address Families",
+    "networks": "Networks"
+  },
+  "ospf": {
+    "settingsTitle": "OSPF Settings — {vrf}",
+    "rawTitle": "OSPF Raw Configuration — {vrf}",
+    "configure": "Configure OSPF"
+  },
+  "ospfv3": {
+    "settingsTitle": "OSPFv3 Settings — {vrf}",
+    "rawTitle": "OSPFv3 Raw Configuration — {vrf}",
+    "configure": "Configure OSPFv3"
+  },
+  "isis": {
+    "settingsTitle": "IS-IS Settings — {vrf}",
+    "rawTitle": "IS-IS Raw Configuration — {vrf}",
+    "configure": "Configure IS-IS",
+    "ipv4Redistribute": "IPv4 Redistribute",
+    "ipv6Redistribute": "IPv6 Redistribute"
+  },
+  "dhcp": {
+    "settingsTitle": "DHCP Server Settings — {vrf}",
+    "rawTitle": "DHCP Server Raw Configuration — {vrf}",
+    "configure": "Configure DHCP",
+    "server": "DHCP Server"
+  },
+  "dhcpv6": {
+    "settingsTitle": "DHCPv6 Server Settings — {vrf}",
+    "rawTitle": "DHCPv6 Server Raw Configuration — {vrf}",
+    "configure": "Configure DHCPv6",
+    "server": "DHCPv6 Server"
+  },
+  "rpki": {
+    "caches": "Caches",
+    "expireIntervalTitle": "Expire Interval",
+    "pollingPeriodTitle": "Polling Period",
+    "retryIntervalTitle": "Retry Interval",
+    "default": "default",
+    "noCaches": "No RPKI caches configured.",
+    "configure": "Configure RPKI",
+    "rawTitle": "RPKI Raw Configuration — {vrf}",
+    "intervals": "Intervals",
+    "expireInterval": "Expire interval",
+    "pollingPeriod": "Polling period",
+    "retryInterval": "Retry interval",
+    "addCache": "Add cache",
+    "none": "None.",
+    "cacheNamePlaceholder": "Cache name / address",
+    "port": "Port",
+    "preference": "Preference",
+    "sourceAddress": "Source address",
+    "sshUsername": "SSH username",
+    "sshKey": "SSH key"
+  },
+  "schemaEditor": {
+    "saveChanges": "Save Changes",
+    "select": "Select…",
+    "addListItem": "Add {label}…"
+  },
+  "entityList": {
+    "deleteFailed": "Delete failed",
+    "createFailed": "Create failed",
+    "editTitle": "{label} {id} — {vrf}",
+    "childTitle": "{plural} — {label} {id}"
+  },
+  "schema": {
+    "fields": {
+      "absoluteExplicitNull": {
+        "label": "Absolute explicit-null"
+      },
+      "absoluteNoPhpFlag": {
+        "label": "Absolute no-php-flag"
+      },
+      "absoluteValue": {
+        "label": "Absolute value"
+      },
+      "addpathTxAll": {
+        "label": "Addpath tx all"
+      },
+      "addpathTxPerAs": {
+        "label": "Addpath tx per-AS"
+      },
+      "advertise": {
+        "label": "Advertise"
+      },
+      "advertiseAllVni": {
+        "label": "Advertise all VNI"
+      },
+      "advertiseDefaultGw": {
+        "label": "Advertise default gateway"
+      },
+      "advertiseHighMetrics": {
+        "label": "Advertise high metrics"
+      },
+      "advertisePassiveOnly": {
+        "label": "Advertise passive only"
+      },
+      "advertisePip": {
+        "label": "Advertise PIP"
+      },
+      "advertiseSviIp": {
+        "label": "Advertise SVI IP"
+      },
+      "advertisementInterval": {
+        "label": "Advertisement interval"
+      },
+      "aggregationTimer": {
+        "label": "Aggregation timer"
+      },
+      "allowasInNumber": {
+        "label": "Allowas-in number"
+      },
+      "always": {
+        "label": "Always"
+      },
+      "area": {
+        "label": "Area"
+      },
+      "areaPasswordAuthenticateSnp": {
+        "label": "Area authenticate-snp"
+      },
+      "areaPasswordMd5": {
+        "label": "Area password (MD5)"
+      },
+      "areaPasswordPlaintextPassword": {
+        "label": "Area password (plaintext)"
+      },
+      "areaType": {
+        "label": "Area type"
+      },
+      "areaTypeNssa": {
+        "label": "NSSA"
+      },
+      "areaTypeNssaDefaultCost": {
+        "label": "NSSA default cost"
+      },
+      "areaTypeNssaDefaultInformationOriginate": {
+        "label": "NSSA default-info originate"
+      },
+      "areaTypeNssaNoSummary": {
+        "label": "NSSA no-summary"
+      },
+      "areaTypeNssaTranslate": {
+        "label": "NSSA translate"
+      },
+      "areaTypeStub": {
+        "label": "Stub"
+      },
+      "areaTypeStubDefaultCost": {
+        "label": "Stub default cost"
+      },
+      "areaTypeStubNoSummary": {
+        "label": "Stub no-summary"
+      },
+      "asOverride": {
+        "label": "AS override"
+      },
+      "attributeUnchangedAsPath": {
+        "label": "Attribute-unchanged as-path"
+      },
+      "attributeUnchangedMed": {
+        "label": "Attribute-unchanged med"
+      },
+      "attributeUnchangedNextHop": {
+        "label": "Attribute-unchanged next-hop"
+      },
+      "authentication": {
+        "label": "Authentication"
+      },
+      "authenticationNull": {
+        "label": "Null authentication"
+      },
+      "authenticationPlaintextPassword": {
+        "label": "Plaintext password"
+      },
+      "authoritative": {
+        "label": "Authoritative"
+      },
+      "autoCostReferenceBandwidth": {
+        "label": "Auto-cost ref bandwidth"
+      },
+      "backdoor": {
+        "label": "Backdoor"
+      },
+      "bandwidth": {
+        "label": "Bandwidth"
+      },
+      "bfd": {
+        "label": "BFD"
+      },
+      "bfdCheckControlPlaneFailure": {
+        "label": "BFD check control-plane failure"
+      },
+      "bfdProfile": {
+        "label": "BFD profile"
+      },
+      "capabilityDynamic": {
+        "label": "Capability dynamic"
+      },
+      "capabilityExtendedNexthop": {
+        "label": "Capability extended-nexthop"
+      },
+      "capabilityOpaque": {
+        "label": "Capability opaque"
+      },
+      "capabilityOrfPrefixListReceive": {
+        "label": "Capability ORF prefix-list receive"
+      },
+      "capabilityOrfPrefixListSend": {
+        "label": "Capability ORF prefix-list send"
+      },
+      "capabilitySoftwareVersion": {
+        "label": "Capability software-version"
+      },
+      "circuitType": {
+        "label": "Circuit type"
+      },
+      "clientClass": {
+        "label": "Client class"
+      },
+      "conditionallyAdvertiseAdvertiseMap": {
+        "label": "Cond. advertise map"
+      },
+      "conditionallyAdvertiseExistMap": {
+        "label": "Cond. exist map"
+      },
+      "conditionallyAdvertiseNonExistMap": {
+        "label": "Cond. non-exist map"
+      },
+      "cost": {
+        "label": "Cost"
+      },
+      "deadInterval": {
+        "label": "Dead interval"
+      },
+      "defaultMetric": {
+        "label": "Default metric"
+      },
+      "defaultOriginate": {
+        "label": "Default originate"
+      },
+      "defaultOriginateRouteMap": {
+        "label": "Default originate route-map"
+      },
+      "defaultRouter": {
+        "label": "Default router"
+      },
+      "delegatedLength": {
+        "label": "Delegated length"
+      },
+      "description": {
+        "label": "Description"
+      },
+      "disable": {
+        "label": "Disable"
+      },
+      "disableCapabilityNegotiation": {
+        "label": "Disable capability negotiation"
+      },
+      "disableConnectedCheck": {
+        "label": "Disable connected check"
+      },
+      "disableEadEviRx": {
+        "label": "Disable EAD EVI RX"
+      },
+      "disableEadEviTx": {
+        "label": "Disable EAD EVI TX"
+      },
+      "disableRouteAutoinstall": {
+        "label": "Disable route auto-install"
+      },
+      "disableSendCommunityExtended": {
+        "label": "Disable send-community extended"
+      },
+      "disableSendCommunityStandard": {
+        "label": "Disable send-community standard"
+      },
+      "distanceExternal": {
+        "label": "Distance external"
+      },
+      "distanceInternal": {
+        "label": "Distance internal"
+      },
+      "distanceLocal": {
+        "label": "Distance local"
+      },
+      "distributeListExport": {
+        "label": "Distribute-list export"
+      },
+      "distributeListImport": {
+        "label": "Distribute-list import"
+      },
+      "domainPasswordAuthenticateSnp": {
+        "label": "Domain authenticate-snp"
+      },
+      "domainPasswordMd5": {
+        "label": "Domain password (MD5)"
+      },
+      "domainPasswordPlaintextPassword": {
+        "label": "Domain password (plaintext)"
+      },
+      "duid": {
+        "label": "DUID"
+      },
+      "dynamicDnsUpdateConflictResolution": {
+        "label": "conflict-resolution"
+      },
+      "dynamicDnsUpdateEnable": {
+        "label": "Enable"
+      },
+      "dynamicDnsUpdateGeneratedPrefix": {
+        "label": "generated-prefix"
+      },
+      "dynamicDnsUpdateHostnameCharReplacement": {
+        "label": "hostname-char-replacement"
+      },
+      "dynamicDnsUpdateHostnameCharSet": {
+        "label": "hostname-char-set"
+      },
+      "dynamicDnsUpdateOverrideClientUpdate": {
+        "label": "override-client-update"
+      },
+      "dynamicDnsUpdateOverrideNoUpdate": {
+        "label": "override-no-update"
+      },
+      "dynamicDnsUpdateQualifyingSuffix": {
+        "label": "qualifying-suffix"
+      },
+      "dynamicDnsUpdateReplaceClientName": {
+        "label": "replace-client-name"
+      },
+      "dynamicDnsUpdateSendUpdates": {
+        "label": "send-updates"
+      },
+      "dynamicDnsUpdateTtlPercent": {
+        "label": "ttl-percent"
+      },
+      "dynamicDnsUpdateUpdateOnRenew": {
+        "label": "update-on-renew"
+      },
+      "dynamicHostname": {
+        "label": "Dynamic hostname"
+      },
+      "ebgpMultihop": {
+        "label": "eBGP multihop"
+      },
+      "enforceFirstAs": {
+        "label": "Enforce first AS"
+      },
+      "excludedPrefix": {
+        "label": "Excluded prefix"
+      },
+      "excludedPrefixLength": {
+        "label": "Excluded prefix length"
+      },
+      "exportList": {
+        "label": "Export list"
+      },
+      "exportVpn": {
+        "label": "Export VPN"
+      },
+      "fastRerouteLfaLevel1Enable": {
+        "label": "LFA level-1 enable"
+      },
+      "fastRerouteLfaLevel1ExcludeInterface": {
+        "label": "LFA level-1 exclude interfaces"
+      },
+      "fastRerouteLfaLevel2Enable": {
+        "label": "LFA level-2 enable"
+      },
+      "fastRerouteLfaLevel2ExcludeInterface": {
+        "label": "LFA level-2 exclude interfaces"
+      },
+      "fastRerouteLfaLocalLoadSharingDisableLevel1": {
+        "label": "Load-sharing disable L1"
+      },
+      "fastRerouteLfaLocalLoadSharingDisableLevel2": {
+        "label": "Load-sharing disable L2"
+      },
+      "fastRerouteLfaLocalPriorityLimitCriticalLevel1": {
+        "label": "Priority-limit critical L1"
+      },
+      "fastRerouteLfaLocalPriorityLimitCriticalLevel2": {
+        "label": "Priority-limit critical L2"
+      },
+      "fastRerouteLfaLocalPriorityLimitHighLevel1": {
+        "label": "Priority-limit high L1"
+      },
+      "fastRerouteLfaLocalPriorityLimitHighLevel2": {
+        "label": "Priority-limit high L2"
+      },
+      "fastRerouteLfaLocalPriorityLimitMediumLevel1": {
+        "label": "Priority-limit medium L1"
+      },
+      "fastRerouteLfaLocalPriorityLimitMediumLevel2": {
+        "label": "Priority-limit medium L2"
+      },
+      "fastRerouteRemoteLfaLevel1MaximumMetric": {
+        "label": "Remote-LFA level-1 max-metric"
+      },
+      "fastRerouteRemoteLfaLevel1TunnelMplsLdp": {
+        "label": "Remote-LFA level-1 mpls-ldp tunnel"
+      },
+      "fastRerouteRemoteLfaLevel2MaximumMetric": {
+        "label": "Remote-LFA level-2 max-metric"
+      },
+      "fastRerouteRemoteLfaLevel2TunnelMplsLdp": {
+        "label": "Remote-LFA level-2 mpls-ldp tunnel"
+      },
+      "fastRerouteTiLfaLevel1": {
+        "label": "TI-LFA level-1"
+      },
+      "fastRerouteTiLfaLevel1NodeProtection": {
+        "label": "TI-LFA level-1 node-protection"
+      },
+      "fastRerouteTiLfaLevel1NodeProtectionLinkFallback": {
+        "label": "TI-LFA level-1 link-fallback"
+      },
+      "fastRerouteTiLfaLevel2": {
+        "label": "TI-LFA level-2"
+      },
+      "fastRerouteTiLfaLevel2NodeProtection": {
+        "label": "TI-LFA level-2 node-protection"
+      },
+      "fastRerouteTiLfaLevel2NodeProtectionLinkFallback": {
+        "label": "TI-LFA level-2 link-fallback"
+      },
+      "filterListExport": {
+        "label": "Filter-list export"
+      },
+      "filterListImport": {
+        "label": "Filter-list import"
+      },
+      "gracefulRestart": {
+        "label": "Graceful restart"
+      },
+      "gracefulRestartGracePeriod": {
+        "label": "Grace period"
+      },
+      "gracefulRestartHelperEnable": {
+        "label": "Helper enable"
+      },
+      "gracefulRestartHelperLsaCheckDisable": {
+        "label": "Helper lsa-check-disable"
+      },
+      "gracefulRestartHelperNoStrictLsaChecking": {
+        "label": "Helper no-strict-lsa-check"
+      },
+      "gracefulRestartHelperPlannedOnly": {
+        "label": "Helper planned-only"
+      },
+      "gracefulRestartHelperSupportedGraceTime": {
+        "label": "Helper supported grace time"
+      },
+      "helloInterval": {
+        "label": "Hello interval"
+      },
+      "helloMultiplier": {
+        "label": "Hello multiplier"
+      },
+      "helloPadding": {
+        "label": "Hello padding"
+      },
+      "highAvailabilityCaCertificate": {
+        "label": "CA certificate"
+      },
+      "highAvailabilityCertificate": {
+        "label": "Certificate"
+      },
+      "highAvailabilityMode": {
+        "label": "Mode"
+      },
+      "highAvailabilityName": {
+        "label": "Name"
+      },
+      "highAvailabilityRemote": {
+        "label": "Remote"
+      },
+      "highAvailabilitySourceAddress": {
+        "label": "Source address"
+      },
+      "highAvailabilityStatus": {
+        "label": "Status"
+      },
+      "hostfileUpdate": {
+        "label": "Hostfile update"
+      },
+      "ifmtu": {
+        "label": "Interface MTU"
+      },
+      "ignoreClientId": {
+        "label": "Ignore client ID"
+      },
+      "importList": {
+        "label": "Import list"
+      },
+      "importVpn": {
+        "label": "Import VPN"
+      },
+      "importVrf": {
+        "label": "Import VRF"
+      },
+      "indexExplicitNull": {
+        "label": "Index explicit-null"
+      },
+      "indexNoPhpFlag": {
+        "label": "Index no-php-flag"
+      },
+      "indexValue": {
+        "label": "Index value"
+      },
+      "instanceId": {
+        "label": "Instance ID"
+      },
+      "interface": {
+        "label": "Interface"
+      },
+      "ipAddress": {
+        "label": "IP address"
+      },
+      "ipv6Address": {
+        "label": "IPv6 address"
+      },
+      "ipv6Prefix": {
+        "label": "IPv6 prefix"
+      },
+      "labelVpnExport": {
+        "label": "Label VPN export"
+      },
+      "ldpSync": {
+        "label": "LDP sync"
+      },
+      "ldpSyncDisable": {
+        "label": "LDP sync disable"
+      },
+      "ldpSyncHolddown": {
+        "label": "LDP sync holddown"
+      },
+      "leaseDefault": {
+        "label": "Default"
+      },
+      "leaseMax": {
+        "label": "Maximum"
+      },
+      "leaseMin": {
+        "label": "Minimum"
+      },
+      "leaseTimeDefault": {
+        "label": "Default"
+      },
+      "leaseTimeMaximum": {
+        "label": "Maximum"
+      },
+      "leaseTimeMinimum": {
+        "label": "Minimum"
+      },
+      "level": {
+        "label": "Level"
+      },
+      "level1": {
+        "label": "Enable level-1"
+      },
+      "level1Metric": {
+        "label": "level-1 metric"
+      },
+      "level1RouteMap": {
+        "label": "level-1 route-map"
+      },
+      "level2": {
+        "label": "Enable level-2"
+      },
+      "level2Metric": {
+        "label": "level-2 metric"
+      },
+      "level2RouteMap": {
+        "label": "level-2 route-map"
+      },
+      "localAs": {
+        "label": "Local AS"
+      },
+      "localRole": {
+        "label": "Local role"
+      },
+      "logAdjacencyChanges": {
+        "label": "Log adjacency changes"
+      },
+      "lspGenInterval": {
+        "label": "LSP gen interval"
+      },
+      "lspMtu": {
+        "label": "LSP MTU"
+      },
+      "lspRefreshInterval": {
+        "label": "LSP refresh interval"
+      },
+      "mac": {
+        "label": "MAC address"
+      },
+      "maxLspLifetime": {
+        "label": "Max LSP lifetime"
+      },
+      "maximumPaths": {
+        "label": "Maximum paths"
+      },
+      "maximumPathsEbgp": {
+        "label": "Maximum paths eBGP"
+      },
+      "maximumPathsIbgp": {
+        "label": "Maximum paths iBGP"
+      },
+      "maximumPrefix": {
+        "label": "Maximum prefix"
+      },
+      "maximumPrefixOut": {
+        "label": "Maximum prefix out"
+      },
+      "md5Key": {
+        "label": "MD5 key"
+      },
+      "metric": {
+        "label": "Metric"
+      },
+      "metricStyle": {
+        "label": "Metric style"
+      },
+      "metricType": {
+        "label": "Metric type"
+      },
+      "mtuIgnore": {
+        "label": "MTU ignore"
+      },
+      "net": {
+        "label": "NET"
+      },
+      "network": {
+        "label": "Network"
+      },
+      "nexthopLocalUnchanged": {
+        "label": "Next-hop local unchanged"
+      },
+      "nexthopSelf": {
+        "label": "Next-hop self"
+      },
+      "nexthopSelfForce": {
+        "label": "Next-hop self force"
+      },
+      "noAdvertise": {
+        "label": "No advertise"
+      },
+      "noThreeWayHandshake": {
+        "label": "No 3-way handshake"
+      },
+      "notAdvertise": {
+        "label": "Not advertise"
+      },
+      "optionBootfileName": {
+        "label": "bootfile-name"
+      },
+      "optionBootfileServer": {
+        "label": "bootfile-server"
+      },
+      "optionBootfileSize": {
+        "label": "bootfile-size"
+      },
+      "optionCaptivePortal": {
+        "label": "captive-portal"
+      },
+      "optionCapwapController": {
+        "label": "capwap-controller"
+      },
+      "optionClientPrefixLength": {
+        "label": "client-prefix-length"
+      },
+      "optionDefaultRouter": {
+        "label": "default-router"
+      },
+      "optionDomainName": {
+        "label": "domain-name"
+      },
+      "optionDomainSearch": {
+        "label": "domain-search"
+      },
+      "optionInfoRefreshTime": {
+        "label": "info-refresh-time"
+      },
+      "optionInterfaceMtu": {
+        "label": "interface-mtu"
+      },
+      "optionIpForwarding": {
+        "label": "IP forwarding"
+      },
+      "optionIpv6OnlyPreferred": {
+        "label": "ipv6-only-preferred"
+      },
+      "optionNameServer": {
+        "label": "name-server"
+      },
+      "optionNisDomain": {
+        "label": "nis-domain"
+      },
+      "optionNisServer": {
+        "label": "nis-server"
+      },
+      "optionNisplusDomain": {
+        "label": "nisplus-domain"
+      },
+      "optionNisplusServer": {
+        "label": "nisplus-server"
+      },
+      "optionNtpServer": {
+        "label": "ntp-server"
+      },
+      "optionPopServer": {
+        "label": "pop-server"
+      },
+      "optionServerIdentifier": {
+        "label": "server-identifier"
+      },
+      "optionSipServer": {
+        "label": "sip-server"
+      },
+      "optionSmtpServer": {
+        "label": "smtp-server"
+      },
+      "optionSntpServer": {
+        "label": "sntp-server"
+      },
+      "optionTftpServerName": {
+        "label": "tftp-server-name"
+      },
+      "optionTimeOffset": {
+        "label": "time-offset"
+      },
+      "optionTimeServer": {
+        "label": "time-server"
+      },
+      "optionTimeZone": {
+        "label": "time-zone"
+      },
+      "optionVendorOptionCiscoTftpServer": {
+        "label": "Vendor cisco tftp-server"
+      },
+      "optionWinsServer": {
+        "label": "wins-server"
+      },
+      "optionWpadUrl": {
+        "label": "wpad-url"
+      },
+      "overrideCapability": {
+        "label": "Override capability"
+      },
+      "parametersAbrType": {
+        "label": "ABR type"
+      },
+      "parametersBestpathAsPathConfed": {
+        "label": "Bestpath as-path confed"
+      },
+      "parametersBestpathAsPathIgnore": {
+        "label": "Bestpath as-path ignore"
+      },
+      "parametersBestpathAsPathMultipathRelax": {
+        "label": "Bestpath as-path multipath-relax"
+      },
+      "parametersBestpathCompareRouterid": {
+        "label": "Bestpath compare router-id"
+      },
+      "parametersClusterId": {
+        "label": "Cluster ID"
+      },
+      "parametersDefaultLocalPref": {
+        "label": "Default local pref"
+      },
+      "parametersDeterministicMed": {
+        "label": "Deterministic MED"
+      },
+      "parametersEbgpRequiresPolicy": {
+        "label": "eBGP requires policy"
+      },
+      "parametersFastConvergence": {
+        "label": "Fast convergence"
+      },
+      "parametersGracefulShutdown": {
+        "label": "Graceful shutdown"
+      },
+      "parametersNetworkImportCheck": {
+        "label": "Network import check"
+      },
+      "parametersNoClientToClientReflection": {
+        "label": "No client-to-client reflection"
+      },
+      "parametersNoFastExternalFailover": {
+        "label": "No fast external failover"
+      },
+      "parametersOpaqueLsa": {
+        "label": "Opaque LSA"
+      },
+      "parametersRfc1583Compatibility": {
+        "label": "RFC1583 compatibility"
+      },
+      "parametersRouterId": {
+        "label": "Router ID"
+      },
+      "parametersShutdown": {
+        "label": "Shutdown"
+      },
+      "parametersSuppressFibPending": {
+        "label": "Suppress FIB pending"
+      },
+      "passive": {
+        "label": "Passive"
+      },
+      "passiveInterface": {
+        "label": "Passive interfaces"
+      },
+      "password": {
+        "label": "Password"
+      },
+      "passwordMd5": {
+        "label": "Password MD5"
+      },
+      "passwordPlaintextPassword": {
+        "label": "Password plaintext"
+      },
+      "peerGroup": {
+        "label": "Peer group"
+      },
+      "pingCheck": {
+        "label": "Ping check"
+      },
+      "pollInterval": {
+        "label": "Poll interval"
+      },
+      "port": {
+        "label": "Port"
+      },
+      "preference": {
+        "label": "Preference"
+      },
+      "prefix": {
+        "label": "Prefix"
+      },
+      "prefixLength": {
+        "label": "Prefix length"
+      },
+      "prefixListExport": {
+        "label": "Prefix-list export"
+      },
+      "prefixListImport": {
+        "label": "Prefix-list import"
+      },
+      "priority": {
+        "label": "Priority"
+      },
+      "psnpInterval": {
+        "label": "PSNP interval"
+      },
+      "purgeOriginator": {
+        "label": "Purge originator"
+      },
+      "rdVpnExport": {
+        "label": "RD VPN export"
+      },
+      "relayAgentInformationCircuitId": {
+        "label": "Relay circuit-id"
+      },
+      "relayAgentInformationRemoteId": {
+        "label": "Relay remote-id"
+      },
+      "remoteAs": {
+        "label": "Remote AS"
+      },
+      "removePrivateAs": {
+        "label": "Remove private AS"
+      },
+      "removePrivateAsAll": {
+        "label": "Remove private AS (all)"
+      },
+      "retransmitInterval": {
+        "label": "Retransmit interval"
+      },
+      "retransmitWindow": {
+        "label": "Retransmit window"
+      },
+      "routeMap": {
+        "label": "Route map"
+      },
+      "routeMapExport": {
+        "label": "Route-map export"
+      },
+      "routeMapImport": {
+        "label": "Route-map import"
+      },
+      "routeMapVpnExport": {
+        "label": "Route-map VPN export"
+      },
+      "routeMapVpnImport": {
+        "label": "Route-map VPN import"
+      },
+      "routeReflectorClient": {
+        "label": "Route-reflector client"
+      },
+      "routeServerClient": {
+        "label": "Route-server client"
+      },
+      "routeTargetVpnBoth": {
+        "label": "Route-target VPN both"
+      },
+      "routeTargetVpnExport": {
+        "label": "Route-target VPN export"
+      },
+      "routeTargetVpnImport": {
+        "label": "Route-target VPN import"
+      },
+      "rtAutoDerive": {
+        "label": "RT auto-derive"
+      },
+      "segmentRoutingGlobalBlockHighLabelValue": {
+        "label": "Global block high"
+      },
+      "segmentRoutingGlobalBlockLowLabelValue": {
+        "label": "Global block low"
+      },
+      "segmentRoutingLocalBlockHighLabelValue": {
+        "label": "Local block high"
+      },
+      "segmentRoutingLocalBlockLowLabelValue": {
+        "label": "Local block low"
+      },
+      "segmentRoutingMaximumLabelDepth": {
+        "label": "SR max label depth"
+      },
+      "segmentRoutingSrv6Interface": {
+        "label": "SRv6 interface"
+      },
+      "segmentRoutingSrv6Locator": {
+        "label": "SRv6 locator"
+      },
+      "setAttachedBit": {
+        "label": "Set attached bit"
+      },
+      "setOverloadBit": {
+        "label": "Set overload bit"
+      },
+      "setOverloadBitOnStartup": {
+        "label": "Overload bit on startup (s)"
+      },
+      "shortcut": {
+        "label": "Shortcut"
+      },
+      "shutdown": {
+        "label": "Shutdown"
+      },
+      "softReconfigurationInbound": {
+        "label": "Soft-reconfiguration inbound"
+      },
+      "solo": {
+        "label": "Solo"
+      },
+      "spfDelayIetfHolddown": {
+        "label": "Holddown"
+      },
+      "spfDelayIetfInitDelay": {
+        "label": "Init delay"
+      },
+      "spfDelayIetfLongDelay": {
+        "label": "Long delay"
+      },
+      "spfDelayIetfShortDelay": {
+        "label": "Short delay"
+      },
+      "spfDelayIetfTimeToLearn": {
+        "label": "Time to learn"
+      },
+      "spfInterval": {
+        "label": "SPF interval"
+      },
+      "start": {
+        "label": "Start"
+      },
+      "stop": {
+        "label": "Stop"
+      },
+      "strictCapabilityMatch": {
+        "label": "Strict capability match"
+      },
+      "subnetId": {
+        "label": "Subnet ID"
+      },
+      "substitute": {
+        "label": "Substitute"
+      },
+      "systemAs": {
+        "label": "System AS"
+      },
+      "tag": {
+        "label": "Tag"
+      },
+      "timersConnect": {
+        "label": "Timers connect"
+      },
+      "timersHoldtime": {
+        "label": "Hold timer"
+      },
+      "timersKeepalive": {
+        "label": "Keepalive timer"
+      },
+      "topology": {
+        "label": "Topology"
+      },
+      "trafficEngineeringAddress": {
+        "label": "TE router address"
+      },
+      "trafficEngineeringEnable": {
+        "label": "TE enable"
+      },
+      "trafficEngineeringExport": {
+        "label": "TE export"
+      },
+      "trafficEngineeringInterArea": {
+        "label": "TE inter-area"
+      },
+      "transmitDelay": {
+        "label": "Transmit delay"
+      },
+      "ttlSecurityHops": {
+        "label": "TTL security hops"
+      },
+      "unsuppressMap": {
+        "label": "Unsuppress map"
+      },
+      "updateSource": {
+        "label": "Update source"
+      },
+      "weight": {
+        "label": "Weight"
+      }
+    },
+    "sections": {
+      "absolute": "Absolute",
+      "area": "Area",
+      "authentication": "Authentication",
+      "behaviour": "Behaviour",
+      "bestPathBehaviour": "Best path & behaviour",
+      "bfdLdpSyncPassword": "BFD / LDP-sync / Password",
+      "capabilitiesFlags": "Capabilities & flags",
+      "clientClass": "Client Class",
+      "dynamicDnsUpdate": "Dynamic DNS update",
+      "fastReroute": "Fast Reroute",
+      "fastRerouteLfa": "Fast Reroute LFA",
+      "flagsBfd": "Flags & BFD",
+      "general": "General",
+      "gracefulRestart": "Graceful restart",
+      "gracefulRestartLdpSync": "Graceful restart & LDP sync",
+      "highAvailability": "High availability",
+      "index": "Index",
+      "l2vpnEvpn": "L2VPN EVPN",
+      "lease": "Lease",
+      "leaseTime": "Lease time",
+      "levels": "Levels",
+      "mapping": "Mapping",
+      "md5Key": "MD5 Key",
+      "neighbor": "Neighbor",
+      "network": "Network",
+      "nssa": "NSSA",
+      "nssaStub": "NSSA / Stub",
+      "options": "Options",
+      "originate": "Originate",
+      "parameters": "Parameters",
+      "passwords": "Passwords",
+      "pathsDistance": "Paths & distance",
+      "policy": "Policy",
+      "prefixDelegation": "Prefix Delegation",
+      "range": "Range",
+      "redistribute": "Redistribute",
+      "redistributeTable": "Redistribute Table",
+      "segmentRouting": "Segment routing",
+      "server": "Server",
+      "session": "Session",
+      "settings": "Settings",
+      "spfDelayIetf": "SPF delay (IETF)",
+      "stub": "Stub",
+      "subnet": "Subnet",
+      "summaryAddress": "Summary Address",
+      "timers": "Timers",
+      "timersBfd": "Timers & BFD",
+      "timersLsp": "Timers & LSP",
+      "trafficEngineeringSegmentRouting": "Traffic engineering & Segment routing",
+      "vpn": "VPN"
+    },
+    "options": {
+      "activeActive": "Active-active",
+      "activePassive": "Active-passive",
+      "always": "Always",
+      "babel": "Babel",
+      "bgp": "BGP",
+      "broadcast": "Broadcast",
+      "candidate": "Candidate",
+      "cisco": "Cisco",
+      "connected": "Connected",
+      "customer": "Customer",
+      "default": "Default",
+      "disable": "Disable",
+      "enable": "Enable",
+      "ibm": "IBM",
+      "ipv4Flowspec": "IPv4 flowspec",
+      "ipv4LabeledUnicast": "IPv4 labeled-unicast",
+      "ipv4Mgmt": "IPv4 mgmt",
+      "ipv4Multicast": "IPv4 multicast",
+      "ipv4Unicast": "IPv4 unicast",
+      "ipv4Vpn": "IPv4 VPN",
+      "ipv6Flowspec": "IPv6 flowspec",
+      "ipv6LabeledUnicast": "IPv6 labeled-unicast",
+      "ipv6Multicast": "IPv6 multicast",
+      "ipv6Unicast": "IPv6 unicast",
+      "ipv6Vpn": "IPv6 VPN",
+      "isis": "IS-IS",
+      "kernel": "Kernel",
+      "l2vpnEvpn": "L2VPN EVPN",
+      "level1": "Level 1",
+      "level12": "Level 1-2",
+      "level2": "Level 2",
+      "md5": "MD5",
+      "n1": "Type 1",
+      "n2": "Type 2",
+      "narrow": "Narrow",
+      "never": "Never",
+      "nhrp": "NHRP",
+      "nonBroadcast": "Non-broadcast",
+      "normal": "Normal",
+      "nssa": "NSSA",
+      "ospf": "OSPF",
+      "peer": "Peer",
+      "plaintextPassword": "Plaintext password",
+      "pointToMultipoint": "Point-to-multipoint",
+      "pointToPoint": "Point-to-point",
+      "primary": "Primary",
+      "provider": "Provider",
+      "restartHelper": "Restart helper",
+      "rip": "RIP",
+      "ripng": "RIPng",
+      "rsClient": "RS client",
+      "rsServer": "RS server",
+      "secondary": "Secondary",
+      "sendOnly": "Send only",
+      "shortcut": "Shortcut",
+      "standard": "Standard",
+      "static": "Static",
+      "stub": "Stub",
+      "transition": "Transition",
+      "validate": "Validate",
+      "wide": "Wide"
+    },
+    "bgpAf": {
+      "group": {
+        "label": "Address Family",
+        "plural": "Address Families",
+        "empty": "No address families configured.",
+        "add": "Add Address Family…"
+      }
+    },
+    "bgpAfNetwork": {
+      "group": {
+        "label": "Network",
+        "plural": "Networks",
+        "empty": "No networks configured."
+      }
+    },
+    "bgpAfRedistribute": {
+      "group": {
+        "label": "Redistribute",
+        "plural": "Redistributes",
+        "empty": "No redistributes configured.",
+        "add": "Add Redistribute…"
+      }
+    },
+    "bgpAfRedistributeTable": {
+      "group": {
+        "label": "Redistribute Table",
+        "plural": "Redistribute Tables",
+        "empty": "No redistribute tables configured."
+      }
+    },
+    "bgpNeighbor": {
+      "timersHoldtime": {
+        "label": "Timers holdtime"
+      },
+      "timersKeepalive": {
+        "label": "Timers keepalive"
+      },
+      "group": {
+        "label": "Neighbor",
+        "plural": "Neighbors",
+        "empty": "No neighbors configured."
+      }
+    },
+    "bgpNeighborAf": {
+      "group": {
+        "label": "Address Family",
+        "plural": "Address Families",
+        "empty": "No address families configured.",
+        "add": "Add Address Family…"
+      }
+    },
+    "bgpPeerGroup": {
+      "group": {
+        "label": "Peer Group",
+        "plural": "Peer Groups",
+        "empty": "No peer groups configured."
+      }
+    },
+    "bgpPeerGroupAf": {
+      "group": {
+        "label": "Address Family",
+        "plural": "Address Families",
+        "empty": "No address families configured.",
+        "add": "Add Address Family…"
+      }
+    },
+    "dhcpClientClass": {
+      "group": {
+        "label": "Client Class",
+        "plural": "Client Classs",
+        "empty": "No client classs configured."
+      }
+    },
+    "dhcpSharedNetwork": {
+      "group": {
+        "label": "Shared Network",
+        "plural": "Shared Networks",
+        "empty": "No shared networks configured."
+      }
+    },
+    "dhcpStaticMapping": {
+      "group": {
+        "label": "Static Mapping",
+        "plural": "Static Mappings",
+        "empty": "No static mappings configured."
+      }
+    },
+    "dhcpSubnet": {
+      "group": {
+        "label": "Subnet",
+        "plural": "Subnets",
+        "empty": "No subnets configured."
+      }
+    },
+    "dhcpSubnetRange": {
+      "group": {
+        "label": "Range",
+        "plural": "Ranges",
+        "empty": "No ranges configured.",
+        "idPlaceholder": "Range name"
+      }
+    },
+    "dhcpv6SharedNetwork": {
+      "group": {
+        "label": "Shared Network",
+        "plural": "Shared Networks",
+        "empty": "No shared networks configured."
+      }
+    },
+    "dhcpv6Subnet": {
+      "group": {
+        "label": "Subnet",
+        "plural": "Subnets",
+        "empty": "No subnets configured."
+      }
+    },
+    "dhcpv6SubnetPdPrefix": {
+      "group": {
+        "label": "Delegated Prefix",
+        "plural": "Delegated Prefixs",
+        "empty": "No delegated prefixs configured."
+      }
+    },
+    "dhcpv6SubnetRange": {
+      "group": {
+        "label": "Range",
+        "plural": "Ranges",
+        "empty": "No ranges configured.",
+        "idPlaceholder": "Range name"
+      }
+    },
+    "dhcpv6SubnetStaticMapping": {
+      "group": {
+        "label": "Static Mapping",
+        "plural": "Static Mappings",
+        "empty": "No static mappings configured."
+      }
+    },
+    "isisDefaultInformationOriginateIpv4": {
+      "group": {
+        "label": "Default-Info IPv4 Level",
+        "plural": "Default-Info IPv4 Levels",
+        "empty": "No default-info ipv4 levels configured.",
+        "add": "Add Default-Info IPv4 Level…"
+      }
+    },
+    "isisDefaultInformationOriginateIpv6": {
+      "group": {
+        "label": "Default-Info IPv6 Level",
+        "plural": "Default-Info IPv6 Levels",
+        "empty": "No default-info ipv6 levels configured.",
+        "add": "Add Default-Info IPv6 Level…"
+      }
+    },
+    "isisFrLfaLocalTiebreaker": {
+      "group": {
+        "label": "LFA Tiebreaker",
+        "plural": "LFA Tiebreakers",
+        "empty": "No lfa tiebreakers configured.",
+        "add": "Add LFA Tiebreaker…"
+      }
+    },
+    "isisFrLfaLocalTiebreakerIndex": {
+      "group": {
+        "label": "Index",
+        "plural": "Indexs",
+        "empty": "No indexs configured."
+      }
+    },
+    "isisFrLfaRemotePrefixList": {
+      "group": {
+        "label": "LFA Remote Prefix-List",
+        "plural": "LFA Remote Prefix-Lists",
+        "empty": "No lfa remote prefix-lists configured."
+      }
+    },
+    "isisInterface": {
+      "group": {
+        "label": "Interface",
+        "plural": "Interfaces",
+        "empty": "No interfaces configured."
+      }
+    },
+    "isisRedistributeIpv4": {
+      "group": {
+        "label": "Redistribute IPv4",
+        "plural": "Redistribute IPv4s",
+        "empty": "No redistribute ipv4s configured.",
+        "add": "Add Redistribute IPv4…"
+      }
+    },
+    "isisRedistributeIpv6": {
+      "group": {
+        "label": "Redistribute IPv6",
+        "plural": "Redistribute IPv6s",
+        "empty": "No redistribute ipv6s configured.",
+        "add": "Add Redistribute IPv6…"
+      }
+    },
+    "isisSegmentRoutingPrefix": {
+      "group": {
+        "label": "SR Prefix",
+        "plural": "SR Prefixs",
+        "empty": "No sr prefixs configured."
+      }
+    },
+    "ospf": {
+      "segmentRoutingMaximumLabelDepth": {
+        "label": "Max label depth"
+      }
+    },
+    "ospfArea": {
+      "group": {
+        "label": "Area",
+        "plural": "Areas",
+        "empty": "No areas configured."
+      }
+    },
+    "ospfAreaRange": {
+      "group": {
+        "label": "Range",
+        "plural": "Ranges",
+        "empty": "No ranges configured."
+      }
+    },
+    "ospfAreaVirtualLink": {
+      "group": {
+        "label": "Virtual Link",
+        "plural": "Virtual Links",
+        "empty": "No virtual links configured.",
+        "idPlaceholder": "Router ID"
+      }
+    },
+    "ospfAreaVirtualLinkAuthenticationMd5KeyId": {
+      "group": {
+        "label": "MD5 Key",
+        "plural": "MD5 Keys",
+        "empty": "No md5 keys configured.",
+        "idPlaceholder": "Key ID (1-255)"
+      }
+    },
+    "ospfInterface": {
+      "group": {
+        "label": "Interface",
+        "plural": "Interfaces",
+        "empty": "No interfaces configured."
+      }
+    },
+    "ospfInterfaceAuthenticationMd5KeyId": {
+      "group": {
+        "label": "MD5 Key",
+        "plural": "MD5 Keys",
+        "empty": "No md5 keys configured.",
+        "idPlaceholder": "Key ID (1-255)"
+      }
+    },
+    "ospfNeighbor": {
+      "group": {
+        "label": "Neighbor",
+        "plural": "Neighbors",
+        "empty": "No neighbors configured."
+      }
+    },
+    "ospfRedistribute": {
+      "group": {
+        "label": "Redistribute",
+        "plural": "Redistributes",
+        "empty": "No redistributes configured.",
+        "add": "Add Redistribute…"
+      }
+    },
+    "ospfSummaryAddress": {
+      "group": {
+        "label": "Summary Address",
+        "plural": "Summary Addresss",
+        "empty": "No summary addresss configured."
+      }
+    },
+    "ospfv3Area": {
+      "group": {
+        "label": "Area",
+        "plural": "Areas",
+        "empty": "No areas configured."
+      }
+    },
+    "ospfv3AreaRange": {
+      "group": {
+        "label": "Range",
+        "plural": "Ranges",
+        "empty": "No ranges configured."
+      }
+    },
+    "ospfv3Interface": {
+      "group": {
+        "label": "Interface",
+        "plural": "Interfaces",
+        "empty": "No interfaces configured."
+      }
+    },
+    "ospfv3Redistribute": {
+      "group": {
+        "label": "Redistribute",
+        "plural": "Redistributes",
+        "empty": "No redistributes configured.",
+        "add": "Add Redistribute…"
+      }
+    }
+  }
+}

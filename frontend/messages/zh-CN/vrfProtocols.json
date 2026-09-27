@@ -1,1 +1,1483 @@
-{}
+{
+  "tabs": {
+    "notConfigured": "未配置",
+    "editSettings": "编辑设置",
+    "viewRawConfig": "查看原始配置",
+    "routerId": "路由器 ID",
+    "auto": "自动",
+    "areas": "区域",
+    "interfaces": "接口",
+    "redistribute": "重分发",
+    "active": "活动",
+    "sharedNetworks": "共享网络",
+    "subnets": "子网",
+    "staticMappings": "静态映射"
+  },
+  "bgp": {
+    "settingsTitle": "BGP 设置 — {vrf}",
+    "rawTitle": "BGP 原始配置 — {vrf}",
+    "configure": "配置 BGP",
+    "systemAs": "系统 AS",
+    "neighbors": "邻居",
+    "peerGroups": "对等体组",
+    "addressFamilies": "地址族",
+    "networks": "网络"
+  },
+  "ospf": {
+    "settingsTitle": "OSPF 设置 — {vrf}",
+    "rawTitle": "OSPF 原始配置 — {vrf}",
+    "configure": "配置 OSPF"
+  },
+  "ospfv3": {
+    "settingsTitle": "OSPFv3 设置 — {vrf}",
+    "rawTitle": "OSPFv3 原始配置 — {vrf}",
+    "configure": "配置 OSPFv3"
+  },
+  "isis": {
+    "settingsTitle": "IS-IS 设置 — {vrf}",
+    "rawTitle": "IS-IS 原始配置 — {vrf}",
+    "configure": "配置 IS-IS",
+    "ipv4Redistribute": "IPv4 重分发",
+    "ipv6Redistribute": "IPv6 重分发"
+  },
+  "dhcp": {
+    "settingsTitle": "DHCP 服务器设置 — {vrf}",
+    "rawTitle": "DHCP 服务器原始配置 — {vrf}",
+    "configure": "配置 DHCP",
+    "server": "DHCP 服务器"
+  },
+  "dhcpv6": {
+    "settingsTitle": "DHCPv6 服务器设置 — {vrf}",
+    "rawTitle": "DHCPv6 服务器原始配置 — {vrf}",
+    "configure": "配置 DHCPv6",
+    "server": "DHCPv6 服务器"
+  },
+  "rpki": {
+    "caches": "缓存服务器",
+    "expireIntervalTitle": "过期间隔",
+    "pollingPeriodTitle": "轮询周期",
+    "retryIntervalTitle": "重试间隔",
+    "default": "默认",
+    "noCaches": "未配置 RPKI 缓存服务器。",
+    "configure": "配置 RPKI",
+    "rawTitle": "RPKI 原始配置 — {vrf}",
+    "intervals": "间隔",
+    "expireInterval": "过期间隔",
+    "pollingPeriod": "轮询周期",
+    "retryInterval": "重试间隔",
+    "addCache": "添加缓存服务器",
+    "none": "无。",
+    "cacheNamePlaceholder": "缓存服务器名称 / 地址",
+    "port": "端口",
+    "preference": "优先级",
+    "sourceAddress": "源地址",
+    "sshUsername": "SSH 用户名",
+    "sshKey": "SSH 密钥"
+  },
+  "schemaEditor": {
+    "saveChanges": "保存更改",
+    "select": "请选择…",
+    "addListItem": "添加{label}…"
+  },
+  "entityList": {
+    "deleteFailed": "删除失败",
+    "createFailed": "创建失败",
+    "editTitle": "{label} {id} — {vrf}",
+    "childTitle": "{plural} — {label} {id}"
+  },
+  "schema": {
+    "fields": {
+      "absoluteExplicitNull": {
+        "label": "绝对值 explicit-null"
+      },
+      "absoluteNoPhpFlag": {
+        "label": "绝对值 no-php-flag"
+      },
+      "absoluteValue": {
+        "label": "绝对值"
+      },
+      "addpathTxAll": {
+        "label": "Addpath 发送全部"
+      },
+      "addpathTxPerAs": {
+        "label": "Addpath 按 AS 发送"
+      },
+      "advertise": {
+        "label": "通告"
+      },
+      "advertiseAllVni": {
+        "label": "通告所有 VNI"
+      },
+      "advertiseDefaultGw": {
+        "label": "通告默认网关"
+      },
+      "advertiseHighMetrics": {
+        "label": "通告高度量值"
+      },
+      "advertisePassiveOnly": {
+        "label": "仅通告被动接口"
+      },
+      "advertisePip": {
+        "label": "通告 PIP"
+      },
+      "advertiseSviIp": {
+        "label": "通告 SVI IP"
+      },
+      "advertisementInterval": {
+        "label": "通告间隔"
+      },
+      "aggregationTimer": {
+        "label": "聚合定时器"
+      },
+      "allowasInNumber": {
+        "label": "Allowas-in 次数"
+      },
+      "always": {
+        "label": "始终"
+      },
+      "area": {
+        "label": "区域"
+      },
+      "areaPasswordAuthenticateSnp": {
+        "label": "区域 authenticate-snp"
+      },
+      "areaPasswordMd5": {
+        "label": "区域密码（MD5）"
+      },
+      "areaPasswordPlaintextPassword": {
+        "label": "区域密码（明文）"
+      },
+      "areaType": {
+        "label": "区域类型"
+      },
+      "areaTypeNssa": {
+        "label": "NSSA"
+      },
+      "areaTypeNssaDefaultCost": {
+        "label": "NSSA 默认开销"
+      },
+      "areaTypeNssaDefaultInformationOriginate": {
+        "label": "NSSA 默认信息发布"
+      },
+      "areaTypeNssaNoSummary": {
+        "label": "NSSA no-summary"
+      },
+      "areaTypeNssaTranslate": {
+        "label": "NSSA 转换"
+      },
+      "areaTypeStub": {
+        "label": "Stub"
+      },
+      "areaTypeStubDefaultCost": {
+        "label": "Stub 默认开销"
+      },
+      "areaTypeStubNoSummary": {
+        "label": "Stub no-summary"
+      },
+      "asOverride": {
+        "label": "AS 覆盖"
+      },
+      "attributeUnchangedAsPath": {
+        "label": "属性不变 as-path"
+      },
+      "attributeUnchangedMed": {
+        "label": "属性不变 med"
+      },
+      "attributeUnchangedNextHop": {
+        "label": "属性不变 next-hop"
+      },
+      "authentication": {
+        "label": "认证"
+      },
+      "authenticationNull": {
+        "label": "空认证"
+      },
+      "authenticationPlaintextPassword": {
+        "label": "明文密码"
+      },
+      "authoritative": {
+        "label": "权威"
+      },
+      "autoCostReferenceBandwidth": {
+        "label": "自动开销参考带宽"
+      },
+      "backdoor": {
+        "label": "Backdoor"
+      },
+      "bandwidth": {
+        "label": "带宽"
+      },
+      "bfd": {
+        "label": "BFD"
+      },
+      "bfdCheckControlPlaneFailure": {
+        "label": "BFD 检查控制平面故障"
+      },
+      "bfdProfile": {
+        "label": "BFD 配置文件"
+      },
+      "capabilityDynamic": {
+        "label": "能力 dynamic"
+      },
+      "capabilityExtendedNexthop": {
+        "label": "能力 extended-nexthop"
+      },
+      "capabilityOpaque": {
+        "label": "能力 opaque"
+      },
+      "capabilityOrfPrefixListReceive": {
+        "label": "能力 ORF prefix-list 接收"
+      },
+      "capabilityOrfPrefixListSend": {
+        "label": "能力 ORF prefix-list 发送"
+      },
+      "capabilitySoftwareVersion": {
+        "label": "能力 software-version"
+      },
+      "circuitType": {
+        "label": "电路类型"
+      },
+      "clientClass": {
+        "label": "客户端类"
+      },
+      "conditionallyAdvertiseAdvertiseMap": {
+        "label": "条件通告 advertise-map"
+      },
+      "conditionallyAdvertiseExistMap": {
+        "label": "条件通告 exist-map"
+      },
+      "conditionallyAdvertiseNonExistMap": {
+        "label": "条件通告 non-exist-map"
+      },
+      "cost": {
+        "label": "开销"
+      },
+      "deadInterval": {
+        "label": "失效间隔"
+      },
+      "defaultMetric": {
+        "label": "默认度量值"
+      },
+      "defaultOriginate": {
+        "label": "默认路由发布"
+      },
+      "defaultOriginateRouteMap": {
+        "label": "默认路由发布 route-map"
+      },
+      "defaultRouter": {
+        "label": "默认路由器"
+      },
+      "delegatedLength": {
+        "label": "委派长度"
+      },
+      "description": {
+        "label": "描述"
+      },
+      "disable": {
+        "label": "禁用"
+      },
+      "disableCapabilityNegotiation": {
+        "label": "禁用能力协商"
+      },
+      "disableConnectedCheck": {
+        "label": "禁用直连检查"
+      },
+      "disableEadEviRx": {
+        "label": "禁用 EAD EVI RX"
+      },
+      "disableEadEviTx": {
+        "label": "禁用 EAD EVI TX"
+      },
+      "disableRouteAutoinstall": {
+        "label": "禁用路由自动安装"
+      },
+      "disableSendCommunityExtended": {
+        "label": "禁用发送扩展团体属性"
+      },
+      "disableSendCommunityStandard": {
+        "label": "禁用发送标准团体属性"
+      },
+      "distanceExternal": {
+        "label": "外部距离"
+      },
+      "distanceInternal": {
+        "label": "内部距离"
+      },
+      "distanceLocal": {
+        "label": "本地距离"
+      },
+      "distributeListExport": {
+        "label": "Distribute-list 导出"
+      },
+      "distributeListImport": {
+        "label": "Distribute-list 导入"
+      },
+      "domainPasswordAuthenticateSnp": {
+        "label": "域 authenticate-snp"
+      },
+      "domainPasswordMd5": {
+        "label": "域密码（MD5）"
+      },
+      "domainPasswordPlaintextPassword": {
+        "label": "域密码（明文）"
+      },
+      "duid": {
+        "label": "DUID"
+      },
+      "dynamicDnsUpdateConflictResolution": {
+        "label": "conflict-resolution"
+      },
+      "dynamicDnsUpdateEnable": {
+        "label": "启用"
+      },
+      "dynamicDnsUpdateGeneratedPrefix": {
+        "label": "generated-prefix"
+      },
+      "dynamicDnsUpdateHostnameCharReplacement": {
+        "label": "hostname-char-replacement"
+      },
+      "dynamicDnsUpdateHostnameCharSet": {
+        "label": "hostname-char-set"
+      },
+      "dynamicDnsUpdateOverrideClientUpdate": {
+        "label": "override-client-update"
+      },
+      "dynamicDnsUpdateOverrideNoUpdate": {
+        "label": "override-no-update"
+      },
+      "dynamicDnsUpdateQualifyingSuffix": {
+        "label": "qualifying-suffix"
+      },
+      "dynamicDnsUpdateReplaceClientName": {
+        "label": "replace-client-name"
+      },
+      "dynamicDnsUpdateSendUpdates": {
+        "label": "send-updates"
+      },
+      "dynamicDnsUpdateTtlPercent": {
+        "label": "ttl-percent"
+      },
+      "dynamicDnsUpdateUpdateOnRenew": {
+        "label": "update-on-renew"
+      },
+      "dynamicHostname": {
+        "label": "动态主机名"
+      },
+      "ebgpMultihop": {
+        "label": "eBGP 多跳"
+      },
+      "enforceFirstAs": {
+        "label": "强制首个 AS"
+      },
+      "excludedPrefix": {
+        "label": "排除的前缀"
+      },
+      "excludedPrefixLength": {
+        "label": "排除的前缀长度"
+      },
+      "exportList": {
+        "label": "导出列表"
+      },
+      "exportVpn": {
+        "label": "导出 VPN"
+      },
+      "fastRerouteLfaLevel1Enable": {
+        "label": "启用 LFA level-1"
+      },
+      "fastRerouteLfaLevel1ExcludeInterface": {
+        "label": "LFA level-1 排除接口"
+      },
+      "fastRerouteLfaLevel2Enable": {
+        "label": "启用 LFA level-2"
+      },
+      "fastRerouteLfaLevel2ExcludeInterface": {
+        "label": "LFA level-2 排除接口"
+      },
+      "fastRerouteLfaLocalLoadSharingDisableLevel1": {
+        "label": "禁用负载分担 L1"
+      },
+      "fastRerouteLfaLocalLoadSharingDisableLevel2": {
+        "label": "禁用负载分担 L2"
+      },
+      "fastRerouteLfaLocalPriorityLimitCriticalLevel1": {
+        "label": "优先级限制 critical L1"
+      },
+      "fastRerouteLfaLocalPriorityLimitCriticalLevel2": {
+        "label": "优先级限制 critical L2"
+      },
+      "fastRerouteLfaLocalPriorityLimitHighLevel1": {
+        "label": "优先级限制 high L1"
+      },
+      "fastRerouteLfaLocalPriorityLimitHighLevel2": {
+        "label": "优先级限制 high L2"
+      },
+      "fastRerouteLfaLocalPriorityLimitMediumLevel1": {
+        "label": "优先级限制 medium L1"
+      },
+      "fastRerouteLfaLocalPriorityLimitMediumLevel2": {
+        "label": "优先级限制 medium L2"
+      },
+      "fastRerouteRemoteLfaLevel1MaximumMetric": {
+        "label": "Remote-LFA level-1 最大度量值"
+      },
+      "fastRerouteRemoteLfaLevel1TunnelMplsLdp": {
+        "label": "Remote-LFA level-1 mpls-ldp 隧道"
+      },
+      "fastRerouteRemoteLfaLevel2MaximumMetric": {
+        "label": "Remote-LFA level-2 最大度量值"
+      },
+      "fastRerouteRemoteLfaLevel2TunnelMplsLdp": {
+        "label": "Remote-LFA level-2 mpls-ldp 隧道"
+      },
+      "fastRerouteTiLfaLevel1": {
+        "label": "TI-LFA level-1"
+      },
+      "fastRerouteTiLfaLevel1NodeProtection": {
+        "label": "TI-LFA level-1 节点保护"
+      },
+      "fastRerouteTiLfaLevel1NodeProtectionLinkFallback": {
+        "label": "TI-LFA level-1 link-fallback"
+      },
+      "fastRerouteTiLfaLevel2": {
+        "label": "TI-LFA level-2"
+      },
+      "fastRerouteTiLfaLevel2NodeProtection": {
+        "label": "TI-LFA level-2 节点保护"
+      },
+      "fastRerouteTiLfaLevel2NodeProtectionLinkFallback": {
+        "label": "TI-LFA level-2 link-fallback"
+      },
+      "filterListExport": {
+        "label": "Filter-list 导出"
+      },
+      "filterListImport": {
+        "label": "Filter-list 导入"
+      },
+      "gracefulRestart": {
+        "label": "平滑重启"
+      },
+      "gracefulRestartGracePeriod": {
+        "label": "宽限期"
+      },
+      "gracefulRestartHelperEnable": {
+        "label": "启用 Helper"
+      },
+      "gracefulRestartHelperLsaCheckDisable": {
+        "label": "Helper lsa-check-disable"
+      },
+      "gracefulRestartHelperNoStrictLsaChecking": {
+        "label": "Helper no-strict-lsa-check"
+      },
+      "gracefulRestartHelperPlannedOnly": {
+        "label": "Helper planned-only"
+      },
+      "gracefulRestartHelperSupportedGraceTime": {
+        "label": "Helper 支持的宽限时间"
+      },
+      "helloInterval": {
+        "label": "Hello 间隔"
+      },
+      "helloMultiplier": {
+        "label": "Hello 倍数"
+      },
+      "helloPadding": {
+        "label": "Hello 填充"
+      },
+      "highAvailabilityCaCertificate": {
+        "label": "CA 证书"
+      },
+      "highAvailabilityCertificate": {
+        "label": "证书"
+      },
+      "highAvailabilityMode": {
+        "label": "模式"
+      },
+      "highAvailabilityName": {
+        "label": "名称"
+      },
+      "highAvailabilityRemote": {
+        "label": "远端"
+      },
+      "highAvailabilitySourceAddress": {
+        "label": "源地址"
+      },
+      "highAvailabilityStatus": {
+        "label": "状态"
+      },
+      "hostfileUpdate": {
+        "label": "更新 hosts 文件"
+      },
+      "ifmtu": {
+        "label": "接口 MTU"
+      },
+      "ignoreClientId": {
+        "label": "忽略客户端 ID"
+      },
+      "importList": {
+        "label": "导入列表"
+      },
+      "importVpn": {
+        "label": "导入 VPN"
+      },
+      "importVrf": {
+        "label": "导入 VRF"
+      },
+      "indexExplicitNull": {
+        "label": "索引 explicit-null"
+      },
+      "indexNoPhpFlag": {
+        "label": "索引 no-php-flag"
+      },
+      "indexValue": {
+        "label": "索引值"
+      },
+      "instanceId": {
+        "label": "实例 ID"
+      },
+      "interface": {
+        "label": "接口"
+      },
+      "ipAddress": {
+        "label": "IP 地址"
+      },
+      "ipv6Address": {
+        "label": "IPv6 地址"
+      },
+      "ipv6Prefix": {
+        "label": "IPv6 前缀"
+      },
+      "labelVpnExport": {
+        "label": "标签 VPN 导出"
+      },
+      "ldpSync": {
+        "label": "LDP 同步"
+      },
+      "ldpSyncDisable": {
+        "label": "禁用 LDP 同步"
+      },
+      "ldpSyncHolddown": {
+        "label": "LDP 同步抑制时间"
+      },
+      "leaseDefault": {
+        "label": "默认"
+      },
+      "leaseMax": {
+        "label": "最大值"
+      },
+      "leaseMin": {
+        "label": "最小值"
+      },
+      "leaseTimeDefault": {
+        "label": "默认"
+      },
+      "leaseTimeMaximum": {
+        "label": "最大值"
+      },
+      "leaseTimeMinimum": {
+        "label": "最小值"
+      },
+      "level": {
+        "label": "级别"
+      },
+      "level1": {
+        "label": "启用 level-1"
+      },
+      "level1Metric": {
+        "label": "level-1 度量值"
+      },
+      "level1RouteMap": {
+        "label": "level-1 route-map"
+      },
+      "level2": {
+        "label": "启用 level-2"
+      },
+      "level2Metric": {
+        "label": "level-2 度量值"
+      },
+      "level2RouteMap": {
+        "label": "level-2 route-map"
+      },
+      "localAs": {
+        "label": "本地 AS"
+      },
+      "localRole": {
+        "label": "本地角色"
+      },
+      "logAdjacencyChanges": {
+        "label": "记录邻接关系变化"
+      },
+      "lspGenInterval": {
+        "label": "LSP 生成间隔"
+      },
+      "lspMtu": {
+        "label": "LSP MTU"
+      },
+      "lspRefreshInterval": {
+        "label": "LSP 刷新间隔"
+      },
+      "mac": {
+        "label": "MAC 地址"
+      },
+      "maxLspLifetime": {
+        "label": "最大 LSP 生存时间"
+      },
+      "maximumPaths": {
+        "label": "最大路径数"
+      },
+      "maximumPathsEbgp": {
+        "label": "最大路径数 eBGP"
+      },
+      "maximumPathsIbgp": {
+        "label": "最大路径数 iBGP"
+      },
+      "maximumPrefix": {
+        "label": "最大前缀数"
+      },
+      "maximumPrefixOut": {
+        "label": "最大出站前缀数"
+      },
+      "md5Key": {
+        "label": "MD5 密钥"
+      },
+      "metric": {
+        "label": "度量值"
+      },
+      "metricStyle": {
+        "label": "度量值类型"
+      },
+      "metricType": {
+        "label": "度量值类型"
+      },
+      "mtuIgnore": {
+        "label": "忽略 MTU"
+      },
+      "net": {
+        "label": "NET"
+      },
+      "network": {
+        "label": "网络"
+      },
+      "nexthopLocalUnchanged": {
+        "label": "下一跳本地地址不变"
+      },
+      "nexthopSelf": {
+        "label": "下一跳为自身"
+      },
+      "nexthopSelfForce": {
+        "label": "强制下一跳为自身"
+      },
+      "noAdvertise": {
+        "label": "不通告"
+      },
+      "noThreeWayHandshake": {
+        "label": "不使用三次握手"
+      },
+      "notAdvertise": {
+        "label": "不通告"
+      },
+      "optionBootfileName": {
+        "label": "bootfile-name"
+      },
+      "optionBootfileServer": {
+        "label": "bootfile-server"
+      },
+      "optionBootfileSize": {
+        "label": "bootfile-size"
+      },
+      "optionCaptivePortal": {
+        "label": "captive-portal"
+      },
+      "optionCapwapController": {
+        "label": "capwap-controller"
+      },
+      "optionClientPrefixLength": {
+        "label": "client-prefix-length"
+      },
+      "optionDefaultRouter": {
+        "label": "default-router"
+      },
+      "optionDomainName": {
+        "label": "domain-name"
+      },
+      "optionDomainSearch": {
+        "label": "domain-search"
+      },
+      "optionInfoRefreshTime": {
+        "label": "info-refresh-time"
+      },
+      "optionInterfaceMtu": {
+        "label": "interface-mtu"
+      },
+      "optionIpForwarding": {
+        "label": "IP 转发"
+      },
+      "optionIpv6OnlyPreferred": {
+        "label": "ipv6-only-preferred"
+      },
+      "optionNameServer": {
+        "label": "name-server"
+      },
+      "optionNisDomain": {
+        "label": "nis-domain"
+      },
+      "optionNisServer": {
+        "label": "nis-server"
+      },
+      "optionNisplusDomain": {
+        "label": "nisplus-domain"
+      },
+      "optionNisplusServer": {
+        "label": "nisplus-server"
+      },
+      "optionNtpServer": {
+        "label": "ntp-server"
+      },
+      "optionPopServer": {
+        "label": "pop-server"
+      },
+      "optionServerIdentifier": {
+        "label": "server-identifier"
+      },
+      "optionSipServer": {
+        "label": "sip-server"
+      },
+      "optionSmtpServer": {
+        "label": "smtp-server"
+      },
+      "optionSntpServer": {
+        "label": "sntp-server"
+      },
+      "optionTftpServerName": {
+        "label": "tftp-server-name"
+      },
+      "optionTimeOffset": {
+        "label": "time-offset"
+      },
+      "optionTimeServer": {
+        "label": "time-server"
+      },
+      "optionTimeZone": {
+        "label": "time-zone"
+      },
+      "optionVendorOptionCiscoTftpServer": {
+        "label": "厂商 cisco tftp-server"
+      },
+      "optionWinsServer": {
+        "label": "wins-server"
+      },
+      "optionWpadUrl": {
+        "label": "wpad-url"
+      },
+      "overrideCapability": {
+        "label": "覆盖能力协商"
+      },
+      "parametersAbrType": {
+        "label": "ABR 类型"
+      },
+      "parametersBestpathAsPathConfed": {
+        "label": "最佳路径 as-path confed"
+      },
+      "parametersBestpathAsPathIgnore": {
+        "label": "最佳路径 as-path ignore"
+      },
+      "parametersBestpathAsPathMultipathRelax": {
+        "label": "最佳路径 as-path multipath-relax"
+      },
+      "parametersBestpathCompareRouterid": {
+        "label": "最佳路径比较 router-id"
+      },
+      "parametersClusterId": {
+        "label": "集群 ID"
+      },
+      "parametersDefaultLocalPref": {
+        "label": "默认本地优先级"
+      },
+      "parametersDeterministicMed": {
+        "label": "确定性 MED"
+      },
+      "parametersEbgpRequiresPolicy": {
+        "label": "eBGP 需要策略"
+      },
+      "parametersFastConvergence": {
+        "label": "快速收敛"
+      },
+      "parametersGracefulShutdown": {
+        "label": "平滑关闭"
+      },
+      "parametersNetworkImportCheck": {
+        "label": "网络导入检查"
+      },
+      "parametersNoClientToClientReflection": {
+        "label": "禁用客户端间反射"
+      },
+      "parametersNoFastExternalFailover": {
+        "label": "禁用快速外部故障切换"
+      },
+      "parametersOpaqueLsa": {
+        "label": "Opaque LSA"
+      },
+      "parametersRfc1583Compatibility": {
+        "label": "RFC1583 兼容"
+      },
+      "parametersRouterId": {
+        "label": "路由器 ID"
+      },
+      "parametersShutdown": {
+        "label": "关闭"
+      },
+      "parametersSuppressFibPending": {
+        "label": "抑制 FIB 待定路由"
+      },
+      "passive": {
+        "label": "被动"
+      },
+      "passiveInterface": {
+        "label": "被动接口"
+      },
+      "password": {
+        "label": "密码"
+      },
+      "passwordMd5": {
+        "label": "密码 MD5"
+      },
+      "passwordPlaintextPassword": {
+        "label": "密码明文"
+      },
+      "peerGroup": {
+        "label": "对等体组"
+      },
+      "pingCheck": {
+        "label": "Ping 检查"
+      },
+      "pollInterval": {
+        "label": "轮询间隔"
+      },
+      "port": {
+        "label": "端口"
+      },
+      "preference": {
+        "label": "优先级"
+      },
+      "prefix": {
+        "label": "前缀"
+      },
+      "prefixLength": {
+        "label": "前缀长度"
+      },
+      "prefixListExport": {
+        "label": "Prefix-list 导出"
+      },
+      "prefixListImport": {
+        "label": "Prefix-list 导入"
+      },
+      "priority": {
+        "label": "优先级"
+      },
+      "psnpInterval": {
+        "label": "PSNP 间隔"
+      },
+      "purgeOriginator": {
+        "label": "Purge originator"
+      },
+      "rdVpnExport": {
+        "label": "RD VPN 导出"
+      },
+      "relayAgentInformationCircuitId": {
+        "label": "中继 circuit-id"
+      },
+      "relayAgentInformationRemoteId": {
+        "label": "中继 remote-id"
+      },
+      "remoteAs": {
+        "label": "远端 AS"
+      },
+      "removePrivateAs": {
+        "label": "移除私有 AS"
+      },
+      "removePrivateAsAll": {
+        "label": "移除私有 AS（全部）"
+      },
+      "retransmitInterval": {
+        "label": "重传间隔"
+      },
+      "retransmitWindow": {
+        "label": "重传窗口"
+      },
+      "routeMap": {
+        "label": "路由映射"
+      },
+      "routeMapExport": {
+        "label": "路由映射导出"
+      },
+      "routeMapImport": {
+        "label": "路由映射导入"
+      },
+      "routeMapVpnExport": {
+        "label": "路由映射 VPN 导出"
+      },
+      "routeMapVpnImport": {
+        "label": "路由映射 VPN 导入"
+      },
+      "routeReflectorClient": {
+        "label": "路由反射器客户端"
+      },
+      "routeServerClient": {
+        "label": "路由服务器客户端"
+      },
+      "routeTargetVpnBoth": {
+        "label": "路由目标 (RT) VPN 导入/导出"
+      },
+      "routeTargetVpnExport": {
+        "label": "路由目标 (RT) VPN 导出"
+      },
+      "routeTargetVpnImport": {
+        "label": "路由目标 (RT) VPN 导入"
+      },
+      "rtAutoDerive": {
+        "label": "RT 自动派生"
+      },
+      "segmentRoutingGlobalBlockHighLabelValue": {
+        "label": "全局块上限"
+      },
+      "segmentRoutingGlobalBlockLowLabelValue": {
+        "label": "全局块下限"
+      },
+      "segmentRoutingLocalBlockHighLabelValue": {
+        "label": "本地块上限"
+      },
+      "segmentRoutingLocalBlockLowLabelValue": {
+        "label": "本地块下限"
+      },
+      "segmentRoutingMaximumLabelDepth": {
+        "label": "SR 最大标签深度"
+      },
+      "segmentRoutingSrv6Interface": {
+        "label": "SRv6 接口"
+      },
+      "segmentRoutingSrv6Locator": {
+        "label": "SRv6 定位符"
+      },
+      "setAttachedBit": {
+        "label": "设置 attached 位"
+      },
+      "setOverloadBit": {
+        "label": "设置过载位"
+      },
+      "setOverloadBitOnStartup": {
+        "label": "启动时过载位（秒）"
+      },
+      "shortcut": {
+        "label": "Shortcut"
+      },
+      "shutdown": {
+        "label": "关闭"
+      },
+      "softReconfigurationInbound": {
+        "label": "入站软重配置"
+      },
+      "solo": {
+        "label": "Solo"
+      },
+      "spfDelayIetfHolddown": {
+        "label": "抑制时间"
+      },
+      "spfDelayIetfInitDelay": {
+        "label": "初始延迟"
+      },
+      "spfDelayIetfLongDelay": {
+        "label": "长延迟"
+      },
+      "spfDelayIetfShortDelay": {
+        "label": "短延迟"
+      },
+      "spfDelayIetfTimeToLearn": {
+        "label": "学习时间"
+      },
+      "spfInterval": {
+        "label": "SPF 间隔"
+      },
+      "start": {
+        "label": "起始"
+      },
+      "stop": {
+        "label": "结束"
+      },
+      "strictCapabilityMatch": {
+        "label": "严格能力匹配"
+      },
+      "subnetId": {
+        "label": "子网 ID"
+      },
+      "substitute": {
+        "label": "替代前缀"
+      },
+      "systemAs": {
+        "label": "系统 AS"
+      },
+      "tag": {
+        "label": "标记"
+      },
+      "timersConnect": {
+        "label": "连接定时器"
+      },
+      "timersHoldtime": {
+        "label": "保持时间"
+      },
+      "timersKeepalive": {
+        "label": "Keepalive 定时器"
+      },
+      "topology": {
+        "label": "拓扑"
+      },
+      "trafficEngineeringAddress": {
+        "label": "TE 路由器地址"
+      },
+      "trafficEngineeringEnable": {
+        "label": "启用 TE"
+      },
+      "trafficEngineeringExport": {
+        "label": "TE 导出"
+      },
+      "trafficEngineeringInterArea": {
+        "label": "TE 跨区域"
+      },
+      "transmitDelay": {
+        "label": "发送延迟"
+      },
+      "ttlSecurityHops": {
+        "label": "TTL 安全跳数"
+      },
+      "unsuppressMap": {
+        "label": "Unsuppress map"
+      },
+      "updateSource": {
+        "label": "更新源"
+      },
+      "weight": {
+        "label": "权重"
+      }
+    },
+    "sections": {
+      "absolute": "绝对值",
+      "area": "区域",
+      "authentication": "认证",
+      "behaviour": "行为",
+      "bestPathBehaviour": "最佳路径与行为",
+      "bfdLdpSyncPassword": "BFD / LDP 同步 / 密码",
+      "capabilitiesFlags": "能力与标志",
+      "clientClass": "客户端类",
+      "dynamicDnsUpdate": "动态 DNS 更新",
+      "fastReroute": "快速重路由",
+      "fastRerouteLfa": "快速重路由 LFA",
+      "flagsBfd": "标志与 BFD",
+      "general": "常规",
+      "gracefulRestart": "平滑重启",
+      "gracefulRestartLdpSync": "平滑重启与 LDP 同步",
+      "highAvailability": "高可用",
+      "index": "索引",
+      "l2vpnEvpn": "L2VPN EVPN",
+      "lease": "租期",
+      "leaseTime": "租期",
+      "levels": "级别",
+      "mapping": "映射",
+      "md5Key": "MD5 密钥",
+      "neighbor": "邻居",
+      "network": "网络",
+      "nssa": "NSSA",
+      "nssaStub": "NSSA / Stub",
+      "options": "选项",
+      "originate": "发布",
+      "parameters": "参数",
+      "passwords": "密码",
+      "pathsDistance": "路径与距离",
+      "policy": "策略",
+      "prefixDelegation": "前缀委派",
+      "range": "范围",
+      "redistribute": "重分发",
+      "redistributeTable": "重分发路由表",
+      "segmentRouting": "段路由",
+      "server": "服务器",
+      "session": "会话",
+      "settings": "设置",
+      "spfDelayIetf": "SPF 延迟（IETF）",
+      "stub": "Stub",
+      "subnet": "子网",
+      "summaryAddress": "汇总地址",
+      "timers": "定时器",
+      "timersBfd": "定时器与 BFD",
+      "timersLsp": "定时器与 LSP",
+      "trafficEngineeringSegmentRouting": "流量工程与段路由",
+      "vpn": "VPN"
+    },
+    "options": {
+      "activeActive": "主-主",
+      "activePassive": "主-备",
+      "always": "始终",
+      "babel": "Babel",
+      "bgp": "BGP",
+      "broadcast": "广播",
+      "candidate": "候选",
+      "cisco": "Cisco",
+      "connected": "直连",
+      "customer": "客户",
+      "default": "默认",
+      "disable": "禁用",
+      "enable": "启用",
+      "ibm": "IBM",
+      "ipv4Flowspec": "IPv4 flowspec",
+      "ipv4LabeledUnicast": "IPv4 labeled-unicast",
+      "ipv4Mgmt": "IPv4 管理",
+      "ipv4Multicast": "IPv4 组播",
+      "ipv4Unicast": "IPv4 单播",
+      "ipv4Vpn": "IPv4 VPN",
+      "ipv6Flowspec": "IPv6 flowspec",
+      "ipv6LabeledUnicast": "IPv6 labeled-unicast",
+      "ipv6Multicast": "IPv6 组播",
+      "ipv6Unicast": "IPv6 单播",
+      "ipv6Vpn": "IPv6 VPN",
+      "isis": "IS-IS",
+      "kernel": "内核",
+      "l2vpnEvpn": "L2VPN EVPN",
+      "level1": "级别 1",
+      "level12": "级别 1-2",
+      "level2": "级别 2",
+      "md5": "MD5",
+      "n1": "类型 1",
+      "n2": "类型 2",
+      "narrow": "Narrow",
+      "never": "从不",
+      "nhrp": "NHRP",
+      "nonBroadcast": "非广播",
+      "normal": "普通",
+      "nssa": "NSSA",
+      "ospf": "OSPF",
+      "peer": "对等体",
+      "plaintextPassword": "明文密码",
+      "pointToMultipoint": "点到多点",
+      "pointToPoint": "点到点",
+      "primary": "主",
+      "provider": "提供商",
+      "restartHelper": "重启 Helper",
+      "rip": "RIP",
+      "ripng": "RIPng",
+      "rsClient": "RS 客户端",
+      "rsServer": "RS 服务器",
+      "secondary": "备",
+      "sendOnly": "仅发送",
+      "shortcut": "Shortcut",
+      "standard": "标准",
+      "static": "静态",
+      "stub": "Stub",
+      "transition": "Transition",
+      "validate": "验证",
+      "wide": "Wide"
+    },
+    "bgpAf": {
+      "group": {
+        "label": "地址族",
+        "plural": "地址族",
+        "empty": "未配置地址族。",
+        "add": "添加地址族…"
+      }
+    },
+    "bgpAfNetwork": {
+      "group": {
+        "label": "网络",
+        "plural": "网络",
+        "empty": "未配置网络。"
+      }
+    },
+    "bgpAfRedistribute": {
+      "group": {
+        "label": "重分发",
+        "plural": "重分发",
+        "empty": "未配置重分发。",
+        "add": "添加重分发…"
+      }
+    },
+    "bgpAfRedistributeTable": {
+      "group": {
+        "label": "重分发路由表",
+        "plural": "重分发路由表",
+        "empty": "未配置重分发路由表。"
+      }
+    },
+    "bgpNeighbor": {
+      "timersHoldtime": {
+        "label": "保持时间"
+      },
+      "timersKeepalive": {
+        "label": "Keepalive 定时器"
+      },
+      "group": {
+        "label": "邻居",
+        "plural": "邻居",
+        "empty": "未配置邻居。"
+      }
+    },
+    "bgpNeighborAf": {
+      "group": {
+        "label": "地址族",
+        "plural": "地址族",
+        "empty": "未配置地址族。",
+        "add": "添加地址族…"
+      }
+    },
+    "bgpPeerGroup": {
+      "group": {
+        "label": "对等体组",
+        "plural": "对等体组",
+        "empty": "未配置对等体组。"
+      }
+    },
+    "bgpPeerGroupAf": {
+      "group": {
+        "label": "地址族",
+        "plural": "地址族",
+        "empty": "未配置地址族。",
+        "add": "添加地址族…"
+      }
+    },
+    "dhcpClientClass": {
+      "group": {
+        "label": "客户端类",
+        "plural": "客户端类",
+        "empty": "未配置客户端类。"
+      }
+    },
+    "dhcpSharedNetwork": {
+      "group": {
+        "label": "共享网络",
+        "plural": "共享网络",
+        "empty": "未配置共享网络。"
+      }
+    },
+    "dhcpStaticMapping": {
+      "group": {
+        "label": "静态映射",
+        "plural": "静态映射",
+        "empty": "未配置静态映射。"
+      }
+    },
+    "dhcpSubnet": {
+      "group": {
+        "label": "子网",
+        "plural": "子网",
+        "empty": "未配置子网。"
+      }
+    },
+    "dhcpSubnetRange": {
+      "group": {
+        "label": "范围",
+        "plural": "范围",
+        "empty": "未配置范围。",
+        "idPlaceholder": "范围名称"
+      }
+    },
+    "dhcpv6SharedNetwork": {
+      "group": {
+        "label": "共享网络",
+        "plural": "共享网络",
+        "empty": "未配置共享网络。"
+      }
+    },
+    "dhcpv6Subnet": {
+      "group": {
+        "label": "子网",
+        "plural": "子网",
+        "empty": "未配置子网。"
+      }
+    },
+    "dhcpv6SubnetPdPrefix": {
+      "group": {
+        "label": "委派前缀",
+        "plural": "委派前缀",
+        "empty": "未配置委派前缀。"
+      }
+    },
+    "dhcpv6SubnetRange": {
+      "group": {
+        "label": "范围",
+        "plural": "范围",
+        "empty": "未配置范围。",
+        "idPlaceholder": "范围名称"
+      }
+    },
+    "dhcpv6SubnetStaticMapping": {
+      "group": {
+        "label": "静态映射",
+        "plural": "静态映射",
+        "empty": "未配置静态映射。"
+      }
+    },
+    "isisDefaultInformationOriginateIpv4": {
+      "group": {
+        "label": "默认信息 IPv4 级别",
+        "plural": "默认信息 IPv4 级别",
+        "empty": "未配置默认信息 IPv4 级别。",
+        "add": "添加默认信息 IPv4 级别…"
+      }
+    },
+    "isisDefaultInformationOriginateIpv6": {
+      "group": {
+        "label": "默认信息 IPv6 级别",
+        "plural": "默认信息 IPv6 级别",
+        "empty": "未配置默认信息 IPv6 级别。",
+        "add": "添加默认信息 IPv6 级别…"
+      }
+    },
+    "isisFrLfaLocalTiebreaker": {
+      "group": {
+        "label": "LFA Tiebreaker",
+        "plural": "LFA Tiebreaker",
+        "empty": "未配置 LFA Tiebreaker。",
+        "add": "添加 LFA Tiebreaker…"
+      }
+    },
+    "isisFrLfaLocalTiebreakerIndex": {
+      "group": {
+        "label": "索引",
+        "plural": "索引",
+        "empty": "未配置索引。"
+      }
+    },
+    "isisFrLfaRemotePrefixList": {
+      "group": {
+        "label": "LFA 远端 Prefix-List",
+        "plural": "LFA 远端 Prefix-List",
+        "empty": "未配置 LFA 远端 Prefix-List。"
+      }
+    },
+    "isisInterface": {
+      "group": {
+        "label": "接口",
+        "plural": "接口",
+        "empty": "未配置接口。"
+      }
+    },
+    "isisRedistributeIpv4": {
+      "group": {
+        "label": "重分发 IPv4",
+        "plural": "重分发 IPv4",
+        "empty": "未配置重分发 IPv4。",
+        "add": "添加重分发 IPv4…"
+      }
+    },
+    "isisRedistributeIpv6": {
+      "group": {
+        "label": "重分发 IPv6",
+        "plural": "重分发 IPv6",
+        "empty": "未配置重分发 IPv6。",
+        "add": "添加重分发 IPv6…"
+      }
+    },
+    "isisSegmentRoutingPrefix": {
+      "group": {
+        "label": "SR 前缀",
+        "plural": "SR 前缀",
+        "empty": "未配置 SR 前缀。"
+      }
+    },
+    "ospf": {
+      "segmentRoutingMaximumLabelDepth": {
+        "label": "最大标签深度"
+      }
+    },
+    "ospfArea": {
+      "group": {
+        "label": "区域",
+        "plural": "区域",
+        "empty": "未配置区域。"
+      }
+    },
+    "ospfAreaRange": {
+      "group": {
+        "label": "范围",
+        "plural": "范围",
+        "empty": "未配置范围。"
+      }
+    },
+    "ospfAreaVirtualLink": {
+      "group": {
+        "label": "虚链路",
+        "plural": "虚链路",
+        "empty": "未配置虚链路。",
+        "idPlaceholder": "路由器 ID"
+      }
+    },
+    "ospfAreaVirtualLinkAuthenticationMd5KeyId": {
+      "group": {
+        "label": "MD5 密钥",
+        "plural": "MD5 密钥",
+        "empty": "未配置 MD5 密钥。",
+        "idPlaceholder": "密钥 ID（1-255）"
+      }
+    },
+    "ospfInterface": {
+      "group": {
+        "label": "接口",
+        "plural": "接口",
+        "empty": "未配置接口。"
+      }
+    },
+    "ospfInterfaceAuthenticationMd5KeyId": {
+      "group": {
+        "label": "MD5 密钥",
+        "plural": "MD5 密钥",
+        "empty": "未配置 MD5 密钥。",
+        "idPlaceholder": "密钥 ID（1-255）"
+      }
+    },
+    "ospfNeighbor": {
+      "group": {
+        "label": "邻居",
+        "plural": "邻居",
+        "empty": "未配置邻居。"
+      }
+    },
+    "ospfRedistribute": {
+      "group": {
+        "label": "重分发",
+        "plural": "重分发",
+        "empty": "未配置重分发。",
+        "add": "添加重分发…"
+      }
+    },
+    "ospfSummaryAddress": {
+      "group": {
+        "label": "汇总地址",
+        "plural": "汇总地址",
+        "empty": "未配置汇总地址。"
+      }
+    },
+    "ospfv3Area": {
+      "group": {
+        "label": "区域",
+        "plural": "区域",
+        "empty": "未配置区域。"
+      }
+    },
+    "ospfv3AreaRange": {
+      "group": {
+        "label": "范围",
+        "plural": "范围",
+        "empty": "未配置范围。"
+      }
+    },
+    "ospfv3Interface": {
+      "group": {
+        "label": "接口",
+        "plural": "接口",
+        "empty": "未配置接口。"
+      }
+    },
+    "ospfv3Redistribute": {
+      "group": {
+        "label": "重分发",
+        "plural": "重分发",
+        "empty": "未配置重分发。",
+        "add": "添加重分发…"
+      }
+    }
+  }
+}
