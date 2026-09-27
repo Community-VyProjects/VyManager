@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { showService, InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import type { ArpEntry } from "@/lib/api/static-routes";
@@ -45,6 +46,8 @@ export function ArpEntryModal({
   onSuccess,
   existing,
 }: ArpEntryModalProps) {
+  const t = useTranslations("routingExtras");
+  const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -71,7 +74,7 @@ export function ArpEntryModal({
   const handleSubmit = async () => {
     const validationError = isEdit ? validateArpEdit(draft) : validateArpCreate(draft);
     if (validationError) {
-      setError(validationError);
+      setError(t(`validation.${validationError}`));
       return;
     }
 
@@ -88,13 +91,13 @@ export function ArpEntryModal({
             )
           : await submitArpCreate(draft);
       if (result && result.success === false) {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
         return;
       }
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : isEdit ? "Failed to update ARP entry" : "Failed to create ARP entry");
+      setError(err instanceof Error ? err.message : isEdit ? t("arpModal.updateFailed") : t("arpModal.createFailed"));
     } finally {
       setLoading(false);
     }
@@ -104,11 +107,11 @@ export function ArpEntryModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit ARP Entry" : "Create Static ARP Entry"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("arpModal.editTitle") : t("arpModal.createTitle")}</DialogTitle>
           <DialogDescription>
             {isEdit
-              ? `Modify static ARP entry for ${existing.entry.ip_address} on ${existing.interface}`
-              : "Add a static ARP entry to map an IP address to a MAC address"}
+              ? t("arpModal.editDescription", { ip: existing.entry.ip_address, interface: existing.interface })
+              : t("arpModal.createDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -121,7 +124,7 @@ export function ArpEntryModal({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="interface">Interface</Label>
+            <Label htmlFor="interface">{t("shared.interface")}</Label>
             {lockedInterface.disabled ? (
               <Input value={lockedInterface.value} disabled className="bg-muted" />
             ) : (
@@ -129,13 +132,13 @@ export function ArpEntryModal({
                 value={draft.interfaceName}
                 onValueChange={(value) => patch({ interfaceName: value })}
                 interfaces={availableInterfaces}
-                placeholder="Select interface..."
+                placeholder={t("shared.selectInterface")}
               />
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="ip-address">IP Address</Label>
+            <Label htmlFor="ip-address">{t("arpModal.ipAddress")}</Label>
             <Input
               id="ip-address"
               placeholder="192.168.1.100"
@@ -146,13 +149,13 @@ export function ArpEntryModal({
             />
             {isEdit && (
               <p className="text-xs text-muted-foreground">
-                IP address cannot be changed. Delete and recreate to change it.
+                {t("arpModal.ipLocked")}
               </p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="mac-address">MAC Address</Label>
+            <Label htmlFor="mac-address">{t("arpModal.macAddress")}</Label>
             <Input
               id="mac-address"
               placeholder="00:11:22:33:44:55"
@@ -162,10 +165,10 @@ export function ArpEntryModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description (optional)</Label>
+            <Label htmlFor="description">{t("shared.descriptionOptional")}</Label>
             <Input
               id="description"
-              placeholder="Description for this ARP entry"
+              placeholder={t("arpModal.descriptionPlaceholder")}
               value={draft.description}
               onChange={(e) => patch({ description: e.target.value })}
             />
@@ -174,11 +177,11 @@ export function ArpEntryModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? "Update Entry" : "Create Entry"}
+            {isEdit ? t("arpModal.updateEntry") : t("shared.createEntry")}
           </Button>
         </DialogFooter>
       </DialogContent>

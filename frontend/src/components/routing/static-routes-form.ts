@@ -376,30 +376,37 @@ export function tableRouteDraftFrom(current: StaticRoute): TableRouteDraft {
   return draft;
 }
 
-export function validateTableRouteCreate(draft: TableRouteDraft): string | null {
+/** Message keys (routingExtras.validation.*) returned by the table route validators. */
+export type TableRouteValidationError =
+  | "destinationRequired"
+  | "invalidIpv4Cidr"
+  | "invalidIpv6Cidr"
+  | "routingMethodRequired";
+
+export function validateTableRouteCreate(draft: TableRouteDraft): TableRouteValidationError | null {
   if (!draft.destination.trim()) {
-    return "Destination is required";
+    return "destinationRequired";
   }
   const ipv4Cidr = /^(\d{1,3}\.){3}\d{1,3}\/\d{1,2}$/;
   const ipv6Cidr = /^[0-9a-fA-F:]+\/\d{1,3}$/;
   if (draft.routeType === "ipv4" && !ipv4Cidr.test(draft.destination.trim())) {
-    return "Invalid IPv4 CIDR format (e.g., 10.0.0.0/8)";
+    return "invalidIpv4Cidr";
   }
   if (draft.routeType === "ipv6" && !ipv6Cidr.test(draft.destination.trim())) {
-    return "Invalid IPv6 CIDR format (e.g., 2001:db8::/32)";
+    return "invalidIpv6Cidr";
   }
   return validateTableRouteShared(draft);
 }
 
-export function validateTableRouteEdit(draft: TableRouteDraft): string | null {
+export function validateTableRouteEdit(draft: TableRouteDraft): TableRouteValidationError | null {
   return validateTableRouteShared(draft);
 }
 
-function validateTableRouteShared(draft: TableRouteDraft): string | null {
+function validateTableRouteShared(draft: TableRouteDraft): TableRouteValidationError | null {
   const hops = nextHopsPayload(draft.nextHops);
   const ifaces = interfacesPayload(draft.interfaces);
   if (!draft.isBlackhole && !draft.isReject && hops.length === 0 && ifaces.length === 0) {
-    return "At least one next-hop, interface, blackhole, or reject is required";
+    return "routingMethodRequired";
   }
   return null;
 }
@@ -528,21 +535,29 @@ export function arpDraftFrom(interfaceName: string, entry: ArpEntry): ArpDraft {
 const MAC_RE = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
 const IPV4_RE = /^(\d{1,3}\.){3}\d{1,3}$/;
 
-export function validateArpCreate(draft: ArpDraft): string | null {
-  if (!draft.interfaceName) return "Interface is required";
-  if (!draft.ipAddress) return "IP address is required";
-  if (!IPV4_RE.test(draft.ipAddress)) return "Invalid IPv4 address format";
+/** Message keys (routingExtras.validation.*) returned by the ARP validators. */
+export type ArpValidationError =
+  | "interfaceRequired"
+  | "ipAddressRequired"
+  | "invalidIpv4Address"
+  | "macAddressRequired"
+  | "invalidMacAddress";
+
+export function validateArpCreate(draft: ArpDraft): ArpValidationError | null {
+  if (!draft.interfaceName) return "interfaceRequired";
+  if (!draft.ipAddress) return "ipAddressRequired";
+  if (!IPV4_RE.test(draft.ipAddress)) return "invalidIpv4Address";
   return validateArpShared(draft);
 }
 
-export function validateArpEdit(draft: ArpDraft): string | null {
+export function validateArpEdit(draft: ArpDraft): ArpValidationError | null {
   return validateArpShared(draft);
 }
 
-function validateArpShared(draft: ArpDraft): string | null {
-  if (!draft.macAddress) return "MAC address is required";
+function validateArpShared(draft: ArpDraft): ArpValidationError | null {
+  if (!draft.macAddress) return "macAddressRequired";
   if (!MAC_RE.test(draft.macAddress)) {
-    return "Invalid MAC address format (use XX:XX:XX:XX:XX:XX)";
+    return "invalidMacAddress";
   }
   return null;
 }
@@ -597,11 +612,14 @@ export function routingTableDraftFrom(current: RoutingTable): RoutingTableDraft 
   };
 }
 
-export function validateRoutingTableCreate(draft: RoutingTableDraft): string | null {
-  if (!draft.tableId) return "Table ID is required";
+/** Message keys (routingExtras.validation.*) returned by the routing table validator. */
+export type RoutingTableValidationError = "tableIdRequired" | "tableIdRange";
+
+export function validateRoutingTableCreate(draft: RoutingTableDraft): RoutingTableValidationError | null {
+  if (!draft.tableId) return "tableIdRequired";
   const tableIdNum = parseInt(draft.tableId, 10);
   if (Number.isNaN(tableIdNum) || tableIdNum < 1 || tableIdNum > 200) {
-    return "Table ID must be a number between 1 and 200";
+    return "tableIdRange";
   }
   return null;
 }
