@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   Sheet,
   SheetContent,
@@ -50,17 +51,20 @@ function SectionHeader({
   );
 }
 
-function modeLabel(mode: string | null): string {
-  if (!mode) return "—";
-  if (mode === "site-to-site") return "Site-to-Site";
-  return mode.charAt(0).toUpperCase() + mode.slice(1);
-}
-
 export function OpenvpnDetailsDrawer({
   open,
   onOpenChange,
   interfaceData,
 }: OpenvpnDetailsDrawerProps) {
+  const t = useTranslations("openvpnTools");
+  const tc = useTranslations("common");
+  const modeLabel = (mode: string | null): string => {
+    if (!mode) return "—";
+    if (mode === "server") return t("modes.server");
+    if (mode === "client") return t("modes.client");
+    if (mode === "site-to-site") return t("modes.siteToSite");
+    return mode.charAt(0).toUpperCase() + mode.slice(1);
+  };
   if (!interfaceData) return null;
   const i = interfaceData;
 
@@ -73,49 +77,49 @@ export function OpenvpnDetailsDrawer({
             {i.name}
           </SheetTitle>
           <SheetDescription>
-            {i.description || "OpenVPN interface configuration"}
+            {i.description || t("drawer.defaultDescription")}
           </SheetDescription>
         </SheetHeader>
 
         <div className="mt-4 space-y-1">
           {/* Overview */}
-          <SectionHeader icon={Activity} title="Overview" />
-          <Row label="Name" value={i.name} />
-          <Row label="Mode" value={<Badge variant="outline">{modeLabel(i.mode)}</Badge>} />
+          <SectionHeader icon={Activity} title={t("drawer.overview")} />
+          <Row label={tc("name")} value={i.name} />
+          <Row label={t("fields.mode")} value={<Badge variant="outline">{modeLabel(i.mode)}</Badge>} />
           <Row
-            label="Status"
+            label={tc("status")}
             value={
               i.disabled ? (
                 <Badge variant="secondary" className="bg-gray-500/10 text-gray-500">
-                  Disabled
+                  {tc("disabled")}
                 </Badge>
               ) : (
                 <Badge variant="outline" className="text-green-600 border-green-600/30">
-                  Active
+                  {t("active")}
                 </Badge>
               )
             }
           />
-          <Row label="Device Type" value={i.device_type} />
-          <Row label="Protocol" value={i.protocol} />
+          <Row label={t("fields.deviceType")} value={i.device_type} />
+          <Row label={t("fields.protocol")} value={i.protocol} />
           <Row label="VRF" value={i.vrf} />
-          <Row label="Persistent Tunnel" value={i.persistent_tunnel ? "Yes" : "No"} />
-          <Row label="LZO Compression" value={i.use_lzo_compression ? "Yes" : "No"} />
-          <Row label="Offload DCO" value={i.offload_dco ? "Yes" : "No"} />
-          <Row label="Redirect" value={i.redirect} />
+          <Row label={t("fields.persistentTunnel")} value={i.persistent_tunnel ? t("yes") : t("no")} />
+          <Row label={t("fields.lzoCompression")} value={i.use_lzo_compression ? t("yes") : t("no")} />
+          <Row label={t("fields.offloadDco")} value={i.offload_dco ? t("yes") : t("no")} />
+          <Row label={t("fields.redirect")} value={i.redirect} />
           <Row
-            label="Replace Default Route"
+            label={t("fields.replaceDefaultRoute")}
             value={
               i.replace_default_route?.enabled
                 ? i.replace_default_route.local
-                  ? "Enabled (local)"
-                  : "Enabled"
+                  ? t("drawer.enabledLocal")
+                  : tc("enabled")
                 : "—"
             }
           />
           {i.openvpn_options.length > 0 && (
             <Row
-              label="OpenVPN Options"
+              label={t("fields.openvpnOptions")}
               value={
                 <div className="space-y-1">
                   {i.openvpn_options.map((o, idx) => (
@@ -129,11 +133,11 @@ export function OpenvpnDetailsDrawer({
           <Separator className="my-3" />
 
           {/* Addressing */}
-          <SectionHeader icon={Network} title="Addressing" />
-          <Row label="Local Host" value={i.local_host} />
-          <Row label="Local Port" value={i.local_port} />
+          <SectionHeader icon={Network} title={t("drawer.addressing")} />
+          <Row label={t("fields.localHost")} value={i.local_host} />
+          <Row label={t("fields.localPort")} value={i.local_port} />
           <Row
-            label="Local Addresses"
+            label={t("fields.localAddresses")}
             value={
               i.local_addresses.length > 0 ? (
                 <div className="space-y-1">
@@ -150,7 +154,7 @@ export function OpenvpnDetailsDrawer({
             }
           />
           <Row
-            label="Remote Host"
+            label={t("fields.remoteHost")}
             value={
               i.remote_host.length > 0 ? (
                 <div className="space-y-1">
@@ -163,9 +167,9 @@ export function OpenvpnDetailsDrawer({
               )
             }
           />
-          <Row label="Remote Port" value={i.remote_port} />
+          <Row label={t("fields.remotePort")} value={i.remote_port} />
           <Row
-            label="Remote Addresses"
+            label={t("fields.remoteAddresses")}
             value={
               i.remote_address.length > 0 ? (
                 <div className="space-y-1">
@@ -179,7 +183,7 @@ export function OpenvpnDetailsDrawer({
             }
           />
           <Row
-            label="Keepalive"
+            label={t("fields.keepalive")}
             value={
               i.keep_alive?.failure_count || i.keep_alive?.interval
                 ? `interval=${i.keep_alive.interval ?? "—"}, failures=${i.keep_alive.failure_count ?? "—"}`
@@ -187,7 +191,7 @@ export function OpenvpnDetailsDrawer({
             }
           />
           <Row
-            label="Authentication"
+            label={t("fields.authentication")}
             value={
               i.authentication?.username
                 ? `${i.authentication.username} / ${i.authentication.password ? "••••••" : "—"}`
@@ -198,29 +202,29 @@ export function OpenvpnDetailsDrawer({
           <Separator className="my-3" />
 
           {/* Encryption & TLS */}
-          <SectionHeader icon={Shield} title="Encryption & TLS" />
-          <Row label="Cipher" value={i.encryption?.cipher} />
+          <SectionHeader icon={Shield} title={t("drawer.encryptionTls")} />
+          <Row label={t("fields.cipher")} value={i.encryption?.cipher} />
           <Row
-            label="Data Ciphers"
+            label={t("fields.dataCiphers")}
             value={
               i.encryption?.data_ciphers && i.encryption.data_ciphers.length > 0
                 ? i.encryption.data_ciphers.join(", ")
                 : "—"
             }
           />
-          <Row label="Data Ciphers Fallback" value={i.encryption?.data_ciphers_fallback} />
-          <Row label="Hash" value={i.hash} />
-          <Row label="Shared Secret Key" value={i.shared_secret_key} />
-          <Row label="TLS CA Certificate" value={i.tls?.ca_certificates?.join(", ") || undefined} />
-          <Row label="TLS Certificate" value={i.tls?.certificate} />
-          <Row label="TLS DH Params" value={i.tls?.dh_params} />
-          <Row label="TLS Auth Key" value={i.tls?.auth_key} />
-          <Row label="TLS Crypt Key" value={i.tls?.crypt_key} />
-          <Row label="TLS Role" value={i.tls?.role} />
-          <Row label="TLS Version Min" value={i.tls?.tls_version_min} />
+          <Row label={t("fields.dataCiphersFallback")} value={i.encryption?.data_ciphers_fallback} />
+          <Row label={t("fields.hash")} value={i.hash} />
+          <Row label={t("fields.sharedSecretKey")} value={i.shared_secret_key} />
+          <Row label={t("fields.tlsCaCertificate")} value={i.tls?.ca_certificates?.join(", ") || undefined} />
+          <Row label={t("fields.tlsCertificate")} value={i.tls?.certificate} />
+          <Row label={t("fields.tlsDhParams")} value={i.tls?.dh_params} />
+          <Row label={t("fields.tlsAuthKey")} value={i.tls?.auth_key} />
+          <Row label={t("fields.tlsCryptKey")} value={i.tls?.crypt_key} />
+          <Row label={t("fields.tlsRole")} value={i.tls?.role} />
+          <Row label={t("fields.tlsVersionMin")} value={i.tls?.tls_version_min} />
           {i.tls?.peer_fingerprints && i.tls.peer_fingerprints.length > 0 && (
             <Row
-              label="Peer Fingerprints"
+              label={t("fields.peerFingerprints")}
               value={
                 <div className="space-y-1">
                   {i.tls.peer_fingerprints.map((fp, idx) => (
@@ -235,33 +239,33 @@ export function OpenvpnDetailsDrawer({
           {i.server && (
             <>
               <Separator className="my-3" />
-              <SectionHeader icon={Server} title="Server" />
+              <SectionHeader icon={Server} title={t("modes.server")} />
               <Row
-                label="Subnet"
+                label={t("fields.subnet")}
                 value={i.server.subnet.length > 0 ? i.server.subnet.join(", ") : "—"}
               />
-              <Row label="Topology" value={i.server.topology} />
-              <Row label="Domain Name" value={i.server.domain_name} />
-              <Row label="Max Connections" value={i.server.max_connections} />
+              <Row label={t("fields.topology")} value={i.server.topology} />
+              <Row label={t("fields.domainName")} value={i.server.domain_name} />
+              <Row label={t("fields.maxConnections")} value={i.server.max_connections} />
               <Row
-                label="Name Servers"
+                label={t("fields.nameServers")}
                 value={
                   i.server.name_server.length > 0 ? i.server.name_server.join(", ") : "—"
                 }
               />
               <Row
-                label="Reject Unconfigured"
-                value={i.server.reject_unconfigured_clients ? "Yes" : "No"}
+                label={t("fields.rejectUnconfigured")}
+                value={i.server.reject_unconfigured_clients ? t("yes") : t("no")}
               />
               {i.server.push_route.length > 0 && (
                 <Row
-                  label="Push Routes"
+                  label={t("fields.pushRoutes")}
                   value={
                     <div className="space-y-1">
                       {i.server.push_route.map((pr, idx) => (
                         <div key={idx}>
                           {pr.route}
-                          {pr.metric ? ` (metric ${pr.metric})` : ""}
+                          {pr.metric ? t("drawer.metric", { metric: pr.metric }) : ""}
                         </div>
                       ))}
                     </div>
@@ -270,38 +274,38 @@ export function OpenvpnDetailsDrawer({
               )}
               {i.server.bridge && (
                 <>
-                  <div className="text-xs font-semibold text-muted-foreground mt-2">Bridge</div>
-                  <Row label="Bridge Gateway" value={i.server.bridge.gateway} />
-                  <Row label="Bridge Start" value={i.server.bridge.start} />
-                  <Row label="Bridge Stop" value={i.server.bridge.stop} />
-                  <Row label="Bridge Subnet Mask" value={i.server.bridge.subnet_mask} />
-                  <Row label="Bridge Disabled" value={i.server.bridge.disable ? "Yes" : "No"} />
+                  <div className="text-xs font-semibold text-muted-foreground mt-2">{t("drawer.bridge")}</div>
+                  <Row label={t("fields.bridgeGateway")} value={i.server.bridge.gateway} />
+                  <Row label={t("fields.bridgeStart")} value={i.server.bridge.start} />
+                  <Row label={t("fields.bridgeStop")} value={i.server.bridge.stop} />
+                  <Row label={t("fields.bridgeSubnetMask")} value={i.server.bridge.subnet_mask} />
+                  <Row label={t("fields.bridgeDisabled")} value={i.server.bridge.disable ? t("yes") : t("no")} />
                 </>
               )}
               {i.server.client_ip_pool && (
                 <>
-                  <div className="text-xs font-semibold text-muted-foreground mt-2">Client IP Pool</div>
-                  <Row label="Pool Start" value={i.server.client_ip_pool.start} />
-                  <Row label="Pool Stop" value={i.server.client_ip_pool.stop} />
-                  <Row label="Pool Mask" value={i.server.client_ip_pool.subnet_mask} />
-                  <Row label="Pool Disabled" value={i.server.client_ip_pool.disable ? "Yes" : "No"} />
+                  <div className="text-xs font-semibold text-muted-foreground mt-2">{t("drawer.clientIpPool")}</div>
+                  <Row label={t("fields.poolStart")} value={i.server.client_ip_pool.start} />
+                  <Row label={t("fields.poolStop")} value={i.server.client_ip_pool.stop} />
+                  <Row label={t("fields.poolMask")} value={i.server.client_ip_pool.subnet_mask} />
+                  <Row label={t("fields.poolDisabled")} value={i.server.client_ip_pool.disable ? t("yes") : t("no")} />
                 </>
               )}
               {i.server.client_ipv6_pool && (
                 <>
-                  <div className="text-xs font-semibold text-muted-foreground mt-2">Client IPv6 Pool</div>
-                  <Row label="Pool Base" value={i.server.client_ipv6_pool.base} />
-                  <Row label="Pool Disabled" value={i.server.client_ipv6_pool.disable ? "Yes" : "No"} />
+                  <div className="text-xs font-semibold text-muted-foreground mt-2">{t("drawer.clientIpv6Pool")}</div>
+                  <Row label={t("fields.poolBase")} value={i.server.client_ipv6_pool.base} />
+                  <Row label={t("fields.poolDisabled")} value={i.server.client_ipv6_pool.disable ? t("yes") : t("no")} />
                 </>
               )}
               {i.server.mfa_totp && (
                 <>
                   <div className="text-xs font-semibold text-muted-foreground mt-2">MFA TOTP</div>
-                  <Row label="Challenge" value={i.server.mfa_totp.challenge} />
-                  <Row label="Digits" value={i.server.mfa_totp.digits} />
-                  <Row label="Drift" value={i.server.mfa_totp.drift} />
-                  <Row label="Slop" value={i.server.mfa_totp.slop} />
-                  <Row label="Step" value={i.server.mfa_totp.step} />
+                  <Row label={t("fields.challenge")} value={i.server.mfa_totp.challenge} />
+                  <Row label={t("fields.digits")} value={i.server.mfa_totp.digits} />
+                  <Row label={t("fields.drift")} value={i.server.mfa_totp.drift} />
+                  <Row label={t("fields.slop")} value={i.server.mfa_totp.slop} />
+                  <Row label={t("fields.step")} value={i.server.mfa_totp.step} />
                 </>
               )}
 
@@ -309,16 +313,16 @@ export function OpenvpnDetailsDrawer({
                 <div className="mt-3">
                   <div className="flex items-center gap-2 text-sm font-semibold mb-2">
                     <Users className="h-4 w-4 text-primary" />
-                    Clients ({i.server.clients.length})
+                    {t("drawer.clients", { count: String(i.server.clients.length) })}
                   </div>
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>{tc("name")}</TableHead>
+                        <TableHead>{tc("status")}</TableHead>
                         <TableHead>IP</TableHead>
-                        <TableHead>Subnets</TableHead>
-                        <TableHead>Push Routes</TableHead>
+                        <TableHead>{t("fields.subnets")}</TableHead>
+                        <TableHead>{t("fields.pushRoutes")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -327,10 +331,10 @@ export function OpenvpnDetailsDrawer({
                           <TableCell className="font-medium">{c.name}</TableCell>
                           <TableCell>
                             {c.disable ? (
-                              <Badge variant="secondary">Disabled</Badge>
+                              <Badge variant="secondary">{tc("disabled")}</Badge>
                             ) : (
                               <Badge variant="outline" className="text-green-600 border-green-600/30">
-                                Active
+                                {t("active")}
                               </Badge>
                             )}
                           </TableCell>
@@ -354,51 +358,51 @@ export function OpenvpnDetailsDrawer({
           {(i.ip || i.ipv6) && (
             <>
               <Separator className="my-3" />
-              <SectionHeader icon={Network} title="Advanced IP / IPv6" />
+              <SectionHeader icon={Network} title={t("drawer.advancedIp")} />
               {i.ip && (
                 <>
                   <div className="text-xs font-semibold text-muted-foreground mt-2">IPv4</div>
-                  <Row label="Adjust MSS" value={i.ip.adjust_mss} />
-                  <Row label="ARP Cache Timeout" value={i.ip.arp_cache_timeout} />
-                  <Row label="Source Validation" value={i.ip.source_validation} />
-                  <Row label="Disable ARP Filter" value={i.ip.disable_arp_filter ? "Yes" : "—"} />
-                  <Row label="Disable Forwarding" value={i.ip.disable_forwarding ? "Yes" : "—"} />
-                  <Row label="Enable ARP Accept" value={i.ip.enable_arp_accept ? "Yes" : "—"} />
-                  <Row label="Enable ARP Announce" value={i.ip.enable_arp_announce ? "Yes" : "—"} />
-                  <Row label="Enable ARP Ignore" value={i.ip.enable_arp_ignore ? "Yes" : "—"} />
+                  <Row label={t("fields.adjustMss")} value={i.ip.adjust_mss} />
+                  <Row label={t("fields.arpCacheTimeout")} value={i.ip.arp_cache_timeout} />
+                  <Row label={t("fields.sourceValidation")} value={i.ip.source_validation} />
+                  <Row label={t("fields.disableArpFilter")} value={i.ip.disable_arp_filter ? t("yes") : "—"} />
+                  <Row label={t("fields.disableForwarding")} value={i.ip.disable_forwarding ? t("yes") : "—"} />
+                  <Row label={t("fields.enableArpAccept")} value={i.ip.enable_arp_accept ? t("yes") : "—"} />
+                  <Row label={t("fields.enableArpAnnounce")} value={i.ip.enable_arp_announce ? t("yes") : "—"} />
+                  <Row label={t("fields.enableArpIgnore")} value={i.ip.enable_arp_ignore ? t("yes") : "—"} />
                   <Row
-                    label="Enable Directed Broadcast"
-                    value={i.ip.enable_directed_broadcast ? "Yes" : "—"}
+                    label={t("fields.enableDirectedBroadcast")}
+                    value={i.ip.enable_directed_broadcast ? t("yes") : "—"}
                   />
-                  <Row label="Enable Proxy ARP" value={i.ip.enable_proxy_arp ? "Yes" : "—"} />
-                  <Row label="Proxy ARP PVLAN" value={i.ip.proxy_arp_pvlan ? "Yes" : "—"} />
+                  <Row label={t("fields.enableProxyArp")} value={i.ip.enable_proxy_arp ? t("yes") : "—"} />
+                  <Row label={t("fields.proxyArpPvlan")} value={i.ip.proxy_arp_pvlan ? t("yes") : "—"} />
                 </>
               )}
               {i.ipv6 && (
                 <>
                   <div className="text-xs font-semibold text-muted-foreground mt-2">IPv6</div>
-                  <Row label="Accept DAD" value={i.ipv6.accept_dad} />
-                  <Row label="Adjust MSS" value={i.ipv6.adjust_mss} />
-                  <Row label="Autoconf" value={i.ipv6.address_autoconf ? "Yes" : "—"} />
+                  <Row label={t("fields.acceptDad")} value={i.ipv6.accept_dad} />
+                  <Row label={t("fields.adjustMss")} value={i.ipv6.adjust_mss} />
+                  <Row label={t("fields.autoconf")} value={i.ipv6.address_autoconf ? t("yes") : "—"} />
                   <Row label="EUI-64" value={i.ipv6.address_eui64} />
                   <Row
-                    label="No Default Link-Local"
-                    value={i.ipv6.address_no_default_link_local ? "Yes" : "—"}
+                    label={t("fields.noDefaultLinkLocal")}
+                    value={i.ipv6.address_no_default_link_local ? t("yes") : "—"}
                   />
                   <Row
-                    label="Interface Identifier"
+                    label={t("fields.interfaceIdentifier")}
                     value={i.ipv6.address_interface_identifier}
                   />
-                  <Row label="Base Reachable Time" value={i.ipv6.base_reachable_time} />
+                  <Row label={t("fields.baseReachableTime")} value={i.ipv6.base_reachable_time} />
                   <Row
-                    label="Disable Forwarding"
-                    value={i.ipv6.disable_forwarding ? "Yes" : "—"}
+                    label={t("fields.disableForwarding")}
+                    value={i.ipv6.disable_forwarding ? t("yes") : "—"}
                   />
                   <Row
-                    label="Dup Addr Detect Transmits"
+                    label={t("fields.dupAddrDetectTransmits")}
                     value={i.ipv6.dup_addr_detect_transmits}
                   />
-                  <Row label="Source Validation" value={i.ipv6.source_validation} />
+                  <Row label={t("fields.sourceValidation")} value={i.ipv6.source_validation} />
                 </>
               )}
             </>
@@ -408,9 +412,9 @@ export function OpenvpnDetailsDrawer({
           {(i.mirror_ingress || i.mirror_egress) && (
             <>
               <Separator className="my-3" />
-              <SectionHeader icon={Activity} title="Traffic Mirror" />
-              <Row label="Ingress Mirror" value={i.mirror_ingress} />
-              <Row label="Egress Mirror" value={i.mirror_egress} />
+              <SectionHeader icon={Activity} title={t("drawer.trafficMirror")} />
+              <Row label={t("fields.ingressMirror")} value={i.mirror_ingress} />
+              <Row label={t("fields.egressMirror")} value={i.mirror_egress} />
             </>
           )}
         </div>

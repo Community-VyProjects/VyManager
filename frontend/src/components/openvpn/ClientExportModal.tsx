@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -49,6 +50,8 @@ export function ClientExportModal({
   onOpenChange,
   interfaceData,
 }: ClientExportModalProps) {
+  const t = useTranslations("openvpnTools");
+  const tc = useTranslations("common");
   const [caOptions, setCaOptions] = useState<string[]>([]);
   const [certs, setCerts] = useState<OpenvpnExportCertificate[]>([]);
 
@@ -127,7 +130,7 @@ export function ClientExportModal({
       })
       .catch((err) => {
         if (!cancelled)
-          setError((err as ApiError).message || "Failed to load PKI material");
+          setError((err as ApiError).message || t("export.loadFailed"));
       })
       .finally(() => {
         if (!cancelled) setOptionsLoading(false);
@@ -136,7 +139,7 @@ export function ClientExportModal({
     return () => {
       cancelled = true;
     };
-  }, [open, interfaceData, clients]);
+  }, [open, interfaceData, clients, t]);
 
   const handleAssignedClientChange = (value: string) => {
     setAssignedClient(value);
@@ -166,11 +169,11 @@ export function ClientExportModal({
   const handleGenerate = async () => {
     if (!interfaceData) return;
     if (!ca) {
-      setError("Select a CA certificate");
+      setError(t("export.selectCaError"));
       return;
     }
     if (!certificate) {
-      setError("Select a client certificate");
+      setError(t("export.selectCertError"));
       return;
     }
 
@@ -190,10 +193,10 @@ export function ClientExportModal({
           config: res.config,
         });
       } else {
-        setError(res.error || "Failed to generate client config");
+        setError(res.error || t("export.generateFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to generate client config");
+      setError((err as ApiError).message || t("export.generateFailed"));
     } finally {
       setGenerating(false);
     }
@@ -222,19 +225,21 @@ export function ClientExportModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Download className="h-5 w-5 text-primary" />
-            Export Client Config
+            {t("export.title")}
           </DialogTitle>
           <DialogDescription>
             {result
-              ? `Client profile for ${interfaceData.name}`
-              : `Generate a ready-to-use .ovpn for ${interfaceData.name}`}
+              ? t("export.resultDescription", { name: interfaceData.name })
+              : t("export.description", { name: interfaceData.name })}
           </DialogDescription>
         </DialogHeader>
 
         {!result ? (
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="export-remote-host">Server address</Label>
+              <Label htmlFor="export-remote-host">
+                {t("export.serverAddress")}
+              </Label>
               <Input
                 id="export-remote-host"
                 value={remoteHost}
@@ -242,13 +247,14 @@ export function ClientExportModal({
                 placeholder="vpn.example.com"
               />
               <p className="text-xs text-muted-foreground">
-                Public hostname or IP clients connect to. Fills the{" "}
-                <code className="font-mono">remote</code> line.
+                {t.rich("export.serverAddressHint", {
+                  code: (chunks) => <code className="font-mono">{chunks}</code>,
+                })}
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label>CA certificate</Label>
+              <Label>{t("export.caCertificate")}</Label>
               <Select
                 value={ca}
                 onValueChange={setCa}
@@ -256,7 +262,9 @@ export function ClientExportModal({
               >
                 <SelectTrigger>
                   <SelectValue
-                    placeholder={optionsLoading ? "Loading…" : "Select CA"}
+                    placeholder={
+                      optionsLoading ? t("export.loading") : t("export.selectCa")
+                    }
                   />
                 </SelectTrigger>
                 <SelectContent>
@@ -271,7 +279,7 @@ export function ClientExportModal({
 
             {hasClients && (
               <div className="space-y-2">
-                <Label>Assigned client</Label>
+                <Label>{t("export.assignedClient")}</Label>
                 <Select
                   value={assignedClient}
                   onValueChange={handleAssignedClientChange}
@@ -284,25 +292,31 @@ export function ClientExportModal({
                     {clients.map((c) => (
                       <SelectItem key={c.name} value={c.name}>
                         {c.name}
-                        {c.disable ? " (disabled)" : ""}
+                        {c.disable ? t("export.disabledSuffix") : ""}
                       </SelectItem>
                     ))}
                     <SelectItem value={MANUAL}>
-                      Other / pick certificate manually
+                      {t("export.manual")}
                     </SelectItem>
                   </SelectContent>
                 </Select>
                 {selectedClient && matchedCertName && (
                   <p className="text-xs text-muted-foreground">
-                    Matched certificate{" "}
-                    <span className="font-mono">{matchedCertName}</span>
+                    {t.rich("export.matchedCert", {
+                      cert: matchedCertName,
+                      mono: (chunks) => (
+                        <span className="font-mono">{chunks}</span>
+                      ),
+                    })}
                     {selectedClient.ip.length > 0 ? (
                       <>
                         {" "}
-                        · server assigns fixed IP{" "}
-                        <span className="font-mono">
-                          {selectedClient.ip.join(", ")}
-                        </span>
+                        {t.rich("export.fixedIp", {
+                          ip: selectedClient.ip.join(", "),
+                          mono: (chunks) => (
+                            <span className="font-mono">{chunks}</span>
+                          ),
+                        })}
                       </>
                     ) : null}
                   </p>
@@ -311,11 +325,12 @@ export function ClientExportModal({
                   <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 p-3">
                     <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                     <p className="text-xs text-amber-700 dark:text-amber-500">
-                      No certificate has a Common Name of{" "}
-                      <span className="font-mono">{assignedClient}</span>.
-                      Per-client settings (fixed IP, routes) won&apos;t apply
-                      unless the exported certificate&apos;s CN matches. Pick a
-                      certificate below.
+                      {t.rich("export.noMatch", {
+                        name: assignedClient,
+                        mono: (chunks) => (
+                          <span className="font-mono">{chunks}</span>
+                        ),
+                      })}
                     </p>
                   </div>
                 )}
@@ -323,7 +338,7 @@ export function ClientExportModal({
             )}
 
             <div className="space-y-2">
-              <Label>Client certificate</Label>
+              <Label>{t("export.clientCertificate")}</Label>
               <Select
                 value={certificate}
                 onValueChange={handleCertificateChange}
@@ -332,7 +347,9 @@ export function ClientExportModal({
                 <SelectTrigger>
                   <SelectValue
                     placeholder={
-                      optionsLoading ? "Loading…" : "Select client certificate"
+                      optionsLoading
+                        ? t("export.loading")
+                        : t("export.selectClientCert")
                     }
                   />
                 </SelectTrigger>
@@ -347,7 +364,7 @@ export function ClientExportModal({
             </div>
 
             <div className="space-y-2">
-              <Label>Client key</Label>
+              <Label>{t("export.clientKey")}</Label>
               <Select
                 value={keyName}
                 onValueChange={setKeyName}
@@ -358,7 +375,7 @@ export function ClientExportModal({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={SAME_AS_CERT}>
-                    Same as certificate
+                    {t("export.sameAsCert")}
                   </SelectItem>
                   {certs.map((c) => (
                     <SelectItem key={c.name} value={c.name}>
@@ -383,16 +400,14 @@ export function ClientExportModal({
             <div className="flex items-start gap-3 rounded-lg border border-green-600/20 bg-green-600/10 p-4">
               <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
               <div className="space-y-1">
-                <p className="text-sm font-medium">Client profile ready</p>
+                <p className="text-sm font-medium">{t("export.profileReady")}</p>
                 <p className="text-xs text-muted-foreground font-mono break-all">
                   {result.filename}
                 </p>
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              Includes the CA, client certificate/key and the server&apos;s TLS
-              key. Treat this file as a secret &mdash; anyone with it can
-              connect.
+              {t("export.secretWarning")}
             </p>
           </div>
         )}
@@ -405,7 +420,7 @@ export function ClientExportModal({
                 onClick={() => onOpenChange(false)}
                 disabled={generating}
               >
-                Cancel
+                {tc("cancel")}
               </Button>
               <Button
                 onClick={handleGenerate}
@@ -414,10 +429,10 @@ export function ClientExportModal({
                 {generating ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generating…
+                    {t("export.generating")}
                   </>
                 ) : (
-                  "Generate"
+                  t("export.generate")
                 )}
               </Button>
             </>
@@ -425,11 +440,11 @@ export function ClientExportModal({
             <>
               <Button variant="outline" onClick={() => setResult(null)}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
+                {t("back")}
               </Button>
               <Button onClick={handleDownload}>
                 <Download className="mr-2 h-4 w-4" />
-                Download
+                {t("export.download")}
               </Button>
             </>
           )}
