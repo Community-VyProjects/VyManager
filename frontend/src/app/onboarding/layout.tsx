@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = {
-  title: "Onboarding - VyManager",
-  description: "Setup your VyManager instance",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("onboarding");
+  return {
+    title: t("pageTitle"),
+    description: t("pageDescription"),
+  };
+}
 
 export default function OnboardingLayout({
   children,

@@ -1,0 +1,9 @@
+{
+  "subtitle": "VyOS Management",
+  "reportBug": "Report a Bug",
+  "connected": "Connected",
+  "disconnectInstance": "Disconnect instance",
+  "connectToInstance": "Connect to Instance",
+  "userFallback": "User",
+  "logout": "Logout"
+}

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Geist, Geist_Mono } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale } from "next-intl/server";
 import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SearchProvider } from "@/contexts/SearchContext";
@@ -32,19 +34,22 @@ export default async function RootLayout({
 }>) {
   await connection();
   const publicWs = process.env.PUBLIC_WS_URL || process.env.NEXT_PUBLIC_WS_URL || "";
+  const locale = await getLocale();
   return (
-    <html lang="en">
+    <html lang={locale}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {publicWs ? <meta name="vymanager-ws-base" content={publicWs} /> : null}
-        <ThemeProvider>
-          <SearchProvider>
-            <UnifiedViewProvider>
-              <AppLayout>{children}</AppLayout>
-            </UnifiedViewProvider>
-          </SearchProvider>
-        </ThemeProvider>
+        <NextIntlClientProvider>
+          <ThemeProvider>
+            <SearchProvider>
+              <UnifiedViewProvider>
+                <AppLayout>{children}</AppLayout>
+              </UnifiedViewProvider>
+            </SearchProvider>
+          </ThemeProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

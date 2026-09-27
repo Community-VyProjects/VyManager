@@ -1,0 +1,6 @@
+{
+  "title": "Language",
+  "description": "Choose the display language for VyManager on this browser.",
+  "browserDefault": "Browser default",
+  "browserDefaultHint": "Follow your browser's language settings"
+}
