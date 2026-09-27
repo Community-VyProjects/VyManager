@@ -1,1 +1,38 @@
-{}
+{
+  "error": {
+    "title": "出错了",
+    "description": "应用的这一部分遇到了意外错误。你可以报告此问题（错误详情会自动附加），或尝试重新加载。",
+    "report": "报告问题",
+    "tryAgain": "重试"
+  },
+  "noInstance": {
+    "title": "未连接 VyOS 实例",
+    "message": "访问此页面前需要先连接到 VyOS 实例。请在站点管理中选择一个实例。",
+    "unreachable": "无法访问此路由器。请检查 API 后重试。",
+    "connect": "连接到实例"
+  },
+  "interfaceForm": {
+    "createTitle": "创建新接口",
+    "editTitle": "编辑接口：{name}",
+    "createDescription": "为你的 VyOS 路由器配置新的网络接口。",
+    "editDescription": "更新此网络接口的配置。",
+    "name": "接口名称 *",
+    "type": "类型 *",
+    "types": {
+      "ethernet": "以太网",
+      "dummy": "Dummy",
+      "loopback": "环回"
+    },
+    "descriptionPlaceholder": "例如 LAN 接口",
+    "addresses": "IP 地址",
+    "example": "例如 {value}",
+    "hwId": "硬件 ID（MAC 地址）",
+    "sourceInterface": "源接口",
+    "create": "创建接口",
+    "update": "更新接口"
+  },
+  "deleteInterface": {
+    "title": "删除接口",
+    "description": "确定要删除接口 <iface>{name}</iface> 吗？此操作无法撤销，并可能中断网络连接。"
+  }
+}
