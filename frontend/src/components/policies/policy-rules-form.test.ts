@@ -195,7 +195,7 @@ const storedMap: RouteMapRule = {
 
 describe("as-path list rule create", () => {
   it("rejects a missing regex", () => {
-    assert.equal(validateRegexListRule(emptyRegexListRuleDraft()), "Regex pattern is required");
+    assert.equal(validateRegexListRule(emptyRegexListRuleDraft()), "regexRequired");
   });
 
   it("emits only the fields the operator filled in", async () => {

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,8 @@ export function CreateExtCommunityListModal({
   onOpenChange,
   onSuccess,
 }: CreateExtCommunityListModalProps) {
+  const t = useTranslations("bgpLists");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,7 +66,7 @@ export function CreateExtCommunityListModal({
 
   const getPreview = (): string => {
     if (matchType === "regex") {
-      return rawRegex.trim() || "(enter pattern)";
+      return rawRegex.trim() || t("extCommunity.enterPattern");
     }
     const admin = adminField.trim() || "?";
     const num1 = assignedNum1.trim() || "?";
@@ -73,44 +76,44 @@ export function CreateExtCommunityListModal({
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      setError("ExtCommunity list name is required");
+      setError(t("extCommunity.nameRequired"));
       return;
     }
 
     if (!ruleNumber || isNaN(Number(ruleNumber))) {
-      setError("Valid rule number is required");
+      setError(t("shared.validRuleNumber"));
       return;
     }
 
     // Validation for pattern
     if (matchType === "regex") {
       if (!rawRegex.trim()) {
-        setError("Regex pattern is required");
+        setError(t("validation.regexRequired"));
         return;
       }
     } else {
       if (!adminField.trim()) {
-        setError("Administrator field (AS Number) is required");
+        setError(t("validation.adminFieldRequired"));
         return;
       }
       if (!assignedNum1.trim()) {
-        setError("Assigned Number 1 is required");
+        setError(t("validation.assignedNum1Required"));
         return;
       }
       if (!assignedNum2.trim()) {
-        setError("Assigned Number 2 is required");
+        setError(t("validation.assignedNum2Required"));
         return;
       }
       if (!/^\d+$/.test(adminField.trim())) {
-        setError("Administrator field must be a valid number (e.g., 65000)");
+        setError(t("validation.adminFieldNumber"));
         return;
       }
       if (!/^\d+$/.test(assignedNum1.trim())) {
-        setError("Assigned Number 1 must be a valid number");
+        setError(t("validation.assignedNum1Number"));
         return;
       }
       if (!/^\d+$/.test(assignedNum2.trim())) {
-        setError("Assigned Number 2 must be a valid number");
+        setError(t("validation.assignedNum2Number"));
         return;
       }
     }
@@ -136,7 +139,7 @@ export function CreateExtCommunityListModal({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create ExtCommunity list");
+      setError(err instanceof Error ? err.message : t("shared.failedToCreateList", { listType: t("types.extCommunity.modalName") }));
     } finally {
       setLoading(false);
     }
@@ -153,34 +156,34 @@ export function CreateExtCommunityListModal({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Extended Community List</DialogTitle>
+          <DialogTitle>{t("extCommunity.createTitle")}</DialogTitle>
           <DialogDescription>
-            Create a new BGP Extended Community list with an initial rule
+            {t("extCommunity.createDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 py-4">
           {/* ExtCommunity List Name */}
           <div className="space-y-2">
-            <Label htmlFor="name">List Name *</Label>
+            <Label htmlFor="name">{t("extCommunity.listNameRequired")}</Label>
             <Input
               id="name"
-              placeholder="e.g., DATACENTER_RT or VPN_SOO"
+              placeholder={t("extCommunity.namePlaceholder")}
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={loading}
             />
             <p className="text-xs text-muted-foreground">
-              A unique name to identify this extended community list
+              {t("extCommunity.nameHelp")}
             </p>
           </div>
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="description">List Description (Optional)</Label>
+            <Label htmlFor="description">{t("extCommunity.listDescriptionOptional")}</Label>
             <Textarea
               id="description"
-              placeholder="e.g., Route targets for datacenter VPN"
+              placeholder={t("extCommunity.listDescriptionPlaceholder")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={loading}
@@ -190,11 +193,11 @@ export function CreateExtCommunityListModal({
 
           {/* Initial Rule Section */}
           <div className="pt-4 border-t">
-            <h3 className="font-semibold text-sm mb-4">Initial Rule Configuration</h3>
+            <h3 className="font-semibold text-sm mb-4">{t("extCommunity.initialRuleConfig")}</h3>
 
             {/* Action Selection */}
             <div className="space-y-3 mb-4">
-              <Label className="text-sm font-medium">Rule Action</Label>
+              <Label className="text-sm font-medium">{t("extCommunity.ruleAction")}</Label>
               <RadioGroup
                 value={action}
                 onValueChange={(v) => setAction(v as "permit" | "deny")}
@@ -206,7 +209,7 @@ export function CreateExtCommunityListModal({
                   <Label htmlFor="permit" className="font-normal cursor-pointer">
                     <span className="inline-flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                      Permit
+                      {t("shared.permit")}
                     </span>
                   </Label>
                 </div>
@@ -215,7 +218,7 @@ export function CreateExtCommunityListModal({
                   <Label htmlFor="deny" className="font-normal cursor-pointer">
                     <span className="inline-flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                      Deny
+                      {t("shared.deny")}
                     </span>
                   </Label>
                 </div>
@@ -224,7 +227,7 @@ export function CreateExtCommunityListModal({
 
             {/* Match Type Selection */}
             <div className="space-y-3 mb-4">
-              <Label className="text-sm font-medium">Community Type</Label>
+              <Label className="text-sm font-medium">{t("extCommunity.communityType")}</Label>
               <RadioGroup
                 value={matchType}
                 onValueChange={(v) => setMatchType(v as "rt" | "soo" | "regex")}
@@ -234,27 +237,27 @@ export function CreateExtCommunityListModal({
                 <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                   <RadioGroupItem value="rt" id="rt" className="mt-0.5" />
                   <div className="flex-1">
-                    <Label htmlFor="rt" className="font-medium cursor-pointer">Route Target (RT)</Label>
+                    <Label htmlFor="rt" className="font-medium cursor-pointer">{t("extCommunity.rtLabel")}</Label>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Used for VPN route distribution between VRFs
+                      {t("extCommunity.rtHelp")}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                   <RadioGroupItem value="soo" id="soo" className="mt-0.5" />
                   <div className="flex-1">
-                    <Label htmlFor="soo" className="font-medium cursor-pointer">Site of Origin (SoO)</Label>
+                    <Label htmlFor="soo" className="font-medium cursor-pointer">{t("extCommunity.sooLabel")}</Label>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Used to prevent routing loops in multi-homed sites
+                      {t("extCommunity.sooHelp")}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                   <RadioGroupItem value="regex" id="regex" className="mt-0.5" />
                   <div className="flex-1">
-                    <Label htmlFor="regex" className="font-medium cursor-pointer">Advanced (Regex Pattern)</Label>
+                    <Label htmlFor="regex" className="font-medium cursor-pointer">{t("extCommunity.advancedLabel")}</Label>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Enter a custom regex pattern for complex matching
+                      {t("extCommunity.advancedHelp")}
                     </p>
                   </div>
                 </div>
@@ -266,11 +269,11 @@ export function CreateExtCommunityListModal({
               <div className="space-y-3 p-4 bg-muted/30 rounded-lg border mb-4">
                 <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-3">
                   <Info className="h-4 w-4" />
-                  Enter the {matchType === "rt" ? "Route Target" : "Site of Origin"} values (format: aa:nn:nn)
+                  {t("extCommunity.enterValues", { kind: matchType })}
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-2">
-                    <Label htmlFor="adminField">AS Number</Label>
+                    <Label htmlFor="adminField">{t("extCommunity.asNumber")}</Label>
                     <Input
                       id="adminField"
                       placeholder="65000"
@@ -282,11 +285,11 @@ export function CreateExtCommunityListModal({
                       max="4294967295"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Administrator
+                      {t("extCommunity.administrator")}
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="assignedNum1">Value 1</Label>
+                    <Label htmlFor="assignedNum1">{t("extCommunity.value1")}</Label>
                     <Input
                       id="assignedNum1"
                       placeholder="100"
@@ -298,11 +301,11 @@ export function CreateExtCommunityListModal({
                       max="65535"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Assigned #1
+                      {t("extCommunity.assigned1")}
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="assignedNum2">Value 2</Label>
+                    <Label htmlFor="assignedNum2">{t("extCommunity.value2")}</Label>
                     <Input
                       id="assignedNum2"
                       placeholder="200"
@@ -314,33 +317,38 @@ export function CreateExtCommunityListModal({
                       max="65535"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Assigned #2
+                      {t("extCommunity.assigned2")}
                     </p>
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Example: <code className="bg-muted px-1 rounded">65000:100:200</code> creates {matchType} 65000:100:200
+                  {t.rich("extCommunity.example", {
+                    matchType,
+                    code: (chunks) => <code className="bg-muted px-1 rounded">{chunks}</code>,
+                  })}
                 </p>
               </div>
             ) : (
               <div className="space-y-3 p-4 bg-muted/30 rounded-lg border mb-4">
                 <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-3">
                   <Info className="h-4 w-4" />
-                  Enter a regex pattern to match extended communities
+                  {t("extCommunity.enterRegex")}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="rawRegex">Regex Pattern</Label>
+                  <Label htmlFor="rawRegex">{t("extCommunity.regexPattern")}</Label>
                   <Input
                     id="rawRegex"
-                    placeholder="e.g., rt 65000:100:200 or soo 65000:.*:.*"
+                    placeholder={t("shared.eg", { value: "rt 65000:100:200 or soo 65000:.*:.*" })}
                     value={rawRegex}
                     onChange={(e) => setRawRegex(e.target.value)}
                     disabled={loading}
                     className="font-mono text-sm"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Examples: <code className="bg-muted px-1 rounded">rt 65000:.*:.*</code> (all RTs from AS 65000),
-                    <code className="bg-muted px-1 rounded ml-1">soo .*:100:.*</code> (all SoOs with value 100)
+                    {t.rich("extCommunity.regexExamples", {
+                      code: (chunks) => <code className="bg-muted px-1 rounded">{chunks}</code>,
+                      code2: (chunks) => <code className="bg-muted px-1 rounded ml-1">{chunks}</code>,
+                    })}
                   </p>
                 </div>
               </div>
@@ -350,7 +358,7 @@ export function CreateExtCommunityListModal({
             <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded-lg mb-4">
               <Eye className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">Configuration Preview</p>
+                <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">{t("extCommunity.configPreview")}</p>
                 <p className="text-sm font-mono truncate mt-0.5">
                   {action} extended-community: <span className="font-semibold">{getPreview()}</span>
                 </p>
@@ -359,10 +367,10 @@ export function CreateExtCommunityListModal({
 
             {/* Rule Description */}
             <div className="space-y-2">
-              <Label htmlFor="ruleDescription">Rule Description (Optional)</Label>
+              <Label htmlFor="ruleDescription">{t("extCommunity.ruleDescriptionOptional")}</Label>
               <Input
                 id="ruleDescription"
-                placeholder="e.g., Allow route targets from datacenter"
+                placeholder={t("extCommunity.descriptionPlaceholder")}
                 value={ruleDescription}
                 onChange={(e) => setRuleDescription(e.target.value)}
                 disabled={loading}
@@ -380,11 +388,11 @@ export function CreateExtCommunityListModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {loading ? "Creating..." : "Create List"}
+            {loading ? t("shared.creating") : t("extCommunity.createList")}
           </Button>
         </DialogFooter>
       </DialogContent>

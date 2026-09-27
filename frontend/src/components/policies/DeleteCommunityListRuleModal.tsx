@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, AlertTriangle } from "lucide-react";
 import { communityListService, type CommunityListRule } from "@/lib/api/community-list";
@@ -21,6 +22,8 @@ export function DeleteCommunityListRuleModal({
   communityListName,
   rule,
 }: DeleteCommunityListRuleModalProps) {
+  const t = useTranslations("bgpLists");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,7 +38,7 @@ export function DeleteCommunityListRuleModal({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete rule");
+      setError(err instanceof Error ? err.message : t("shared.failedToDeleteRule"));
     } finally {
       setLoading(false);
     }
@@ -47,9 +50,9 @@ export function DeleteCommunityListRuleModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete Rule</DialogTitle>
+          <DialogTitle>{t("shared.deleteRule")}</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete this rule? This action cannot be undone.
+            {t("shared.deleteRuleConfirm")}
           </DialogDescription>
         </DialogHeader>
 
@@ -57,7 +60,7 @@ export function DeleteCommunityListRuleModal({
           <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="text-sm font-medium text-destructive">
-              Deleting rule {rule.rule_number} from Community list: {communityListName}
+              {t("shared.deletingRule", { number: String(rule.rule_number), listType: t("types.community.modalName"), name: communityListName })}
             </p>
             {rule.description && (
               <p className="text-sm text-muted-foreground mt-1">
@@ -66,7 +69,7 @@ export function DeleteCommunityListRuleModal({
             )}
             {rule.regex && (
               <p className="text-sm text-muted-foreground mt-1">
-                Pattern: <code className="text-xs bg-muted px-1 py-0.5 rounded">{rule.regex}</code>
+                {t("shared.patternLabel")} <code className="text-xs bg-muted px-1 py-0.5 rounded">{rule.regex}</code>
               </p>
             )}
           </div>
@@ -81,10 +84,10 @@ export function DeleteCommunityListRuleModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
-            {loading ? "Deleting..." : "Delete Rule"}
+            {loading ? tc("deleting") : t("shared.deleteRule")}
           </Button>
         </DialogFooter>
       </DialogContent>
