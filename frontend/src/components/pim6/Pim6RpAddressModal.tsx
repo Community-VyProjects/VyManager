@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,8 @@ export function Pim6RpAddressModal({
   onSubmit,
   existingRp,
 }: Pim6RpAddressModalProps) {
+  const t = useTranslations("pim6");
+  const tc = useTranslations("common");
   const isEditMode = !!existingRp;
 
   const [address, setAddress] = useState("");
@@ -87,23 +90,23 @@ export function Pim6RpAddressModal({
   const validateForm = (): string | null => {
     const trimmed = address.trim();
     if (!trimmed) {
-      return "RP address is required";
+      return t("rpModal.addressRequired");
     }
     if (!isValidIPv6(trimmed) || trimmed === "") {
-      return "RP address must be a valid IPv6 address";
+      return t("rpModal.addressInvalid");
     }
     if (mode === "groups") {
       if (groups.length === 0) {
-        return "Add at least one IPv6 group prefix, or switch to prefix-list6 mode";
+        return t("rpModal.groupsRequired");
       }
       for (const g of groups) {
         if (!isValidIPv6CIDR(g) || g === "") {
-          return `Invalid group format: ${g}. Use IPv6 CIDR notation (e.g., ff00::/8)`;
+          return t("rpModal.invalidGroup", { group: g });
         }
       }
     } else {
       if (!prefixList.trim()) {
-        return "Prefix-list6 name is required";
+        return t("rpModal.prefixListRequired");
       }
     }
     return null;
@@ -113,11 +116,11 @@ export function Pim6RpAddressModal({
     const value = newGroup.trim();
     if (!value) return;
     if (groups.includes(value)) {
-      setError("Group already exists");
+      setError(t("rpModal.groupExists"));
       return;
     }
     if (!isValidIPv6CIDR(value) || value === "") {
-      setError(`Invalid IPv6 CIDR: ${value}`);
+      setError(t("rpModal.invalidCidr", { value }));
       return;
     }
     setGroups([...groups, value]);
@@ -147,7 +150,7 @@ export function Pim6RpAddressModal({
       });
       handleClose();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Operation failed";
+      const message = err instanceof Error ? err.message : tc("operationFailed");
       setError(message);
     } finally {
       setLoading(false);
@@ -159,12 +162,12 @@ export function Pim6RpAddressModal({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit RP Address" : "Add RP Address"}
+            {isEditMode ? t("rpModal.editTitle") : t("addRpAddress")}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? `Modify the Rendezvous Point configuration for ${existingRp?.address}.`
-              : "Add a new Rendezvous Point address for PIMv6 multicast routing."}
+              ? t("rpModal.editDescription", { address: String(existingRp?.address) })
+              : t("rpModal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -172,25 +175,25 @@ export function Pim6RpAddressModal({
           <div className="space-y-6 pb-2">
             {/* RP Address */}
             <div className="space-y-2">
-              <Label>RP Address</Label>
+              <Label>{t("rpModal.rpAddress")}</Label>
               {isEditMode ? (
                 <Input value={address} disabled className="bg-muted font-mono" />
               ) : (
                 <Input
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="e.g. 2001:db8::1"
+                  placeholder={t("rpModal.addressPlaceholder")}
                   className="font-mono"
                 />
               )}
               <p className="text-xs text-muted-foreground">
-                IPv6 address of the Rendezvous Point.
+                {t("rpModal.addressHelp")}
               </p>
             </div>
 
             {/* Match mode */}
             <div className="space-y-3">
-              <Label>Group Matching</Label>
+              <Label>{t("rpModal.groupMatching")}</Label>
               <RadioGroup
                 value={mode}
                 onValueChange={(v) => handleModeChange(v as MatchMode)}
@@ -199,13 +202,13 @@ export function Pim6RpAddressModal({
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="groups" id="mode-groups" />
                   <Label htmlFor="mode-groups" className="font-normal cursor-pointer">
-                    Match by explicit IPv6 group prefixes
+                    {t("rpModal.modeGroups")}
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="prefix-list6" id="mode-prefix" />
                   <Label htmlFor="mode-prefix" className="font-normal cursor-pointer">
-                    Match by IPv6 prefix-list
+                    {t("rpModal.modePrefixList")}
                   </Label>
                 </div>
               </RadioGroup>
@@ -214,9 +217,9 @@ export function Pim6RpAddressModal({
             {mode === "groups" ? (
               <div className="space-y-3">
                 <div>
-                  <Label>Multicast Groups (IPv6)</Label>
+                  <Label>{t("rpModal.multicastGroups")}</Label>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Multicast group ranges this RP serves. Use IPv6 CIDR notation (e.g., ff00::/8).
+                    {t("rpModal.groupsHelp")}
                   </p>
                 </div>
 
@@ -244,7 +247,7 @@ export function Pim6RpAddressModal({
                   <Input
                     value={newGroup}
                     onChange={(e) => setNewGroup(e.target.value)}
-                    placeholder="e.g. ff00::/8"
+                    placeholder={t("rpModal.groupPlaceholder")}
                     className="font-mono"
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
@@ -265,15 +268,15 @@ export function Pim6RpAddressModal({
               </div>
             ) : (
               <div className="space-y-2">
-                <Label>Prefix-list6 Name</Label>
+                <Label>{t("rpModal.prefixListName")}</Label>
                 <Input
                   value={prefixList}
                   onChange={(e) => setPrefixList(e.target.value)}
-                  placeholder="e.g. MCAST-GROUPS"
+                  placeholder={t("rpModal.prefixListPlaceholder")}
                   className="font-mono"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Name of an IPv6 prefix-list (configured under <code>policy prefix-list6</code>).
+                  {t.rich("rpModal.prefixListHelp", { code: (chunks) => <code>{chunks}</code> })}
                 </p>
               </div>
             )}
@@ -289,18 +292,18 @@ export function Pim6RpAddressModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Adding..."}
+                {isEditMode ? tc("saving") : t("adding")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("saveChanges")
             ) : (
-              "Add RP Address"
+              t("addRpAddress")
             )}
           </Button>
         </DialogFooter>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +63,8 @@ function configToGlobalSettings(config: Pim6Config): Pim6GlobalSettings {
 // ============================================================================
 
 export function Pim6Content() {
+  const t = useTranslations("pim6");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWritePermission = canWrite(FeatureGroup.PIM6);
 
@@ -114,11 +117,11 @@ export function Pim6Content() {
       setConfig(configData);
       setCapabilities(capsData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load PIMv6 configuration");
+      setError(err instanceof Error ? err.message : t("content.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -160,7 +163,7 @@ export function Pim6Content() {
       await loadData(true);
       setGeneralEditing(false);
     } catch (err) {
-      setGeneralError(err instanceof Error ? err.message : "Failed to save configuration");
+      setGeneralError(err instanceof Error ? err.message : t("content.saveFailed"));
     } finally {
       setGeneralSaving(false);
     }
@@ -187,7 +190,7 @@ export function Pim6Content() {
       await loadData(true);
       setRpTimerEditing(false);
     } catch (err) {
-      setRpTimerError(err instanceof Error ? err.message : "Failed to save RP timer");
+      setRpTimerError(err instanceof Error ? err.message : t("content.saveRpTimerFailed"));
     } finally {
       setRpTimerSaving(false);
     }
@@ -272,7 +275,7 @@ export function Pim6Content() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -285,18 +288,18 @@ export function Pim6Content() {
         <div className="p-6 pb-4 border-b border-border">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-foreground">PIMv6 Configuration</h1>
+              <h1 className="text-2xl font-bold text-foreground">{t("content.title")}</h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Protocol Independent Multicast for IPv6
+                {t("content.subtitle")}
               </p>
             </div>
             <div className="flex items-center gap-2">
               {!hasWritePermission && (
-                <Badge variant="secondary">Read Only</Badge>
+                <Badge variant="secondary">{t("content.readOnly")}</Badge>
               )}
               <Button variant="outline" size="sm" onClick={() => loadData(true)}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -318,7 +321,7 @@ export function Pim6Content() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{ifaceCount}</p>
-                    <p className="text-xs text-muted-foreground">Interfaces</p>
+                    <p className="text-xs text-muted-foreground">{t("content.statInterfaces")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -331,7 +334,7 @@ export function Pim6Content() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{rpCount}</p>
-                    <p className="text-xs text-muted-foreground">RP Addresses</p>
+                    <p className="text-xs text-muted-foreground">{t("content.rpAddresses")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -344,7 +347,7 @@ export function Pim6Content() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{mldJoinCount}</p>
-                    <p className="text-xs text-muted-foreground">MLD Joins</p>
+                    <p className="text-xs text-muted-foreground">{t("content.mldJoins")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -356,9 +359,9 @@ export function Pim6Content() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
           <div className="px-6 pt-4 pb-2 border-b border-border">
             <TabsList>
-              <TabsTrigger value="general">General</TabsTrigger>
-              <TabsTrigger value="interfaces">Interfaces</TabsTrigger>
-              <TabsTrigger value="rp">Rendezvous Points</TabsTrigger>
+              <TabsTrigger value="general">{t("content.tabGeneral")}</TabsTrigger>
+              <TabsTrigger value="interfaces">{t("content.tabInterfaces")}</TabsTrigger>
+              <TabsTrigger value="rp">{t("content.tabRp")}</TabsTrigger>
             </TabsList>
           </div>
           <div className="flex-1 overflow-auto p-6">
@@ -374,16 +377,16 @@ export function Pim6Content() {
                         ) : (
                           <Save className="mr-2 h-4 w-4" />
                         )}
-                        Save
+                        {tc("save")}
                       </Button>
                       <Button size="sm" variant="outline" onClick={cancelEditGeneral} disabled={generalSaving}>
-                        Cancel
+                        {tc("cancel")}
                       </Button>
                     </>
                   ) : (
                     <Button size="sm" variant="outline" onClick={startEditGeneral}>
                       <Pencil className="mr-2 h-4 w-4" />
-                      Edit
+                      {tc("edit")}
                     </Button>
                   )}
                 </div>
@@ -398,56 +401,56 @@ export function Pim6Content() {
 
               <Card>
                 <CardContent className="p-5 space-y-4">
-                  <h3 className="text-sm font-semibold">Timers</h3>
+                  <h3 className="text-sm font-semibold">{t("content.timers")}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="pim6-join-prune">Join/Prune Interval (1-65535s)</Label>
+                      <Label htmlFor="pim6-join-prune">{t("content.joinPruneInterval")}</Label>
                       <Input
                         id="pim6-join-prune"
                         type="number"
                         value={generalEditing ? joinPruneInterval : (config?.join_prune_interval != null ? String(config.join_prune_interval) : "")}
                         onChange={(e) => setJoinPruneInterval(e.target.value)}
                         disabled={!generalEditing}
-                        placeholder="Default"
+                        placeholder={tc("default")}
                         min={1}
                         max={65535}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="pim6-keepalive">Keep Alive Timer (1-65535s)</Label>
+                      <Label htmlFor="pim6-keepalive">{t("content.keepAliveTimer")}</Label>
                       <Input
                         id="pim6-keepalive"
                         type="number"
                         value={generalEditing ? keepAliveTimer : (config?.keep_alive_timer != null ? String(config.keep_alive_timer) : "")}
                         onChange={(e) => setKeepAliveTimer(e.target.value)}
                         disabled={!generalEditing}
-                        placeholder="Default"
+                        placeholder={tc("default")}
                         min={1}
                         max={65535}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="pim6-reg-suppress">Register Suppress Time (1-65535s)</Label>
+                      <Label htmlFor="pim6-reg-suppress">{t("content.registerSuppressTime")}</Label>
                       <Input
                         id="pim6-reg-suppress"
                         type="number"
                         value={generalEditing ? registerSuppressTime : (config?.register_suppress_time != null ? String(config.register_suppress_time) : "")}
                         onChange={(e) => setRegisterSuppressTime(e.target.value)}
                         disabled={!generalEditing}
-                        placeholder="Default"
+                        placeholder={tc("default")}
                         min={1}
                         max={65535}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="pim6-packets">Packets (1-255)</Label>
+                      <Label htmlFor="pim6-packets">{t("content.packets")}</Label>
                       <Input
                         id="pim6-packets"
                         type="number"
                         value={generalEditing ? packets : (config?.packets != null ? String(config.packets) : "")}
                         onChange={(e) => setPackets(e.target.value)}
                         disabled={!generalEditing}
-                        placeholder="Default"
+                        placeholder={tc("default")}
                         min={1}
                         max={255}
                       />
@@ -465,7 +468,7 @@ export function Pim6Content() {
                   <Input
                     value={ifaceSearch}
                     onChange={(e) => setIfaceSearch(e.target.value)}
-                    placeholder="Search interfaces..."
+                    placeholder={t("content.searchInterfaces")}
                     className="pl-9"
                   />
                   {ifaceSearch && (
@@ -482,7 +485,7 @@ export function Pim6Content() {
                 {hasWritePermission && (
                   <Button size="sm" onClick={() => { setEditingIface(null); setIfaceModalOpen(true); }}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Interface
+                    {t("addInterface")}
                   </Button>
                 )}
               </div>
@@ -491,12 +494,12 @@ export function Pim6Content() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                     <Network className="h-10 w-10 mb-3 opacity-50" />
-                    <p className="text-sm font-medium">No PIMv6 interfaces configured</p>
-                    <p className="text-xs mt-1">Add an interface to enable PIMv6 multicast routing.</p>
+                    <p className="text-sm font-medium">{t("content.noInterfaces")}</p>
+                    <p className="text-xs mt-1">{t("content.noInterfacesHint")}</p>
                     {hasWritePermission && (
                       <Button variant="outline" size="sm" className="mt-4" onClick={() => { setEditingIface(null); setIfaceModalOpen(true); }}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Interface
+                        {t("addInterface")}
                       </Button>
                     )}
                   </CardContent>
@@ -506,12 +509,12 @@ export function Pim6Content() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Interface</TableHead>
-                        <TableHead>DR Priority</TableHead>
-                        <TableHead>Hello</TableHead>
-                        <TableHead>Flags</TableHead>
+                        <TableHead>{t("content.colInterface")}</TableHead>
+                        <TableHead>{t("content.colDrPriority")}</TableHead>
+                        <TableHead>{t("content.colHello")}</TableHead>
+                        <TableHead>{t("content.colFlags")}</TableHead>
                         <TableHead>MLD</TableHead>
-                        {hasWritePermission && <TableHead className="text-right">Actions</TableHead>}
+                        {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -527,16 +530,16 @@ export function Pim6Content() {
                           </TableCell>
                           <TableCell>
                             {iface.hello != null ? (
-                              <span className="font-mono text-sm">{iface.hello}s</span>
+                              <span className="font-mono text-sm">{t("content.seconds", { value: String(iface.hello) })}</span>
                             ) : (
                               <span className="text-muted-foreground text-sm">-</span>
                             )}
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1">
-                              {iface.passive && <Badge variant="outline" className="text-xs">Passive</Badge>}
-                              {iface.no_bsm && <Badge variant="outline" className="text-xs">No BSM</Badge>}
-                              {iface.no_unicast_bsm && <Badge variant="outline" className="text-xs">No UBSM</Badge>}
+                              {iface.passive && <Badge variant="outline" className="text-xs">{t("content.flagPassive")}</Badge>}
+                              {iface.no_bsm && <Badge variant="outline" className="text-xs">{t("content.flagNoBsm")}</Badge>}
+                              {iface.no_unicast_bsm && <Badge variant="outline" className="text-xs">{t("content.flagNoUbsm")}</Badge>}
                               {!iface.passive && !iface.no_bsm && !iface.no_unicast_bsm && (
                                 <span className="text-muted-foreground text-sm">-</span>
                               )}
@@ -546,8 +549,8 @@ export function Pim6Content() {
                             {iface.mld ? (
                               <Badge variant={iface.mld.disabled ? "secondary" : "default"} className="text-xs">
                                 {iface.mld.disabled
-                                  ? "Disabled"
-                                  : `Active${iface.mld.joins.length > 0 ? ` (${iface.mld.joins.length} joins)` : ""}`}
+                                  ? tc("disabled")
+                                  : iface.mld.joins.length > 0 ? t("content.mldActiveJoins", { count: iface.mld.joins.length }) : t("content.mldActive")}
                               </Badge>
                             ) : (
                               <span className="text-muted-foreground text-sm">-</span>
@@ -589,20 +592,20 @@ export function Pim6Content() {
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div className="space-y-2 flex-1 max-w-xs">
-                      <Label htmlFor="rp-keep-alive">RP Keep Alive Timer (1-65535s)</Label>
+                      <Label htmlFor="rp-keep-alive">{t("content.rpKeepAliveTimer")}</Label>
                       {rpTimerEditing ? (
                         <Input
                           id="rp-keep-alive"
                           type="number"
                           value={rpKeepAliveTimer}
                           onChange={(e) => setRpKeepAliveTimer(e.target.value)}
-                          placeholder="Default"
+                          placeholder={tc("default")}
                           min={1}
                           max={65535}
                         />
                       ) : (
                         <p className="text-sm font-mono">
-                          {config?.rp?.keep_alive_timer != null ? `${config.rp.keep_alive_timer}s` : "Default"}
+                          {config?.rp?.keep_alive_timer != null ? t("content.seconds", { value: String(config.rp.keep_alive_timer) }) : tc("default")}
                         </p>
                       )}
                     </div>
@@ -612,16 +615,16 @@ export function Pim6Content() {
                           <>
                             <Button size="sm" onClick={saveRpTimer} disabled={rpTimerSaving}>
                               {rpTimerSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                              Save
+                              {tc("save")}
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => { setRpTimerEditing(false); setRpTimerError(null); }} disabled={rpTimerSaving}>
-                              Cancel
+                              {tc("cancel")}
                             </Button>
                           </>
                         ) : (
                           <Button size="sm" variant="outline" onClick={startEditRpTimer}>
                             <Pencil className="mr-2 h-4 w-4" />
-                            Edit
+                            {tc("edit")}
                           </Button>
                         )}
                       </div>
@@ -637,11 +640,11 @@ export function Pim6Content() {
               </Card>
 
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold">RP Addresses</h3>
+                <h3 className="text-sm font-semibold">{t("content.rpAddresses")}</h3>
                 {hasWritePermission && (
                   <Button size="sm" onClick={() => { setEditingRp(null); setRpModalOpen(true); }}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add RP Address
+                    {t("addRpAddress")}
                   </Button>
                 )}
               </div>
@@ -650,12 +653,12 @@ export function Pim6Content() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                     <MapPin className="h-10 w-10 mb-3 opacity-50" />
-                    <p className="text-sm font-medium">No RP addresses configured</p>
-                    <p className="text-xs mt-1">Add a Rendezvous Point address for PIMv6 multicast routing.</p>
+                    <p className="text-sm font-medium">{t("content.noRpAddresses")}</p>
+                    <p className="text-xs mt-1">{t("content.noRpAddressesHint")}</p>
                     {hasWritePermission && (
                       <Button variant="outline" size="sm" className="mt-4" onClick={() => { setEditingRp(null); setRpModalOpen(true); }}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Add RP Address
+                        {t("addRpAddress")}
                       </Button>
                     )}
                   </CardContent>
@@ -665,9 +668,9 @@ export function Pim6Content() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Address</TableHead>
-                        <TableHead>Match</TableHead>
-                        {hasWritePermission && <TableHead className="text-right">Actions</TableHead>}
+                        <TableHead>{t("content.colAddress")}</TableHead>
+                        <TableHead>{t("content.colMatch")}</TableHead>
+                        {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -687,7 +690,7 @@ export function Pim6Content() {
                                   </Badge>
                                 ))
                               ) : (
-                                <span className="text-muted-foreground text-sm">All groups</span>
+                                <span className="text-muted-foreground text-sm">{t("content.allGroups")}</span>
                               )}
                             </div>
                           </TableCell>
