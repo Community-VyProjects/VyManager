@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
 export function DNSDynamicContent() {
+  const t = useTranslations("dnsDynamic");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWritePermission = canWrite(FeatureGroup.DNS_DYNAMIC);
 
@@ -64,11 +67,11 @@ export function DNSDynamicContent() {
       const data = await dnsDynamicService.getConfig(refresh);
       setConfig(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load DNS dynamic configuration");
+      setError(err instanceof Error ? err.message : t("content.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -81,7 +84,7 @@ export function DNSDynamicContent() {
       await fn();
       await loadData(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setActionLoading(false);
     }
@@ -99,7 +102,7 @@ export function DNSDynamicContent() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => loadData()}>Retry</Button>
+        <Button variant="outline" onClick={() => loadData()}>{tc("retry")}</Button>
       </div>
     );
   }
@@ -119,14 +122,14 @@ export function DNSDynamicContent() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold text-foreground">Dynamic DNS</h1>
-                  {!hasWritePermission && <Badge variant="secondary">Read Only</Badge>}
+                  <h1 className="text-2xl font-bold text-foreground">{t("content.title")}</h1>
+                  {!hasWritePermission && <Badge variant="secondary">{t("content.readOnly")}</Badge>}
                   <Badge variant={isConfigured ? "default" : "secondary"} className={isConfigured ? "bg-green-500/10 text-green-600 border-green-500/20" : ""}>
-                    {isConfigured ? "Configured" : "Unconfigured"}
+                    {isConfigured ? t("content.configured") : t("content.unconfigured")}
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  ddclient — automatic DNS record updates
+                  {t("content.subtitle")}
                 </p>
               </div>
             </div>
@@ -135,17 +138,17 @@ export function DNSDynamicContent() {
                 <>
                   <Button variant="outline" size="sm" onClick={() => setGlobalModalOpen(true)}>
                     <Settings2 className="h-4 w-4 mr-2" />
-                    Global Settings
+                    {t("content.globalSettings")}
                   </Button>
                   <Button size="sm" onClick={() => { setEditingEntry(null); setEntryModalOpen(true); }}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Entry
+                    {t("addEntry")}
                   </Button>
                 </>
               )}
               <Button variant="outline" size="sm" onClick={() => loadData(true)}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -162,12 +165,12 @@ export function DNSDynamicContent() {
               <CardContent className="p-4">
                 <div className="flex items-center gap-6 text-sm">
                   <div>
-                    <span className="text-muted-foreground">Check Interval: </span>
-                    <span className="font-mono">{config.interval ? `${config.interval}s` : "300s (default)"}</span>
+                    <span className="text-muted-foreground">{t("content.checkInterval")}</span>
+                    <span className="font-mono">{config.interval ? `${config.interval}s` : t("defaultValue", { value: "300s" })}</span>
                   </div>
                   {config?.vrf && (
                     <div>
-                      <span className="text-muted-foreground">VRF: </span>
+                      <span className="text-muted-foreground">{t("content.vrf")}</span>
                       <span className="font-mono">{config.vrf}</span>
                     </div>
                   )}
@@ -183,11 +186,11 @@ export function DNSDynamicContent() {
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Globe className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                <p className="text-sm text-muted-foreground mb-2">No Dynamic DNS entries configured</p>
-                <p className="text-xs text-muted-foreground mb-4">Add an entry to start updating DNS records automatically.</p>
+                <p className="text-sm text-muted-foreground mb-2">{t("content.empty")}</p>
+                <p className="text-xs text-muted-foreground mb-4">{t("content.emptyHelp")}</p>
                 {hasWritePermission && (
                   <Button size="sm" onClick={() => { setEditingEntry(null); setEntryModalOpen(true); }}>
-                    <Plus className="h-4 w-4 mr-2" />Add Entry
+                    <Plus className="h-4 w-4 mr-2" />{t("addEntry")}
                   </Button>
                 )}
               </CardContent>
@@ -198,12 +201,12 @@ export function DNSDynamicContent() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Protocol</TableHead>
-                      <TableHead>Server</TableHead>
-                      <TableHead>Hostnames</TableHead>
-                      <TableHead>IP Version</TableHead>
-                      {hasWritePermission && <TableHead className="text-right">Actions</TableHead>}
+                      <TableHead>{tc("name")}</TableHead>
+                      <TableHead>{t("protocol")}</TableHead>
+                      <TableHead>{t("content.server")}</TableHead>
+                      <TableHead>{t("hostnames")}</TableHead>
+                      <TableHead>{t("ipVersion")}</TableHead>
+                      {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -290,20 +293,20 @@ export function DNSDynamicContent() {
       <AlertDialog open={!!deletingEntry} onOpenChange={(open) => { if (!open) setDeletingEntry(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete DDNS Entry</AlertDialogTitle>
+            <AlertDialogTitle>{t("content.deleteTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Remove DDNS entry <span className="font-mono">{deletingEntry}</span>?
+              {t.rich("content.deleteConfirm", { name: deletingEntry ?? "", mono: (chunks) => <span className="font-mono">{chunks}</span> })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => withAction(async () => {
                 await dnsDynamicService.deleteEntry(deletingEntry!);
                 setDeletingEntry(null);
               })}
             >
-              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : tc("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
