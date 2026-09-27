@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -55,6 +56,8 @@ export function TunnelModal({
   existingInterfaces,
   existing,
 }: TunnelModalProps) {
+  const t = useTranslations("tunnel");
+  const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
 
   // Basic
@@ -284,10 +287,10 @@ export function TunnelModal({
   const showSixrd = encapsulation === "sit";
 
   const validateCreate = (): string | null => {
-    if (!name.trim()) return "Interface name is required";
-    if (!/^tun\d+$/.test(name.trim())) return "Name must be in format 'tun0', 'tun1', etc.";
-    if (existingInterfaces.includes(name.trim())) return `Interface ${name} already exists`;
-    if (!encapsulation) return "Encapsulation type is required";
+    if (!name.trim()) return t("validation.nameRequired");
+    if (!/^tun\d+$/.test(name.trim())) return t("validation.nameFormat");
+    if (existingInterfaces.includes(name.trim())) return t("validation.nameExists", { name });
+    if (!encapsulation) return t("validation.encapsulationRequired");
     return null;
   };
 
@@ -533,12 +536,12 @@ export function TunnelModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || (isEdit ? "Failed to update tunnel interface" : "Failed to create tunnel interface"));
+        setError(result.error || (isEdit ? t("modal.updateFailed") : t("modal.createFailed")));
       }
     } catch (err) {
       setError(
         (err as ApiError).message ||
-          (isEdit ? "Failed to update tunnel interface" : "Failed to create tunnel interface"),
+          (isEdit ? t("modal.updateFailed") : t("modal.createFailed")),
       );
     } finally {
       setLoading(false);
@@ -551,20 +554,20 @@ export function TunnelModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Waypoints className="h-5 w-5" />
-            {isEdit ? `Edit Tunnel Interface: ${existing.name}` : "Create Tunnel Interface"}
+            {isEdit ? t("modal.editTitle", { name: existing.name }) : t("modal.createTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Modify tunnel interface configuration. Name and encapsulation cannot be changed."
-              : "Configure a new tunnel interface with encapsulation settings."}
+              ? t("modal.editDescription")
+              : t("modal.createDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="basic">Basic</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced</TabsTrigger>
-            <TabsTrigger value="parameters">Parameters</TabsTrigger>
+            <TabsTrigger value="basic">{t("tabs.basic")}</TabsTrigger>
+            <TabsTrigger value="advanced">{t("tabs.advanced")}</TabsTrigger>
+            <TabsTrigger value="parameters">{t("tabs.parameters")}</TabsTrigger>
             <TabsTrigger value="6rd" disabled={!showSixrd}>6rd</TabsTrigger>
           </TabsList>
 
@@ -572,7 +575,7 @@ export function TunnelModal({
           <TabsContent value="basic" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="tunnel-name">Name</Label>
+                <Label htmlFor="tunnel-name">{tc("name")}</Label>
                 <Input
                   id="tunnel-name"
                   value={lockedName.value}
@@ -582,22 +585,22 @@ export function TunnelModal({
                   className={lockedName.disabled ? "bg-muted" : undefined}
                 />
                 <p className="text-xs text-muted-foreground">
-                  {lockedName.disabled ? "Interface name cannot be changed." : "Format: tun0, tun1, etc."}
+                  {lockedName.disabled ? t("basic.nameLocked") : t("basic.nameHint")}
                 </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="tunnel-encapsulation">
-                  Encapsulation {lockedEncapsulation.disabled ? null : "*"}
+                  {t("basic.encapsulation")} {lockedEncapsulation.disabled ? null : "*"}
                 </Label>
                 {lockedEncapsulation.disabled ? (
                   <>
                     <Input id="tunnel-encapsulation" value={lockedEncapsulation.value} disabled className="bg-muted" />
-                    <p className="text-xs text-muted-foreground">Encapsulation cannot be changed.</p>
+                    <p className="text-xs text-muted-foreground">{t("basic.encapsulationLocked")}</p>
                   </>
                 ) : (
                   <Select value={encapsulationDraft} onValueChange={setEncapsulationDraft}>
                     <SelectTrigger id="tunnel-encapsulation">
-                      <SelectValue placeholder="Select encapsulation" />
+                      <SelectValue placeholder={t("basic.selectEncapsulation")} />
                     </SelectTrigger>
                     <SelectContent>
                       {ENCAPSULATION_TYPES.map((type) => (
@@ -611,23 +614,23 @@ export function TunnelModal({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="tunnel-source-address">Source Address</Label>
-                <Input id="tunnel-source-address" value={sourceAddress} onChange={(e) => setSourceAddress(e.target.value)} placeholder="e.g., 10.0.0.1" />
+                <Label htmlFor="tunnel-source-address">{t("basic.sourceAddress")}</Label>
+                <Input id="tunnel-source-address" value={sourceAddress} onChange={(e) => setSourceAddress(e.target.value)} placeholder={t("basic.sourceAddressPlaceholder")} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="tunnel-remote">Remote Address</Label>
-                <Input id="tunnel-remote" value={remote} onChange={(e) => setRemote(e.target.value)} placeholder="e.g., 10.0.0.2" />
+                <Label htmlFor="tunnel-remote">{t("basic.remoteAddress")}</Label>
+                <Input id="tunnel-remote" value={remote} onChange={(e) => setRemote(e.target.value)} placeholder={t("basic.remoteAddressPlaceholder")} />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="tunnel-description">Description</Label>
-              <Input id="tunnel-description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description" />
+              <Label htmlFor="tunnel-description">{tc("description")}</Label>
+              <Input id="tunnel-description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("basic.descriptionPlaceholder")} />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="tunnel-addresses">Addresses</Label>
-              <Input id="tunnel-addresses" value={addresses} onChange={(e) => setAddresses(e.target.value)} placeholder="Comma-separated, e.g., 192.168.1.1/24, 10.0.0.1/30" />
+              <Label htmlFor="tunnel-addresses">{t("basic.addresses")}</Label>
+              <Input id="tunnel-addresses" value={addresses} onChange={(e) => setAddresses(e.target.value)} placeholder={t("basic.addressesPlaceholder")} />
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -640,13 +643,13 @@ export function TunnelModal({
                 <VrfSelect id="tunnel-vrf" value={vrf} onValueChange={setVrf} />
               </div>
               <div className="space-y-2">
-                <Label>Source Interface</Label>
+                <Label>{t("basic.sourceInterface")}</Label>
                 <InterfaceSelect
                   value={sourceInterface || NONE}
                   onValueChange={(v) => setSourceInterface(v === NONE ? "" : v)}
                   interfaces={availableInterfaces}
-                  noneOption={{ label: "None", value: NONE }}
-                  placeholder="None"
+                  noneOption={{ label: tc("none"), value: NONE }}
+                  placeholder={tc("none")}
                 />
               </div>
             </div>
@@ -656,44 +659,44 @@ export function TunnelModal({
           <TabsContent value="advanced" className="space-y-6 mt-4">
             {/* Interface Options */}
             <div>
-              <h4 className="text-sm font-medium mb-3">Interface Options</h4>
+              <h4 className="text-sm font-medium mb-3">{t("advanced.interfaceOptions")}</h4>
               <div className="grid grid-cols-3 gap-4">
                 <div className="flex items-center gap-2">
                   <Checkbox checked={disabled} onCheckedChange={(c) => setDisabled(c === true)} />
-                  <Label>Disabled</Label>
+                  <Label>{tc("disabled")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox checked={disableLinkDetect} onCheckedChange={(c) => setDisableLinkDetect(c === true)} />
-                  <Label>Disable Link Detect</Label>
+                  <Label>{t("advanced.disableLinkDetect")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox checked={enableMulticast} onCheckedChange={(c) => setEnableMulticast(c === true)} />
-                  <Label>Enable Multicast</Label>
+                  <Label>{t("advanced.enableMulticast")}</Label>
                 </div>
               </div>
             </div>
 
             {/* IP Settings */}
             <div>
-              <h4 className="text-sm font-medium mb-3">IP Settings</h4>
+              <h4 className="text-sm font-medium mb-3">{t("advanced.ipSettings")}</h4>
               <div className="grid grid-cols-2 gap-4 mb-3">
                 <div className="space-y-2">
-                  <Label>Adjust MSS</Label>
-                  <Input value={ipAdjustMss} onChange={(e) => setIpAdjustMss(e.target.value)} placeholder="e.g., clamp-mss-to-pmtu or value" />
+                  <Label>{t("advanced.adjustMss")}</Label>
+                  <Input value={ipAdjustMss} onChange={(e) => setIpAdjustMss(e.target.value)} placeholder={t("advanced.adjustMssPlaceholder")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>ARP Cache Timeout</Label>
-                  <Input value={ipArpCacheTimeout} onChange={(e) => setIpArpCacheTimeout(e.target.value)} placeholder="Seconds" />
+                  <Label>{t("advanced.arpCacheTimeout")}</Label>
+                  <Input value={ipArpCacheTimeout} onChange={(e) => setIpArpCacheTimeout(e.target.value)} placeholder={t("advanced.seconds")} />
                 </div>
               </div>
               <div className="space-y-2 mb-3">
-                <Label>Source Validation</Label>
+                <Label>{t("advanced.sourceValidation")}</Label>
                 <Select value={ipSourceValidation || NONE} onValueChange={(v) => setIpSourceValidation(v === NONE ? "" : v)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="None" />
+                    <SelectValue placeholder={tc("none")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>None</SelectItem>
+                    <SelectItem value={NONE}>{tc("none")}</SelectItem>
                     <SelectItem value="strict">strict</SelectItem>
                     <SelectItem value="loose">loose</SelectItem>
                     <SelectItem value="disable">disable</SelectItem>
@@ -702,14 +705,14 @@ export function TunnelModal({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: "Disable ARP Filter", value: ipDisableArpFilter, setter: setIpDisableArpFilter },
-                  { label: "Disable Forwarding", value: ipDisableForwarding, setter: setIpDisableForwarding },
-                  { label: "Enable ARP Accept", value: ipEnableArpAccept, setter: setIpEnableArpAccept },
-                  { label: "Enable ARP Announce", value: ipEnableArpAnnounce, setter: setIpEnableArpAnnounce },
-                  { label: "Enable ARP Ignore", value: ipEnableArpIgnore, setter: setIpEnableArpIgnore },
-                  { label: "Enable Directed Broadcast", value: ipEnableDirectedBroadcast, setter: setIpEnableDirectedBroadcast },
-                  { label: "Enable Proxy ARP", value: ipEnableProxyArp, setter: setIpEnableProxyArp },
-                  { label: "Proxy ARP PVLAN", value: ipProxyArpPvlan, setter: setIpProxyArpPvlan },
+                  { label: t("advanced.disableArpFilter"), value: ipDisableArpFilter, setter: setIpDisableArpFilter },
+                  { label: t("advanced.disableForwarding"), value: ipDisableForwarding, setter: setIpDisableForwarding },
+                  { label: t("advanced.enableArpAccept"), value: ipEnableArpAccept, setter: setIpEnableArpAccept },
+                  { label: t("advanced.enableArpAnnounce"), value: ipEnableArpAnnounce, setter: setIpEnableArpAnnounce },
+                  { label: t("advanced.enableArpIgnore"), value: ipEnableArpIgnore, setter: setIpEnableArpIgnore },
+                  { label: t("advanced.enableDirectedBroadcast"), value: ipEnableDirectedBroadcast, setter: setIpEnableDirectedBroadcast },
+                  { label: t("advanced.enableProxyArp"), value: ipEnableProxyArp, setter: setIpEnableProxyArp },
+                  { label: t("advanced.proxyArpPvlan"), value: ipProxyArpPvlan, setter: setIpProxyArpPvlan },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-2">
                     <Checkbox checked={item.value} onCheckedChange={(c) => item.setter(c === true)} />
@@ -721,33 +724,33 @@ export function TunnelModal({
 
             {/* IPv6 Settings */}
             <div>
-              <h4 className="text-sm font-medium mb-3">IPv6 Settings</h4>
+              <h4 className="text-sm font-medium mb-3">{t("advanced.ipv6Settings")}</h4>
               <div className="grid grid-cols-2 gap-4 mb-3">
                 <div className="space-y-2">
-                  <Label>Accept DAD</Label>
-                  <Input value={ipv6AcceptDad} onChange={(e) => setIpv6AcceptDad(e.target.value)} placeholder="0, 1, or 2" />
+                  <Label>{t("advanced.acceptDad")}</Label>
+                  <Input value={ipv6AcceptDad} onChange={(e) => setIpv6AcceptDad(e.target.value)} placeholder={t("advanced.acceptDadPlaceholder")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Adjust MSS</Label>
-                  <Input value={ipv6AdjustMss} onChange={(e) => setIpv6AdjustMss(e.target.value)} placeholder="e.g., clamp-mss-to-pmtu or value" />
+                  <Label>{t("advanced.adjustMss")}</Label>
+                  <Input value={ipv6AdjustMss} onChange={(e) => setIpv6AdjustMss(e.target.value)} placeholder={t("advanced.adjustMssPlaceholder")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Base Reachable Time</Label>
-                  <Input value={ipv6BaseReachableTime} onChange={(e) => setIpv6BaseReachableTime(e.target.value)} placeholder="Seconds" />
+                  <Label>{t("advanced.baseReachableTime")}</Label>
+                  <Input value={ipv6BaseReachableTime} onChange={(e) => setIpv6BaseReachableTime(e.target.value)} placeholder={t("advanced.seconds")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>DAD Transmits</Label>
-                  <Input value={ipv6DupAddrDetectTransmits} onChange={(e) => setIpv6DupAddrDetectTransmits(e.target.value)} placeholder="Number of transmits" />
+                  <Label>{t("advanced.dadTransmits")}</Label>
+                  <Input value={ipv6DupAddrDetectTransmits} onChange={(e) => setIpv6DupAddrDetectTransmits(e.target.value)} placeholder={t("advanced.dadTransmitsPlaceholder")} />
                 </div>
               </div>
               <div className="space-y-2 mb-3">
-                <Label>Source Validation</Label>
+                <Label>{t("advanced.sourceValidation")}</Label>
                 <Select value={ipv6SourceValidation || NONE} onValueChange={(v) => setIpv6SourceValidation(v === NONE ? "" : v)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="None" />
+                    <SelectValue placeholder={tc("none")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>None</SelectItem>
+                    <SelectItem value={NONE}>{tc("none")}</SelectItem>
                     <SelectItem value="strict">strict</SelectItem>
                     <SelectItem value="loose">loose</SelectItem>
                     <SelectItem value="disable">disable</SelectItem>
@@ -757,55 +760,55 @@ export function TunnelModal({
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div className="flex items-center gap-2">
                   <Checkbox checked={ipv6DisableForwarding} onCheckedChange={(c) => setIpv6DisableForwarding(c === true)} />
-                  <Label>Disable Forwarding</Label>
+                  <Label>{t("advanced.disableForwarding")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox checked={ipv6AddressAutoconf} onCheckedChange={(c) => setIpv6AddressAutoconf(c === true)} />
-                  <Label>Autoconf</Label>
+                  <Label>{t("advanced.autoconf")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox checked={ipv6AddressNoDefaultLinkLocal} onCheckedChange={(c) => setIpv6AddressNoDefaultLinkLocal(c === true)} />
-                  <Label>No Default Link-Local</Label>
+                  <Label>{t("advanced.noDefaultLinkLocal")}</Label>
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>EUI-64 Prefixes</Label>
-                <Input value={ipv6AddressEui64} onChange={(e) => setIpv6AddressEui64(e.target.value)} placeholder="Comma-separated prefixes" />
+                <Label>{t("advanced.eui64Prefixes")}</Label>
+                <Input value={ipv6AddressEui64} onChange={(e) => setIpv6AddressEui64(e.target.value)} placeholder={t("advanced.eui64Placeholder")} />
               </div>
             </div>
 
             {/* Mirror / Redirect */}
             <div>
-              <h4 className="text-sm font-medium mb-3">Mirror / Redirect</h4>
+              <h4 className="text-sm font-medium mb-3">{t("advanced.mirrorRedirect")}</h4>
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>Mirror Ingress</Label>
+                  <Label>{t("advanced.mirrorIngress")}</Label>
                   <InterfaceSelect
                     value={mirrorIngress || NONE}
                     onValueChange={(v) => setMirrorIngress(v === NONE ? "" : v)}
                     interfaces={availableInterfaces}
-                    noneOption={{ label: "None", value: NONE }}
-                    placeholder="None"
+                    noneOption={{ label: tc("none"), value: NONE }}
+                    placeholder={tc("none")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Mirror Egress</Label>
+                  <Label>{t("advanced.mirrorEgress")}</Label>
                   <InterfaceSelect
                     value={mirrorEgress || NONE}
                     onValueChange={(v) => setMirrorEgress(v === NONE ? "" : v)}
                     interfaces={availableInterfaces}
-                    noneOption={{ label: "None", value: NONE }}
-                    placeholder="None"
+                    noneOption={{ label: tc("none"), value: NONE }}
+                    placeholder={tc("none")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Redirect</Label>
+                  <Label>{t("advanced.redirect")}</Label>
                   <InterfaceSelect
                     value={redirect || NONE}
                     onValueChange={(v) => setRedirect(v === NONE ? "" : v)}
                     interfaces={availableInterfaces}
-                    noneOption={{ label: "None", value: NONE }}
-                    placeholder="None"
+                    noneOption={{ label: tc("none"), value: NONE }}
+                    placeholder={tc("none")}
                   />
                 </div>
               </div>
@@ -818,8 +821,8 @@ export function TunnelModal({
               <div className="text-center py-8 text-muted-foreground">
                 <p>
                   {isEdit
-                    ? "No encapsulation set for this interface."
-                    : "Select an encapsulation type on the Basic tab to see available parameters."}
+                    ? t("params.noEncapsulation")
+                    : t("params.selectEncapsulationHint")}
                 </p>
               </div>
             ) : (
@@ -827,37 +830,37 @@ export function TunnelModal({
                 {/* ERSPAN Parameters */}
                 {showErspanParams && (
                   <div>
-                    <h4 className="text-sm font-medium mb-3">ERSPAN Parameters</h4>
+                    <h4 className="text-sm font-medium mb-3">{t("params.erspanParameters")}</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Direction</Label>
+                        <Label>{t("params.direction")}</Label>
                         <Select value={erspanDirection || NONE} onValueChange={(v) => setErspanDirection(v === NONE ? "" : v)}>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select direction" />
+                            <SelectValue placeholder={t("params.selectDirection")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value={NONE}>None</SelectItem>
+                            <SelectItem value={NONE}>{tc("none")}</SelectItem>
                             <SelectItem value="ingress">ingress</SelectItem>
                             <SelectItem value="egress">egress</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label>Hardware ID</Label>
-                        <Input value={erspanHwId} onChange={(e) => setErspanHwId(e.target.value)} placeholder="e.g., 00:11:22:33:44:55" />
+                        <Label>{t("params.hardwareId")}</Label>
+                        <Input value={erspanHwId} onChange={(e) => setErspanHwId(e.target.value)} placeholder={t("params.hardwareIdPlaceholder")} />
                       </div>
                       <div className="space-y-2">
-                        <Label>Index</Label>
-                        <Input value={erspanIndex} onChange={(e) => setErspanIndex(e.target.value)} placeholder="ERSPAN index" />
+                        <Label>{t("params.index")}</Label>
+                        <Input value={erspanIndex} onChange={(e) => setErspanIndex(e.target.value)} placeholder={t("params.indexPlaceholder")} />
                       </div>
                       <div className="space-y-2">
-                        <Label>Version</Label>
+                        <Label>{t("params.version")}</Label>
                         <Select value={erspanVersion || NONE} onValueChange={(v) => setErspanVersion(v === NONE ? "" : v)}>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select version" />
+                            <SelectValue placeholder={t("params.selectVersion")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value={NONE}>None</SelectItem>
+                            <SelectItem value={NONE}>{tc("none")}</SelectItem>
                             <SelectItem value="1">1</SelectItem>
                             <SelectItem value="2">2</SelectItem>
                           </SelectContent>
@@ -870,29 +873,29 @@ export function TunnelModal({
                 {/* IP Parameters */}
                 {showIpParams && (
                   <div>
-                    <h4 className="text-sm font-medium mb-3">IP Parameters</h4>
+                    <h4 className="text-sm font-medium mb-3">{t("params.ipParameters")}</h4>
                     <div className="grid grid-cols-2 gap-4 mb-3">
                       <div className="space-y-2">
-                        <Label>Key</Label>
-                        <Input value={paramIpKey} onChange={(e) => setParamIpKey(e.target.value)} placeholder="Tunnel key" />
+                        <Label>{t("params.key")}</Label>
+                        <Input value={paramIpKey} onChange={(e) => setParamIpKey(e.target.value)} placeholder={t("params.keyPlaceholder")} />
                       </div>
                       <div className="space-y-2">
                         <Label>TOS</Label>
-                        <Input value={paramIpTos} onChange={(e) => setParamIpTos(e.target.value)} placeholder="Type of Service" />
+                        <Input value={paramIpTos} onChange={(e) => setParamIpTos(e.target.value)} placeholder={t("params.tosPlaceholder")} />
                       </div>
                       <div className="space-y-2">
                         <Label>TTL</Label>
-                        <Input value={paramIpTtl} onChange={(e) => setParamIpTtl(e.target.value)} placeholder="Time To Live" />
+                        <Input value={paramIpTtl} onChange={(e) => setParamIpTtl(e.target.value)} placeholder={t("params.ttlPlaceholder")} />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="flex items-center gap-2">
                         <Checkbox checked={paramIpIgnoreDf} onCheckedChange={(c) => setParamIpIgnoreDf(c === true)} />
-                        <Label>Ignore DF</Label>
+                        <Label>{t("params.ignoreDf")}</Label>
                       </div>
                       <div className="flex items-center gap-2">
                         <Checkbox checked={paramIpNoPmtuDiscovery} onCheckedChange={(c) => setParamIpNoPmtuDiscovery(c === true)} />
-                        <Label>No PMTU Discovery</Label>
+                        <Label>{t("params.noPmtuDiscovery")}</Label>
                       </div>
                     </div>
                   </div>
@@ -901,23 +904,23 @@ export function TunnelModal({
                 {/* IPv6 Parameters */}
                 {showIpv6Params && (
                   <div>
-                    <h4 className="text-sm font-medium mb-3">IPv6 Parameters</h4>
+                    <h4 className="text-sm font-medium mb-3">{t("params.ipv6Parameters")}</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Encap Limit</Label>
-                        <Input value={paramIpv6Encaplimit} onChange={(e) => setParamIpv6Encaplimit(e.target.value)} placeholder="Encapsulation limit" />
+                        <Label>{t("params.encapLimit")}</Label>
+                        <Input value={paramIpv6Encaplimit} onChange={(e) => setParamIpv6Encaplimit(e.target.value)} placeholder={t("params.encapLimitPlaceholder")} />
                       </div>
                       <div className="space-y-2">
-                        <Label>Flow Label</Label>
-                        <Input value={paramIpv6Flowlabel} onChange={(e) => setParamIpv6Flowlabel(e.target.value)} placeholder="Flow label" />
+                        <Label>{t("params.flowLabel")}</Label>
+                        <Input value={paramIpv6Flowlabel} onChange={(e) => setParamIpv6Flowlabel(e.target.value)} placeholder={t("params.flowLabelPlaceholder")} />
                       </div>
                       <div className="space-y-2">
-                        <Label>Hop Limit</Label>
-                        <Input value={paramIpv6Hoplimit} onChange={(e) => setParamIpv6Hoplimit(e.target.value)} placeholder="Hop limit" />
+                        <Label>{t("params.hopLimit")}</Label>
+                        <Input value={paramIpv6Hoplimit} onChange={(e) => setParamIpv6Hoplimit(e.target.value)} placeholder={t("params.hopLimitPlaceholder")} />
                       </div>
                       <div className="space-y-2">
-                        <Label>Traffic Class</Label>
-                        <Input value={paramIpv6Tclass} onChange={(e) => setParamIpv6Tclass(e.target.value)} placeholder="Traffic class" />
+                        <Label>{t("params.trafficClass")}</Label>
+                        <Input value={paramIpv6Tclass} onChange={(e) => setParamIpv6Tclass(e.target.value)} placeholder={t("params.trafficClassPlaceholder")} />
                       </div>
                     </div>
                   </div>
@@ -925,7 +928,7 @@ export function TunnelModal({
 
                 {!showErspanParams && !showIpParams && !showIpv6Params && (
                   <div className="text-center py-8 text-muted-foreground">
-                    <p>No additional parameters available for &ldquo;{encapsulation}&rdquo; encapsulation.</p>
+                    <p>{t("params.noneAvailable", { encapsulation })}</p>
                   </div>
                 )}
               </>
@@ -936,17 +939,17 @@ export function TunnelModal({
           <TabsContent value="6rd" className="space-y-4 mt-4">
             <div className="rounded-lg bg-muted/50 border p-3 mb-4">
               <p className="text-sm text-muted-foreground">
-                6rd (IPv6 Rapid Deployment) is available only with &ldquo;sit&rdquo; encapsulation.
+                {t("sixrd.info")}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>6rd Prefix</Label>
-                <Input value={sixrdPrefix} onChange={(e) => setSixrdPrefix(e.target.value)} placeholder="IPv6 prefix, e.g., 2001:db8::/32" />
+                <Label>{t("sixrd.prefix")}</Label>
+                <Input value={sixrdPrefix} onChange={(e) => setSixrdPrefix(e.target.value)} placeholder={t("sixrd.prefixPlaceholder")} />
               </div>
               <div className="space-y-2">
-                <Label>6rd Relay Prefix</Label>
-                <Input value={sixrdRelayPrefix} onChange={(e) => setSixrdRelayPrefix(e.target.value)} placeholder="IPv4 prefix, e.g., 192.0.2.0/24" />
+                <Label>{t("sixrd.relayPrefix")}</Label>
+                <Input value={sixrdRelayPrefix} onChange={(e) => setSixrdRelayPrefix(e.target.value)} placeholder={t("sixrd.relayPrefixPlaceholder")} />
               </div>
             </div>
           </TabsContent>
@@ -961,18 +964,18 @@ export function TunnelModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? "Saving..." : "Creating..."}
+                {isEdit ? tc("saving") : t("modal.creating")}
               </>
             ) : isEdit ? (
-              "Save Changes"
+              t("modal.saveChanges")
             ) : (
-              "Create Interface"
+              t("modal.createInterface")
             )}
           </Button>
         </DialogFooter>
