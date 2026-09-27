@@ -160,15 +160,15 @@ describe("validateRangeCreate", () => {
     const draft = emptyRangeDraft();
     draft.startIp = "192.168.1.10";
     draft.stopIp = "192.168.1.20";
-    assert.equal(validateRangeCreate(draft), "Please select a subnet");
+    assert.equal(validateRangeCreate(draft), "validation.selectSubnet");
     assert.equal(validateRangeShared(draft), null);
   });
 
   it("requires start and stop on both modes", () => {
     const draft = emptyRangeDraft();
     draft.subnet = "192.168.1.0/24";
-    assert.equal(validateRangeCreate(draft), "Start IP address is required");
-    assert.equal(validateRangeShared(draft), "Start IP address is required");
+    assert.equal(validateRangeCreate(draft), "validation.startIpRequired");
+    assert.equal(validateRangeShared(draft), "validation.startIpRequired");
   });
 });
 
@@ -261,7 +261,7 @@ describe("validateMappingCreate", () => {
     draft.subnet = "192.168.1.0/24";
     draft.ipAddress = "192.168.1.50";
     draft.macAddress = "AA:BB:CC:DD:EE:FF";
-    assert.equal(validateMappingCreate(draft, false), "Mapping name is required");
+    assert.equal(validateMappingCreate(draft, false), "validation.mappingNameRequired");
     assert.equal(validateMappingShared(draft), null);
   });
 
@@ -270,7 +270,7 @@ describe("validateMappingCreate", () => {
     draft.subnet = "192.168.1.0/24";
     draft.name = "printer";
     draft.macAddress = "AA:BB:CC:DD:EE:FF";
-    assert.equal(validateMappingCreate(draft, false), "IP address is required");
+    assert.equal(validateMappingCreate(draft, false), "validation.ipRequired");
     assert.equal(validateMappingShared(draft), null);
   });
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -52,6 +53,8 @@ export function DHCPFailoverModal({
   failover,
   capabilities,
 }: DHCPFailoverModalProps) {
+  const t = useTranslations("dhcpServer");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<DHCPFailoverConfig>(empty);
@@ -95,14 +98,14 @@ export function DHCPFailoverModal({
     try {
       const result = await dhcpService.saveFailover(failover, form, canCert);
       if (!result.success) {
-        setError(result.error ?? "Failed to save high availability");
+        setError(result.error ?? t("failover.saveFailed"));
         setLoading(false);
         return;
       }
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save high availability");
+      setError(err instanceof Error ? err.message : t("failover.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -112,29 +115,29 @@ export function DHCPFailoverModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
-          <DialogTitle>DHCP high availability</DialogTitle>
-          <DialogDescription>Peer settings for this DHCP server</DialogDescription>
+          <DialogTitle>{t("failover.title")}</DialogTitle>
+          <DialogDescription>{t("failover.description")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
           <div className="space-y-1">
-            <Label>Mode</Label>
+            <Label>{t("failover.mode")}</Label>
             <Select value={form.mode || "__none__"} onValueChange={(v) => set("mode", v)}>
               <SelectTrigger>
-                <SelectValue placeholder="Unset" />
+                <SelectValue placeholder={t("unset")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">Unset</SelectItem>
+                <SelectItem value="__none__">{t("unset")}</SelectItem>
                 <SelectItem value="active-active">active-active</SelectItem>
                 <SelectItem value="active-passive">active-passive</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1">
-            <Label>Name</Label>
+            <Label>{tc("name")}</Label>
             <Input value={form.name ?? ""} onChange={(e) => set("name", e.target.value)} />
           </div>
           <div className="space-y-1">
-            <Label>Remote</Label>
+            <Label>{t("failover.remote")}</Label>
             <Input
               className="font-mono"
               value={form.remote ?? ""}
@@ -142,7 +145,7 @@ export function DHCPFailoverModal({
             />
           </div>
           <div className="space-y-1">
-            <Label>Source address</Label>
+            <Label>{t("failover.sourceAddress")}</Label>
             <Input
               className="font-mono"
               value={form.source_address ?? ""}
@@ -150,13 +153,13 @@ export function DHCPFailoverModal({
             />
           </div>
           <div className="space-y-1">
-            <Label>Status</Label>
+            <Label>{tc("status")}</Label>
             <Select value={form.status || "__none__"} onValueChange={(v) => set("status", v)}>
               <SelectTrigger>
-                <SelectValue placeholder="Unset" />
+                <SelectValue placeholder={t("unset")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">Unset</SelectItem>
+                <SelectItem value="__none__">{t("unset")}</SelectItem>
                 <SelectItem value="primary">primary</SelectItem>
                 <SelectItem value="secondary">secondary</SelectItem>
               </SelectContent>
@@ -165,16 +168,16 @@ export function DHCPFailoverModal({
           {canCert && (
             <>
               <div className="space-y-1">
-                <Label>Certificate</Label>
+                <Label>{t("failover.certificate")}</Label>
                 <Select
                   value={form.certificate || "__none__"}
                   onValueChange={(v) => set("certificate", v)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="None" />
+                    <SelectValue placeholder={tc("none")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">None</SelectItem>
+                    <SelectItem value="__none__">{tc("none")}</SelectItem>
                     {certs.map((name) => (
                       <SelectItem key={name} value={name}>
                         {name}
@@ -184,16 +187,16 @@ export function DHCPFailoverModal({
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>CA certificate</Label>
+                <Label>{t("failover.caCertificate")}</Label>
                 <Select
                   value={form.ca_certificate || "__none__"}
                   onValueChange={(v) => set("ca_certificate", v)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="None" />
+                    <SelectValue placeholder={tc("none")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">None</SelectItem>
+                    <SelectItem value="__none__">{tc("none")}</SelectItem>
                     {cas.map((name) => (
                       <SelectItem key={name} value={name}>
                         {name}
@@ -213,10 +216,10 @@ export function DHCPFailoverModal({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

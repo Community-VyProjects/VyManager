@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,8 @@ export function DHCPServerSettingsModal({
   globalConfig,
   capabilities,
 }: DHCPServerSettingsModalProps) {
+  const t = useTranslations("dhcpServer");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [listenAddresses, setListenAddresses] = useState<string[]>([]);
@@ -85,14 +88,14 @@ export function DHCPServerSettingsModal({
         host_decl_name: canHostDeclName ? hostDeclName : globalConfig.host_decl_name,
       });
       if (!result.success) {
-        setError(result.error ?? "Failed to save server settings");
+        setError(result.error ?? t("settings.saveFailed"));
         setLoading(false);
         return;
       }
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save server settings");
+      setError(err instanceof Error ? err.message : t("settings.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -104,16 +107,16 @@ export function DHCPServerSettingsModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings2 className="h-5 w-5" />
-            DHCP Server Settings
+            {t("settings.title")}
           </DialogTitle>
           <DialogDescription>
-            Bind the DHCP listener and toggle host-file options
+            {t("settings.description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label>Listen addresses</Label>
+            <Label>{t("settings.listenAddresses")}</Label>
             <div className="flex gap-2">
               <Input
                 placeholder="192.168.1.1"
@@ -145,12 +148,12 @@ export function DHCPServerSettingsModal({
 
           {canListenInterface && (
             <div className="space-y-2">
-              <Label>Listen interfaces</Label>
+              <Label>{t("settings.listenInterfaces")}</Label>
               <InterfaceSelect
                 value={ifacePick}
                 onValueChange={addInterface}
-                noneOption={{ label: "Add interface", value: "__none__" }}
-                placeholder="Select interface"
+                noneOption={{ label: t("settings.addInterface"), value: "__none__" }}
+                placeholder={t("settings.selectInterface")}
               />
               <div className="flex flex-wrap gap-1.5">
                 {listenInterfaces.map((iface) => (
@@ -172,7 +175,7 @@ export function DHCPServerSettingsModal({
               onCheckedChange={(v) => setHostfileUpdate(Boolean(v))}
             />
             <Label htmlFor="hostfile-update" className="cursor-pointer">
-              Update hosts file from leases
+              {t("settings.hostfileUpdate")}
             </Label>
           </div>
 
@@ -184,7 +187,7 @@ export function DHCPServerSettingsModal({
                 onCheckedChange={(v) => setHostDeclName(Boolean(v))}
               />
               <Label htmlFor="host-decl-name" className="cursor-pointer">
-                Use host declaration name
+                {t("settings.hostDeclName")}
               </Label>
             </div>
           )}
@@ -199,10 +202,10 @@ export function DHCPServerSettingsModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

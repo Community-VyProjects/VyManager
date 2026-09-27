@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -59,6 +60,8 @@ export function StaticMappingModal({
   capabilities,
   existing,
 }: StaticMappingModalProps) {
+  const t = useTranslations("dhcpServer");
+  const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
   const [draft, setDraft] = useState<MappingDraft>(emptyMappingDraft());
   const [loading, setLoading] = useState(false);
@@ -96,7 +99,7 @@ export function StaticMappingModal({
       ? validateMappingShared(draft)
       : validateMappingCreate(draft, canDuid);
     if (validationError) {
-      setError(validationError);
+      setError(t(validationError));
       return;
     }
 
@@ -116,8 +119,8 @@ export function StaticMappingModal({
       setError(
         (err as ApiError).message ||
           (isEdit
-            ? "Failed to update static mapping"
-            : "Failed to create static mapping"),
+            ? t("mapping.updateFailed")
+            : t("mapping.createFailed")),
       );
     } finally {
       setLoading(false);
@@ -134,12 +137,12 @@ export function StaticMappingModal({
             ) : (
               <Plus className="h-5 w-5" />
             )}
-            {isEdit ? "Edit Static Mapping" : "Add Static Mapping"}
+            {isEdit ? t("mapping.editTitle") : t("mapping.addTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Update the static DHCP mapping configuration"
-              : "Create a new static MAC to IP address mapping"}
+              ? t("mapping.editDescription")
+              : t("mapping.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -147,20 +150,20 @@ export function StaticMappingModal({
           <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg p-3">
             <Network className="h-4 w-4" />
             <span>
-              Network:{" "}
+              {t("networkLabel")}{" "}
               <span className="font-medium text-foreground">{network.name}</span>
             </span>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="subnet">Subnet</Label>
+            <Label htmlFor="subnet">{t("subnet")}</Label>
             <Select
               value={lockedSubnet.value}
               onValueChange={(value) => patch({ subnet: value })}
               disabled={lockedSubnet.disabled}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select a subnet" />
+                <SelectValue placeholder={t("selectSubnet")} />
               </SelectTrigger>
               <SelectContent>
                 {network.subnets.map((subnet) => (
@@ -172,16 +175,16 @@ export function StaticMappingModal({
             </Select>
             <p className="text-xs text-muted-foreground">
               {isEdit
-                ? "The subnet cannot be changed"
-                : "Select the subnet for this static mapping"}
+                ? t("subnetLocked")
+                : t("mapping.subnetHelp")}
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="mapping-name">Mapping Name</Label>
+            <Label htmlFor="mapping-name">{t("mapping.name")}</Label>
             <Input
               id="mapping-name"
-              placeholder="e.g., server-1 or printer-hp"
+              placeholder={t("mapping.namePlaceholder")}
               value={lockedName.value}
               onChange={(e) => patch({ name: e.target.value })}
               disabled={lockedName.disabled}
@@ -189,30 +192,30 @@ export function StaticMappingModal({
             />
             <p className="text-xs text-muted-foreground">
               {isEdit
-                ? "The mapping name cannot be changed"
-                : "A unique identifier for this mapping (letters, numbers, hyphens, underscores)"}
+                ? t("mapping.nameLocked")
+                : t("mapping.nameHelp")}
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="ip-address">IP Address</Label>
+            <Label htmlFor="ip-address">{t("mapping.ipAddress")}</Label>
             <Input
               id="ip-address"
-              placeholder="e.g., 192.168.1.100"
+              placeholder={t("examplePlaceholder", { example: "192.168.1.100" })}
               value={draft.ipAddress}
               onChange={(e) => patch({ ipAddress: e.target.value })}
               className="font-mono"
             />
             <p className="text-xs text-muted-foreground">
-              The IP address to assign to this device
+              {t("mapping.ipHelp")}
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="mac-address">MAC Address</Label>
+            <Label htmlFor="mac-address">{t("mapping.macAddress")}</Label>
             <Input
               id="mac-address"
-              placeholder="e.g., AA:BB:CC:DD:EE:FF"
+              placeholder={t("examplePlaceholder", { example: "AA:BB:CC:DD:EE:FF" })}
               value={draft.macAddress}
               onChange={(e) =>
                 patch({
@@ -224,7 +227,7 @@ export function StaticMappingModal({
               className="font-mono"
             />
             <p className="text-xs text-muted-foreground">
-              The hardware MAC address of the device
+              {t("mapping.macHelp")}
             </p>
           </div>
 
@@ -233,14 +236,14 @@ export function StaticMappingModal({
               <Label htmlFor="duid">DUID</Label>
               <Input
                 id="duid"
-                placeholder="e.g., 00:01:00:01:2a:3b:4c:5d:6e:7f"
+                placeholder={t("examplePlaceholder", { example: "00:01:00:01:2a:3b:4c:5d:6e:7f" })}
                 value={draft.duid}
                 onChange={(e) => patch({ duid: e.target.value })}
                 className="font-mono"
               />
               {!isEdit && (
                 <p className="text-xs text-muted-foreground">
-                  Client DUID. Use this instead of or with a MAC address.
+                  {t("mapping.duidHelp")}
                 </p>
               )}
             </div>
@@ -257,20 +260,20 @@ export function StaticMappingModal({
               />
               <div className="space-y-0.5">
                 <Label htmlFor="disabled" className="cursor-pointer">
-                  Disable Mapping
+                  {t("mapping.disable")}
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  When disabled, this mapping will not assign the IP to the device
+                  {t("mapping.disableHelp")}
                 </p>
               </div>
             </div>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="mapping-description">Description</Label>
+            <Label htmlFor="mapping-description">{tc("description")}</Label>
             <Input
               id="mapping-description"
-              placeholder="Optional description"
+              placeholder={t("optionalDescription")}
               value={draft.description}
               onChange={(e) => patch({ description: e.target.value })}
             />
@@ -286,16 +289,16 @@ export function StaticMappingModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading
               ? isEdit
-                ? "Saving..."
-                : "Creating..."
+                ? tc("saving")
+                : t("creating")
               : isEdit
-                ? "Save Changes"
-                : "Create Mapping"}
+                ? t("saveChanges")
+                : t("mapping.create")}
           </Button>
         </DialogFooter>
       </DialogContent>
