@@ -1,1 +1,43 @@
-{}
+{
+  "unicast": {
+    "title": "Unicast Protocols",
+    "subtitle": "Dynamic routing protocols",
+    "loading": "Loading protocols...",
+    "empty": "No accessible protocols",
+    "items": {
+      "bgp": { "name": "BGP", "description": "Border Gateway Protocol" },
+      "ospf": { "name": "OSPF", "description": "Open Shortest Path First" },
+      "ospfv3": { "name": "OSPFv3", "description": "OSPF for IPv6" },
+      "isis": { "name": "IS-IS", "description": "Intermediate System to Intermediate System" },
+      "openfabric": { "name": "OpenFabric", "description": "OpenFabric Protocol" },
+      "rip": { "name": "RIP", "description": "Routing Information Protocol" },
+      "ripng": { "name": "RIPng", "description": "RIP Next Generation" },
+      "babel": { "name": "Babel", "description": "Babel Routing Protocol" }
+    }
+  },
+  "infrastructure": {
+    "title": "Routing Infrastructure",
+    "subtitle": "Advanced routing features",
+    "loading": "Loading infrastructure...",
+    "empty": "No accessible infrastructure",
+    "items": {
+      "bfd": { "name": "BFD", "description": "Bidirectional Forwarding Detection" },
+      "mpls": { "name": "MPLS", "description": "Multiprotocol Label Switching" },
+      "segment-routing": { "name": "Segment Routing", "description": "Source routing with segments" },
+      "nhrp": { "name": "NHRP", "description": "Next Hop Resolution Protocol" },
+      "rpki": { "name": "RPKI", "description": "Resource Public Key Infrastructure" },
+      "traffic-engineering": { "name": "Traffic Engineering", "description": "MPLS-TE link parameter configuration" }
+    }
+  },
+  "multicast": {
+    "title": "Multicast",
+    "subtitle": "Multicast routing protocols",
+    "loading": "Loading multicast protocols...",
+    "empty": "No accessible multicast protocols",
+    "items": {
+      "igmp-proxy": { "name": "IGMP Proxy", "description": "Internet Group Management Protocol Proxy" },
+      "pim": { "name": "PIM", "description": "Protocol Independent Multicast" },
+      "pim6": { "name": "PIM6", "description": "Protocol Independent Multicast for IPv6" }
+    }
+  }
+}
