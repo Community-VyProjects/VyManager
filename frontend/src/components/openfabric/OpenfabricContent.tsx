@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +64,8 @@ import { FeatureGroup } from "@/lib/api/user-management";
 // ============================================================================
 
 export function OpenfabricContent() {
+  const t = useTranslations("openfabric");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWritePermission = canWrite(FeatureGroup.OPENFABRIC);
 
@@ -109,11 +112,11 @@ export function OpenfabricContent() {
         setSelectedDomain(configData.domains[0].name);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load OpenFabric configuration");
+      setError(err instanceof Error ? err.message : t("content.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [selectedDomain]);
+  }, [selectedDomain, t]);
 
   useEffect(() => {
     loadData();
@@ -146,7 +149,7 @@ export function OpenfabricContent() {
       await loadData(true);
       setNetEditing(false);
     } catch (err) {
-      setNetError(err instanceof Error ? err.message : "Failed to save NET");
+      setNetError(err instanceof Error ? err.message : t("content.saveNetFailed"));
     } finally {
       setNetSaving(false);
     }
@@ -233,7 +236,7 @@ export function OpenfabricContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -243,7 +246,7 @@ export function OpenfabricContent() {
   if (capabilities && !capabilities.features.openfabric.supported) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="text-muted-foreground">OpenFabric is not available on this device.</p>
+        <p className="text-muted-foreground">{t("content.notAvailable")}</p>
       </div>
     );
   }
@@ -257,18 +260,18 @@ export function OpenfabricContent() {
         <div className="p-6 pb-4 border-b border-border">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-foreground">OpenFabric Configuration</h1>
+              <h1 className="text-2xl font-bold text-foreground">{t("content.title")}</h1>
               <p className="text-sm text-muted-foreground mt-1">
-                OpenFabric routing protocol
+                {t("content.subtitle")}
               </p>
             </div>
             <div className="flex items-center gap-2">
               {!hasWritePermission && (
-                <Badge variant="secondary">Read Only</Badge>
+                <Badge variant="secondary">{t("content.readOnly")}</Badge>
               )}
               <Button variant="outline" size="sm" onClick={() => loadData(true)}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -291,7 +294,7 @@ export function OpenfabricContent() {
                   <div>
                     <p className="text-sm font-medium">NET</p>
                     <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                      {config?.net || "Not set"}
+                      {config?.net || tc("notSet")}
                     </p>
                   </div>
                 </div>
@@ -305,7 +308,7 @@ export function OpenfabricContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{domainCount}</p>
-                    <p className="text-xs text-muted-foreground">Domain{domainCount !== 1 ? "s" : ""}</p>
+                    <p className="text-xs text-muted-foreground">{t("content.domainsStat", { count: domainCount })}</p>
                   </div>
                 </div>
               </CardContent>
@@ -318,7 +321,7 @@ export function OpenfabricContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{totalInterfaces}</p>
-                    <p className="text-xs text-muted-foreground">Interface{totalInterfaces !== 1 ? "s" : ""}</p>
+                    <p className="text-xs text-muted-foreground">{t("content.interfacesStat", { count: totalInterfaces })}</p>
                   </div>
                 </div>
               </CardContent>
@@ -332,13 +335,13 @@ export function OpenfabricContent() {
         <div className="flex-1 p-6 pt-4 overflow-auto">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="overview">{t("content.overviewTab")}</TabsTrigger>
               <TabsTrigger value="domains">
-                Domains
+                {t("content.domains")}
                 {domainCount > 0 && <Badge variant="secondary" className="ml-2">{domainCount}</Badge>}
               </TabsTrigger>
               <TabsTrigger value="interfaces">
-                Interfaces
+                {t("content.interfaces")}
                 {totalInterfaces > 0 && <Badge variant="secondary" className="ml-2">{totalInterfaces}</Badge>}
               </TabsTrigger>
             </TabsList>
@@ -351,21 +354,21 @@ export function OpenfabricContent() {
               <Card className="mb-6">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">NET Address</h3>
+                    <h3 className="font-semibold">{t("content.netAddress")}</h3>
                     {hasWritePermission && !netEditing && (
                       <Button size="sm" variant="outline" onClick={startEditNet}>
                         <Pencil className="h-4 w-4 mr-2" />
-                        Edit
+                        {tc("edit")}
                       </Button>
                     )}
                     {netEditing && (
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" onClick={() => { setNetEditing(false); setNetError(null); }}>
-                          Cancel
+                          {tc("cancel")}
                         </Button>
                         <Button size="sm" onClick={saveNet} disabled={netSaving}>
                           {netSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                          Save
+                          {tc("save")}
                         </Button>
                       </div>
                     )}
@@ -380,12 +383,12 @@ export function OpenfabricContent() {
                     <Input
                       value={netValue}
                       onChange={(e) => setNetValue(e.target.value)}
-                      placeholder="e.g. 49.0001.1921.6800.1001.00"
+                      placeholder={t("eg", { value: "49.0001.1921.6800.1001.00" })}
                       className="font-mono text-sm"
                     />
                   ) : (
                     <p className="font-mono text-sm text-muted-foreground">
-                      {config?.net || "No NET address configured"}
+                      {config?.net || t("content.noNet")}
                     </p>
                   )}
                 </CardContent>
@@ -393,20 +396,20 @@ export function OpenfabricContent() {
 
               {/* Domain Summary Cards */}
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold">Domains</h3>
+                <h3 className="font-semibold">{t("content.domains")}</h3>
                 {hasWritePermission && (
                   <Button
                     size="sm"
                     onClick={() => { setEditingDomain(null); setDomainModalOpen(true); }}
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Domain
+                    {t("content.addDomain")}
                   </Button>
                 )}
               </div>
 
               {domainCount === 0 ? (
-                <p className="text-sm text-muted-foreground">No domains configured.</p>
+                <p className="text-sm text-muted-foreground">{t("content.noDomainsSummary")}</p>
               ) : (
                 <div className="grid grid-cols-2 gap-4">
                   {config?.domains.map((domain) => (
@@ -417,10 +420,10 @@ export function OpenfabricContent() {
                             <p className="font-medium">{domain.name}</p>
                             <div className="flex items-center gap-2 mt-1">
                               {domain.fabric_tier != null && (
-                                <Badge variant="outline">Tier {domain.fabric_tier}</Badge>
+                                <Badge variant="outline">{t("content.tier", { tier: String(domain.fabric_tier) })}</Badge>
                               )}
                               <span className="text-xs text-muted-foreground">
-                                {domain.interfaces.length} interface{domain.interfaces.length !== 1 ? "s" : ""}
+                                {t("content.interfaceCount", { count: domain.interfaces.length })}
                               </span>
                             </div>
                           </div>
@@ -446,11 +449,11 @@ export function OpenfabricContent() {
                           )}
                         </div>
                         <div className="flex flex-wrap gap-1 mt-2">
-                          {domain.log_adjacency_changes && <Badge variant="secondary" className="text-xs">Log Adj</Badge>}
-                          {domain.purge_originator && <Badge variant="secondary" className="text-xs">Purge Orig</Badge>}
-                          {domain.set_overload_bit && <Badge variant="secondary" className="text-xs">Overload</Badge>}
+                          {domain.log_adjacency_changes && <Badge variant="secondary" className="text-xs">{t("content.logAdj")}</Badge>}
+                          {domain.purge_originator && <Badge variant="secondary" className="text-xs">{t("content.purgeOrig")}</Badge>}
+                          {domain.set_overload_bit && <Badge variant="secondary" className="text-xs">{t("content.overload")}</Badge>}
                           {domain.domain_password_type && (
-                            <Badge variant="secondary" className="text-xs">Auth: {domain.domain_password_type}</Badge>
+                            <Badge variant="secondary" className="text-xs">{t("content.auth", { type: domain.domain_password_type })}</Badge>
                           )}
                         </div>
                       </CardContent>
@@ -468,7 +471,7 @@ export function OpenfabricContent() {
                 <div className="relative w-64">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search domains..."
+                    placeholder={t("content.searchDomains")}
                     value={domainSearch}
                     onChange={(e) => setDomainSearch(e.target.value)}
                     className="pl-8"
@@ -485,7 +488,7 @@ export function OpenfabricContent() {
                 {hasWritePermission && (
                   <Button size="sm" onClick={() => { setEditingDomain(null); setDomainModalOpen(true); }}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Domain
+                    {t("content.addDomain")}
                   </Button>
                 )}
               </div>
@@ -494,19 +497,19 @@ export function OpenfabricContent() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Fabric Tier</TableHead>
-                      <TableHead>Interfaces</TableHead>
-                      <TableHead>Flags</TableHead>
-                      <TableHead>Password</TableHead>
-                      {hasWritePermission && <TableHead className="w-[100px]">Actions</TableHead>}
+                      <TableHead>{tc("name")}</TableHead>
+                      <TableHead>{t("content.fabricTier")}</TableHead>
+                      <TableHead>{t("content.interfaces")}</TableHead>
+                      <TableHead>{t("content.flags")}</TableHead>
+                      <TableHead>{t("content.password")}</TableHead>
+                      {hasWritePermission && <TableHead className="w-[100px]">{tc("actions")}</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredDomains.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={hasWritePermission ? 6 : 5} className="text-center text-muted-foreground">
-                          {domainSearch ? "No matching domains" : "No domains configured"}
+                          {domainSearch ? t("content.noMatchingDomains") : t("content.noDomains")}
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -515,19 +518,19 @@ export function OpenfabricContent() {
                           <TableCell className="font-medium">{domain.name}</TableCell>
                           <TableCell>
                             {domain.fabric_tier != null ? (
-                              <Badge variant="outline">Tier {domain.fabric_tier}</Badge>
+                              <Badge variant="outline">{t("content.tier", { tier: String(domain.fabric_tier) })}</Badge>
                             ) : (
-                              <span className="text-muted-foreground text-sm">Auto</span>
+                              <span className="text-muted-foreground text-sm">{t("content.auto")}</span>
                             )}
                           </TableCell>
                           <TableCell>{domain.interfaces.length}</TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1">
-                              {domain.log_adjacency_changes && <Badge variant="secondary" className="text-xs">Log Adj</Badge>}
-                              {domain.purge_originator && <Badge variant="secondary" className="text-xs">Purge Orig</Badge>}
-                              {domain.set_overload_bit && <Badge variant="secondary" className="text-xs">Overload</Badge>}
+                              {domain.log_adjacency_changes && <Badge variant="secondary" className="text-xs">{t("content.logAdj")}</Badge>}
+                              {domain.purge_originator && <Badge variant="secondary" className="text-xs">{t("content.purgeOrig")}</Badge>}
+                              {domain.set_overload_bit && <Badge variant="secondary" className="text-xs">{t("content.overload")}</Badge>}
                               {!domain.log_adjacency_changes && !domain.purge_originator && !domain.set_overload_bit && (
-                                <span className="text-muted-foreground text-sm">None</span>
+                                <span className="text-muted-foreground text-sm">{tc("none")}</span>
                               )}
                             </div>
                           </TableCell>
@@ -535,7 +538,7 @@ export function OpenfabricContent() {
                             {domain.domain_password_type ? (
                               <Badge variant="outline" className="text-xs">{domain.domain_password_type}</Badge>
                             ) : (
-                              <span className="text-muted-foreground text-sm">None</span>
+                              <span className="text-muted-foreground text-sm">{tc("none")}</span>
                             )}
                           </TableCell>
                           {hasWritePermission && (
@@ -577,7 +580,7 @@ export function OpenfabricContent() {
                   <div className="w-64">
                     <Select value={selectedDomain} onValueChange={setSelectedDomain}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select domain" />
+                        <SelectValue placeholder={t("content.selectDomain")} />
                       </SelectTrigger>
                       <SelectContent>
                         {config?.domains.map((d) => (
@@ -595,32 +598,32 @@ export function OpenfabricContent() {
                     onClick={() => { setEditingIface(null); setIfaceModalOpen(true); }}
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Interface
+                    {t("content.addInterface")}
                   </Button>
                 )}
               </div>
 
               {!selectedDomain ? (
-                <p className="text-sm text-muted-foreground">Select a domain to view its interfaces.</p>
+                <p className="text-sm text-muted-foreground">{t("content.selectDomainHint")}</p>
               ) : (
                 <div className="rounded-md border">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Address Family</TableHead>
-                        <TableHead>Metric</TableHead>
-                        <TableHead>Passive</TableHead>
-                        <TableHead>Hello Interval</TableHead>
-                        <TableHead>Password</TableHead>
-                        {hasWritePermission && <TableHead className="w-[100px]">Actions</TableHead>}
+                        <TableHead>{tc("name")}</TableHead>
+                        <TableHead>{t("content.addressFamily")}</TableHead>
+                        <TableHead>{t("content.metric")}</TableHead>
+                        <TableHead>{t("content.passive")}</TableHead>
+                        <TableHead>{t("content.helloInterval")}</TableHead>
+                        <TableHead>{t("content.password")}</TableHead>
+                        {hasWritePermission && <TableHead className="w-[100px]">{tc("actions")}</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {(!currentDomain || currentDomain.interfaces.length === 0) ? (
                         <TableRow>
                           <TableCell colSpan={hasWritePermission ? 7 : 6} className="text-center text-muted-foreground">
-                            No interfaces in this domain
+                            {t("content.noInterfaces")}
                           </TableCell>
                         </TableRow>
                       ) : (
@@ -632,28 +635,28 @@ export function OpenfabricContent() {
                                 {iface.address_family_ipv4 && <Badge variant="secondary" className="text-xs">IPv4</Badge>}
                                 {iface.address_family_ipv6 && <Badge variant="secondary" className="text-xs">IPv6</Badge>}
                                 {!iface.address_family_ipv4 && !iface.address_family_ipv6 && (
-                                  <span className="text-muted-foreground text-sm">None</span>
+                                  <span className="text-muted-foreground text-sm">{tc("none")}</span>
                                 )}
                               </div>
                             </TableCell>
                             <TableCell>
-                              {iface.metric != null ? iface.metric : <span className="text-muted-foreground text-sm">Default</span>}
+                              {iface.metric != null ? iface.metric : <span className="text-muted-foreground text-sm">{tc("default")}</span>}
                             </TableCell>
                             <TableCell>
                               {iface.passive ? (
-                                <Badge variant="secondary" className="text-xs">Yes</Badge>
+                                <Badge variant="secondary" className="text-xs">{t("content.yes")}</Badge>
                               ) : (
-                                <span className="text-muted-foreground text-sm">No</span>
+                                <span className="text-muted-foreground text-sm">{t("content.no")}</span>
                               )}
                             </TableCell>
                             <TableCell>
-                              {iface.hello_interval != null ? `${iface.hello_interval}s` : <span className="text-muted-foreground text-sm">Default</span>}
+                              {iface.hello_interval != null ? `${iface.hello_interval}s` : <span className="text-muted-foreground text-sm">{tc("default")}</span>}
                             </TableCell>
                             <TableCell>
                               {iface.password_type ? (
                                 <Badge variant="outline" className="text-xs">{iface.password_type}</Badge>
                               ) : (
-                                <span className="text-muted-foreground text-sm">None</span>
+                                <span className="text-muted-foreground text-sm">{tc("none")}</span>
                               )}
                             </TableCell>
                             {hasWritePermission && (
@@ -718,19 +721,18 @@ export function OpenfabricContent() {
       <AlertDialog open={!!deletingDomain} onOpenChange={(open) => !open && setDeletingDomain(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Domain</AlertDialogTitle>
+            <AlertDialogTitle>{t("content.deleteDomainTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete domain &quot;{deletingDomain?.name}&quot;?
-              This will remove all interfaces and settings within this domain.
+              {t("content.deleteDomainDescription", { name: deletingDomain?.name ?? "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteDomain}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete
+              {tc("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -740,19 +742,18 @@ export function OpenfabricContent() {
       <AlertDialog open={!!deletingIface} onOpenChange={(open) => !open && setDeletingIface(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Interface</AlertDialogTitle>
+            <AlertDialogTitle>{t("content.deleteInterfaceTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove interface &quot;{deletingIface?.iface.name}&quot; from
-              domain &quot;{deletingIface?.domain}&quot;?
+              {t("content.deleteInterfaceDescription", { name: deletingIface?.iface.name ?? "", domain: deletingIface?.domain ?? "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteInterface}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete
+              {tc("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

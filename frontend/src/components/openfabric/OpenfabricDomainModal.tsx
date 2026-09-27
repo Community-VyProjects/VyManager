@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -43,6 +44,8 @@ export function OpenfabricDomainModal({
   existingDomain,
   capabilities,
 }: OpenfabricDomainModalProps) {
+  const t = useTranslations("openfabric");
+  const tc = useTranslations("common");
   const isEdit = !!existingDomain;
 
   const [saving, setSaving] = useState(false);
@@ -101,7 +104,7 @@ export function OpenfabricDomainModal({
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      setError("Domain name is required");
+      setError(t("domainModal.nameRequired"));
       return;
     }
 
@@ -126,7 +129,7 @@ export function OpenfabricDomainModal({
       await onSubmit(domain);
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save domain");
+      setError(err instanceof Error ? err.message : t("domainModal.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -136,9 +139,9 @@ export function OpenfabricDomainModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit OpenFabric Domain" : "Add OpenFabric Domain"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("domainModal.editTitle") : t("domainModal.addTitle")}</DialogTitle>
           <DialogDescription>
-            Configure OpenFabric domain settings.
+            {t("domainModal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -151,15 +154,15 @@ export function OpenfabricDomainModal({
 
         <Tabs defaultValue="general">
           <TabsList className="w-full">
-            <TabsTrigger value="general" className="flex-1">General</TabsTrigger>
-            <TabsTrigger value="options" className="flex-1">Options</TabsTrigger>
-            <TabsTrigger value="auth" className="flex-1">Authentication</TabsTrigger>
+            <TabsTrigger value="general" className="flex-1">{t("modal.general")}</TabsTrigger>
+            <TabsTrigger value="options" className="flex-1">{t("domainModal.options")}</TabsTrigger>
+            <TabsTrigger value="auth" className="flex-1">{t("modal.authentication")}</TabsTrigger>
           </TabsList>
 
           {/* General Tab */}
           <TabsContent value="general" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>Domain Name <span className="text-destructive">*</span></Label>
+              <Label>{t("domainModal.domainName")} <span className="text-destructive">*</span></Label>
               {isEdit ? (
                 <div className="h-9 flex items-center px-3 rounded-md border border-input bg-muted text-sm font-mono">
                   {name}
@@ -168,24 +171,24 @@ export function OpenfabricDomainModal({
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. my-fabric"
+                  placeholder={t("eg", { value: "my-fabric" })}
                 />
               )}
             </div>
 
             {capabilities?.features.fabric_tier.supported && (
               <div className="space-y-2">
-                <Label>Fabric Tier</Label>
+                <Label>{t("domainModal.fabricTier")}</Label>
                 <Input
                   type="number"
                   value={fabricTier}
                   onChange={(e) => setFabricTier(e.target.value)}
-                  placeholder="Auto-detect"
+                  placeholder={t("domainModal.autoDetect")}
                   min={0}
                   max={14}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Static fabric tier assignment (0-14). Leave empty for auto-detection.
+                  {t("domainModal.fabricTierHelp")}
                 </p>
               </div>
             )}
@@ -194,19 +197,19 @@ export function OpenfabricDomainModal({
           {/* Options Tab */}
           <TabsContent value="options" className="space-y-4 mt-4">
             <div className="space-y-3">
-              <h4 className="text-sm font-medium">Flags</h4>
+              <h4 className="text-sm font-medium">{t("domainModal.flags")}</h4>
               <div className="grid grid-cols-1 gap-3 pl-2">
                 <div className="flex items-center gap-2">
                   <Checkbox id="log-adj" checked={logAdjChanges} onCheckedChange={(c) => setLogAdjChanges(!!c)} />
-                  <Label htmlFor="log-adj">Log Adjacency Changes</Label>
+                  <Label htmlFor="log-adj">{t("domainModal.logAdjChanges")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox id="purge-orig" checked={purgeOriginator} onCheckedChange={(c) => setPurgeOriginator(!!c)} />
-                  <Label htmlFor="purge-orig">Purge Originator</Label>
+                  <Label htmlFor="purge-orig">{t("domainModal.purgeOriginator")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox id="overload-bit" checked={setOverloadBit} onCheckedChange={(c) => setSetOverloadBit(!!c)} />
-                  <Label htmlFor="overload-bit">Set Overload Bit</Label>
+                  <Label htmlFor="overload-bit">{t("domainModal.setOverloadBit")}</Label>
                 </div>
               </div>
             </div>
@@ -214,48 +217,48 @@ export function OpenfabricDomainModal({
             <Separator />
 
             <div className="space-y-3">
-              <h4 className="text-sm font-medium">Timers</h4>
+              <h4 className="text-sm font-medium">{t("modal.timers")}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>LSP Gen Interval (s)</Label>
+                  <Label>{t("domainModal.lspGenInterval")}</Label>
                   <Input
                     type="number"
                     value={lspGenInterval}
                     onChange={(e) => setLspGenInterval(e.target.value)}
-                    placeholder="Default"
+                    placeholder={tc("default")}
                     min={1}
                     max={120}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>LSP Refresh Interval (s)</Label>
+                  <Label>{t("domainModal.lspRefreshInterval")}</Label>
                   <Input
                     type="number"
                     value={lspRefreshInterval}
                     onChange={(e) => setLspRefreshInterval(e.target.value)}
-                    placeholder="Default"
+                    placeholder={tc("default")}
                     min={1}
                     max={65235}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Max LSP Lifetime (s)</Label>
+                  <Label>{t("domainModal.maxLspLifetime")}</Label>
                   <Input
                     type="number"
                     value={maxLspLifetime}
                     onChange={(e) => setMaxLspLifetime(e.target.value)}
-                    placeholder="Default"
+                    placeholder={tc("default")}
                     min={360}
                     max={65535}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>SPF Interval (s)</Label>
+                  <Label>{t("domainModal.spfInterval")}</Label>
                   <Input
                     type="number"
                     value={spfInterval}
                     onChange={(e) => setSpfInterval(e.target.value)}
-                    placeholder="Default"
+                    placeholder={tc("default")}
                     min={1}
                     max={120}
                   />
@@ -267,29 +270,29 @@ export function OpenfabricDomainModal({
           {/* Authentication Tab */}
           <TabsContent value="auth" className="space-y-4 mt-4">
             <p className="text-sm text-muted-foreground">
-              Configure domain-level authentication for OpenFabric.
+              {t("domainModal.authHelp")}
             </p>
             <div className="space-y-2">
-              <Label>Password Type</Label>
+              <Label>{t("modal.passwordType")}</Label>
               <Select value={passwordType} onValueChange={setPasswordType}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="none">{tc("none")}</SelectItem>
                   <SelectItem value="md5">MD5</SelectItem>
-                  <SelectItem value="plaintext">Plaintext</SelectItem>
+                  <SelectItem value="plaintext">{t("modal.plaintext")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             {passwordType !== "none" && (
               <div className="space-y-2">
-                <Label>Password</Label>
+                <Label>{t("modal.password")}</Label>
                 <Input
                   type="password"
                   value={passwordValue}
                   onChange={(e) => setPasswordValue(e.target.value)}
-                  placeholder={`${passwordType === "md5" ? "MD5" : "Plaintext"} password`}
+                  placeholder={passwordType === "md5" ? t("modal.md5Password") : t("modal.plaintextPassword")}
                 />
               </div>
             )}
@@ -298,11 +301,11 @@ export function OpenfabricDomainModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={saving}>
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? "Save Changes" : "Add Domain"}
+            {isEdit ? t("modal.saveChanges") : t("domainModal.submit")}
           </Button>
         </DialogFooter>
       </DialogContent>
