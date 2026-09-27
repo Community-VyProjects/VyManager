@@ -1,1 +1,156 @@
-{}
+{
+  "confirmDelete": "Confirm Delete",
+  "saveChanges": "Save Changes",
+  "adding": "Adding...",
+  "errors": {
+    "loadConfig": "Failed to load MPLS configuration",
+    "addInterface": "Failed to add interface",
+    "removeInterface": "Failed to remove interface",
+    "saveParameters": "Failed to save parameters",
+    "deleteLdpInterface": "Failed to delete LDP interface",
+    "deleteLdpNeighbor": "Failed to delete LDP neighbor",
+    "saveLdpGeneral": "Failed to save LDP general settings",
+    "saveLdpFilters": "Failed to save LDP filters"
+  },
+  "header": {
+    "readOnly": "Read Only",
+    "subtitle": "Multiprotocol Label Switching and Label Distribution Protocol"
+  },
+  "stats": {
+    "mplsInterfaces": "MPLS Interfaces",
+    "ldpInterfaces": "LDP Interfaces",
+    "ldpNeighbors": "LDP Neighbors",
+    "targetedSessions": "Targeted Sessions"
+  },
+  "tabs": {
+    "overview": "Overview",
+    "neighbors": "Neighbors",
+    "ldpGeneral": "LDP General",
+    "filters": "Filters",
+    "targeted": "Targeted"
+  },
+  "overview": {
+    "enabledInterfaces": "MPLS-Enabled Interfaces",
+    "removeInterface": "Remove {name}",
+    "noInterfaces": "No MPLS interfaces configured",
+    "addInterfacePlaceholder": "Add interface...",
+    "allInterfacesEnabled": "All available interfaces are already enabled",
+    "parameters": "MPLS Parameters",
+    "maximumTtl": "Maximum TTL",
+    "defaultMaxTtl": "Default (255)",
+    "noPropagateTtl": "No Propagate TTL",
+    "ldpSummary": "LDP Summary",
+    "configureLdp": "Configure LDP",
+    "transportIpv4": "Transport IPv4",
+    "transportIpv6": "Transport IPv6",
+    "on": "On",
+    "off": "Off",
+    "ldpNotConfigured": "LDP is not configured. Add an LDP interface to get started."
+  },
+  "general": {
+    "description": "LDP router ID, discovery timers, transport addresses, and protocol parameters",
+    "routerId": "Router ID",
+    "ipv4Placeholder": "e.g. 10.0.0.1",
+    "ipv6Placeholder": "e.g. 2001:db8::1",
+    "notConfigured": "Not configured",
+    "discoveryTitle": "Discovery Timers & Transport Addresses",
+    "helloIpv4HoldtimeS": "Hello IPv4 Holdtime (s)",
+    "helloIpv4IntervalS": "Hello IPv4 Interval (s)",
+    "helloIpv6HoldtimeS": "Hello IPv6 Holdtime (s)",
+    "helloIpv6IntervalS": "Hello IPv6 Interval (s)",
+    "sessionIpv4HoldtimeS": "Session IPv4 Holdtime (s)",
+    "sessionIpv6HoldtimeS": "Session IPv6 Holdtime (s)",
+    "transportIpv4Address": "Transport IPv4 Address",
+    "transportIpv6Address": "Transport IPv6 Address",
+    "helloIpv4Holdtime": "Hello IPv4 Holdtime",
+    "helloIpv4Interval": "Hello IPv4 Interval",
+    "helloIpv6Holdtime": "Hello IPv6 Holdtime",
+    "helloIpv6Interval": "Hello IPv6 Interval",
+    "sessionIpv4Holdtime": "Session IPv4 Holdtime",
+    "sessionIpv6Holdtime": "Session IPv6 Holdtime",
+    "ldpParameters": "LDP Parameters",
+    "ciscoInteropTlv": "Cisco Interop TLV",
+    "ciscoInteropTlvDesc": "Enable Cisco-specific LDP interoperability TLV",
+    "orderedControl": "Ordered Control",
+    "orderedControlDesc": "Use ordered label distribution control",
+    "transportPreferIpv4": "Transport Prefer IPv4",
+    "transportPreferIpv4Desc": "Prefer IPv4 transport over IPv6"
+  },
+  "ldpInterfaces": {
+    "description": "Interfaces participating in LDP neighbor discovery",
+    "add": "Add Interface",
+    "empty": "No LDP interfaces configured",
+    "emptyHint": "Add an interface to enable LDP neighbor discovery",
+    "interface": "Interface",
+    "disableHello": "Disable Hello"
+  },
+  "neighbors": {
+    "description": "Per-neighbor LDP session settings",
+    "add": "Add Neighbor",
+    "empty": "No LDP neighbors configured",
+    "emptyHint": "Configure neighbor-specific settings like passwords and holdtimes",
+    "peerAddress": "Peer Address",
+    "sessionHoldtime": "Session Holdtime",
+    "ttlSecurity": "TTL Security",
+    "password": "Password"
+  },
+  "filters": {
+    "description": "LDP FEC allocation, export, and import filtering via access-lists",
+    "allocation": "Allocation",
+    "ipv4AccessList": "IPv4 Access List",
+    "ipv6AccessList": "IPv6 Access List",
+    "aclPlaceholder": "ACL name or number",
+    "export": "Export",
+    "import": "Import",
+    "ipv4ExplicitNull": "IPv4 Explicit Null",
+    "ipv6ExplicitNull": "IPv6 Explicit Null",
+    "filterAccessList": "Filter Access List",
+    "neighborAccessList": "Neighbor Access List",
+    "aclNamePlaceholder": "ACL name",
+    "ipv4FilterAcl": "IPv4 Filter ACL",
+    "ipv4NeighborAcl": "IPv4 Neighbor ACL",
+    "ipv6FilterAcl": "IPv6 Filter ACL",
+    "ipv6NeighborAcl": "IPv6 Neighbor ACL"
+  },
+  "targeted": {
+    "description": "Targeted LDP sessions for LDP-over-TE and RSVP scenarios",
+    "configure": "Configure",
+    "ipv4Title": "IPv4 Targeted Neighbors",
+    "ipv6Title": "IPv6 Targeted Neighbors",
+    "noIpv4Addresses": "No IPv4 targeted neighbor addresses",
+    "noIpv6Addresses": "No IPv6 targeted neighbor addresses",
+    "helloHoldtime": "Hello Holdtime",
+    "helloInterval": "Hello Interval"
+  },
+  "interfaceModal": {
+    "nameRequired": "Interface name is required",
+    "editTitle": "Edit LDP Interface",
+    "addTitle": "Add LDP Interface",
+    "selectPlaceholder": "Select interface...",
+    "namePlaceholder": "e.g. eth0",
+    "disableHello": "Disable Establish Hello",
+    "disableHelloHelp": "Suppress LDP hello messages on this interface"
+  },
+  "neighborModal": {
+    "addressRequired": "Peer address is required",
+    "holdtimeInvalid": "Session holdtime must be a non-negative number",
+    "editTitle": "Edit LDP Neighbor",
+    "addTitle": "Add LDP Neighbor",
+    "peerIpv4Address": "Peer IPv4 Address",
+    "passwordPlaceholder": "MD5 authentication password (optional)",
+    "passwordHelp": "MD5 authentication password for this LDP neighbor session",
+    "sessionHoldtimeSeconds": "Session Holdtime (seconds)",
+    "holdtimePlaceholder": "Default (optional)",
+    "holdtimeHelp": "Override the LDP session holdtime for this peer",
+    "ttlPlaceholder": "1–254 or 'disable' (optional)",
+    "ttlHelp": "GTSM TTL security hops (1–254) or \"disable\" to turn off"
+  },
+  "targetedModal": {
+    "title": "Targeted Neighbor Sessions",
+    "enable": "Enable {family} Targeted Neighbors",
+    "addresses": "Addresses",
+    "noAddresses": "No addresses",
+    "helloHoldtimeSeconds": "Hello Holdtime (seconds)",
+    "helloIntervalSeconds": "Hello Interval (seconds)"
+  }
+}

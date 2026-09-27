@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,8 @@ export function MplsLdpInterfaceModal({
   onSubmit,
   existingInterface,
 }: MplsLdpInterfaceModalProps) {
+  const t = useTranslations("mpls");
+  const tc = useTranslations("common");
   const isEditMode = existingInterface !== null;
 
   const [interfaceName, setInterfaceName] = useState("");
@@ -65,7 +68,7 @@ export function MplsLdpInterfaceModal({
 
   const handleSubmit = async () => {
     if (!interfaceName.trim()) {
-      setError("Interface name is required");
+      setError(t("interfaceModal.nameRequired"));
       return;
     }
 
@@ -78,7 +81,7 @@ export function MplsLdpInterfaceModal({
       });
       onOpenChange(false);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -89,14 +92,14 @@ export function MplsLdpInterfaceModal({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit LDP Interface" : "Add LDP Interface"}
+            {isEditMode ? t("interfaceModal.editTitle") : t("interfaceModal.addTitle")}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           {/* Interface Name */}
           <div className="space-y-2">
-            <Label htmlFor="ldp-iface-name">Interface</Label>
+            <Label htmlFor="ldp-iface-name">{t("ldpInterfaces.interface")}</Label>
             {isEditMode ? (
               <p className="text-sm font-mono font-medium px-3 py-2 bg-muted rounded-md">
                 {existingInterface?.name}
@@ -107,7 +110,7 @@ export function MplsLdpInterfaceModal({
                 onValueChange={setInterfaceName}
                 interfaces={availableInterfaces}
                 id="ldp-iface-name"
-                placeholder="Select interface..."
+                placeholder={t("interfaceModal.selectPlaceholder")}
               />
             ) : (
               <input
@@ -115,7 +118,7 @@ export function MplsLdpInterfaceModal({
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 value={interfaceName}
                 onChange={(e) => setInterfaceName(e.target.value)}
-                placeholder="e.g. eth0"
+                placeholder={t("interfaceModal.namePlaceholder")}
               />
             )}
           </div>
@@ -129,10 +132,10 @@ export function MplsLdpInterfaceModal({
             />
             <div className="space-y-0.5">
               <Label htmlFor="ldp-iface-disable-hello" className="cursor-pointer">
-                Disable Establish Hello
+                {t("interfaceModal.disableHello")}
               </Label>
               <p className="text-xs text-muted-foreground">
-                Suppress LDP hello messages on this interface
+                {t("interfaceModal.disableHelloHelp")}
               </p>
             </div>
           </div>
@@ -147,18 +150,18 @@ export function MplsLdpInterfaceModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Adding..."}
+                {isEditMode ? tc("saving") : t("adding")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("saveChanges")
             ) : (
-              "Add Interface"
+              t("ldpInterfaces.add")
             )}
           </Button>
         </DialogFooter>

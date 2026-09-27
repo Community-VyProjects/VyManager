@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,8 @@ export function MplsLdpNeighborModal({
   onSubmit,
   existingNeighbor,
 }: MplsLdpNeighborModalProps) {
+  const t = useTranslations("mpls");
+  const tc = useTranslations("common");
   const isEditMode = existingNeighbor !== null;
 
   const [address, setAddress] = useState("");
@@ -58,13 +61,13 @@ export function MplsLdpNeighborModal({
 
   const handleSubmit = async () => {
     if (!address.trim()) {
-      setError("Peer address is required");
+      setError(t("neighborModal.addressRequired"));
       return;
     }
 
     const holdtime = sessionHoldtime ? parseInt(sessionHoldtime, 10) : null;
     if (sessionHoldtime && (isNaN(holdtime!) || holdtime! < 0)) {
-      setError("Session holdtime must be a non-negative number");
+      setError(t("neighborModal.holdtimeInvalid"));
       return;
     }
 
@@ -79,7 +82,7 @@ export function MplsLdpNeighborModal({
       });
       onOpenChange(false);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -90,14 +93,14 @@ export function MplsLdpNeighborModal({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit LDP Neighbor" : "Add LDP Neighbor"}
+            {isEditMode ? t("neighborModal.editTitle") : t("neighborModal.addTitle")}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           {/* Peer Address */}
           <div className="space-y-2">
-            <Label htmlFor="ldp-neighbor-addr">Peer IPv4 Address</Label>
+            <Label htmlFor="ldp-neighbor-addr">{t("neighborModal.peerIpv4Address")}</Label>
             {isEditMode ? (
               <p className="text-sm font-mono font-medium px-3 py-2 bg-muted rounded-md">
                 {existingNeighbor?.address}
@@ -107,53 +110,53 @@ export function MplsLdpNeighborModal({
                 id="ldp-neighbor-addr"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                placeholder="e.g. 10.0.0.1"
+                placeholder={t("general.ipv4Placeholder")}
               />
             )}
           </div>
 
           {/* Password */}
           <div className="space-y-2">
-            <Label htmlFor="ldp-neighbor-pw">Password</Label>
+            <Label htmlFor="ldp-neighbor-pw">{t("neighbors.password")}</Label>
             <Input
               id="ldp-neighbor-pw"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="MD5 authentication password (optional)"
+              placeholder={t("neighborModal.passwordPlaceholder")}
             />
             <p className="text-xs text-muted-foreground">
-              MD5 authentication password for this LDP neighbor session
+              {t("neighborModal.passwordHelp")}
             </p>
           </div>
 
           {/* Session Holdtime */}
           <div className="space-y-2">
-            <Label htmlFor="ldp-neighbor-holdtime">Session Holdtime (seconds)</Label>
+            <Label htmlFor="ldp-neighbor-holdtime">{t("neighborModal.sessionHoldtimeSeconds")}</Label>
             <Input
               id="ldp-neighbor-holdtime"
               type="number"
               min={0}
               value={sessionHoldtime}
               onChange={(e) => setSessionHoldtime(e.target.value)}
-              placeholder="Default (optional)"
+              placeholder={t("neighborModal.holdtimePlaceholder")}
             />
             <p className="text-xs text-muted-foreground">
-              Override the LDP session holdtime for this peer
+              {t("neighborModal.holdtimeHelp")}
             </p>
           </div>
 
           {/* TTL Security */}
           <div className="space-y-2">
-            <Label htmlFor="ldp-neighbor-ttl">TTL Security</Label>
+            <Label htmlFor="ldp-neighbor-ttl">{t("neighbors.ttlSecurity")}</Label>
             <Input
               id="ldp-neighbor-ttl"
               value={ttlSecurity}
               onChange={(e) => setTtlSecurity(e.target.value)}
-              placeholder="1–254 or 'disable' (optional)"
+              placeholder={t("neighborModal.ttlPlaceholder")}
             />
             <p className="text-xs text-muted-foreground">
-              GTSM TTL security hops (1–254) or &quot;disable&quot; to turn off
+              {t("neighborModal.ttlHelp")}
             </p>
           </div>
         </div>
@@ -167,18 +170,18 @@ export function MplsLdpNeighborModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Adding..."}
+                {isEditMode ? tc("saving") : t("adding")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("saveChanges")
             ) : (
-              "Add Neighbor"
+              t("neighbors.add")
             )}
           </Button>
         </DialogFooter>
