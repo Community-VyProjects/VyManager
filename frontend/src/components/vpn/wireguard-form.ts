@@ -69,22 +69,32 @@ const mssValue = (draft: InterfaceDraft): string | null => {
  * Create-only checks. The name is the interface identity and cannot change
  * after create, so the pattern and uniqueness rules never run on an edit.
  */
+/**
+ * Validation failures are message keys (wireguard.validation.*); the modals
+ * translate them and pass the draft name for the "already exists" messages.
+ */
+export type InterfaceValidationError =
+  | "interfaceNameRequired"
+  | "interfaceNameFormat"
+  | "interfaceExists"
+  | "privateKeyRequired";
+
 export function validateInterfaceCreate(
   draft: InterfaceDraft,
   existingInterfaces: string[],
-): string | null {
+): InterfaceValidationError | null {
   const name = draft.name.trim();
   if (!name) {
-    return "Interface name is required";
+    return "interfaceNameRequired";
   }
   if (!/^wg\d+$/.test(name)) {
-    return "Interface name must be in format 'wg0', 'wg1', etc.";
+    return "interfaceNameFormat";
   }
   if (existingInterfaces.includes(name)) {
-    return `Interface ${draft.name} already exists`;
+    return "interfaceExists";
   }
   if (!draft.privateKey.trim()) {
-    return "Private key is required. Use 'Generate Key' to create one.";
+    return "privateKeyRequired";
   }
   return null;
 }
@@ -223,27 +233,34 @@ export interface PeerUpdateConfig {
  * create-only: on edit the name is locked to the stored peer, so checking it
  * against the interface's peers would reject the peer for being itself.
  */
+export type PeerValidationError =
+  | "peerNameRequired"
+  | "peerNameSpaces"
+  | "publicKeyRequired"
+  | "allowedIpsRequired"
+  | "peerExists";
+
 export function validatePeer(
   draft: PeerDraft,
   options: { isCreate: boolean; existingPeerNames: string[] },
-): string | null {
+): PeerValidationError | null {
   const name = draft.name.trim();
   if (options.isCreate) {
     if (!name) {
-      return "Peer name is required";
+      return "peerNameRequired";
     }
     if (/\s/.test(name)) {
-      return "Peer name cannot contain spaces";
+      return "peerNameSpaces";
     }
   }
   if (!draft.publicKey.trim()) {
-    return "Public key is required";
+    return "publicKeyRequired";
   }
   if (!draft.allowedIps.trim()) {
-    return "At least one allowed IP is required";
+    return "allowedIpsRequired";
   }
   if (options.isCreate && options.existingPeerNames.includes(name)) {
-    return `Peer '${draft.name}' already exists on this interface`;
+    return "peerExists";
   }
   return null;
 }
