@@ -1,1 +1,48 @@
-{}
+{
+  "content": {
+    "loadFailed": "Failed to load TFTP server configuration",
+    "title": "TFTP Server",
+    "readOnly": "Read Only",
+    "subtitle": "Trivial File Transfer Protocol — serve files to network devices",
+    "editSettings": "Edit Settings",
+    "settings": "Settings",
+    "directory": "Directory",
+    "port": "Port",
+    "defaultPort": "Default ({value})",
+    "uploads": "Uploads",
+    "allowed": "Allowed",
+    "readOnlyUploads": "Read-only",
+    "directoryWarning": "A directory must be set for the TFTP server to start serving files.",
+    "listenAddresses": "Listen Addresses",
+    "listenAll": "Listening on all addresses. Add one to restrict binding.",
+    "colAddress": "Address"
+  },
+  "delete": {
+    "title": "Remove Listen Address",
+    "description": "Remove listen address <mono>{address}</mono> from the TFTP server? This cannot be undone.",
+    "remove": "Remove"
+  },
+  "general": {
+    "directoryRequired": "A directory is required for the TFTP server to start",
+    "title": "TFTP Server Settings",
+    "description": "Configure the served directory, listening port, and upload behaviour",
+    "directory": "Directory",
+    "directoryHint": "Folder containing files served by TFTP. Required for the service to run.",
+    "directoryPlaceholder": "e.g. /config/tftpboot",
+    "port": "Port",
+    "portHint": "UDP port to listen on. Leave empty for the default ({value}).",
+    "allowUploads": "Allow uploads",
+    "allowUploadsHint": "Permit clients to write files to the server (otherwise read-only)"
+  },
+  "listen": {
+    "addressRequired": "An IP address is required",
+    "addressInvalid": "Enter a valid IPv4 or IPv6 address",
+    "addressExists": "Listen address \"{address}\" already exists",
+    "editTitle": "Edit Listen Address",
+    "addTitle": "Add Listen Address",
+    "description": "Bind the TFTP server to a specific local IP address, optionally within a VRF",
+    "ipAddress": "IP Address",
+    "ipAddressPlaceholder": "e.g. 192.0.2.1 or 2001:db8::1",
+    "vrfHint": "Leave empty to use the default routing table."
+  }
+}
