@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +47,8 @@ export function L2TPv3Modal({
   existingInterfaces,
   existing,
 }: L2TPv3ModalProps) {
+  const t = useTranslations("l2tpv3");
+  const tc = useTranslations("common");
   const isEdit = !!existing;
   // General
   const [name, setName] = useState("l2tpeth0");
@@ -206,44 +209,44 @@ export function L2TPv3Modal({
   }, [open, existing]);
 
   const validateShared = (): string | null => {
-    if (!remote.trim()) return "Remote address is required";
+    if (!remote.trim()) return t("modal.errors.remoteRequired");
     if (mtu.trim()) {
       const mtuNum = parseInt(mtu.trim(), 10);
       if (isNaN(mtuNum) || mtuNum < 68 || mtuNum > 16000) {
-        return "MTU must be between 68 and 16000";
+        return t("modal.errors.mtuRange");
       }
     }
     if (tunnelId.trim()) {
       const tid = parseInt(tunnelId.trim(), 10);
-      if (isNaN(tid) || tid < 1 || tid > 429496729) return "Tunnel ID must be between 1 and 429496729";
+      if (isNaN(tid) || tid < 1 || tid > 429496729) return t("modal.errors.tunnelIdRange");
     }
     if (peerTunnelId.trim()) {
       const ptid = parseInt(peerTunnelId.trim(), 10);
-      if (isNaN(ptid) || ptid < 1 || ptid > 429496729) return "Peer Tunnel ID must be between 1 and 429496729";
+      if (isNaN(ptid) || ptid < 1 || ptid > 429496729) return t("modal.errors.peerTunnelIdRange");
     }
     if (sessionId.trim()) {
       const sid = parseInt(sessionId.trim(), 10);
-      if (isNaN(sid) || sid < 1 || sid > 429496729) return "Session ID must be between 1 and 429496729";
+      if (isNaN(sid) || sid < 1 || sid > 429496729) return t("modal.errors.sessionIdRange");
     }
     if (peerSessionId.trim()) {
       const psid = parseInt(peerSessionId.trim(), 10);
-      if (isNaN(psid) || psid < 1 || psid > 429496729) return "Peer Session ID must be between 1 and 429496729";
+      if (isNaN(psid) || psid < 1 || psid > 429496729) return t("modal.errors.peerSessionIdRange");
     }
     if (destinationPort.trim()) {
       const dp = parseInt(destinationPort.trim(), 10);
-      if (isNaN(dp) || dp < 1 || dp > 65535) return "Destination port must be between 1 and 65535";
+      if (isNaN(dp) || dp < 1 || dp > 65535) return t("modal.errors.destinationPortRange");
     }
     if (sourcePort.trim()) {
       const sp = parseInt(sourcePort.trim(), 10);
-      if (isNaN(sp) || sp < 1 || sp > 65535) return "Source port must be between 1 and 65535";
+      if (isNaN(sp) || sp < 1 || sp > 65535) return t("modal.errors.sourcePortRange");
     }
     return null;
   };
 
   const validateForm = (): string | null => {
-    if (!name.trim()) return "Interface name is required";
-    if (!/^l2tpeth\d+$/.test(name)) return "Name must be l2tpeth0, l2tpeth1, etc.";
-    if (existingInterfaces.includes(name)) return `Interface ${name} already exists`;
+    if (!name.trim()) return t("modal.errors.nameRequired");
+    if (!/^l2tpeth\d+$/.test(name)) return t("modal.errors.nameFormat");
+    if (existingInterfaces.includes(name)) return t("modal.errors.nameExists", { name });
     return validateShared();
   };
 
@@ -307,7 +310,7 @@ export function L2TPv3Modal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to update L2TPv3 interface");
+        setError(result.error || t("modal.errors.updateFailed"));
       }
     } catch (err) {
       const msg = (err as ApiError).message;
@@ -395,7 +398,7 @@ export function L2TPv3Modal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to create L2TPv3 interface");
+        setError(result.error || t("modal.errors.createFailed"));
       }
     } catch (err) {
       const msg = (err as ApiError).message;
@@ -411,35 +414,37 @@ export function L2TPv3Modal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Cable className="h-5 w-5" />
-            {isEdit ? "Edit L2TPv3 Interface" : "Create L2TPv3 Interface"}
+            {isEdit ? t("modal.editTitle") : t("modal.createTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEdit ? (
-              <>
-                Editing interface{" "}
-                <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">
-                  {existing.name}
-                </code>
-              </>
+              t.rich("modal.editDescription", {
+                name: existing.name,
+                code: (chunks) => (
+                  <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">
+                    {chunks}
+                  </code>
+                ),
+              })
             ) : (
-              "Create a new L2TPv3 tunnel interface for Layer 2 tunneling."
+              t("modal.createDescription")
             )}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="general" className="mt-2">
           <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="general">General</TabsTrigger>
-            <TabsTrigger value="addresses">Addresses</TabsTrigger>
-            <TabsTrigger value="ip">IP Settings</TabsTrigger>
-            <TabsTrigger value="ipv6">IPv6 Settings</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            <TabsTrigger value="general">{t("modal.tabs.general")}</TabsTrigger>
+            <TabsTrigger value="addresses">{t("modal.tabs.addresses")}</TabsTrigger>
+            <TabsTrigger value="ip">{t("modal.tabs.ip")}</TabsTrigger>
+            <TabsTrigger value="ipv6">{t("modal.tabs.ipv6")}</TabsTrigger>
+            <TabsTrigger value="advanced">{t("modal.tabs.advanced")}</TabsTrigger>
           </TabsList>
 
           {/* General Tab */}
           <TabsContent value="general" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Interface Name {isEdit ? null : <span className="text-destructive">*</span>}</Label>
+              <Label htmlFor="name">{t("modal.general.interfaceName")} {isEdit ? null : <span className="text-destructive">*</span>}</Label>
               <Input
                 id="name"
                 value={isEdit ? existing.name : name}
@@ -449,47 +454,47 @@ export function L2TPv3Modal({
               />
               <p className="text-xs text-muted-foreground">
                 {isEdit
-                  ? "Interface name cannot be changed."
-                  : "Must match pattern: l2tpeth0, l2tpeth1, l2tpeth2, ..."}
+                  ? t("modal.general.nameLocked")
+                  : t("modal.general.nameFormatHint")}
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{tc("description")}</Label>
               <Input
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional description"
+                placeholder={t("modal.general.descriptionPlaceholder")}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="remote">Remote Address <span className="text-destructive">*</span></Label>
+                <Label htmlFor="remote">{t("modal.general.remoteAddress")} <span className="text-destructive">*</span></Label>
                 <Input
                   id="remote"
                   value={remote}
                   onChange={(e) => setRemote(e.target.value)}
-                  placeholder="10.0.0.1 or 2001:db8::1"
+                  placeholder={t("modal.general.remotePlaceholder")}
                 />
-                <p className="text-xs text-muted-foreground">Remote tunnel endpoint</p>
+                <p className="text-xs text-muted-foreground">{t("modal.general.remoteHint")}</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="sourceAddress">Source Address</Label>
+                <Label htmlFor="sourceAddress">{t("modal.general.sourceAddress")}</Label>
                 <Input
                   id="sourceAddress"
                   value={sourceAddress}
                   onChange={(e) => setSourceAddress(e.target.value)}
-                  placeholder="10.0.0.2 or 2001:db8::2"
+                  placeholder={t("modal.general.sourcePlaceholder")}
                 />
-                <p className="text-xs text-muted-foreground">Local source IP</p>
+                <p className="text-xs text-muted-foreground">{t("modal.general.sourceHint")}</p>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="tunnelId">Tunnel ID</Label>
+                <Label htmlFor="tunnelId">{t("modal.general.tunnelId")}</Label>
                 <Input
                   id="tunnelId"
                   value={tunnelId}
@@ -498,7 +503,7 @@ export function L2TPv3Modal({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="peerTunnelId">Peer Tunnel ID</Label>
+                <Label htmlFor="peerTunnelId">{t("modal.general.peerTunnelId")}</Label>
                 <Input
                   id="peerTunnelId"
                   value={peerTunnelId}
@@ -510,7 +515,7 @@ export function L2TPv3Modal({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="sessionId">Session ID</Label>
+                <Label htmlFor="sessionId">{t("modal.general.sessionId")}</Label>
                 <Input
                   id="sessionId"
                   value={sessionId}
@@ -519,7 +524,7 @@ export function L2TPv3Modal({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="peerSessionId">Peer Session ID</Label>
+                <Label htmlFor="peerSessionId">{t("modal.general.peerSessionId")}</Label>
                 <Input
                   id="peerSessionId"
                   value={peerSessionId}
@@ -531,37 +536,37 @@ export function L2TPv3Modal({
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="encapsulation">Encapsulation</Label>
+                <Label htmlFor="encapsulation">{t("modal.general.encapsulation")}</Label>
                 <Select value={encapsulation || "default"} onValueChange={(v) => setEncapsulation(v === "default" ? "" : v)}>
                   <SelectTrigger id="encapsulation">
-                    <SelectValue placeholder="Default (UDP)" />
+                    <SelectValue placeholder={t("modal.general.encapsulationDefault")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="default">Default (UDP)</SelectItem>
+                    <SelectItem value="default">{t("modal.general.encapsulationDefault")}</SelectItem>
                     <SelectItem value="udp">UDP</SelectItem>
                     <SelectItem value="ip">IP</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="destinationPort">Destination Port</Label>
+                <Label htmlFor="destinationPort">{t("modal.general.destinationPort")}</Label>
                 <Input
                   id="destinationPort"
                   value={destinationPort}
                   onChange={(e) => setDestinationPort(e.target.value)}
                   placeholder="5000"
                 />
-                <p className="text-xs text-muted-foreground">Default: 5000</p>
+                <p className="text-xs text-muted-foreground">{t("modal.general.portDefaultHint")}</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="sourcePort">Source Port</Label>
+                <Label htmlFor="sourcePort">{t("modal.general.sourcePort")}</Label>
                 <Input
                   id="sourcePort"
                   value={sourcePort}
                   onChange={(e) => setSourcePort(e.target.value)}
                   placeholder="5000"
                 />
-                <p className="text-xs text-muted-foreground">Default: 5000</p>
+                <p className="text-xs text-muted-foreground">{t("modal.general.portDefaultHint")}</p>
               </div>
             </div>
 
@@ -574,7 +579,7 @@ export function L2TPv3Modal({
                   onChange={(e) => setMtu(e.target.value)}
                   placeholder="1488"
                 />
-                <p className="text-xs text-muted-foreground">Valid range: 68-16000 (default: 1488)</p>
+                <p className="text-xs text-muted-foreground">{t("modal.general.mtuHint")}</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="vrf">VRF</Label>
@@ -588,14 +593,14 @@ export function L2TPv3Modal({
 
             <div className="flex items-center gap-2">
               <Checkbox checked={disabled} onCheckedChange={(c) => setDisabled(c === true)} id="disabled" />
-              <Label htmlFor="disabled" className="font-normal">Disable Interface</Label>
+              <Label htmlFor="disabled" className="font-normal">{t("modal.general.disableInterface")}</Label>
             </div>
           </TabsContent>
 
           {/* Addresses Tab */}
           <TabsContent value="addresses" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="addresses">IP Addresses</Label>
+              <Label htmlFor="addresses">{t("modal.addresses.ipAddresses")}</Label>
               <Textarea
                 id="addresses"
                 value={addresses}
@@ -603,11 +608,11 @@ export function L2TPv3Modal({
                 placeholder={"10.0.0.1/32\n192.168.1.1/24"}
                 rows={4}
               />
-              <p className="text-xs text-muted-foreground">One address per line, IPv4 or IPv6 CIDR notation</p>
+              <p className="text-xs text-muted-foreground">{t("modal.addresses.ipAddressesHint")}</p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="eui64">IPv6 EUI-64 Prefixes</Label>
+              <Label htmlFor="eui64">{t("modal.addresses.eui64Prefixes")}</Label>
               <Textarea
                 id="eui64"
                 value={ipv6AddressEui64}
@@ -615,7 +620,7 @@ export function L2TPv3Modal({
                 placeholder={"2001:db8::/64"}
                 rows={3}
               />
-              <p className="text-xs text-muted-foreground">One /64 prefix per line</p>
+              <p className="text-xs text-muted-foreground">{t("modal.addresses.eui64Hint")}</p>
             </div>
 
             <div className="flex items-center gap-2">
@@ -624,7 +629,7 @@ export function L2TPv3Modal({
                 checked={ipv6AddressAutoconf}
                 onCheckedChange={(c) => setIpv6AddressAutoconf(c === true)}
               />
-              <Label htmlFor="autoconf" className="font-normal">IPv6 SLAAC Autoconf</Label>
+              <Label htmlFor="autoconf" className="font-normal">{t("modal.addresses.autoconf")}</Label>
             </div>
 
             <div className="flex items-center gap-2">
@@ -633,12 +638,12 @@ export function L2TPv3Modal({
                 checked={ipv6AddressNoDefaultLinkLocal}
                 onCheckedChange={(c) => setIpv6AddressNoDefaultLinkLocal(c === true)}
               />
-              <Label htmlFor="noDefaultLinkLocal" className="font-normal">No Default Link-Local</Label>
+              <Label htmlFor="noDefaultLinkLocal" className="font-normal">{t("modal.addresses.noDefaultLinkLocal")}</Label>
             </div>
 
             {capabilities?.features.ipv6_address_interface_identifier?.supported && (
               <div className="space-y-2">
-                <Label htmlFor="interfaceIdentifier">Interface Identifier (SLAAC)</Label>
+                <Label htmlFor="interfaceIdentifier">{t("modal.addresses.interfaceIdentifier")}</Label>
                 <Input
                   id="interfaceIdentifier"
                   value={ipv6AddressInterfaceIdentifier}
@@ -653,16 +658,16 @@ export function L2TPv3Modal({
           <TabsContent value="ip" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="ipAdjustMss">Adjust MSS</Label>
+                <Label htmlFor="ipAdjustMss">{t("modal.ip.adjustMss")}</Label>
                 <Input
                   id="ipAdjustMss"
                   value={ipAdjustMss}
                   onChange={(e) => setIpAdjustMss(e.target.value)}
-                  placeholder="clamp-mss-to-pmtu or 536-65535"
+                  placeholder={t("modal.ip.adjustMssPlaceholder")}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ipArpCacheTimeout">ARP Cache Timeout</Label>
+                <Label htmlFor="ipArpCacheTimeout">{t("modal.ip.arpCacheTimeout")}</Label>
                 <Input
                   id="ipArpCacheTimeout"
                   value={ipArpCacheTimeout}
@@ -673,16 +678,16 @@ export function L2TPv3Modal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="sourceValidation">Source Validation</Label>
+              <Label htmlFor="sourceValidation">{t("modal.ip.sourceValidation")}</Label>
               <Select value={ipSourceValidation || "none"} onValueChange={(v) => setIpSourceValidation(v === "none" ? "" : v)}>
                 <SelectTrigger id="sourceValidation">
-                  <SelectValue placeholder="None" />
+                  <SelectValue placeholder={tc("none")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="strict">Strict</SelectItem>
-                  <SelectItem value="loose">Loose</SelectItem>
-                  <SelectItem value="disable">Disable</SelectItem>
+                  <SelectItem value="none">{tc("none")}</SelectItem>
+                  <SelectItem value="strict">{t("modal.ip.strict")}</SelectItem>
+                  <SelectItem value="loose">{t("modal.ip.loose")}</SelectItem>
+                  <SelectItem value="disable">{t("modal.ip.disable")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -690,35 +695,35 @@ export function L2TPv3Modal({
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Checkbox id="ipDisableArpFilter" checked={ipDisableArpFilter} onCheckedChange={(c) => setIpDisableArpFilter(c === true)} />
-                <Label htmlFor="ipDisableArpFilter" className="font-normal">Disable ARP Filter</Label>
+                <Label htmlFor="ipDisableArpFilter" className="font-normal">{t("modal.ip.disableArpFilter")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="ipDisableForwarding" checked={ipDisableForwarding} onCheckedChange={(c) => setIpDisableForwarding(c === true)} />
-                <Label htmlFor="ipDisableForwarding" className="font-normal">Disable IPv4 Forwarding</Label>
+                <Label htmlFor="ipDisableForwarding" className="font-normal">{t("modal.ip.disableForwarding")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="ipEnableArpAccept" checked={ipEnableArpAccept} onCheckedChange={(c) => setIpEnableArpAccept(c === true)} />
-                <Label htmlFor="ipEnableArpAccept" className="font-normal">Enable ARP Accept</Label>
+                <Label htmlFor="ipEnableArpAccept" className="font-normal">{t("modal.ip.enableArpAccept")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="ipEnableArpAnnounce" checked={ipEnableArpAnnounce} onCheckedChange={(c) => setIpEnableArpAnnounce(c === true)} />
-                <Label htmlFor="ipEnableArpAnnounce" className="font-normal">Enable ARP Announce</Label>
+                <Label htmlFor="ipEnableArpAnnounce" className="font-normal">{t("modal.ip.enableArpAnnounce")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="ipEnableArpIgnore" checked={ipEnableArpIgnore} onCheckedChange={(c) => setIpEnableArpIgnore(c === true)} />
-                <Label htmlFor="ipEnableArpIgnore" className="font-normal">Enable ARP Ignore</Label>
+                <Label htmlFor="ipEnableArpIgnore" className="font-normal">{t("modal.ip.enableArpIgnore")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="ipEnableDirectedBroadcast" checked={ipEnableDirectedBroadcast} onCheckedChange={(c) => setIpEnableDirectedBroadcast(c === true)} />
-                <Label htmlFor="ipEnableDirectedBroadcast" className="font-normal">Enable Directed Broadcast</Label>
+                <Label htmlFor="ipEnableDirectedBroadcast" className="font-normal">{t("modal.ip.enableDirectedBroadcast")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="ipEnableProxyArp" checked={ipEnableProxyArp} onCheckedChange={(c) => setIpEnableProxyArp(c === true)} />
-                <Label htmlFor="ipEnableProxyArp" className="font-normal">Enable Proxy ARP</Label>
+                <Label htmlFor="ipEnableProxyArp" className="font-normal">{t("modal.ip.enableProxyArp")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="ipProxyArpPvlan" checked={ipProxyArpPvlan} onCheckedChange={(c) => setIpProxyArpPvlan(c === true)} />
-                <Label htmlFor="ipProxyArpPvlan" className="font-normal">Private VLAN Proxy ARP</Label>
+                <Label htmlFor="ipProxyArpPvlan" className="font-normal">{t("modal.ip.proxyArpPvlan")}</Label>
               </div>
             </div>
           </TabsContent>
@@ -726,32 +731,32 @@ export function L2TPv3Modal({
           {/* IPv6 Settings Tab */}
           <TabsContent value="ipv6" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="ipv6AcceptDad">Accept DAD</Label>
+              <Label htmlFor="ipv6AcceptDad">{t("modal.ipv6.acceptDad")}</Label>
               <Select value={ipv6AcceptDad || "default"} onValueChange={(v) => setIpv6AcceptDad(v === "default" ? "" : v)}>
                 <SelectTrigger id="ipv6AcceptDad">
-                  <SelectValue placeholder="Default" />
+                  <SelectValue placeholder={tc("default")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="default">Default</SelectItem>
-                  <SelectItem value="0">0 - Disable DAD</SelectItem>
-                  <SelectItem value="1">1 - Enable DAD</SelectItem>
-                  <SelectItem value="2">2 - Enable DAD and disable if MAC-based duplicate link-local</SelectItem>
+                  <SelectItem value="default">{tc("default")}</SelectItem>
+                  <SelectItem value="0">{t("modal.ipv6.dad0")}</SelectItem>
+                  <SelectItem value="1">{t("modal.ipv6.dad1")}</SelectItem>
+                  <SelectItem value="2">{t("modal.ipv6.dad2")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="ipv6AdjustMss">Adjust MSS</Label>
+                <Label htmlFor="ipv6AdjustMss">{t("modal.ip.adjustMss")}</Label>
                 <Input
                   id="ipv6AdjustMss"
                   value={ipv6AdjustMss}
                   onChange={(e) => setIpv6AdjustMss(e.target.value)}
-                  placeholder="clamp-mss-to-pmtu or 536-65535"
+                  placeholder={t("modal.ip.adjustMssPlaceholder")}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ipv6BaseReachableTime">Base Reachable Time</Label>
+                <Label htmlFor="ipv6BaseReachableTime">{t("modal.ipv6.baseReachableTime")}</Label>
                 <Input
                   id="ipv6BaseReachableTime"
                   value={ipv6BaseReachableTime}
@@ -762,58 +767,58 @@ export function L2TPv3Modal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="ipv6DupAddrDetectTransmits">DAD Transmit Count</Label>
+              <Label htmlFor="ipv6DupAddrDetectTransmits">{t("modal.ipv6.dadTransmits")}</Label>
               <Input
                 id="ipv6DupAddrDetectTransmits"
                 value={ipv6DupAddrDetectTransmits}
                 onChange={(e) => setIpv6DupAddrDetectTransmits(e.target.value)}
-                placeholder="Number of NS messages"
+                placeholder={t("modal.ipv6.dadTransmitsPlaceholder")}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="ipv6SourceValidation">Source Validation</Label>
+              <Label htmlFor="ipv6SourceValidation">{t("modal.ip.sourceValidation")}</Label>
               <Select value={ipv6SourceValidation || "none"} onValueChange={(v) => setIpv6SourceValidation(v === "none" ? "" : v)}>
                 <SelectTrigger id="ipv6SourceValidation">
-                  <SelectValue placeholder="None" />
+                  <SelectValue placeholder={tc("none")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="strict">Strict</SelectItem>
-                  <SelectItem value="loose">Loose</SelectItem>
-                  <SelectItem value="disable">Disable</SelectItem>
+                  <SelectItem value="none">{tc("none")}</SelectItem>
+                  <SelectItem value="strict">{t("modal.ip.strict")}</SelectItem>
+                  <SelectItem value="loose">{t("modal.ip.loose")}</SelectItem>
+                  <SelectItem value="disable">{t("modal.ip.disable")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="flex items-center gap-2">
               <Checkbox id="ipv6DisableForwarding" checked={ipv6DisableForwarding} onCheckedChange={(c) => setIpv6DisableForwarding(c === true)} />
-              <Label htmlFor="ipv6DisableForwarding" className="font-normal">Disable IPv6 Forwarding</Label>
+              <Label htmlFor="ipv6DisableForwarding" className="font-normal">{t("modal.ipv6.disableForwarding")}</Label>
             </div>
           </TabsContent>
 
           {/* Advanced Tab */}
           <TabsContent value="advanced" className="space-y-4 mt-4">
             <div className="space-y-3">
-              <h4 className="text-sm font-medium text-foreground">Traffic Mirroring</h4>
+              <h4 className="text-sm font-medium text-foreground">{t("modal.advanced.trafficMirroring")}</h4>
               <div className="space-y-2">
-                <Label>Mirror Ingress &rarr;</Label>
+                <Label>{t("modal.advanced.mirrorIngress")}</Label>
                 <InterfaceSelect
                   value={mirrorIngress || "none"}
                   onValueChange={(v) => setMirrorIngress(v === "none" ? "" : v)}
                   interfaces={availableInterfaces}
-                  noneOption={{ label: "None", value: "none" }}
-                  placeholder="None"
+                  noneOption={{ label: tc("none"), value: "none" }}
+                  placeholder={tc("none")}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Mirror Egress &rarr;</Label>
+                <Label>{t("modal.advanced.mirrorEgress")}</Label>
                 <InterfaceSelect
                   value={mirrorEgress || "none"}
                   onValueChange={(v) => setMirrorEgress(v === "none" ? "" : v)}
                   interfaces={availableInterfaces}
-                  noneOption={{ label: "None", value: "none" }}
-                  placeholder="None"
+                  noneOption={{ label: tc("none"), value: "none" }}
+                  placeholder={tc("none")}
                 />
               </div>
             </div>
@@ -828,18 +833,18 @@ export function L2TPv3Modal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? "Saving..." : "Creating..."}
+                {isEdit ? tc("saving") : t("modal.creating")}
               </>
             ) : isEdit ? (
-              "Save Changes"
+              t("modal.saveChanges")
             ) : (
-              "Create Interface"
+              t("modal.createInterface")
             )}
           </Button>
         </DialogFooter>
