@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,8 @@ export function NTPServerModal({
   existingNames,
   onSuccess,
 }: NTPServerModalProps) {
+  const t = useTranslations("ntp");
+  const tc = useTranslations("common");
   const isEdit = existing !== null;
 
   const [name, setName] = useState(existing?.name ?? "");
@@ -46,9 +49,9 @@ export function NTPServerModal({
 
   const validate = (): string | null => {
     const trimmed = name.trim();
-    if (!trimmed) return "Server hostname or IP address is required";
+    if (!trimmed) return t("server.nameRequired");
     if (!isEdit && existingNames.includes(trimmed)) {
-      return `Server "${trimmed}" is already configured`;
+      return t("server.nameExists", { name: trimmed });
     }
     return null;
   };
@@ -75,7 +78,7 @@ export function NTPServerModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -85,11 +88,11 @@ export function NTPServerModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit NTP Server" : "Add NTP Server"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("server.editTitle") : t("server.addTitle")}</DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Update flags for this NTP server"
-              : "Add an upstream NTP server to synchronise time from"}
+              ? t("server.editDescription")
+              : t("server.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -97,10 +100,10 @@ export function NTPServerModal({
           <div className="space-y-6 py-1">
             {/* Server name */}
             <div className="space-y-1.5">
-              <Label htmlFor="server-name">Server</Label>
+              <Label htmlFor="server-name">{t("server.server")}</Label>
               <Input
                 id="server-name"
-                placeholder="e.g. pool.ntp.org or 203.0.113.1"
+                placeholder={t("server.namePlaceholder")}
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value);
@@ -110,7 +113,7 @@ export function NTPServerModal({
                 className={isEdit ? "font-mono bg-muted" : ""}
               />
               <p className="text-xs text-muted-foreground">
-                Hostname, IPv4, or IPv6 address of the NTP server
+                {t("server.nameHint")}
               </p>
             </div>
 
@@ -118,7 +121,7 @@ export function NTPServerModal({
 
             {/* Flags */}
             <div className="space-y-3">
-              <Label className="text-sm font-medium">Server Options</Label>
+              <Label className="text-sm font-medium">{t("server.options")}</Label>
 
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
@@ -128,9 +131,9 @@ export function NTPServerModal({
                     onCheckedChange={(checked) => setPool(!!checked)}
                   />
                   <Label htmlFor="flag-pool" className="cursor-pointer leading-tight">
-                    <span className="font-medium">Pool</span>
+                    <span className="font-medium">{t("server.pool")}</span>
                     <span className="block text-xs text-muted-foreground mt-0.5">
-                      Treat as an NTP pool — resolves to multiple servers behind one hostname
+                      {t("server.poolHint")}
                     </span>
                   </Label>
                 </div>
@@ -142,9 +145,9 @@ export function NTPServerModal({
                     onCheckedChange={(checked) => setPrefer(!!checked)}
                   />
                   <Label htmlFor="flag-prefer" className="cursor-pointer leading-tight">
-                    <span className="font-medium">Prefer</span>
+                    <span className="font-medium">{t("server.prefer")}</span>
                     <span className="block text-xs text-muted-foreground mt-0.5">
-                      Mark as the preferred time source; used first when available
+                      {t("server.preferHint")}
                     </span>
                   </Label>
                 </div>
@@ -158,7 +161,7 @@ export function NTPServerModal({
                   <Label htmlFor="flag-nts" className="cursor-pointer leading-tight">
                     <span className="font-medium">NTS</span>
                     <span className="block text-xs text-muted-foreground mt-0.5">
-                      Enable Network Time Security — authenticates time data cryptographically
+                      {t("server.ntsHint")}
                     </span>
                   </Label>
                 </div>
@@ -170,9 +173,9 @@ export function NTPServerModal({
                     onCheckedChange={(checked) => setNoselect(!!checked)}
                   />
                   <Label htmlFor="flag-noselect" className="cursor-pointer leading-tight">
-                    <span className="font-medium">No Select</span>
+                    <span className="font-medium">{t("server.noSelect")}</span>
                     <span className="block text-xs text-muted-foreground mt-0.5">
-                      Monitor only — server is queried but never used for synchronisation
+                      {t("server.noSelectHint")}
                     </span>
                   </Label>
                 </div>
@@ -190,11 +193,11 @@ export function NTPServerModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isEdit ? "Save" : "Add Server"}
+            {isEdit ? tc("save") : t("server.addServer")}
           </Button>
         </DialogFooter>
       </DialogContent>
