@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +27,8 @@ export function DeleteNhrpTunnelModal({
   tunnelName,
   onConfirm,
 }: DeleteNhrpTunnelModalProps) {
+  const t = useTranslations("nhrp");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
 
   const handleConfirm = async () => {
@@ -41,17 +44,17 @@ export function DeleteNhrpTunnelModal({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete NHRP Tunnel</AlertDialogTitle>
+          <AlertDialogTitle>{t("deleteTunnel.title")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete tunnel{" "}
-            <span className="font-mono font-semibold">{tunnelName}</span>?
-            This will remove all NHRP configuration for this tunnel including
-            maps, NHS entries, and multicast settings.
+            {t.rich("deleteTunnel.description", {
+              name: tunnelName,
+              mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
             disabled={loading}
@@ -60,10 +63,10 @@ export function DeleteNhrpTunnelModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Tunnel"
+              t("deleteTunnel.confirm")
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

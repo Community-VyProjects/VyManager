@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,8 @@ export function NhrpMapModal({
   existingMap,
   capabilities,
 }: NhrpMapModalProps) {
+  const t = useTranslations("nhrp");
+  const tc = useTranslations("common");
   const isEditMode = existingMap !== null;
 
   const [tunnelIp, setTunnelIp] = useState("");
@@ -55,7 +58,7 @@ export function NhrpMapModal({
 
   const handleSubmit = async () => {
     if (!tunnelIp.trim()) {
-      setError("Tunnel IP is required");
+      setError(t("tunnelIpRequired"));
       return;
     }
 
@@ -65,7 +68,7 @@ export function NhrpMapModal({
       await onSubmit(tunnelIp.trim(), nbma.trim(), cisco, register);
       onOpenChange(false);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -76,13 +79,13 @@ export function NhrpMapModal({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit Static Map" : "Add Static Map"}
+            {isEditMode ? t("mapModal.editTitle") : t("mapModal.addTitle")}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label htmlFor="map-tunnel-ip">Tunnel IP</Label>
+            <Label htmlFor="map-tunnel-ip">{t("tunnel.tunnelIp")}</Label>
             {isEditMode ? (
               <p className="text-sm font-mono font-medium px-3 py-2 bg-muted rounded-md">
                 {existingMap?.tunnel_ip}
@@ -92,18 +95,18 @@ export function NhrpMapModal({
                 id="map-tunnel-ip"
                 value={tunnelIp}
                 onChange={(e) => setTunnelIp(e.target.value)}
-                placeholder="e.g. 10.0.0.1"
+                placeholder={t("placeholders.tunnelIp")}
               />
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="map-nbma">NBMA Address</Label>
+            <Label htmlFor="map-nbma">{t("tunnel.nbmaAddress")}</Label>
             <Input
               id="map-nbma"
               value={nbma}
               onChange={(e) => setNbma(e.target.value)}
-              placeholder="e.g. 192.168.1.1"
+              placeholder={t("placeholders.nbma")}
             />
           </div>
 
@@ -119,7 +122,7 @@ export function NhrpMapModal({
                   Cisco
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Cisco IOS peer compatibility
+                  {t("mapModal.ciscoHelp")}
                 </p>
               </div>
             </div>
@@ -134,10 +137,10 @@ export function NhrpMapModal({
               />
               <div className="space-y-0.5">
                 <Label htmlFor="map-register" className="cursor-pointer">
-                  Register
+                  {t("tunnel.register")}
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Send NHRP registration request on startup
+                  {t("mapModal.registerHelp")}
                 </p>
               </div>
             </div>
@@ -153,18 +156,18 @@ export function NhrpMapModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Adding..."}
+                {isEditMode ? tc("saving") : t("adding")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("saveChanges")
             ) : (
-              "Add Map"
+              t("mapModal.addMap")
             )}
           </Button>
         </DialogFooter>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,8 @@ export function NhrpDynamicMapModal({
   onSubmit,
   existingDynamicMap,
 }: NhrpDynamicMapModalProps) {
+  const t = useTranslations("nhrp");
+  const tc = useTranslations("common");
   const isEditMode = existingDynamicMap !== null;
 
   const [network, setNetwork] = useState("");
@@ -48,7 +51,7 @@ export function NhrpDynamicMapModal({
 
   const handleSubmit = async () => {
     if (!network.trim()) {
-      setError("Network is required");
+      setError(t("dynamicMapModal.networkRequired"));
       return;
     }
 
@@ -58,7 +61,7 @@ export function NhrpDynamicMapModal({
       await onSubmit(network.trim(), nbmaDomainName.trim());
       onOpenChange(false);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -69,13 +72,13 @@ export function NhrpDynamicMapModal({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit Dynamic Map" : "Add Dynamic Map"}
+            {isEditMode ? t("dynamicMapModal.editTitle") : t("dynamicMapModal.addTitle")}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label htmlFor="dynmap-network">Network</Label>
+            <Label htmlFor="dynmap-network">{t("tunnel.network")}</Label>
             {isEditMode ? (
               <p className="text-sm font-mono font-medium px-3 py-2 bg-muted rounded-md">
                 {existingDynamicMap?.network}
@@ -85,18 +88,18 @@ export function NhrpDynamicMapModal({
                 id="dynmap-network"
                 value={network}
                 onChange={(e) => setNetwork(e.target.value)}
-                placeholder="e.g. 10.0.0.0/24"
+                placeholder={t("dynamicMapModal.networkPlaceholder")}
               />
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="dynmap-nbma-domain">NBMA Domain Name</Label>
+            <Label htmlFor="dynmap-nbma-domain">{t("tunnel.nbmaDomainName")}</Label>
             <Input
               id="dynmap-nbma-domain"
               value={nbmaDomainName}
               onChange={(e) => setNbmaDomainName(e.target.value)}
-              placeholder="e.g. nhrp.example.com"
+              placeholder={t("dynamicMapModal.domainPlaceholder")}
             />
           </div>
         </div>
@@ -110,18 +113,18 @@ export function NhrpDynamicMapModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Adding..."}
+                {isEditMode ? tc("saving") : t("adding")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("saveChanges")
             ) : (
-              "Add Dynamic Map"
+              t("dynamicMapModal.addTitle")
             )}
           </Button>
         </DialogFooter>
