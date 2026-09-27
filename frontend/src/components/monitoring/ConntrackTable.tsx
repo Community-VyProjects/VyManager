@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import {
   Table,
   TableBody,
@@ -63,6 +64,7 @@ function ProtoBadge({ proto }: { proto: string }) {
 interface ContextMenuState { x: number; y: number; value: string }
 
 export function ConntrackTable({ output, isRunning, onClear }: ConntrackTableProps) {
+  const t = useTranslations("monitoring");
   const [entries, setEntries] = useState<ConntrackEntry[]>([]);
   const [search, setSearch] = useState("");
   const [eventFilter, setEventFilter] = useState<ConntrackEvent | null>(null);
@@ -176,7 +178,7 @@ export function ConntrackTable({ output, isRunning, onClear }: ConntrackTablePro
         <div className="flex items-center gap-2">
           <div className={cn("h-2 w-2 rounded-full", isRunning ? "bg-green-500 animate-pulse" : "bg-gray-400")} />
           <span className="text-xs font-medium text-muted-foreground">
-            {entries.length.toLocaleString()} events
+            {t("conntrack.events", { count: entries.length })}
           </span>
         </div>
 
@@ -203,7 +205,7 @@ export function ConntrackTable({ output, isRunning, onClear }: ConntrackTablePro
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Filter events…"
+              placeholder={t("conntrack.filterEvents")}
               className="h-7 pl-6 pr-2 text-xs w-44"
             />
             {search && (
@@ -212,10 +214,10 @@ export function ConntrackTable({ output, isRunning, onClear }: ConntrackTablePro
               </button>
             )}
           </div>
-          <Button variant="outline" size="sm" className="h-7 px-2" onClick={exportCSV} disabled={entries.length === 0} title="Export CSV">
+          <Button variant="outline" size="sm" className="h-7 px-2" onClick={exportCSV} disabled={entries.length === 0} title={t("log.exportCsv")}>
             <Download className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="ghost" size="sm" className="h-7 px-2 text-muted-foreground" onClick={handleClear} disabled={entries.length === 0} title="Clear">
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-muted-foreground" onClick={handleClear} disabled={entries.length === 0} title={t("table.clear")}>
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -226,19 +228,19 @@ export function ConntrackTable({ output, isRunning, onClear }: ConntrackTablePro
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-card">
             <TableRow className="hover:bg-transparent border-b">
-              <TableHead className="w-[80px] text-xs py-2">Time</TableHead>
-              <TableHead className="w-[90px] text-xs py-2">Event</TableHead>
-              <TableHead className="w-[70px] text-xs py-2">Proto</TableHead>
-              <TableHead className="text-xs py-2">Source</TableHead>
-              <TableHead className="text-xs py-2">Destination</TableHead>
-              <TableHead className="w-[130px] text-xs py-2">State</TableHead>
+              <TableHead className="w-[80px] text-xs py-2">{t("traffic.time")}</TableHead>
+              <TableHead className="w-[90px] text-xs py-2">{t("conntrack.event")}</TableHead>
+              <TableHead className="w-[70px] text-xs py-2">{t("conntrack.proto")}</TableHead>
+              <TableHead className="text-xs py-2">{t("conntrack.source")}</TableHead>
+              <TableHead className="text-xs py-2">{t("conntrack.destination")}</TableHead>
+              <TableHead className="w-[130px] text-xs py-2">{t("conntrack.state")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredEntries.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="py-16 text-center text-muted-foreground text-sm">
-                  {isRunning ? "Waiting for connection events…" : entries.length > 0 ? "No events match filter" : "Start monitoring to view connections"}
+                  {isRunning ? t("conntrack.waiting") : entries.length > 0 ? t("conntrack.noMatch") : t("conntrack.empty")}
                 </TableCell>
               </TableRow>
             ) : (
@@ -295,7 +297,7 @@ export function ConntrackTable({ output, isRunning, onClear }: ConntrackTablePro
       {selectedEntry && (
         <div className="border-t bg-muted/20">
           <div className="flex items-center justify-between px-4 py-2 border-b border-border/50">
-            <span className="text-xs font-medium text-muted-foreground">Connection Details</span>
+            <span className="text-xs font-medium text-muted-foreground">{t("conntrack.details")}</span>
             <button onClick={() => setSelectedEntry(null)} className="text-muted-foreground hover:text-foreground">
               <X className="h-3.5 w-3.5" />
             </button>
@@ -303,10 +305,10 @@ export function ConntrackTable({ output, isRunning, onClear }: ConntrackTablePro
           <div className="p-4 space-y-3">
             <div className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4">
               {[
-                { label: "Timestamp", value: selectedEntry.timestamp },
-                { label: "Event", value: selectedEntry.event },
-                { label: "Protocol", value: selectedEntry.proto },
-                { label: "State", value: selectedEntry.state || "—" },
+                { label: t("table.timestamp"), value: selectedEntry.timestamp },
+                { label: t("conntrack.event"), value: selectedEntry.event },
+                { label: t("traffic.protocol"), value: selectedEntry.proto },
+                { label: t("conntrack.state"), value: selectedEntry.state || "—" },
               ].map(({ label, value }) => (
                 <div key={label} className="space-y-0.5">
                   <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
@@ -316,14 +318,14 @@ export function ConntrackTable({ output, isRunning, onClear }: ConntrackTablePro
             </div>
             <div className="grid grid-cols-2 gap-x-6 gap-y-3">
               <div className="space-y-1">
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Forward Flow</p>
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{t("conntrack.forwardFlow")}</p>
                 <p className="text-xs font-mono">
                   {selectedEntry.srcIp}:{selectedEntry.srcPort} <span className="text-muted-foreground">→</span> {selectedEntry.dstIp}:{selectedEntry.dstPort}
                 </p>
               </div>
               {(selectedEntry.replySrcIp || selectedEntry.replyDstIp) && (
                 <div className="space-y-1">
-                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Reply Flow</p>
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{t("conntrack.replyFlow")}</p>
                   <p className="text-xs font-mono">
                     {selectedEntry.replySrcIp}:{selectedEntry.replySrcPort} <span className="text-muted-foreground">→</span> {selectedEntry.replyDstIp}:{selectedEntry.replyDstPort}
                   </p>
@@ -331,7 +333,7 @@ export function ConntrackTable({ output, isRunning, onClear }: ConntrackTablePro
               )}
             </div>
             <div className="space-y-0.5 border-t border-border/50 pt-2">
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Raw Line</p>
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{t("table.rawLine")}</p>
               <p className="text-[11px] font-mono text-muted-foreground break-all bg-muted/50 rounded p-2">{selectedEntry.raw}</p>
             </div>
           </div>
@@ -344,17 +346,17 @@ export function ConntrackTable({ output, isRunning, onClear }: ConntrackTablePro
           <div className="fixed inset-0 z-40" onClick={() => setContextMenu(null)} />
           <div className="fixed z-50 min-w-[200px] rounded-lg border bg-popover shadow-lg p-1" style={{ top: contextMenu.y, left: contextMenu.x }}>
             <div className="px-2 py-1 mb-1">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Value</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">{t("table.value")}</p>
               <p className="text-xs font-mono truncate max-w-[200px]">{contextMenu.value}</p>
             </div>
             <div className="h-px bg-border mb-1" />
             <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-muted transition-colors text-left" onClick={() => addToFilter(contextMenu.value)}>
               <Search className="h-3.5 w-3.5 text-muted-foreground" />
-              Add to filter
+              {t("table.addToFilter")}
             </button>
             <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-muted transition-colors text-left" onClick={() => { navigator.clipboard.writeText(contextMenu.value).catch(() => {}); setContextMenu(null); }}>
               <Download className="h-3.5 w-3.5 text-muted-foreground" />
-              Copy value
+              {t("table.copyValue")}
             </button>
           </div>
         </>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import {
   Table,
   TableBody,
@@ -52,6 +53,7 @@ function SeverityBadge({ severity }: { severity: LogSeverity }) {
 interface ContextMenuState { x: number; y: number; value: string }
 
 export function LogTable({ output, isRunning, onClear }: LogTableProps) {
+  const t = useTranslations("monitoring");
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [search, setSearch] = useState("");
   const [severityFilter, setSeverityFilter] = useState<LogSeverity | null>(null);
@@ -172,11 +174,11 @@ export function LogTable({ output, isRunning, onClear }: LogTableProps) {
         <div className="flex items-center gap-2">
           <div className={cn("h-2 w-2 rounded-full", isRunning ? "bg-green-500 animate-pulse" : "bg-gray-400")} />
           <span className="text-xs font-medium text-muted-foreground">
-            {entries.length.toLocaleString()} entries
+            {t("log.entries", { count: entries.length })}
           </span>
           {errorCount > 0 && (
             <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-              {errorCount} error{errorCount !== 1 ? "s" : ""}
+              {t("log.errors", { count: errorCount })}
             </Badge>
           )}
         </div>
@@ -205,7 +207,7 @@ export function LogTable({ output, isRunning, onClear }: LogTableProps) {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Filter entries…"
+              placeholder={t("log.filterEntries")}
               className="h-7 pl-6 pr-2 text-xs w-44"
             />
             {search && (
@@ -214,10 +216,10 @@ export function LogTable({ output, isRunning, onClear }: LogTableProps) {
               </button>
             )}
           </div>
-          <Button variant="outline" size="sm" className="h-7 px-2" onClick={exportCSV} disabled={entries.length === 0} title="Export CSV">
+          <Button variant="outline" size="sm" className="h-7 px-2" onClick={exportCSV} disabled={entries.length === 0} title={t("log.exportCsv")}>
             <Download className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="ghost" size="sm" className="h-7 px-2 text-muted-foreground" onClick={handleClear} disabled={entries.length === 0} title="Clear">
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-muted-foreground" onClick={handleClear} disabled={entries.length === 0} title={t("table.clear")}>
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -228,17 +230,17 @@ export function LogTable({ output, isRunning, onClear }: LogTableProps) {
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-card">
             <TableRow className="hover:bg-transparent border-b">
-              <TableHead className="w-[150px] text-xs py-2">Timestamp</TableHead>
-              <TableHead className="w-[90px] text-xs py-2">Severity</TableHead>
-              <TableHead className="w-[110px] text-xs py-2">Process</TableHead>
-              <TableHead className="text-xs py-2">Message</TableHead>
+              <TableHead className="w-[150px] text-xs py-2">{t("table.timestamp")}</TableHead>
+              <TableHead className="w-[90px] text-xs py-2">{t("log.severity")}</TableHead>
+              <TableHead className="w-[110px] text-xs py-2">{t("log.process")}</TableHead>
+              <TableHead className="text-xs py-2">{t("log.message")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredEntries.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={4} className="py-16 text-center text-muted-foreground text-sm">
-                  {isRunning ? "Waiting for log entries…" : entries.length > 0 ? "No entries match filter" : "Start monitoring to view logs"}
+                  {isRunning ? t("log.waiting") : entries.length > 0 ? t("log.noMatch") : t("log.empty")}
                 </TableCell>
               </TableRow>
             ) : (
@@ -284,7 +286,7 @@ export function LogTable({ output, isRunning, onClear }: LogTableProps) {
       {selectedEntry && (
         <div className="border-t bg-muted/20">
           <div className="flex items-center justify-between px-4 py-2 border-b border-border/50">
-            <span className="text-xs font-medium text-muted-foreground">Log Entry Details</span>
+            <span className="text-xs font-medium text-muted-foreground">{t("log.details")}</span>
             <button onClick={() => setSelectedEntry(null)} className="text-muted-foreground hover:text-foreground">
               <X className="h-3.5 w-3.5" />
             </button>
@@ -292,10 +294,10 @@ export function LogTable({ output, isRunning, onClear }: LogTableProps) {
           <div className="p-4 space-y-3">
             <div className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4">
               {[
-                { label: "Timestamp", value: selectedEntry.timestamp },
-                { label: "Severity", value: selectedEntry.severity },
-                { label: "Hostname", value: selectedEntry.hostname || "—" },
-                { label: "Process", value: selectedEntry.pid ? `${selectedEntry.process}[${selectedEntry.pid}]` : selectedEntry.process },
+                { label: t("table.timestamp"), value: selectedEntry.timestamp },
+                { label: t("log.severity"), value: selectedEntry.severity },
+                { label: t("log.hostname"), value: selectedEntry.hostname || "—" },
+                { label: t("log.process"), value: selectedEntry.pid ? `${selectedEntry.process}[${selectedEntry.pid}]` : selectedEntry.process },
               ].map(({ label, value }) => (
                 <div key={label} className="space-y-0.5">
                   <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
@@ -304,11 +306,11 @@ export function LogTable({ output, isRunning, onClear }: LogTableProps) {
               ))}
             </div>
             <div className="space-y-0.5">
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Message</p>
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{t("log.message")}</p>
               <p className="text-xs font-mono break-all">{selectedEntry.message}</p>
             </div>
             <div className="space-y-0.5 border-t border-border/50 pt-2">
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Raw Line</p>
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{t("table.rawLine")}</p>
               <p className="text-[11px] font-mono text-muted-foreground break-all bg-muted/50 rounded p-2">{selectedEntry.raw}</p>
             </div>
           </div>
@@ -321,17 +323,17 @@ export function LogTable({ output, isRunning, onClear }: LogTableProps) {
           <div className="fixed inset-0 z-40" onClick={() => setContextMenu(null)} />
           <div className="fixed z-50 min-w-[200px] rounded-lg border bg-popover shadow-lg p-1" style={{ top: contextMenu.y, left: contextMenu.x }}>
             <div className="px-2 py-1 mb-1">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Value</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">{t("table.value")}</p>
               <p className="text-xs font-mono truncate max-w-[200px]">{contextMenu.value}</p>
             </div>
             <div className="h-px bg-border mb-1" />
             <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-muted transition-colors text-left" onClick={() => addToFilter(contextMenu.value)}>
               <Search className="h-3.5 w-3.5 text-muted-foreground" />
-              Add to filter
+              {t("table.addToFilter")}
             </button>
             <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-muted transition-colors text-left" onClick={() => { navigator.clipboard.writeText(contextMenu.value).catch(() => {}); setContextMenu(null); }}>
               <Download className="h-3.5 w-3.5 text-muted-foreground" />
-              Copy value
+              {t("table.copyValue")}
             </button>
           </div>
         </>

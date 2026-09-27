@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Download, Trash2 } from "lucide-react";
 
@@ -10,6 +11,7 @@ interface MonitoringTerminalProps {
 }
 
 export function MonitoringTerminal({ output, onClear }: MonitoringTerminalProps) {
+  const t = useTranslations("monitoring");
   const containerRef = useRef<HTMLDivElement>(null);
   const autoScrollRef = useRef(true);
 
@@ -45,7 +47,7 @@ export function MonitoringTerminal({ output, onClear }: MonitoringTerminalProps)
       {/* Toolbar */}
       <div className="flex items-center justify-between px-3 py-1.5 border-b bg-muted/30">
         <span className="text-xs text-muted-foreground">
-          {output.length} line{output.length !== 1 ? "s" : ""}
+          {t("terminal.lines", { count: output.length })}
         </span>
         <div className="flex items-center gap-1">
           <Button
@@ -76,7 +78,7 @@ export function MonitoringTerminal({ output, onClear }: MonitoringTerminalProps)
         className="flex-1 overflow-auto bg-zinc-950 p-3 font-mono text-xs text-green-400 leading-relaxed min-h-[300px]"
       >
         {output.length === 0 ? (
-          <span className="text-zinc-600">Waiting for output...</span>
+          <span className="text-zinc-600">{t("terminal.waiting")}</span>
         ) : (
           output.map((line, i) => (
             <div key={i} className="whitespace-pre-wrap break-all">
