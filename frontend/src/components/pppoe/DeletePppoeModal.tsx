@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -27,6 +28,8 @@ export function DeletePppoeModal({
   onSuccess,
   interfaceData,
 }: DeletePppoeModalProps) {
+  const t = useTranslations("pppoe");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,10 +46,10 @@ export function DeletePppoeModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to delete PPPoE interface");
+        setError(result.error || t("delete.failed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to delete PPPoE interface");
+      setError((err as ApiError).message || t("delete.failed"));
     } finally {
       setLoading(false);
     }
@@ -60,18 +63,17 @@ export function DeletePppoeModal({
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            Delete Interface: {interfaceData.name}
+            {t("delete.title", { name: interfaceData.name })}
           </AlertDialogTitle>
           <AlertDialogDescription className="space-y-2">
             <p>
-              Are you sure you want to delete this PPPoE interface? This will
-              tear down the session and cannot be undone.
+              {t("delete.confirm")}
             </p>
             <div className="rounded-lg bg-muted/50 border p-3 mt-2">
               <p className="text-sm text-muted-foreground">
                 {interfaceData.source_interface && (
                   <>
-                    Source:{" "}
+                    {t("delete.source")}{" "}
                     <span className="font-medium text-foreground">
                       {interfaceData.source_interface}
                     </span>
@@ -80,7 +82,7 @@ export function DeletePppoeModal({
                 {interfaceData.access_concentrator && (
                   <>
                     {" "}
-                    &middot; AC:{" "}
+                    &middot; {t("delete.ac")}{" "}
                     <span className="font-medium text-foreground">
                       {interfaceData.access_concentrator}
                     </span>
@@ -89,7 +91,7 @@ export function DeletePppoeModal({
                 {interfaceData.service_name && (
                   <>
                     {" "}
-                    &middot; Service:{" "}
+                    &middot; {t("delete.service")}{" "}
                     <span className="font-medium text-foreground">
                       {interfaceData.service_name}
                     </span>
@@ -98,7 +100,7 @@ export function DeletePppoeModal({
                 {interfaceData.authentication?.username && (
                   <>
                     {" "}
-                    &middot; User:{" "}
+                    &middot; {t("delete.user")}{" "}
                     <span className="font-medium text-foreground">
                       {interfaceData.authentication.username}
                     </span>
@@ -121,16 +123,16 @@ export function DeletePppoeModal({
             onClick={() => onOpenChange(false)}
             disabled={loading}
           >
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Interface"
+              t("delete.submit")
             )}
           </Button>
         </AlertDialogFooter>
