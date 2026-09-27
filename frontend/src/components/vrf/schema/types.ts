@@ -48,6 +48,8 @@ export interface SectionSpec {
 export interface EntityGroupSpec {
   /** Singular label, e.g. "Neighbor". */
   label: string;
+  /** Optional plural display label for irregular plurals. */
+  pluralLabel?: string;
   /** Key (or nested key path) into the parent raw_config holding the entity map, e.g. "neighbor" or ["authentication","md5","key-id"]. */
   rawKey: string | string[];
   /** Base op for creating/deleting an entity: set_<createOp> / delete_<createOp>. */
