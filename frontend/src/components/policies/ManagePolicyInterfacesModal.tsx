@@ -16,6 +16,7 @@ import { AlertCircle, Network, Loader2 } from "lucide-react";
 import { routeService } from "@/lib/api/route";
 import { apiClient } from "@/lib/api/client";
 import { ApiError } from "@/lib/types/api";
+import { useTranslations } from "next-intl";
 
 interface ManagePolicyInterfacesModalProps {
   open: boolean;
@@ -38,6 +39,8 @@ export function ManagePolicyInterfacesModal({
   policyName,
   onSuccess,
 }: ManagePolicyInterfacesModalProps) {
+  const t = useTranslations("routePolicy.manageInterfaces");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,11 +90,11 @@ export function ManagePolicyInterfacesModal({
       setSelectedInterfaces(assigned);
       setOriginalInterfaces(assigned);
     } catch (err) {
-      setError((err as ApiError).message || "Failed to load data");
+      setError((err as ApiError).message || t("loadFailed"));
     } finally {
       setLoadingData(false);
     }
-  }, [policyType, policyName]);
+  }, [policyType, policyName, t]);
 
   useEffect(() => {
     if (open) {
@@ -141,7 +144,7 @@ export function ManagePolicyInterfacesModal({
       handleClose();
       onSuccess();
     } catch (err) {
-      setError((err as ApiError).message || "Failed to update interfaces");
+      setError((err as ApiError).message || t("updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -169,9 +172,9 @@ export function ManagePolicyInterfacesModal({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[80vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Manage Policy Interfaces</DialogTitle>
+          <DialogTitle>{t("title")}</DialogTitle>
           <DialogDescription>
-            Select interfaces to apply the &quot;{policyName}&quot; policy to.
+            {t("description", { policyName })}
           </DialogDescription>
         </DialogHeader>
 
@@ -192,7 +195,7 @@ export function ManagePolicyInterfacesModal({
               {availableInterfaces.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Network className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No interfaces available</p>
+                  <p className="text-sm">{t("noInterfaces")}</p>
                 </div>
               ) : (
                 availableInterfaces.map((iface) => (
@@ -233,11 +236,11 @@ export function ManagePolicyInterfacesModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading || loadingData || !hasChanges()}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {loading ? "Saving..." : "Save Changes"}
+            {loading ? tc("saving") : t("saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

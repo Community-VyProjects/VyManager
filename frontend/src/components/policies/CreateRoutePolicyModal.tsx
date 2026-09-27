@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle } from "lucide-react";
 import { routeService } from "@/lib/api/route";
 import { ApiError } from "@/lib/types/api";
+import { useTranslations } from "next-intl";
 
 interface CreateRoutePolicyModalProps {
   open: boolean;
@@ -23,6 +24,8 @@ export function CreateRoutePolicyModal({
   onSuccess,
   policyType,
 }: CreateRoutePolicyModalProps) {
+  const t = useTranslations("routePolicy.createPolicy");
+  const tc = useTranslations("common");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [defaultLog, setDefaultLog] = useState(false);
@@ -31,7 +34,7 @@ export function CreateRoutePolicyModal({
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      setError("Policy name is required");
+      setError(t("nameRequired"));
       return;
     }
 
@@ -48,7 +51,7 @@ export function CreateRoutePolicyModal({
       handleClose();
       onSuccess();
     } catch (err) {
-      setError((err as ApiError).message || "Failed to create policy");
+      setError((err as ApiError).message || t("createFailed"));
     } finally {
       setLoading(false);
     }
@@ -66,9 +69,9 @@ export function CreateRoutePolicyModal({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create {policyType === "route" ? "IPv4" : "IPv6"} Policy</DialogTitle>
+          <DialogTitle>{t("title", { family: policyType === "route" ? "IPv4" : "IPv6" })}</DialogTitle>
           <DialogDescription>
-            Create a new policy {policyType} for {policyType === "route" ? "IPv4" : "IPv6"} traffic routing
+            {t("description", { policyType, family: policyType === "route" ? "IPv4" : "IPv6" })}
           </DialogDescription>
         </DialogHeader>
 
@@ -81,7 +84,7 @@ export function CreateRoutePolicyModal({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Policy Name *</Label>
+            <Label htmlFor="name">{t("nameLabel")}</Label>
             <Input
               id="name"
               placeholder="MY-POLICY"
@@ -92,10 +95,10 @@ export function CreateRoutePolicyModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{tc("description")}</Label>
             <Input
               id="description"
-              placeholder="Policy description"
+              placeholder={t("descriptionPlaceholder")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={loading}
@@ -110,17 +113,17 @@ export function CreateRoutePolicyModal({
               disabled={loading}
             />
             <Label htmlFor="defaultLog" className="text-sm font-normal cursor-pointer">
-              Enable default logging for unmatched packets
+              {t("defaultLog")}
             </Label>
           </div>
         </div>
 
         <div className="flex justify-end gap-2 mt-4">
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Creating..." : "Create Policy"}
+            {loading ? t("creating") : t("submit")}
           </Button>
         </div>
       </DialogContent>

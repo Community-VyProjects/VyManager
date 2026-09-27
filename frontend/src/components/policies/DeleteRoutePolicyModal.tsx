@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { AlertCircle, AlertTriangle } from "lucide-react";
 import { routeService, PolicyRoute } from "@/lib/api/route";
 import { ApiError } from "@/lib/types/api";
+import { useTranslations } from "next-intl";
 
 interface DeleteRoutePolicyModalProps {
   open: boolean;
@@ -20,6 +21,8 @@ export function DeleteRoutePolicyModal({
   onSuccess,
   policy,
 }: DeleteRoutePolicyModalProps) {
+  const t = useTranslations("routePolicy.deletePolicy");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,7 +35,7 @@ export function DeleteRoutePolicyModal({
       handleClose();
       onSuccess();
     } catch (err) {
-      setError((err as ApiError).message || "Failed to delete policy");
+      setError((err as ApiError).message || t("deleteFailed"));
     } finally {
       setLoading(false);
     }
@@ -47,9 +50,9 @@ export function DeleteRoutePolicyModal({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete Policy</DialogTitle>
+          <DialogTitle>{t("title")}</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete this policy?
+            {t("description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -64,10 +67,13 @@ export function DeleteRoutePolicyModal({
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="font-semibold text-yellow-900 dark:text-yellow-100">Warning</p>
+              <p className="font-semibold text-yellow-900 dark:text-yellow-100">{t("warning")}</p>
               <p className="text-sm text-yellow-800 dark:text-yellow-200 mt-1">
-                Deleting policy <span className="font-mono font-semibold">{policy.name}</span> will remove all {policy.rules.length} rule(s) associated with it.
-                This action cannot be undone.
+                {t.rich("warningText", {
+                  mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+                  name: policy.name,
+                  count: policy.rules.length,
+                })}
               </p>
             </div>
           </div>
@@ -75,10 +81,10 @@ export function DeleteRoutePolicyModal({
 
         <div className="flex justify-end gap-2 mt-4">
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
-            {loading ? "Deleting..." : "Delete Policy"}
+            {loading ? tc("deleting") : t("submit")}
           </Button>
         </div>
       </DialogContent>

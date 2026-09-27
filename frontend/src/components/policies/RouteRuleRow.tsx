@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { GripVertical, Pencil, Trash2 } from "lucide-react";
 import { PolicyRouteRule } from "@/lib/api/route";
+import { useTranslations } from "next-intl";
 
 interface RouteRuleRowProps {
   rule: PolicyRouteRule;
@@ -16,6 +17,8 @@ interface RouteRuleRowProps {
 }
 
 export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
+  const t = useTranslations("routePolicy.ruleRow");
+  const tc = useTranslations("common");
   const {
     attributes,
     listeners,
@@ -32,69 +35,69 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
   };
 
   const MATCH_LABELS: Record<string, string> = {
-    source_address: "Src Addr",
-    destination_address: "Dst Addr",
-    source_mac_address: "Src MAC",
-    destination_mac_address: "Dst MAC",
-    source_geoip: "Src GeoIP",
-    destination_geoip: "Dst GeoIP",
-    source_group_address: "Src Group Addr",
-    source_group_domain: "Src Group Domain",
-    source_group_mac: "Src Group MAC",
-    source_group_network: "Src Group Net",
-    source_group_port: "Src Group Port",
-    destination_group_address: "Dst Group Addr",
-    destination_group_domain: "Dst Group Domain",
-    destination_group_mac: "Dst Group MAC",
-    destination_group_network: "Dst Group Net",
-    destination_group_port: "Dst Group Port",
-    source_port: "Src Port",
-    destination_port: "Dst Port",
-    protocol: "Protocol",
-    tcp_flags: "TCP Flags",
+    source_address: t("match.sourceAddress"),
+    destination_address: t("match.destinationAddress"),
+    source_mac_address: t("match.sourceMac"),
+    destination_mac_address: t("match.destinationMac"),
+    source_geoip: t("match.sourceGeoip"),
+    destination_geoip: t("match.destinationGeoip"),
+    source_group_address: t("match.sourceGroupAddress"),
+    source_group_domain: t("match.sourceGroupDomain"),
+    source_group_mac: t("match.sourceGroupMac"),
+    source_group_network: t("match.sourceGroupNetwork"),
+    source_group_port: t("match.sourceGroupPort"),
+    destination_group_address: t("match.destinationGroupAddress"),
+    destination_group_domain: t("match.destinationGroupDomain"),
+    destination_group_mac: t("match.destinationGroupMac"),
+    destination_group_network: t("match.destinationGroupNetwork"),
+    destination_group_port: t("match.destinationGroupPort"),
+    source_port: t("match.sourcePort"),
+    destination_port: t("match.destinationPort"),
+    protocol: t("match.protocol"),
+    tcp_flags: t("match.tcpFlags"),
     tcp_mss: "TCP MSS",
-    icmp_code: "ICMP Code",
-    icmp_type: "ICMP Type",
-    icmp_type_name: "ICMP Name",
-    icmpv6_code: "ICMPv6 Code",
-    icmpv6_type: "ICMPv6 Type",
-    icmpv6_type_name: "ICMPv6 Name",
-    fragment: "Fragment",
-    packet_type: "Pkt Type",
-    packet_length: "Pkt Length",
-    packet_length_exclude: "Pkt Len Excl",
+    icmp_code: t("match.icmpCode"),
+    icmp_type: t("match.icmpType"),
+    icmp_type_name: t("match.icmpTypeName"),
+    icmpv6_code: t("match.icmpv6Code"),
+    icmpv6_type: t("match.icmpv6Type"),
+    icmpv6_type_name: t("match.icmpv6TypeName"),
+    fragment: t("match.fragment"),
+    packet_type: t("match.packetType"),
+    packet_length: t("match.packetLength"),
+    packet_length_exclude: t("match.packetLengthExclude"),
     dscp: "DSCP",
-    dscp_exclude: "DSCP Excl",
-    state: "State",
+    dscp_exclude: t("match.dscpExclude"),
+    state: t("match.state"),
     ipsec: "IPsec",
-    ipsec_in: "IPsec In",
-    ipsec_out: "IPsec Out",
-    mark: "Mark",
-    connection_mark: "Conn Mark",
+    ipsec_in: t("match.ipsecIn"),
+    ipsec_out: t("match.ipsecOut"),
+    mark: t("match.mark"),
+    connection_mark: t("match.connectionMark"),
     ttl_eq: "TTL =",
     ttl_gt: "TTL >",
     ttl_lt: "TTL <",
-    hop_limit_eq: "Hop Limit =",
-    hop_limit_gt: "Hop Limit >",
-    hop_limit_lt: "Hop Limit <",
-    time_monthdays: "Month Days",
-    time_startdate: "Start Date",
-    time_starttime: "Start Time",
-    time_stopdate: "Stop Date",
-    time_stoptime: "Stop Time",
+    hop_limit_eq: t("match.hopLimitEq"),
+    hop_limit_gt: t("match.hopLimitGt"),
+    hop_limit_lt: t("match.hopLimitLt"),
+    time_monthdays: t("match.monthDays"),
+    time_startdate: t("match.startDate"),
+    time_starttime: t("match.startTime"),
+    time_stopdate: t("match.stopDate"),
+    time_stoptime: t("match.stopTime"),
     time_utc: "UTC",
-    time_weekdays: "Weekdays",
-    limit_burst: "Limit Burst",
-    limit_rate: "Limit Rate",
-    recent_count: "Recent Count",
-    recent_time: "Recent Time",
+    time_weekdays: t("match.weekdays"),
+    limit_burst: t("match.limitBurst"),
+    limit_rate: t("match.limitRate"),
+    recent_count: t("match.recentCount"),
+    recent_time: t("match.recentTime"),
   };
 
   const SET_LABELS: Record<string, string> = {
-    connection_mark: "Conn Mark",
+    connection_mark: t("set.connectionMark"),
     dscp: "DSCP",
-    mark: "Mark",
-    table: "Table",
+    mark: t("set.mark"),
+    table: t("set.table"),
     tcp_mss: "TCP MSS",
     vrf: "VRF",
   };
@@ -155,7 +158,7 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Badge variant="secondary" className="text-xs cursor-help">
-                  {matchCount} condition{matchCount !== 1 ? "s" : ""}
+                  {t("conditions", { count: matchCount })}
                 </Badge>
               </TooltipTrigger>
               <TooltipContent
@@ -181,13 +184,13 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
       </TableCell>
       <TableCell>
         {rule.set?.action_drop ? (
-          <Badge variant="destructive">Drop</Badge>
+          <Badge variant="destructive">{t("drop")}</Badge>
         ) : setCount > 0 ? (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Badge variant="secondary" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20 cursor-help">
-                  {setCount} action{setCount !== 1 ? "s" : ""}
+                  {t("actions", { count: setCount })}
                 </Badge>
               </TooltipTrigger>
               <TooltipContent
@@ -213,9 +216,9 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
       </TableCell>
       <TableCell>
         {rule.disable ? (
-          <Badge variant="outline" className="bg-gray-500/10 text-gray-500 border-gray-500/20">Disabled</Badge>
+          <Badge variant="outline" className="bg-gray-500/10 text-gray-500 border-gray-500/20">{tc("disabled")}</Badge>
         ) : (
-          <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">Enabled</Badge>
+          <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">{tc("enabled")}</Badge>
         )}
       </TableCell>
       <TableCell className="text-right">
