@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -27,6 +28,8 @@ export function DeleteBridgeModal({
   onSuccess,
   interfaceData,
 }: DeleteBridgeModalProps) {
+  const t = useTranslations("bridgeInterface");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,10 +46,10 @@ export function DeleteBridgeModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to delete bridge interface");
+        setError(result.error || t("errDelete"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to delete bridge interface");
+      setError((err as ApiError).message || t("errDelete"));
     } finally {
       setLoading(false);
     }
@@ -60,23 +63,22 @@ export function DeleteBridgeModal({
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            Delete Interface: {interfaceData.name}
+            {t("deleteTitle", { name: interfaceData.name })}
           </AlertDialogTitle>
           <AlertDialogDescription className="space-y-2">
             <p>
-              Are you sure you want to delete this bridge interface? This action
-              cannot be undone.
+              {t("deleteConfirm")}
             </p>
             <div className="rounded-lg bg-muted/50 border p-3 mt-2">
               <p className="text-sm text-muted-foreground">
                 {interfaceData.stp && (
-                  <>STP: <span className="font-medium text-foreground">Enabled</span></>
+                  <>{t.rich("deleteStpEnabled", { b: (chunks) => <span className="font-medium text-foreground">{chunks}</span> })}</>
                 )}
                 {interfaceData.members.length > 0 && (
-                  <> &middot; {interfaceData.members.length} member{interfaceData.members.length !== 1 ? "s" : ""}</>
+                  <> &middot; {t("deleteMembers", { count: interfaceData.members.length })}</>
                 )}
                 {interfaceData.addresses.length > 0 && (
-                  <> &middot; {interfaceData.addresses.length} address{interfaceData.addresses.length !== 1 ? "es" : ""}</>
+                  <> &middot; {t("deleteAddresses", { count: interfaceData.addresses.length })}</>
                 )}
               </p>
             </div>
@@ -95,16 +97,16 @@ export function DeleteBridgeModal({
             onClick={() => onOpenChange(false)}
             disabled={loading}
           >
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Interface"
+              t("deleteButton")
             )}
           </Button>
         </AlertDialogFooter>
