@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -45,10 +46,10 @@ import {
 import { ApiError } from "@/lib/types/api";
 
 const SOURCE_VALIDATION_OPTIONS = [
-  { value: "strict", label: "Strict" },
-  { value: "loose", label: "Loose" },
-  { value: "disable", label: "Disable" },
-];
+  { value: "strict", labelKey: "strict" },
+  { value: "loose", labelKey: "loose" },
+  { value: "disable", labelKey: "disable" },
+] as const;
 
 interface EditVirtualEthernetModalProps {
   open: boolean;
@@ -288,16 +289,18 @@ function VifForm({
   showProtocol?: boolean;
 }) {
   const feat = (key: string) => capabilities?.features?.[key]?.supported ?? false;
+  const t = useTranslations("virtualEthernet");
+  const tc = useTranslations("common");
 
   return (
     <div className="space-y-3 p-3 border rounded-lg bg-muted/30">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
-          <Label className="text-xs">VLAN ID (1–4094) *</Label>
+          <Label className="text-xs">{t("vif.vlanIdLabel")}</Label>
           <Input type="number" min={1} max={4094} value={form.vlan_id} onChange={(e) => onChange({ vlan_id: e.target.value })} />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Description</Label>
+          <Label className="text-xs">{tc("description")}</Label>
           <Input value={form.description} onChange={(e) => onChange({ description: e.target.value })} />
         </div>
         <div className="space-y-1">
@@ -313,28 +316,28 @@ function VifForm({
           <VrfSelect value={form.vrf} onValueChange={(v) => onChange({ vrf: v })} />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Redirect</Label>
+          <Label className="text-xs">{t("form.redirect")}</Label>
           <Input value={form.redirect} onChange={(e) => onChange({ redirect: e.target.value })} />
         </div>
         {showQos && (
           <>
             <div className="space-y-1">
-              <Label className="text-xs">Egress QoS</Label>
+              <Label className="text-xs">{t("form.egressQos")}</Label>
               <Input value={form.egress_qos} onChange={(e) => onChange({ egress_qos: e.target.value })} />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Ingress QoS</Label>
+              <Label className="text-xs">{t("form.ingressQos")}</Label>
               <Input value={form.ingress_qos} onChange={(e) => onChange({ ingress_qos: e.target.value })} />
             </div>
           </>
         )}
         {showProtocol && (
           <div className="space-y-1">
-            <Label className="text-xs">Protocol</Label>
+            <Label className="text-xs">{t("form.protocol")}</Label>
             <Select value={form.protocol || "__none__"} onValueChange={(v) => onChange({ protocol: v === "__none__" ? "" : v })}>
-              <SelectTrigger><SelectValue placeholder="Default" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={tc("default")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">Default</SelectItem>
+                <SelectItem value="__none__">{tc("default")}</SelectItem>
                 <SelectItem value="802.1ad">802.1ad</SelectItem>
                 <SelectItem value="802.1q">802.1q</SelectItem>
               </SelectContent>
@@ -342,18 +345,18 @@ function VifForm({
           </div>
         )}
         <div className="space-y-1">
-          <Label className="text-xs">Mirror Ingress</Label>
+          <Label className="text-xs">{t("form.mirrorIngress")}</Label>
           <Input value={form.mirror_ingress} onChange={(e) => onChange({ mirror_ingress: e.target.value })} />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Mirror Egress</Label>
+          <Label className="text-xs">{t("form.mirrorEgress")}</Label>
           <Input value={form.mirror_egress} onChange={(e) => onChange({ mirror_egress: e.target.value })} />
         </div>
       </div>
 
       {/* Addresses */}
       <div className="space-y-1">
-        <Label className="text-xs">Addresses</Label>
+        <Label className="text-xs">{t("form.addresses")}</Label>
         <div className="flex gap-2">
           <Input
             value={form.addressInput}
@@ -390,11 +393,11 @@ function VifForm({
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
           <Checkbox checked={form.disabled} onCheckedChange={(c) => onChange({ disabled: !!c })} id={`vif-disabled-${form.vlan_id}`} />
-          <Label htmlFor={`vif-disabled-${form.vlan_id}`} className="text-xs font-normal">Disabled</Label>
+          <Label htmlFor={`vif-disabled-${form.vlan_id}`} className="text-xs font-normal">{t("form.disabled")}</Label>
         </div>
         <div className="flex items-center gap-2">
           <Checkbox checked={form.disable_link_detect} onCheckedChange={(c) => onChange({ disable_link_detect: !!c })} id={`vif-ld-${form.vlan_id}`} />
-          <Label htmlFor={`vif-ld-${form.vlan_id}`} className="text-xs font-normal">Disable Link Detect</Label>
+          <Label htmlFor={`vif-ld-${form.vlan_id}`} className="text-xs font-normal">{t("form.disableLinkDetect")}</Label>
         </div>
       </div>
 
@@ -402,23 +405,23 @@ function VifForm({
       <div>
         <button type="button" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" onClick={() => onChange({ showDhcp: !form.showDhcp })}>
           {form.showDhcp ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-          DHCP Options
+          {t("form.dhcpOptions")}
         </button>
         {form.showDhcp && (
           <div className="mt-2 space-y-2 pl-3 border-l">
             <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1"><Label className="text-xs">Client ID</Label><Input value={form.dhcpClientId} onChange={(e) => onChange({ dhcpClientId: e.target.value })} /></div>
-              <div className="space-y-1"><Label className="text-xs">Hostname</Label><Input value={form.dhcpHostName} onChange={(e) => onChange({ dhcpHostName: e.target.value })} /></div>
-              <div className="space-y-1"><Label className="text-xs">Vendor Class ID</Label><Input value={form.dhcpVendorClassId} onChange={(e) => onChange({ dhcpVendorClassId: e.target.value })} /></div>
-              <div className="space-y-1"><Label className="text-xs">User Class</Label><Input value={form.dhcpUserClass} onChange={(e) => onChange({ dhcpUserClass: e.target.value })} /></div>
-              <div className="space-y-1"><Label className="text-xs">Default Route Distance</Label><Input type="number" value={form.dhcpDefaultRouteDistance} onChange={(e) => onChange({ dhcpDefaultRouteDistance: e.target.value })} /></div>
+              <div className="space-y-1"><Label className="text-xs">{t("form.clientId")}</Label><Input value={form.dhcpClientId} onChange={(e) => onChange({ dhcpClientId: e.target.value })} /></div>
+              <div className="space-y-1"><Label className="text-xs">{t("form.hostname")}</Label><Input value={form.dhcpHostName} onChange={(e) => onChange({ dhcpHostName: e.target.value })} /></div>
+              <div className="space-y-1"><Label className="text-xs">{t("form.vendorClassId")}</Label><Input value={form.dhcpVendorClassId} onChange={(e) => onChange({ dhcpVendorClassId: e.target.value })} /></div>
+              <div className="space-y-1"><Label className="text-xs">{t("form.userClass")}</Label><Input value={form.dhcpUserClass} onChange={(e) => onChange({ dhcpUserClass: e.target.value })} /></div>
+              <div className="space-y-1"><Label className="text-xs">{t("form.defaultRouteDistance")}</Label><Input type="number" value={form.dhcpDefaultRouteDistance} onChange={(e) => onChange({ dhcpDefaultRouteDistance: e.target.value })} /></div>
             </div>
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1"><Checkbox checked={form.dhcpNoDefaultRoute} onCheckedChange={(c) => onChange({ dhcpNoDefaultRoute: !!c })} id={`dhcp-ndr-${form.vlan_id}`} /><Label htmlFor={`dhcp-ndr-${form.vlan_id}`} className="text-xs font-normal">No Default Route</Label></div>
+              <div className="flex items-center gap-1"><Checkbox checked={form.dhcpNoDefaultRoute} onCheckedChange={(c) => onChange({ dhcpNoDefaultRoute: !!c })} id={`dhcp-ndr-${form.vlan_id}`} /><Label htmlFor={`dhcp-ndr-${form.vlan_id}`} className="text-xs font-normal">{t("form.noDefaultRoute")}</Label></div>
               <div className="flex items-center gap-1"><Checkbox checked={form.dhcpMtu} onCheckedChange={(c) => onChange({ dhcpMtu: !!c })} id={`dhcp-mtu-${form.vlan_id}`} /><Label htmlFor={`dhcp-mtu-${form.vlan_id}`} className="text-xs font-normal">MTU</Label></div>
             </div>
             <div className="flex gap-2">
-              <Input className="flex-1" placeholder="Reject server IP" value={form.dhcpRejectInput} onChange={(e) => onChange({ dhcpRejectInput: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = form.dhcpRejectInput.trim(); if (v && !form.dhcpReject.includes(v)) onChange({ dhcpReject: [...form.dhcpReject, v], dhcpRejectInput: "" }); else onChange({ dhcpRejectInput: "" }); } }} />
+              <Input className="flex-1" placeholder={t("form.rejectServerIpPlaceholder")} value={form.dhcpRejectInput} onChange={(e) => onChange({ dhcpRejectInput: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = form.dhcpRejectInput.trim(); if (v && !form.dhcpReject.includes(v)) onChange({ dhcpReject: [...form.dhcpReject, v], dhcpRejectInput: "" }); else onChange({ dhcpRejectInput: "" }); } }} />
               <Button type="button" variant="outline" size="sm" onClick={() => { const v = form.dhcpRejectInput.trim(); if (v && !form.dhcpReject.includes(v)) onChange({ dhcpReject: [...form.dhcpReject, v], dhcpRejectInput: "" }); }}><Plus className="h-3 w-3" /></Button>
             </div>
             <div className="flex flex-wrap gap-1">{form.dhcpReject.map((s) => <Badge key={s} variant="secondary" className="gap-1 pr-1 text-xs">{s}<button onClick={() => onChange({ dhcpReject: form.dhcpReject.filter((x) => x !== s) })}><X className="h-3 w-3" /></button></Badge>)}</div>
@@ -430,17 +433,17 @@ function VifForm({
       <div>
         <button type="button" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" onClick={() => onChange({ showDhcpv6: !form.showDhcpv6 })}>
           {form.showDhcpv6 ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-          DHCPv6 Options
+          {t("form.dhcpv6Options")}
         </button>
         {form.showDhcpv6 && (
           <div className="mt-2 space-y-2 pl-3 border-l">
             <div className="space-y-1"><Label className="text-xs">DUID</Label><Input value={form.dhcpv6Duid} onChange={(e) => onChange({ dhcpv6Duid: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-2">
-              {([["dhcpv6NoRelease", "No Release"], ["dhcpv6ParametersOnly", "Parameters Only"], ["dhcpv6RapidCommit", "Rapid Commit"], ["dhcpv6Temporary", "Temporary"]] as const).map(([k, label]) => (
-                <div key={k} className="flex items-center gap-1"><Checkbox checked={form[k]} onCheckedChange={(c) => onChange({ [k]: !!c })} id={`${k}-${form.vlan_id}`} /><Label htmlFor={`${k}-${form.vlan_id}`} className="text-xs font-normal">{label}</Label></div>
+              {([["dhcpv6NoRelease", "noRelease"], ["dhcpv6ParametersOnly", "parametersOnly"], ["dhcpv6RapidCommit", "rapidCommit"], ["dhcpv6Temporary", "temporary"]] as const).map(([k, label]) => (
+                <div key={k} className="flex items-center gap-1"><Checkbox checked={form[k]} onCheckedChange={(c) => onChange({ [k]: !!c })} id={`${k}-${form.vlan_id}`} /><Label htmlFor={`${k}-${form.vlan_id}`} className="text-xs font-normal">{t(`form.${label}`)}</Label></div>
               ))}
-              {feat("dhcpv6_no_request_dns") && <div className="flex items-center gap-1"><Checkbox checked={form.dhcpv6NoRequestDns} onCheckedChange={(c) => onChange({ dhcpv6NoRequestDns: !!c })} id={`dns-${form.vlan_id}`} /><Label htmlFor={`dns-${form.vlan_id}`} className="text-xs font-normal">No Request DNS</Label></div>}
-              {feat("dhcpv6_no_request_domain_name") && <div className="flex items-center gap-1"><Checkbox checked={form.dhcpv6NoRequestDomainName} onCheckedChange={(c) => onChange({ dhcpv6NoRequestDomainName: !!c })} id={`dom-${form.vlan_id}`} /><Label htmlFor={`dom-${form.vlan_id}`} className="text-xs font-normal">No Request Domain</Label></div>}
+              {feat("dhcpv6_no_request_dns") && <div className="flex items-center gap-1"><Checkbox checked={form.dhcpv6NoRequestDns} onCheckedChange={(c) => onChange({ dhcpv6NoRequestDns: !!c })} id={`dns-${form.vlan_id}`} /><Label htmlFor={`dns-${form.vlan_id}`} className="text-xs font-normal">{t("form.noRequestDns")}</Label></div>}
+              {feat("dhcpv6_no_request_domain_name") && <div className="flex items-center gap-1"><Checkbox checked={form.dhcpv6NoRequestDomainName} onCheckedChange={(c) => onChange({ dhcpv6NoRequestDomainName: !!c })} id={`dom-${form.vlan_id}`} /><Label htmlFor={`dom-${form.vlan_id}`} className="text-xs font-normal">{t("form.noRequestDomain")}</Label></div>}
             </div>
           </div>
         )}
@@ -450,36 +453,36 @@ function VifForm({
       <div>
         <button type="button" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" onClick={() => onChange({ showIp: !form.showIp })}>
           {form.showIp ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-          IP Settings
+          {t("form.ipSettings")}
         </button>
         {form.showIp && (
           <div className="mt-2 space-y-2 pl-3 border-l">
             <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1"><Label className="text-xs">ARP Cache Timeout</Label><Input type="number" value={form.ipArpCacheTimeout} onChange={(e) => onChange({ ipArpCacheTimeout: e.target.value })} /></div>
-              <div className="space-y-1"><Label className="text-xs">Source Validation</Label>
+              <div className="space-y-1"><Label className="text-xs">{t("form.arpCacheTimeout")}</Label><Input type="number" value={form.ipArpCacheTimeout} onChange={(e) => onChange({ ipArpCacheTimeout: e.target.value })} /></div>
+              <div className="space-y-1"><Label className="text-xs">{t("form.sourceValidation")}</Label>
                 <Select value={form.ipSourceValidation || "none"} onValueChange={(v) => onChange({ ipSourceValidation: v === "none" ? "" : v })}>
-                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                  <SelectContent><SelectItem value="none">None</SelectItem>{SOURCE_VALIDATION_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+                  <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
+                  <SelectContent><SelectItem value="none">{tc("none")}</SelectItem>{SOURCE_VALIDATION_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{t(`sourceValidation.${o.labelKey}`)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Adjust MSS</Label>
+              <Label className="text-xs">{t("form.adjustMss")}</Label>
               <div className="flex items-center gap-3">
-                <label className="flex items-center gap-1 text-xs"><input type="radio" checked={!form.ipAdjustMssClamp && !form.ipAdjustMss} onChange={() => onChange({ ipAdjustMssClamp: false, ipAdjustMss: "" })} />Off</label>
-                <label className="flex items-center gap-1 text-xs"><input type="radio" checked={form.ipAdjustMssClamp} onChange={() => onChange({ ipAdjustMssClamp: true, ipAdjustMss: "" })} />Clamp PMTU</label>
-                <label className="flex items-center gap-1 text-xs"><input type="radio" checked={!form.ipAdjustMssClamp && !!form.ipAdjustMss} onChange={() => onChange({ ipAdjustMssClamp: false })} />Manual</label>
+                <label className="flex items-center gap-1 text-xs"><input type="radio" checked={!form.ipAdjustMssClamp && !form.ipAdjustMss} onChange={() => onChange({ ipAdjustMssClamp: false, ipAdjustMss: "" })} />{t("form.off")}</label>
+                <label className="flex items-center gap-1 text-xs"><input type="radio" checked={form.ipAdjustMssClamp} onChange={() => onChange({ ipAdjustMssClamp: true, ipAdjustMss: "" })} />{t("form.clampPmtu")}</label>
+                <label className="flex items-center gap-1 text-xs"><input type="radio" checked={!form.ipAdjustMssClamp && !!form.ipAdjustMss} onChange={() => onChange({ ipAdjustMssClamp: false })} />{t("form.manual")}</label>
               </div>
-              {!form.ipAdjustMssClamp && <Input value={form.ipAdjustMss} onChange={(e) => onChange({ ipAdjustMss: e.target.value })} placeholder="MSS value" />}
+              {!form.ipAdjustMssClamp && <Input value={form.ipAdjustMss} onChange={(e) => onChange({ ipAdjustMss: e.target.value })} placeholder={t("form.mssValuePlaceholder")} />}
             </div>
             <div className="grid grid-cols-2 gap-2">
               {([
-                ["ipDisableArpFilter", "Disable ARP Filter"], ["ipEnableArpAccept", "Enable ARP Accept"],
-                ["ipEnableArpAnnounce", "Enable ARP Announce"], ["ipEnableArpIgnore", "Enable ARP Ignore"],
-                ["ipEnableDirectedBroadcast", "Directed Broadcast"], ["ipEnableProxyArp", "Proxy ARP"],
-                ["ipProxyArpPvlan", "Proxy ARP PVLAN"], ["ipDisableForwarding", "Disable Forwarding"],
+                ["ipDisableArpFilter", "disableArpFilter"], ["ipEnableArpAccept", "enableArpAccept"],
+                ["ipEnableArpAnnounce", "enableArpAnnounce"], ["ipEnableArpIgnore", "enableArpIgnore"],
+                ["ipEnableDirectedBroadcast", "directedBroadcast"], ["ipEnableProxyArp", "proxyArp"],
+                ["ipProxyArpPvlan", "proxyArpPvlan"], ["ipDisableForwarding", "disableForwarding"],
               ] as const).map(([k, label]) => (
-                <div key={k} className="flex items-center gap-1"><Checkbox checked={form[k]} onCheckedChange={(c) => onChange({ [k]: !!c })} id={`${k}-${form.vlan_id}`} /><Label htmlFor={`${k}-${form.vlan_id}`} className="text-xs font-normal">{label}</Label></div>
+                <div key={k} className="flex items-center gap-1"><Checkbox checked={form[k]} onCheckedChange={(c) => onChange({ [k]: !!c })} id={`${k}-${form.vlan_id}`} /><Label htmlFor={`${k}-${form.vlan_id}`} className="text-xs font-normal">{t(`form.${label}`)}</Label></div>
               ))}
             </div>
           </div>
@@ -490,49 +493,49 @@ function VifForm({
       <div>
         <button type="button" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" onClick={() => onChange({ showIpv6: !form.showIpv6 })}>
           {form.showIpv6 ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-          IPv6 Settings
+          {t("form.ipv6Settings")}
         </button>
         {form.showIpv6 && (
           <div className="mt-2 space-y-2 pl-3 border-l">
             <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1"><Label className="text-xs">Accept DAD (0–3)</Label><Input type="number" min={0} max={3} value={form.ipv6AcceptDad} onChange={(e) => onChange({ ipv6AcceptDad: e.target.value })} /></div>
-              <div className="space-y-1"><Label className="text-xs">Base Reachable Time</Label><Input type="number" value={form.ipv6BaseReachableTime} onChange={(e) => onChange({ ipv6BaseReachableTime: e.target.value })} /></div>
-              <div className="space-y-1"><Label className="text-xs">Dup Addr Detect</Label><Input type="number" value={form.ipv6DupAddrDetect} onChange={(e) => onChange({ ipv6DupAddrDetect: e.target.value })} /></div>
-              <div className="space-y-1"><Label className="text-xs">Source Validation</Label>
+              <div className="space-y-1"><Label className="text-xs">{t("form.acceptDad")}</Label><Input type="number" min={0} max={3} value={form.ipv6AcceptDad} onChange={(e) => onChange({ ipv6AcceptDad: e.target.value })} /></div>
+              <div className="space-y-1"><Label className="text-xs">{t("form.baseReachableTime")}</Label><Input type="number" value={form.ipv6BaseReachableTime} onChange={(e) => onChange({ ipv6BaseReachableTime: e.target.value })} /></div>
+              <div className="space-y-1"><Label className="text-xs">{t("form.dupAddrDetect")}</Label><Input type="number" value={form.ipv6DupAddrDetect} onChange={(e) => onChange({ ipv6DupAddrDetect: e.target.value })} /></div>
+              <div className="space-y-1"><Label className="text-xs">{t("form.sourceValidation")}</Label>
                 <Select value={form.ipv6SourceValidation || "none"} onValueChange={(v) => onChange({ ipv6SourceValidation: v === "none" ? "" : v })}>
-                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                  <SelectContent><SelectItem value="none">None</SelectItem>{SOURCE_VALIDATION_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+                  <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
+                  <SelectContent><SelectItem value="none">{tc("none")}</SelectItem>{SOURCE_VALIDATION_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{t(`sourceValidation.${o.labelKey}`)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Adjust MSS (IPv6)</Label>
+              <Label className="text-xs">{t("form.adjustMssIpv6")}</Label>
               <div className="flex items-center gap-3">
-                <label className="flex items-center gap-1 text-xs"><input type="radio" checked={!form.ipv6AdjustMssClamp && !form.ipv6AdjustMss} onChange={() => onChange({ ipv6AdjustMssClamp: false, ipv6AdjustMss: "" })} />Off</label>
-                <label className="flex items-center gap-1 text-xs"><input type="radio" checked={form.ipv6AdjustMssClamp} onChange={() => onChange({ ipv6AdjustMssClamp: true, ipv6AdjustMss: "" })} />Clamp PMTU</label>
-                <label className="flex items-center gap-1 text-xs"><input type="radio" checked={!form.ipv6AdjustMssClamp && !!form.ipv6AdjustMss} onChange={() => onChange({ ipv6AdjustMssClamp: false })} />Manual</label>
+                <label className="flex items-center gap-1 text-xs"><input type="radio" checked={!form.ipv6AdjustMssClamp && !form.ipv6AdjustMss} onChange={() => onChange({ ipv6AdjustMssClamp: false, ipv6AdjustMss: "" })} />{t("form.off")}</label>
+                <label className="flex items-center gap-1 text-xs"><input type="radio" checked={form.ipv6AdjustMssClamp} onChange={() => onChange({ ipv6AdjustMssClamp: true, ipv6AdjustMss: "" })} />{t("form.clampPmtu")}</label>
+                <label className="flex items-center gap-1 text-xs"><input type="radio" checked={!form.ipv6AdjustMssClamp && !!form.ipv6AdjustMss} onChange={() => onChange({ ipv6AdjustMssClamp: false })} />{t("form.manual")}</label>
               </div>
-              {!form.ipv6AdjustMssClamp && <Input value={form.ipv6AdjustMss} onChange={(e) => onChange({ ipv6AdjustMss: e.target.value })} placeholder="MSS value" />}
+              {!form.ipv6AdjustMssClamp && <Input value={form.ipv6AdjustMss} onChange={(e) => onChange({ ipv6AdjustMss: e.target.value })} placeholder={t("form.mssValuePlaceholder")} />}
             </div>
             <div className="grid grid-cols-2 gap-2">
               {([
-                ["ipv6DisableForwarding", "Disable Forwarding"],
-                ["ipv6AddressAutoconf", "Address Autoconf"],
-                ["ipv6NoDefaultLinkLocal", "No Default Link Local"],
+                ["ipv6DisableForwarding", "disableForwarding"],
+                ["ipv6AddressAutoconf", "addressAutoconf"],
+                ["ipv6NoDefaultLinkLocal", "noDefaultLinkLocal"],
               ] as const).map(([k, label]) => (
-                <div key={k} className="flex items-center gap-1"><Checkbox checked={form[k]} onCheckedChange={(c) => onChange({ [k]: !!c })} id={`${k}-${form.vlan_id}`} /><Label htmlFor={`${k}-${form.vlan_id}`} className="text-xs font-normal">{label}</Label></div>
+                <div key={k} className="flex items-center gap-1"><Checkbox checked={form[k]} onCheckedChange={(c) => onChange({ [k]: !!c })} id={`${k}-${form.vlan_id}`} /><Label htmlFor={`${k}-${form.vlan_id}`} className="text-xs font-normal">{t(`form.${label}`)}</Label></div>
               ))}
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">EUI64 Prefixes</Label>
+              <Label className="text-xs">{t("form.eui64Prefixes")}</Label>
               <div className="flex gap-2">
-                <Input value={form.ipv6Eui64Input} onChange={(e) => onChange({ ipv6Eui64Input: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = form.ipv6Eui64Input.trim(); if (v && !form.ipv6Eui64.includes(v)) onChange({ ipv6Eui64: [...form.ipv6Eui64, v], ipv6Eui64Input: "" }); else onChange({ ipv6Eui64Input: "" }); } }} placeholder="IPv6 prefix" />
+                <Input value={form.ipv6Eui64Input} onChange={(e) => onChange({ ipv6Eui64Input: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = form.ipv6Eui64Input.trim(); if (v && !form.ipv6Eui64.includes(v)) onChange({ ipv6Eui64: [...form.ipv6Eui64, v], ipv6Eui64Input: "" }); else onChange({ ipv6Eui64Input: "" }); } }} placeholder={t("form.ipv6PrefixPlaceholder")} />
                 <Button type="button" variant="outline" size="sm" onClick={() => { const v = form.ipv6Eui64Input.trim(); if (v && !form.ipv6Eui64.includes(v)) onChange({ ipv6Eui64: [...form.ipv6Eui64, v], ipv6Eui64Input: "" }); }}><Plus className="h-3 w-3" /></Button>
               </div>
               <div className="flex flex-wrap gap-1">{form.ipv6Eui64.map((p) => <Badge key={p} variant="secondary" className="gap-1 pr-1 text-xs">{p}<button onClick={() => onChange({ ipv6Eui64: form.ipv6Eui64.filter((x) => x !== p) })}><X className="h-3 w-3" /></button></Badge>)}</div>
             </div>
             {feat("ipv6_address_interface_identifier") && (
-              <div className="space-y-1"><Label className="text-xs">Interface Identifier</Label><Input value={form.ipv6InterfaceIdentifier} onChange={(e) => onChange({ ipv6InterfaceIdentifier: e.target.value })} /></div>
+              <div className="space-y-1"><Label className="text-xs">{t("form.interfaceIdentifier")}</Label><Input value={form.ipv6InterfaceIdentifier} onChange={(e) => onChange({ ipv6InterfaceIdentifier: e.target.value })} /></div>
             )}
           </div>
         )}
@@ -551,6 +554,8 @@ export function EditVirtualEthernetModal({
   capabilities,
 }: EditVirtualEthernetModalProps) {
   const feat = (key: string) => capabilities?.features?.[key]?.supported ?? false;
+  const t = useTranslations("virtualEthernet");
+  const tc = useTranslations("common");
 
   // Basic
   const [peerName, setPeerName] = useState("");
@@ -740,20 +745,20 @@ export function EditVirtualEthernetModal({
   const validate = (): string | null => {
     if (mtu) {
       const m = Number(mtu);
-      if (!Number.isInteger(m) || m < 68 || m > 16000) return "MTU must be between 68 and 16000.";
+      if (!Number.isInteger(m) || m < 68 || m > 16000) return t("validation.mtuRange");
     }
     for (const vif of vifs) {
       if (!vif.vlan_id || Number(vif.vlan_id) < 1 || Number(vif.vlan_id) > 4094) {
-        return "VIF VLAN ID must be between 1 and 4094.";
+        return t("validation.vifVlanRange");
       }
     }
     for (const vs of vifSList) {
       if (!vs.vlan_id || Number(vs.vlan_id) < 1 || Number(vs.vlan_id) > 4094) {
-        return "VIF-S VLAN ID must be between 1 and 4094.";
+        return t("validation.vifSVlanRange");
       }
       for (const vc of vs.vif_c) {
         if (!vc.vlan_id || Number(vc.vlan_id) < 1 || Number(vc.vlan_id) > 4094) {
-          return "VIF-C VLAN ID must be between 1 and 4094.";
+          return t("validation.vifCVlanRange");
         }
       }
     }
@@ -853,10 +858,10 @@ export function EditVirtualEthernetModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to update interface");
+      setError((err as ApiError).message || t("edit.failed"));
     } finally {
       setLoading(false);
     }
@@ -865,7 +870,7 @@ export function EditVirtualEthernetModal({
   if (!interfaceData) return null;
 
   const saveVif = () => {
-    if (!newVif.vlan_id) { setError("VIF VLAN ID is required."); return; }
+    if (!newVif.vlan_id) { setError(t("validation.vifVlanRequired")); return; }
     if (editingVifIdx !== null) {
       setVifs((p) => p.map((v, i) => i === editingVifIdx ? newVif : v));
       setEditingVifIdx(null);
@@ -877,7 +882,7 @@ export function EditVirtualEthernetModal({
   };
 
   const saveVifS = () => {
-    if (!newVifS.vlan_id) { setError("VIF-S VLAN ID is required."); return; }
+    if (!newVifS.vlan_id) { setError(t("validation.vifSVlanRequired")); return; }
     if (editingVifSIdx !== null) {
       setVifSList((p) => p.map((v, i) => i === editingVifSIdx ? newVifS : v));
       setEditingVifSIdx(null);
@@ -889,7 +894,7 @@ export function EditVirtualEthernetModal({
   };
 
   const saveVifC = (vsIdx: number) => {
-    if (!newVifC.vlan_id) { setError("VIF-C VLAN ID is required."); return; }
+    if (!newVifC.vlan_id) { setError(t("validation.vifCVlanRequired")); return; }
     setVifSList((p) => p.map((vs, i) => i === vsIdx ? { ...vs, vif_c: [...vs.vif_c, newVifC] } : vs));
     setNewVifC(emptyVifC());
     setShowVifCFormForS(null);
@@ -899,16 +904,16 @@ export function EditVirtualEthernetModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Virtual Ethernet Interface: {interfaceData.name}</DialogTitle>
+          <DialogTitle>{t("edit.title", { name: interfaceData.name })}</DialogTitle>
           <DialogDescription>
-            Modify the configuration for virtual-ethernet interface {interfaceData.name}.
+            {t("edit.description", { name: interfaceData.name })}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="basic">Basic</TabsTrigger>
-            <TabsTrigger value="addresses">Addresses</TabsTrigger>
+            <TabsTrigger value="basic">{t("tabs.basic")}</TabsTrigger>
+            <TabsTrigger value="addresses">{t("tabs.addresses")}</TabsTrigger>
             <TabsTrigger value="vif">VIF</TabsTrigger>
             <TabsTrigger value="qinq">QinQ</TabsTrigger>
           </TabsList>
@@ -916,17 +921,17 @@ export function EditVirtualEthernetModal({
           {/* Basic Tab */}
           <TabsContent value="basic" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>Interface Name</Label>
+              <Label>{t("form.interfaceName")}</Label>
               <Input value={interfaceData.name} disabled className="font-mono" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="e-peerName">Peer Name</Label>
+                <Label htmlFor="e-peerName">{t("form.peerName")}</Label>
                 <Input id="e-peerName" value={peerName} onChange={(e) => setPeerName(e.target.value)} placeholder="veth1" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="e-description">Description</Label>
+                <Label htmlFor="e-description">{tc("description")}</Label>
                 <Input id="e-description" value={description} onChange={(e) => setDescription(e.target.value)} />
               </div>
               <div className="space-y-2">
@@ -941,27 +946,27 @@ export function EditVirtualEthernetModal({
 
             {feat("netns") && (
               <div className="space-y-2">
-                <Label htmlFor="e-netns">Network Namespace</Label>
+                <Label htmlFor="e-netns">{t("form.networkNamespace")}</Label>
                 <Input id="e-netns" value={netns} onChange={(e) => setNetns(e.target.value)} placeholder="myns" />
               </div>
             )}
 
             <div className="flex items-center gap-2">
               <Checkbox checked={disabled} onCheckedChange={(c) => setDisabled(!!c)} id="e-disabled" />
-              <Label htmlFor="e-disabled">Disabled</Label>
+              <Label htmlFor="e-disabled">{t("form.disabled")}</Label>
             </div>
           </TabsContent>
 
           {/* Addresses Tab */}
           <TabsContent value="addresses" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>IP Addresses</Label>
+              <Label>{t("form.ipAddresses")}</Label>
               <div className="flex gap-2">
                 <Input
                   value={addressInput}
                   onChange={(e) => setAddressInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addAddress())}
-                  placeholder="192.0.2.1/24 or dhcp or dhcpv6"
+                  placeholder={t("form.addressPlaceholder")}
                 />
                 <Button type="button" variant="outline" size="sm" onClick={addAddress}>
                   <Plus className="h-4 w-4" />
@@ -980,58 +985,58 @@ export function EditVirtualEthernetModal({
             </div>
 
             <Separator />
-            <p className="text-sm font-medium">DHCP Options</p>
+            <p className="text-sm font-medium">{t("form.dhcpOptions")}</p>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1"><Label className="text-xs">Client ID</Label><Input value={dhcpClientId} onChange={(e) => setDhcpClientId(e.target.value)} /></div>
-              <div className="space-y-1"><Label className="text-xs">Hostname</Label><Input value={dhcpHostName} onChange={(e) => setDhcpHostName(e.target.value)} /></div>
-              <div className="space-y-1"><Label className="text-xs">Vendor Class ID</Label><Input value={dhcpVendorClassId} onChange={(e) => setDhcpVendorClassId(e.target.value)} /></div>
-              <div className="space-y-1"><Label className="text-xs">User Class</Label><Input value={dhcpUserClass} onChange={(e) => setDhcpUserClass(e.target.value)} /></div>
-              <div className="space-y-1"><Label className="text-xs">Default Route Distance</Label><Input type="number" value={dhcpDefaultRouteDistance} onChange={(e) => setDhcpDefaultRouteDistance(e.target.value)} /></div>
+              <div className="space-y-1"><Label className="text-xs">{t("form.clientId")}</Label><Input value={dhcpClientId} onChange={(e) => setDhcpClientId(e.target.value)} /></div>
+              <div className="space-y-1"><Label className="text-xs">{t("form.hostname")}</Label><Input value={dhcpHostName} onChange={(e) => setDhcpHostName(e.target.value)} /></div>
+              <div className="space-y-1"><Label className="text-xs">{t("form.vendorClassId")}</Label><Input value={dhcpVendorClassId} onChange={(e) => setDhcpVendorClassId(e.target.value)} /></div>
+              <div className="space-y-1"><Label className="text-xs">{t("form.userClass")}</Label><Input value={dhcpUserClass} onChange={(e) => setDhcpUserClass(e.target.value)} /></div>
+              <div className="space-y-1"><Label className="text-xs">{t("form.defaultRouteDistance")}</Label><Input type="number" value={dhcpDefaultRouteDistance} onChange={(e) => setDhcpDefaultRouteDistance(e.target.value)} /></div>
             </div>
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2"><Checkbox checked={dhcpNoDefaultRoute} onCheckedChange={(c) => setDhcpNoDefaultRoute(!!c)} id="e-dhcpNoDef" /><Label htmlFor="e-dhcpNoDef" className="text-sm font-normal">No Default Route</Label></div>
-              <div className="flex items-center gap-2"><Checkbox checked={dhcpMtu} onCheckedChange={(c) => setDhcpMtu(!!c)} id="e-dhcpMtu" /><Label htmlFor="e-dhcpMtu" className="text-sm font-normal">Request MTU</Label></div>
+              <div className="flex items-center gap-2"><Checkbox checked={dhcpNoDefaultRoute} onCheckedChange={(c) => setDhcpNoDefaultRoute(!!c)} id="e-dhcpNoDef" /><Label htmlFor="e-dhcpNoDef" className="text-sm font-normal">{t("form.noDefaultRoute")}</Label></div>
+              <div className="flex items-center gap-2"><Checkbox checked={dhcpMtu} onCheckedChange={(c) => setDhcpMtu(!!c)} id="e-dhcpMtu" /><Label htmlFor="e-dhcpMtu" className="text-sm font-normal">{t("form.requestMtu")}</Label></div>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Reject Servers</Label>
+              <Label className="text-xs">{t("form.rejectServers")}</Label>
               <div className="flex gap-2">
-                <Input value={dhcpRejectInput} onChange={(e) => setDhcpRejectInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = dhcpRejectInput.trim(); if (v && !dhcpReject.includes(v)) setDhcpReject((p) => [...p, v]); setDhcpRejectInput(""); } }} placeholder="Server IP" />
+                <Input value={dhcpRejectInput} onChange={(e) => setDhcpRejectInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = dhcpRejectInput.trim(); if (v && !dhcpReject.includes(v)) setDhcpReject((p) => [...p, v]); setDhcpRejectInput(""); } }} placeholder={t("form.serverIpPlaceholder")} />
                 <Button type="button" variant="outline" size="sm" onClick={() => { const v = dhcpRejectInput.trim(); if (v && !dhcpReject.includes(v)) setDhcpReject((p) => [...p, v]); setDhcpRejectInput(""); }}><Plus className="h-4 w-4" /></Button>
               </div>
               <div className="flex flex-wrap gap-1">{dhcpReject.map((s) => <Badge key={s} variant="secondary" className="gap-1 pr-1">{s}<button onClick={() => setDhcpReject((p) => p.filter((x) => x !== s))}><X className="h-3 w-3" /></button></Badge>)}</div>
             </div>
 
             <Separator />
-            <p className="text-sm font-medium">DHCPv6 Options</p>
+            <p className="text-sm font-medium">{t("form.dhcpv6Options")}</p>
             <div className="space-y-1"><Label className="text-xs">DUID</Label><Input value={dhcpv6Duid} onChange={(e) => setDhcpv6Duid(e.target.value)} /></div>
             <div className="grid grid-cols-2 gap-3">
               {([
-                [dhcpv6NoRelease, setDhcpv6NoRelease, "No Release"],
-                [dhcpv6ParametersOnly, setDhcpv6ParametersOnly, "Parameters Only"],
-                [dhcpv6RapidCommit, setDhcpv6RapidCommit, "Rapid Commit"],
-                [dhcpv6Temporary, setDhcpv6Temporary, "Temporary"],
+                [dhcpv6NoRelease, setDhcpv6NoRelease, t("form.noRelease")],
+                [dhcpv6ParametersOnly, setDhcpv6ParametersOnly, t("form.parametersOnly")],
+                [dhcpv6RapidCommit, setDhcpv6RapidCommit, t("form.rapidCommit")],
+                [dhcpv6Temporary, setDhcpv6Temporary, t("form.temporary")],
               ] as const).map(([val, setter, label]) => (
                 <div key={label} className="flex items-center gap-2"><Checkbox checked={val} onCheckedChange={(c) => setter(!!c)} id={`e-dhcpv6-${label}`} /><Label htmlFor={`e-dhcpv6-${label}`} className="text-sm font-normal">{label}</Label></div>
               ))}
-              {feat("dhcpv6_no_request_dns") && <div className="flex items-center gap-2"><Checkbox checked={dhcpv6NoRequestDns} onCheckedChange={(c) => setDhcpv6NoRequestDns(!!c)} id="e-dhcpv6NoDns" /><Label htmlFor="e-dhcpv6NoDns" className="text-sm font-normal">No Request DNS</Label></div>}
-              {feat("dhcpv6_no_request_domain_name") && <div className="flex items-center gap-2"><Checkbox checked={dhcpv6NoRequestDomainName} onCheckedChange={(c) => setDhcpv6NoRequestDomainName(!!c)} id="e-dhcpv6NoDomain" /><Label htmlFor="e-dhcpv6NoDomain" className="text-sm font-normal">No Request Domain Name</Label></div>}
+              {feat("dhcpv6_no_request_dns") && <div className="flex items-center gap-2"><Checkbox checked={dhcpv6NoRequestDns} onCheckedChange={(c) => setDhcpv6NoRequestDns(!!c)} id="e-dhcpv6NoDns" /><Label htmlFor="e-dhcpv6NoDns" className="text-sm font-normal">{t("form.noRequestDns")}</Label></div>}
+              {feat("dhcpv6_no_request_domain_name") && <div className="flex items-center gap-2"><Checkbox checked={dhcpv6NoRequestDomainName} onCheckedChange={(c) => setDhcpv6NoRequestDomainName(!!c)} id="e-dhcpv6NoDomain" /><Label htmlFor="e-dhcpv6NoDomain" className="text-sm font-normal">{t("form.noRequestDomainName")}</Label></div>}
             </div>
           </TabsContent>
 
           {/* VIF Tab */}
           <TabsContent value="vif" className="space-y-4 mt-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">802.1q VLAN Sub-interfaces</p>
+              <p className="text-sm font-medium">{t("vif.title")}</p>
               <Button type="button" variant="outline" size="sm" onClick={() => { setNewVif(emptyVif()); setEditingVifIdx(null); setShowVifForm(true); }}>
-                <Plus className="h-4 w-4 mr-1" /> Add VIF
+                <Plus className="h-4 w-4 mr-1" /> {t("vif.add")}
               </Button>
             </div>
             {showVifForm && (
               <>
                 <VifForm form={newVif} onChange={(patch) => setNewVif((p) => ({ ...p, ...patch }))} capabilities={capabilities} showQos />
                 <div className="flex gap-2">
-                  <Button type="button" size="sm" onClick={saveVif}>Save VIF</Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => { setShowVifForm(false); setEditingVifIdx(null); setNewVif(emptyVif()); }}>Cancel</Button>
+                  <Button type="button" size="sm" onClick={saveVif}>{t("vif.save")}</Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => { setShowVifForm(false); setEditingVifIdx(null); setNewVif(emptyVif()); }}>{tc("cancel")}</Button>
                 </div>
               </>
             )}
@@ -1041,9 +1046,9 @@ export function EditVirtualEthernetModal({
                   <TableHeader>
                     <TableRow>
                       <TableHead>VLAN ID</TableHead>
-                      <TableHead>Addresses</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>{t("form.addresses")}</TableHead>
+                      <TableHead>{tc("description")}</TableHead>
+                      <TableHead>{tc("status")}</TableHead>
                       <TableHead className="w-[80px]"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1060,7 +1065,7 @@ export function EditVirtualEthernetModal({
                         <TableCell className="text-muted-foreground text-sm">{vif.description || "—"}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className={vif.disabled ? "bg-red-500/10 text-red-500 border-red-500/20 text-xs" : "bg-green-500/10 text-green-500 border-green-500/20 text-xs"}>
-                            {vif.disabled ? "Disabled" : "Enabled"}
+                            {vif.disabled ? tc("disabled") : tc("enabled")}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -1079,16 +1084,16 @@ export function EditVirtualEthernetModal({
                 </Table>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">No VIF sub-interfaces configured.</p>
+              <p className="text-sm text-muted-foreground text-center py-4">{t("vif.empty")}</p>
             )}
           </TabsContent>
 
           {/* QinQ Tab */}
           <TabsContent value="qinq" className="space-y-4 mt-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">QinQ VIF-S Sub-interfaces</p>
+              <p className="text-sm font-medium">{t("qinq.title")}</p>
               <Button type="button" variant="outline" size="sm" onClick={() => { setNewVifS(emptyVifS()); setEditingVifSIdx(null); setShowVifSForm(true); }}>
-                <Plus className="h-4 w-4 mr-1" /> Add VIF-S
+                <Plus className="h-4 w-4 mr-1" /> {t("qinq.addVifS")}
               </Button>
             </div>
 
@@ -1101,8 +1106,8 @@ export function EditVirtualEthernetModal({
                   showProtocol
                 />
                 <div className="flex gap-2">
-                  <Button type="button" size="sm" onClick={saveVifS}>Save VIF-S</Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => { setShowVifSForm(false); setEditingVifSIdx(null); setNewVifS(emptyVifS()); }}>Cancel</Button>
+                  <Button type="button" size="sm" onClick={saveVifS}>{t("qinq.saveVifS")}</Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => { setShowVifSForm(false); setEditingVifSIdx(null); setNewVifS(emptyVifS()); }}>{tc("cancel")}</Button>
                 </div>
               </>
             )}
@@ -1135,27 +1140,27 @@ export function EditVirtualEthernetModal({
                     {expandedVifS.has(si) && (
                       <div className="px-6 pb-3 space-y-2">
                         <div className="flex items-center justify-between">
-                          <p className="text-xs font-medium text-muted-foreground">VIF-C Sub-interfaces</p>
+                          <p className="text-xs font-medium text-muted-foreground">{t("qinq.vifCTitle")}</p>
                           <Button type="button" variant="outline" size="sm" className="h-6 text-xs" onClick={() => { setNewVifC(emptyVifC()); setShowVifCFormForS(si); }}>
-                            <Plus className="h-3 w-3 mr-1" /> Add VIF-C
+                            <Plus className="h-3 w-3 mr-1" /> {t("qinq.addVifC")}
                           </Button>
                         </div>
                         {showVifCFormForS === si && (
                           <div className="space-y-2 p-2 border rounded bg-muted/20">
                             <div className="grid grid-cols-2 gap-2">
                               <div className="space-y-1"><Label className="text-xs">C-VLAN ID *</Label><Input type="number" min={1} max={4094} value={newVifC.vlan_id} onChange={(e) => setNewVifC((p) => ({ ...p, vlan_id: e.target.value }))} /></div>
-                              <div className="space-y-1"><Label className="text-xs">Description</Label><Input value={newVifC.description} onChange={(e) => setNewVifC((p) => ({ ...p, description: e.target.value }))} /></div>
+                              <div className="space-y-1"><Label className="text-xs">{tc("description")}</Label><Input value={newVifC.description} onChange={(e) => setNewVifC((p) => ({ ...p, description: e.target.value }))} /></div>
                               <div className="space-y-1"><Label className="text-xs">MTU</Label><Input type="number" value={newVifC.mtu} onChange={(e) => setNewVifC((p) => ({ ...p, mtu: e.target.value }))} /></div>
                               <div className="space-y-1"><Label className="text-xs">MAC</Label><Input value={newVifC.mac} onChange={(e) => setNewVifC((p) => ({ ...p, mac: e.target.value }))} placeholder="xx:xx:xx:xx:xx:xx" /></div>
                               <div className="space-y-1"><Label className="text-xs">VRF</Label><VrfSelect value={newVifC.vrf} onValueChange={(v) => setNewVifC((p) => ({ ...p, vrf: v }))} /></div>
-                              <div className="space-y-1"><Label className="text-xs">Redirect</Label><Input value={newVifC.redirect} onChange={(e) => setNewVifC((p) => ({ ...p, redirect: e.target.value }))} /></div>
+                              <div className="space-y-1"><Label className="text-xs">{t("form.redirect")}</Label><Input value={newVifC.redirect} onChange={(e) => setNewVifC((p) => ({ ...p, redirect: e.target.value }))} /></div>
                             </div>
                             <div className="flex items-center gap-3">
-                              <div className="flex items-center gap-1"><Checkbox checked={newVifC.disabled} onCheckedChange={(c) => setNewVifC((p) => ({ ...p, disabled: !!c }))} id="vifc-disabled" /><Label htmlFor="vifc-disabled" className="text-xs font-normal">Disabled</Label></div>
-                              <div className="flex items-center gap-1"><Checkbox checked={newVifC.disable_link_detect} onCheckedChange={(c) => setNewVifC((p) => ({ ...p, disable_link_detect: !!c }))} id="vifc-ld" /><Label htmlFor="vifc-ld" className="text-xs font-normal">Disable Link Detect</Label></div>
+                              <div className="flex items-center gap-1"><Checkbox checked={newVifC.disabled} onCheckedChange={(c) => setNewVifC((p) => ({ ...p, disabled: !!c }))} id="vifc-disabled" /><Label htmlFor="vifc-disabled" className="text-xs font-normal">{t("form.disabled")}</Label></div>
+                              <div className="flex items-center gap-1"><Checkbox checked={newVifC.disable_link_detect} onCheckedChange={(c) => setNewVifC((p) => ({ ...p, disable_link_detect: !!c }))} id="vifc-ld" /><Label htmlFor="vifc-ld" className="text-xs font-normal">{t("form.disableLinkDetect")}</Label></div>
                             </div>
                             <div className="space-y-1">
-                              <Label className="text-xs">Addresses</Label>
+                              <Label className="text-xs">{t("form.addresses")}</Label>
                               <div className="flex gap-2">
                                 <Input value={newVifC.addressInput} onChange={(e) => setNewVifC((p) => ({ ...p, addressInput: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = newVifC.addressInput.trim(); if (v && !newVifC.addresses.includes(v)) setNewVifC((p) => ({ ...p, addresses: [...p.addresses, v], addressInput: "" })); else setNewVifC((p) => ({ ...p, addressInput: "" })); } }} placeholder="192.0.2.1/24" />
                                 <Button type="button" variant="outline" size="sm" onClick={() => { const v = newVifC.addressInput.trim(); if (v && !newVifC.addresses.includes(v)) setNewVifC((p) => ({ ...p, addresses: [...p.addresses, v], addressInput: "" })); }}><Plus className="h-3 w-3" /></Button>
@@ -1163,8 +1168,8 @@ export function EditVirtualEthernetModal({
                               <div className="flex flex-wrap gap-1">{newVifC.addresses.map((a) => <Badge key={a} variant="secondary" className="gap-1 pr-1 text-xs">{a}<button onClick={() => setNewVifC((p) => ({ ...p, addresses: p.addresses.filter((x) => x !== a) }))}><X className="h-3 w-3" /></button></Badge>)}</div>
                             </div>
                             <div className="flex gap-2">
-                              <Button type="button" size="sm" className="h-7 text-xs" onClick={() => saveVifC(si)}>Add</Button>
-                              <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setShowVifCFormForS(null); setNewVifC(emptyVifC()); }}>Cancel</Button>
+                              <Button type="button" size="sm" className="h-7 text-xs" onClick={() => saveVifC(si)}>{tc("add")}</Button>
+                              <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setShowVifCFormForS(null); setNewVifC(emptyVifC()); }}>{tc("cancel")}</Button>
                             </div>
                           </div>
                         )}
@@ -1173,8 +1178,8 @@ export function EditVirtualEthernetModal({
                             <TableHeader>
                               <TableRow>
                                 <TableHead className="text-xs">C-VLAN ID</TableHead>
-                                <TableHead className="text-xs">Addresses</TableHead>
-                                <TableHead className="text-xs">Description</TableHead>
+                                <TableHead className="text-xs">{t("form.addresses")}</TableHead>
+                                <TableHead className="text-xs">{tc("description")}</TableHead>
                                 <TableHead className="w-[60px]"></TableHead>
                               </TableRow>
                             </TableHeader>
@@ -1198,7 +1203,7 @@ export function EditVirtualEthernetModal({
                             </TableBody>
                           </Table>
                         ) : (
-                          <p className="text-xs text-muted-foreground text-center py-2">No VIF-C sub-interfaces.</p>
+                          <p className="text-xs text-muted-foreground text-center py-2">{t("qinq.emptyVifC")}</p>
                         )}
                       </div>
                     )}
@@ -1206,7 +1211,7 @@ export function EditVirtualEthernetModal({
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">No VIF-S sub-interfaces configured.</p>
+              <p className="text-sm text-muted-foreground text-center py-4">{t("qinq.empty")}</p>
             )}
           </TabsContent>
         </Tabs>
@@ -1220,16 +1225,16 @@ export function EditVirtualEthernetModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
+                {tc("saving")}
               </>
             ) : (
-              "Save Changes"
+              t("edit.saveChanges")
             )}
           </Button>
         </DialogFooter>
