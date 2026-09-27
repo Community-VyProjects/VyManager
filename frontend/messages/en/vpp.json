@@ -1,1 +1,98 @@
-{}
+{
+  "subTypes": {
+    "bonding": {
+      "label": "Bonding",
+      "description": "Bond/LAG interfaces for link aggregation"
+    },
+    "bridge": {
+      "label": "Bridge",
+      "description": "Bridge domain interfaces (vppbr0 reserved)"
+    },
+    "gre": {
+      "label": "GRE",
+      "description": "GRE tunnel interfaces"
+    },
+    "ipip": {
+      "label": "IPIP",
+      "description": "IP-in-IP tunnel interfaces"
+    },
+    "loopback": {
+      "label": "Loopback",
+      "description": "Loopback interfaces"
+    },
+    "vxlan": {
+      "label": "VXLAN",
+      "description": "VXLAN tunnel interfaces"
+    },
+    "xconnect": {
+      "label": "XConnect",
+      "description": "Layer 2 cross-connect interfaces"
+    }
+  },
+  "delete": {
+    "title": "Delete VPP {type}: {name}",
+    "confirm": "Are you sure you want to delete this VPP interface? This action cannot be undone.",
+    "type": "Type:",
+    "name": "Name:",
+    "failed": "Failed to delete VPP interface",
+    "submit": "Delete Interface"
+  },
+  "modal": {
+    "createTitle": "Create VPP Interface",
+    "editTitle": "Edit VPP {type}:",
+    "selectTypeDescription": "Select the VPP interface type to create.",
+    "editDescription": "Modify the VPP {type} interface configuration.",
+    "createDescription": "Configure a new VPP {type} interface.",
+    "updateFailed": "Failed to update VPP interface",
+    "createFailed": "Failed to create VPP interface",
+    "creating": "Creating...",
+    "saveChanges": "Save Changes",
+    "createSubType": "Create {type}"
+  },
+  "validation": {
+    "selectType": "Please select an interface type.",
+    "nameRequired": "Interface name is required.",
+    "namePattern": "Interface name must match pattern {pattern} (e.g., {example}).",
+    "nameExists": "Interface ''{name}'' already exists.",
+    "mtuRange": "MTU must be between 68 and 16000.",
+    "vniRange": "VNI must be between 0 and 16777214.",
+    "vniRequired": "VNI is required for VXLAN.",
+    "remoteRequired": "Remote IP is required for {type}.",
+    "sourceRequired": "Source address is required for {type}."
+  },
+  "tabs": {
+    "basic": "Basic",
+    "addresses": "Addresses",
+    "members": "Members",
+    "vif": "VIF Sub-ifs"
+  },
+  "form": {
+    "interfaceName": "Interface Name",
+    "nameLocked": "Interface name cannot be changed.",
+    "mode": "Mode",
+    "hashPolicy": "Hash Policy",
+    "macAddress": "MAC Address",
+    "remoteIp": "Remote IP",
+    "sourceAddress": "Source Address",
+    "tunnelType": "Tunnel Type",
+    "key": "Key (0-4294967295)",
+    "descriptionPlaceholder": "Optional description",
+    "ipAddresses": "IP Addresses",
+    "examplePlaceholder": "e.g., {value}"
+  },
+  "members": {
+    "bridgeMembers": "Bridge Members",
+    "xconnectMembers": "XConnect Members",
+    "bondMembers": "Bond Members",
+    "selectToAdd": "Select interface to add...",
+    "allAdded": "All interfaces added"
+  },
+  "vif": {
+    "title": "VIF Sub-interfaces",
+    "add": "Add VIF",
+    "edit": "Edit VIF",
+    "update": "Update VIF",
+    "addresses": "Addresses",
+    "noAddresses": "no addresses"
+  }
+}
