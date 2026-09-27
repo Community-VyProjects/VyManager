@@ -25,6 +25,7 @@ import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
 import type { OspfInterface, OspfCapabilities } from "@/lib/api/ospf";
 import { showService, InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
+import { useTranslations } from "next-intl";
 
 interface OspfInterfaceModalProps {
   open: boolean;
@@ -41,6 +42,8 @@ export function OspfInterfaceModal({
   existingInterface,
   capabilities,
 }: OspfInterfaceModalProps) {
+  const t = useTranslations("ospf");
+  const tc = useTranslations("common");
   const isEditMode = !!existingInterface;
 
   const [name, setName] = useState("");
@@ -153,22 +156,22 @@ export function OspfInterfaceModal({
   };
 
   const validateForm = (): string | null => {
-    if (!name) return "Please select an interface";
+    if (!name) return t("interfaceModal.selectInterface");
     if (cost.trim()) {
       const val = parseInt(cost.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 65535) return "Cost must be between 1 and 65535";
+      if (isNaN(val) || val < 1 || val > 65535) return t("interfaceModal.costRange");
     }
     if (priority.trim()) {
       const val = parseInt(priority.trim(), 10);
-      if (isNaN(val) || val < 0 || val > 255) return "Priority must be between 0 and 255";
+      if (isNaN(val) || val < 0 || val > 255) return t("interfaceModal.priorityRange");
     }
     if (ldpSyncHolddown.trim()) {
       const val = parseInt(ldpSyncHolddown.trim(), 10);
-      if (isNaN(val) || val < 0 || val > 10000) return "LDP sync holddown must be between 0 and 10000";
+      if (isNaN(val) || val < 0 || val > 10000) return t("interfaceModal.ldpSyncHolddownRange");
     }
     for (const key of md5Keys) {
-      if (key.keyId && !key.keyValue) return "MD5 key value is required for each key ID";
-      if (!key.keyId && key.keyValue) return "MD5 key ID is required";
+      if (key.keyId && !key.keyValue) return t("interfaceModal.md5KeyValueRequired");
+      if (!key.keyId && key.keyValue) return t("interfaceModal.md5KeyIdRequired");
     }
     return null;
   };
@@ -224,7 +227,7 @@ export function OspfInterfaceModal({
       await onSubmit(config);
       handleClose();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Operation failed";
+      const message = err instanceof Error ? err.message : tc("operationFailed");
       setError(message);
     } finally {
       setLoading(false);
@@ -240,12 +243,12 @@ export function OspfInterfaceModal({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit OSPF Interface" : "Add OSPF Interface"}
+            {isEditMode ? t("interfaceModal.titleEdit") : t("interfaceModal.titleAdd")}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? `Modify OSPF settings for ${existingInterface?.name}.`
-              : "Configure OSPF on a network interface."}
+              ? t("interfaceModal.descriptionEdit", { name: existingInterface?.name ?? "" })
+              : t("interfaceModal.descriptionAdd")}
           </DialogDescription>
         </DialogHeader>
 
@@ -254,7 +257,7 @@ export function OspfInterfaceModal({
             {/* Basic Settings */}
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="ospf-iface-name">Interface</Label>
+                <Label htmlFor="ospf-iface-name">{t("fields.interface")}</Label>
                 <InterfaceSelect
                   value={name}
                   onValueChange={setName}
@@ -266,24 +269,24 @@ export function OspfInterfaceModal({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="ospf-iface-area">Area</Label>
+                <Label htmlFor="ospf-iface-area">{t("fields.area")}</Label>
                 <Input
                   id="ospf-iface-area"
                   value={area}
                   onChange={(e) => setArea(e.target.value)}
-                  placeholder="e.g. 0.0.0.0 or 0"
+                  placeholder={t("interfaceModal.areaPlaceholder")}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="ospf-iface-network">Network Type</Label>
+                <Label htmlFor="ospf-iface-network">{t("fields.networkType")}</Label>
                 <Select value={network} onValueChange={setNetwork}>
                   <SelectTrigger id="ospf-iface-network">
-                    <SelectValue placeholder="Default" />
+                    <SelectValue placeholder={tc("default")} />
                   </SelectTrigger>
                   <SelectContent>
-                    {networkTypes.map((t) => (
-                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    {networkTypes.map((nt) => (
+                      <SelectItem key={nt} value={nt}>{nt}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -292,10 +295,10 @@ export function OspfInterfaceModal({
 
             {/* Cost & Priority */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium">Cost &amp; Priority</h4>
+              <h4 className="text-sm font-medium">{t("interfaceModal.costAndPriority")}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="ospf-iface-cost">Cost</Label>
+                  <Label htmlFor="ospf-iface-cost">{t("fields.cost")}</Label>
                   <Input
                     id="ospf-iface-cost"
                     type="number"
@@ -307,7 +310,7 @@ export function OspfInterfaceModal({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ospf-iface-priority">Priority</Label>
+                  <Label htmlFor="ospf-iface-priority">{t("fields.priority")}</Label>
                   <Input
                     id="ospf-iface-priority"
                     type="number"
@@ -319,13 +322,13 @@ export function OspfInterfaceModal({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ospf-iface-bandwidth">Bandwidth</Label>
+                  <Label htmlFor="ospf-iface-bandwidth">{t("interfaceModal.bandwidth")}</Label>
                   <Input
                     id="ospf-iface-bandwidth"
                     type="number"
                     value={bandwidth}
                     onChange={(e) => setBandwidth(e.target.value)}
-                    placeholder="Bandwidth (Kbps)"
+                    placeholder={t("interfaceModal.bandwidthPlaceholder")}
                   />
                 </div>
               </div>
@@ -333,58 +336,58 @@ export function OspfInterfaceModal({
 
             {/* Timers */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium">Timers</h4>
+              <h4 className="text-sm font-medium">{t("interfaceModal.timers")}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="ospf-iface-hello">Hello Interval</Label>
+                  <Label htmlFor="ospf-iface-hello">{t("interfaceModal.helloInterval")}</Label>
                   <Input
                     id="ospf-iface-hello"
                     type="number"
                     value={helloInterval}
                     onChange={(e) => setHelloInterval(e.target.value)}
-                    placeholder="seconds"
+                    placeholder={t("interfaceModal.seconds")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ospf-iface-dead">Dead Interval</Label>
+                  <Label htmlFor="ospf-iface-dead">{t("interfaceModal.deadInterval")}</Label>
                   <Input
                     id="ospf-iface-dead"
                     type="number"
                     value={deadInterval}
                     onChange={(e) => setDeadInterval(e.target.value)}
-                    placeholder="seconds"
+                    placeholder={t("interfaceModal.seconds")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ospf-iface-retransmit">Retransmit Interval</Label>
+                  <Label htmlFor="ospf-iface-retransmit">{t("interfaceModal.retransmitInterval")}</Label>
                   <Input
                     id="ospf-iface-retransmit"
                     type="number"
                     value={retransmitInterval}
                     onChange={(e) => setRetransmitInterval(e.target.value)}
-                    placeholder="seconds"
+                    placeholder={t("interfaceModal.seconds")}
                   />
                 </div>
                 {showRetransmitWindow && (
                   <div className="space-y-2">
-                    <Label htmlFor="ospf-iface-retransmit-window">Retransmit Window</Label>
+                    <Label htmlFor="ospf-iface-retransmit-window">{t("interfaceModal.retransmitWindow")}</Label>
                     <Input
                       id="ospf-iface-retransmit-window"
                       type="number"
                       value={retransmitWindow}
                       onChange={(e) => setRetransmitWindow(e.target.value)}
-                      placeholder="packets"
+                      placeholder={t("interfaceModal.packets")}
                     />
                   </div>
                 )}
                 <div className="space-y-2">
-                  <Label htmlFor="ospf-iface-transmit-delay">Transmit Delay</Label>
+                  <Label htmlFor="ospf-iface-transmit-delay">{t("interfaceModal.transmitDelay")}</Label>
                   <Input
                     id="ospf-iface-transmit-delay"
                     type="number"
                     value={transmitDelay}
                     onChange={(e) => setTransmitDelay(e.target.value)}
-                    placeholder="seconds"
+                    placeholder={t("interfaceModal.seconds")}
                   />
                 </div>
               </div>
@@ -392,7 +395,7 @@ export function OspfInterfaceModal({
 
             {/* Flags */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium">Options</h4>
+              <h4 className="text-sm font-medium">{t("fields.options")}</h4>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex items-center space-x-3 rounded-lg border p-3">
                   <Checkbox
@@ -401,7 +404,7 @@ export function OspfInterfaceModal({
                     onCheckedChange={(checked) => setPassive(checked === true)}
                   />
                   <Label htmlFor="ospf-iface-passive" className="cursor-pointer text-sm">
-                    Passive
+                    {t("fields.passive")}
                   </Label>
                 </div>
                 <div className="flex items-center space-x-3 rounded-lg border p-3">
@@ -421,7 +424,7 @@ export function OspfInterfaceModal({
                     onCheckedChange={(checked) => setMtuIgnore(checked === true)}
                   />
                   <Label htmlFor="ospf-iface-mtu-ignore" className="cursor-pointer text-sm">
-                    MTU Ignore
+                    {t("interfaceModal.mtuIgnore")}
                   </Label>
                 </div>
                 <div className="flex items-center space-x-3 rounded-lg border p-3">
@@ -431,7 +434,7 @@ export function OspfInterfaceModal({
                     onCheckedChange={(checked) => setLdpSync(checked === true)}
                   />
                   <Label htmlFor="ospf-iface-ldp-sync" className="cursor-pointer text-sm">
-                    LDP Sync
+                    {t("interfaceModal.ldpSync")}
                   </Label>
                 </div>
                 <div className="flex items-center space-x-3 rounded-lg border p-3">
@@ -441,18 +444,18 @@ export function OspfInterfaceModal({
                     onCheckedChange={(checked) => setLdpSyncDisable(checked === true)}
                   />
                   <Label htmlFor="ospf-iface-ldp-sync-disable" className="cursor-pointer text-sm">
-                    Disable LDP Sync
+                    {t("interfaceModal.disableLdpSync")}
                   </Label>
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ospf-iface-ldp-sync-holddown">LDP Sync Holddown (s)</Label>
+                <Label htmlFor="ospf-iface-ldp-sync-holddown">{t("interfaceModal.ldpSyncHolddown")}</Label>
                 <Input
                   id="ospf-iface-ldp-sync-holddown"
                   type="number"
                   value={ldpSyncHolddown}
                   onChange={(e) => setLdpSyncHolddown(e.target.value)}
-                  placeholder="seconds"
+                  placeholder={t("interfaceModal.seconds")}
                   min={0}
                   max={10000}
                 />
@@ -461,23 +464,23 @@ export function OspfInterfaceModal({
 
             {/* Authentication */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium">Authentication</h4>
+              <h4 className="text-sm font-medium">{t("fields.authentication")}</h4>
               <div className="space-y-2">
-                <Label htmlFor="ospf-iface-plaintext">Plaintext Password</Label>
+                <Label htmlFor="ospf-iface-plaintext">{t("fields.plaintextPassword")}</Label>
                 <Input
                   id="ospf-iface-plaintext"
                   type="password"
                   value={plaintextPassword}
                   onChange={(e) => setPlaintextPassword(e.target.value)}
-                  placeholder="Plaintext password (optional)"
+                  placeholder={t("interfaceModal.plaintextPasswordPlaceholder")}
                 />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label>MD5 Keys</Label>
+                  <Label>{t("interfaceModal.md5Keys")}</Label>
                   <Button type="button" variant="outline" size="sm" onClick={addMd5Key}>
                     <Plus className="h-3 w-3 mr-1" />
-                    Add Key
+                    {t("interfaceModal.addKey")}
                   </Button>
                 </div>
                 {md5Keys.map((key, idx) => (
@@ -485,14 +488,14 @@ export function OspfInterfaceModal({
                     <Input
                       value={key.keyId}
                       onChange={(e) => updateMd5Key(idx, "keyId", e.target.value)}
-                      placeholder="Key ID"
+                      placeholder={t("interfaceModal.keyId")}
                       className="w-24"
                     />
                     <Input
                       type="password"
                       value={key.keyValue}
                       onChange={(e) => updateMd5Key(idx, "keyValue", e.target.value)}
-                      placeholder="MD5 Key"
+                      placeholder={t("interfaceModal.md5Key")}
                       className="flex-1"
                     />
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeMd5Key(idx)}>
@@ -514,18 +517,18 @@ export function OspfInterfaceModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Creating..."}
+                {isEditMode ? tc("saving") : t("fields.creating")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("fields.saveChanges")
             ) : (
-              "Add Interface"
+              t("fields.addInterface")
             )}
           </Button>
         </DialogFooter>
