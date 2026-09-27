@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +27,8 @@ export function DeleteBfdProfileModal({
   profileName,
   onConfirm,
 }: DeleteBfdProfileModalProps) {
+  const t = useTranslations("bfd");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
 
   const handleConfirm = async () => {
@@ -41,16 +44,17 @@ export function DeleteBfdProfileModal({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete BFD Profile</AlertDialogTitle>
+          <AlertDialogTitle>{t("deleteProfile.title")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete the BFD profile{" "}
-            <span className="font-mono font-semibold">{profileName}</span>?
-            Peers using this profile will lose their profile configuration.
+            {t.rich("deleteProfile.description", {
+              name: profileName,
+              mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
             disabled={loading}
@@ -59,10 +63,10 @@ export function DeleteBfdProfileModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Profile"
+              t("deleteProfile.confirm")
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

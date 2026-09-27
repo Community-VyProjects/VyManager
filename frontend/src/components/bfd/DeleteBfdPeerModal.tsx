@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +27,8 @@ export function DeleteBfdPeerModal({
   peerAddress,
   onConfirm,
 }: DeleteBfdPeerModalProps) {
+  const t = useTranslations("bfd");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
 
   const handleConfirm = async () => {
@@ -41,17 +44,17 @@ export function DeleteBfdPeerModal({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete BFD Peer</AlertDialogTitle>
+          <AlertDialogTitle>{t("deletePeer.title")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete the BFD peer session with{" "}
-            <span className="font-mono font-semibold">{peerAddress}</span>?
-            This will remove the BFD session and may affect routing protocol
-            convergence.
+            {t.rich("deletePeer.description", {
+              address: peerAddress,
+              mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
             disabled={loading}
@@ -60,10 +63,10 @@ export function DeleteBfdPeerModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Peer"
+              t("deletePeer.confirm")
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

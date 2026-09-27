@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,8 @@ import { BfdProfileModal } from "./BfdProfileModal";
 import { DeleteBfdProfileModal } from "./DeleteBfdProfileModal";
 
 export function BfdContent() {
+  const t = useTranslations("bfd");
+  const tc = useTranslations("common");
   const [config, setConfig] = useState<BfdConfig | null>(null);
   const [capabilities, setCapabilities] = useState<BfdCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,11 +74,11 @@ export function BfdContent() {
       setConfig(configData);
       setCapabilities(capData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load BFD configuration");
+      setError(err instanceof Error ? err.message : t("content.loadConfigFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const loadLiveSessions = useCallback(async () => {
     try {
@@ -84,11 +87,11 @@ export function BfdContent() {
       const status = await bfdService.getStatus();
       setLiveSessions(status.peers);
     } catch (err) {
-      setLiveError(err instanceof Error ? err.message : "Failed to load live BFD sessions");
+      setLiveError(err instanceof Error ? err.message : t("content.loadLiveFailed"));
     } finally {
       setLiveLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -174,7 +177,7 @@ export function BfdContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -189,7 +192,7 @@ export function BfdContent() {
             <div>
               <h1 className="text-2xl font-bold text-foreground">BFD</h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Bidirectional Forwarding Detection for rapid failure detection
+                {t("content.subtitle")}
               </p>
             </div>
             <Button
@@ -198,7 +201,7 @@ export function BfdContent() {
               onClick={() => { loadData(true); loadLiveSessions(); }}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              {tc("refresh")}
             </Button>
           </div>
 
@@ -218,7 +221,7 @@ export function BfdContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{peerCount}</p>
-                    <p className="text-xs text-muted-foreground">Peers</p>
+                    <p className="text-xs text-muted-foreground">{t("content.peers")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -231,7 +234,7 @@ export function BfdContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{activePeers}</p>
-                    <p className="text-xs text-muted-foreground">Active</p>
+                    <p className="text-xs text-muted-foreground">{t("content.active")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -244,7 +247,7 @@ export function BfdContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{profileCount}</p>
-                    <p className="text-xs text-muted-foreground">Profiles</p>
+                    <p className="text-xs text-muted-foreground">{t("content.profiles")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -257,7 +260,7 @@ export function BfdContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{multihopPeers}</p>
-                    <p className="text-xs text-muted-foreground">Multihop</p>
+                    <p className="text-xs text-muted-foreground">{t("content.multihop")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -270,19 +273,19 @@ export function BfdContent() {
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
               <TabsTrigger value="peers">
-                Peers
+                {t("content.peers")}
                 {peerCount > 0 && (
                   <Badge variant="secondary" className="ml-2">{peerCount}</Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger value="live">
-                Live Sessions
+                {t("content.liveSessions")}
                 {liveCount > 0 && (
                   <Badge variant="secondary" className="ml-2">{liveCount}</Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger value="profiles">
-                Profiles
+                {t("content.profiles")}
                 {profileCount > 0 && (
                   <Badge variant="secondary" className="ml-2">{profileCount}</Badge>
                 )}
@@ -295,11 +298,11 @@ export function BfdContent() {
             <TabsContent value="peers">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Configure BFD sessions with remote peers for failure detection
+                  {t("content.peersDescription")}
                 </p>
                 <Button size="sm" onClick={() => { setEditingPeer(null); setPeerModalOpen(true); }}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Peer
+                  {t("content.addPeer")}
                 </Button>
               </div>
 
@@ -307,13 +310,13 @@ export function BfdContent() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <Radio className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">No BFD peers configured</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("content.noPeers")}</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      Add a peer to start monitoring forwarding path health
+                      {t("content.noPeersHint")}
                     </p>
                     <Button size="sm" onClick={() => { setEditingPeer(null); setPeerModalOpen(true); }}>
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Peer
+                      {t("content.addPeer")}
                     </Button>
                   </CardContent>
                 </Card>
@@ -323,14 +326,14 @@ export function BfdContent() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Peer Address</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Mode</TableHead>
-                          <TableHead>Tx / Rx</TableHead>
-                          <TableHead>Multiplier</TableHead>
-                          <TableHead>Profile</TableHead>
-                          <TableHead>Source</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead>{t("content.peerAddress")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
+                          <TableHead>{t("content.mode")}</TableHead>
+                          <TableHead>{t("content.txRx")}</TableHead>
+                          <TableHead>{t("content.multiplier")}</TableHead>
+                          <TableHead>{t("content.profile")}</TableHead>
+                          <TableHead>{t("content.source")}</TableHead>
+                          <TableHead className="text-right">{tc("actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -347,24 +350,24 @@ export function BfdContent() {
                             <TableCell>
                               {peer.shutdown ? (
                                 <Badge variant="secondary" className="bg-red-500/10 text-red-600">
-                                  Shutdown
+                                  {t("content.shutdown")}
                                 </Badge>
                               ) : (
                                 <Badge variant="secondary" className="bg-green-500/10 text-green-600">
-                                  Active
+                                  {t("content.active")}
                                 </Badge>
                               )}
                             </TableCell>
                             <TableCell>
                               <div className="flex flex-wrap gap-1">
                                 {peer.multihop && (
-                                  <Badge variant="outline" className="text-xs">Multihop</Badge>
+                                  <Badge variant="outline" className="text-xs">{t("content.multihop")}</Badge>
                                 )}
                                 {peer.echo_mode && (
-                                  <Badge variant="outline" className="text-xs">Echo</Badge>
+                                  <Badge variant="outline" className="text-xs">{t("content.echo")}</Badge>
                                 )}
                                 {peer.passive && (
-                                  <Badge variant="outline" className="text-xs">Passive</Badge>
+                                  <Badge variant="outline" className="text-xs">{t("content.passive")}</Badge>
                                 )}
                                 {!peer.multihop && !peer.echo_mode && !peer.passive && (
                                   <span className="text-muted-foreground">-</span>
@@ -427,12 +430,11 @@ export function BfdContent() {
             <TabsContent value="live">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Running BFD sessions from the routing daemon, including dynamic peers
-                  created by protocols (BGP/OSPF) with BFD enabled. Read-only.
+                  {t("content.liveDescription")}
                 </p>
                 <Button variant="outline" size="sm" onClick={loadLiveSessions} disabled={liveLoading}>
                   <RefreshCw className={`h-4 w-4 mr-2 ${liveLoading ? "animate-spin" : ""}`} />
-                  Refresh
+                  {tc("refresh")}
                 </Button>
               </div>
 
@@ -446,9 +448,9 @@ export function BfdContent() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <Waypoints className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">No active BFD sessions</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("content.noLiveSessions")}</p>
                     <p className="text-xs text-muted-foreground">
-                      Dynamic sessions appear here when a routing protocol negotiates BFD with a neighbor
+                      {t("content.noLiveSessionsHint")}
                     </p>
                   </CardContent>
                 </Card>
@@ -458,15 +460,15 @@ export function BfdContent() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Peer</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Interface</TableHead>
+                          <TableHead>{t("content.peer")}</TableHead>
+                          <TableHead>{t("content.type")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
+                          <TableHead>{t("content.interface")}</TableHead>
                           <TableHead>VRF</TableHead>
-                          <TableHead>Uptime</TableHead>
-                          <TableHead>Tx / Rx</TableHead>
-                          <TableHead>Multiplier</TableHead>
-                          <TableHead>Diagnostic</TableHead>
+                          <TableHead>{t("content.uptime")}</TableHead>
+                          <TableHead>{t("content.txRx")}</TableHead>
+                          <TableHead>{t("content.multiplier")}</TableHead>
+                          <TableHead>{t("content.diagnostic")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -480,7 +482,7 @@ export function BfdContent() {
                             </TableCell>
                             <TableCell>
                               <Badge variant={s.peer_type === "dynamic" ? "secondary" : "outline"}>
-                                {s.peer_type ?? "unknown"}
+                                {s.peer_type ?? t("content.unknown")}
                               </Badge>
                             </TableCell>
                             <TableCell>
@@ -527,11 +529,11 @@ export function BfdContent() {
             <TabsContent value="profiles">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Reusable timer templates that can be assigned to peers
+                  {t("content.profilesDescription")}
                 </p>
                 <Button size="sm" onClick={() => { setEditingProfile(null); setProfileModalOpen(true); }}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Profile
+                  {t("content.addProfile")}
                 </Button>
               </div>
 
@@ -539,13 +541,13 @@ export function BfdContent() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <FileSliders className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">No BFD profiles configured</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("content.noProfiles")}</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      Create a profile to define reusable timer settings for peers
+                      {t("content.noProfilesHint")}
                     </p>
                     <Button size="sm" onClick={() => { setEditingProfile(null); setProfileModalOpen(true); }}>
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Profile
+                      {t("content.addProfile")}
                     </Button>
                   </CardContent>
                 </Card>
@@ -555,14 +557,14 @@ export function BfdContent() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Profile Name</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Mode</TableHead>
-                          <TableHead>Tx / Rx</TableHead>
-                          <TableHead>Multiplier</TableHead>
-                          <TableHead>Min TTL</TableHead>
-                          <TableHead>Used By</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead>{t("content.profileName")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
+                          <TableHead>{t("content.mode")}</TableHead>
+                          <TableHead>{t("content.txRx")}</TableHead>
+                          <TableHead>{t("content.multiplier")}</TableHead>
+                          <TableHead>{t("content.minTtl")}</TableHead>
+                          <TableHead>{t("content.usedBy")}</TableHead>
+                          <TableHead className="text-right">{tc("actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -579,21 +581,21 @@ export function BfdContent() {
                               <TableCell>
                                 {profile.shutdown ? (
                                   <Badge variant="secondary" className="bg-red-500/10 text-red-600">
-                                    Shutdown
+                                    {t("content.shutdown")}
                                   </Badge>
                                 ) : (
                                   <Badge variant="secondary" className="bg-green-500/10 text-green-600">
-                                    Active
+                                    {t("content.active")}
                                   </Badge>
                                 )}
                               </TableCell>
                               <TableCell>
                                 <div className="flex flex-wrap gap-1">
                                   {profile.echo_mode && (
-                                    <Badge variant="outline" className="text-xs">Echo</Badge>
+                                    <Badge variant="outline" className="text-xs">{t("content.echo")}</Badge>
                                   )}
                                   {profile.passive && (
-                                    <Badge variant="outline" className="text-xs">Passive</Badge>
+                                    <Badge variant="outline" className="text-xs">{t("content.passive")}</Badge>
                                   )}
                                   {!profile.echo_mode && !profile.passive && (
                                     <span className="text-muted-foreground">-</span>
@@ -612,10 +614,10 @@ export function BfdContent() {
                               <TableCell>
                                 {usedByCount > 0 ? (
                                   <Badge variant="secondary">
-                                    {usedByCount} peer{usedByCount !== 1 ? "s" : ""}
+                                    {t("content.peerCount", { count: usedByCount })}
                                   </Badge>
                                 ) : (
-                                  <span className="text-muted-foreground">None</span>
+                                  <span className="text-muted-foreground">{tc("none")}</span>
                                 )}
                               </TableCell>
                               <TableCell className="text-right">
