@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -34,18 +35,18 @@ import { ApiError } from "@/lib/types/api";
 const PETH_NAME_RE = /^peth[0-9]+$/;
 const MAC_RE = /^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$/;
 
-const MODE_DESCRIPTIONS: Record<string, string> = {
-  private: "Isolates VMs — no traffic between them even on same host",
-  vepa: "All traffic goes through external switch (802.1Qbg VEPA mode)",
-  bridge: "Direct communication allowed between VMs on same host",
-  passthru: "Only one VM uses the interface — direct hardware access",
+const MODE_DESCRIPTION_KEYS: Record<string, "private" | "vepa" | "bridge" | "passthru"> = {
+  private: "private",
+  vepa: "vepa",
+  bridge: "bridge",
+  passthru: "passthru",
 };
 
 const SOURCE_VALIDATION_OPTIONS = [
-  { value: "strict", label: "Strict" },
-  { value: "loose", label: "Loose" },
-  { value: "disable", label: "Disable" },
-];
+  { value: "strict", labelKey: "strict" },
+  { value: "loose", labelKey: "loose" },
+  { value: "disable", labelKey: "disable" },
+] as const;
 
 interface PdInstanceForm {
   instance: string;
@@ -70,6 +71,8 @@ export function CreatePseudoEthernetModal({
   capabilities,
   existingNames,
 }: CreatePseudoEthernetModalProps) {
+  const t = useTranslations("pseudoEthernet");
+  const tc = useTranslations("common");
   const feat = (key: string) => capabilities?.features?.[key]?.supported ?? false;
 
   // Basic
@@ -197,14 +200,14 @@ export function CreatePseudoEthernetModal({
 
   const validate = (): string | null => {
     const n = name.trim();
-    if (!n) return "Interface name is required.";
-    if (!PETH_NAME_RE.test(n)) return "Interface name must match pattern 'pethN' (e.g. peth0).";
-    if (existingNames.includes(n)) return `Interface '${n}' already exists.`;
-    if (!sourceInterface) return "Source interface is required.";
-    if (mac && !MAC_RE.test(mac)) return "MAC address must be in format xx:xx:xx:xx:xx:xx.";
+    if (!n) return t("validation.nameRequired");
+    if (!PETH_NAME_RE.test(n)) return t("validation.namePattern");
+    if (existingNames.includes(n)) return t("validation.nameExists", { name: n });
+    if (!sourceInterface) return t("validation.sourceRequired");
+    if (mac && !MAC_RE.test(mac)) return t("validation.macFormat");
     if (mtu) {
       const m = Number(mtu);
-      if (!Number.isInteger(m) || m < 68 || m > 9000) return "MTU must be between 68 and 9000.";
+      if (!Number.isInteger(m) || m < 68 || m > 9000) return t("validation.mtuRange");
     }
     return null;
   };
@@ -310,10 +313,10 @@ export function CreatePseudoEthernetModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to create interface");
+      setError((err as ApiError).message || t("create.failed"));
     } finally {
       setLoading(false);
     }
@@ -325,48 +328,48 @@ export function CreatePseudoEthernetModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Pseudo-Ethernet Interface</DialogTitle>
+          <DialogTitle>{t("create.title")}</DialogTitle>
           <DialogDescription>
-            Configure a new MacVLAN pseudo-ethernet interface bound to a physical Ethernet port.
+            {t("create.description")}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
           <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="basic">Basic</TabsTrigger>
-            <TabsTrigger value="addresses">Addresses</TabsTrigger>
+            <TabsTrigger value="basic">{t("tabs.basic")}</TabsTrigger>
+            <TabsTrigger value="addresses">{t("tabs.addresses")}</TabsTrigger>
             <TabsTrigger value="ipv4">IPv4</TabsTrigger>
             <TabsTrigger value="ipv6">IPv6</TabsTrigger>
-            <TabsTrigger value="mirror">Mirror</TabsTrigger>
+            <TabsTrigger value="mirror">{t("tabs.mirror")}</TabsTrigger>
           </TabsList>
 
           {/* Basic Tab */}
           <TabsContent value="basic" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Interface Name *</Label>
+                <Label htmlFor="name">{t("form.interfaceNameRequired")}</Label>
                 <Input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="peth0"
                 />
-                <p className="text-xs text-muted-foreground">Pattern: pethN</p>
+                <p className="text-xs text-muted-foreground">{t("form.namePatternHint")}</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="sourceInterface">Source Interface *</Label>
+                <Label htmlFor="sourceInterface">{t("form.sourceInterfaceRequired")}</Label>
                 <InterfaceSelect
                   value={sourceInterface}
                   onValueChange={setSourceInterface}
                   id="sourceInterface"
                   interfaces={availableInterfaces.map((i) => ({ name: i.name, type: i.type, description: i.description ?? null }))}
-                  placeholder="Select ethernet interface"
+                  placeholder={t("form.selectEthernetInterface")}
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="mode">Mode</Label>
+              <Label htmlFor="mode">{t("form.mode")}</Label>
               <Select value={mode} onValueChange={setMode}>
                 <SelectTrigger id="mode">
                   <SelectValue />
@@ -377,24 +380,24 @@ export function CreatePseudoEthernetModal({
                   ))}
                 </SelectContent>
               </Select>
-              {mode && MODE_DESCRIPTIONS[mode] && (
-                <p className="text-xs text-muted-foreground">{MODE_DESCRIPTIONS[mode]}</p>
+              {mode && MODE_DESCRIPTION_KEYS[mode] && (
+                <p className="text-xs text-muted-foreground">{t(`modes.${MODE_DESCRIPTION_KEYS[mode]}`)}</p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{tc("description")}</Label>
               <Input
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional description"
+                placeholder={t("form.descriptionPlaceholder")}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="mac">MAC Address</Label>
+                <Label htmlFor="mac">{t("form.macAddress")}</Label>
                 <Input
                   id="mac"
                   value={mac}
@@ -426,7 +429,7 @@ export function CreatePseudoEthernetModal({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="redirect">Redirect</Label>
+                <Label htmlFor="redirect">{t("form.redirect")}</Label>
                 <VrfSelect
                   id="redirect"
                   value={redirect}
@@ -438,11 +441,11 @@ export function CreatePseudoEthernetModal({
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
                 <Checkbox id="disabled" checked={disabled} onCheckedChange={(c) => setDisabled(!!c)} />
-                <Label htmlFor="disabled">Disabled</Label>
+                <Label htmlFor="disabled">{t("form.disabled")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="disableLinkDetect" checked={disableLinkDetect} onCheckedChange={(c) => setDisableLinkDetect(!!c)} />
-                <Label htmlFor="disableLinkDetect">Disable Link Detect</Label>
+                <Label htmlFor="disableLinkDetect">{t("form.disableLinkDetect")}</Label>
               </div>
             </div>
           </TabsContent>
@@ -450,13 +453,13 @@ export function CreatePseudoEthernetModal({
           {/* Addresses Tab */}
           <TabsContent value="addresses" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>IP Addresses</Label>
+              <Label>{t("form.ipAddresses")}</Label>
               <div className="flex gap-2">
                 <Input
                   value={addressInput}
                   onChange={(e) => setAddressInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addAddress())}
-                  placeholder="192.0.2.1/24 or dhcp or dhcpv6"
+                  placeholder={t("form.addressPlaceholder")}
                 />
                 <Button type="button" variant="outline" size="sm" onClick={addAddress}>
                   <Plus className="h-4 w-4" />
@@ -477,47 +480,47 @@ export function CreatePseudoEthernetModal({
             {(hasDhcpAddress || dhcpClientId || dhcpHostName || dhcpVendorClassId || dhcpUserClass || dhcpNoDefaultRoute || dhcpReject.length > 0 || dhcpMtu) && (
               <>
                 <Separator />
-                <p className="text-sm font-medium">DHCP Options</p>
+                <p className="text-sm font-medium">{t("form.dhcpOptions")}</p>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Client ID</Label>
+                    <Label>{t("form.clientId")}</Label>
                     <Input value={dhcpClientId} onChange={(e) => setDhcpClientId(e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Hostname</Label>
+                    <Label>{t("form.hostname")}</Label>
                     <Input value={dhcpHostName} onChange={(e) => setDhcpHostName(e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Vendor Class ID</Label>
+                    <Label>{t("form.vendorClassId")}</Label>
                     <Input value={dhcpVendorClassId} onChange={(e) => setDhcpVendorClassId(e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <Label>User Class</Label>
+                    <Label>{t("form.userClass")}</Label>
                     <Input value={dhcpUserClass} onChange={(e) => setDhcpUserClass(e.target.value)} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex items-center gap-2">
                     <Checkbox checked={dhcpNoDefaultRoute} onCheckedChange={(c) => setDhcpNoDefaultRoute(!!c)} id="dhcpNoDef" />
-                    <Label htmlFor="dhcpNoDef">No Default Route</Label>
+                    <Label htmlFor="dhcpNoDef">{t("form.noDefaultRoute")}</Label>
                   </div>
                   <div className="space-y-2">
-                    <Label>Default Route Distance</Label>
+                    <Label>{t("form.defaultRouteDistance")}</Label>
                     <Input type="number" value={dhcpDefaultRouteDistance} onChange={(e) => setDhcpDefaultRouteDistance(e.target.value)} min={1} max={255} />
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox checked={dhcpMtu} onCheckedChange={(c) => setDhcpMtu(!!c)} id="dhcpMtu" />
-                  <Label htmlFor="dhcpMtu">Request MTU from DHCP</Label>
+                  <Label htmlFor="dhcpMtu">{t("form.requestMtuFromDhcp")}</Label>
                 </div>
                 <div className="space-y-2">
-                  <Label>Reject Servers</Label>
+                  <Label>{t("form.rejectServers")}</Label>
                   <div className="flex gap-2">
                     <Input
                       value={dhcpRejectInput}
                       onChange={(e) => setDhcpRejectInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addDhcpReject())}
-                      placeholder="Server IP to reject"
+                      placeholder={t("form.rejectServerPlaceholder")}
                     />
                     <Button type="button" variant="outline" size="sm" onClick={addDhcpReject}>
                       <Plus className="h-4 w-4" />
@@ -538,12 +541,12 @@ export function CreatePseudoEthernetModal({
             )}
             {!hasDhcpAddress && (
               <p className="text-xs text-muted-foreground">
-                Add &apos;dhcp&apos; or &apos;dhcpv6&apos; as an address to see DHCP options, or click below to expand.
+                {t("form.dhcpHint")}
               </p>
             )}
             {!hasDhcpAddress && !dhcpClientId && (
               <Button type="button" variant="outline" size="sm" onClick={() => setDhcpClientId(" ")}>
-                Expand DHCP Options
+                {t("form.expandDhcpOptions")}
               </Button>
             )}
           </TabsContent>
@@ -551,46 +554,46 @@ export function CreatePseudoEthernetModal({
           {/* IPv4 Tab */}
           <TabsContent value="ipv4" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>Adjust MSS</Label>
+              <Label>{t("form.adjustMss")}</Label>
               <div className="flex items-center gap-4">
                 <label className="flex items-center gap-2 text-sm">
                   <input type="radio" checked={!ipAdjustMssClamp && !ipAdjustMss} onChange={() => { setIpAdjustMssClamp(false); setIpAdjustMss(""); }} />
-                  Disabled
+                  {t("form.disabled")}
                 </label>
                 <label className="flex items-center gap-2 text-sm">
                   <input type="radio" checked={ipAdjustMssClamp} onChange={() => { setIpAdjustMssClamp(true); setIpAdjustMss(""); }} />
-                  Clamp to PMTU
+                  {t("form.clampToPmtu")}
                 </label>
                 <label className="flex items-center gap-2 text-sm">
                   <input type="radio" checked={!ipAdjustMssClamp && !!ipAdjustMss} onChange={() => { setIpAdjustMssClamp(false); }} />
-                  Manual value
+                  {t("form.manualValue")}
                 </label>
               </div>
               {!ipAdjustMssClamp && (
                 <Input
                   value={ipAdjustMss}
                   onChange={(e) => setIpAdjustMss(e.target.value)}
-                  placeholder="MSS value in bytes"
+                  placeholder={t("form.mssValueBytesPlaceholder")}
                   disabled={ipAdjustMssClamp}
                 />
               )}
             </div>
 
             <div className="space-y-2">
-              <Label>ARP Cache Timeout (ms)</Label>
-              <Input type="number" value={ipArpCacheTimeout} onChange={(e) => setIpArpCacheTimeout(e.target.value)} placeholder="Milliseconds" />
+              <Label>{t("form.arpCacheTimeout")}</Label>
+              <Input type="number" value={ipArpCacheTimeout} onChange={(e) => setIpArpCacheTimeout(e.target.value)} placeholder={t("form.millisecondsPlaceholder")} />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               {[
-                [ipDisableArpFilter, setIpDisableArpFilter, "Disable ARP Filter"],
-                [ipEnableArpAccept, setIpEnableArpAccept, "Enable ARP Accept"],
-                [ipEnableArpAnnounce, setIpEnableArpAnnounce, "Enable ARP Announce"],
-                [ipEnableArpIgnore, setIpEnableArpIgnore, "Enable ARP Ignore"],
-                [ipEnableDirectedBroadcast, setIpEnableDirectedBroadcast, "Enable Directed Broadcast"],
-                [ipEnableProxyArp, setIpEnableProxyArp, "Enable Proxy ARP"],
-                [ipProxyArpPvlan, setIpProxyArpPvlan, "Proxy ARP PVLAN"],
-                [ipDisableForwarding, setIpDisableForwarding, "Disable Forwarding"],
+                [ipDisableArpFilter, setIpDisableArpFilter, t("form.disableArpFilter")],
+                [ipEnableArpAccept, setIpEnableArpAccept, t("form.enableArpAccept")],
+                [ipEnableArpAnnounce, setIpEnableArpAnnounce, t("form.enableArpAnnounce")],
+                [ipEnableArpIgnore, setIpEnableArpIgnore, t("form.enableArpIgnore")],
+                [ipEnableDirectedBroadcast, setIpEnableDirectedBroadcast, t("form.enableDirectedBroadcast")],
+                [ipEnableProxyArp, setIpEnableProxyArp, t("form.enableProxyArp")],
+                [ipProxyArpPvlan, setIpProxyArpPvlan, t("form.proxyArpPvlan")],
+                [ipDisableForwarding, setIpDisableForwarding, t("form.disableForwarding")],
               ].map(([val, setter, label]) => (
                 <div key={label as string} className="flex items-center gap-2">
                   <Checkbox
@@ -604,15 +607,15 @@ export function CreatePseudoEthernetModal({
             </div>
 
             <div className="space-y-2">
-              <Label>Source Validation</Label>
+              <Label>{t("form.sourceValidation")}</Label>
               <Select value={ipSourceValidation || "none"} onValueChange={(v) => setIpSourceValidation(v === "none" ? "" : v)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="None" />
+                  <SelectValue placeholder={tc("none")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="none">{tc("none")}</SelectItem>
                   {SOURCE_VALIDATION_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    <SelectItem key={o.value} value={o.value}>{t(`sourceValidation.${o.labelKey}`)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -623,25 +626,25 @@ export function CreatePseudoEthernetModal({
           <TabsContent value="ipv6" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Accept DAD (0–3)</Label>
+                <Label>{t("form.acceptDad")}</Label>
                 <Input type="number" min={0} max={3} value={ipv6AcceptDad} onChange={(e) => setIpv6AcceptDad(e.target.value)} placeholder="0–3" />
               </div>
               <div className="space-y-2">
-                <Label>Base Reachable Time</Label>
+                <Label>{t("form.baseReachableTime")}</Label>
                 <Input type="number" value={ipv6BaseReachableTime} onChange={(e) => setIpv6BaseReachableTime(e.target.value)} placeholder="ms" />
               </div>
               <div className="space-y-2">
-                <Label>Dup Addr Detect Transmits</Label>
+                <Label>{t("form.dupAddrDetectTransmits")}</Label>
                 <Input type="number" value={ipv6DupAddrDetect} onChange={(e) => setIpv6DupAddrDetect(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>IPv6 Source Validation</Label>
+                <Label>{t("form.ipv6SourceValidation")}</Label>
                 <Select value={ipv6SourceValidation || "none"} onValueChange={(v) => setIpv6SourceValidation(v === "none" ? "" : v)}>
-                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="none">{tc("none")}</SelectItem>
                     {SOURCE_VALIDATION_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      <SelectItem key={o.value} value={o.value}>{t(`sourceValidation.${o.labelKey}`)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -649,31 +652,31 @@ export function CreatePseudoEthernetModal({
             </div>
 
             <div className="space-y-2">
-              <Label>Adjust MSS (IPv6)</Label>
+              <Label>{t("form.adjustMssIpv6")}</Label>
               <div className="flex items-center gap-4">
                 <label className="flex items-center gap-2 text-sm">
                   <input type="radio" checked={!ipv6AdjustMssClamp && !ipv6AdjustMss} onChange={() => { setIpv6AdjustMssClamp(false); setIpv6AdjustMss(""); }} />
-                  Disabled
+                  {t("form.disabled")}
                 </label>
                 <label className="flex items-center gap-2 text-sm">
                   <input type="radio" checked={ipv6AdjustMssClamp} onChange={() => { setIpv6AdjustMssClamp(true); setIpv6AdjustMss(""); }} />
-                  Clamp to PMTU
+                  {t("form.clampToPmtu")}
                 </label>
                 <label className="flex items-center gap-2 text-sm">
                   <input type="radio" checked={!ipv6AdjustMssClamp && !!ipv6AdjustMss} onChange={() => setIpv6AdjustMssClamp(false)} />
-                  Manual value
+                  {t("form.manualValue")}
                 </label>
               </div>
               {!ipv6AdjustMssClamp && (
-                <Input value={ipv6AdjustMss} onChange={(e) => setIpv6AdjustMss(e.target.value)} placeholder="MSS value in bytes" />
+                <Input value={ipv6AdjustMss} onChange={(e) => setIpv6AdjustMss(e.target.value)} placeholder={t("form.mssValueBytesPlaceholder")} />
               )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               {[
-                [ipv6DisableForwarding, setIpv6DisableForwarding, "Disable Forwarding"],
-                [ipv6AddressAutoconf, setIpv6AddressAutoconf, "Address Autoconf (SLAAC)"],
-                [ipv6NoDefaultLinkLocal, setIpv6NoDefaultLinkLocal, "No Default Link Local"],
+                [ipv6DisableForwarding, setIpv6DisableForwarding, t("form.disableForwarding")],
+                [ipv6AddressAutoconf, setIpv6AddressAutoconf, t("form.addressAutoconfSlaac")],
+                [ipv6NoDefaultLinkLocal, setIpv6NoDefaultLinkLocal, t("form.noDefaultLinkLocal")],
               ].map(([val, setter, label]) => (
                 <div key={label as string} className="flex items-center gap-2">
                   <Checkbox checked={val as boolean} onCheckedChange={(c) => (setter as (v: boolean) => void)(!!c)} id={`ipv6-${label}`} />
@@ -683,13 +686,13 @@ export function CreatePseudoEthernetModal({
             </div>
 
             <div className="space-y-2">
-              <Label>EUI64 Prefixes</Label>
+              <Label>{t("form.eui64Prefixes")}</Label>
               <div className="flex gap-2">
                 <Input
                   value={ipv6Eui64Input}
                   onChange={(e) => setIpv6Eui64Input(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addEui64())}
-                  placeholder="IPv6 prefix (e.g. 2001:db8::/64)"
+                  placeholder={t("form.eui64PrefixPlaceholder")}
                 />
                 <Button type="button" variant="outline" size="sm" onClick={addEui64}>
                   <Plus className="h-4 w-4" />
@@ -709,29 +712,29 @@ export function CreatePseudoEthernetModal({
 
             {feat("ipv6_address_interface_identifier") && (
               <div className="space-y-2">
-                <Label>Interface Identifier</Label>
+                <Label>{t("form.interfaceIdentifier")}</Label>
                 <Input
                   value={ipv6InterfaceIdentifier}
                   onChange={(e) => setIpv6InterfaceIdentifier(e.target.value)}
-                  placeholder="SLAAC interface identifier"
+                  placeholder={t("form.interfaceIdentifierPlaceholder")}
                 />
               </div>
             )}
 
             <Separator />
-            <p className="text-sm font-medium">DHCPv6 Options</p>
+            <p className="text-sm font-medium">{t("form.dhcpv6Options")}</p>
 
             <div className="space-y-2">
               <Label>DUID</Label>
-              <Input value={dhcpv6Duid} onChange={(e) => setDhcpv6Duid(e.target.value)} placeholder="DHCPv6 unique identifier" />
+              <Input value={dhcpv6Duid} onChange={(e) => setDhcpv6Duid(e.target.value)} placeholder={t("form.duidPlaceholder")} />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               {([
-                [dhcpv6NoRelease, setDhcpv6NoRelease, "No Release"],
-                [dhcpv6ParametersOnly, setDhcpv6ParametersOnly, "Parameters Only"],
-                [dhcpv6RapidCommit, setDhcpv6RapidCommit, "Rapid Commit"],
-                [dhcpv6Temporary, setDhcpv6Temporary, "Temporary"],
+                [dhcpv6NoRelease, setDhcpv6NoRelease, t("form.noRelease")],
+                [dhcpv6ParametersOnly, setDhcpv6ParametersOnly, t("form.parametersOnly")],
+                [dhcpv6RapidCommit, setDhcpv6RapidCommit, t("form.rapidCommit")],
+                [dhcpv6Temporary, setDhcpv6Temporary, t("form.temporary")],
               ] as const).map(([val, setter, label]) => (
                 <div key={label} className="flex items-center gap-2">
                   <Checkbox checked={val} onCheckedChange={(c) => setter(!!c)} id={`dhcpv6-${label}`} />
@@ -741,42 +744,42 @@ export function CreatePseudoEthernetModal({
               {feat("dhcpv6_no_request_dns") && (
                 <div className="flex items-center gap-2">
                   <Checkbox checked={dhcpv6NoRequestDns} onCheckedChange={(c) => setDhcpv6NoRequestDns(!!c)} id="dhcpv6NoDns" />
-                  <Label htmlFor="dhcpv6NoDns" className="text-sm font-normal">No Request DNS</Label>
+                  <Label htmlFor="dhcpv6NoDns" className="text-sm font-normal">{t("form.noRequestDns")}</Label>
                 </div>
               )}
               {feat("dhcpv6_no_request_domain_name") && (
                 <div className="flex items-center gap-2">
                   <Checkbox checked={dhcpv6NoRequestDomainName} onCheckedChange={(c) => setDhcpv6NoRequestDomainName(!!c)} id="dhcpv6NoDomain" />
-                  <Label htmlFor="dhcpv6NoDomain" className="text-sm font-normal">No Request Domain Name</Label>
+                  <Label htmlFor="dhcpv6NoDomain" className="text-sm font-normal">{t("form.noRequestDomainName")}</Label>
                 </div>
               )}
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>PD Instances</Label>
+                <Label>{t("form.pdInstances")}</Label>
                 <Button type="button" variant="outline" size="sm" onClick={() => setPdInstances((p) => [...p, { instance: String(p.length + 1), length: "", interfaces: [] }])}>
-                  <Plus className="h-4 w-4 mr-1" /> Add PD
+                  <Plus className="h-4 w-4 mr-1" /> {t("form.addPd")}
                 </Button>
               </div>
               {pdInstances.map((pd, i) => (
                 <div key={i} className="border rounded-lg p-3 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">PD Instance {pd.instance}</span>
+                    <span className="text-sm font-medium">{t("form.pdInstance", { instance: pd.instance })}</span>
                     <Button type="button" variant="ghost" size="sm" onClick={() => setPdInstances((p) => p.filter((_, j) => j !== i))}>
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <Label className="text-xs">Instance ID</Label>
+                      <Label className="text-xs">{t("form.instanceId")}</Label>
                       <Input
                         value={pd.instance}
                         onChange={(e) => setPdInstances((p) => p.map((r, j) => j === i ? { ...r, instance: e.target.value } : r))}
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Length (32–64)</Label>
+                      <Label className="text-xs">{t("form.pdLength")}</Label>
                       <Input
                         type="number"
                         min={32}
@@ -788,15 +791,15 @@ export function CreatePseudoEthernetModal({
                   </div>
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <Label className="text-xs">Delegated Interfaces</Label>
+                      <Label className="text-xs">{t("form.delegatedInterfaces")}</Label>
                       <Button type="button" variant="outline" size="sm" className="h-6 text-xs" onClick={() => setPdInstances((p) => p.map((r, j) => j === i ? { ...r, interfaces: [...r.interfaces, { name: "", address: "", sla_id: "" }] } : r))}>
-                        <Plus className="h-3 w-3 mr-1" /> Add
+                        <Plus className="h-3 w-3 mr-1" /> {tc("add")}
                       </Button>
                     </div>
                     {pd.interfaces.map((di, k) => (
                       <div key={k} className="flex gap-2 items-center">
-                        <Input className="flex-1" placeholder="Interface" value={di.name ?? ""} onChange={(e) => setPdInstances((p) => p.map((r, j) => j === i ? { ...r, interfaces: r.interfaces.map((x, l) => l === k ? { ...x, name: e.target.value } : x) } : r))} />
-                        <Input className="flex-1" placeholder="Address" value={di.address ?? ""} onChange={(e) => setPdInstances((p) => p.map((r, j) => j === i ? { ...r, interfaces: r.interfaces.map((x, l) => l === k ? { ...x, address: e.target.value } : x) } : r))} />
+                        <Input className="flex-1" placeholder={t("form.interfacePlaceholder")} value={di.name ?? ""} onChange={(e) => setPdInstances((p) => p.map((r, j) => j === i ? { ...r, interfaces: r.interfaces.map((x, l) => l === k ? { ...x, name: e.target.value } : x) } : r))} />
+                        <Input className="flex-1" placeholder={t("form.addressPlaceholderShort")} value={di.address ?? ""} onChange={(e) => setPdInstances((p) => p.map((r, j) => j === i ? { ...r, interfaces: r.interfaces.map((x, l) => l === k ? { ...x, address: e.target.value } : x) } : r))} />
                         <Input className="w-20" placeholder="SLA ID" value={di.sla_id ?? ""} onChange={(e) => setPdInstances((p) => p.map((r, j) => j === i ? { ...r, interfaces: r.interfaces.map((x, l) => l === k ? { ...x, sla_id: e.target.value } : x) } : r))} />
                         <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setPdInstances((p) => p.map((r, j) => j === i ? { ...r, interfaces: r.interfaces.filter((_, l) => l !== k) } : r))}>
                           <X className="h-3 w-3" />
@@ -812,23 +815,23 @@ export function CreatePseudoEthernetModal({
           {/* Mirror Tab */}
           <TabsContent value="mirror" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>Mirror Ingress</Label>
+              <Label>{t("form.mirrorIngress")}</Label>
               <InterfaceSelect
                 value={mirrorIngress || "__none__"}
                 onValueChange={(v) => setMirrorIngress(v === "__none__" ? "" : v)}
                 interfaces={allInterfaces}
-                noneOption={{ label: "None", value: "__none__" }}
-                placeholder="Select destination interface"
+                noneOption={{ label: tc("none"), value: "__none__" }}
+                placeholder={t("form.selectDestinationInterface")}
               />
             </div>
             <div className="space-y-2">
-              <Label>Mirror Egress</Label>
+              <Label>{t("form.mirrorEgress")}</Label>
               <InterfaceSelect
                 value={mirrorEgress || "__none__"}
                 onValueChange={(v) => setMirrorEgress(v === "__none__" ? "" : v)}
                 interfaces={allInterfaces}
-                noneOption={{ label: "None", value: "__none__" }}
-                placeholder="Select destination interface"
+                noneOption={{ label: tc("none"), value: "__none__" }}
+                placeholder={t("form.selectDestinationInterface")}
               />
             </div>
           </TabsContent>
@@ -843,16 +846,16 @@ export function CreatePseudoEthernetModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
+                {t("create.creating")}
               </>
             ) : (
-              "Create Interface"
+              t("create.submit")
             )}
           </Button>
         </DialogFooter>

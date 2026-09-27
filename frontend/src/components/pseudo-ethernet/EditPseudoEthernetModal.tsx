@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -49,18 +50,18 @@ import { ApiError } from "@/lib/types/api";
 
 const MAC_RE = /^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$/;
 
-const MODE_DESCRIPTIONS: Record<string, string> = {
-  private: "Isolates VMs — no traffic between them even on same host",
-  vepa: "All traffic goes through external switch (802.1Qbg VEPA mode)",
-  bridge: "Direct communication allowed between VMs on same host",
-  passthru: "Only one VM uses the interface — direct hardware access",
+const MODE_DESCRIPTION_KEYS: Record<string, "private" | "vepa" | "bridge" | "passthru"> = {
+  private: "private",
+  vepa: "vepa",
+  bridge: "bridge",
+  passthru: "passthru",
 };
 
 const SOURCE_VALIDATION_OPTIONS = [
-  { value: "strict", label: "Strict" },
-  { value: "loose", label: "Loose" },
-  { value: "disable", label: "Disable" },
-];
+  { value: "strict", labelKey: "strict" },
+  { value: "loose", labelKey: "loose" },
+  { value: "disable", labelKey: "disable" },
+] as const;
 
 interface EditPseudoEthernetModalProps {
   open: boolean;
@@ -111,15 +112,17 @@ function vifFormToInput(f: VifFormState): PseudoEthernetVifInput {
 }
 
 function VifForm({ form, onChange }: { form: VifFormState; onChange: (patch: Partial<VifFormState>) => void }) {
+  const t = useTranslations("pseudoEthernet");
+  const tc = useTranslations("common");
   return (
     <div className="space-y-3 p-3 border rounded-lg bg-muted/30">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
-          <Label className="text-xs">VLAN ID (1–4094) *</Label>
+          <Label className="text-xs">{t("vif.vlanIdLabel")}</Label>
           <Input type="number" min={1} max={4094} value={form.vlan_id} onChange={(e) => onChange({ vlan_id: e.target.value })} />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Description</Label>
+          <Label className="text-xs">{tc("description")}</Label>
           <Input value={form.description} onChange={(e) => onChange({ description: e.target.value })} />
         </div>
         <div className="space-y-1">
@@ -135,28 +138,28 @@ function VifForm({ form, onChange }: { form: VifFormState; onChange: (patch: Par
           <VrfSelect value={form.vrf} onValueChange={(v) => onChange({ vrf: v })} />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Redirect</Label>
+          <Label className="text-xs">{t("form.redirect")}</Label>
           <VrfSelect value={form.redirect} onValueChange={(v) => onChange({ redirect: v })} />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Egress QoS</Label>
+          <Label className="text-xs">{t("form.egressQos")}</Label>
           <Input value={form.egress_qos} onChange={(e) => onChange({ egress_qos: e.target.value })} />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Ingress QoS</Label>
+          <Label className="text-xs">{t("form.ingressQos")}</Label>
           <Input value={form.ingress_qos} onChange={(e) => onChange({ ingress_qos: e.target.value })} />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Mirror Ingress</Label>
+          <Label className="text-xs">{t("form.mirrorIngress")}</Label>
           <Input value={form.mirror_ingress} onChange={(e) => onChange({ mirror_ingress: e.target.value })} />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Mirror Egress</Label>
+          <Label className="text-xs">{t("form.mirrorEgress")}</Label>
           <Input value={form.mirror_egress} onChange={(e) => onChange({ mirror_egress: e.target.value })} />
         </div>
       </div>
       <div className="space-y-1">
-        <Label className="text-xs">Addresses</Label>
+        <Label className="text-xs">{t("form.addresses")}</Label>
         <div className="flex gap-2">
           <Input
             value={form.addressInput}
@@ -191,7 +194,7 @@ function VifForm({ form, onChange }: { form: VifFormState; onChange: (patch: Par
       </div>
       <div className="flex items-center gap-2">
         <Checkbox checked={form.disabled} onCheckedChange={(c) => onChange({ disabled: !!c })} id="vif-disabled" />
-        <Label htmlFor="vif-disabled" className="text-xs font-normal">Disabled</Label>
+        <Label htmlFor="vif-disabled" className="text-xs font-normal">{t("form.disabled")}</Label>
       </div>
     </div>
   );
@@ -279,6 +282,8 @@ export function EditPseudoEthernetModal({
   availableInterfaces,
   capabilities,
 }: EditPseudoEthernetModalProps) {
+  const t = useTranslations("pseudoEthernet");
+  const tc = useTranslations("common");
   const feat = (key: string) => capabilities?.features?.[key]?.supported ?? false;
 
   const [sourceInterface, setSourceInterface] = useState("");
@@ -490,23 +495,23 @@ export function EditPseudoEthernetModal({
   };
 
   const validate = (): string | null => {
-    if (mac && !MAC_RE.test(mac)) return "MAC address must be in format xx:xx:xx:xx:xx:xx.";
+    if (mac && !MAC_RE.test(mac)) return t("validation.macFormat");
     if (mtu) {
       const m = Number(mtu);
-      if (!Number.isInteger(m) || m < 68 || m > 9000) return "MTU must be between 68 and 9000.";
+      if (!Number.isInteger(m) || m < 68 || m > 9000) return t("validation.mtuRange");
     }
     for (const vif of vifs) {
       if (!vif.vlan_id || Number(vif.vlan_id) < 1 || Number(vif.vlan_id) > 4094) {
-        return `VIF VLAN ID must be between 1 and 4094.`;
+        return t("validation.vifVlanRange");
       }
     }
     for (const vs of vifSList) {
       if (!vs.vlan_id || Number(vs.vlan_id) < 1 || Number(vs.vlan_id) > 4094) {
-        return `VIF-S VLAN ID must be between 1 and 4094.`;
+        return t("validation.vifSVlanRange");
       }
       for (const vc of vs.vif_c) {
         if (!vc.vlan_id || Number(vc.vlan_id) < 1 || Number(vc.vlan_id) > 4094) {
-          return `VIF-C VLAN ID must be between 1 and 4094.`;
+          return t("validation.vifCVlanRange");
         }
       }
     }
@@ -595,10 +600,10 @@ export function EditPseudoEthernetModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to update interface");
+      setError((err as ApiError).message || t("edit.failed"));
     } finally {
       setLoading(false);
     }
@@ -608,7 +613,7 @@ export function EditPseudoEthernetModal({
 
   // VIF save
   const saveVif = () => {
-    if (!newVif.vlan_id) { setError("VIF VLAN ID is required."); return; }
+    if (!newVif.vlan_id) { setError(t("validation.vifVlanRequired")); return; }
     if (editingVifIdx !== null) {
       setVifs((p) => p.map((v, i) => i === editingVifIdx ? newVif : v));
       setEditingVifIdx(null);
@@ -621,7 +626,7 @@ export function EditPseudoEthernetModal({
 
   // VIF-S save
   const saveVifS = () => {
-    if (!newVifS.vlan_id) { setError("VIF-S VLAN ID is required."); return; }
+    if (!newVifS.vlan_id) { setError(t("validation.vifSVlanRequired")); return; }
     if (editingVifSIdx !== null) {
       setVifSList((p) => p.map((v, i) => i === editingVifSIdx ? newVifS : v));
       setEditingVifSIdx(null);
@@ -634,7 +639,7 @@ export function EditPseudoEthernetModal({
 
   // VIF-C save
   const saveVifC = (vsIdx: number) => {
-    if (!newVifC.vlan_id) { setError("VIF-C VLAN ID is required."); return; }
+    if (!newVifC.vlan_id) { setError(t("validation.vifCVlanRequired")); return; }
     setVifSList((p) => p.map((vs, i) => i === vsIdx ? { ...vs, vif_c: [...vs.vif_c, newVifC] } : vs));
     setNewVifC(emptyVifC());
     setShowVifCFormForS(null);
@@ -644,19 +649,19 @@ export function EditPseudoEthernetModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Pseudo-Ethernet Interface: {interfaceData.name}</DialogTitle>
+          <DialogTitle>{t("edit.title", { name: interfaceData.name })}</DialogTitle>
           <DialogDescription>
-            Modify the configuration for pseudo-ethernet interface {interfaceData.name}.
+            {t("edit.description", { name: interfaceData.name })}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
           <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="basic">Basic</TabsTrigger>
-            <TabsTrigger value="addresses">Addresses</TabsTrigger>
+            <TabsTrigger value="basic">{t("tabs.basic")}</TabsTrigger>
+            <TabsTrigger value="addresses">{t("tabs.addresses")}</TabsTrigger>
             <TabsTrigger value="ipv4">IPv4</TabsTrigger>
             <TabsTrigger value="ipv6">IPv6</TabsTrigger>
-            <TabsTrigger value="mirror">Mirror</TabsTrigger>
+            <TabsTrigger value="mirror">{t("tabs.mirror")}</TabsTrigger>
             <TabsTrigger value="vif">VIF</TabsTrigger>
             <TabsTrigger value="qinq">QinQ</TabsTrigger>
           </TabsList>
@@ -664,22 +669,22 @@ export function EditPseudoEthernetModal({
           {/* Basic Tab */}
           <TabsContent value="basic" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>Interface Name</Label>
+              <Label>{t("form.interfaceName")}</Label>
               <Input value={interfaceData.name} disabled className="font-mono" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Source Interface</Label>
+                <Label>{t("form.sourceInterface")}</Label>
                 <InterfaceSelect
                   value={sourceInterface}
                   onValueChange={setSourceInterface}
                   interfaces={availableInterfaces.map((i) => ({ name: i.name, type: i.type, description: i.description ?? null }))}
-                  placeholder="Select ethernet interface"
+                  placeholder={t("form.selectEthernetInterface")}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Mode</Label>
+                <Label>{t("form.mode")}</Label>
                 <Select value={mode} onValueChange={setMode}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -688,20 +693,20 @@ export function EditPseudoEthernetModal({
                     ))}
                   </SelectContent>
                 </Select>
-                {mode && MODE_DESCRIPTIONS[mode] && (
-                  <p className="text-xs text-muted-foreground">{MODE_DESCRIPTIONS[mode]}</p>
+                {mode && MODE_DESCRIPTION_KEYS[mode] && (
+                  <p className="text-xs text-muted-foreground">{t(`modes.${MODE_DESCRIPTION_KEYS[mode]}`)}</p>
                 )}
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Description</Label>
+              <Label>{tc("description")}</Label>
               <Input value={description} onChange={(e) => setDescription(e.target.value)} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>MAC Address</Label>
+                <Label>{t("form.macAddress")}</Label>
                 <Input value={mac} onChange={(e) => setMac(e.target.value)} placeholder="xx:xx:xx:xx:xx:xx" />
               </div>
               <div className="space-y-2">
@@ -713,7 +718,7 @@ export function EditPseudoEthernetModal({
                 <VrfSelect value={vrf} onValueChange={setVrf} />
               </div>
               <div className="space-y-2">
-                <Label>Redirect</Label>
+                <Label>{t("form.redirect")}</Label>
                 <VrfSelect value={redirect} onValueChange={setRedirect} />
               </div>
             </div>
@@ -721,11 +726,11 @@ export function EditPseudoEthernetModal({
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
                 <Checkbox checked={disabled} onCheckedChange={(c) => setDisabled(!!c)} id="e-disabled" />
-                <Label htmlFor="e-disabled">Disabled</Label>
+                <Label htmlFor="e-disabled">{t("form.disabled")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox checked={disableLinkDetect} onCheckedChange={(c) => setDisableLinkDetect(!!c)} id="e-ld" />
-                <Label htmlFor="e-ld">Disable Link Detect</Label>
+                <Label htmlFor="e-ld">{t("form.disableLinkDetect")}</Label>
               </div>
             </div>
           </TabsContent>
@@ -733,13 +738,13 @@ export function EditPseudoEthernetModal({
           {/* Addresses Tab */}
           <TabsContent value="addresses" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>IP Addresses</Label>
+              <Label>{t("form.ipAddresses")}</Label>
               <div className="flex gap-2">
                 <Input
                   value={addressInput}
                   onChange={(e) => setAddressInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addAddress())}
-                  placeholder="192.0.2.1/24 or dhcp or dhcpv6"
+                  placeholder={t("form.addressPlaceholder")}
                 />
                 <Button type="button" variant="outline" size="sm" onClick={addAddress}>
                   <Plus className="h-4 w-4" />
@@ -758,41 +763,41 @@ export function EditPseudoEthernetModal({
             </div>
 
             <Separator />
-            <p className="text-sm font-medium">DHCP Options</p>
+            <p className="text-sm font-medium">{t("form.dhcpOptions")}</p>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <Label className="text-xs">Client ID</Label>
+                <Label className="text-xs">{t("form.clientId")}</Label>
                 <Input value={dhcpClientId} onChange={(e) => setDhcpClientId(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Hostname</Label>
+                <Label className="text-xs">{t("form.hostname")}</Label>
                 <Input value={dhcpHostName} onChange={(e) => setDhcpHostName(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Vendor Class ID</Label>
+                <Label className="text-xs">{t("form.vendorClassId")}</Label>
                 <Input value={dhcpVendorClassId} onChange={(e) => setDhcpVendorClassId(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">User Class</Label>
+                <Label className="text-xs">{t("form.userClass")}</Label>
                 <Input value={dhcpUserClass} onChange={(e) => setDhcpUserClass(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Default Route Distance</Label>
+                <Label className="text-xs">{t("form.defaultRouteDistance")}</Label>
                 <Input type="number" value={dhcpDefaultRouteDistance} onChange={(e) => setDhcpDefaultRouteDistance(e.target.value)} min={1} max={255} />
               </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Checkbox checked={dhcpNoDefaultRoute} onCheckedChange={(c) => setDhcpNoDefaultRoute(!!c)} id="e-dhcpNoDef" />
-                <Label htmlFor="e-dhcpNoDef" className="text-sm font-normal">No Default Route</Label>
+                <Label htmlFor="e-dhcpNoDef" className="text-sm font-normal">{t("form.noDefaultRoute")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox checked={dhcpMtu} onCheckedChange={(c) => setDhcpMtu(!!c)} id="e-dhcpMtu" />
-                <Label htmlFor="e-dhcpMtu" className="text-sm font-normal">Request MTU</Label>
+                <Label htmlFor="e-dhcpMtu" className="text-sm font-normal">{t("form.requestMtu")}</Label>
               </div>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Reject Servers</Label>
+              <Label className="text-xs">{t("form.rejectServers")}</Label>
               <div className="flex gap-2">
                 <Input
                   value={dhcpRejectInput}
@@ -805,7 +810,7 @@ export function EditPseudoEthernetModal({
                       setDhcpRejectInput("");
                     }
                   }}
-                  placeholder="Server IP"
+                  placeholder={t("form.serverIpPlaceholder")}
                 />
                 <Button type="button" variant="outline" size="sm" onClick={() => {
                   const v = dhcpRejectInput.trim();
@@ -831,39 +836,39 @@ export function EditPseudoEthernetModal({
           {/* IPv4 Tab */}
           <TabsContent value="ipv4" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>Adjust MSS</Label>
+              <Label>{t("form.adjustMss")}</Label>
               <div className="flex items-center gap-4">
                 <label className="flex items-center gap-2 text-sm">
                   <input type="radio" checked={!ipAdjustMssClamp && !ipAdjustMss} onChange={() => { setIpAdjustMssClamp(false); setIpAdjustMss(""); }} />
-                  Disabled
+                  {t("form.disabled")}
                 </label>
                 <label className="flex items-center gap-2 text-sm">
                   <input type="radio" checked={ipAdjustMssClamp} onChange={() => { setIpAdjustMssClamp(true); setIpAdjustMss(""); }} />
-                  Clamp to PMTU
+                  {t("form.clampToPmtu")}
                 </label>
                 <label className="flex items-center gap-2 text-sm">
                   <input type="radio" checked={!ipAdjustMssClamp && !!ipAdjustMss} onChange={() => setIpAdjustMssClamp(false)} />
-                  Manual
+                  {t("form.manual")}
                 </label>
               </div>
               {!ipAdjustMssClamp && (
-                <Input value={ipAdjustMss} onChange={(e) => setIpAdjustMss(e.target.value)} placeholder="MSS value" />
+                <Input value={ipAdjustMss} onChange={(e) => setIpAdjustMss(e.target.value)} placeholder={t("form.mssValuePlaceholder")} />
               )}
             </div>
             <div className="space-y-2">
-              <Label>ARP Cache Timeout (ms)</Label>
+              <Label>{t("form.arpCacheTimeout")}</Label>
               <Input type="number" value={ipArpCacheTimeout} onChange={(e) => setIpArpCacheTimeout(e.target.value)} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               {[
-                [ipDisableArpFilter, setIpDisableArpFilter, "Disable ARP Filter"],
-                [ipEnableArpAccept, setIpEnableArpAccept, "Enable ARP Accept"],
-                [ipEnableArpAnnounce, setIpEnableArpAnnounce, "Enable ARP Announce"],
-                [ipEnableArpIgnore, setIpEnableArpIgnore, "Enable ARP Ignore"],
-                [ipEnableDirectedBroadcast, setIpEnableDirectedBroadcast, "Enable Directed Broadcast"],
-                [ipEnableProxyArp, setIpEnableProxyArp, "Enable Proxy ARP"],
-                [ipProxyArpPvlan, setIpProxyArpPvlan, "Proxy ARP PVLAN"],
-                [ipDisableForwarding, setIpDisableForwarding, "Disable Forwarding"],
+                [ipDisableArpFilter, setIpDisableArpFilter, t("form.disableArpFilter")],
+                [ipEnableArpAccept, setIpEnableArpAccept, t("form.enableArpAccept")],
+                [ipEnableArpAnnounce, setIpEnableArpAnnounce, t("form.enableArpAnnounce")],
+                [ipEnableArpIgnore, setIpEnableArpIgnore, t("form.enableArpIgnore")],
+                [ipEnableDirectedBroadcast, setIpEnableDirectedBroadcast, t("form.enableDirectedBroadcast")],
+                [ipEnableProxyArp, setIpEnableProxyArp, t("form.enableProxyArp")],
+                [ipProxyArpPvlan, setIpProxyArpPvlan, t("form.proxyArpPvlan")],
+                [ipDisableForwarding, setIpDisableForwarding, t("form.disableForwarding")],
               ].map(([val, setter, label]) => (
                 <div key={label as string} className="flex items-center gap-2">
                   <Checkbox checked={val as boolean} onCheckedChange={(c) => (setter as (v: boolean) => void)(!!c)} id={`e-ip-${label}`} />
@@ -872,12 +877,12 @@ export function EditPseudoEthernetModal({
               ))}
             </div>
             <div className="space-y-2">
-              <Label>Source Validation</Label>
+              <Label>{t("form.sourceValidation")}</Label>
               <Select value={ipSourceValidation || "none"} onValueChange={(v) => setIpSourceValidation(v === "none" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {SOURCE_VALIDATION_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  <SelectItem value="none">{tc("none")}</SelectItem>
+                  {SOURCE_VALIDATION_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{t(`sourceValidation.${o.labelKey}`)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -887,53 +892,53 @@ export function EditPseudoEthernetModal({
           <TabsContent value="ipv6" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <Label className="text-xs">Accept DAD (0–3)</Label>
+                <Label className="text-xs">{t("form.acceptDad")}</Label>
                 <Input type="number" min={0} max={3} value={ipv6AcceptDad} onChange={(e) => setIpv6AcceptDad(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Base Reachable Time</Label>
+                <Label className="text-xs">{t("form.baseReachableTime")}</Label>
                 <Input type="number" value={ipv6BaseReachableTime} onChange={(e) => setIpv6BaseReachableTime(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Dup Addr Detect Transmits</Label>
+                <Label className="text-xs">{t("form.dupAddrDetectTransmits")}</Label>
                 <Input type="number" value={ipv6DupAddrDetect} onChange={(e) => setIpv6DupAddrDetect(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">IPv6 Source Validation</Label>
+                <Label className="text-xs">{t("form.ipv6SourceValidation")}</Label>
                 <Select value={ipv6SourceValidation || "none"} onValueChange={(v) => setIpv6SourceValidation(v === "none" ? "" : v)}>
-                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {SOURCE_VALIDATION_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                    <SelectItem value="none">{tc("none")}</SelectItem>
+                    {SOURCE_VALIDATION_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{t(`sourceValidation.${o.labelKey}`)}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="space-y-2">
-              <Label className="text-xs">Adjust MSS (IPv6)</Label>
+              <Label className="text-xs">{t("form.adjustMssIpv6")}</Label>
               <div className="flex items-center gap-4">
                 <label className="flex items-center gap-2 text-sm">
                   <input type="radio" checked={!ipv6AdjustMssClamp && !ipv6AdjustMss} onChange={() => { setIpv6AdjustMssClamp(false); setIpv6AdjustMss(""); }} />
-                  Disabled
+                  {t("form.disabled")}
                 </label>
                 <label className="flex items-center gap-2 text-sm">
                   <input type="radio" checked={ipv6AdjustMssClamp} onChange={() => { setIpv6AdjustMssClamp(true); setIpv6AdjustMss(""); }} />
-                  Clamp to PMTU
+                  {t("form.clampToPmtu")}
                 </label>
                 <label className="flex items-center gap-2 text-sm">
                   <input type="radio" checked={!ipv6AdjustMssClamp && !!ipv6AdjustMss} onChange={() => setIpv6AdjustMssClamp(false)} />
-                  Manual
+                  {t("form.manual")}
                 </label>
               </div>
               {!ipv6AdjustMssClamp && (
-                <Input value={ipv6AdjustMss} onChange={(e) => setIpv6AdjustMss(e.target.value)} placeholder="MSS value" />
+                <Input value={ipv6AdjustMss} onChange={(e) => setIpv6AdjustMss(e.target.value)} placeholder={t("form.mssValuePlaceholder")} />
               )}
             </div>
             <div className="grid grid-cols-2 gap-3">
               {[
-                [ipv6DisableForwarding, setIpv6DisableForwarding, "Disable Forwarding"],
-                [ipv6AddressAutoconf, setIpv6AddressAutoconf, "Address Autoconf"],
-                [ipv6NoDefaultLinkLocal, setIpv6NoDefaultLinkLocal, "No Default Link Local"],
+                [ipv6DisableForwarding, setIpv6DisableForwarding, t("form.disableForwarding")],
+                [ipv6AddressAutoconf, setIpv6AddressAutoconf, t("form.addressAutoconf")],
+                [ipv6NoDefaultLinkLocal, setIpv6NoDefaultLinkLocal, t("form.noDefaultLinkLocal")],
               ].map(([val, setter, label]) => (
                 <div key={label as string} className="flex items-center gap-2">
                   <Checkbox checked={val as boolean} onCheckedChange={(c) => (setter as (v: boolean) => void)(!!c)} id={`e-ipv6-${label}`} />
@@ -942,9 +947,9 @@ export function EditPseudoEthernetModal({
               ))}
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">EUI64 Prefixes</Label>
+              <Label className="text-xs">{t("form.eui64Prefixes")}</Label>
               <div className="flex gap-2">
-                <Input value={ipv6Eui64Input} onChange={(e) => setIpv6Eui64Input(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = ipv6Eui64Input.trim(); if (v && !ipv6Eui64.includes(v)) setIpv6Eui64((p) => [...p, v]); setIpv6Eui64Input(""); } }} placeholder="IPv6 prefix" />
+                <Input value={ipv6Eui64Input} onChange={(e) => setIpv6Eui64Input(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = ipv6Eui64Input.trim(); if (v && !ipv6Eui64.includes(v)) setIpv6Eui64((p) => [...p, v]); setIpv6Eui64Input(""); } }} placeholder={t("form.ipv6PrefixPlaceholder")} />
                 <Button type="button" variant="outline" size="sm" onClick={() => { const v = ipv6Eui64Input.trim(); if (v && !ipv6Eui64.includes(v)) setIpv6Eui64((p) => [...p, v]); setIpv6Eui64Input(""); }}><Plus className="h-4 w-4" /></Button>
               </div>
               <div className="flex flex-wrap gap-1">
@@ -955,22 +960,22 @@ export function EditPseudoEthernetModal({
             </div>
             {feat("ipv6_address_interface_identifier") && (
               <div className="space-y-1">
-                <Label className="text-xs">Interface Identifier</Label>
+                <Label className="text-xs">{t("form.interfaceIdentifier")}</Label>
                 <Input value={ipv6InterfaceIdentifier} onChange={(e) => setIpv6InterfaceIdentifier(e.target.value)} />
               </div>
             )}
             <Separator />
-            <p className="text-sm font-medium">DHCPv6 Options</p>
+            <p className="text-sm font-medium">{t("form.dhcpv6Options")}</p>
             <div className="space-y-1">
               <Label className="text-xs">DUID</Label>
               <Input value={dhcpv6Duid} onChange={(e) => setDhcpv6Duid(e.target.value)} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               {([
-                [dhcpv6NoRelease, setDhcpv6NoRelease, "No Release"],
-                [dhcpv6ParametersOnly, setDhcpv6ParametersOnly, "Parameters Only"],
-                [dhcpv6RapidCommit, setDhcpv6RapidCommit, "Rapid Commit"],
-                [dhcpv6Temporary, setDhcpv6Temporary, "Temporary"],
+                [dhcpv6NoRelease, setDhcpv6NoRelease, t("form.noRelease")],
+                [dhcpv6ParametersOnly, setDhcpv6ParametersOnly, t("form.parametersOnly")],
+                [dhcpv6RapidCommit, setDhcpv6RapidCommit, t("form.rapidCommit")],
+                [dhcpv6Temporary, setDhcpv6Temporary, t("form.temporary")],
               ] as const).map(([val, setter, label]) => (
                 <div key={label} className="flex items-center gap-2">
                   <Checkbox checked={val} onCheckedChange={(c) => setter(!!c)} id={`e-dhcpv6-${label}`} />
@@ -980,13 +985,13 @@ export function EditPseudoEthernetModal({
               {feat("dhcpv6_no_request_dns") && (
                 <div className="flex items-center gap-2">
                   <Checkbox checked={dhcpv6NoRequestDns} onCheckedChange={(c) => setDhcpv6NoRequestDns(!!c)} id="e-dhcpv6NoDns" />
-                  <Label htmlFor="e-dhcpv6NoDns" className="text-sm font-normal">No Request DNS</Label>
+                  <Label htmlFor="e-dhcpv6NoDns" className="text-sm font-normal">{t("form.noRequestDns")}</Label>
                 </div>
               )}
               {feat("dhcpv6_no_request_domain_name") && (
                 <div className="flex items-center gap-2">
                   <Checkbox checked={dhcpv6NoRequestDomainName} onCheckedChange={(c) => setDhcpv6NoRequestDomainName(!!c)} id="e-dhcpv6NoDomain" />
-                  <Label htmlFor="e-dhcpv6NoDomain" className="text-sm font-normal">No Request Domain Name</Label>
+                  <Label htmlFor="e-dhcpv6NoDomain" className="text-sm font-normal">{t("form.noRequestDomainName")}</Label>
                 </div>
               )}
             </div>
@@ -995,23 +1000,23 @@ export function EditPseudoEthernetModal({
           {/* Mirror Tab */}
           <TabsContent value="mirror" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>Mirror Ingress</Label>
+              <Label>{t("form.mirrorIngress")}</Label>
               <InterfaceSelect
                 value={mirrorIngress || "__none__"}
                 onValueChange={(v) => setMirrorIngress(v === "__none__" ? "" : v)}
                 interfaces={allInterfaces}
-                noneOption={{ label: "None", value: "__none__" }}
-                placeholder="Select destination interface"
+                noneOption={{ label: tc("none"), value: "__none__" }}
+                placeholder={t("form.selectDestinationInterface")}
               />
             </div>
             <div className="space-y-2">
-              <Label>Mirror Egress</Label>
+              <Label>{t("form.mirrorEgress")}</Label>
               <InterfaceSelect
                 value={mirrorEgress || "__none__"}
                 onValueChange={(v) => setMirrorEgress(v === "__none__" ? "" : v)}
                 interfaces={allInterfaces}
-                noneOption={{ label: "None", value: "__none__" }}
-                placeholder="Select destination interface"
+                noneOption={{ label: tc("none"), value: "__none__" }}
+                placeholder={t("form.selectDestinationInterface")}
               />
             </div>
           </TabsContent>
@@ -1019,17 +1024,17 @@ export function EditPseudoEthernetModal({
           {/* VIF Tab */}
           <TabsContent value="vif" className="space-y-4 mt-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">802.1q VLAN Sub-interfaces</p>
+              <p className="text-sm font-medium">{t("vif.title")}</p>
               <Button type="button" variant="outline" size="sm" onClick={() => { setNewVif(emptyVif()); setEditingVifIdx(null); setShowVifForm(true); }}>
-                <Plus className="h-4 w-4 mr-1" /> Add VIF
+                <Plus className="h-4 w-4 mr-1" /> {t("vif.add")}
               </Button>
             </div>
             {showVifForm && (
               <>
                 <VifForm form={newVif} onChange={(patch) => setNewVif((p) => ({ ...p, ...patch }))} />
                 <div className="flex gap-2">
-                  <Button type="button" size="sm" onClick={saveVif}>Save VIF</Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => { setShowVifForm(false); setEditingVifIdx(null); setNewVif(emptyVif()); }}>Cancel</Button>
+                  <Button type="button" size="sm" onClick={saveVif}>{t("vif.save")}</Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => { setShowVifForm(false); setEditingVifIdx(null); setNewVif(emptyVif()); }}>{tc("cancel")}</Button>
                 </div>
               </>
             )}
@@ -1039,9 +1044,9 @@ export function EditPseudoEthernetModal({
                   <TableHeader>
                     <TableRow>
                       <TableHead>VLAN ID</TableHead>
-                      <TableHead>Addresses</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>{t("form.addresses")}</TableHead>
+                      <TableHead>{tc("description")}</TableHead>
+                      <TableHead>{tc("status")}</TableHead>
                       <TableHead className="w-[80px]"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1060,7 +1065,7 @@ export function EditPseudoEthernetModal({
                         <TableCell className="text-muted-foreground text-sm">{vif.description || "—"}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className={vif.disabled ? "bg-red-500/10 text-red-500 border-red-500/20 text-xs" : "bg-green-500/10 text-green-500 border-green-500/20 text-xs"}>
-                            {vif.disabled ? "Disabled" : "Enabled"}
+                            {vif.disabled ? tc("disabled") : tc("enabled")}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -1079,16 +1084,16 @@ export function EditPseudoEthernetModal({
                 </Table>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">No VIF sub-interfaces configured.</p>
+              <p className="text-sm text-muted-foreground text-center py-4">{t("vif.empty")}</p>
             )}
           </TabsContent>
 
           {/* QinQ Tab */}
           <TabsContent value="qinq" className="space-y-4 mt-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">QinQ VIF-S Sub-interfaces</p>
+              <p className="text-sm font-medium">{t("qinq.title")}</p>
               <Button type="button" variant="outline" size="sm" onClick={() => { setNewVifS(emptyVifS()); setEditingVifSIdx(null); setShowVifSForm(true); }}>
-                <Plus className="h-4 w-4 mr-1" /> Add VIF-S
+                <Plus className="h-4 w-4 mr-1" /> {t("qinq.addVifS")}
               </Button>
             </div>
 
@@ -1101,7 +1106,7 @@ export function EditPseudoEthernetModal({
                       <Input type="number" min={1} max={4094} value={newVifS.vlan_id} onChange={(e) => setNewVifS((p) => ({ ...p, vlan_id: e.target.value }))} />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Description</Label>
+                      <Label className="text-xs">{tc("description")}</Label>
                       <Input value={newVifS.description} onChange={(e) => setNewVifS((p) => ({ ...p, description: e.target.value }))} />
                     </div>
                     <div className="space-y-1">
@@ -1115,12 +1120,12 @@ export function EditPseudoEthernetModal({
                   </div>
                   <div className="flex items-center gap-2">
                     <Checkbox checked={newVifS.disabled} onCheckedChange={(c) => setNewVifS((p) => ({ ...p, disabled: !!c }))} id="vifs-disabled" />
-                    <Label htmlFor="vifs-disabled" className="text-xs font-normal">Disabled</Label>
+                    <Label htmlFor="vifs-disabled" className="text-xs font-normal">{t("form.disabled")}</Label>
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button type="button" size="sm" onClick={saveVifS}>Save VIF-S</Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => { setShowVifSForm(false); setEditingVifSIdx(null); setNewVifS(emptyVifS()); }}>Cancel</Button>
+                  <Button type="button" size="sm" onClick={saveVifS}>{t("qinq.saveVifS")}</Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => { setShowVifSForm(false); setEditingVifSIdx(null); setNewVifS(emptyVifS()); }}>{tc("cancel")}</Button>
                 </div>
               </>
             )}
@@ -1152,9 +1157,9 @@ export function EditPseudoEthernetModal({
                     {expandedVifS.has(si) && (
                       <div className="px-6 pb-3 space-y-2">
                         <div className="flex items-center justify-between">
-                          <p className="text-xs font-medium text-muted-foreground">VIF-C Sub-interfaces</p>
+                          <p className="text-xs font-medium text-muted-foreground">{t("qinq.vifCTitle")}</p>
                           <Button type="button" variant="outline" size="sm" className="h-6 text-xs" onClick={() => { setNewVifC(emptyVifC()); setShowVifCFormForS(si); }}>
-                            <Plus className="h-3 w-3 mr-1" /> Add VIF-C
+                            <Plus className="h-3 w-3 mr-1" /> {t("qinq.addVifC")}
                           </Button>
                         </div>
                         {showVifCFormForS === si && (
@@ -1165,13 +1170,13 @@ export function EditPseudoEthernetModal({
                                 <VrfSelect value={newVifC.vlan_id} onValueChange={(v) => setNewVifC((p) => ({ ...p, vlan_id: v }))} />
                               </div>
                               <div className="space-y-1">
-                                <Label className="text-xs">Description</Label>
+                                <Label className="text-xs">{tc("description")}</Label>
                                 <Input value={newVifC.description} onChange={(e) => setNewVifC((p) => ({ ...p, description: e.target.value }))} />
                               </div>
                             </div>
                             <div className="flex gap-2">
-                              <Button type="button" size="sm" className="h-7 text-xs" onClick={() => saveVifC(si)}>Add</Button>
-                              <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setShowVifCFormForS(null); setNewVifC(emptyVifC()); }}>Cancel</Button>
+                              <Button type="button" size="sm" className="h-7 text-xs" onClick={() => saveVifC(si)}>{tc("add")}</Button>
+                              <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setShowVifCFormForS(null); setNewVifC(emptyVifC()); }}>{tc("cancel")}</Button>
                             </div>
                           </div>
                         )}
@@ -1180,8 +1185,8 @@ export function EditPseudoEthernetModal({
                             <TableHeader>
                               <TableRow>
                                 <TableHead className="text-xs">C-VLAN ID</TableHead>
-                                <TableHead className="text-xs">Addresses</TableHead>
-                                <TableHead className="text-xs">Description</TableHead>
+                                <TableHead className="text-xs">{t("form.addresses")}</TableHead>
+                                <TableHead className="text-xs">{tc("description")}</TableHead>
                                 <TableHead className="w-[60px]"></TableHead>
                               </TableRow>
                             </TableHeader>
@@ -1205,7 +1210,7 @@ export function EditPseudoEthernetModal({
                             </TableBody>
                           </Table>
                         ) : (
-                          <p className="text-xs text-muted-foreground text-center py-2">No VIF-C sub-interfaces.</p>
+                          <p className="text-xs text-muted-foreground text-center py-2">{t("qinq.emptyVifC")}</p>
                         )}
                       </div>
                     )}
@@ -1213,7 +1218,7 @@ export function EditPseudoEthernetModal({
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">No VIF-S sub-interfaces configured.</p>
+              <p className="text-sm text-muted-foreground text-center py-4">{t("qinq.empty")}</p>
             )}
           </TabsContent>
         </Tabs>
@@ -1227,16 +1232,16 @@ export function EditPseudoEthernetModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
+                {tc("saving")}
               </>
             ) : (
-              "Save Changes"
+              t("edit.saveChanges")
             )}
           </Button>
         </DialogFooter>
