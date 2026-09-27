@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -52,6 +53,8 @@ export function VxlanModal({
   existingInterfaces,
   existing,
 }: VxlanModalProps) {
+  const t = useTranslations("vxlan");
+  const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
 
   // Basic form state
@@ -181,9 +184,9 @@ export function VxlanModal({
   const lockedName = lockedIdentity(existing, (i) => i.name, name);
 
   const validateCreate = (): string | null => {
-    if (!name.trim()) return "Interface name is required";
-    if (!/^vxlan\d+$/.test(name.trim())) return "Name must be in format 'vxlan0', 'vxlan1', etc.";
-    if (existingInterfaces.includes(name.trim())) return `Interface ${name} already exists`;
+    if (!name.trim()) return t("modal.errors.nameRequired");
+    if (!/^vxlan\d+$/.test(name.trim())) return t("modal.errors.nameFormat");
+    if (existingInterfaces.includes(name.trim())) return t("modal.errors.nameExists", { name });
     return null;
   };
 
@@ -330,12 +333,12 @@ export function VxlanModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || (isEdit ? "Failed to update VXLAN interface" : "Failed to create VXLAN interface"));
+        setError(result.error || (isEdit ? t("modal.errors.updateFailed") : t("modal.errors.createFailed")));
       }
     } catch (err) {
       setError(
         (err as ApiError).message ||
-          (isEdit ? "Failed to update VXLAN interface" : "Failed to create VXLAN interface"),
+          (isEdit ? t("modal.errors.updateFailed") : t("modal.errors.createFailed")),
       );
     } finally {
       setLoading(false);
@@ -364,26 +367,26 @@ export function VxlanModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Boxes className="h-5 w-5 text-primary" />
-            {isEdit ? `Edit: ${existing.name}` : "Create VXLAN Interface"}
+            {isEdit ? t("modal.editTitle", { name: existing.name }) : t("modal.createTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Modify VXLAN interface configuration. Changes are applied atomically."
-              : "Create a new VXLAN tunnel interface for overlay networking."}
+              ? t("modal.editDescription")
+              : t("modal.createDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="basic">Basic</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            <TabsTrigger value="basic">{t("modal.tabs.basic")}</TabsTrigger>
+            <TabsTrigger value="advanced">{t("modal.tabs.advanced")}</TabsTrigger>
             <TabsTrigger value="vlan-vni">VLAN-to-VNI</TabsTrigger>
           </TabsList>
 
           <TabsContent value="basic" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="vxlan-name">Interface Name</Label>
+                <Label htmlFor="vxlan-name">{t("modal.basic.interfaceName")}</Label>
                 <Input
                   id="vxlan-name"
                   value={lockedName.value}
@@ -393,60 +396,60 @@ export function VxlanModal({
                   className={lockedName.disabled ? "bg-muted" : undefined}
                 />
                 <p className="text-xs text-muted-foreground">
-                  {lockedName.disabled ? "Interface name cannot be changed." : "Format: vxlan0, vxlan1, etc."}
+                  {lockedName.disabled ? t("modal.basic.nameLocked") : t("modal.basic.nameFormatHint")}
                 </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="vxlan-vni">VNI</Label>
                 <Input id="vxlan-vni" value={vni} onChange={(e) => setVni(e.target.value)} placeholder="0-16777214" />
-                <p className="text-xs text-muted-foreground">Virtual Network Identifier</p>
+                <p className="text-xs text-muted-foreground">{t("modal.basic.vniHint")}</p>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="vxlan-description">Description</Label>
-              <Input id="vxlan-description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="VXLAN tunnel description" />
+              <Label htmlFor="vxlan-description">{tc("description")}</Label>
+              <Input id="vxlan-description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("modal.basic.descriptionPlaceholder")} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="vxlan-sourceAddress">Source Address</Label>
+                <Label htmlFor="vxlan-sourceAddress">{t("modal.basic.sourceAddress")}</Label>
                 <Input id="vxlan-sourceAddress" value={sourceAddress} onChange={(e) => setSourceAddress(e.target.value)} placeholder="192.168.1.1" />
-                <p className="text-xs text-muted-foreground">Local tunnel endpoint IP</p>
+                <p className="text-xs text-muted-foreground">{t("modal.basic.sourceAddressHint")}</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="vxlan-sourceInterface">Source Interface</Label>
+                <Label htmlFor="vxlan-sourceInterface">{t("modal.basic.sourceInterface")}</Label>
                 <InterfaceSelect
                   value={sourceInterface || "__none__"}
                   onValueChange={(v) => setSourceInterface(v === "__none__" ? "" : v)}
                   interfaces={availableInterfaces}
-                  noneOption={{ label: "None", value: "__none__" }}
-                  placeholder="Select interface"
+                  noneOption={{ label: tc("none"), value: "__none__" }}
+                  placeholder={t("modal.selectInterface")}
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="vxlan-remotes">Remote Addresses</Label>
+              <Label htmlFor="vxlan-remotes">{t("modal.basic.remoteAddresses")}</Label>
               <Input id="vxlan-remotes" value={remotes} onChange={(e) => setRemotes(e.target.value)} placeholder="10.0.0.2, 10.0.0.3" />
-              <p className="text-xs text-muted-foreground">Comma-separated remote tunnel endpoint IPs</p>
+              <p className="text-xs text-muted-foreground">{t("modal.basic.remoteAddressesHint")}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="vxlan-group">Multicast Group</Label>
+                <Label htmlFor="vxlan-group">{t("modal.basic.multicastGroup")}</Label>
                 <Input id="vxlan-group" value={group} onChange={(e) => setGroup(e.target.value)} placeholder="239.1.1.1" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="vxlan-port">UDP Port</Label>
+                <Label htmlFor="vxlan-port">{t("modal.basic.udpPort")}</Label>
                 <Input id="vxlan-port" value={port} onChange={(e) => setPort(e.target.value)} placeholder="4789" />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="vxlan-addresses">IP Addresses</Label>
+              <Label htmlFor="vxlan-addresses">{t("modal.basic.ipAddresses")}</Label>
               <Input id="vxlan-addresses" value={addresses} onChange={(e) => setAddresses(e.target.value)} placeholder="10.10.10.1/24, fd00::1/64" />
-              <p className="text-xs text-muted-foreground">Comma-separated with CIDR notation</p>
+              <p className="text-xs text-muted-foreground">{t("modal.basic.ipAddressesHint")}</p>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -455,7 +458,7 @@ export function VxlanModal({
                 <Input id="vxlan-mtu" value={mtu} onChange={(e) => setMtu(e.target.value)} placeholder="1500" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="vxlan-mac">MAC Address</Label>
+                <Label htmlFor="vxlan-mac">{t("modal.basic.macAddress")}</Label>
                 <Input id="vxlan-mac" value={mac} onChange={(e) => setMac(e.target.value)} placeholder="00:11:22:33:44:55" />
               </div>
               <div className="space-y-2">
@@ -467,71 +470,71 @@ export function VxlanModal({
 
           <TabsContent value="advanced" className="space-y-4 mt-4">
             <div className="space-y-3">
-              <Label className="text-sm font-medium">Tunnel Parameters</Label>
+              <Label className="text-sm font-medium">{t("modal.advanced.tunnelParameters")}</Label>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex items-center space-x-2 rounded-lg border p-3">
                   <Checkbox id="vxlan-external" checked={external} onCheckedChange={(c) => setExternal(c === true)} />
                   <div className="flex-1">
-                    <Label htmlFor="vxlan-external" className="cursor-pointer text-sm">External</Label>
-                    <p className="text-xs text-muted-foreground">Use external control plane</p>
+                    <Label htmlFor="vxlan-external" className="cursor-pointer text-sm">{t("modal.advanced.external")}</Label>
+                    <p className="text-xs text-muted-foreground">{t("modal.advanced.externalHint")}</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2 rounded-lg border p-3">
                   <Checkbox id="vxlan-nolearning" checked={nolearning} onCheckedChange={(c) => setNolearning(c === true)} />
                   <div className="flex-1">
-                    <Label htmlFor="vxlan-nolearning" className="cursor-pointer text-sm">No Learning</Label>
-                    <p className="text-xs text-muted-foreground">Disable MAC learning</p>
+                    <Label htmlFor="vxlan-nolearning" className="cursor-pointer text-sm">{t("modal.advanced.noLearning")}</Label>
+                    <p className="text-xs text-muted-foreground">{t("modal.advanced.noLearningHint")}</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2 rounded-lg border p-3">
                   <Checkbox id="vxlan-neighborSuppress" checked={neighborSuppress} onCheckedChange={(c) => setNeighborSuppress(c === true)} />
                   <div className="flex-1">
-                    <Label htmlFor="vxlan-neighborSuppress" className="cursor-pointer text-sm">Neighbor Suppress</Label>
-                    <p className="text-xs text-muted-foreground">ARP/ND suppression</p>
+                    <Label htmlFor="vxlan-neighborSuppress" className="cursor-pointer text-sm">{t("modal.advanced.neighborSuppress")}</Label>
+                    <p className="text-xs text-muted-foreground">{t("modal.advanced.neighborSuppressHint")}</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2 rounded-lg border p-3">
                   <Checkbox id="vxlan-vniFilter" checked={vniFilter} onCheckedChange={(c) => setVniFilter(c === true)} />
                   <div className="flex-1">
-                    <Label htmlFor="vxlan-vniFilter" className="cursor-pointer text-sm">VNI Filter</Label>
-                    <p className="text-xs text-muted-foreground">Enable VNI filtering</p>
+                    <Label htmlFor="vxlan-vniFilter" className="cursor-pointer text-sm">{t("modal.advanced.vniFilter")}</Label>
+                    <p className="text-xs text-muted-foreground">{t("modal.advanced.vniFilterHint")}</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2 rounded-lg border p-3">
                   <Checkbox id="vxlan-gpe" checked={gpe} onCheckedChange={(c) => setGpe(c === true)} />
                   <div className="flex-1">
                     <Label htmlFor="vxlan-gpe" className="cursor-pointer text-sm">GPE</Label>
-                    <p className="text-xs text-muted-foreground">Generic Protocol Extension</p>
+                    <p className="text-xs text-muted-foreground">{t("modal.advanced.gpeHint")}</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2 rounded-lg border p-3">
                   <Checkbox id="vxlan-disabled" checked={disabled} onCheckedChange={(c) => setDisabled(c === true)} />
                   <div className="flex-1">
-                    <Label htmlFor="vxlan-disabled" className="cursor-pointer text-sm">Disabled</Label>
-                    <p className="text-xs text-muted-foreground">Administratively disable</p>
+                    <Label htmlFor="vxlan-disabled" className="cursor-pointer text-sm">{tc("disabled")}</Label>
+                    <p className="text-xs text-muted-foreground">{t("modal.advanced.disabledHint")}</p>
                   </div>
                 </div>
               </div>
             </div>
 
             <div className="space-y-3">
-              <Label className="text-sm font-medium">IP Parameters</Label>
+              <Label className="text-sm font-medium">{t("modal.advanced.ipParameters")}</Label>
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="vxlan-ipDf" className="text-xs">Don&apos;t Fragment</Label>
+                  <Label htmlFor="vxlan-ipDf" className="text-xs">{t("modal.advanced.dontFragment")}</Label>
                   <Select value={ipDf || "__none__"} onValueChange={setIpDf}>
-                    <SelectTrigger><SelectValue placeholder="Default" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={tc("default")} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">Default</SelectItem>
-                      <SelectItem value="set">Set</SelectItem>
-                      <SelectItem value="unset">Unset</SelectItem>
-                      <SelectItem value="inherit">Inherit</SelectItem>
+                      <SelectItem value="__none__">{tc("default")}</SelectItem>
+                      <SelectItem value="set">{t("modal.advanced.dfSet")}</SelectItem>
+                      <SelectItem value="unset">{t("modal.advanced.dfUnset")}</SelectItem>
+                      <SelectItem value="inherit">{t("modal.advanced.dfInherit")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="vxlan-ipTos" className="text-xs">Type of Service</Label>
-                  <Input id="vxlan-ipTos" value={ipTos} onChange={(e) => setIpTos(e.target.value)} placeholder="0-255 or inherit" />
+                  <Label htmlFor="vxlan-ipTos" className="text-xs">{t("modal.advanced.typeOfService")}</Label>
+                  <Input id="vxlan-ipTos" value={ipTos} onChange={(e) => setIpTos(e.target.value)} placeholder={t("modal.advanced.tosPlaceholder")} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="vxlan-ipTtl" className="text-xs">TTL</Label>
@@ -541,49 +544,49 @@ export function VxlanModal({
             </div>
 
             <div className="space-y-3">
-              <Label className="text-sm font-medium">IPv6 Parameters</Label>
+              <Label className="text-sm font-medium">{t("modal.advanced.ipv6Parameters")}</Label>
               <div className="space-y-2">
-                <Label htmlFor="vxlan-ipv6Flowlabel" className="text-xs">Flow Label</Label>
+                <Label htmlFor="vxlan-ipv6Flowlabel" className="text-xs">{t("modal.advanced.flowLabel")}</Label>
                 <Input id="vxlan-ipv6Flowlabel" value={ipv6Flowlabel} onChange={(e) => setIpv6Flowlabel(e.target.value)} placeholder="0x0-0xfffff" />
               </div>
             </div>
 
             <div className="space-y-3">
-              <Label className="text-sm font-medium">Mirror</Label>
+              <Label className="text-sm font-medium">{t("modal.advanced.mirror")}</Label>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="vxlan-mirrorIngress" className="text-xs">Ingress Interface</Label>
+                  <Label htmlFor="vxlan-mirrorIngress" className="text-xs">{t("modal.advanced.ingressInterface")}</Label>
                   <InterfaceSelect
                     value={mirrorIngress || "__none__"}
                     onValueChange={(v) => setMirrorIngress(v === "__none__" ? "" : v)}
                     interfaces={availableInterfaces}
-                    noneOption={{ label: "None", value: "__none__" }}
-                    placeholder="Select interface"
+                    noneOption={{ label: tc("none"), value: "__none__" }}
+                    placeholder={t("modal.selectInterface")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="vxlan-mirrorEgress" className="text-xs">Egress Interface</Label>
+                  <Label htmlFor="vxlan-mirrorEgress" className="text-xs">{t("modal.advanced.egressInterface")}</Label>
                   <InterfaceSelect
                     value={mirrorEgress || "__none__"}
                     onValueChange={(v) => setMirrorEgress(v === "__none__" ? "" : v)}
                     interfaces={availableInterfaces}
-                    noneOption={{ label: "None", value: "__none__" }}
-                    placeholder="Select interface"
+                    noneOption={{ label: tc("none"), value: "__none__" }}
+                    placeholder={t("modal.selectInterface")}
                   />
                 </div>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="vxlan-redirect">Redirect Interface</Label>
+              <Label htmlFor="vxlan-redirect">{t("modal.advanced.redirectInterface")}</Label>
               <InterfaceSelect
                 value={redirect || "__none__"}
                 onValueChange={(v) => setRedirect(v === "__none__" ? "" : v)}
                 interfaces={availableInterfaces}
-                noneOption={{ label: "None", value: "__none__" }}
-                placeholder="Select interface"
+                noneOption={{ label: tc("none"), value: "__none__" }}
+                placeholder={t("modal.selectInterface")}
               />
-              <p className="text-xs text-muted-foreground">Redirect received packets to another interface</p>
+              <p className="text-xs text-muted-foreground">{t("modal.advanced.redirectHint")}</p>
             </div>
           </TabsContent>
 
@@ -591,19 +594,19 @@ export function VxlanModal({
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-sm font-medium">VLAN-to-VNI Mappings</Label>
-                  <p className="text-xs text-muted-foreground mt-1">Map VLANs to VNIs for EVPN-VXLAN bridging</p>
+                  <Label className="text-sm font-medium">{t("modal.vlanVni.title")}</Label>
+                  <p className="text-xs text-muted-foreground mt-1">{t("modal.vlanVni.description")}</p>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={addVlanMapping} className="gap-1">
-                  <Plus className="h-3 w-3" /> Add Mapping
+                  <Plus className="h-3 w-3" /> {t("modal.vlanVni.addMapping")}
                 </Button>
               </div>
 
               {vlanToVni.length === 0 ? (
                 <div className="rounded-lg border border-dashed p-8 text-center">
-                  <p className="text-sm text-muted-foreground">No VLAN-to-VNI mappings configured</p>
+                  <p className="text-sm text-muted-foreground">{t("modal.vlanVni.empty")}</p>
                   <Button type="button" variant="outline" size="sm" onClick={addVlanMapping} className="mt-3 gap-1">
-                    <Plus className="h-3 w-3" /> Add First Mapping
+                    <Plus className="h-3 w-3" /> {t("modal.vlanVni.addFirstMapping")}
                   </Button>
                 </div>
               ) : (
@@ -630,11 +633,11 @@ export function VxlanModal({
                       </div>
                       {supportsVlanDescription && (
                         <div className="flex-1 space-y-1">
-                          <Label className="text-xs">Description</Label>
+                          <Label className="text-xs">{tc("description")}</Label>
                           <Input
                             value={mapping.description}
                             onChange={(e) => updateVlanMapping(index, "description", e.target.value)}
-                            placeholder="Optional"
+                            placeholder={tc("optional")}
                           />
                         </div>
                       )}
@@ -657,15 +660,15 @@ export function VxlanModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? "Saving..." : "Creating..."}
+                {isEdit ? tc("saving") : t("modal.creating")}
               </>
             ) : (
-              isEdit ? "Save Changes" : "Create Interface"
+              isEdit ? t("modal.saveChanges") : t("modal.createInterface")
             )}
           </Button>
         </DialogFooter>
