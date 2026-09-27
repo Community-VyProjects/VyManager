@@ -1,1 +1,70 @@
-{}
+{
+  "adminGroups": "Admin Groups",
+  "creating": "Creating...",
+  "saveChanges": "Save Changes",
+  "errors": {
+    "loadConfig": "Failed to load Traffic Engineering configuration"
+  },
+  "header": {
+    "title": "Traffic Engineering",
+    "readOnly": "Read Only",
+    "subtitle": "MPLS-TE link parameter configuration"
+  },
+  "stats": {
+    "configuredInterfaces": "Configured Interfaces",
+    "withAdminGroups": "With Admin Groups",
+    "customMetrics": "Custom Metrics"
+  },
+  "tabs": {
+    "interfaces": "Interfaces"
+  },
+  "groups": {
+    "description": "Define admin groups to classify TE links by administrative category.",
+    "add": "Add Admin Group",
+    "empty": "No admin groups configured",
+    "emptyHint": "Add an admin group to classify TE links",
+    "bitPosition": "Bit Position"
+  },
+  "interfaces": {
+    "description": "Configure Traffic Engineering parameters per interface.",
+    "add": "Add Interface",
+    "empty": "No interfaces configured",
+    "emptyHint": "Add an interface to configure TE parameters",
+    "interface": "Interface",
+    "maxBw": "Max BW (Mbps)",
+    "maxReservBw": "Max Reserv. BW (Mbps)",
+    "metric": "Metric"
+  },
+  "groupModal": {
+    "nameRequired": "Name is required",
+    "nameInvalid": "Name may only contain letters, numbers, and hyphens",
+    "bitRange": "Bit position must be an integer between 0 and 31",
+    "editTitle": "Edit Admin Group",
+    "description": "Configure a Traffic Engineering admin group for link classification.",
+    "namePlaceholder": "e.g. gold",
+    "nameHelp": "Letters, numbers, and hyphens only",
+    "bitPlaceholder": "0 – 31 (optional)"
+  },
+  "interfaceModal": {
+    "bandwidthRange": "{label} must be between 1 and 4294967295",
+    "interfaceRequired": "Interface is required",
+    "maxBandwidth": "Max Bandwidth",
+    "maxReservableBandwidth": "Max Reservable Bandwidth",
+    "metricRange": "Metric must be between 1 and 4294967295",
+    "editTitle": "Edit Interface Parameters",
+    "addTitle": "Add Interface Parameters",
+    "description": "Configure Traffic Engineering parameters for a network interface.",
+    "selectInterface": "Select interface",
+    "noGroups": "No admin groups configured — add one in the Admin Groups tab",
+    "bit": "bit {position}"
+  },
+  "deleteGroup": {
+    "title": "Delete Admin Group",
+    "description": "Remove admin group <mono>{name}</mono>? Interfaces referencing this group will lose the assignment."
+  },
+  "deleteInterface": {
+    "title": "Delete Interface Configuration",
+    "description": "Remove Traffic Engineering parameters for interface <mono>{name}</mono>? All TE settings for this interface will be cleared.",
+    "confirm": "Delete Interface Config"
+  }
+}

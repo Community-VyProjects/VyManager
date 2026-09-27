@@ -1,1 +1,70 @@
-{}
+{
+  "adminGroups": "管理组",
+  "creating": "正在创建...",
+  "saveChanges": "保存更改",
+  "errors": {
+    "loadConfig": "加载流量工程配置失败"
+  },
+  "header": {
+    "title": "流量工程",
+    "readOnly": "只读",
+    "subtitle": "MPLS-TE 链路参数配置"
+  },
+  "stats": {
+    "configuredInterfaces": "已配置接口",
+    "withAdminGroups": "已分配管理组",
+    "customMetrics": "自定义度量"
+  },
+  "tabs": {
+    "interfaces": "接口"
+  },
+  "groups": {
+    "description": "定义管理组，按管理类别对 TE 链路进行分类。",
+    "add": "添加管理组",
+    "empty": "尚未配置管理组",
+    "emptyHint": "添加管理组以对 TE 链路进行分类",
+    "bitPosition": "比特位"
+  },
+  "interfaces": {
+    "description": "按接口配置流量工程参数。",
+    "add": "添加接口",
+    "empty": "尚未配置接口",
+    "emptyHint": "添加接口以配置 TE 参数",
+    "interface": "接口",
+    "maxBw": "最大带宽（Mbps）",
+    "maxReservBw": "可预留带宽（Mbps）",
+    "metric": "度量值"
+  },
+  "groupModal": {
+    "nameRequired": "名称为必填项",
+    "nameInvalid": "名称只能包含字母、数字和连字符",
+    "bitRange": "比特位必须是 0 到 31 之间的整数",
+    "editTitle": "编辑管理组",
+    "description": "配置用于链路分类的流量工程管理组。",
+    "namePlaceholder": "例如 gold",
+    "nameHelp": "只能包含字母、数字和连字符",
+    "bitPlaceholder": "0 – 31（可选）"
+  },
+  "interfaceModal": {
+    "bandwidthRange": "{label}必须介于 1 到 4294967295 之间",
+    "interfaceRequired": "接口为必填项",
+    "maxBandwidth": "最大带宽",
+    "maxReservableBandwidth": "可预留带宽",
+    "metricRange": "度量值必须介于 1 到 4294967295 之间",
+    "editTitle": "编辑接口参数",
+    "addTitle": "添加接口参数",
+    "description": "为网络接口配置流量工程参数。",
+    "selectInterface": "选择接口",
+    "noGroups": "尚未配置管理组 — 请在“管理组”标签页中添加",
+    "bit": "比特 {position}"
+  },
+  "deleteGroup": {
+    "title": "删除管理组",
+    "description": "确定要移除管理组 <mono>{name}</mono> 吗？引用此组的接口将失去该分配。"
+  },
+  "deleteInterface": {
+    "title": "删除接口配置",
+    "description": "确定要移除接口 <mono>{name}</mono> 的流量工程参数吗？此接口的所有 TE 设置都将被清除。",
+    "confirm": "删除接口配置"
+  }
+}
