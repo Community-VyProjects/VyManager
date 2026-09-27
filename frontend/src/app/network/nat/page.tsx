@@ -32,6 +32,7 @@ import {
 import { useEffect, useState } from "react";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { DndContext, type DragStartEvent, type DragEndEvent, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { natService, type NATConfigResponse, type NATCapabilities, type SourceNATRule, type DestinationNATRule, type StaticNATRule } from "@/lib/api/nat";
@@ -52,6 +53,8 @@ import { FeatureGroup } from "@/lib/api/user-management";
 type RuleType = "source" | "destination" | "static" | "cgnat";
 
 function NATPageInner() {
+  const t = useTranslations("nat");
+  const tc = useTranslations("common");
   const searchParams = useSearchParams();
   const { canRead, canWrite, isLoading: permissionsLoading } = usePermissions();
   const [config, setConfig] = useState<NATConfigResponse | null>(null);
@@ -108,7 +111,7 @@ function NATPageInner() {
       setReorderedRules([]);
       setOriginalRules([]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load NAT configuration");
+      setError(err instanceof Error ? err.message : t("page.failedToLoadConfig"));
       console.error("Error fetching NAT config:", err);
     } finally {
       setLoading(false);
@@ -128,6 +131,7 @@ function NATPageInner() {
         ...gc.domain_groups,
       ]);
     }).catch(console.error);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only fetch
   }, []);
 
   const sourceRules = config ? config.source_rules : [];
@@ -257,7 +261,7 @@ function NATPageInner() {
       await fetchConfig(true);
     } catch (err) {
       console.error("Error saving reordered rules:", err);
-      setError(err instanceof Error ? err.message : "Failed to save reordered rules");
+      setError(err instanceof Error ? err.message : t("page.failedToSaveReorder"));
     } finally {
       setSavingReorder(false);
     }
@@ -322,9 +326,9 @@ function NATPageInner() {
         <div className="flex h-full items-center justify-center">
           <div className="text-center max-w-md">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+            <h2 className="text-xl font-semibold mb-2">{t("page.accessDenied")}</h2>
             <p className="text-muted-foreground">
-              You do not have permission to view NAT configurations. Please contact your administrator for access.
+              {t("page.accessDeniedMessage")}
             </p>
           </div>
         </div>
@@ -340,9 +344,9 @@ function NATPageInner() {
           <div className="p-6 pb-4">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-lg font-semibold text-foreground">NAT Rules</h2>
+                <h2 className="text-lg font-semibold text-foreground">{t("page.natRules")}</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {totalRules} total rules
+                  {t("page.totalRulesCount", { count: totalRules })}
                 </p>
               </div>
               <Button
@@ -369,7 +373,7 @@ function NATPageInner() {
               <div className="p-4">
                 <div className="flex items-center gap-2 text-destructive text-sm">
                   <AlertCircle className="h-4 w-4" />
-                  <span>Failed to load</span>
+                  <span>{t("page.failedToLoad")}</span>
                 </div>
               </div>
             ) : (
@@ -400,7 +404,7 @@ function NATPageInner() {
                           "font-medium text-sm",
                           selectedType === "source" ? "text-foreground" : "text-foreground"
                         )}>
-                          Source NAT
+                          {t("types.source")}
                         </span>
                         {selectedType === "source" && (
                           <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
@@ -408,11 +412,11 @@ function NATPageInner() {
                       </div>
                       <div className="flex flex-col gap-1">
                         <span className="text-xs text-muted-foreground">
-                          {totalSourceRules} {totalSourceRules === 1 ? "rule" : "rules"}
+                          {t("page.ruleCount", { count: totalSourceRules })}
                         </span>
                         {masqueradeRules > 0 && (
                           <Badge variant="outline" className="text-xs h-5 w-fit bg-blue-500/10 text-blue-500 border-blue-500/20">
-                            {masqueradeRules} masquerade
+                            {t("page.masqueradeCount", { count: masqueradeRules })}
                           </Badge>
                         )}
                       </div>
@@ -446,7 +450,7 @@ function NATPageInner() {
                           "font-medium text-sm",
                           selectedType === "destination" ? "text-foreground" : "text-foreground"
                         )}>
-                          Destination NAT
+                          {t("types.destination")}
                         </span>
                         {selectedType === "destination" && (
                           <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
@@ -454,9 +458,9 @@ function NATPageInner() {
                       </div>
                       <div className="flex flex-col gap-1">
                         <span className="text-xs text-muted-foreground">
-                          {totalDestinationRules} {totalDestinationRules === 1 ? "rule" : "rules"}
+                          {t("page.ruleCount", { count: totalDestinationRules })}
                         </span>
-                        <span className="text-xs text-muted-foreground">Port forwarding</span>
+                        <span className="text-xs text-muted-foreground">{t("page.portForwarding")}</span>
                       </div>
                     </div>
                   </div>
@@ -488,7 +492,7 @@ function NATPageInner() {
                           "font-medium text-sm",
                           selectedType === "static" ? "text-foreground" : "text-foreground"
                         )}>
-                          Static NAT
+                          {t("types.static")}
                         </span>
                         {selectedType === "static" && (
                           <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
@@ -496,9 +500,9 @@ function NATPageInner() {
                       </div>
                       <div className="flex flex-col gap-1">
                         <span className="text-xs text-muted-foreground">
-                          {totalStaticRules} {totalStaticRules === 1 ? "rule" : "rules"}
+                          {t("page.ruleCount", { count: totalStaticRules })}
                         </span>
-                        <span className="text-xs text-muted-foreground">1:1 mapping</span>
+                        <span className="text-xs text-muted-foreground">{t("page.oneToOneMapping")}</span>
                       </div>
                     </div>
                   </div>
@@ -536,9 +540,9 @@ function NATPageInner() {
                         </div>
                         <div className="flex flex-col gap-1">
                           <span className="text-xs text-muted-foreground">
-                            {cgnatRules} {cgnatRules === 1 ? "rule" : "rules"}, {cgnatPools} {cgnatPools === 1 ? "pool" : "pools"}
+                            {t("page.cgnatCounts", { rules: cgnatRules, pools: cgnatPools })}
                           </span>
-                          <span className="text-xs text-muted-foreground">Carrier-grade NAT</span>
+                          <span className="text-xs text-muted-foreground">{t("page.carrierGradeNat")}</span>
                         </div>
                       </div>
                     </div>
@@ -557,10 +561,10 @@ function NATPageInner() {
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
                     <h1 className="text-2xl font-bold text-foreground">
-                      CGNAT Rules
+                      {t("cgnat.rulesTitle")}
                     </h1>
                     <p className="text-sm text-muted-foreground mt-2">
-                      Carrier-grade NAT for large-scale address translation
+                      {t("page.cgnatDescription")}
                     </p>
                   </div>
                   <Button
@@ -571,7 +575,7 @@ function NATPageInner() {
                     className="gap-2"
                   >
                     <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-                    Refresh
+                    {tc("refresh")}
                   </Button>
                 </div>
               </div>
@@ -591,14 +595,14 @@ function NATPageInner() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-foreground">
-                  {selectedType === "source" ? "Source NAT Rules" : selectedType === "destination" ? "Destination NAT Rules" : "Static NAT Rules"}
+                  {selectedType === "source" ? t("page.sourceTitle") : selectedType === "destination" ? t("page.destinationTitle") : t("page.staticTitle")}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-2">
                   {selectedType === "source"
-                    ? "Outbound traffic translation (SNAT, Masquerade)"
+                    ? t("page.sourceDescription")
                     : selectedType === "destination"
-                    ? "Inbound traffic translation (DNAT, Port Forwarding)"
-                    : "One-to-one IP address mapping"}
+                    ? t("page.destinationDescription")
+                    : t("page.staticDescription")}
                 </p>
               </div>
               <Button
@@ -611,7 +615,7 @@ function NATPageInner() {
                 disabled={!canWrite(FeatureGroup.NAT)}
               >
                 <Plus className="h-4 w-4" />
-                Add Rule
+                {t("page.addRule")}
               </Button>
             </div>
 
@@ -625,7 +629,7 @@ function NATPageInner() {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">{totalRules}</p>
-                      <p className="text-xs text-muted-foreground">Total Rules</p>
+                      <p className="text-xs text-muted-foreground">{t("page.totalRules")}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -639,7 +643,7 @@ function NATPageInner() {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">{totalSourceRules}</p>
-                      <p className="text-xs text-muted-foreground">Source NAT</p>
+                      <p className="text-xs text-muted-foreground">{t("types.source")}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -653,7 +657,7 @@ function NATPageInner() {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">{totalDestinationRules}</p>
-                      <p className="text-xs text-muted-foreground">Destination NAT</p>
+                      <p className="text-xs text-muted-foreground">{t("types.destination")}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -667,7 +671,7 @@ function NATPageInner() {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">{totalStaticRules}</p>
-                      <p className="text-xs text-muted-foreground">Static NAT</p>
+                      <p className="text-xs text-muted-foreground">{t("types.static")}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -681,7 +685,7 @@ function NATPageInner() {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">{masqueradeRules}</p>
-                      <p className="text-xs text-muted-foreground">Masquerade</p>
+                      <p className="text-xs text-muted-foreground">{t("page.masquerade")}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -692,7 +696,7 @@ function NATPageInner() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search rules..."
+                placeholder={t("page.searchPlaceholder")}
                 className="pl-9"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -703,18 +707,18 @@ function NATPageInner() {
           {/* Rules Table */}
           <div className="flex-1 overflow-auto">
             {loading ? (
-              <LoadingSpinner message="Loading NAT rules..." />
+              <LoadingSpinner message={t("page.loadingRules")} />
             ) : error ? (
               <div className="flex items-center justify-center h-full">
                 <Card className="border-destructive max-w-md">
                   <CardContent className="flex items-center gap-4 py-8">
                     <AlertCircle className="h-8 w-8 text-destructive" />
                     <div className="flex-1">
-                      <h3 className="font-semibold text-destructive">Error Loading Configuration</h3>
+                      <h3 className="font-semibold text-destructive">{t("page.errorLoadingConfig")}</h3>
                       <p className="text-sm text-muted-foreground mt-1">{error}</p>
                     </div>
                     <Button onClick={() => fetchConfig(true)} variant="outline">
-                      Try Again
+                      {t("page.tryAgain")}
                     </Button>
                   </CardContent>
                 </Card>
@@ -732,36 +736,36 @@ function NATPageInner() {
                       <TableHeader>
                         <TableRow className="hover:bg-transparent">
                           <TableHead className="w-[40px]"></TableHead>
-                          <TableHead className="w-[80px]">Rule #</TableHead>
+                          <TableHead className="w-[80px]">{t("table.ruleNumber")}</TableHead>
                           {selectedType === "source" ? (
                             <>
-                              <TableHead className="w-[100px]">Protocol</TableHead>
-                              <TableHead>Source</TableHead>
-                              <TableHead>Destination</TableHead>
-                              <TableHead>Translation</TableHead>
-                              <TableHead className="w-[150px]">Outbound Interface</TableHead>
-                              <TableHead className="w-[200px]">Description</TableHead>
-                              <TableHead className="w-[100px]">Status</TableHead>
+                              <TableHead className="w-[100px]">{t("fields.protocol")}</TableHead>
+                              <TableHead>{t("table.source")}</TableHead>
+                              <TableHead>{t("table.destination")}</TableHead>
+                              <TableHead>{t("table.translation")}</TableHead>
+                              <TableHead className="w-[150px]">{t("fields.outboundInterface")}</TableHead>
+                              <TableHead className="w-[200px]">{tc("description")}</TableHead>
+                              <TableHead className="w-[100px]">{tc("status")}</TableHead>
                             </>
                           ) : selectedType === "destination" ? (
                             <>
-                              <TableHead className="w-[100px]">Protocol</TableHead>
-                              <TableHead>Source</TableHead>
-                              <TableHead>Destination</TableHead>
-                              <TableHead>Translation</TableHead>
-                              <TableHead className="w-[150px]">Inbound Interface</TableHead>
-                              <TableHead className="w-[200px]">Description</TableHead>
-                              <TableHead className="w-[100px]">Status</TableHead>
+                              <TableHead className="w-[100px]">{t("fields.protocol")}</TableHead>
+                              <TableHead>{t("table.source")}</TableHead>
+                              <TableHead>{t("table.destination")}</TableHead>
+                              <TableHead>{t("table.translation")}</TableHead>
+                              <TableHead className="w-[150px]">{t("fields.inboundInterface")}</TableHead>
+                              <TableHead className="w-[200px]">{tc("description")}</TableHead>
+                              <TableHead className="w-[100px]">{tc("status")}</TableHead>
                             </>
                           ) : (
                             <>
-                              <TableHead>Destination</TableHead>
-                              <TableHead>Translation</TableHead>
-                              <TableHead className="w-[150px]">Inbound Interface</TableHead>
-                              <TableHead className="w-[250px]">Description</TableHead>
+                              <TableHead>{t("table.destination")}</TableHead>
+                              <TableHead>{t("table.translation")}</TableHead>
+                              <TableHead className="w-[150px]">{t("fields.inboundInterface")}</TableHead>
+                              <TableHead className="w-[250px]">{tc("description")}</TableHead>
                             </>
                           )}
-                          <TableHead className="w-[140px] text-right">Actions</TableHead>
+                          <TableHead className="w-[140px] text-right">{tc("actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -775,10 +779,10 @@ function NATPageInner() {
                                 <div className="flex flex-col items-center justify-center text-center">
                                   <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
                                   <p className="text-sm font-medium text-foreground">
-                                    {searchQuery ? "No matching rules" : `No ${selectedType} NAT rules`}
+                                    {searchQuery ? t("page.noMatchingRules") : t("page.noRules", { type: selectedType })}
                                   </p>
                                   <p className="text-xs text-muted-foreground mt-1">
-                                    {searchQuery ? "Try adjusting your search" : "Add a rule to get started"}
+                                    {searchQuery ? t("page.tryAdjustingSearch") : t("page.addRuleToStart")}
                                   </p>
                                 </div>
                               </TableCell>
@@ -837,17 +841,17 @@ function NATPageInner() {
                                         <>
                                           <TableCell>
                                             <span className="text-sm font-medium uppercase">
-                                              {sRule.protocol || "all"}
+                                              {sRule.protocol || t("values.all")}
                                             </span>
                                           </TableCell>
                                           <TableCell>
                                             <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">
-                                              {sRule.source?.address || "any"}
+                                              {sRule.source?.address || t("values.any")}
                                             </code>
                                           </TableCell>
                                           <TableCell>
                                             <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">
-                                              {sRule.destination?.address || "any"}
+                                              {sRule.destination?.address || t("values.any")}
                                             </code>
                                           </TableCell>
                                           <TableCell>
@@ -870,17 +874,17 @@ function NATPageInner() {
                                         <>
                                           <TableCell>
                                             <span className="text-sm font-medium uppercase">
-                                              {dRule.protocol || "all"}
+                                              {dRule.protocol || t("values.all")}
                                             </span>
                                           </TableCell>
                                           <TableCell>
                                             <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">
-                                              {dRule.source?.address || "any"}
+                                              {dRule.source?.address || t("values.any")}
                                             </code>
                                           </TableCell>
                                           <TableCell>
                                             <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">
-                                              {dRule.destination?.address || "any"}
+                                              {dRule.destination?.address || t("values.any")}
                                             </code>
                                           </TableCell>
                                           <TableCell>

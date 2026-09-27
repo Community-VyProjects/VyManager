@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -50,6 +51,8 @@ type RuleType = "source" | "destination";
 
 export default function NAT66Page() {
   const { canRead, canWrite, isLoading: permissionsLoading } = usePermissions();
+  const t = useTranslations("nat66");
+  const tc = useTranslations("common");
   const [selectedType, setSelectedType] = useState<RuleType>("source");
   const [config, setConfig] = useState<NAT66ConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<NAT66Capabilities | null>(null);
@@ -71,11 +74,11 @@ export default function NAT66Page() {
       const data = await nat66Service.getConfig(refresh);
       setConfig(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load NAT66 configuration");
+      setError(err instanceof Error ? err.message : t("page.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchConfig();
@@ -168,7 +171,7 @@ export default function NAT66Page() {
                 ))}
               </ul>
             ) : (
-              <p className="text-muted-foreground">No members found</p>
+              <p className="text-muted-foreground">{t("page.noMembers")}</p>
             )}
           </div>
         </TooltipContent>
@@ -193,9 +196,9 @@ export default function NAT66Page() {
         <div className="flex h-full items-center justify-center">
           <div className="text-center max-w-md">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+            <h2 className="text-xl font-semibold mb-2">{t("page.accessDenied")}</h2>
             <p className="text-muted-foreground">
-              You do not have permission to view NAT66 configurations. Please contact your administrator for access.
+              {t("page.accessDeniedMessage")}
             </p>
           </div>
         </div>
@@ -212,7 +215,7 @@ export default function NAT66Page() {
             <div className="flex-1">
               <h1 className="text-2xl font-bold text-foreground">NAT66</h1>
               <p className="text-sm text-muted-foreground mt-1">
-                IPv6-to-IPv6 Network Address Translation
+                {t("page.subtitle")}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -224,7 +227,7 @@ export default function NAT66Page() {
                 className="gap-2"
               >
                 <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-                Refresh
+                {tc("refresh")}
               </Button>
               {hasWriteAccess && (
                 <Button
@@ -236,7 +239,7 @@ export default function NAT66Page() {
                   }}
                 >
                   <Plus className="h-4 w-4" />
-                  Add Rule
+                  {t("page.addRule")}
                 </Button>
               )}
             </div>
@@ -254,7 +257,7 @@ export default function NAT66Page() {
               )}
             >
               <ArrowRightLeft className="h-4 w-4" />
-              Source
+              {t("page.tabSource")}
               <Badge
                 variant="outline"
                 className={cn(
@@ -277,7 +280,7 @@ export default function NAT66Page() {
               )}
             >
               <ArrowLeftRight className="h-4 w-4" />
-              Destination
+              {t("page.tabDestination")}
               <Badge
                 variant="outline"
                 className={cn(
@@ -296,7 +299,7 @@ export default function NAT66Page() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search rules..."
+              placeholder={t("page.searchPlaceholder")}
               className="pl-9"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -307,18 +310,18 @@ export default function NAT66Page() {
         {/* Table */}
         <div className="flex-1 overflow-auto">
           {loading ? (
-            <LoadingSpinner message="Loading NAT66 rules..." />
+            <LoadingSpinner message={t("page.loadingRules")} />
           ) : error ? (
             <div className="flex items-center justify-center h-full">
               <Card className="border-destructive max-w-md">
                 <CardContent className="flex items-center gap-4 py-8">
                   <AlertCircle className="h-8 w-8 text-destructive" />
                   <div className="flex-1">
-                    <h3 className="font-semibold text-destructive">Error Loading Configuration</h3>
+                    <h3 className="font-semibold text-destructive">{t("page.errorLoading")}</h3>
                     <p className="text-sm text-muted-foreground mt-1">{error}</p>
                   </div>
                   <Button onClick={() => fetchConfig(true)} variant="outline">
-                    Try Again
+                    {t("page.tryAgain")}
                   </Button>
                 </CardContent>
               </Card>
@@ -330,23 +333,23 @@ export default function NAT66Page() {
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
-                      <TableHead className="w-[80px]">Rule #</TableHead>
-                      <TableHead className="w-[200px]">Description</TableHead>
+                      <TableHead className="w-[80px]">{t("page.ruleNumber")}</TableHead>
+                      <TableHead className="w-[200px]">{tc("description")}</TableHead>
                       <TableHead>
-                        {selectedType === "source" ? "Source Prefix" : "Source Address"}
+                        {selectedType === "source" ? t("page.sourcePrefix") : t("page.sourceAddress")}
                       </TableHead>
-                      <TableHead className="w-[90px]">Src Port</TableHead>
+                      <TableHead className="w-[90px]">{t("page.srcPort")}</TableHead>
                       <TableHead>
-                        {selectedType === "source" ? "Dest Prefix" : "Dest Address"}
+                        {selectedType === "source" ? t("page.destPrefix") : t("page.destAddress")}
                       </TableHead>
-                      <TableHead className="w-[90px]">Dest Port</TableHead>
-                      <TableHead>Translation</TableHead>
+                      <TableHead className="w-[90px]">{t("page.destPort")}</TableHead>
+                      <TableHead>{t("page.translation")}</TableHead>
                       <TableHead className="w-[140px]">
-                        {selectedType === "source" ? "Outbound Iface" : "Inbound Iface"}
+                        {selectedType === "source" ? t("page.outboundIface") : t("page.inboundIface")}
                       </TableHead>
-                      <TableHead className="w-[90px]">Protocol</TableHead>
-                      <TableHead className="w-[140px]">Status</TableHead>
-                      <TableHead className="w-[100px] text-right">Actions</TableHead>
+                      <TableHead className="w-[90px]">{t("page.protocol")}</TableHead>
+                      <TableHead className="w-[140px]">{tc("status")}</TableHead>
+                      <TableHead className="w-[100px] text-right">{tc("actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -357,13 +360,13 @@ export default function NAT66Page() {
                             <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
                             <p className="text-sm font-medium text-foreground">
                               {searchQuery
-                                ? "No matching rules"
-                                : `No ${selectedType} NAT66 rules`}
+                                ? t("page.noMatchingRules")
+                                : t("page.noRules", { type: selectedType })}
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
                               {searchQuery
-                                ? "Try adjusting your search"
-                                : "Add a rule to get started"}
+                                ? t("page.tryAdjustingSearch")
+                                : t("page.addRuleToStart")}
                             </p>
                           </div>
                         </TableCell>
@@ -380,13 +383,13 @@ export default function NAT66Page() {
 
                         if (selectedType === "source") {
                           const r = rule as NAT66SourceRule;
-                          sourceDisplay = r.source?.prefix || "any";
-                          destDisplay = r.destination?.prefix || "any";
+                          sourceDisplay = r.source?.prefix || t("page.any");
+                          destDisplay = r.destination?.prefix || t("page.any");
                           ifaceDisplay = r.outbound_interface || "-";
                         } else {
                           const r = rule as NAT66DestinationRule;
-                          sourceDisplay = r.source?.address || "any";
-                          destDisplay = r.destination?.address || "any";
+                          sourceDisplay = r.source?.address || t("page.any");
+                          destDisplay = r.destination?.address || t("page.any");
                           ifaceDisplay = r.inbound_interface || "-";
                         }
 
@@ -419,16 +422,16 @@ export default function NAT66Page() {
                               {groupsSupported && rule.destination?.group && (
                                 <div className="flex flex-wrap gap-1 mt-1">
                                   {rule.destination.group.network_group && (
-                                    <GroupBadgeWithTooltip label="net" groupName={rule.destination.group.network_group} groupType="net" />
+                                    <GroupBadgeWithTooltip label={t("page.groupLabels.net")} groupName={rule.destination.group.network_group} groupType="net" />
                                   )}
                                   {rule.destination.group.address_group && (
-                                    <GroupBadgeWithTooltip label="addr" groupName={rule.destination.group.address_group} groupType="addr" />
+                                    <GroupBadgeWithTooltip label={t("page.groupLabels.addr")} groupName={rule.destination.group.address_group} groupType="addr" />
                                   )}
                                   {rule.destination.group.mac_group && (
-                                    <GroupBadgeWithTooltip label="mac" groupName={rule.destination.group.mac_group} groupType="mac" />
+                                    <GroupBadgeWithTooltip label={t("page.groupLabels.mac")} groupName={rule.destination.group.mac_group} groupType="mac" />
                                   )}
                                   {rule.destination.group.domain_group && (
-                                    <GroupBadgeWithTooltip label="domain" groupName={rule.destination.group.domain_group} groupType="domain" />
+                                    <GroupBadgeWithTooltip label={t("page.groupLabels.domain")} groupName={rule.destination.group.domain_group} groupType="domain" />
                                   )}
                                 </div>
                               )}
@@ -439,7 +442,7 @@ export default function NAT66Page() {
                                   {rule.destination.port}
                                 </code>
                               ) : rule.destination?.group?.port_group ? (
-                                <GroupBadgeWithTooltip label="port" groupName={rule.destination.group.port_group} groupType="port" />
+                                <GroupBadgeWithTooltip label={t("page.groupLabels.port")}groupName={rule.destination.group.port_group} groupType="port" />
                               ) : (
                                 <span className="text-xs text-muted-foreground">-</span>
                               )}
@@ -472,7 +475,7 @@ export default function NAT66Page() {
                             </TableCell>
                             <TableCell>
                               <span className="text-sm font-medium uppercase">
-                                {rule.protocol || "all"}
+                                {rule.protocol || t("page.protocolAll")}
                               </span>
                             </TableCell>
                             <TableCell>
@@ -482,14 +485,14 @@ export default function NAT66Page() {
                                     variant="outline"
                                     className="bg-gray-500/10 text-gray-500 border-gray-500/20"
                                   >
-                                    Disabled
+                                    {tc("disabled")}
                                   </Badge>
                                 ) : (
                                   <Badge
                                     variant="outline"
                                     className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20"
                                   >
-                                    Enabled
+                                    {tc("enabled")}
                                   </Badge>
                                 )}
                                 {rule.exclude && (
@@ -497,7 +500,7 @@ export default function NAT66Page() {
                                     variant="outline"
                                     className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20"
                                   >
-                                    Exclude
+                                    {t("page.exclude")}
                                   </Badge>
                                 )}
                                 {rule.log && (
@@ -505,7 +508,7 @@ export default function NAT66Page() {
                                     variant="outline"
                                     className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
                                   >
-                                    Log
+                                    {t("page.log")}
                                   </Badge>
                                 )}
                               </div>

@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { natService } from "@/lib/api/nat";
 import { firewallGroupsService } from "@/lib/api/firewall-groups";
 import type { FirewallGroup } from "@/lib/api/types/firewall-groups";
@@ -25,6 +26,8 @@ interface DestinationNATModalProps {
 }
 
 export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }: DestinationNATModalProps) {
+  const t = useTranslations("nat");
+  const tc = useTranslations("common");
   const isEdit = !!existing;
 
   const [loading, setLoading] = useState(false);
@@ -471,7 +474,7 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
       handleClose();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create destination NAT rule");
+      setError(err instanceof Error ? err.message : t("destModal.createFailed"));
     } finally {
       setLoading(false);
     }
@@ -689,7 +692,7 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
       handleClose();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update destination NAT rule");
+      setError(err instanceof Error ? err.message : t("destModal.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -706,9 +709,9 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? `Edit Destination NAT Rule ${existing?.rule_number}` : "Create Destination NAT Rule"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("destModal.editTitle", { number: String(existing?.rule_number) }) : t("destModal.createTitle")}</DialogTitle>
           <DialogDescription>
-            {isEdit ? "Modify the destination NAT rule configuration." : "Create a new destination NAT rule for inbound traffic translation."}
+            {isEdit ? t("destModal.editDescription") : t("destModal.createDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -725,7 +728,7 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
 
           <div className="flex items-center gap-2 bg-muted/30 border border-muted rounded-md px-3 py-2">
             <span className="text-xs text-muted-foreground">
-              {isEdit ? "Rule number:" : "Rule number (auto-assigned):"}
+              {isEdit ? t("form.ruleNumber") : t("form.ruleNumberAuto")}
             </span>
             <span className="font-mono font-semibold text-sm text-primary">
               {isEdit ? existing?.rule_number : ruleNumber}
@@ -734,57 +737,57 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{tc("description")}</Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description for this rule"
+              placeholder={t("form.descriptionPlaceholder")}
               rows={2}
             />
           </div>
 
           <Tabs defaultValue="basic" className="w-full">
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="basic">Basic</TabsTrigger>
-              <TabsTrigger value="source">Source</TabsTrigger>
-              <TabsTrigger value="destination">Destination</TabsTrigger>
-              <TabsTrigger value="advanced">Advanced</TabsTrigger>
+              <TabsTrigger value="basic">{t("form.tabBasic")}</TabsTrigger>
+              <TabsTrigger value="source">{t("form.tabSource")}</TabsTrigger>
+              <TabsTrigger value="destination">{t("form.tabDestination")}</TabsTrigger>
+              <TabsTrigger value="advanced">{t("form.tabAdvanced")}</TabsTrigger>
             </TabsList>
 
             {/* Basic Tab */}
             <TabsContent value="basic" className="space-y-4">
               {/* Inbound Interface */}
               <div className="space-y-2">
-                <Label>Inbound Interface Type</Label>
+                <Label>{t("destModal.inboundInterfaceType")}</Label>
                 <RadioGroup value={inboundInterfaceType} onValueChange={(v) => setInboundInterfaceType(v as "name" | "group")}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="name" id="inbound-name" />
-                    <Label htmlFor="inbound-name">Interface Name</Label>
+                    <Label htmlFor="inbound-name">{t("form.interfaceName")}</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="group" id="inbound-group" />
-                    <Label htmlFor="inbound-group">Interface Group</Label>
+                    <Label htmlFor="inbound-group">{t("form.interfaceGroup")}</Label>
                   </div>
                 </RadioGroup>
               </div>
 
               {inboundInterfaceType === "name" ? (
                 <div className="space-y-2">
-                  <Label htmlFor="inbound-interface-name">Inbound Interface Name</Label>
+                  <Label htmlFor="inbound-interface-name">{t("destModal.inboundInterfaceName")}</Label>
                   <InterfaceSelect
                     value={inboundInterfaceName}
                     onValueChange={setInboundInterfaceName}
                     id="inbound-interface-name"
-                    placeholder="Select interface"
+                    placeholder={t("form.selectInterface")}
                   />
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <Label htmlFor="inbound-interface-group">Inbound Interface Group</Label>
+                  <Label htmlFor="inbound-interface-group">{t("destModal.inboundInterfaceGroup")}</Label>
                   <Select value={inboundInterfaceGroup} onValueChange={setInboundInterfaceGroup}>
                     <SelectTrigger id="inbound-interface-group">
-                      <SelectValue placeholder="Select interface group" />
+                      <SelectValue placeholder={t("form.selectInterfaceGroup")} />
                     </SelectTrigger>
                     <SelectContent>
                       {getInterfaceGroups().map((group) => (
@@ -804,29 +807,29 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
                   onCheckedChange={(checked) => setInboundInterfaceInvert(checked === true)}
                 />
                 <Label htmlFor="inbound-invert" className="text-sm font-normal">
-                  Invert match (all except this interface)
+                  {t("form.invertMatchInterface")}
                 </Label>
               </div>
 
               {/* Translation */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="translation-address">Translation Address</Label>
+                  <Label htmlFor="translation-address">{t("fields.translationAddress")}</Label>
                   <Input
                     id="translation-address"
                     value={translationAddress}
                     onChange={(e) => setTranslationAddress(e.target.value)}
-                    placeholder="e.g., 192.168.1.10"
+                    placeholder={t("form.example", { value: "192.168.1.10" })}
                     className="font-mono"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="translation-port">Translation Port</Label>
+                  <Label htmlFor="translation-port">{t("fields.translationPort")}</Label>
                   <Input
                     id="translation-port"
                     value={translationPort}
                     onChange={(e) => setTranslationPort(e.target.value)}
-                    placeholder="e.g., 8080"
+                    placeholder={t("form.example", { value: "8080" })}
                     className="font-mono"
                   />
                 </div>
@@ -843,10 +846,10 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
                   />
                   <div className="space-y-1">
                     <Label htmlFor="translation-port-mapping" className="text-sm font-medium cursor-pointer">
-                      Randomize source port (port-mapping random)
+                      {t("form.randomizePort")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Randomizes the outbound source port for privacy and security
+                      {t("form.randomizePortHelp")}
                     </p>
                   </div>
                 </div>
@@ -859,10 +862,10 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
                   />
                   <div className="space-y-1">
                     <Label htmlFor="translation-address-mapping" className="text-sm font-medium cursor-pointer">
-                      Persistent address mapping
+                      {t("form.persistentMapping")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      The same internal IP always maps to the same external IP
+                      {t("form.persistentMappingHelp")}
                     </p>
                   </div>
                 </div>
@@ -870,7 +873,7 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
 
               {/* Protocol */}
               <div className="space-y-2">
-                <Label htmlFor="protocol">Protocol</Label>
+                <Label htmlFor="protocol">{t("fields.protocol")}</Label>
                 <Select value={protocol} onValueChange={setProtocol}>
                   <SelectTrigger id="protocol">
                     <SelectValue />
@@ -880,15 +883,15 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
                     <SelectContent>
                       <SelectItem value="tcp">TCP</SelectItem>
                       <SelectItem value="udp">UDP</SelectItem>
-                      <SelectItem value="tcp_udp">TCP & UDP</SelectItem>
+                      <SelectItem value="tcp_udp">{t("form.tcpUdp")}</SelectItem>
                     </SelectContent>
                   ) : (
                     // When no ports, allow all protocols
                     <SelectContent>
-                      <SelectItem value="all">All (default)</SelectItem>
+                      <SelectItem value="all">{t("form.protocolAll")}</SelectItem>
                       <SelectItem value="tcp">TCP</SelectItem>
                       <SelectItem value="udp">UDP</SelectItem>
-                      <SelectItem value="tcp_udp">TCP & UDP</SelectItem>
+                      <SelectItem value="tcp_udp">{t("form.tcpUdp")}</SelectItem>
                       <SelectItem value="icmp">ICMP</SelectItem>
                       <SelectItem value="ip">IP</SelectItem>
                       <SelectItem value="ipv6">IPv6</SelectItem>
@@ -947,7 +950,7 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
                 </Select>
                 {(sourcePort.trim() || destinationPort.trim() || translationPort.trim() || sourcePortGroupName || destPortGroupName) && (
                   <p className="text-xs text-muted-foreground">
-                    Only TCP/UDP protocols are available when using ports
+                    {t("form.portsProtocolHint")}
                   </p>
                 )}
               </div>
@@ -956,15 +959,15 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
             {/* Source Tab */}
             <TabsContent value="source" className="space-y-4">
               <div className="space-y-2">
-                <Label>Source Type</Label>
+                <Label>{t("form.sourceType")}</Label>
                 <RadioGroup value={sourceType} onValueChange={(v) => setSourceType(v as "address" | "group" | "fqdn")}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="address" id="source-address" />
-                    <Label htmlFor="source-address">Address/Network</Label>
+                    <Label htmlFor="source-address">{t("form.addressNetwork")}</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="group" id="source-group" />
-                    <Label htmlFor="source-group">Firewall Group</Label>
+                    <Label htmlFor="source-group">{t("form.firewallGroup")}</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="fqdn" id="source-fqdn" />
@@ -975,47 +978,47 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
 
               {sourceType === "address" ? (
                 <div className="space-y-2">
-                  <Label htmlFor="source-address-input">Source Address</Label>
+                  <Label htmlFor="source-address-input">{t("fields.sourceAddress")}</Label>
                   <Input
                     id="source-address-input"
                     value={sourceAddress}
                     onChange={(e) => setSourceAddress(e.target.value)}
-                    placeholder="e.g., 192.168.1.0/24 or 10.0.0.1"
+                    placeholder={t("form.exampleOr", { first: "192.168.1.0/24", second: "10.0.0.1" })}
                     className="font-mono"
                   />
                 </div>
               ) : sourceType === "fqdn" ? (
                 <div className="space-y-2">
-                  <Label htmlFor="source-fqdn-input">Source FQDN</Label>
+                  <Label htmlFor="source-fqdn-input">{t("form.sourceFqdn")}</Label>
                   <Input
                     id="source-fqdn-input"
                     value={sourceFqdn}
                     onChange={(e) => setSourceFqdn(e.target.value)}
-                    placeholder="e.g., example.com"
+                    placeholder={t("form.example", { value: "example.com" })}
                     className="font-mono"
                   />
                 </div>
               ) : (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="source-group-type">Source Group Type</Label>
+                    <Label htmlFor="source-group-type">{t("form.sourceGroupType")}</Label>
                     <Select value={sourceGroupType} onValueChange={setSourceGroupType}>
                       <SelectTrigger id="source-group-type">
-                        <SelectValue placeholder="Select group type" />
+                        <SelectValue placeholder={t("form.selectGroupType")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="address-group">Address Group</SelectItem>
-                        <SelectItem value="network-group">Network Group</SelectItem>
-                        <SelectItem value="domain-group">Domain Group</SelectItem>
-                        <SelectItem value="mac-group">MAC Group</SelectItem>
+                        <SelectItem value="address-group">{t("form.addressGroup")}</SelectItem>
+                        <SelectItem value="network-group">{t("form.networkGroup")}</SelectItem>
+                        <SelectItem value="domain-group">{t("form.domainGroup")}</SelectItem>
+                        <SelectItem value="mac-group">{t("form.macGroup")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="source-group-name">Source Group Name</Label>
+                    <Label htmlFor="source-group-name">{t("form.sourceGroupName")}</Label>
                     <Select value={sourceGroupName} onValueChange={setSourceGroupName}>
                       <SelectTrigger id="source-group-name">
-                        <SelectValue placeholder="Select group" />
+                        <SelectValue placeholder={t("form.selectGroup")} />
                       </SelectTrigger>
                       <SelectContent>
                         {sourceGroupType === "address-group" && getAddressGroups().map((group) => (
@@ -1043,12 +1046,12 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
                   onCheckedChange={(checked) => setSourceInvert(checked === true)}
                 />
                 <Label htmlFor="source-invert" className="text-sm font-normal">
-                  Invert match
+                  {t("form.invertMatch")}
                 </Label>
               </div>
 
               <div className="space-y-3">
-                <Label className="text-base font-medium">Source Port</Label>
+                <Label className="text-base font-medium">{t("fields.sourcePort")}</Label>
                 <RadioGroup value={sourcePortType} onValueChange={(v) => {
                   setSourcePortType(v as "input" | "group");
                   if (v === "input") setSourcePortGroupName("");
@@ -1056,11 +1059,11 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
                 }}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="input" id="source-port-input-radio" />
-                    <Label htmlFor="source-port-input-radio">Port</Label>
+                    <Label htmlFor="source-port-input-radio">{t("form.port")}</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="group" id="source-port-group-radio" />
-                    <Label htmlFor="source-port-group-radio">Port Group</Label>
+                    <Label htmlFor="source-port-group-radio">{t("form.portGroup")}</Label>
                   </div>
                 </RadioGroup>
 
@@ -1069,13 +1072,13 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
                     id="source-port"
                     value={sourcePort}
                     onChange={(e) => setSourcePort(e.target.value)}
-                    placeholder="e.g., 80, 443, 1024-65535"
+                    placeholder={t("form.example", { value: "80, 443, 1024-65535" })}
                     className="font-mono"
                   />
                 ) : (
                   <Select value={sourcePortGroupName} onValueChange={setSourcePortGroupName}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select port group" />
+                      <SelectValue placeholder={t("form.selectPortGroup")} />
                     </SelectTrigger>
                     <SelectContent>
                       {getPortGroups().map((g) => (
@@ -1090,15 +1093,15 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
             {/* Destination Tab */}
             <TabsContent value="destination" className="space-y-4">
               <div className="space-y-2">
-                <Label>Destination Type</Label>
+                <Label>{t("form.destinationType")}</Label>
                 <RadioGroup value={destinationType} onValueChange={(v) => setDestinationType(v as "address" | "group" | "fqdn")}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="address" id="dest-address" />
-                    <Label htmlFor="dest-address">Address/Network</Label>
+                    <Label htmlFor="dest-address">{t("form.addressNetwork")}</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="group" id="dest-group" />
-                    <Label htmlFor="dest-group">Firewall Group</Label>
+                    <Label htmlFor="dest-group">{t("form.firewallGroup")}</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="fqdn" id="dest-fqdn" />
@@ -1109,47 +1112,47 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
 
               {destinationType === "address" ? (
                 <div className="space-y-2">
-                  <Label htmlFor="destination-address-input">Destination Address</Label>
+                  <Label htmlFor="destination-address-input">{t("fields.destinationAddress")}</Label>
                   <Input
                     id="destination-address-input"
                     value={destinationAddress}
                     onChange={(e) => setDestinationAddress(e.target.value)}
-                    placeholder="e.g., 203.0.113.10"
+                    placeholder={t("form.example", { value: "203.0.113.10" })}
                     className="font-mono"
                   />
                 </div>
               ) : destinationType === "fqdn" ? (
                 <div className="space-y-2">
-                  <Label htmlFor="destination-fqdn-input">Destination FQDN</Label>
+                  <Label htmlFor="destination-fqdn-input">{t("form.destinationFqdn")}</Label>
                   <Input
                     id="destination-fqdn-input"
                     value={destinationFqdn}
                     onChange={(e) => setDestinationFqdn(e.target.value)}
-                    placeholder="e.g., example.com"
+                    placeholder={t("form.example", { value: "example.com" })}
                     className="font-mono"
                   />
                 </div>
               ) : (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="destination-group-type">Destination Group Type</Label>
+                    <Label htmlFor="destination-group-type">{t("form.destinationGroupType")}</Label>
                     <Select value={destinationGroupType} onValueChange={setDestinationGroupType}>
                       <SelectTrigger id="destination-group-type">
-                        <SelectValue placeholder="Select group type" />
+                        <SelectValue placeholder={t("form.selectGroupType")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="address-group">Address Group</SelectItem>
-                        <SelectItem value="network-group">Network Group</SelectItem>
-                        <SelectItem value="domain-group">Domain Group</SelectItem>
-                        <SelectItem value="mac-group">MAC Group</SelectItem>
+                        <SelectItem value="address-group">{t("form.addressGroup")}</SelectItem>
+                        <SelectItem value="network-group">{t("form.networkGroup")}</SelectItem>
+                        <SelectItem value="domain-group">{t("form.domainGroup")}</SelectItem>
+                        <SelectItem value="mac-group">{t("form.macGroup")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="destination-group-name">Destination Group Name</Label>
+                    <Label htmlFor="destination-group-name">{t("form.destinationGroupName")}</Label>
                     <Select value={destinationGroupName} onValueChange={setDestinationGroupName}>
                       <SelectTrigger id="destination-group-name">
-                        <SelectValue placeholder="Select group" />
+                        <SelectValue placeholder={t("form.selectGroup")} />
                       </SelectTrigger>
                       <SelectContent>
                         {destinationGroupType === "address-group" && getAddressGroups().map((group) => (
@@ -1177,12 +1180,12 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
                   onCheckedChange={(checked) => setDestinationInvert(checked === true)}
                 />
                 <Label htmlFor="destination-invert" className="text-sm font-normal">
-                  Invert match
+                  {t("form.invertMatch")}
                 </Label>
               </div>
 
               <div className="space-y-3">
-                <Label className="text-base font-medium">Destination Port</Label>
+                <Label className="text-base font-medium">{t("fields.destinationPort")}</Label>
                 <RadioGroup value={destPortType} onValueChange={(v) => {
                   setDestPortType(v as "input" | "group");
                   if (v === "input") setDestPortGroupName("");
@@ -1190,11 +1193,11 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
                 }}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="input" id="dest-port-input-radio" />
-                    <Label htmlFor="dest-port-input-radio">Port</Label>
+                    <Label htmlFor="dest-port-input-radio">{t("form.port")}</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="group" id="dest-port-group-radio" />
-                    <Label htmlFor="dest-port-group-radio">Port Group</Label>
+                    <Label htmlFor="dest-port-group-radio">{t("form.portGroup")}</Label>
                   </div>
                 </RadioGroup>
 
@@ -1203,13 +1206,13 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
                     id="destination-port"
                     value={destinationPort}
                     onChange={(e) => setDestinationPort(e.target.value)}
-                    placeholder="e.g., 80, 443, 8080"
+                    placeholder={t("form.example", { value: "80, 443, 8080" })}
                     className="font-mono"
                   />
                 ) : (
                   <Select value={destPortGroupName} onValueChange={setDestPortGroupName}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select port group" />
+                      <SelectValue placeholder={t("form.selectPortGroup")} />
                     </SelectTrigger>
                     <SelectContent>
                       {getPortGroups().map((g) => (
@@ -1225,16 +1228,16 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
             <TabsContent value="advanced" className="space-y-4">
               {/* Packet Type */}
               <div className="space-y-2">
-                <Label htmlFor="packet-type">Packet Type</Label>
+                <Label htmlFor="packet-type">{t("form.packetType")}</Label>
                 <Select value={packetType} onValueChange={setPacketType}>
                   <SelectTrigger id="packet-type">
-                    <SelectValue placeholder="Select packet type (optional)" />
+                    <SelectValue placeholder={t("form.selectPacketType")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="broadcast">Broadcast</SelectItem>
-                    <SelectItem value="host">Host</SelectItem>
-                    <SelectItem value="multicast">Multicast</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    <SelectItem value="broadcast">{t("form.packetBroadcast")}</SelectItem>
+                    <SelectItem value="host">{t("form.packetHost")}</SelectItem>
+                    <SelectItem value="multicast">{t("form.packetMulticast")}</SelectItem>
+                    <SelectItem value="other">{t("form.packetOther")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1251,10 +1254,10 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
                     />
                     <div className="space-y-1">
                       <Label htmlFor="enable-load-balancing" className="text-sm font-medium cursor-pointer">
-                        Enable Load Balancing
+                        {t("form.enableLoadBalancing")}
                       </Label>
                       <p className="text-xs text-muted-foreground">
-                        Distribute connections across multiple backend servers using a hash algorithm
+                        {t("form.loadBalancingHelp")}
                       </p>
                     </div>
                   </div>
@@ -1264,50 +1267,50 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
                   <div className="space-y-4 pl-6 border-l-2 border-muted">
                     <div className="space-y-2">
                       <Label htmlFor="load-balance-hash">
-                        Hash Method <span className="text-destructive">*</span>
+                        {t("form.hashMethod")} <span className="text-destructive">*</span>
                       </Label>
                       <Select value={loadBalanceHash} onValueChange={setLoadBalanceHash}>
                         <SelectTrigger id="load-balance-hash">
-                          <SelectValue placeholder="Select hash algorithm" />
+                          <SelectValue placeholder={t("form.selectHashAlgorithm")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="source-address">Source Address</SelectItem>
-                          <SelectItem value="destination-address">Destination Address</SelectItem>
-                          <SelectItem value="source-port">Source Port</SelectItem>
-                          <SelectItem value="destination-port">Destination Port</SelectItem>
-                          <SelectItem value="random">Random</SelectItem>
+                          <SelectItem value="source-address">{t("fields.sourceAddress")}</SelectItem>
+                          <SelectItem value="destination-address">{t("fields.destinationAddress")}</SelectItem>
+                          <SelectItem value="source-port">{t("fields.sourcePort")}</SelectItem>
+                          <SelectItem value="destination-port">{t("fields.destinationPort")}</SelectItem>
+                          <SelectItem value="random">{t("form.hashRandom")}</SelectItem>
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">
-                        Algorithm used to distribute traffic across backend servers
+                        {t("form.hashMethodHelp")}
                       </p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="load-balance-backend">
-                        Backend Server IP <span className="text-destructive">*</span>
+                        {t("form.backendServerIp")} <span className="text-destructive">*</span>
                       </Label>
                       <Input
                         id="load-balance-backend"
                         value={loadBalanceBackend}
                         onChange={(e) => setLoadBalanceBackend(e.target.value)}
-                        placeholder="e.g., 192.168.1.20"
+                        placeholder={t("form.example", { value: "192.168.1.20" })}
                         className="font-mono"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Internal IP address of the backend server to receive translated traffic
+                        {t("form.backendServerIpHelp")}
                       </p>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="load-balance-weight">Backend Weight (optional)</Label>
+                      <Label htmlFor="load-balance-weight">{t("form.backendWeightOptional")}</Label>
                       <Input
                         id="load-balance-weight"
                         value={loadBalanceBackendWeight}
                         onChange={(e) => setLoadBalanceBackendWeight(e.target.value)}
-                        placeholder="e.g., 10 (relative weight)"
+                        placeholder={t("form.backendWeightPlaceholder")}
                         className="font-mono"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Relative weight for this backend in load balancing
+                        {t("form.backendWeightHelp")}
                       </p>
                     </div>
                   </div>
@@ -1316,7 +1319,7 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
 
               {/* Flags */}
               <div className="space-y-4">
-                <h4 className="font-medium">Rule Flags</h4>
+                <h4 className="font-medium">{t("form.ruleFlags")}</h4>
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
                     <Checkbox
@@ -1325,7 +1328,7 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
                       onCheckedChange={(checked) => setDisable(checked === true)}
                     />
                     <Label htmlFor="disable" className="text-sm font-normal">
-                      Disable this rule
+                      {t("form.disableRule")}
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -1335,7 +1338,7 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
                       onCheckedChange={(checked) => setExclude(checked === true)}
                     />
                     <Label htmlFor="exclude" className="text-sm font-normal">
-                      Exclude from NAT
+                      {t("form.excludeFromNat")}
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -1345,7 +1348,7 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
                       onCheckedChange={(checked) => setLog(checked === true)}
                     />
                     <Label htmlFor="log" className="text-sm font-normal">
-                      Enable logging
+                      {t("form.enableLogging")}
                     </Label>
                   </div>
                 </div>
@@ -1356,10 +1359,10 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? (isEdit ? "Updating..." : "Creating...") : isEdit ? "Update Rule" : "Create Rule"}
+            {loading ? (isEdit ? t("form.updating") : t("form.creating")) : isEdit ? t("form.updateRule") : t("form.createRule")}
           </Button>
         </DialogFooter>
       </DialogContent>

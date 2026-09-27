@@ -1,1 +1,64 @@
-{}
+{
+  "page": {
+    "loadFailed": "Failed to load NAT64 configuration",
+    "accessDenied": "Access Denied",
+    "accessDeniedMessage": "You do not have permission to view NAT64 configurations. Please contact your administrator for access.",
+    "ruleCount": "{count, plural, one {# rule} other {# rules}}",
+    "addRule": "Add Rule",
+    "failedToLoad": "Failed to load",
+    "noRulesSidebar": "No NAT64 rules configured. Add a rule to get started.",
+    "ruleTitle": "Rule {number}",
+    "disabledBadge": "disabled",
+    "enabledBadge": "enabled",
+    "poolCount": "{count, plural, one {# pool} other {# pools}}",
+    "toggleFailed": "Toggle failed",
+    "enable": "Enable",
+    "disable": "Disable",
+    "sourcePrefix": "Source Prefix",
+    "notSet": "not set",
+    "matchMark": "Match Mark",
+    "none": "none",
+    "translationPools": "Translation Pools",
+    "addPool": "Add Pool",
+    "poolNumber": "Pool #",
+    "address": "Address",
+    "port": "Port",
+    "protocol": "Protocol",
+    "protocolAll": "all",
+    "noPools": "No translation pools configured",
+    "emptyTitle": "NAT64 Translation",
+    "emptyNoRules": "No rules configured. Add a NAT64 source rule to translate IPv6 traffic to IPv4 destinations.",
+    "emptySelect": "Select a rule from the sidebar to view its details and translation pools."
+  },
+  "ruleDialog": {
+    "editTitle": "Edit Rule {number}",
+    "createTitle": "Create NAT64 Rule",
+    "description": "Configure an IPv6-to-IPv4 source NAT64 translation rule.",
+    "ruleNumber": "Rule Number",
+    "autoAssigned": "(auto-assigned)",
+    "descriptionPlaceholder": "IPv6 to IPv4 translation",
+    "sourcePrefix": "Source Prefix",
+    "matchMark": "Match Mark",
+    "matchMarkPlaceholder": "Optional firewall mark",
+    "disableRule": "Disable rule"
+  },
+  "poolDialog": {
+    "editTitle": "Edit Pool {pool} (Rule {rule})",
+    "addTitle": "Add Pool to Rule {rule}",
+    "description": "Configure an IPv4 translation pool for NAT64 address mapping.",
+    "poolNumber": "Pool Number",
+    "autoAssigned": "(auto-assigned)",
+    "address": "Address",
+    "descriptionPlaceholder": "Translation pool description",
+    "port": "Port",
+    "protocol": "Protocol",
+    "disablePool": "Disable pool"
+  },
+  "deleteDialog": {
+    "deleteFailed": "Delete failed",
+    "ruleTitle": "Delete Rule {number}",
+    "poolTitle": "Delete Pool {number}",
+    "ruleMessage": "This will permanently delete Rule {rule}{pools, plural, =0 {} one { and its # translation pool} other { and its # translation pools}}. Remaining rules will be renumbered starting from 100.",
+    "poolMessage": "This will permanently delete Pool {pool} from Rule {rule}. This action cannot be undone."
+  }
+}
