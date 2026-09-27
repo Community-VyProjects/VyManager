@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
 export function DNSForwardingContent() {
+  const t = useTranslations("dnsForwarding");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWritePermission = canWrite(FeatureGroup.DNS_FORWARDING);
 
@@ -91,11 +94,11 @@ export function DNSForwardingContent() {
       setConfig(configData);
       setCaps(capsData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load DNS forwarding configuration");
+      setError(err instanceof Error ? err.message : t("content.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -108,7 +111,7 @@ export function DNSForwardingContent() {
       await fn();
       await loadData(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setActionLoading(false);
     }
@@ -126,7 +129,7 @@ export function DNSForwardingContent() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => loadData()}>Retry</Button>
+        <Button variant="outline" onClick={() => loadData()}>{tc("retry")}</Button>
       </div>
     );
   }
@@ -146,14 +149,14 @@ export function DNSForwardingContent() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold text-foreground">DNS Forwarding</h1>
-                  {!hasWritePermission && <Badge variant="secondary">Read Only</Badge>}
+                  <h1 className="text-2xl font-bold text-foreground">{t("content.title")}</h1>
+                  {!hasWritePermission && <Badge variant="secondary">{t("content.readOnly")}</Badge>}
                   <Badge variant={isConfigured ? "default" : "secondary"} className={isConfigured ? "bg-green-500/10 text-green-600 border-green-500/20" : ""}>
-                    {isConfigured ? "Configured" : "Unconfigured"}
+                    {isConfigured ? t("content.configured") : t("content.unconfigured")}
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  PowerDNS Recursor — forwarding, local zones, and zone cache
+                  {t("content.subtitle")}
                 </p>
               </div>
             </div>
@@ -161,12 +164,12 @@ export function DNSForwardingContent() {
               {hasWritePermission && (
                 <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
                   <Settings2 className="h-4 w-4 mr-2" />
-                  Edit Settings
+                  {t("content.editSettings")}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={() => loadData(true)}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -187,7 +190,7 @@ export function DNSForwardingContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{config?.listen_addresses.length ?? 0}</p>
-                    <p className="text-xs text-muted-foreground">Listen Addresses</p>
+                    <p className="text-xs text-muted-foreground">{t("content.listenAddresses")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -200,7 +203,7 @@ export function DNSForwardingContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{config?.name_servers.length ?? 0}</p>
-                    <p className="text-xs text-muted-foreground">Name Servers</p>
+                    <p className="text-xs text-muted-foreground">{t("content.nameServers")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -213,7 +216,7 @@ export function DNSForwardingContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{config?.domain_forwarders.length ?? 0}</p>
-                    <p className="text-xs text-muted-foreground">Domain Forwarders</p>
+                    <p className="text-xs text-muted-foreground">{t("content.domainForwarders")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -226,7 +229,7 @@ export function DNSForwardingContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{config?.cache_size ?? "—"}</p>
-                    <p className="text-xs text-muted-foreground">Cache Size</p>
+                    <p className="text-xs text-muted-foreground">{t("content.cacheSize")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -238,12 +241,12 @@ export function DNSForwardingContent() {
         <div className="flex-1 p-6 pt-4 overflow-auto">
           <Tabs defaultValue="forwarding">
             <TabsList>
-              <TabsTrigger value="forwarding">Forwarding</TabsTrigger>
-              <TabsTrigger value="local-dns">Local DNS</TabsTrigger>
+              <TabsTrigger value="forwarding">{t("content.tabForwarding")}</TabsTrigger>
+              <TabsTrigger value="local-dns">{t("content.tabLocalDns")}</TabsTrigger>
               {caps?.features.zone_cache.supported && (
-                <TabsTrigger value="zone-cache">Zone Cache</TabsTrigger>
+                <TabsTrigger value="zone-cache">{t("content.tabZoneCache")}</TabsTrigger>
               )}
-              <TabsTrigger value="advanced">Advanced</TabsTrigger>
+              <TabsTrigger value="advanced">{t("content.tabAdvanced")}</TabsTrigger>
             </TabsList>
 
             {/* Forwarding Tab */}
@@ -251,32 +254,32 @@ export function DNSForwardingContent() {
               {/* Name Servers */}
               <Card>
                 <div className="flex items-center justify-between p-4 border-b">
-                  <h3 className="font-semibold">Name Servers</h3>
+                  <h3 className="font-semibold">{t("content.nameServers")}</h3>
                   {hasWritePermission && (
                     <Button size="sm" variant="outline" onClick={() => setNsModalOpen(true)}>
-                      <Plus className="h-4 w-4 mr-2" />Add Name Server
+                      <Plus className="h-4 w-4 mr-2" />{t("content.addNameServer")}
                     </Button>
                   )}
                 </div>
                 {(config?.name_servers.length ?? 0) === 0 ? (
                   <CardContent className="flex items-center justify-center py-8 text-sm text-muted-foreground">
-                    No upstream name servers configured
+                    {t("content.noNameServers")}
                   </CardContent>
                 ) : (
                   <ScrollArea>
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>IP Address</TableHead>
-                          <TableHead>Port</TableHead>
-                          {hasWritePermission && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead>{t("content.ipAddress")}</TableHead>
+                          <TableHead>{t("content.port")}</TableHead>
+                          {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {config?.name_servers.map((ns) => (
                           <TableRow key={ns.ip}>
                             <TableCell className="font-mono">{ns.ip}</TableCell>
-                            <TableCell>{ns.port ?? <span className="text-muted-foreground">53 (default)</span>}</TableCell>
+                            <TableCell>{ns.port ?? <span className="text-muted-foreground">{t("defaultValue", { value: "53" })}</span>}</TableCell>
                             {hasWritePermission && (
                               <TableCell className="text-right">
                                 <Button
@@ -300,26 +303,26 @@ export function DNSForwardingContent() {
               {/* Domain Forwarders */}
               <Card>
                 <div className="flex items-center justify-between p-4 border-b">
-                  <h3 className="font-semibold">Domain Forwarders</h3>
+                  <h3 className="font-semibold">{t("content.domainForwarders")}</h3>
                   {hasWritePermission && (
                     <Button size="sm" variant="outline" onClick={() => { setEditingDomain(null); setDomainModalOpen(true); }}>
-                      <Plus className="h-4 w-4 mr-2" />Add Domain
+                      <Plus className="h-4 w-4 mr-2" />{t("content.addDomain")}
                     </Button>
                   )}
                 </div>
                 {(config?.domain_forwarders.length ?? 0) === 0 ? (
                   <CardContent className="flex items-center justify-center py-8 text-sm text-muted-foreground">
-                    No domain forwarders configured
+                    {t("content.noDomainForwarders")}
                   </CardContent>
                 ) : (
                   <ScrollArea>
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Domain</TableHead>
-                          <TableHead>Name Servers</TableHead>
-                          <TableHead>Flags</TableHead>
-                          {hasWritePermission && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead>{t("content.domain")}</TableHead>
+                          <TableHead>{t("content.nameServers")}</TableHead>
+                          <TableHead>{t("content.flags")}</TableHead>
+                          {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -366,29 +369,29 @@ export function DNSForwardingContent() {
               {/* Settings Summary */}
               <Card>
                 <div className="p-4 border-b">
-                  <h3 className="font-semibold">Resolver Settings</h3>
+                  <h3 className="font-semibold">{t("content.resolverSettings")}</h3>
                 </div>
                 <CardContent className="pt-4">
                   <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">DNSSEC</span>
-                      <span className="font-mono">{config?.dnssec ?? "not set"}</span>
+                      <span className="font-mono">{config?.dnssec ?? t("content.notSet")}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Port</span>
-                      <span className="font-mono">{config?.port ?? "53 (default)"}</span>
+                      <span className="text-muted-foreground">{t("content.port")}</span>
+                      <span className="font-mono">{config?.port ?? t("defaultValue", { value: "53" })}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">System NS</span>
-                      <span>{config?.system ? "Yes" : "No"}</span>
+                      <span className="text-muted-foreground">{t("content.systemNs")}</span>
+                      <span>{config?.system ? t("yes") : t("no")}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Ignore Hosts</span>
-                      <span>{config?.ignore_hosts_file ? "Yes" : "No"}</span>
+                      <span className="text-muted-foreground">{t("content.ignoreHosts")}</span>
+                      <span>{config?.ignore_hosts_file ? t("yes") : t("no")}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">No RFC1918</span>
-                      <span>{config?.no_serve_rfc1918 ? "Yes" : "No"}</span>
+                      <span className="text-muted-foreground">{t("content.noRfc1918")}</span>
+                      <span>{config?.no_serve_rfc1918 ? t("yes") : t("no")}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -399,21 +402,21 @@ export function DNSForwardingContent() {
             <TabsContent value="local-dns" className="mt-4">
               <Card>
                 <div className="flex items-center justify-between p-4 border-b">
-                  <h3 className="font-semibold">Authoritative Zones</h3>
+                  <h3 className="font-semibold">{t("content.authoritativeZones")}</h3>
                   {hasWritePermission && (
                     <Button size="sm" variant="outline" onClick={() => { setEditingAuthDomain(null); setAuthDomainModalOpen(true); }}>
-                      <Plus className="h-4 w-4 mr-2" />Add Zone
+                      <Plus className="h-4 w-4 mr-2" />{t("content.addZone")}
                     </Button>
                   )}
                 </div>
                 {(config?.authoritative_domains.length ?? 0) === 0 ? (
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <Globe className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">No authoritative zones configured</p>
-                    <p className="text-xs text-muted-foreground">Local DNS zones allow this router to answer queries authoritatively.</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("content.noAuthoritativeZones")}</p>
+                    <p className="text-xs text-muted-foreground">{t("content.localZonesHelp")}</p>
                     {hasWritePermission && (
                       <Button size="sm" className="mt-4" onClick={() => { setEditingAuthDomain(null); setAuthDomainModalOpen(true); }}>
-                        <Plus className="h-4 w-4 mr-2" />Add Zone
+                        <Plus className="h-4 w-4 mr-2" />{t("content.addZone")}
                       </Button>
                     )}
                   </CardContent>
@@ -422,10 +425,10 @@ export function DNSForwardingContent() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Zone</TableHead>
-                          <TableHead># Records</TableHead>
-                          <TableHead>Status</TableHead>
-                          {hasWritePermission && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead>{t("content.zone")}</TableHead>
+                          <TableHead>{t("content.recordCount")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
+                          {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -437,9 +440,9 @@ export function DNSForwardingContent() {
                               <TableCell>{total}</TableCell>
                               <TableCell>
                                 {ad.disabled ? (
-                                  <Badge variant="secondary" className="bg-muted text-muted-foreground">Disabled</Badge>
+                                  <Badge variant="secondary" className="bg-muted text-muted-foreground">{tc("disabled")}</Badge>
                                 ) : (
-                                  <Badge variant="secondary" className="bg-green-500/10 text-green-600">Active</Badge>
+                                  <Badge variant="secondary" className="bg-green-500/10 text-green-600">{t("content.active")}</Badge>
                                 )}
                               </TableCell>
                               {hasWritePermission && (
@@ -469,27 +472,27 @@ export function DNSForwardingContent() {
               <TabsContent value="zone-cache" className="mt-4">
                 <Card>
                   <div className="flex items-center justify-between p-4 border-b">
-                    <h3 className="font-semibold">Zone Cache</h3>
+                    <h3 className="font-semibold">{t("content.tabZoneCache")}</h3>
                     {hasWritePermission && (
                       <Button size="sm" variant="outline" onClick={() => { setEditingZoneCache(null); setZoneCacheModalOpen(true); }}>
-                        <Plus className="h-4 w-4 mr-2" />Add Zone Cache
+                        <Plus className="h-4 w-4 mr-2" />{t("content.addZoneCache")}
                       </Button>
                     )}
                   </div>
                   {zoneCount === 0 ? (
                     <CardContent className="flex items-center justify-center py-8 text-sm text-muted-foreground">
-                      No zone caches configured
+                      {t("content.noZoneCaches")}
                     </CardContent>
                   ) : (
                     <ScrollArea>
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Zone</TableHead>
-                            <TableHead>Source Type</TableHead>
-                            <TableHead>Source</TableHead>
+                            <TableHead>{t("content.zone")}</TableHead>
+                            <TableHead>{t("content.sourceType")}</TableHead>
+                            <TableHead>{t("content.source")}</TableHead>
                             <TableHead>DNSSEC</TableHead>
-                            {hasWritePermission && <TableHead className="text-right">Actions</TableHead>}
+                            {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -531,31 +534,31 @@ export function DNSForwardingContent() {
             <TabsContent value="advanced" className="mt-4">
               <div className="grid grid-cols-2 gap-4">
                 <Card>
-                  <div className="p-4 border-b"><h3 className="font-semibold text-sm">Timeouts</h3></div>
+                  <div className="p-4 border-b"><h3 className="font-semibold text-sm">{t("content.timeouts")}</h3></div>
                   <CardContent className="pt-4 space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Timeout</span>
-                      <span className="font-mono">{config?.timeout != null ? `${config.timeout} ms` : "1500 ms (default)"}</span>
+                      <span className="text-muted-foreground">{t("content.timeout")}</span>
+                      <span className="font-mono">{config?.timeout != null ? `${config.timeout} ms` : t("defaultValue", { value: "1500 ms" })}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Negative TTL</span>
-                      <span className="font-mono">{config?.negative_ttl != null ? `${config.negative_ttl} s` : "3600 s (default)"}</span>
+                      <span className="text-muted-foreground">{t("content.negativeTtl")}</span>
+                      <span className="font-mono">{config?.negative_ttl != null ? `${config.negative_ttl} s` : t("defaultValue", { value: "3600 s" })}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Serve Stale Extension</span>
-                      <span className="font-mono">{config?.serve_stale_extension != null ? String(config.serve_stale_extension) : "0 (default)"}</span>
+                      <span className="text-muted-foreground">{t("content.serveStaleExtension")}</span>
+                      <span className="font-mono">{config?.serve_stale_extension != null ? String(config.serve_stale_extension) : t("defaultValue", { value: "0" })}</span>
                     </div>
                   </CardContent>
                 </Card>
                 <Card>
-                  <div className="p-4 border-b"><h3 className="font-semibold text-sm">Routing</h3></div>
+                  <div className="p-4 border-b"><h3 className="font-semibold text-sm">{t("content.routing")}</h3></div>
                   <CardContent className="pt-4 space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">DNS64 Prefix</span>
+                      <span className="text-muted-foreground">{t("content.dns64Prefix")}</span>
                       <span className="font-mono">{config?.dns64_prefix ?? "—"}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground block mb-1">Source Addresses</span>
+                      <span className="text-muted-foreground block mb-1">{t("content.sourceAddresses")}</span>
                       {(config?.source_addresses.length ?? 0) === 0 ? (
                         <span className="text-muted-foreground">—</span>
                       ) : (
@@ -565,7 +568,7 @@ export function DNSForwardingContent() {
                       )}
                     </div>
                     <div>
-                      <span className="text-muted-foreground block mb-1">DHCP Interfaces</span>
+                      <span className="text-muted-foreground block mb-1">{t("content.dhcpInterfaces")}</span>
                       {(config?.dhcp_interfaces.length ?? 0) === 0 ? (
                         <span className="text-muted-foreground">—</span>
                       ) : (
@@ -577,7 +580,7 @@ export function DNSForwardingContent() {
                   </CardContent>
                 </Card>
                 <Card>
-                  <div className="p-4 border-b"><h3 className="font-semibold text-sm">Throttle Exclusions</h3></div>
+                  <div className="p-4 border-b"><h3 className="font-semibold text-sm">{t("content.throttleExclusions")}</h3></div>
                   <CardContent className="pt-4 text-sm">
                     {(config?.exclude_throttle_addresses.length ?? 0) === 0 ? (
                       <span className="text-muted-foreground">—</span>
@@ -590,14 +593,14 @@ export function DNSForwardingContent() {
                 </Card>
                 {caps?.features.options_ecs.supported && (
                   <Card>
-                    <div className="p-4 border-b"><h3 className="font-semibold text-sm">ECS Options</h3></div>
+                    <div className="p-4 border-b"><h3 className="font-semibold text-sm">{t("content.ecsOptions")}</h3></div>
                     <CardContent className="pt-4 space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">IPv4 Bits</span>
+                        <span className="text-muted-foreground">{t("content.ipv4Bits")}</span>
                         <span className="font-mono">{config?.ecs_options.ecs_ipv4_bits ?? "—"}</span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground block mb-1">ECS Add For</span>
+                        <span className="text-muted-foreground block mb-1">{t("content.ecsAddFor")}</span>
                         {(config?.ecs_options.ecs_add_for.length ?? 0) === 0 ? (
                           <span className="text-muted-foreground">—</span>
                         ) : (
@@ -613,7 +616,7 @@ export function DNSForwardingContent() {
               {hasWritePermission && (
                 <div className="mt-4">
                   <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
-                    <Settings2 className="h-4 w-4 mr-2" />Edit Advanced Settings
+                    <Settings2 className="h-4 w-4 mr-2" />{t("content.editAdvancedSettings")}
                   </Button>
                 </div>
               )}
@@ -684,13 +687,13 @@ export function DNSForwardingContent() {
       <AlertDialog open={!!deletingNs} onOpenChange={(open) => { if (!open) setDeletingNs(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Name Server</AlertDialogTitle>
-            <AlertDialogDescription>Remove name server <span className="font-mono">{deletingNs}</span>?</AlertDialogDescription>
+            <AlertDialogTitle>{t("content.deleteNsTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t.rich("content.deleteNsConfirm", { name: deletingNs ?? "", mono: (chunks) => <span className="font-mono">{chunks}</span> })}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={() => withAction(async () => { await dnsForwardingService.deleteNameServer(deletingNs!); setDeletingNs(null); })}>
-              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : tc("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -699,13 +702,13 @@ export function DNSForwardingContent() {
       <AlertDialog open={!!deletingDomain} onOpenChange={(open) => { if (!open) setDeletingDomain(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Domain Forwarder</AlertDialogTitle>
-            <AlertDialogDescription>Remove domain forwarder <span className="font-mono">{deletingDomain}</span>?</AlertDialogDescription>
+            <AlertDialogTitle>{t("content.deleteDomainTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t.rich("content.deleteDomainConfirm", { name: deletingDomain ?? "", mono: (chunks) => <span className="font-mono">{chunks}</span> })}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={() => withAction(async () => { await dnsForwardingService.deleteDomainForwarder(deletingDomain!); setDeletingDomain(null); })}>
-              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : tc("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -714,13 +717,13 @@ export function DNSForwardingContent() {
       <AlertDialog open={!!deletingAuthDomain} onOpenChange={(open) => { if (!open) setDeletingAuthDomain(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Authoritative Zone</AlertDialogTitle>
-            <AlertDialogDescription>Remove zone <span className="font-mono">{deletingAuthDomain}</span> and all its records?</AlertDialogDescription>
+            <AlertDialogTitle>{t("content.deleteZoneTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t.rich("content.deleteZoneConfirm", { name: deletingAuthDomain ?? "", mono: (chunks) => <span className="font-mono">{chunks}</span> })}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={() => withAction(async () => { await dnsForwardingService.deleteAuthDomain(deletingAuthDomain!); setDeletingAuthDomain(null); })}>
-              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : tc("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -729,13 +732,13 @@ export function DNSForwardingContent() {
       <AlertDialog open={!!deletingZoneCache} onOpenChange={(open) => { if (!open) setDeletingZoneCache(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Zone Cache</AlertDialogTitle>
-            <AlertDialogDescription>Remove zone cache <span className="font-mono">{deletingZoneCache}</span>?</AlertDialogDescription>
+            <AlertDialogTitle>{t("content.deleteZoneCacheTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t.rich("content.deleteZoneCacheConfirm", { name: deletingZoneCache ?? "", mono: (chunks) => <span className="font-mono">{chunks}</span> })}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={() => withAction(async () => { await dnsForwardingService.deleteZoneCache(deletingZoneCache!); setDeletingZoneCache(null); })}>
-              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : tc("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
