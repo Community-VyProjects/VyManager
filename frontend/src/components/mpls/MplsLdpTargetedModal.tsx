@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,8 @@ function TargetedNeighborSection({
   value: MplsLdpTargetedNeighborIpv4 | MplsLdpTargetedNeighborIpv6;
   onChange: (updated: MplsLdpTargetedNeighborIpv4 | MplsLdpTargetedNeighborIpv6) => void;
 }) {
+  const t = useTranslations("mpls");
+  const tc = useTranslations("common");
   const [newAddress, setNewAddress] = useState("");
 
   const addAddress = () => {
@@ -60,13 +63,13 @@ function TargetedNeighborSection({
           onCheckedChange={(checked) => onChange({ ...value, enable: checked === true })}
         />
         <Label htmlFor={`targeted-enable-${label}`} className="cursor-pointer">
-          Enable {label} Targeted Neighbors
+          {t("targetedModal.enable", { family: label })}
         </Label>
       </div>
 
       {/* Address chip list */}
       <div className="space-y-2">
-        <Label>Addresses</Label>
+        <Label>{t("targetedModal.addresses")}</Label>
         <div className="flex flex-wrap gap-2 min-h-[36px] p-2 border rounded-md bg-muted/30">
           {value.addresses.map((addr) => (
             <Badge key={addr} variant="secondary" className="gap-1 font-mono text-xs">
@@ -74,21 +77,21 @@ function TargetedNeighborSection({
               <button
                 onClick={() => removeAddress(addr)}
                 className="ml-1 hover:text-destructive transition-colors"
-                aria-label={`Remove ${addr}`}
+                aria-label={t("overview.removeInterface", { name: addr })}
               >
                 <X className="h-3 w-3" />
               </button>
             </Badge>
           ))}
           {value.addresses.length === 0 && (
-            <span className="text-xs text-muted-foreground self-center">No addresses</span>
+            <span className="text-xs text-muted-foreground self-center">{t("targetedModal.noAddresses")}</span>
           )}
         </div>
         <div className="flex gap-2">
           <Input
             value={newAddress}
             onChange={(e) => setNewAddress(e.target.value)}
-            placeholder={label === "IPv4" ? "e.g. 10.0.0.1" : "e.g. 2001:db8::1"}
+            placeholder={label === "IPv4" ? t("general.ipv4Placeholder") : t("general.ipv6Placeholder")}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addAddress(); } }}
           />
           <Button type="button" variant="outline" size="icon" onClick={addAddress}>
@@ -100,7 +103,7 @@ function TargetedNeighborSection({
       {/* Hello Holdtime */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor={`targeted-holdtime-${label}`}>Hello Holdtime (seconds)</Label>
+          <Label htmlFor={`targeted-holdtime-${label}`}>{t("targetedModal.helloHoldtimeSeconds")}</Label>
           <Input
             id={`targeted-holdtime-${label}`}
             type="number"
@@ -112,12 +115,12 @@ function TargetedNeighborSection({
                 hello_holdtime: e.target.value ? parseInt(e.target.value, 10) : null,
               })
             }
-            placeholder="Default"
+            placeholder={tc("default")}
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor={`targeted-interval-${label}`}>Hello Interval (seconds)</Label>
+          <Label htmlFor={`targeted-interval-${label}`}>{t("targetedModal.helloIntervalSeconds")}</Label>
           <Input
             id={`targeted-interval-${label}`}
             type="number"
@@ -129,7 +132,7 @@ function TargetedNeighborSection({
                 hello_interval: e.target.value ? parseInt(e.target.value, 10) : null,
               })
             }
-            placeholder="Default"
+            placeholder={tc("default")}
           />
         </div>
       </div>
@@ -143,6 +146,8 @@ export function MplsLdpTargetedModal({
   onSubmit,
   current,
 }: MplsLdpTargetedModalProps) {
+  const t = useTranslations("mpls");
+  const tc = useTranslations("common");
   const [ipv4, setIpv4] = useState<MplsLdpTargetedNeighborIpv4>({
     enable: false,
     addresses: [],
@@ -182,7 +187,7 @@ export function MplsLdpTargetedModal({
       });
       onOpenChange(false);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -192,7 +197,7 @@ export function MplsLdpTargetedModal({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Targeted Neighbor Sessions</DialogTitle>
+          <DialogTitle>{t("targetedModal.title")}</DialogTitle>
         </DialogHeader>
 
         <Tabs defaultValue="ipv4">
@@ -227,16 +232,16 @@ export function MplsLdpTargetedModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
+                {tc("saving")}
               </>
             ) : (
-              "Save Changes"
+              t("saveChanges")
             )}
           </Button>
         </DialogFooter>

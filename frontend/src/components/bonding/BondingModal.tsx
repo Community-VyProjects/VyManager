@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -55,6 +56,8 @@ export function BondingModal({
   existingInterfaces,
   existing,
 }: BondingModalProps) {
+  const t = useTranslations("bonding");
+  const tc = useTranslations("common");
   const isEdit = !!existing;
   // Basic
   const [name, setName] = useState("bond0");
@@ -319,10 +322,10 @@ export function BondingModal({
   };
 
   const validateForm = (): string | null => {
-    if (!name.trim()) return "Interface name is required";
-    if (!/^bond\d+$/.test(name)) return "Name must be bond0, bond1, etc.";
-    if (existingInterfaces.includes(name)) return `Interface ${name} already exists`;
-    if (!mode) return "Bonding mode is required";
+    if (!name.trim()) return t("errNameRequired");
+    if (!/^bond\d+$/.test(name)) return t("errNameFormat");
+    if (existingInterfaces.includes(name)) return t("errNameExists", { name });
+    if (!mode) return t("errModeRequired");
     return null;
   };
 
@@ -553,10 +556,10 @@ export function BondingModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to update bonding interface");
+        setError(result.error || t("errUpdate"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to update bonding interface");
+      setError((err as ApiError).message || t("errUpdate"));
     } finally {
       setLoading(false);
     }
@@ -707,10 +710,10 @@ export function BondingModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to create bonding interface");
+        setError(result.error || t("errCreate"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to create bonding interface");
+      setError((err as ApiError).message || t("errCreate"));
     } finally {
       setLoading(false);
     }
@@ -731,29 +734,29 @@ export function BondingModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Link2 className="h-5 w-5" />
-            {isEdit ? `Edit Bonding Interface: ${existing.name}` : "Create Bonding Interface"}
+            {isEdit ? t("editTitle", { name: existing.name }) : t("createTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Modify bonding interface configuration"
-              : "Create a new link aggregation (bonding) interface"}
+              ? t("editDescription")
+              : t("createDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
           <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="basic">Basic</TabsTrigger>
-            <TabsTrigger value="members">Members</TabsTrigger>
-            <TabsTrigger value="addresses">Addresses</TabsTrigger>
+            <TabsTrigger value="basic">{t("tabBasic")}</TabsTrigger>
+            <TabsTrigger value="members">{t("tabMembers")}</TabsTrigger>
+            <TabsTrigger value="addresses">{t("tabAddresses")}</TabsTrigger>
             <TabsTrigger value="ip">IP / IPv6</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            <TabsTrigger value="advanced">{t("tabAdvanced")}</TabsTrigger>
           </TabsList>
 
           {/* Basic Tab */}
           <TabsContent value="basic" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Interface Name</Label>
+                <Label htmlFor="name">{t("interfaceName")}</Label>
                 <Input
                   id="name"
                   value={isEdit ? existing.name : name}
@@ -763,19 +766,19 @@ export function BondingModal({
                 />
                 <p className="text-xs text-muted-foreground">
                   {isEdit
-                    ? "Interface name cannot be changed."
-                    : "Must be bond0, bond1, etc."}
+                    ? t("nameLocked")
+                    : t("nameHint")}
                 </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description" />
+                <Label htmlFor="description">{tc("description")}</Label>
+                <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("optionalDescription")} />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Bonding Mode</Label>
+                <Label>{t("bondingMode")}</Label>
                 <Select value={mode} onValueChange={setMode}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -787,9 +790,9 @@ export function BondingModal({
               </div>
               {showHashPolicy && (
                 <div className="space-y-2">
-                  <Label>Hash Policy</Label>
+                  <Label>{t("hashPolicy")}</Label>
                   <Select value={hashPolicy} onValueChange={setHashPolicy}>
-                    <SelectTrigger><SelectValue placeholder="Select policy" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={t("selectPolicy")} /></SelectTrigger>
                     <SelectContent>
                       {(capabilities?.features.hash_policy?.options || ["layer2", "layer2+3", "layer3+4", "encap2+3", "encap3+4"]).map((p) => (
                         <SelectItem key={p} value={p}>{p}</SelectItem>
@@ -803,9 +806,9 @@ export function BondingModal({
             <div className="grid grid-cols-2 gap-4">
               {showLacpRate && (
                 <div className="space-y-2">
-                  <Label>LACP Rate</Label>
+                  <Label>{t("lacpRate")}</Label>
                   <Select value={lacpRate} onValueChange={setLacpRate}>
-                    <SelectTrigger><SelectValue placeholder="Select rate" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={t("selectRate")} /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="slow">slow</SelectItem>
                       <SelectItem value="fast">fast</SelectItem>
@@ -814,11 +817,11 @@ export function BondingModal({
                 </div>
               )}
               <div className="space-y-2">
-                <Label htmlFor="min-links">Min Links</Label>
+                <Label htmlFor="min-links">{t("minLinks")}</Label>
                 <Input id="min-links" value={minLinks} onChange={(e) => setMinLinks(e.target.value)} placeholder="0" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="mii-mon">MII Monitor Interval (ms)</Label>
+                <Label htmlFor="mii-mon">{t("miiMonInterval")}</Label>
                 <Input id="mii-mon" value={miiMonInterval} onChange={(e) => setMiiMonInterval(e.target.value)} placeholder="100" />
               </div>
             </div>
@@ -826,16 +829,16 @@ export function BondingModal({
             <div className="grid grid-cols-2 gap-4">
               {showPrimary && (
                 <div className="space-y-2">
-                  <Label htmlFor="primary">Primary Interface</Label>
-                  <Input id="primary" value={primary} onChange={(e) => setPrimary(e.target.value)} placeholder="e.g. eth0" />
-                  <p className="text-xs text-muted-foreground">Only for active-backup mode</p>
+                  <Label htmlFor="primary">{t("primaryInterface")}</Label>
+                  <Input id="primary" value={primary} onChange={(e) => setPrimary(e.target.value)} placeholder={t("primaryPlaceholder")} />
+                  <p className="text-xs text-muted-foreground">{t("primaryHint")}</p>
                 </div>
               )}
               {showSystemMac && (
                 <div className="space-y-2">
-                  <Label htmlFor="system-mac">System MAC</Label>
+                  <Label htmlFor="system-mac">{t("systemMac")}</Label>
                   <Input id="system-mac" value={systemMac} onChange={(e) => setSystemMac(e.target.value)} placeholder="xx:xx:xx:xx:xx:xx" />
-                  <p className="text-xs text-muted-foreground">Only for 802.3ad mode</p>
+                  <p className="text-xs text-muted-foreground">{t("systemMacHint")}</p>
                 </div>
               )}
             </div>
@@ -844,9 +847,9 @@ export function BondingModal({
           {/* Members Tab */}
           <TabsContent value="members" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>Member Interfaces</Label>
+              <Label>{t("memberInterfaces")}</Label>
               <p className="text-sm text-muted-foreground">
-                Select ethernet interfaces to include in this bonding group. Members will be enslaved to the bond interface.
+                {t("membersHelp")}
               </p>
             </div>
 
@@ -856,7 +859,7 @@ export function BondingModal({
                 onValueChange={setMemberToAdd}
                 interfaces={ethernetInterfaces}
                 className="flex-1"
-                placeholder="Select an interface to add"
+                placeholder={t("selectInterfaceToAdd")}
               />
               <Button
                 variant="outline"
@@ -868,7 +871,7 @@ export function BondingModal({
                 }}
                 disabled={!memberToAdd}
               >
-                <Plus className="h-4 w-4 mr-1" /> Add
+                <Plus className="h-4 w-4 mr-1" /> {tc("add")}
               </Button>
             </div>
 
@@ -882,11 +885,11 @@ export function BondingModal({
                     </Button>
                   </div>
                 ))}
-                <p className="text-xs text-muted-foreground">{members.length} member{members.length !== 1 ? "s" : ""} selected</p>
+                <p className="text-xs text-muted-foreground">{t("membersSelected", { count: members.length })}</p>
               </div>
             ) : (
               <div className="rounded-lg border border-dashed p-6 text-center">
-                <p className="text-sm text-muted-foreground">No members selected. Add ethernet interfaces above.</p>
+                <p className="text-sm text-muted-foreground">{t("noMembers")}</p>
               </div>
             )}
           </TabsContent>
@@ -894,9 +897,9 @@ export function BondingModal({
           {/* Addresses Tab */}
           <TabsContent value="addresses" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="addresses">IP Addresses</Label>
+              <Label htmlFor="addresses">{t("ipAddresses")}</Label>
               <Input id="addresses" value={addresses} onChange={(e) => setAddresses(e.target.value)} placeholder="192.168.1.1/24, 10.0.0.1/24" />
-              <p className="text-xs text-muted-foreground">Comma-separated CIDR addresses</p>
+              <p className="text-xs text-muted-foreground">{t("addressesHint")}</p>
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
@@ -908,7 +911,7 @@ export function BondingModal({
                 <VrfSelect id="vrf" value={vrf} onValueChange={setVrf} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="mac">MAC Override</Label>
+                <Label htmlFor="mac">{t("macOverride")}</Label>
                 <Input id="mac" value={mac} onChange={(e) => setMac(e.target.value)} placeholder="xx:xx:xx:xx:xx:xx" />
               </div>
             </div>
@@ -917,20 +920,20 @@ export function BondingModal({
           {/* IP / IPv6 Tab */}
           <TabsContent value="ip" className="space-y-6 mt-4">
             <div>
-              <h4 className="font-medium mb-3">IPv4 Settings</h4>
+              <h4 className="font-medium mb-3">{t("ipv4Settings")}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Adjust MSS</Label>
-                  <Input value={ipAdjustMss} onChange={(e) => setIpAdjustMss(e.target.value)} placeholder="clamp-mss-to-pmtu or value" />
+                  <Label>{t("adjustMss")}</Label>
+                  <Input value={ipAdjustMss} onChange={(e) => setIpAdjustMss(e.target.value)} placeholder={t("adjustMssPlaceholder")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>ARP Cache Timeout</Label>
+                  <Label>{t("arpCacheTimeout")}</Label>
                   <Input value={ipArpCacheTimeout} onChange={(e) => setIpArpCacheTimeout(e.target.value)} placeholder="30" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Source Validation</Label>
+                  <Label>{t("sourceValidation")}</Label>
                   <Select value={ipSourceValidation} onValueChange={setIpSourceValidation}>
-                    <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="strict">strict</SelectItem>
                       <SelectItem value="loose">loose</SelectItem>
@@ -941,14 +944,14 @@ export function BondingModal({
               </div>
               <div className="grid grid-cols-2 gap-3 mt-3">
                 {[
-                  { label: "Disable ARP Filter", state: ipDisableArpFilter, setter: setIpDisableArpFilter },
-                  { label: "Disable Forwarding", state: ipDisableForwarding, setter: setIpDisableForwarding },
-                  { label: "Enable ARP Accept", state: ipEnableArpAccept, setter: setIpEnableArpAccept },
-                  { label: "Enable ARP Announce", state: ipEnableArpAnnounce, setter: setIpEnableArpAnnounce },
-                  { label: "Enable ARP Ignore", state: ipEnableArpIgnore, setter: setIpEnableArpIgnore },
-                  { label: "Enable Directed Broadcast", state: ipEnableDirectedBroadcast, setter: setIpEnableDirectedBroadcast },
-                  { label: "Enable Proxy ARP", state: ipEnableProxyArp, setter: setIpEnableProxyArp },
-                  { label: "Proxy ARP PVLAN", state: ipProxyArpPvlan, setter: setIpProxyArpPvlan },
+                  { label: t("disableArpFilter"), state: ipDisableArpFilter, setter: setIpDisableArpFilter },
+                  { label: t("disableForwarding"), state: ipDisableForwarding, setter: setIpDisableForwarding },
+                  { label: t("enableArpAccept"), state: ipEnableArpAccept, setter: setIpEnableArpAccept },
+                  { label: t("enableArpAnnounce"), state: ipEnableArpAnnounce, setter: setIpEnableArpAnnounce },
+                  { label: t("enableArpIgnore"), state: ipEnableArpIgnore, setter: setIpEnableArpIgnore },
+                  { label: t("enableDirectedBroadcast"), state: ipEnableDirectedBroadcast, setter: setIpEnableDirectedBroadcast },
+                  { label: t("enableProxyArp"), state: ipEnableProxyArp, setter: setIpEnableProxyArp },
+                  { label: t("proxyArpPvlan"), state: ipProxyArpPvlan, setter: setIpProxyArpPvlan },
                 ].map(({ label, state, setter }) => (
                   <div key={label} className="flex items-center gap-2">
                     <Checkbox checked={state} onCheckedChange={(c) => setter(c === true)} />
@@ -959,28 +962,28 @@ export function BondingModal({
             </div>
 
             <div>
-              <h4 className="font-medium mb-3">IPv6 Settings</h4>
+              <h4 className="font-medium mb-3">{t("ipv6Settings")}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Accept DAD</Label>
-                  <Input value={ipv6AcceptDad} onChange={(e) => setIpv6AcceptDad(e.target.value)} placeholder="0, 1, or 2" />
+                  <Label>{t("acceptDad")}</Label>
+                  <Input value={ipv6AcceptDad} onChange={(e) => setIpv6AcceptDad(e.target.value)} placeholder={t("acceptDadPlaceholder")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Adjust MSS</Label>
-                  <Input value={ipv6AdjustMss} onChange={(e) => setIpv6AdjustMss(e.target.value)} placeholder="clamp-mss-to-pmtu or value" />
+                  <Label>{t("adjustMss")}</Label>
+                  <Input value={ipv6AdjustMss} onChange={(e) => setIpv6AdjustMss(e.target.value)} placeholder={t("adjustMssPlaceholder")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Base Reachable Time</Label>
+                  <Label>{t("baseReachableTime")}</Label>
                   <Input value={ipv6BaseReachableTime} onChange={(e) => setIpv6BaseReachableTime(e.target.value)} placeholder="30" />
                 </div>
                 <div className="space-y-2">
-                  <Label>DAD Transmits</Label>
+                  <Label>{t("dadTransmits")}</Label>
                   <Input value={ipv6DupAddrDetectTransmits} onChange={(e) => setIpv6DupAddrDetectTransmits(e.target.value)} placeholder="1" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Source Validation</Label>
+                  <Label>{t("sourceValidation")}</Label>
                   <Select value={ipv6SourceValidation} onValueChange={setIpv6SourceValidation}>
-                    <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="strict">strict</SelectItem>
                       <SelectItem value="loose">loose</SelectItem>
@@ -990,7 +993,7 @@ export function BondingModal({
                 </div>
                 {capabilities?.features.ipv6_address_interface_identifier?.supported && (
                   <div className="space-y-2">
-                    <Label>Interface Identifier</Label>
+                    <Label>{t("interfaceIdentifier")}</Label>
                     <Input value={ipv6AddressInterfaceIdentifier} onChange={(e) => setIpv6AddressInterfaceIdentifier(e.target.value)} placeholder="::1" />
                   </div>
                 )}
@@ -998,21 +1001,21 @@ export function BondingModal({
               <div className="grid grid-cols-2 gap-3 mt-3">
                 <div className="flex items-center gap-2">
                   <Checkbox checked={ipv6DisableForwarding} onCheckedChange={(c) => setIpv6DisableForwarding(c === true)} />
-                  <Label className="font-normal text-sm">Disable Forwarding</Label>
+                  <Label className="font-normal text-sm">{t("disableForwarding")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox checked={ipv6AddressAutoconf} onCheckedChange={(c) => setIpv6AddressAutoconf(c === true)} />
-                  <Label className="font-normal text-sm">Address Autoconf</Label>
+                  <Label className="font-normal text-sm">{t("addressAutoconf")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox checked={ipv6AddressNoDefaultLinkLocal} onCheckedChange={(c) => setIpv6AddressNoDefaultLinkLocal(c === true)} />
-                  <Label className="font-normal text-sm">No Default Link-Local</Label>
+                  <Label className="font-normal text-sm">{t("noDefaultLinkLocal")}</Label>
                 </div>
               </div>
               <div className="mt-3 space-y-2">
-                <Label>EUI-64 Addresses</Label>
+                <Label>{t("eui64Addresses")}</Label>
                 <Input value={ipv6AddressEui64} onChange={(e) => setIpv6AddressEui64(e.target.value)} placeholder="2001:db8::/64" />
-                <p className="text-xs text-muted-foreground">Comma-separated IPv6 prefixes</p>
+                <p className="text-xs text-muted-foreground">{t("eui64Hint")}</p>
               </div>
             </div>
           </TabsContent>
@@ -1021,54 +1024,54 @@ export function BondingModal({
           <TabsContent value="advanced" className="space-y-6 mt-4">
             {/* ARP Monitor */}
             <div>
-              <h4 className="font-medium mb-3">ARP Monitor</h4>
+              <h4 className="font-medium mb-3">{t("arpMonitor")}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Interval (ms)</Label>
+                  <Label>{t("intervalMs")}</Label>
                   <Input value={arpMonitorInterval} onChange={(e) => setArpMonitorInterval(e.target.value)} placeholder="100" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Targets</Label>
+                  <Label>{t("targets")}</Label>
                   <Input value={arpMonitorTargets} onChange={(e) => setArpMonitorTargets(e.target.value)} placeholder="10.0.0.1, 10.0.0.2" />
-                  <p className="text-xs text-muted-foreground">Comma-separated IP addresses</p>
+                  <p className="text-xs text-muted-foreground">{t("targetsHint")}</p>
                 </div>
               </div>
             </div>
 
             {/* EVPN */}
             <div>
-              <h4 className="font-medium mb-3">EVPN Multihoming</h4>
+              <h4 className="font-medium mb-3">{t("evpnMultihoming")}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>ES DF Preference</Label>
-                  <Input value={evpnEsDfPref} onChange={(e) => setEvpnEsDfPref(e.target.value)} placeholder="Preference value" />
+                  <Label>{t("esDfPreference")}</Label>
+                  <Input value={evpnEsDfPref} onChange={(e) => setEvpnEsDfPref(e.target.value)} placeholder={t("preferenceValue")} />
                 </div>
                 <div className="space-y-2">
                   <Label>ES ID</Label>
-                  <Input value={evpnEsId} onChange={(e) => setEvpnEsId(e.target.value)} placeholder="ES identifier" />
+                  <Input value={evpnEsId} onChange={(e) => setEvpnEsId(e.target.value)} placeholder={t("esIdentifier")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>ES System MAC</Label>
+                  <Label>{t("esSystemMac")}</Label>
                   <Input value={evpnEsSysMac} onChange={(e) => setEvpnEsSysMac(e.target.value)} placeholder="xx:xx:xx:xx:xx:xx" />
                 </div>
                 <div className="flex items-center gap-2 pt-6">
                   <Checkbox checked={evpnUplink} onCheckedChange={(c) => setEvpnUplink(c === true)} />
-                  <Label className="font-normal text-sm">EVPN Uplink</Label>
+                  <Label className="font-normal text-sm">{t("evpnUplink")}</Label>
                 </div>
               </div>
             </div>
 
             {/* Mirror */}
             <div>
-              <h4 className="font-medium mb-3">Mirror</h4>
+              <h4 className="font-medium mb-3">{t("mirror")}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Ingress</Label>
-                  <Input value={mirrorIngress} onChange={(e) => setMirrorIngress(e.target.value)} placeholder="Target interface" />
+                  <Label>{t("ingress")}</Label>
+                  <Input value={mirrorIngress} onChange={(e) => setMirrorIngress(e.target.value)} placeholder={t("targetInterface")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Egress</Label>
-                  <Input value={mirrorEgress} onChange={(e) => setMirrorEgress(e.target.value)} placeholder="Target interface" />
+                  <Label>{t("egress")}</Label>
+                  <Input value={mirrorEgress} onChange={(e) => setMirrorEgress(e.target.value)} placeholder={t("targetInterface")} />
                 </div>
               </div>
             </div>
@@ -1081,16 +1084,16 @@ export function BondingModal({
                 </h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>CA Certificate</Label>
-                    <Input value={eapolCaCert} onChange={(e) => setEapolCaCert(e.target.value)} placeholder="Certificate name" />
+                    <Label>{t("caCertificate")}</Label>
+                    <Input value={eapolCaCert} onChange={(e) => setEapolCaCert(e.target.value)} placeholder={t("certificateName")} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Certificate</Label>
-                    <Input value={eapolCert} onChange={(e) => setEapolCert(e.target.value)} placeholder="Certificate name" />
+                    <Label>{t("certificate")}</Label>
+                    <Input value={eapolCert} onChange={(e) => setEapolCert(e.target.value)} placeholder={t("certificateName")} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Passphrase</Label>
-                    <Input type="password" value={eapolPassphrase} onChange={(e) => setEapolPassphrase(e.target.value)} placeholder="Passphrase" />
+                    <Label>{t("passphrase")}</Label>
+                    <Input type="password" value={eapolPassphrase} onChange={(e) => setEapolPassphrase(e.target.value)} placeholder={t("passphrase")} />
                   </div>
                 </div>
               </div>
@@ -1098,81 +1101,81 @@ export function BondingModal({
 
             {/* DHCP Options */}
             <div>
-              <h4 className="font-medium mb-3">DHCP Options</h4>
+              <h4 className="font-medium mb-3">{t("dhcpOptions")}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Client ID</Label>
-                  <Input value={dhcpClientId} onChange={(e) => setDhcpClientId(e.target.value)} placeholder="Client identifier" />
+                  <Label>{t("clientId")}</Label>
+                  <Input value={dhcpClientId} onChange={(e) => setDhcpClientId(e.target.value)} placeholder={t("clientIdentifier")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Default Route Distance</Label>
+                  <Label>{t("defaultRouteDistance")}</Label>
                   <Input value={dhcpDefaultRouteDistance} onChange={(e) => setDhcpDefaultRouteDistance(e.target.value)} placeholder="210" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Host Name</Label>
-                  <Input value={dhcpHostName} onChange={(e) => setDhcpHostName(e.target.value)} placeholder="Hostname" />
+                  <Label>{t("hostName")}</Label>
+                  <Input value={dhcpHostName} onChange={(e) => setDhcpHostName(e.target.value)} placeholder={t("hostnamePlaceholder")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>User Class</Label>
-                  <Input value={dhcpUserClass} onChange={(e) => setDhcpUserClass(e.target.value)} placeholder="User class" />
+                  <Label>{t("userClass")}</Label>
+                  <Input value={dhcpUserClass} onChange={(e) => setDhcpUserClass(e.target.value)} placeholder={t("userClassPlaceholder")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Vendor Class ID</Label>
-                  <Input value={dhcpVendorClassId} onChange={(e) => setDhcpVendorClassId(e.target.value)} placeholder="Vendor class" />
+                  <Label>{t("vendorClassId")}</Label>
+                  <Input value={dhcpVendorClassId} onChange={(e) => setDhcpVendorClassId(e.target.value)} placeholder={t("vendorClassPlaceholder")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Reject Servers</Label>
-                  <Input value={dhcpReject} onChange={(e) => setDhcpReject(e.target.value)} placeholder="Comma-separated IPs" />
+                  <Label>{t("rejectServers")}</Label>
+                  <Input value={dhcpReject} onChange={(e) => setDhcpReject(e.target.value)} placeholder={t("commaSeparatedIps")} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 mt-3">
                 <div className="flex items-center gap-2">
                   <Checkbox checked={dhcpMtu} onCheckedChange={(c) => setDhcpMtu(c === true)} />
-                  <Label className="font-normal text-sm">Use MTU from DHCP</Label>
+                  <Label className="font-normal text-sm">{t("useMtuFromDhcp")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox checked={dhcpNoDefaultRoute} onCheckedChange={(c) => setDhcpNoDefaultRoute(c === true)} />
-                  <Label className="font-normal text-sm">No Default Route</Label>
+                  <Label className="font-normal text-sm">{t("noDefaultRoute")}</Label>
                 </div>
               </div>
             </div>
 
             {/* DHCPv6 Options */}
             <div>
-              <h4 className="font-medium mb-3">DHCPv6 Options</h4>
+              <h4 className="font-medium mb-3">{t("dhcpv6Options")}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>DUID</Label>
-                  <Input value={dhcpv6Duid} onChange={(e) => setDhcpv6Duid(e.target.value)} placeholder="DUID value" />
+                  <Input value={dhcpv6Duid} onChange={(e) => setDhcpv6Duid(e.target.value)} placeholder={t("duidValue")} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 mt-3">
                 <div className="flex items-center gap-2">
                   <Checkbox checked={dhcpv6NoRelease} onCheckedChange={(c) => setDhcpv6NoRelease(c === true)} />
-                  <Label className="font-normal text-sm">No Release</Label>
+                  <Label className="font-normal text-sm">{t("noRelease")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox checked={dhcpv6ParametersOnly} onCheckedChange={(c) => setDhcpv6ParametersOnly(c === true)} />
-                  <Label className="font-normal text-sm">Parameters Only</Label>
+                  <Label className="font-normal text-sm">{t("parametersOnly")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox checked={dhcpv6RapidCommit} onCheckedChange={(c) => setDhcpv6RapidCommit(c === true)} />
-                  <Label className="font-normal text-sm">Rapid Commit</Label>
+                  <Label className="font-normal text-sm">{t("rapidCommit")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox checked={dhcpv6Temporary} onCheckedChange={(c) => setDhcpv6Temporary(c === true)} />
-                  <Label className="font-normal text-sm">Temporary</Label>
+                  <Label className="font-normal text-sm">{t("temporary")}</Label>
                 </div>
                 {capabilities?.features.dhcpv6_no_request_dns?.supported && (
                   <div className="flex items-center gap-2">
                     <Checkbox checked={dhcpv6NoRequestDns} onCheckedChange={(c) => setDhcpv6NoRequestDns(c === true)} />
-                    <Label className="font-normal text-sm">No Request DNS</Label>
+                    <Label className="font-normal text-sm">{t("noRequestDns")}</Label>
                   </div>
                 )}
                 {capabilities?.features.dhcpv6_no_request_domain_name?.supported && (
                   <div className="flex items-center gap-2">
                     <Checkbox checked={dhcpv6NoRequestDomainName} onCheckedChange={(c) => setDhcpv6NoRequestDomainName(c === true)} />
-                    <Label className="font-normal text-sm">No Request Domain Name</Label>
+                    <Label className="font-normal text-sm">{t("noRequestDomainName")}</Label>
                   </div>
                 )}
               </div>
@@ -1180,21 +1183,21 @@ export function BondingModal({
 
             {/* Interface Options */}
             <div>
-              <h4 className="font-medium mb-3">Interface Options</h4>
+              <h4 className="font-medium mb-3">{t("interfaceOptions")}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Redirect</Label>
-                  <Input value={redirect} onChange={(e) => setRedirect(e.target.value)} placeholder="Target interface" />
+                  <Label>{t("redirect")}</Label>
+                  <Input value={redirect} onChange={(e) => setRedirect(e.target.value)} placeholder={t("targetInterface")} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 mt-3">
                 <div className="flex items-center gap-2">
                   <Checkbox checked={disabled} onCheckedChange={(c) => setDisabled(c === true)} />
-                  <Label className="font-normal text-sm">Administratively Disabled</Label>
+                  <Label className="font-normal text-sm">{t("adminDisabled")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox checked={disableLinkDetect} onCheckedChange={(c) => setDisableLinkDetect(c === true)} />
-                  <Label className="font-normal text-sm">Disable Link Detect</Label>
+                  <Label className="font-normal text-sm">{t("disableLinkDetect")}</Label>
                 </div>
               </div>
             </div>
@@ -1210,18 +1213,18 @@ export function BondingModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? "Saving..." : "Creating..."}
+                {isEdit ? tc("saving") : t("creating")}
               </>
             ) : isEdit ? (
-              "Save Changes"
+              t("saveChanges")
             ) : (
-              "Create Bond"
+              t("createBond")
             )}
           </Button>
         </DialogFooter>

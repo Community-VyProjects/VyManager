@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface DeleteBabelInterfaceModalProps {
   open: boolean;
@@ -26,6 +27,8 @@ export function DeleteBabelInterfaceModal({
   interfaceName,
   onConfirm,
 }: DeleteBabelInterfaceModalProps) {
+  const t = useTranslations("babel");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
 
   const handleConfirm = async () => {
@@ -41,16 +44,17 @@ export function DeleteBabelInterfaceModal({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Babel Interface</AlertDialogTitle>
+          <AlertDialogTitle>{t("delete.title")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete the Babel interface{" "}
-            <span className="font-mono font-semibold">{interfaceName}</span>?
-            This action cannot be undone.
+            {t.rich("delete.description", {
+              name: interfaceName,
+              mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
             disabled={loading}
@@ -59,10 +63,10 @@ export function DeleteBabelInterfaceModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Interface"
+              t("delete.confirm")
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

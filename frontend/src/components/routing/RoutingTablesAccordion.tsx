@@ -37,6 +37,7 @@ import {
   type StaticRoute,
 } from "@/lib/api/static-routes";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { TableRouteModal } from "./TableRouteModal";
 import {
   Tooltip,
@@ -54,6 +55,8 @@ export function RoutingTablesAccordion({
   tables,
   onRefresh,
 }: RoutingTablesAccordionProps) {
+  const t = useTranslations("routingExtras");
+  const tc = useTranslations("common");
   const [editingDescription, setEditingDescription] = useState<number | null>(null);
   const [descriptionValue, setDescriptionValue] = useState("");
   const [, setDeletingRoute] = useState<{ tableId: number; route: StaticRoute } | null>(null);
@@ -75,7 +78,7 @@ export function RoutingTablesAccordion({
       setEditingDescription(null);
       onRefresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update description");
+      setError(err instanceof Error ? err.message : t("accordion.updateDescriptionFailed"));
     } finally {
       setLoading(null);
     }
@@ -87,7 +90,7 @@ export function RoutingTablesAccordion({
   };
 
   const handleDeleteTable = async (tableId: number) => {
-    if (!confirm(`Are you sure you want to delete table ${tableId}? This will remove all routes in the table.`)) {
+    if (!confirm(t("accordion.deleteTableConfirm", { id: String(tableId) }))) {
       return;
     }
     setLoading(`delete-table-${tableId}`);
@@ -96,7 +99,7 @@ export function RoutingTablesAccordion({
       await staticRoutesService.deleteRoutingTable(tableId);
       onRefresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete table");
+      setError(err instanceof Error ? err.message : t("accordion.deleteTableFailed"));
     } finally {
       setLoading(null);
     }
@@ -110,7 +113,7 @@ export function RoutingTablesAccordion({
       setDeletingRoute(null);
       onRefresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete route");
+      setError(err instanceof Error ? err.message : t("accordion.deleteRouteFailed"));
     } finally {
       setLoading(null);
     }
@@ -122,10 +125,10 @@ export function RoutingTablesAccordion({
         <CardContent className="flex flex-col items-center justify-center py-12">
           <TableProperties className="h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-lg font-semibold text-foreground mb-2">
-            No Routing Tables
+            {t("accordion.emptyTitle")}
           </h3>
           <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
-            No custom routing tables configured. Create one to get started.
+            {t("accordion.emptyDescription")}
           </p>
         </CardContent>
       </Card>
@@ -170,7 +173,7 @@ export function RoutingTablesAccordion({
                         <Input
                           value={descriptionValue}
                           onChange={(e) => setDescriptionValue(e.target.value)}
-                          placeholder="Enter description..."
+                          placeholder={t("accordion.descriptionPlaceholder")}
                           className="h-8 max-w-xs"
                           autoFocus
                         />
@@ -198,7 +201,7 @@ export function RoutingTablesAccordion({
                           "text-sm",
                           table.description ? "text-foreground" : "text-muted-foreground italic"
                         )}>
-                          {table.description || "No description"}
+                          {table.description || t("accordion.noDescription")}
                         </span>
                         <Button
                           size="sm"
@@ -250,7 +253,7 @@ export function RoutingTablesAccordion({
                       onClick={() => setAddingRouteToTable(table)}
                     >
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Route
+                      {t("accordion.addRoute")}
                     </Button>
                   </div>
 
@@ -258,19 +261,19 @@ export function RoutingTablesAccordion({
                   {totalRoutes === 0 ? (
                     <div className="text-center py-8 text-muted-foreground border rounded-lg bg-muted/30">
                       <Network className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No routes in this table</p>
-                      <p className="text-xs mt-1">Click &quot;Add Route&quot; to create one</p>
+                      <p className="text-sm">{t("accordion.noRoutes")}</p>
+                      <p className="text-xs mt-1">{t("accordion.addRouteHint")}</p>
                     </div>
                   ) : (
                     <div className="border rounded-lg overflow-hidden">
                       <Table>
                         <TableHeader>
                           <TableRow className="bg-muted/50">
-                            <TableHead className="w-12">Type</TableHead>
-                            <TableHead>Destination</TableHead>
-                            <TableHead>Next Hop / Interface</TableHead>
-                            <TableHead>Description</TableHead>
-                            <TableHead className="w-20 text-right">Action</TableHead>
+                            <TableHead className="w-12">{t("accordion.type")}</TableHead>
+                            <TableHead>{t("accordion.destination")}</TableHead>
+                            <TableHead>{t("accordion.nextHopInterface")}</TableHead>
+                            <TableHead>{tc("description")}</TableHead>
+                            <TableHead className="w-20 text-right">{t("accordion.action")}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -337,6 +340,7 @@ interface RouteRowProps {
 }
 
 function RouteRow({ route, onEdit, onDelete, isDeleting }: RouteRowProps) {
+  const t = useTranslations("routingExtras");
   const isIPv4 = route.route_type === "ipv4";
 
   return (
@@ -362,12 +366,12 @@ function RouteRow({ route, onEdit, onDelete, isDeleting }: RouteRowProps) {
           {route.blackhole && (
             <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20">
               <Shield className="h-3 w-3 mr-1" />
-              Blackhole
+              {t("shared.blackhole")}
             </Badge>
           )}
           {route.reject && (
             <Badge variant="outline" className="bg-orange-500/10 text-orange-500 border-orange-500/20">
-              Reject
+              {t("shared.reject")}
             </Badge>
           )}
           {route.next_hops.slice(0, 5).map((nh, idx) => (

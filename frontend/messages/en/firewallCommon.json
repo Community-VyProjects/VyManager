@@ -1,1 +1,47 @@
-{}
+{
+  "reorderBanner": {
+    "title": "Reorder Pending",
+    "count": "{count, plural, one {# rule will be reordered} other {# rules will be reordered}}",
+    "saveOrder": "Save Order"
+  },
+  "separatorBar": {
+    "drag": "Drag separator",
+    "edit": "Edit separator",
+    "delete": "Delete separator"
+  },
+  "separatorInsert": {
+    "ariaLabel": "Insert separator here",
+    "button": "Separator"
+  },
+  "separatorModal": {
+    "editTitle": "Edit Separator",
+    "addTitle": "Add Separator",
+    "description": "Separators are visual section labels for the <highlight>{chain} </highlight> chain. They are stored in VyManager and don't change the router config.",
+    "dragHint": "Drag the bar to move it between rules.",
+    "label": "Label",
+    "labelPlaceholder": "e.g. Ingress, Management, VPN",
+    "colour": "Colour",
+    "labelRequired": "Label is required",
+    "saveFailed": "Failed to save separator",
+    "saveChanges": "Save Changes",
+    "add": "Add Separator",
+    "colors": {
+      "red": "Red",
+      "orange": "Orange",
+      "amber": "Amber",
+      "green": "Green",
+      "teal": "Teal",
+      "blue": "Blue",
+      "indigo": "Indigo",
+      "purple": "Purple",
+      "pink": "Pink",
+      "slate": "Slate"
+    }
+  },
+  "countrySelect": {
+    "placeholder": "Select countries...",
+    "selected": "{count, plural, one {# country selected} other {# countries selected}}",
+    "searchPlaceholder": "Search countries...",
+    "noResults": "No countries found"
+  }
+}

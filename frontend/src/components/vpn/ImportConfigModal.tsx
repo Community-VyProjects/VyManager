@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -158,9 +159,29 @@ function parseEndpoint(peer: ParsedPeer, endpoint: string) {
 // Validation
 // ============================================================================
 
+type ValidationMessageKey =
+  | "noPeerSection"
+  | "privateKeyMissing"
+  | "invalidKeyFormat"
+  | "valid"
+  | "noAddress"
+  | "invalidCidr"
+  | "invalidPort"
+  | "dnsIgnored"
+  | "scriptsIgnored"
+  | "unknownIgnored"
+  | "publicKeyRequired"
+  | "noAllowedIps"
+  | "missingPort"
+  | "portOutOfRange";
+
 interface ValidationItem {
+  // Config identifiers ("[Interface] Address") are shown as-is; fieldKey marks
+  // the few English field labels that are translated at render time.
   field: string;
-  message: string;
+  fieldKey?: "config" | "unknownFields";
+  // Either a message key (translated in ValidationPanel) or a raw value from the config.
+  message: { key: ValidationMessageKey; values?: Record<string, string> } | { text: string };
   severity: "error" | "warning" | "ok";
 }
 
@@ -170,7 +191,8 @@ function validateConfig(config: ParsedConfig): ValidationItem[] {
   if (config.peers.length === 0) {
     items.push({
       field: "Config",
-      message: "No [Peer] section found — at least one peer is required",
+      fieldKey: "config",
+      message: { key: "noPeerSection" },
       severity: "error",
     });
   }
@@ -179,23 +201,23 @@ function validateConfig(config: ParsedConfig): ValidationItem[] {
   if (!config.interface.private_key) {
     items.push({
       field: "[Interface] PrivateKey",
-      message: "Not present — you can set it manually after import",
+      message: { key: "privateKeyMissing" },
       severity: "warning",
     });
   } else if (!isValidBase64Key(config.interface.private_key)) {
     items.push({
       field: "[Interface] PrivateKey",
-      message: "Invalid format (expected 44-char base64)",
+      message: { key: "invalidKeyFormat" },
       severity: "error",
     });
   } else {
-    items.push({ field: "[Interface] PrivateKey", message: "Valid", severity: "ok" });
+    items.push({ field: "[Interface] PrivateKey", message: { key: "valid" }, severity: "ok" });
   }
 
   if (config.interface.addresses.length === 0) {
     items.push({
       field: "[Interface] Address",
-      message: "No address specified — you can add one after import",
+      message: { key: "noAddress" },
       severity: "warning",
     });
   } else {
@@ -203,11 +225,11 @@ function validateConfig(config: ParsedConfig): ValidationItem[] {
       if (!isValidCIDR(addr) && !isValidIP(addr)) {
         items.push({
           field: "[Interface] Address",
-          message: `"${addr}" is not valid CIDR/IP notation`,
+          message: { key: "invalidCidr", values: { value: addr } },
           severity: "error",
         });
       } else {
-        items.push({ field: "[Interface] Address", message: addr, severity: "ok" });
+        items.push({ field: "[Interface] Address", message: { text: addr }, severity: "ok" });
       }
     }
   }
@@ -217,13 +239,13 @@ function validateConfig(config: ParsedConfig): ValidationItem[] {
     if (isNaN(port) || port < 1 || port > 65535) {
       items.push({
         field: "[Interface] ListenPort",
-        message: `"${config.interface.listen_port}" is not a valid port number`,
+        message: { key: "invalidPort", values: { value: config.interface.listen_port } },
         severity: "error",
       });
     } else {
       items.push({
         field: "[Interface] ListenPort",
-        message: config.interface.listen_port,
+        message: { text: config.interface.listen_port },
         severity: "ok",
       });
     }
@@ -232,7 +254,7 @@ function validateConfig(config: ParsedConfig): ValidationItem[] {
   if (config.interface.has_dns) {
     items.push({
       field: "[Interface] DNS",
-      message: "DNS is not applied to VyOS WireGuard — configure system DNS separately",
+      message: { key: "dnsIgnored" },
       severity: "warning",
     });
   }
@@ -240,7 +262,7 @@ function validateConfig(config: ParsedConfig): ValidationItem[] {
   if (config.interface.has_scripts) {
     items.push({
       field: "PostUp / PostDown",
-      message: "Script hooks are not supported in VyOS and will be ignored",
+      message: { key: "scriptsIgnored" },
       severity: "warning",
     });
   }
@@ -248,7 +270,8 @@ function validateConfig(config: ParsedConfig): ValidationItem[] {
   if (config.interface.unknown_keys.length > 0) {
     items.push({
       field: "Unknown interface fields",
-      message: `${config.interface.unknown_keys.join(", ")} will be ignored`,
+      fieldKey: "unknownFields",
+      message: { key: "unknownIgnored", values: { keys: config.interface.unknown_keys.join(", ") } },
       severity: "warning",
     });
   }
@@ -260,35 +283,35 @@ function validateConfig(config: ParsedConfig): ValidationItem[] {
     if (!peer.public_key) {
       items.push({
         field: `${label} PublicKey`,
-        message: "Required — peer cannot be imported without a public key",
+        message: { key: "publicKeyRequired" },
         severity: "error",
       });
     } else if (!isValidBase64Key(peer.public_key)) {
       items.push({
         field: `${label} PublicKey`,
-        message: "Invalid format (expected 44-char base64)",
+        message: { key: "invalidKeyFormat" },
         severity: "error",
       });
     } else {
-      items.push({ field: `${label} PublicKey`, message: "Valid", severity: "ok" });
+      items.push({ field: `${label} PublicKey`, message: { key: "valid" }, severity: "ok" });
     }
 
     if (peer.preshared_key) {
       if (!isValidBase64Key(peer.preshared_key)) {
         items.push({
           field: `${label} PresharedKey`,
-          message: "Invalid format (expected 44-char base64)",
+          message: { key: "invalidKeyFormat" },
           severity: "error",
         });
       } else {
-        items.push({ field: `${label} PresharedKey`, message: "Valid", severity: "ok" });
+        items.push({ field: `${label} PresharedKey`, message: { key: "valid" }, severity: "ok" });
       }
     }
 
     if (peer.allowed_ips.length === 0) {
       items.push({
         field: `${label} AllowedIPs`,
-        message: "No allowed IPs specified",
+        message: { key: "noAllowedIps" },
         severity: "warning",
       });
     } else {
@@ -296,11 +319,11 @@ function validateConfig(config: ParsedConfig): ValidationItem[] {
         if (!isValidCIDR(ip) && !isValidIP(ip)) {
           items.push({
             field: `${label} AllowedIPs`,
-            message: `"${ip}" is not valid CIDR/IP notation`,
+            message: { key: "invalidCidr", values: { value: ip } },
             severity: "error",
           });
         } else {
-          items.push({ field: `${label} AllowedIPs`, message: ip, severity: "ok" });
+          items.push({ field: `${label} AllowedIPs`, message: { text: ip }, severity: "ok" });
         }
       }
     }
@@ -309,7 +332,7 @@ function validateConfig(config: ParsedConfig): ValidationItem[] {
       if (!peer.endpoint_port) {
         items.push({
           field: `${label} Endpoint`,
-          message: `"${peer.raw_endpoint}" — missing port`,
+          message: { key: "missingPort", values: { value: peer.raw_endpoint } },
           severity: "error",
         });
       } else {
@@ -317,13 +340,13 @@ function validateConfig(config: ParsedConfig): ValidationItem[] {
         if (isNaN(port) || port < 1 || port > 65535) {
           items.push({
             field: `${label} Endpoint`,
-            message: `Port "${peer.endpoint_port}" is out of range 1–65535`,
+            message: { key: "portOutOfRange", values: { value: peer.endpoint_port } },
             severity: "error",
           });
         } else {
           items.push({
             field: `${label} Endpoint`,
-            message: peer.raw_endpoint,
+            message: { text: peer.raw_endpoint },
             severity: "ok",
           });
         }
@@ -370,6 +393,7 @@ function ValidationIcon({ severity }: { severity: ValidationItem["severity"] }) 
 }
 
 function ValidationPanel({ items }: { items: ValidationItem[] }) {
+  const t = useTranslations("wireguardTools");
   if (items.length === 0) return null;
 
   const errors = items.filter((i) => i.severity === "error");
@@ -380,13 +404,13 @@ function ValidationPanel({ items }: { items: ValidationItem[] }) {
     <div className="space-y-1 text-sm">
       <div className="flex gap-2 mb-2 text-xs text-muted-foreground">
         {errors.length > 0 && (
-          <span className="text-destructive font-medium">{errors.length} error{errors.length !== 1 ? "s" : ""}</span>
+          <span className="text-destructive font-medium">{t("importConfig.errorCount", { count: errors.length })}</span>
         )}
         {warnings.length > 0 && (
-          <span className="text-amber-600 font-medium">{warnings.length} warning{warnings.length !== 1 ? "s" : ""}</span>
+          <span className="text-amber-600 font-medium">{t("importConfig.warningCount", { count: warnings.length })}</span>
         )}
         {oks.length > 0 && (
-          <span className="text-green-600 font-medium">{oks.length} valid</span>
+          <span className="text-green-600 font-medium">{t("importConfig.validCount", { count: oks.length })}</span>
         )}
       </div>
       <ScrollArea className="max-h-48">
@@ -398,8 +422,12 @@ function ValidationPanel({ items }: { items: ValidationItem[] }) {
             >
               <ValidationIcon severity={item.severity} />
               <div className="min-w-0 flex-1">
-                <span className="font-medium text-xs text-muted-foreground">{item.field}: </span>
-                <span className="text-xs">{item.message}</span>
+                <span className="font-medium text-xs text-muted-foreground">{item.fieldKey ? t(`importConfig.fields.${item.fieldKey}`) : item.field}: </span>
+                <span className="text-xs">
+                  {"key" in item.message
+                    ? t(`importConfig.validation.${item.message.key}`, item.message.values)
+                    : item.message.text}
+                </span>
               </div>
             </div>
           ))}
@@ -427,6 +455,8 @@ export function ImportConfigModal({
   onSuccess,
   existingInterfaces,
 }: ImportConfigModalProps) {
+  const t = useTranslations("wireguardTools");
+  const tc = useTranslations("common");
   const [step, setStep] = useState<1 | 2>(1);
   const [configText, setConfigText] = useState("");
   const [parsedConfig, setParsedConfig] = useState<ParsedConfig | null>(null);
@@ -514,7 +544,7 @@ export function ImportConfigModal({
       onSuccess();
       handleOpenChange(false);
     } catch (err) {
-      setImportError(err instanceof Error ? err.message : "Import failed");
+      setImportError(err instanceof Error ? err.message : t("importConfig.importFailed"));
     } finally {
       setLoading(false);
     }
@@ -530,20 +560,20 @@ export function ImportConfigModal({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" />
-              Import WireGuard Config
+              {t("importConfig.title")}
             </DialogTitle>
             <DialogDescription>
               {step === 1
-                ? "Paste or upload a .conf file from your VPN provider (Mullvad, ProtonVPN, etc.)"
-                : "Review and confirm what will be created on your router"}
+                ? t("importConfig.step1Description")
+                : t("importConfig.step2Description")}
             </DialogDescription>
           </DialogHeader>
 
           {/* Step indicator */}
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className={step === 1 ? "text-primary font-semibold" : ""}>1. Upload & Validate</span>
+            <span className={step === 1 ? "text-primary font-semibold" : ""}>{t("importConfig.stepUpload")}</span>
             <ArrowRight className="h-3 w-3" />
-            <span className={step === 2 ? "text-primary font-semibold" : ""}>2. Preview & Import</span>
+            <span className={step === 2 ? "text-primary font-semibold" : ""}>{t("importConfig.stepPreview")}</span>
           </div>
 
           <Separator />
@@ -570,9 +600,9 @@ export function ImportConfigModal({
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Upload className="h-4 w-4 mr-2" />
-                Upload .conf file
+                {t("importConfig.uploadFile")}
               </Button>
-              <span className="text-xs text-muted-foreground">or paste below</span>
+              <span className="text-xs text-muted-foreground">{t("importConfig.orPasteBelow")}</span>
             </div>
 
             {/* Config textarea */}
@@ -588,7 +618,7 @@ export function ImportConfigModal({
             {/* Validation results */}
             {validationItems.length > 0 && (
               <div className="space-y-2">
-                <Label className="text-xs font-medium">Config Check</Label>
+                <Label className="text-xs font-medium">{t("importConfig.configCheck")}</Label>
                 <ValidationPanel items={validationItems} />
               </div>
             )}
@@ -596,7 +626,7 @@ export function ImportConfigModal({
             {/* Empty state */}
             {configText.trim() === "" && (
               <p className="text-xs text-muted-foreground text-center py-2">
-                Paste your config or click &quot;Upload .conf file&quot; to get started
+                {t("importConfig.emptyHint")}
               </p>
             )}
           </div>
@@ -608,12 +638,12 @@ export function ImportConfigModal({
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-sm font-semibold">
                   <Network className="h-4 w-4 text-primary" />
-                  Interface
+                  {t("importConfig.interface")}
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="iface-name" className="text-xs">
-                    Interface Name <span className="text-destructive">*</span>
+                    {t("importConfig.interfaceName")} <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="iface-name"
@@ -624,7 +654,7 @@ export function ImportConfigModal({
                   />
                   {existingInterfaces.includes(interfaceName) && (
                     <p className="text-xs text-destructive">
-                      Interface {interfaceName} already exists
+                      {t("importConfig.interfaceExists", { name: interfaceName })}
                     </p>
                   )}
                 </div>
@@ -632,28 +662,28 @@ export function ImportConfigModal({
                 <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs rounded-lg bg-muted/50 px-3 py-2">
                   <div className="flex items-center gap-2 py-1">
                     <Key className="h-3.5 w-3.5 text-amber-500" />
-                    <span className="text-muted-foreground">Private Key</span>
+                    <span className="text-muted-foreground">{t("importConfig.privateKey")}</span>
                     {parsedConfig.interface.private_key ? (
                       <Badge variant="secondary" className="bg-green-500/10 text-green-600 text-[10px] px-1">
-                        Configured
+                        {t("importConfig.configured")}
                       </Badge>
                     ) : (
                       <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 text-[10px] px-1">
-                        Not set
+                        {tc("notSet")}
                       </Badge>
                     )}
                   </div>
                   {parsedConfig.interface.addresses.map((addr, i) => (
                     <div key={i} className="flex items-center gap-2 py-1">
                       <Network className="h-3.5 w-3.5 text-green-500" />
-                      <span className="text-muted-foreground">Address</span>
+                      <span className="text-muted-foreground">{t("importConfig.address")}</span>
                       <span className="font-mono">{addr}</span>
                     </div>
                   ))}
                   {parsedConfig.interface.listen_port && (
                     <div className="flex items-center gap-2 py-1">
                       <Globe className="h-3.5 w-3.5 text-blue-500" />
-                      <span className="text-muted-foreground">Listen Port</span>
+                      <span className="text-muted-foreground">{t("importConfig.listenPort")}</span>
                       <span className="font-mono">{parsedConfig.interface.listen_port}</span>
                     </div>
                   )}
@@ -672,14 +702,14 @@ export function ImportConfigModal({
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-sm font-semibold">
                   <Users className="h-4 w-4 text-purple-500" />
-                  {parsedConfig.peers.length === 1 ? "1 Peer" : `${parsedConfig.peers.length} Peers`}
+                  {t("importConfig.peerCount", { count: parsedConfig.peers.length })}
                 </div>
 
                 {parsedConfig.peers.map((peer, idx) => (
                   <div key={idx} className="space-y-2 rounded-lg border border-border p-3">
                     <div className="space-y-1">
                       <Label htmlFor={`peer-name-${idx}`} className="text-xs">
-                        Peer Name <span className="text-destructive">*</span>
+                        {t("importConfig.peerName")} <span className="text-destructive">*</span>
                       </Label>
                       <Input
                         id={`peer-name-${idx}`}
@@ -715,13 +745,13 @@ export function ImportConfigModal({
                       )}
                       {peer.persistent_keepalive && (
                         <div className="flex items-center gap-2">
-                          <span>Keepalive: {peer.persistent_keepalive}s</span>
+                          <span>{t("importConfig.keepalive", { seconds: peer.persistent_keepalive })}</span>
                         </div>
                       )}
                       {peer.preshared_key && (
                         <div className="flex items-center gap-2">
                           <Key className="h-3.5 w-3.5 text-purple-500 flex-shrink-0" />
-                          <span>Preshared key configured</span>
+                          <span>{t("importConfig.pskConfigured")}</span>
                         </div>
                       )}
                     </div>
@@ -746,17 +776,17 @@ export function ImportConfigModal({
           {step === 1 ? (
             <>
               <Button variant="outline" onClick={() => handleOpenChange(false)}>
-                Cancel
+                {tc("cancel")}
               </Button>
               <Button onClick={handleNextStep} disabled={!canProceed}>
-                Next
+                {t("importConfig.next")}
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </>
           ) : (
             <>
               <Button variant="outline" onClick={() => setStep(1)} disabled={loading}>
-                Back
+                {t("importConfig.back")}
               </Button>
               <Button
                 onClick={handleImport}
@@ -770,10 +800,10 @@ export function ImportConfigModal({
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Importing...
+                    {t("importConfig.importing")}
                   </>
                 ) : (
-                  "Import Config"
+                  t("importConfig.importConfig")
                 )}
               </Button>
             </>

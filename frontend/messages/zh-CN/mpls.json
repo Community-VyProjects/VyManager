@@ -1,1 +1,156 @@
-{}
+{
+  "confirmDelete": "确认删除",
+  "saveChanges": "保存更改",
+  "adding": "正在添加...",
+  "errors": {
+    "loadConfig": "加载 MPLS 配置失败",
+    "addInterface": "添加接口失败",
+    "removeInterface": "移除接口失败",
+    "saveParameters": "保存参数失败",
+    "deleteLdpInterface": "删除 LDP 接口失败",
+    "deleteLdpNeighbor": "删除 LDP 邻居失败",
+    "saveLdpGeneral": "保存 LDP 常规设置失败",
+    "saveLdpFilters": "保存 LDP 过滤器失败"
+  },
+  "header": {
+    "readOnly": "只读",
+    "subtitle": "多协议标签交换与标签分发协议"
+  },
+  "stats": {
+    "mplsInterfaces": "MPLS 接口",
+    "ldpInterfaces": "LDP 接口",
+    "ldpNeighbors": "LDP 邻居",
+    "targetedSessions": "定向会话"
+  },
+  "tabs": {
+    "overview": "概览",
+    "neighbors": "邻居",
+    "ldpGeneral": "LDP 常规",
+    "filters": "过滤器",
+    "targeted": "定向"
+  },
+  "overview": {
+    "enabledInterfaces": "已启用 MPLS 的接口",
+    "removeInterface": "移除 {name}",
+    "noInterfaces": "尚未配置 MPLS 接口",
+    "addInterfacePlaceholder": "添加接口...",
+    "allInterfacesEnabled": "所有可用接口均已启用",
+    "parameters": "MPLS 参数",
+    "maximumTtl": "最大 TTL",
+    "defaultMaxTtl": "默认（255）",
+    "noPropagateTtl": "不传播 TTL",
+    "ldpSummary": "LDP 摘要",
+    "configureLdp": "配置 LDP",
+    "transportIpv4": "传输 IPv4",
+    "transportIpv6": "传输 IPv6",
+    "on": "开",
+    "off": "关",
+    "ldpNotConfigured": "尚未配置 LDP。添加一个 LDP 接口即可开始。"
+  },
+  "general": {
+    "description": "LDP 路由器 ID、发现定时器、传输地址和协议参数",
+    "routerId": "路由器 ID",
+    "ipv4Placeholder": "例如 10.0.0.1",
+    "ipv6Placeholder": "例如 2001:db8::1",
+    "notConfigured": "未配置",
+    "discoveryTitle": "发现定时器与传输地址",
+    "helloIpv4HoldtimeS": "Hello IPv4 保持时间（秒）",
+    "helloIpv4IntervalS": "Hello IPv4 间隔（秒）",
+    "helloIpv6HoldtimeS": "Hello IPv6 保持时间（秒）",
+    "helloIpv6IntervalS": "Hello IPv6 间隔（秒）",
+    "sessionIpv4HoldtimeS": "会话 IPv4 保持时间（秒）",
+    "sessionIpv6HoldtimeS": "会话 IPv6 保持时间（秒）",
+    "transportIpv4Address": "IPv4 传输地址",
+    "transportIpv6Address": "IPv6 传输地址",
+    "helloIpv4Holdtime": "Hello IPv4 保持时间",
+    "helloIpv4Interval": "Hello IPv4 间隔",
+    "helloIpv6Holdtime": "Hello IPv6 保持时间",
+    "helloIpv6Interval": "Hello IPv6 间隔",
+    "sessionIpv4Holdtime": "会话 IPv4 保持时间",
+    "sessionIpv6Holdtime": "会话 IPv6 保持时间",
+    "ldpParameters": "LDP 参数",
+    "ciscoInteropTlv": "Cisco 互通 TLV",
+    "ciscoInteropTlvDesc": "启用 Cisco 专用的 LDP 互通 TLV",
+    "orderedControl": "有序控制",
+    "orderedControlDesc": "使用有序标签分发控制",
+    "transportPreferIpv4": "传输优先使用 IPv4",
+    "transportPreferIpv4Desc": "传输时优先使用 IPv4 而非 IPv6"
+  },
+  "ldpInterfaces": {
+    "description": "参与 LDP 邻居发现的接口",
+    "add": "添加接口",
+    "empty": "尚未配置 LDP 接口",
+    "emptyHint": "添加接口以启用 LDP 邻居发现",
+    "interface": "接口",
+    "disableHello": "禁用 Hello"
+  },
+  "neighbors": {
+    "description": "按邻居配置的 LDP 会话设置",
+    "add": "添加邻居",
+    "empty": "尚未配置 LDP 邻居",
+    "emptyHint": "配置邻居专属设置，例如密码和保持时间",
+    "peerAddress": "对等体地址",
+    "sessionHoldtime": "会话保持时间",
+    "ttlSecurity": "TTL 安全",
+    "password": "密码"
+  },
+  "filters": {
+    "description": "通过访问列表对 LDP FEC 进行分配、导出和导入过滤",
+    "allocation": "分配",
+    "ipv4AccessList": "IPv4 访问列表",
+    "ipv6AccessList": "IPv6 访问列表",
+    "aclPlaceholder": "ACL 名称或编号",
+    "export": "导出",
+    "import": "导入",
+    "ipv4ExplicitNull": "IPv4 显式空标签",
+    "ipv6ExplicitNull": "IPv6 显式空标签",
+    "filterAccessList": "过滤访问列表",
+    "neighborAccessList": "邻居访问列表",
+    "aclNamePlaceholder": "ACL 名称",
+    "ipv4FilterAcl": "IPv4 过滤 ACL",
+    "ipv4NeighborAcl": "IPv4 邻居 ACL",
+    "ipv6FilterAcl": "IPv6 过滤 ACL",
+    "ipv6NeighborAcl": "IPv6 邻居 ACL"
+  },
+  "targeted": {
+    "description": "用于 LDP-over-TE 和 RSVP 场景的定向 LDP 会话",
+    "configure": "配置",
+    "ipv4Title": "IPv4 定向邻居",
+    "ipv6Title": "IPv6 定向邻居",
+    "noIpv4Addresses": "没有 IPv4 定向邻居地址",
+    "noIpv6Addresses": "没有 IPv6 定向邻居地址",
+    "helloHoldtime": "Hello 保持时间",
+    "helloInterval": "Hello 间隔"
+  },
+  "interfaceModal": {
+    "nameRequired": "接口名称为必填项",
+    "editTitle": "编辑 LDP 接口",
+    "addTitle": "添加 LDP 接口",
+    "selectPlaceholder": "选择接口...",
+    "namePlaceholder": "例如 eth0",
+    "disableHello": "禁用建立 Hello",
+    "disableHelloHelp": "在此接口上抑制 LDP Hello 消息"
+  },
+  "neighborModal": {
+    "addressRequired": "对等体地址为必填项",
+    "holdtimeInvalid": "会话保持时间必须是非负数",
+    "editTitle": "编辑 LDP 邻居",
+    "addTitle": "添加 LDP 邻居",
+    "peerIpv4Address": "对等体 IPv4 地址",
+    "passwordPlaceholder": "MD5 认证密码（可选）",
+    "passwordHelp": "此 LDP 邻居会话的 MD5 认证密码",
+    "sessionHoldtimeSeconds": "会话保持时间（秒）",
+    "holdtimePlaceholder": "默认（可选）",
+    "holdtimeHelp": "为此对等体覆盖 LDP 会话保持时间",
+    "ttlPlaceholder": "1–254 或 disable（可选）",
+    "ttlHelp": "GTSM TTL 安全跳数（1–254），或填写“disable”以关闭"
+  },
+  "targetedModal": {
+    "title": "定向邻居会话",
+    "enable": "启用 {family} 定向邻居",
+    "addresses": "地址",
+    "noAddresses": "没有地址",
+    "helloHoldtimeSeconds": "Hello 保持时间（秒）",
+    "helloIntervalSeconds": "Hello 间隔（秒）"
+  }
+}

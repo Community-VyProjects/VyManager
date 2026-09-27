@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -30,8 +31,6 @@ import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
 import {
   ALL_VPP_SUB_TYPES,
   VPP_NAME_EXAMPLES,
-  VPP_SUB_TYPE_DESCRIPTIONS,
-  VPP_SUB_TYPE_LABELS,
   emptyVppDraft,
   emptyVppVifDraft,
   submitVppCreate,
@@ -41,6 +40,7 @@ import {
   vppDraftFrom,
   vppTabs,
   type VppDraft,
+  type VppValidationError,
   type VppVifDraft,
 } from "./vpp-form";
 
@@ -65,7 +65,24 @@ export function VppModal({
   existing,
   existingSubType,
 }: VppModalProps) {
+  const t = useTranslations("vpp");
+  const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
+  const subTypeLabel = (st: VppSubType) => t(`subTypes.${st}.label`);
+  const validationText = (e: VppValidationError) => {
+    switch (e.key) {
+      case "remoteRequired":
+        return t("validation.remoteRequired", e.values);
+      case "sourceRequired":
+        return t("validation.sourceRequired", e.values);
+      case "namePattern":
+        return t("validation.namePattern", e.values);
+      case "nameExists":
+        return t("validation.nameExists", e.values);
+      default:
+        return t(`validation.${e.key}`);
+    }
+  };
 
   const [selectedSubType, setSelectedSubType] = useState<VppSubType | null>(null);
   const [allIfaces, setAllIfaces] = useState<{ name: string; type: string }[]>([]);
@@ -106,7 +123,7 @@ export function VppModal({
   const handleSubmit = async () => {
     const subType = isEdit ? existingSubType : selectedSubType;
     if (!subType) {
-      setError("Please select an interface type.");
+      setError(t("validation.selectType"));
       return;
     }
 
@@ -114,7 +131,7 @@ export function VppModal({
       ? validateVppEdit(draft, subType)
       : validateVppCreate(draft, subType, existingNames);
     if (validationError) {
-      setError(validationError);
+      setError(validationText(validationError));
       return;
     }
 
@@ -132,12 +149,12 @@ export function VppModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
       }
     } catch (err) {
       setError(
         (err as ApiError).message ||
-          (isEdit ? "Failed to update VPP interface" : "Failed to create VPP interface"),
+          (isEdit ? t("modal.updateFailed") : t("modal.createFailed")),
       );
     } finally {
       setLoading(false);
@@ -188,22 +205,22 @@ export function VppModal({
 
   const renderTypePicker = () => (
     <div className="grid grid-cols-2 gap-3 py-2">
-      {ALL_VPP_SUB_TYPES.map((t) => {
-        const supported = capabilities?.features?.[t]?.supported ?? false;
+      {ALL_VPP_SUB_TYPES.map((st) => {
+        const supported = capabilities?.features?.[st]?.supported ?? false;
         if (!supported) return null;
         return (
           <button
-            key={t}
+            key={st}
             onClick={() => {
-              setSelectedSubType(t);
-              patch({ name: VPP_NAME_EXAMPLES[t] });
+              setSelectedSubType(st);
+              patch({ name: VPP_NAME_EXAMPLES[st] });
             }}
             className="flex items-start gap-3 rounded-lg border p-3 text-left hover:bg-accent transition-colors"
           >
             <div className="flex-1 min-w-0">
-              <div className="font-medium text-sm">{VPP_SUB_TYPE_LABELS[t]}</div>
-              <div className="text-xs text-muted-foreground mt-0.5">{VPP_SUB_TYPE_DESCRIPTIONS[t]}</div>
-              <code className="text-xs text-muted-foreground mt-1 block">{VPP_NAME_EXAMPLES[t]}</code>
+              <div className="font-medium text-sm">{subTypeLabel(st)}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">{t(`subTypes.${st}.description`)}</div>
+              <code className="text-xs text-muted-foreground mt-1 block">{VPP_NAME_EXAMPLES[st]}</code>
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
           </button>
@@ -215,7 +232,7 @@ export function VppModal({
   const renderVifForm = () => (
     <div className="space-y-3 border rounded-lg p-3 bg-muted/30">
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-        {editingVifIdx !== null ? "Edit VIF" : "Add VIF"}
+        {editingVifIdx !== null ? t("vif.edit") : t("vif.add")}
       </p>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
@@ -236,15 +253,15 @@ export function VppModal({
         </div>
       </div>
       <div className="space-y-1">
-        <Label className="text-xs">Description</Label>
+        <Label className="text-xs">{tc("description")}</Label>
         <Input value={vifDraft.description} onChange={(e) => setVifDraft((d) => ({ ...d, description: e.target.value }))} />
       </div>
       <div className="flex items-center gap-2">
         <Checkbox id="vpp-vif-disabled" checked={vifDraft.disabled} onCheckedChange={(c) => setVifDraft((d) => ({ ...d, disabled: !!c }))} />
-        <Label htmlFor="vpp-vif-disabled" className="text-xs font-normal">Disabled</Label>
+        <Label htmlFor="vpp-vif-disabled" className="text-xs font-normal">{tc("disabled")}</Label>
       </div>
       <div className="space-y-1">
-        <Label className="text-xs">Addresses</Label>
+        <Label className="text-xs">{t("vif.addresses")}</Label>
         <div className="flex gap-2">
           <Input
             value={vifDraft.addressInput}
@@ -268,11 +285,11 @@ export function VppModal({
       </div>
       <div className="flex gap-2">
         <Button type="button" size="sm" onClick={saveVif} disabled={!vifDraft.vlan_id.trim()}>
-          {editingVifIdx !== null ? "Update VIF" : "Add VIF"}
+          {editingVifIdx !== null ? t("vif.update") : t("vif.add")}
         </Button>
         {editingVifIdx !== null && (
           <Button type="button" variant="outline" size="sm" onClick={() => { setEditingVifIdx(null); setVifDraft(emptyVppVifDraft()); }}>
-            Cancel
+            {tc("cancel")}
           </Button>
         )}
       </div>
@@ -285,16 +302,16 @@ export function VppModal({
     return (
       <Tabs defaultValue="basic" className="w-full">
         <TabsList className="w-full flex">
-          <TabsTrigger value="basic" className="flex-1">Basic</TabsTrigger>
-          {tabs.addresses && <TabsTrigger value="addresses" className="flex-1">Addresses</TabsTrigger>}
-          {(tabs.members || tabs.bridgeMembers) && <TabsTrigger value="members" className="flex-1">Members</TabsTrigger>}
-          {tabs.vif && <TabsTrigger value="vif" className="flex-1">VIF Sub-ifs</TabsTrigger>}
+          <TabsTrigger value="basic" className="flex-1">{t("tabs.basic")}</TabsTrigger>
+          {tabs.addresses && <TabsTrigger value="addresses" className="flex-1">{t("tabs.addresses")}</TabsTrigger>}
+          {(tabs.members || tabs.bridgeMembers) && <TabsTrigger value="members" className="flex-1">{t("tabs.members")}</TabsTrigger>}
+          {tabs.vif && <TabsTrigger value="vif" className="flex-1">{t("tabs.vif")}</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="basic" className="space-y-4 mt-4">
           <div className="space-y-2">
             <Label htmlFor="vpp-iface-name">
-              Interface Name {!lockedName.disabled && <span className="text-destructive">*</span>}
+              {t("form.interfaceName")} {!lockedName.disabled && <span className="text-destructive">*</span>}
             </Label>
             <Input
               id="vpp-iface-name"
@@ -305,7 +322,7 @@ export function VppModal({
               className={lockedName.disabled ? "bg-muted font-mono" : undefined}
             />
             {lockedName.disabled && (
-              <p className="text-xs text-muted-foreground">Interface name cannot be changed.</p>
+              <p className="text-xs text-muted-foreground">{t("form.nameLocked")}</p>
             )}
           </div>
 
@@ -313,7 +330,7 @@ export function VppModal({
             <>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Mode</Label>
+                  <Label>{t("form.mode")}</Label>
                   <Select value={draft.bondMode} onValueChange={(v) => patch({ bondMode: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -324,7 +341,7 @@ export function VppModal({
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Hash Policy</Label>
+                  <Label>{t("form.hashPolicy")}</Label>
                   <Select value={draft.bondHashPolicy} onValueChange={(v) => patch({ bondHashPolicy: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -337,7 +354,7 @@ export function VppModal({
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>MAC Address</Label>
+                  <Label>{t("form.macAddress")}</Label>
                   <Input value={draft.bondMac} onChange={(e) => patch({ bondMac: e.target.value })} placeholder="aa:bb:cc:dd:ee:ff" />
                 </div>
                 <div className="space-y-2">
@@ -352,17 +369,17 @@ export function VppModal({
             <>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Remote IP {!isEdit && <span className="text-destructive">*</span>}</Label>
+                  <Label>{t("form.remoteIp")} {!isEdit && <span className="text-destructive">*</span>}</Label>
                   <Input value={draft.greRemote} onChange={(e) => patch({ greRemote: e.target.value })} placeholder="10.0.0.1" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Source Address {!isEdit && <span className="text-destructive">*</span>}</Label>
+                  <Label>{t("form.sourceAddress")} {!isEdit && <span className="text-destructive">*</span>}</Label>
                   <Input value={draft.greSource} onChange={(e) => patch({ greSource: e.target.value })} placeholder="10.0.0.2" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Tunnel Type</Label>
+                  <Label>{t("form.tunnelType")}</Label>
                   <Select value={draft.greTunnelType} onValueChange={(v) => patch({ greTunnelType: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -373,8 +390,8 @@ export function VppModal({
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Key (0-4294967295)</Label>
-                  <Input type="number" value={draft.greKey} onChange={(e) => patch({ greKey: e.target.value })} placeholder="Optional" min={0} max={4294967295} />
+                  <Label>{t("form.key")}</Label>
+                  <Input type="number" value={draft.greKey} onChange={(e) => patch({ greKey: e.target.value })} placeholder={tc("optional")} min={0} max={4294967295} />
                 </div>
               </div>
               <div className="space-y-2">
@@ -388,11 +405,11 @@ export function VppModal({
             <>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Remote IP {!isEdit && <span className="text-destructive">*</span>}</Label>
+                  <Label>{t("form.remoteIp")} {!isEdit && <span className="text-destructive">*</span>}</Label>
                   <Input value={draft.ipipRemote} onChange={(e) => patch({ ipipRemote: e.target.value })} placeholder="10.0.0.1" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Source Address {!isEdit && <span className="text-destructive">*</span>}</Label>
+                  <Label>{t("form.sourceAddress")} {!isEdit && <span className="text-destructive">*</span>}</Label>
                   <Input value={draft.ipipSource} onChange={(e) => patch({ ipipSource: e.target.value })} placeholder="10.0.0.2" />
                 </div>
               </div>
@@ -414,11 +431,11 @@ export function VppModal({
             <>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Remote IP {!isEdit && <span className="text-destructive">*</span>}</Label>
+                  <Label>{t("form.remoteIp")} {!isEdit && <span className="text-destructive">*</span>}</Label>
                   <Input value={draft.vxlanRemote} onChange={(e) => patch({ vxlanRemote: e.target.value })} placeholder="10.0.0.1" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Source Address {!isEdit && <span className="text-destructive">*</span>}</Label>
+                  <Label>{t("form.sourceAddress")} {!isEdit && <span className="text-destructive">*</span>}</Label>
                   <Input value={draft.vxlanSource} onChange={(e) => patch({ vxlanSource: e.target.value })} placeholder="10.0.0.2" />
                 </div>
               </div>
@@ -436,14 +453,14 @@ export function VppModal({
           )}
 
           <div className="space-y-2">
-            <Label>Description</Label>
-            <Input value={draft.description} onChange={(e) => patch({ description: e.target.value })} placeholder="Optional description" />
+            <Label>{tc("description")}</Label>
+            <Input value={draft.description} onChange={(e) => patch({ description: e.target.value })} placeholder={t("form.descriptionPlaceholder")} />
           </div>
 
           {selectedSubType !== "bridge" && (
             <div className="flex items-center gap-2">
               <Checkbox id="vpp-disabled" checked={draft.disabled} onCheckedChange={(c) => patch({ disabled: !!c })} />
-              <Label htmlFor="vpp-disabled">Disabled</Label>
+              <Label htmlFor="vpp-disabled">{tc("disabled")}</Label>
             </div>
           )}
         </TabsContent>
@@ -451,13 +468,13 @@ export function VppModal({
         {tabs.addresses && (
           <TabsContent value="addresses" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>IP Addresses</Label>
+              <Label>{t("form.ipAddresses")}</Label>
               <div className="flex gap-2">
                 <Input
                   value={addressInput}
                   onChange={(e) => setAddressInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addAddress())}
-                  placeholder="e.g., 192.168.1.1/24"
+                  placeholder={t("form.examplePlaceholder", { value: "192.168.1.1/24" })}
                 />
                 <Button type="button" variant="outline" size="sm" onClick={addAddress}>
                   <Plus className="h-4 w-4" />
@@ -481,7 +498,7 @@ export function VppModal({
           <TabsContent value="members" className="space-y-4 mt-4">
             {tabs.bridgeMembers ? (
               <div className="space-y-3">
-                <Label>Bridge Members</Label>
+                <Label>{t("members.bridgeMembers")}</Label>
                 <Select
                   value=""
                   onValueChange={(v) => {
@@ -491,14 +508,14 @@ export function VppModal({
                   }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select interface to add..." />
+                    <SelectValue placeholder={t("members.selectToAdd")} />
                   </SelectTrigger>
                   <SelectContent>
                     {memberOptions
                       .filter((i) => !draft.bridgeMembers.some((m) => m.interface === i))
                       .map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}
                     {memberOptions.filter((i) => !draft.bridgeMembers.some((m) => m.interface === i)).length === 0 && (
-                      <div className="px-3 py-2 text-xs text-muted-foreground">All interfaces added</div>
+                      <div className="px-3 py-2 text-xs text-muted-foreground">{t("members.allAdded")}</div>
                     )}
                   </SelectContent>
                 </Select>
@@ -526,7 +543,7 @@ export function VppModal({
               </div>
             ) : (
               <div className="space-y-3">
-                <Label>{selectedSubType === "xconnect" ? "XConnect Members" : "Bond Members"}</Label>
+                <Label>{selectedSubType === "xconnect" ? t("members.xconnectMembers") : t("members.bondMembers")}</Label>
                 <Select
                   value=""
                   onValueChange={(v) => {
@@ -534,14 +551,14 @@ export function VppModal({
                   }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select interface to add..." />
+                    <SelectValue placeholder={t("members.selectToAdd")} />
                   </SelectTrigger>
                   <SelectContent>
                     {memberOptions
                       .filter((i) => !draft.members.includes(i))
                       .map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}
                     {memberOptions.filter((i) => !draft.members.includes(i)).length === 0 && (
-                      <div className="px-3 py-2 text-xs text-muted-foreground">All interfaces added</div>
+                      <div className="px-3 py-2 text-xs text-muted-foreground">{t("members.allAdded")}</div>
                     )}
                   </SelectContent>
                 </Select>
@@ -563,10 +580,10 @@ export function VppModal({
         {tabs.vif && (
           <TabsContent value="vif" className="space-y-4 mt-4">
             <div className="flex items-center justify-between">
-              <Label>VIF Sub-interfaces</Label>
+              <Label>{t("vif.title")}</Label>
               {editingVifIdx === null && (
                 <Button type="button" variant="outline" size="sm" onClick={() => setVifDraft(emptyVppVifDraft())}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Add VIF
+                  <Plus className="h-3.5 w-3.5 mr-1" /> {t("vif.add")}
                 </Button>
               )}
             </div>
@@ -577,15 +594,15 @@ export function VppModal({
                   <div key={v.vlan_id} className="flex items-center gap-3 rounded-md border px-3 py-2">
                     <Badge variant="secondary" className="text-xs font-mono">VLAN {v.vlan_id}</Badge>
                     <span className="flex-1 text-xs text-muted-foreground truncate">
-                      {v.addresses.length > 0 ? v.addresses.join(", ") : "no addresses"}
+                      {v.addresses.length > 0 ? v.addresses.join(", ") : t("vif.noAddresses")}
                       {v.description ? ` - ${v.description}` : ""}
                     </span>
-                    {v.disabled && <Badge variant="outline" className="text-xs bg-red-500/10 text-red-500 border-red-500/20">Disabled</Badge>}
+                    {v.disabled && <Badge variant="outline" className="text-xs bg-red-500/10 text-red-500 border-red-500/20">{tc("disabled")}</Badge>}
                     <Button
                       type="button" variant="ghost" size="sm" className="h-7 w-7 p-0"
                       onClick={() => { setEditingVifIdx(i); setVifDraft({ ...v }); }}
                     >
-                      <span className="text-xs">Edit</span>
+                      <span className="text-xs">{tc("edit")}</span>
                     </Button>
                     <Button
                       type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive"
@@ -609,7 +626,7 @@ export function VppModal({
     if (isEdit && selectedSubType) {
       return (
         <>
-          Edit VPP {VPP_SUB_TYPE_LABELS[selectedSubType]}:{" "}
+          {t("modal.editTitle", { type: subTypeLabel(selectedSubType) })}{" "}
           <code className="font-mono text-base">{existing.name}</code>
         </>
       );
@@ -623,19 +640,19 @@ export function VppModal({
           <ArrowLeft className="h-4 w-4" />
           <span className="text-sm font-normal">VPP</span>
           <span className="text-sm text-muted-foreground mx-1">/</span>
-          <span className="font-semibold text-foreground">{VPP_SUB_TYPE_LABELS[selectedSubType]}</span>
+          <span className="font-semibold text-foreground">{subTypeLabel(selectedSubType)}</span>
         </button>
       );
     }
-    return "Create VPP Interface";
+    return t("modal.createTitle");
   };
 
   const description = () => {
-    if (!selectedSubType) return "Select the VPP interface type to create.";
-    const label = VPP_SUB_TYPE_LABELS[selectedSubType];
+    if (!selectedSubType) return t("modal.selectTypeDescription");
+    const label = subTypeLabel(selectedSubType);
     return isEdit
-      ? `Modify the VPP ${label} interface configuration.`
-      : `Configure a new VPP ${label} interface.`;
+      ? t("modal.editDescription", { type: label })
+      : t("modal.createDescription", { type: label });
   };
 
   return (
@@ -657,19 +674,19 @@ export function VppModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           {selectedSubType && (
             <Button onClick={handleSubmit} disabled={loading}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isEdit ? "Saving..." : "Creating..."}
+                  {isEdit ? tc("saving") : t("modal.creating")}
                 </>
               ) : isEdit ? (
-                "Save Changes"
+                t("modal.saveChanges")
               ) : (
-                `Create ${VPP_SUB_TYPE_LABELS[selectedSubType]}`
+                t("modal.createSubType", { type: subTypeLabel(selectedSubType) })
               )}
             </Button>
           )}

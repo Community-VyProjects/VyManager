@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +43,8 @@ export function FlowtableModal({
   existingFlowtables,
   existing,
 }: FlowtableModalProps) {
+  const t = useTranslations("firewallFlowtables");
+  const tc = useTranslations("common");
   const isEdit = !!existing;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -106,13 +109,13 @@ export function FlowtableModal({
 
   const validateName = (value: string): string | null => {
     if (!value.trim()) {
-      return "Name is required";
+      return t("modal.nameRequired");
     }
     if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(value)) {
-      return "Name must start with a letter and contain only letters, numbers, hyphens, and underscores";
+      return t("modal.nameInvalid");
     }
     if (existingFlowtables.some((ft) => ft.name.toLowerCase() === value.toLowerCase())) {
-      return "A flowtable with this name already exists";
+      return t("modal.nameExists");
     }
     return null;
   };
@@ -121,7 +124,7 @@ export function FlowtableModal({
     if (!existing) return;
 
     if (interfaces.length === 0) {
-      setError("At least one interface is required");
+      setError(t("modal.interfaceRequired"));
       return;
     }
 
@@ -142,7 +145,7 @@ export function FlowtableModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update flowtable");
+      setError(err instanceof Error ? err.message : t("modal.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -161,7 +164,7 @@ export function FlowtableModal({
     }
 
     if (interfaces.length === 0) {
-      setError("At least one interface is required");
+      setError(t("modal.interfaceRequired"));
       return;
     }
 
@@ -178,7 +181,7 @@ export function FlowtableModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create flowtable");
+      setError(err instanceof Error ? err.message : t("modal.createFailed"));
     } finally {
       setLoading(false);
     }
@@ -189,12 +192,12 @@ export function FlowtableModal({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? `Edit Flowtable: ${existing.name}` : "Create Flowtable"}
+            {isEdit ? t("modal.editTitle", { name: existing.name }) : t("createFlowtable")}
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Modify the flowtable configuration."
-              : "Create a new flowtable for fast-path packet offloading."}
+              ? t("modal.editDescription")
+              : t("modal.createDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -208,37 +211,37 @@ export function FlowtableModal({
 
           <div className="space-y-2">
             <Label htmlFor="name">
-              Name {isEdit ? null : <span className="text-destructive">*</span>}
+              {tc("name")} {isEdit ? null : <span className="text-destructive">*</span>}
             </Label>
             <Input
               id="name"
               value={isEdit ? existing.name : name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., FT_LAN"
+              placeholder={t("modal.namePlaceholder")}
               className={isEdit ? "font-mono bg-muted" : "font-mono"}
               disabled={isEdit}
             />
             <p className="text-xs text-muted-foreground">
               {isEdit
-                ? "Flowtable name cannot be changed. Delete and recreate to rename."
-                : "Must start with a letter. Use letters, numbers, hyphens, and underscores."}
+                ? t("modal.nameHintEdit")
+                : t("modal.nameHintCreate")}
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{tc("description")}</Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description"
+              placeholder={t("modal.descriptionPlaceholder")}
               rows={2}
             />
           </div>
 
           <div className="space-y-2">
             <Label>
-              Interfaces <span className="text-destructive">*</span>
+              {t("interfaces")} <span className="text-destructive">*</span>
             </Label>
             <div className="flex gap-2">
               <InterfaceSelect
@@ -248,7 +251,7 @@ export function FlowtableModal({
                   .filter((iface) => !interfaces.includes(iface.name))
                   .map((i) => ({ name: i.name, type: i.type, description: i.description ?? null }))}
                 className="flex-1"
-                placeholder="Select interface"
+                placeholder={t("modal.selectInterface")}
               />
               <Button
                 type="button"
@@ -277,40 +280,39 @@ export function FlowtableModal({
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              Select the network interfaces to include in this flowtable.
+              {t("modal.interfacesHint")}
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="offload">Offload Type</Label>
+            <Label htmlFor="offload">{t("offloadType")}</Label>
             <Select value={offload} onValueChange={setOffload}>
               <SelectTrigger id="offload">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="software">Software (kernel-based)</SelectItem>
-                <SelectItem value="hardware">Hardware (NIC-based)</SelectItem>
+                <SelectItem value="software">{t("modal.offloadSoftware")}</SelectItem>
+                <SelectItem value="hardware">{t("modal.offloadHardware")}</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Software offload uses the kernel for processing. Hardware offload uses the NIC
-              (requires compatible hardware).
+              {t("modal.offloadHint")}
             </p>
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading
               ? isEdit
-                ? "Saving..."
-                : "Creating..."
+                ? tc("saving")
+                : t("modal.creating")
               : isEdit
-                ? "Save Changes"
-                : "Create Flowtable"}
+                ? t("modal.saveChanges")
+                : t("createFlowtable")}
           </Button>
         </DialogFooter>
       </DialogContent>

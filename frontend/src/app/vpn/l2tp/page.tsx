@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from "react";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -46,6 +47,8 @@ import {
 } from "@/components/vpn/l2tp";
 
 function L2TPPageInner() {
+  const t = useTranslations("l2tp");
+  const tc = useTranslations("common");
   const searchParams = useSearchParams();
   const { canRead, canWrite } = usePermissions();
   const hasRead = canRead(FeatureGroup.L2TP);
@@ -96,7 +99,7 @@ function L2TPPageInner() {
       setConfig(configData);
       setCapabilities(capsData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load L2TP configuration");
+      setError(err instanceof Error ? err.message : t("page.loadConfigFailed"));
     } finally {
       setLoading(false);
     }
@@ -104,6 +107,7 @@ function L2TPPageInner() {
 
   useEffect(() => {
     if (hasRead) fetchConfig();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount; a language switch re-renders via router.refresh()
   }, [hasRead]);
 
   useEffect(() => {
@@ -119,7 +123,7 @@ function L2TPPageInner() {
         <div className="flex items-center justify-center h-[calc(100vh-200px)]">
           <div className="text-center space-y-4">
             <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-            <p className="text-muted-foreground">Loading L2TP configuration...</p>
+            <p className="text-muted-foreground">{t("page.loadingConfig")}</p>
           </div>
         </div>
       </AppLayout>
@@ -133,10 +137,10 @@ function L2TPPageInner() {
         <div className="flex items-center justify-center h-[calc(100vh-200px)]">
           <div className="text-center space-y-4">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-            <p className="text-destructive font-medium">Failed to load configuration</p>
+            <p className="text-destructive font-medium">{t("page.loadFailed")}</p>
             <p className="text-sm text-muted-foreground">{error}</p>
             <Button onClick={() => fetchConfig(true)}>
-              <RefreshCw className="h-4 w-4 mr-2" /> Retry
+              <RefreshCw className="h-4 w-4 mr-2" /> {tc("retry")}
             </Button>
           </div>
         </div>
@@ -158,33 +162,33 @@ function L2TPPageInner() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold">L2TP Remote Access</h1>
+                  <h1 className="text-2xl font-bold">{t("page.title")}</h1>
                   {config?.configured ? (
-                    <Badge variant="secondary" className="bg-green-500/10 text-green-600">Configured</Badge>
+                    <Badge variant="secondary" className="bg-green-500/10 text-green-600">{t("page.configured")}</Badge>
                   ) : (
-                    <Badge variant="secondary">Not Configured</Badge>
+                    <Badge variant="secondary">{t("page.notConfigured")}</Badge>
                   )}
                 </div>
                 <p className="text-muted-foreground">
-                  Manage L2TP/IPSec remote access VPN server
+                  {t("page.subtitle")}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               {hasWrite && config?.configured && (
                 <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget({
-                  type: "L2TP Configuration",
-                  name: "entire L2TP config",
+                  type: t("page.typeConfig"),
+                  name: t("page.entireConfig"),
                   onDelete: () => l2tpService.deleteL2TP(),
-                  warning: "This will remove the entire L2TP configuration including all users, pools, and settings.",
+                  warning: t("page.deleteAllWarning"),
                 })}>
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Delete L2TP
+                  {t("page.deleteL2tp")}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={() => fetchConfig(true)} disabled={loading}>
                 <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -195,7 +199,7 @@ function L2TPPageInner() {
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-blue-500" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Local Users</p>
+                  <p className="text-xs text-muted-foreground">{t("page.localUsers")}</p>
                   <p className="font-semibold">{totals?.local_users ?? 0}</p>
                 </div>
               </div>
@@ -204,7 +208,7 @@ function L2TPPageInner() {
               <div className="flex items-center gap-2">
                 <Server className="h-4 w-4 text-purple-500" />
                 <div>
-                  <p className="text-xs text-muted-foreground">RADIUS Servers</p>
+                  <p className="text-xs text-muted-foreground">{t("page.radiusServers")}</p>
                   <p className="font-semibold">{totals?.radius_servers ?? 0}</p>
                 </div>
               </div>
@@ -213,7 +217,7 @@ function L2TPPageInner() {
               <div className="flex items-center gap-2">
                 <Network className="h-4 w-4 text-green-500" />
                 <div>
-                  <p className="text-xs text-muted-foreground">IP Pools</p>
+                  <p className="text-xs text-muted-foreground">{t("page.ipPools")}</p>
                   <p className="font-semibold">{totals?.client_ip_pools ?? 0}</p>
                 </div>
               </div>
@@ -222,7 +226,7 @@ function L2TPPageInner() {
               <div className="flex items-center gap-2">
                 <Network className="h-4 w-4 text-cyan-500" />
                 <div>
-                  <p className="text-xs text-muted-foreground">IPv6 Pools</p>
+                  <p className="text-xs text-muted-foreground">{t("page.ipv6Pools")}</p>
                   <p className="font-semibold">{totals?.client_ipv6_pools ?? 0}</p>
                 </div>
               </div>
@@ -235,12 +239,12 @@ function L2TPPageInner() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
             <div className="px-6 pt-4 border-b">
               <TabsList>
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="users">Local Users</TabsTrigger>
+                <TabsTrigger value="overview">{t("page.overview")}</TabsTrigger>
+                <TabsTrigger value="users">{t("page.localUsers")}</TabsTrigger>
                 <TabsTrigger value="radius">RADIUS</TabsTrigger>
-                <TabsTrigger value="pools">IP Pools</TabsTrigger>
-                <TabsTrigger value="ipv6pools">IPv6 Pools</TabsTrigger>
-                <TabsTrigger value="auth">Authentication</TabsTrigger>
+                <TabsTrigger value="pools">{t("page.ipPools")}</TabsTrigger>
+                <TabsTrigger value="ipv6pools">{t("page.ipv6Pools")}</TabsTrigger>
+                <TabsTrigger value="auth">{t("page.authentication")}</TabsTrigger>
               </TabsList>
             </div>
 
@@ -252,47 +256,47 @@ function L2TPPageInner() {
                     {/* General Settings Card */}
                     <Card className="p-4 space-y-3">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-medium">General Settings</h4>
+                        <h4 className="text-sm font-medium">{t("page.generalSettings")}</h4>
                         {hasWrite && (
                           <Button variant="ghost" size="sm" onClick={() => setShowGeneralModal(true)}>
-                            <Pencil className="h-3 w-3 mr-1" /> Edit
+                            <Pencil className="h-3 w-3 mr-1" /> {tc("edit")}
                           </Button>
                         )}
                       </div>
                       <div className="space-y-2 text-sm">
-                        <InfoRow label="Description" value={config?.description} />
-                        <InfoRow label="Outside Address" value={config?.outside_address} />
-                        <InfoRow label="Gateway Address" value={config?.gateway_address} />
+                        <InfoRow label={tc("description")} value={config?.description} />
+                        <InfoRow label={t("page.outsideAddress")} value={config?.outside_address} />
+                        <InfoRow label={t("page.gatewayAddress")} value={config?.gateway_address} />
                         <InfoRow label="MTU" value={config?.mtu} />
-                        <InfoRow label="DNS Servers" value={(config?.name_servers || []).join(", ")} />
-                        <InfoRow label="WINS Servers" value={(config?.wins_servers || []).join(", ")} />
-                        <InfoRow label="Default Pool" value={config?.default_pool} />
-                        <InfoRow label="Default IPv6 Pool" value={config?.default_ipv6_pool} />
-                        <InfoRow label="Max Sessions" value={config?.max_concurrent_sessions} />
-                        <InfoRow label="Threads" value={config?.thread_count} />
+                        <InfoRow label={t("page.dnsServers")} value={(config?.name_servers || []).join(", ")} />
+                        <InfoRow label={t("page.winsServers")} value={(config?.wins_servers || []).join(", ")} />
+                        <InfoRow label={t("page.defaultPool")} value={config?.default_pool} />
+                        <InfoRow label={t("page.defaultIpv6Pool")} value={config?.default_ipv6_pool} />
+                        <InfoRow label={t("page.maxSessions")} value={config?.max_concurrent_sessions} />
+                        <InfoRow label={t("page.threads")} value={config?.thread_count} />
                       </div>
                     </Card>
 
                     {/* IPSec Settings Card */}
                     <Card className="p-4 space-y-3">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-medium">IPSec Settings</h4>
+                        <h4 className="text-sm font-medium">{t("page.ipsecSettings")}</h4>
                         {hasWrite && (
                           <Button variant="ghost" size="sm" onClick={() => setShowIPSecModal(true)}>
-                            <Pencil className="h-3 w-3 mr-1" /> Edit
+                            <Pencil className="h-3 w-3 mr-1" /> {tc("edit")}
                           </Button>
                         )}
                       </div>
                       <div className="space-y-2 text-sm">
-                        <InfoRow label="Auth Mode" value={config?.ipsec_settings?.auth_mode} />
-                        <InfoRow label="IKE Group" value={config?.ipsec_settings?.ike_group} />
-                        <InfoRow label="ESP Group" value={config?.ipsec_settings?.esp_group} />
-                        <InfoRow label="IKE Lifetime" value={config?.ipsec_settings?.ike_lifetime} />
-                        <InfoRow label="ESP Lifetime" value={config?.ipsec_settings?.lifetime} />
+                        <InfoRow label={t("page.authMode")} value={config?.ipsec_settings?.auth_mode} />
+                        <InfoRow label={t("page.ikeGroup")} value={config?.ipsec_settings?.ike_group} />
+                        <InfoRow label={t("page.espGroup")} value={config?.ipsec_settings?.esp_group} />
+                        <InfoRow label={t("page.ikeLifetime")} value={config?.ipsec_settings?.ike_lifetime} />
+                        <InfoRow label={t("page.espLifetime")} value={config?.ipsec_settings?.lifetime} />
                         {config?.ipsec_settings?.auth_mode === "x509" && (
                           <>
-                            <InfoRow label="CA Cert" value={config?.ipsec_settings?.x509_ca_certificate} />
-                            <InfoRow label="Certificate" value={config?.ipsec_settings?.x509_certificate} />
+                            <InfoRow label={t("page.caCert")} value={config?.ipsec_settings?.x509_ca_certificate} />
+                            <InfoRow label={t("page.certificate")} value={config?.ipsec_settings?.x509_certificate} />
                           </>
                         )}
                       </div>
@@ -301,10 +305,10 @@ function L2TPPageInner() {
                     {/* PPP Options Card */}
                     <Card className="p-4 space-y-3">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-medium">PPP Options</h4>
+                        <h4 className="text-sm font-medium">{t("page.pppOptions")}</h4>
                         {hasWrite && (
                           <Button variant="ghost" size="sm" onClick={() => setShowPPPModal(true)}>
-                            <Pencil className="h-3 w-3 mr-1" /> Edit
+                            <Pencil className="h-3 w-3 mr-1" /> {tc("edit")}
                           </Button>
                         )}
                       </div>
@@ -313,13 +317,13 @@ function L2TPPageInner() {
                         <InfoRow label="IPv6" value={config?.ppp_options?.ipv6} />
                         <InfoRow label="MPPE" value={config?.ppp_options?.mppe} />
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Disable CCP</span>
+                          <span className="text-muted-foreground">{t("page.disableCcp")}</span>
                           <Badge variant={config?.ppp_options?.disable_ccp ? "default" : "secondary"}>
-                            {config?.ppp_options?.disable_ccp ? "Yes" : "No"}
+                            {config?.ppp_options?.disable_ccp ? t("page.yes") : t("page.no")}
                           </Badge>
                         </div>
-                        <InfoRow label="LCP Echo Interval" value={config?.ppp_options?.lcp_echo_interval} />
-                        <InfoRow label="Min MTU" value={config?.ppp_options?.min_mtu} />
+                        <InfoRow label={t("page.lcpEchoInterval")} value={config?.ppp_options?.lcp_echo_interval} />
+                        <InfoRow label={t("page.minMtu")} value={config?.ppp_options?.min_mtu} />
                         <InfoRow label="MRU" value={config?.ppp_options?.mru} />
                       </div>
                     </Card>
@@ -327,25 +331,25 @@ function L2TPPageInner() {
                     {/* Advanced Settings Card */}
                     <Card className="p-4 space-y-3">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-medium">Advanced Settings</h4>
+                        <h4 className="text-sm font-medium">{t("page.advancedSettings")}</h4>
                         {hasWrite && (
                           <Button variant="ghost" size="sm" onClick={() => setShowAdvancedModal(true)}>
-                            <Pencil className="h-3 w-3 mr-1" /> Edit
+                            <Pencil className="h-3 w-3 mr-1" /> {tc("edit")}
                           </Button>
                         )}
                       </div>
                       <div className="space-y-2 text-sm">
-                        <InfoRow label="LNS Host Name" value={config?.lns?.host_name} />
-                        <InfoRow label="LNS Shared Secret" value={config?.lns?.shared_secret ? "***" : undefined} />
-                        <InfoRow label="Conn. Limit" value={config?.limits?.connection_limit} />
-                        <InfoRow label="Burst" value={config?.limits?.burst} />
-                        <InfoRow label="Timeout" value={config?.limits?.timeout} />
-                        <InfoRow label="Log Level" value={config?.log?.level} />
-                        <InfoRow label="Shaper FWMark" value={config?.shaper?.fwmark} />
+                        <InfoRow label={t("page.lnsHostName")} value={config?.lns?.host_name} />
+                        <InfoRow label={t("page.lnsSharedSecret")} value={config?.lns?.shared_secret ? "***" : undefined} />
+                        <InfoRow label={t("page.connLimit")} value={config?.limits?.connection_limit} />
+                        <InfoRow label={t("page.burst")} value={config?.limits?.burst} />
+                        <InfoRow label={t("page.timeout")} value={config?.limits?.timeout} />
+                        <InfoRow label={t("page.logLevel")} value={config?.log?.level} />
+                        <InfoRow label={t("page.shaperFwmark")} value={config?.shaper?.fwmark} />
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">SNMP Agent</span>
+                          <span className="text-muted-foreground">{t("page.snmpAgent")}</span>
                           <Badge variant={config?.snmp?.master_agent ? "default" : "secondary"}>
-                            {config?.snmp?.master_agent ? "Yes" : "No"}
+                            {config?.snmp?.master_agent ? t("page.yes") : t("page.no")}
                           </Badge>
                         </div>
                       </div>
@@ -356,25 +360,25 @@ function L2TPPageInner() {
                 {/* Local Users Tab */}
                 <TabsContent value="users" className="mt-0">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">Local Users</h3>
+                    <h3 className="font-semibold">{t("page.localUsers")}</h3>
                     {hasWrite && (
                       <Button size="sm" onClick={() => { setEditingUser(null); setShowUserModal(true); }}>
-                        <Plus className="h-4 w-4 mr-1" /> Add User
+                        <Plus className="h-4 w-4 mr-1" /> {t("page.addUser")}
                       </Button>
                     )}
                   </div>
                   {(config?.authentication.local_users.length ?? 0) === 0 ? (
-                    <EmptyState icon={Users} label="No local users configured" />
+                    <EmptyState icon={Users} label={t("page.noUsers")} />
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Username</TableHead>
-                          <TableHead>Static IP</TableHead>
-                          <TableHead>Rate Down</TableHead>
-                          <TableHead>Rate Up</TableHead>
-                          <TableHead>Status</TableHead>
-                          {hasWrite && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead>{t("page.username")}</TableHead>
+                          <TableHead>{t("page.staticIp")}</TableHead>
+                          <TableHead>{t("page.rateDown")}</TableHead>
+                          <TableHead>{t("page.rateUp")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
+                          {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -390,9 +394,9 @@ function L2TPPageInner() {
                             <TableCell>{user.rate_limit_upload || "-"}</TableCell>
                             <TableCell>
                               {user.disabled ? (
-                                <Badge variant="secondary" className="bg-red-500/10 text-red-600">Disabled</Badge>
+                                <Badge variant="secondary" className="bg-red-500/10 text-red-600">{tc("disabled")}</Badge>
                               ) : (
-                                <Badge variant="secondary" className="bg-green-500/10 text-green-600">Enabled</Badge>
+                                <Badge variant="secondary" className="bg-green-500/10 text-green-600">{tc("enabled")}</Badge>
                               )}
                             </TableCell>
                             {hasWrite && (
@@ -402,7 +406,7 @@ function L2TPPageInner() {
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
-                                    type: "Local User",
+                                    type: t("page.typeLocalUser"),
                                     name: user.username,
                                     onDelete: () => l2tpService.deleteLocalUser(user.username),
                                   })}>
@@ -423,64 +427,64 @@ function L2TPPageInner() {
                   {/* RADIUS Global Settings */}
                   <div className="mb-6">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-semibold">RADIUS Settings</h3>
+                      <h3 className="font-semibold">{t("page.radiusSettings")}</h3>
                       {hasWrite && (
                         <Button variant="outline" size="sm" onClick={() => setShowRadiusSettingsModal(true)}>
-                          <Pencil className="h-3 w-3 mr-1" /> Edit Settings
+                          <Pencil className="h-3 w-3 mr-1" /> {t("page.editSettings")}
                         </Button>
                       )}
                     </div>
                     <div className="grid grid-cols-2 gap-6">
                       <Card className="p-4 space-y-2 text-sm">
-                        <h4 className="text-sm font-medium mb-2">General</h4>
-                        <InfoRow label="Source Address" value={config?.authentication.radius.source_address} />
-                        <InfoRow label="Timeout" value={config?.authentication.radius.timeout} />
-                        <InfoRow label="Max Try" value={config?.authentication.radius.max_try} />
-                        <InfoRow label="NAS Identifier" value={config?.authentication.radius.nas_identifier} />
+                        <h4 className="text-sm font-medium mb-2">{t("page.general")}</h4>
+                        <InfoRow label={t("page.sourceAddress")} value={config?.authentication.radius.source_address} />
+                        <InfoRow label={t("page.timeout")} value={config?.authentication.radius.timeout} />
+                        <InfoRow label={t("page.maxTry")} value={config?.authentication.radius.max_try} />
+                        <InfoRow label={t("page.nasIdentifier")} value={config?.authentication.radius.nas_identifier} />
                         <InfoRow label="NAS IP" value={config?.authentication.radius.nas_ip_address} />
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Preallocate VIF</span>
+                          <span className="text-muted-foreground">{t("page.preallocateVif")}</span>
                           <Badge variant={config?.authentication.radius.preallocate_vif ? "default" : "secondary"}>
-                            {config?.authentication.radius.preallocate_vif ? "Yes" : "No"}
+                            {config?.authentication.radius.preallocate_vif ? t("page.yes") : t("page.no")}
                           </Badge>
                         </div>
                       </Card>
                       <Card className="p-4 space-y-2 text-sm">
-                        <h4 className="text-sm font-medium mb-2">DAE & Rate Limit</h4>
-                        <InfoRow label="DAE Server" value={config?.authentication.radius.dynamic_author?.server} />
-                        <InfoRow label="DAE Port" value={config?.authentication.radius.dynamic_author?.port} />
+                        <h4 className="text-sm font-medium mb-2">{t("page.daeRateLimit")}</h4>
+                        <InfoRow label={t("page.daeServer")} value={config?.authentication.radius.dynamic_author?.server} />
+                        <InfoRow label={t("page.daePort")} value={config?.authentication.radius.dynamic_author?.port} />
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Rate Limit</span>
+                          <span className="text-muted-foreground">{t("page.rateLimit")}</span>
                           <Badge variant={config?.authentication.radius.rate_limit?.enable ? "default" : "secondary"}>
-                            {config?.authentication.radius.rate_limit?.enable ? "Enabled" : "Disabled"}
+                            {config?.authentication.radius.rate_limit?.enable ? tc("enabled") : tc("disabled")}
                           </Badge>
                         </div>
-                        <InfoRow label="Acct Interval" value={config?.authentication.radius.accounting_interim_interval} />
+                        <InfoRow label={t("page.acctInterval")} value={config?.authentication.radius.accounting_interim_interval} />
                       </Card>
                     </div>
                   </div>
 
                   {/* RADIUS Servers */}
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">RADIUS Servers</h3>
+                    <h3 className="font-semibold">{t("page.radiusServers")}</h3>
                     {hasWrite && (
                       <Button size="sm" onClick={() => { setEditingRadiusServer(null); setShowRadiusServerModal(true); }}>
-                        <Plus className="h-4 w-4 mr-1" /> Add Server
+                        <Plus className="h-4 w-4 mr-1" /> {t("page.addServer")}
                       </Button>
                     )}
                   </div>
                   {(config?.authentication.radius.servers.length ?? 0) === 0 ? (
-                    <EmptyState icon={Server} label="No RADIUS servers configured" />
+                    <EmptyState icon={Server} label={t("page.noServers")} />
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Address</TableHead>
-                          <TableHead>Port</TableHead>
-                          <TableHead>Acct Port</TableHead>
-                          <TableHead>Priority</TableHead>
-                          <TableHead>Status</TableHead>
-                          {hasWrite && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead>{t("page.address")}</TableHead>
+                          <TableHead>{t("page.port")}</TableHead>
+                          <TableHead>{t("page.acctPort")}</TableHead>
+                          <TableHead>{t("page.priority")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
+                          {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -495,11 +499,11 @@ function L2TPPageInner() {
                             <TableCell>
                               <div className="flex gap-1">
                                 {srv.disabled ? (
-                                  <Badge variant="secondary" className="bg-red-500/10 text-red-600">Disabled</Badge>
+                                  <Badge variant="secondary" className="bg-red-500/10 text-red-600">{tc("disabled")}</Badge>
                                 ) : (
-                                  <Badge variant="secondary" className="bg-green-500/10 text-green-600">Active</Badge>
+                                  <Badge variant="secondary" className="bg-green-500/10 text-green-600">{t("page.active")}</Badge>
                                 )}
-                                {srv.backup && <Badge variant="outline">Backup</Badge>}
+                                {srv.backup && <Badge variant="outline">{t("page.backup")}</Badge>}
                               </div>
                             </TableCell>
                             {hasWrite && (
@@ -509,7 +513,7 @@ function L2TPPageInner() {
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
-                                    type: "RADIUS Server",
+                                    type: t("page.typeRadiusServer"),
                                     name: srv.address,
                                     onDelete: () => l2tpService.deleteRadiusServer(srv.address),
                                   })}>
@@ -528,23 +532,23 @@ function L2TPPageInner() {
                 {/* IP Pools Tab */}
                 <TabsContent value="pools" className="mt-0">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">IPv4 Client IP Pools</h3>
+                    <h3 className="font-semibold">{t("page.ipv4PoolsTitle")}</h3>
                     {hasWrite && (
                       <Button size="sm" onClick={() => { setEditingIPPool(null); setShowIPPoolModal(true); }}>
-                        <Plus className="h-4 w-4 mr-1" /> Add Pool
+                        <Plus className="h-4 w-4 mr-1" /> {t("page.addPool")}
                       </Button>
                     )}
                   </div>
                   {(config?.client_ip_pools.length ?? 0) === 0 ? (
-                    <EmptyState icon={Network} label="No IPv4 pools configured" />
+                    <EmptyState icon={Network} label={t("page.noIpv4Pools")} />
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Range</TableHead>
-                          <TableHead>Next Pool</TableHead>
-                          {hasWrite && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("page.range")}</TableHead>
+                          <TableHead>{t("page.nextPool")}</TableHead>
+                          {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -562,7 +566,7 @@ function L2TPPageInner() {
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
-                                    type: "IP Pool",
+                                    type: t("page.typeIpPool"),
                                     name: pool.name,
                                     onDelete: () => l2tpService.deleteIPPool(pool.name),
                                   })}>
@@ -581,23 +585,23 @@ function L2TPPageInner() {
                 {/* IPv6 Pools Tab */}
                 <TabsContent value="ipv6pools" className="mt-0">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">IPv6 Client Pools</h3>
+                    <h3 className="font-semibold">{t("page.ipv6PoolsTitle")}</h3>
                     {hasWrite && (
                       <Button size="sm" onClick={() => { setEditingIPv6Pool(null); setShowIPv6PoolModal(true); }}>
-                        <Plus className="h-4 w-4 mr-1" /> Add Pool
+                        <Plus className="h-4 w-4 mr-1" /> {t("page.addPool")}
                       </Button>
                     )}
                   </div>
                   {(config?.client_ipv6_pools.length ?? 0) === 0 ? (
-                    <EmptyState icon={Network} label="No IPv6 pools configured" />
+                    <EmptyState icon={Network} label={t("page.noIpv6Pools")} />
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Prefixes</TableHead>
-                          <TableHead>Delegates</TableHead>
-                          {hasWrite && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("page.prefixes")}</TableHead>
+                          <TableHead>{t("page.delegates")}</TableHead>
+                          {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -631,7 +635,7 @@ function L2TPPageInner() {
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
-                                    type: "IPv6 Pool",
+                                    type: t("page.typeIpv6Pool"),
                                     name: pool.name,
                                     onDelete: () => l2tpService.deleteIPv6Pool(pool.name),
                                   })}>
@@ -650,32 +654,32 @@ function L2TPPageInner() {
                 {/* Authentication Tab */}
                 <TabsContent value="auth" className="mt-0">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">Authentication Settings</h3>
+                    <h3 className="font-semibold">{t("page.authSettings")}</h3>
                     {hasWrite && (
                       <Button size="sm" onClick={() => setShowAuthModal(true)}>
-                        <Pencil className="h-4 w-4 mr-1" /> Edit
+                        <Pencil className="h-4 w-4 mr-1" /> {tc("edit")}
                       </Button>
                     )}
                   </div>
                   <div className="grid grid-cols-2 gap-6">
                     <Card className="p-4 space-y-3">
-                      <h4 className="text-sm font-medium">Mode</h4>
+                      <h4 className="text-sm font-medium">{t("page.mode")}</h4>
                       <div className="flex items-center gap-2">
                         <Key className="h-4 w-4 text-muted-foreground" />
                         <Badge variant="outline" className="text-sm">
-                          {config?.authentication.mode || "Not set"}
+                          {config?.authentication.mode || tc("notSet")}
                         </Badge>
                       </div>
                     </Card>
                     <Card className="p-4 space-y-3">
-                      <h4 className="text-sm font-medium">Protocols</h4>
+                      <h4 className="text-sm font-medium">{t("page.protocols")}</h4>
                       <div className="flex flex-wrap gap-2">
                         {(config?.authentication.protocols || []).length > 0 ? (
                           config?.authentication.protocols?.map((p) => (
                             <Badge key={p} variant="outline" className="font-mono">{p}</Badge>
                           ))
                         ) : (
-                          <span className="text-sm text-muted-foreground">No protocols configured</span>
+                          <span className="text-sm text-muted-foreground">{t("page.noProtocols")}</span>
                         )}
                       </div>
                     </Card>

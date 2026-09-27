@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -27,6 +28,8 @@ export function DeleteSstpcModal({
   onSuccess,
   interfaceData,
 }: DeleteSstpcModalProps) {
+  const t = useTranslations("sstpc");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,10 +46,10 @@ export function DeleteSstpcModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to delete SSTPC interface");
+        setError(result.error || t("delete.failed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to delete SSTPC interface");
+      setError((err as ApiError).message || t("delete.failed"));
     } finally {
       setLoading(false);
     }
@@ -60,18 +63,17 @@ export function DeleteSstpcModal({
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            Delete Interface: {interfaceData.name}
+            {t("delete.title", { name: interfaceData.name })}
           </AlertDialogTitle>
           <AlertDialogDescription className="space-y-2">
             <p>
-              Are you sure you want to delete this SSTPC interface? This will
-              tear down the SSTP session and cannot be undone.
+              {t("delete.confirm")}
             </p>
             <div className="rounded-lg bg-muted/50 border p-3 mt-2">
               <p className="text-sm text-muted-foreground">
                 {interfaceData.server && (
                   <>
-                    Server:{" "}
+                    {t("delete.server")}{" "}
                     <span className="font-medium text-foreground">
                       {interfaceData.server}
                     </span>
@@ -82,7 +84,7 @@ export function DeleteSstpcModal({
                 )}
                 {interfaceData.authentication?.username && (
                   <>
-                    {interfaceData.server ? " · " : ""}User:{" "}
+                    {interfaceData.server ? " · " : ""}{t("delete.user")}{" "}
                     <span className="font-medium text-foreground">
                       {interfaceData.authentication.username}
                     </span>
@@ -112,16 +114,16 @@ export function DeleteSstpcModal({
             onClick={() => onOpenChange(false)}
             disabled={loading}
           >
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Interface"
+              t("delete.submit")
             )}
           </Button>
         </AlertDialogFooter>

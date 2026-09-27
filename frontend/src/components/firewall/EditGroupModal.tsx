@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +19,21 @@ interface EditGroupModalProps {
   onSuccess: () => void;
 }
 
+// Message keys for group type labels (the config values stay untranslated).
+const GROUP_TYPE_KEYS: Record<string, "addressGroup" | "ipv6AddressGroup" | "networkGroup" | "ipv6NetworkGroup" | "portGroup" | "interfaceGroup" | "macGroup" | "domainGroup"> = {
+  "address-group": "addressGroup",
+  "ipv6-address-group": "ipv6AddressGroup",
+  "network-group": "networkGroup",
+  "ipv6-network-group": "ipv6NetworkGroup",
+  "port-group": "portGroup",
+  "interface-group": "interfaceGroup",
+  "mac-group": "macGroup",
+  "domain-group": "domainGroup",
+};
+
 export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGroupModalProps) {
+  const t = useTranslations("firewallGroups");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -122,13 +137,13 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
 
     // Check if already exists in current members
     if (currentMembers.includes(trimmed)) {
-      setError(`Member "${trimmed}" already exists`);
+      setError(t("edit.memberExists", { member: trimmed }));
       return;
     }
 
     // Check if already in add queue
     if (membersToAdd.includes(trimmed)) {
-      setError(`Member "${trimmed}" is already queued to be added`);
+      setError(t("edit.memberQueued", { member: trimmed }));
       return;
     }
 
@@ -289,7 +304,7 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
 
       // Only submit if there are changes
       if (operations.length === 0) {
-        setError("No changes to save");
+        setError(t("edit.noChanges"));
         setLoading(false);
         return;
       }
@@ -302,7 +317,7 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
       handleClose();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update group");
+      setError(err instanceof Error ? err.message : t("edit.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -311,49 +326,22 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
   const getMemberPlaceholder = () => {
     if (!group) return "";
 
-    const placeholders: Record<string, string> = {
-      "address-group": "e.g., 10.0.0.1 or 10.0.0.1-10.0.0.10",
-      "ipv6-address-group": "e.g., 2001:db8::1 or 2001:db8::1-2001:db8::10",
-      "network-group": "e.g., 10.0.0.0/24",
-      "ipv6-network-group": "e.g., 2001:db8::/32",
-      "port-group": "e.g., 80, 8000-8100, or http",
-      "interface-group": "e.g., eth0 or eth1.100",
-      "mac-group": "e.g., 00:11:22:33:44:55",
-      "domain-group": "e.g., example.com",
-    };
-    return placeholders[group.type] || "";
+    const key = GROUP_TYPE_KEYS[group.type];
+    return key ? t(`memberPlaceholders.${key}`) : "";
   };
 
   const getMemberLabel = () => {
-    if (!group) return "Member";
+    if (!group) return t("edit.member");
 
-    const labels: Record<string, string> = {
-      "address-group": "IPv4 Address/Range",
-      "ipv6-address-group": "IPv6 Address/Range",
-      "network-group": "Network (CIDR)",
-      "ipv6-network-group": "IPv6 Network (CIDR)",
-      "port-group": "Port",
-      "interface-group": "Interface",
-      "mac-group": "MAC Address",
-      "domain-group": "Domain",
-    };
-    return labels[group.type] || "Member";
+    const key = GROUP_TYPE_KEYS[group.type];
+    return key ? t(`memberLabels.${key}`) : t("edit.member");
   };
 
   const getGroupTypeLabel = () => {
     if (!group) return "";
 
-    const labels: Record<string, string> = {
-      "address-group": "IPv4 Address Group",
-      "ipv6-address-group": "IPv6 Address Group",
-      "network-group": "IPv4 Network Group",
-      "ipv6-network-group": "IPv6 Network Group",
-      "port-group": "Port Group",
-      "interface-group": "Interface Group",
-      "mac-group": "MAC Address Group",
-      "domain-group": "Domain Group",
-    };
-    return labels[group.type] || group.type;
+    const key = GROUP_TYPE_KEYS[group.type];
+    return key ? t(`types.${key}`) : group.type;
   };
 
   if (!group) return null;
@@ -369,9 +357,9 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Firewall Group</DialogTitle>
+          <DialogTitle>{t("edit.title")}</DialogTitle>
           <DialogDescription>
-            Modify the description and members of this firewall group. Changes will be applied immediately.
+            {t("edit.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -388,30 +376,30 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
 
           {/* Group Info (read-only) */}
           <div className="space-y-2">
-            <Label>Group Name</Label>
+            <Label>{t("form.groupName")}</Label>
             <Input value={group.name} disabled className="font-mono" />
           </div>
 
           <div className="space-y-2">
-            <Label>Group Type</Label>
+            <Label>{t("form.groupType")}</Label>
             <Input value={getGroupTypeLabel()} disabled />
           </div>
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{tc("description")}</Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description for this group"
+              placeholder={t("form.descriptionPlaceholder")}
               rows={2}
             />
           </div>
 
           {/* Add Members */}
           <div className="space-y-2">
-            <Label htmlFor="new-member">Add {getMemberLabel()}</Label>
+            <Label htmlFor="new-member">{t("edit.addMember", { label: getMemberLabel() })}</Label>
             <div className="flex gap-2">
               <Input
                 id="new-member"
@@ -428,7 +416,7 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
               />
               <Button type="button" onClick={addMember} size="sm">
                 <Plus className="h-4 w-4 mr-1" />
-                Add
+                {tc("add")}
               </Button>
             </div>
           </div>
@@ -436,9 +424,9 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
           {/* Current Members */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Current Members</Label>
+              <Label>{t("edit.currentMembers")}</Label>
               <span className="text-sm text-muted-foreground">
-                {currentMembers.length} member{currentMembers.length !== 1 ? "s" : ""}
+                {t("memberCount", { count: currentMembers.length, n: String(currentMembers.length) })}
               </span>
             </div>
             {currentMembers.length > 0 ? (
@@ -451,7 +439,7 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
                       variant={isNew ? "default" : "secondary"}
                       className="gap-1 font-mono text-xs"
                     >
-                      {isNew && <span className="text-xs">NEW</span>}
+                      {isNew && <span className="text-xs">{t("edit.newBadge")}</span>}
                       {member}
                       <button
                         type="button"
@@ -470,7 +458,7 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
               </div>
             ) : (
               <p className="text-sm text-muted-foreground p-3 border rounded-md bg-muted/30">
-                No members (all removed)
+                {t("edit.noMembers")}
               </p>
             )}
           </div>
@@ -479,13 +467,13 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
           {supportsInclude() && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Include Other Groups</Label>
+                <Label>{t("edit.includeOther")}</Label>
                 <span className="text-xs text-muted-foreground">
-                  {currentIncludedGroups.length} of {availableGroups.length} selected
+                  {t("form.selectedOf", { selected: String(currentIncludedGroups.length), total: String(availableGroups.length) })}
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Select other groups of the same type to include in this group
+                {t("form.includeHint")}
               </p>
 
               {/* Search and Quick Actions */}
@@ -493,7 +481,7 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
                 <div className="relative flex-1">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search groups..."
+                    placeholder={t("form.searchGroups")}
                     value={groupSearchQuery}
                     onChange={(e) => setGroupSearchQuery(e.target.value)}
                     className="pl-8 h-9 text-sm"
@@ -508,7 +496,7 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
                     disabled={filteredGroups.length === 0 || filteredGroups.every(g => currentIncludedGroups.includes(g.name))}
                     className="text-xs h-9"
                   >
-                    All
+                    {t("form.all")}
                   </Button>
                   <Button
                     type="button"
@@ -518,7 +506,7 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
                     disabled={currentIncludedGroups.length === 0}
                     className="text-xs h-9"
                   >
-                    Clear
+                    {t("form.clear")}
                   </Button>
                 </div>
               </div>
@@ -527,11 +515,11 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
               <div className="border rounded-md bg-muted/30">
                 {availableGroups.length === 0 ? (
                   <div className="p-8 text-center text-sm text-muted-foreground">
-                    No other groups available to include
+                    {t("edit.noOtherGroups")}
                   </div>
                 ) : filteredGroups.length === 0 ? (
                   <div className="p-8 text-center text-sm text-muted-foreground">
-                    No groups found matching your search
+                    {t("form.noGroupsMatchSearch")}
                   </div>
                 ) : (
                   <div className="max-h-64 overflow-y-auto">
@@ -539,7 +527,7 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
                     {selectedGroups.length > 0 && (
                       <>
                         <div className="sticky top-0 bg-muted/50 px-3 py-1.5 text-xs font-medium text-muted-foreground border-b">
-                          Selected ({selectedGroups.length})
+                          {t("form.selectedCount", { count: String(selectedGroups.length) })}
                         </div>
                         {selectedGroups.map((availGroup) => {
                           const isNew = includedGroupsToAdd.includes(availGroup.name);
@@ -558,7 +546,7 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
                               >
                                 {availGroup.name}
                                 {isNew && (
-                                  <Badge variant="default" className="text-xs px-1 py-0">NEW</Badge>
+                                  <Badge variant="default" className="text-xs px-1 py-0">{t("edit.newBadge")}</Badge>
                                 )}
                                 {availGroup.description && (
                                   <span className="text-xs text-muted-foreground">({availGroup.description})</span>
@@ -575,7 +563,7 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
                       <>
                         {selectedGroups.length > 0 && (
                           <div className="sticky top-0 bg-muted/50 px-3 py-1.5 text-xs font-medium text-muted-foreground border-b">
-                            Available ({unselectedGroups.length})
+                            {t("form.availableCount", { count: String(unselectedGroups.length) })}
                           </div>
                         )}
                         {unselectedGroups.map((availGroup) => (
@@ -610,10 +598,10 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading || !hasChanges}>
-            {loading ? "Saving..." : "Save Changes"}
+            {loading ? tc("saving") : t("edit.saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

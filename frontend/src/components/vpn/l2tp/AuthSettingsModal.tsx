@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,8 @@ export function AuthSettingsModal({
   currentAuth,
   capabilities,
 }: AuthSettingsModalProps) {
+  const t = useTranslations("l2tp");
+  const tc = useTranslations("common");
   const [mode, setMode] = useState("");
   const [protocols, setProtocols] = useState<string[]>([]);
 
@@ -73,10 +76,10 @@ export function AuthSettingsModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to update authentication settings");
+        setError(result.error || t("auth.updateFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to update authentication settings");
+      setError((err as ApiError).message || t("auth.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -88,16 +91,16 @@ export function AuthSettingsModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Key className="h-5 w-5 text-primary" />
-            Authentication Settings
+            {t("auth.title")}
           </DialogTitle>
-          <DialogDescription>Configure authentication mode and protocols.</DialogDescription>
+          <DialogDescription>{t("auth.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Authentication Mode</Label>
+            <Label>{t("shared.authMode")}</Label>
             <Select value={mode} onValueChange={setMode}>
-              <SelectTrigger><SelectValue placeholder="Select mode" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t("shared.selectMode")} /></SelectTrigger>
               <SelectContent>
                 {availableModes.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
               </SelectContent>
@@ -105,7 +108,7 @@ export function AuthSettingsModal({
           </div>
 
           <div className="space-y-2">
-            <Label>Authentication Protocols</Label>
+            <Label>{t("auth.protocols")}</Label>
             <div className="space-y-2">
               {availableProtocols.map(proto => (
                 <div key={proto} className="flex items-center gap-2">
@@ -129,9 +132,9 @@ export function AuthSettingsModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save Changes"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : t("shared.saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

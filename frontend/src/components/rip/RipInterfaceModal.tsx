@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useTranslations } from "next-intl";
 import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
 import type { RipInterface, RipMd5Key } from "@/lib/api/rip";
 import { showService, InterfaceName } from "@/lib/api/show";
@@ -38,6 +39,8 @@ export function RipInterfaceModal({
   onSubmit,
   existingInterface,
 }: RipInterfaceModalProps) {
+  const t = useTranslations("rip");
+  const tc = useTranslations("common");
   const isEditMode = !!existingInterface;
 
   const [name, setName] = useState("");
@@ -102,18 +105,18 @@ export function RipInterfaceModal({
   };
 
   const validate = (): string | null => {
-    if (!name) return "Please select an interface";
+    if (!name) return t("validation.selectInterface");
     if (authType === "md5") {
       for (const key of md5Keys) {
-        if (!key.key_id) return "All MD5 keys must have a key ID";
+        if (!key.key_id) return t("validation.md5KeyIdRequired");
         const id = parseInt(key.key_id, 10);
-        if (isNaN(id) || id < 1 || id > 255) return "MD5 key ID must be 1-255";
-        if (!key.password) return "All MD5 keys must have a password";
-        if (key.password.length > 16) return "MD5 key password must be ≤16 characters";
+        if (isNaN(id) || id < 1 || id > 255) return t("validation.md5KeyIdRange");
+        if (!key.password) return t("validation.md5PasswordRequired");
+        if (key.password.length > 16) return t("validation.md5PasswordLength");
       }
     }
     if (authType === "plaintext") {
-      if (plaintextPassword.length > 16) return "Plaintext password must be ≤16 characters";
+      if (plaintextPassword.length > 16) return t("validation.plaintextLength");
     }
     return null;
   };
@@ -141,7 +144,7 @@ export function RipInterfaceModal({
       await onSubmit(config);
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -152,12 +155,12 @@ export function RipInterfaceModal({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit RIP Interface" : "Add RIP Interface"}
+            {isEditMode ? t("interfaceModal.editTitle") : t("interfaceModal.addTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? `Modify RIP settings for ${existingInterface?.name}.`
-              : "Configure per-interface RIP authentication, version, and split-horizon."}
+              ? t("interfaceModal.editDescription", { name: existingInterface?.name ?? "" })
+              : t("interfaceModal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -165,7 +168,7 @@ export function RipInterfaceModal({
           <div className="space-y-5 pb-2">
             {/* Interface */}
             <div className="space-y-2">
-              <Label htmlFor="rip-iface-name">Interface</Label>
+              <Label htmlFor="rip-iface-name">{t("interfaces.interface")}</Label>
               <InterfaceSelect
                 value={name}
                 onValueChange={setName}
@@ -178,26 +181,26 @@ export function RipInterfaceModal({
 
             {/* Authentication */}
             <div className="space-y-3">
-              <Label>Authentication</Label>
+              <Label>{t("interfaceModal.authentication")}</Label>
               <Select value={authType} onValueChange={(v) => { setAuthType(v === "none" ? "" : v); setMd5Keys([]); setPlaintextPassword(""); }}>
                 <SelectTrigger>
-                  <SelectValue placeholder="None" />
+                  <SelectValue placeholder={tc("none")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="none">{tc("none")}</SelectItem>
                   <SelectItem value="md5">MD5</SelectItem>
-                  <SelectItem value="plaintext">Plaintext</SelectItem>
+                  <SelectItem value="plaintext">{t("interfaceModal.plaintext")}</SelectItem>
                 </SelectContent>
               </Select>
 
               {authType === "md5" && (
                 <div className="space-y-2 pl-2 border-l-2 border-border">
-                  <p className="text-xs text-muted-foreground">MD5 key pairs (key ID 1-255, password ≤16 chars)</p>
+                  <p className="text-xs text-muted-foreground">{t("interfaceModal.md5Help")}</p>
                   {md5Keys.map((key, idx) => (
                     <div key={idx} className="flex items-center gap-2">
                       <Input
                         type="number"
-                        placeholder="Key ID"
+                        placeholder={t("interfaceModal.keyId")}
                         min={1}
                         max={255}
                         value={key.key_id}
@@ -206,7 +209,7 @@ export function RipInterfaceModal({
                       />
                       <Input
                         type="password"
-                        placeholder="Password"
+                        placeholder={t("interfaceModal.password")}
                         maxLength={16}
                         value={key.password}
                         onChange={(e) => updateMd5Key(idx, "password", e.target.value)}
@@ -219,7 +222,7 @@ export function RipInterfaceModal({
                   ))}
                   <Button variant="outline" size="sm" onClick={addMd5Key}>
                     <Plus className="h-4 w-4 mr-1" />
-                    Add Key
+                    {t("interfaceModal.addKey")}
                   </Button>
                 </div>
               )}
@@ -228,7 +231,7 @@ export function RipInterfaceModal({
                 <div className="pl-2 border-l-2 border-border">
                   <Input
                     type="password"
-                    placeholder="Password (≤16 chars)"
+                    placeholder={t("interfaceModal.plaintextPlaceholder")}
                     maxLength={16}
                     value={plaintextPassword}
                     onChange={(e) => setPlaintextPassword(e.target.value)}
@@ -240,26 +243,26 @@ export function RipInterfaceModal({
             {/* Send / Receive Version */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Send Version</Label>
+                <Label>{t("interfaceModal.sendVersion")}</Label>
                 <Select value={sendVersion} onValueChange={(v) => setSendVersion(v === "unset" ? "" : v)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Default" />
+                    <SelectValue placeholder={tc("default")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="unset">Default</SelectItem>
+                    <SelectItem value="unset">{tc("default")}</SelectItem>
                     <SelectItem value="1">v1</SelectItem>
                     <SelectItem value="2">v2</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Receive Version</Label>
+                <Label>{t("interfaceModal.receiveVersion")}</Label>
                 <Select value={receiveVersion} onValueChange={(v) => setReceiveVersion(v === "unset" ? "" : v)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Default" />
+                    <SelectValue placeholder={tc("default")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="unset">Default</SelectItem>
+                    <SelectItem value="unset">{tc("default")}</SelectItem>
                     <SelectItem value="1">v1</SelectItem>
                     <SelectItem value="2">v2</SelectItem>
                   </SelectContent>
@@ -269,15 +272,15 @@ export function RipInterfaceModal({
 
             {/* Split Horizon */}
             <div className="space-y-2">
-              <Label>Split Horizon</Label>
+              <Label>{t("interfaces.splitHorizon")}</Label>
               <Select value={splitHorizon} onValueChange={(v) => setSplitHorizon(v === "unset" ? "" : v)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Default" />
+                  <SelectValue placeholder={tc("default")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="unset">Default</SelectItem>
-                  <SelectItem value="disable">Disable</SelectItem>
-                  <SelectItem value="poison-reverse">Poison Reverse</SelectItem>
+                  <SelectItem value="unset">{tc("default")}</SelectItem>
+                  <SelectItem value="disable">{t("interfaceModal.disable")}</SelectItem>
+                  <SelectItem value="poison-reverse">{t("interfaceModal.poisonReverse")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -293,18 +296,18 @@ export function RipInterfaceModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Adding..."}
+                {isEditMode ? tc("saving") : t("modal.adding")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("modal.saveChanges")
             ) : (
-              "Add Interface"
+              t("interfaces.addInterface")
             )}
           </Button>
         </DialogFooter>

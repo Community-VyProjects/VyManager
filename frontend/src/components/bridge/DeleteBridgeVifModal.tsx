@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,8 @@ export function DeleteBridgeVifModal({
   interfaceName,
   vlanId,
 }: DeleteBridgeVifModalProps) {
+  const t = useTranslations("bridgeInterface");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,10 +45,10 @@ export function DeleteBridgeVifModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to delete VIF");
+        setError(result.error || t("vifErrDelete"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to delete VIF");
+      setError((err as ApiError).message || t("vifErrDelete"));
     } finally {
       setLoading(false);
     }
@@ -57,10 +60,9 @@ export function DeleteBridgeVifModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Delete VIF {vlanId}</DialogTitle>
+          <DialogTitle>{t("vifDeleteTitle", { vid: vlanId })}</DialogTitle>
           <DialogDescription>
-            This will permanently remove VIF <strong>{vlanId}</strong> from{" "}
-            <strong>{interfaceName}</strong> and all its configuration.
+            {t.rich("vifDeleteConfirm", { vid: vlanId, name: interfaceName, strong: (chunks) => <strong>{chunks}</strong> })}
           </DialogDescription>
         </DialogHeader>
 
@@ -73,16 +75,16 @@ export function DeleteBridgeVifModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete VIF"
+              t("vifDeleteButton")
             )}
           </Button>
         </DialogFooter>

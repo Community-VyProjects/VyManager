@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +29,8 @@ export function AdminGroupModal({
   onSubmit,
   existingGroup,
 }: AdminGroupModalProps) {
+  const t = useTranslations("trafficEngineering");
+  const tc = useTranslations("common");
   const isEditMode = !!existingGroup;
 
   const [name, setName] = useState("");
@@ -49,12 +52,12 @@ export function AdminGroupModal({
   }, [open, existingGroup]);
 
   const validate = (): string | null => {
-    if (!name.trim()) return "Name is required";
-    if (!/^[-a-zA-Z0-9]+$/.test(name.trim())) return "Name may only contain letters, numbers, and hyphens";
+    if (!name.trim()) return t("groupModal.nameRequired");
+    if (!/^[-a-zA-Z0-9]+$/.test(name.trim())) return t("groupModal.nameInvalid");
     if (bitPosition) {
       const v = parseInt(bitPosition, 10);
       if (isNaN(v) || v < 0 || v > 31 || String(v) !== bitPosition.trim())
-        return "Bit position must be an integer between 0 and 31";
+        return t("groupModal.bitRange");
     }
     return null;
   };
@@ -76,7 +79,7 @@ export function AdminGroupModal({
       });
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -86,28 +89,28 @@ export function AdminGroupModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[440px]">
         <DialogHeader>
-          <DialogTitle>{isEditMode ? "Edit Admin Group" : "Add Admin Group"}</DialogTitle>
+          <DialogTitle>{isEditMode ? t("groupModal.editTitle") : t("groups.add")}</DialogTitle>
           <DialogDescription>
-            Configure a Traffic Engineering admin group for link classification.
+            {t("groupModal.description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
-            <Label htmlFor="ag-name">Name</Label>
+            <Label htmlFor="ag-name">{tc("name")}</Label>
             <Input
               id="ag-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. gold"
+              placeholder={t("groupModal.namePlaceholder")}
               disabled={isEditMode}
               className={isEditMode ? "bg-muted" : ""}
             />
-            <p className="text-xs text-muted-foreground">Letters, numbers, and hyphens only</p>
+            <p className="text-xs text-muted-foreground">{t("groupModal.nameHelp")}</p>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="ag-bit">Bit Position</Label>
+            <Label htmlFor="ag-bit">{t("groups.bitPosition")}</Label>
             <Input
               id="ag-bit"
               type="number"
@@ -115,7 +118,7 @@ export function AdminGroupModal({
               max={31}
               value={bitPosition}
               onChange={(e) => setBitPosition(e.target.value)}
-              placeholder="0 – 31 (optional)"
+              placeholder={t("groupModal.bitPlaceholder")}
             />
           </div>
         </div>
@@ -129,18 +132,18 @@ export function AdminGroupModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Creating..."}
+                {isEditMode ? tc("saving") : t("creating")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("saveChanges")
             ) : (
-              "Add Admin Group"
+              t("groups.add")
             )}
           </Button>
         </DialogFooter>

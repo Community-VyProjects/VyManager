@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,8 @@ export function DeleteEthernetModal({
   interface: iface,
   onSuccess,
 }: DeleteEthernetModalProps) {
+  const t = useTranslations("ethernet");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,7 +46,7 @@ export function DeleteEthernetModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete interface");
+      setError(err instanceof Error ? err.message : t("delete.failed"));
     } finally {
       setLoading(false);
     }
@@ -55,10 +58,10 @@ export function DeleteEthernetModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            Delete Interface
+            {t("delete.title")}
           </DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete this interface? This action cannot be undone.
+            {t("delete.confirm")}
           </DialogDescription>
         </DialogHeader>
 
@@ -72,18 +75,18 @@ export function DeleteEthernetModal({
 
           <div className="bg-muted p-4 rounded-lg space-y-2">
             <div className="flex justify-between">
-              <span className="text-sm font-medium">Interface:</span>
+              <span className="text-sm font-medium">{t("delete.interface")}</span>
               <code className="text-sm font-mono font-semibold">{iface.name}</code>
             </div>
             {iface.description && (
               <div className="flex justify-between">
-                <span className="text-sm font-medium">Description:</span>
+                <span className="text-sm font-medium">{t("delete.description")}</span>
                 <span className="text-sm text-muted-foreground">{iface.description}</span>
               </div>
             )}
             {iface.addresses.length > 0 && (
               <div>
-                <span className="text-sm font-medium">IP Addresses:</span>
+                <span className="text-sm font-medium">{t("delete.ipAddresses")}</span>
                 <div className="mt-1 space-y-1">
                   {iface.addresses.map((addr, idx) => (
                     <code
@@ -100,9 +103,7 @@ export function DeleteEthernetModal({
 
           <div className="bg-destructive/10 border border-destructive/20 p-3 rounded-md">
             <p className="text-sm text-destructive">
-              <strong>Warning:</strong> Deleting this interface will remove all of its configuration
-              including IP addresses, VLANs, and other settings. This may cause network connectivity
-              issues if the interface is currently in use.
+              {t.rich("delete.warning", { strong: (chunks) => <strong>{chunks}</strong> })}
             </p>
           </div>
         </div>
@@ -113,7 +114,7 @@ export function DeleteEthernetModal({
             onClick={() => onOpenChange(false)}
             disabled={loading}
           >
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button
             variant="destructive"
@@ -121,7 +122,7 @@ export function DeleteEthernetModal({
             disabled={loading}
           >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Delete Interface
+            {t("delete.title")}
           </Button>
         </DialogFooter>
       </DialogContent>

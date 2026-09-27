@@ -1,1 +1,82 @@
-{}
+{
+  "modal": {
+    "createTitle": "创建 VXLAN 接口",
+    "editTitle": "编辑：{name}",
+    "createDescription": "创建新的 VXLAN 隧道接口，用于 Overlay 网络。",
+    "editDescription": "修改 VXLAN 接口配置。更改将以原子方式应用。",
+    "selectInterface": "选择接口",
+    "creating": "正在创建...",
+    "saveChanges": "保存更改",
+    "createInterface": "创建接口",
+    "tabs": {
+      "basic": "基本",
+      "advanced": "高级"
+    },
+    "errors": {
+      "nameRequired": "接口名称为必填项",
+      "nameFormat": "名称格式必须为 'vxlan0'、'vxlan1' 等",
+      "nameExists": "接口 {name} 已存在",
+      "createFailed": "创建 VXLAN 接口失败",
+      "updateFailed": "更新 VXLAN 接口失败"
+    },
+    "basic": {
+      "interfaceName": "接口名称",
+      "nameLocked": "接口名称不可更改。",
+      "nameFormatHint": "格式：vxlan0、vxlan1 等",
+      "vniHint": "虚拟网络标识符",
+      "descriptionPlaceholder": "VXLAN 隧道描述",
+      "sourceAddress": "源地址",
+      "sourceAddressHint": "本地隧道端点 IP",
+      "sourceInterface": "源接口",
+      "remoteAddresses": "远端地址",
+      "remoteAddressesHint": "以逗号分隔的远端隧道端点 IP",
+      "multicastGroup": "组播组",
+      "udpPort": "UDP 端口",
+      "ipAddresses": "IP 地址",
+      "ipAddressesHint": "以逗号分隔，使用 CIDR 表示法",
+      "macAddress": "MAC 地址"
+    },
+    "advanced": {
+      "tunnelParameters": "隧道参数",
+      "external": "外部",
+      "externalHint": "使用外部控制平面",
+      "noLearning": "不学习",
+      "noLearningHint": "禁用 MAC 学习",
+      "neighborSuppress": "邻居抑制",
+      "neighborSuppressHint": "ARP/ND 抑制",
+      "vniFilter": "VNI 过滤",
+      "vniFilterHint": "启用 VNI 过滤",
+      "gpeHint": "通用协议扩展",
+      "disabledHint": "管理性禁用",
+      "ipParameters": "IP 参数",
+      "dontFragment": "不分片 (DF)",
+      "dfSet": "设置",
+      "dfUnset": "取消设置",
+      "dfInherit": "继承",
+      "typeOfService": "服务类型 (ToS)",
+      "tosPlaceholder": "0-255 或 inherit",
+      "ipv6Parameters": "IPv6 参数",
+      "flowLabel": "流标签",
+      "mirror": "镜像",
+      "ingressInterface": "入站接口",
+      "egressInterface": "出站接口",
+      "redirectInterface": "重定向接口",
+      "redirectHint": "将收到的数据包重定向到另一个接口"
+    },
+    "vlanVni": {
+      "title": "VLAN 到 VNI 映射",
+      "description": "将 VLAN 映射到 VNI，用于 EVPN-VXLAN 桥接",
+      "addMapping": "添加映射",
+      "empty": "未配置 VLAN 到 VNI 映射",
+      "addFirstMapping": "添加第一个映射"
+    }
+  },
+  "delete": {
+    "title": "删除接口：{name}",
+    "confirm": "确定要删除此 VXLAN 接口吗？此操作无法撤销。",
+    "mappingsWarning": "警告：此接口配置了 {count} 个 VLAN 到 VNI 映射。",
+    "mappingsRemoved": "删除接口将移除所有 VLAN 到 VNI 映射。",
+    "failed": "删除 VXLAN 接口失败",
+    "button": "删除接口"
+  }
+}

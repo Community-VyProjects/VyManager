@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useTranslations } from "next-intl";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { RipNgInterface } from "@/lib/api/ripng";
 import { showService, InterfaceName } from "@/lib/api/show";
@@ -36,6 +37,8 @@ export function RipngInterfaceModal({
   onSubmit,
   existingInterface,
 }: RipngInterfaceModalProps) {
+  const t = useTranslations("ripng");
+  const tc = useTranslations("common");
   const isEditMode = !!existingInterface;
 
   const [name, setName] = useState("");
@@ -71,7 +74,7 @@ export function RipngInterfaceModal({
   };
 
   const validate = (): string | null => {
-    if (!name) return "Please select an interface";
+    if (!name) return t("validation.selectInterface");
     return null;
   };
 
@@ -93,7 +96,7 @@ export function RipngInterfaceModal({
       await onSubmit(config);
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -104,19 +107,19 @@ export function RipngInterfaceModal({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit RIPng Interface" : "Add RIPng Interface"}
+            {isEditMode ? t("interfaceModal.editTitle") : t("interfaceModal.addTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? `Modify RIPng settings for ${existingInterface?.name}.`
-              : "Configure per-interface RIPng split-horizon settings."}
+              ? t("interfaceModal.editDescription", { name: existingInterface?.name ?? "" })
+              : t("interfaceModal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* Interface */}
           <div className="space-y-2">
-            <Label htmlFor="ripng-iface-name">Interface</Label>
+            <Label htmlFor="ripng-iface-name">{t("interfaces.interface")}</Label>
             <InterfaceSelect
               value={name}
               onValueChange={setName}
@@ -129,15 +132,15 @@ export function RipngInterfaceModal({
 
           {/* Split Horizon */}
           <div className="space-y-2">
-            <Label>Split Horizon</Label>
+            <Label>{t("interfaces.splitHorizon")}</Label>
             <Select value={splitHorizon || "unset"} onValueChange={(v) => setSplitHorizon(v === "unset" ? "" : v)}>
               <SelectTrigger>
-                <SelectValue placeholder="Default" />
+                <SelectValue placeholder={tc("default")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="unset">Default</SelectItem>
-                <SelectItem value="disable">Disable</SelectItem>
-                <SelectItem value="poison-reverse">Poison Reverse</SelectItem>
+                <SelectItem value="unset">{tc("default")}</SelectItem>
+                <SelectItem value="disable">{t("interfaceModal.disable")}</SelectItem>
+                <SelectItem value="poison-reverse">{t("interfaceModal.poisonReverse")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -152,18 +155,18 @@ export function RipngInterfaceModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Adding..."}
+                {isEditMode ? tc("saving") : t("modal.adding")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("modal.saveChanges")
             ) : (
-              "Add Interface"
+              t("interfaces.addInterface")
             )}
           </Button>
         </DialogFooter>

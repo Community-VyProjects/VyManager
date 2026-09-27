@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { wwanService, type WwanInterface } from "@/lib/api/wwan";
 import { ApiError } from "@/lib/types/api";
 
@@ -27,6 +28,8 @@ export function DeleteWwanModal({
   onSuccess,
   interfaceData,
 }: DeleteWwanModalProps) {
+  const t = useTranslations("wwan");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,7 +46,7 @@ export function DeleteWwanModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to delete WWAN interface");
+        setError(result.error || t("errors.deleteFailed"));
       }
     } catch (err) {
       const msg = (err as ApiError).message;
@@ -61,20 +64,19 @@ export function DeleteWwanModal({
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            Delete Interface: {interfaceData.name}
+            {t("delete.title", { name: interfaceData.name })}
           </AlertDialogTitle>
           <AlertDialogDescription className="space-y-2">
             <p>
-              Are you sure you want to delete this WWAN interface? This action
-              cannot be undone.
+              {t("delete.description")}
             </p>
             <div className="rounded-lg bg-muted/50 border p-3 mt-2">
               <p className="text-sm text-muted-foreground">
                 {interfaceData.apn && (
-                  <>APN: <span className="font-medium">{interfaceData.apn}</span></>
+                  <>{t.rich("delete.apn", { apn: interfaceData.apn, em: (chunks) => <span className="font-medium">{chunks}</span> })}</>
                 )}
                 {interfaceData.addresses.length > 0 && (
-                  <> &middot; {interfaceData.addresses.length} address{interfaceData.addresses.length !== 1 ? "es" : ""}</>
+                  <> &middot; {t("delete.addressCount", { count: interfaceData.addresses.length })}</>
                 )}
                 {interfaceData.description && (
                   <> &middot; {interfaceData.description}</>
@@ -96,16 +98,16 @@ export function DeleteWwanModal({
             onClick={() => onOpenChange(false)}
             disabled={loading}
           >
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Interface"
+              t("delete.confirm")
             )}
           </Button>
         </AlertDialogFooter>

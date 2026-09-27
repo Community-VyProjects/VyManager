@@ -1,1 +1,146 @@
-{}
+{
+  "layout": {
+    "title": "Static & Failover",
+    "subtitle": "Static routes and failover",
+    "routes": {
+      "static": {
+        "name": "Static Routes",
+        "description": "Manually configured routes"
+      },
+      "failover": {
+        "name": "Failover / Tracking",
+        "description": "Route failover and health tracking"
+      }
+    }
+  },
+  "errors": {
+    "loadFailed": "Failed to load static routes configuration"
+  },
+  "page": {
+    "errorTitle": "Error Loading Static Routes",
+    "title": "Static Routes",
+    "subtitle": "Manage static routes, ARP entries, multicast routes, and neighbor proxies"
+  },
+  "stats": {
+    "totalRoutes": "Total Routes",
+    "ipv4Routes": "IPv4 Routes",
+    "ipv6Routes": "IPv6 Routes",
+    "arpEntries": "ARP Entries",
+    "multicast": "Multicast",
+    "neighborProxy": "Neighbor Proxy"
+  },
+  "tabs": {
+    "routes": "Static Routes",
+    "arp": "Static ARP",
+    "mroute": "Multicast Routes",
+    "neighborProxy": "Neighbor Proxy",
+    "tables": "Routing Tables"
+  },
+  "routes": {
+    "searchPlaceholder": "Search routes...",
+    "createRoute": "Create {type} Route",
+    "emptyTitle": "No Routes Found",
+    "noMatch": "No routes match your search criteria",
+    "emptyType": "No {type} static routes configured",
+    "destination": "Destination",
+    "nextHops": "Next Hops",
+    "interfaces": "Interfaces",
+    "distance": "Distance",
+    "type": "Type",
+    "blackhole": "Blackhole",
+    "disabledSuffix": " (disabled)",
+    "active": "Active"
+  },
+  "arp": {
+    "searchPlaceholder": "Search ARP entries...",
+    "create": "Create ARP Entry",
+    "emptyTitle": "No Static ARP Entries",
+    "emptyDescription": "No static ARP entries configured",
+    "interface": "Interface",
+    "ipAddress": "IP Address",
+    "macAddress": "MAC Address"
+  },
+  "mroute": {
+    "searchPlaceholder": "Search multicast routes...",
+    "create": "Create Multicast Route",
+    "emptyTitle": "No Multicast Routes",
+    "emptyDescription": "No static multicast routes configured",
+    "prefix": "Prefix",
+    "distanceSuffix": " (d:{distance})"
+  },
+  "neighborProxy": {
+    "searchPlaceholder": "Search neighbor proxy entries...",
+    "create": "Create Neighbor Proxy",
+    "emptyTitle": "No Neighbor Proxy Entries",
+    "emptyDescription": "No neighbor proxy entries configured (ARP or ND)"
+  },
+  "tables": {
+    "create": "Create Routing Table"
+  },
+  "validation": {
+    "destinationRequired": "Destination is required",
+    "routingMethodRequired": "At least one routing method is required (next-hop, interface, blackhole, or reject)"
+  },
+  "modal": {
+    "updateFailed": "Failed to update route",
+    "createFailed": "Failed to create route",
+    "editTitle": "Edit Static Route",
+    "createTitle": "Create {type} Static Route",
+    "editDescription": "Modify configuration for {destination}",
+    "createDescription": "Configure a new static route for {family} traffic",
+    "tabs": {
+      "basic": "Basic",
+      "routing": "Routing",
+      "advanced": "Advanced"
+    },
+    "destinationNetwork": "Destination Network",
+    "example": "e.g., {value}",
+    "destinationLocked": "Destination cannot be changed. Delete and recreate to change destination.",
+    "cidrHint": "Network in CIDR notation",
+    "descriptionPlaceholder": "Optional description for this route",
+    "nextHops": "Next-Hops",
+    "addNextHop": "Add Next-Hop",
+    "nextHopN": "Next-Hop #{n}",
+    "address": "Address",
+    "distanceMetric": "Distance (Metric)",
+    "defaultOne": "Default: 1",
+    "enableBfd": "Enable BFD Monitoring",
+    "bfdProfile": "BFD Profile",
+    "bfdProfilePlaceholder": "BFD profile name (optional)",
+    "disableNextHop": "Disable this next-hop",
+    "noNextHops": "No next-hops configured. Click \"Add Next-Hop\" to add one.",
+    "interfaceRoutes": "Interface Routes",
+    "addInterface": "Add Interface",
+    "interfaceN": "Interface #{n}",
+    "interface": "Interface",
+    "selectInterface": "Select interface",
+    "disableInterface": "Disable this interface route",
+    "noInterfaces": "No interface routes configured. Click \"Add Interface\" to add one.",
+    "blackholeRoute": "Blackhole Route (Drop silently)",
+    "blackholeHelp": "Packets matching this route will be dropped without notification.",
+    "tag": "Tag",
+    "rejectRoute": "Reject Route (ICMP unreachable)",
+    "rejectHelp": "Packets matching this route will be rejected with ICMP unreachable response.",
+    "dhcpInterface": "DHCP Interface",
+    "dhcpHelp": "Use gateway from DHCP on this interface",
+    "noAdvanced": "No advanced options available on this device.",
+    "updating": "Updating...",
+    "creating": "Creating...",
+    "updateRoute": "Update Route",
+    "createRoute": "Create Route"
+  },
+  "deleteModal": {
+    "failed": "Failed to delete route",
+    "title": "Delete Static Route",
+    "description": "Are you sure you want to delete this route? This action cannot be undone.",
+    "blackholeRoute": "Blackhole Route",
+    "distance": "Distance: {distance}",
+    "nextHops": "Next-Hops:",
+    "interfaces": "Interfaces:",
+    "distSuffix": " (dist: {distance})",
+    "dhcpInterfaces": "DHCP Interface(s):",
+    "warningTitle": "This will permanently delete the route",
+    "warningBody": "Traffic destined for {destination} will no longer use this route. Make sure you have alternative routing configured if needed.",
+    "deleteRoute": "Delete Route"
+  }
+}

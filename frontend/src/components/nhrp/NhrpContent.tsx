@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,8 @@ import { FeatureGroup } from "@/lib/api/user-management";
 // ============================================================================
 
 export function NhrpContent() {
+  const t = useTranslations("nhrp");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWritePermission = canWrite(FeatureGroup.NHRP);
 
@@ -106,11 +109,11 @@ export function NhrpContent() {
       setConfig(configData);
       setCapabilities(capData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load NHRP configuration");
+      setError(err instanceof Error ? err.message : t("errors.loadConfig"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -209,7 +212,7 @@ export function NhrpContent() {
       setDeletingTunnel(null);
       await loadData(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to delete tunnel");
+      setError(err instanceof Error ? err.message : t("errors.deleteTunnel"));
     }
   };
 
@@ -238,7 +241,7 @@ export function NhrpContent() {
       await nhrpService.deleteMap(tunnel, tunnelIp);
       await loadData(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to delete map");
+      setError(err instanceof Error ? err.message : t("errors.deleteMap"));
     }
   };
 
@@ -263,7 +266,7 @@ export function NhrpContent() {
       await nhrpService.deleteNhs(tunnel, tunnelIp);
       await loadData(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to delete NHS entry");
+      setError(err instanceof Error ? err.message : t("errors.deleteNhs"));
     }
   };
 
@@ -293,7 +296,7 @@ export function NhrpContent() {
       await nhrpService.deleteDynamicMap(tunnel, network);
       await loadData(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to delete dynamic map");
+      setError(err instanceof Error ? err.message : t("errors.deleteDynamicMap"));
     }
   };
 
@@ -323,7 +326,7 @@ export function NhrpContent() {
       await nhrpService.deleteShortcutTarget(tunnel, target);
       await loadData(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to delete shortcut target");
+      setError(err instanceof Error ? err.message : t("errors.deleteShortcutTarget"));
     }
   };
 
@@ -339,7 +342,7 @@ export function NhrpContent() {
       setMulticastInput((prev) => ({ ...prev, [tunnel]: "" }));
       await loadData(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to add multicast");
+      setError(err instanceof Error ? err.message : t("errors.addMulticast"));
     }
   };
 
@@ -348,7 +351,7 @@ export function NhrpContent() {
       await nhrpService.deleteMulticast(tunnel, value);
       await loadData(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to delete multicast");
+      setError(err instanceof Error ? err.message : t("errors.deleteMulticast"));
     }
   };
 
@@ -369,7 +372,7 @@ export function NhrpContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -386,17 +389,17 @@ export function NhrpContent() {
                 <Globe className="h-6 w-6 text-primary" />
                 <h1 className="text-2xl font-bold text-foreground">NHRP</h1>
                 {!hasWritePermission && (
-                  <Badge variant="secondary" className="text-xs">Read Only</Badge>
+                  <Badge variant="secondary" className="text-xs">{t("header.readOnly")}</Badge>
                 )}
               </div>
               <p className="text-sm text-muted-foreground mt-1">
-                Next Hop Resolution Protocol
+                {t("header.subtitle")}
               </p>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => loadData(true)}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {tc("refresh")}
               </Button>
               {hasWritePermission && capabilities && (
                 <Button
@@ -407,7 +410,7 @@ export function NhrpContent() {
                   }}
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Tunnel
+                  {t("header.addTunnel")}
                 </Button>
               )}
             </div>
@@ -430,7 +433,7 @@ export function NhrpContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{tunnelCount}</p>
-                    <p className="text-xs text-muted-foreground">Tunnels</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.tunnels")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -443,7 +446,7 @@ export function NhrpContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{mapCount}</p>
-                    <p className="text-xs text-muted-foreground">Static Maps</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.staticMaps")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -457,7 +460,7 @@ export function NhrpContent() {
                   <div>
                     <p className="text-2xl font-bold">{nhsDynCount}</p>
                     <p className="text-xs text-muted-foreground">
-                      {capabilities?.features.nhs.supported ? "NHS Entries" : "Dynamic Maps"}
+                      {capabilities?.features.nhs.supported ? t("stats.nhsEntries") : t("stats.dynamicMaps")}
                     </p>
                   </div>
                 </div>
@@ -471,7 +474,7 @@ export function NhrpContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{multicastCount}</p>
-                    <p className="text-xs text-muted-foreground">Multicast</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.multicast")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -484,8 +487,8 @@ export function NhrpContent() {
           {tunnelCount === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
               <Globe className="h-12 w-12 mb-4 opacity-50" />
-              <p className="text-lg font-medium">No NHRP tunnels configured</p>
-              <p className="text-sm mt-1">Add a tunnel to get started</p>
+              <p className="text-lg font-medium">{t("empty.title")}</p>
+              <p className="text-sm mt-1">{t("empty.hint")}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -514,7 +517,7 @@ export function NhrpContent() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span>{tunnel.maps.length} maps</span>
+                        <span>{t("tunnel.mapCount", { count: tunnel.maps.length })}</span>
                         {tunnel.authentication && (
                           <Badge variant="secondary" className="text-xs">auth</Badge>
                         )}
@@ -550,16 +553,16 @@ export function NhrpContent() {
                         {/* General Settings */}
                         <Card>
                           <CardHeader className="py-3 px-4">
-                            <CardTitle className="text-sm">General Settings</CardTitle>
+                            <CardTitle className="text-sm">{t("tunnel.generalSettings")}</CardTitle>
                           </CardHeader>
                           <CardContent className="px-4 pb-3">
                             <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
                               <div className="flex justify-between">
-                                <span className="text-muted-foreground">Authentication</span>
+                                <span className="text-muted-foreground">{t("tunnel.authentication")}</span>
                                 <span className="font-mono">{tunnel.authentication || "—"}</span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="text-muted-foreground">Holding Time</span>
+                                <span className="text-muted-foreground">{t("tunnel.holdingTime")}</span>
                                 <span className="font-mono">{tunnel.holding_time ? `${tunnel.holding_time}s` : "—"}</span>
                               </div>
                               {capabilities?.features.mtu.supported && (
@@ -570,7 +573,7 @@ export function NhrpContent() {
                               )}
                               {capabilities?.features.network_id.supported && (
                                 <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Network ID</span>
+                                  <span className="text-muted-foreground">{t("tunnel.networkId")}</span>
                                   <span className="font-mono">{tunnel.network_id || "—"}</span>
                                 </div>
                               )}
@@ -581,7 +584,7 @@ export function NhrpContent() {
                         {/* Static Maps */}
                         <Card>
                           <CardHeader className="py-3 px-4 flex flex-row items-center justify-between">
-                            <CardTitle className="text-sm">Static Maps</CardTitle>
+                            <CardTitle className="text-sm">{t("stats.staticMaps")}</CardTitle>
                             {hasWritePermission && (
                               <Button
                                 variant="outline"
@@ -594,21 +597,21 @@ export function NhrpContent() {
                                 }}
                               >
                                 <Plus className="h-3 w-3 mr-1" />
-                                Add
+                                {tc("add")}
                               </Button>
                             )}
                           </CardHeader>
                           <CardContent className="px-4 pb-3">
                             {tunnel.maps.length === 0 ? (
-                              <p className="text-sm text-muted-foreground">No static maps configured</p>
+                              <p className="text-sm text-muted-foreground">{t("tunnel.noStaticMaps")}</p>
                             ) : (
                               <Table>
                                 <TableHeader>
                                   <TableRow>
-                                    <TableHead>Tunnel IP</TableHead>
-                                    <TableHead>NBMA Address</TableHead>
+                                    <TableHead>{t("tunnel.tunnelIp")}</TableHead>
+                                    <TableHead>{t("tunnel.nbmaAddress")}</TableHead>
                                     {capabilities?.features.map_cisco.supported && <TableHead>Cisco</TableHead>}
-                                    {capabilities?.features.map_register.supported && <TableHead>Register</TableHead>}
+                                    {capabilities?.features.map_register.supported && <TableHead>{t("tunnel.register")}</TableHead>}
                                     {hasWritePermission && <TableHead className="w-20" />}
                                   </TableRow>
                                 </TableHeader>
@@ -618,10 +621,10 @@ export function NhrpContent() {
                                       <TableCell className="font-mono">{m.tunnel_ip}</TableCell>
                                       <TableCell className="font-mono">{m.nbma_address || "—"}</TableCell>
                                       {capabilities?.features.map_cisco.supported && (
-                                        <TableCell>{m.cisco ? "Yes" : "No"}</TableCell>
+                                        <TableCell>{m.cisco ? t("tunnel.yes") : t("tunnel.no")}</TableCell>
                                       )}
                                       {capabilities?.features.map_register.supported && (
-                                        <TableCell>{m.register ? "Yes" : "No"}</TableCell>
+                                        <TableCell>{m.register ? t("tunnel.yes") : t("tunnel.no")}</TableCell>
                                       )}
                                       {hasWritePermission && (
                                         <TableCell>
@@ -661,7 +664,7 @@ export function NhrpContent() {
                         {capabilities?.features.nhs.supported && (
                           <Card>
                             <CardHeader className="py-3 px-4 flex flex-row items-center justify-between">
-                              <CardTitle className="text-sm">NHS Entries</CardTitle>
+                              <CardTitle className="text-sm">{t("stats.nhsEntries")}</CardTitle>
                               {hasWritePermission && (
                                 <Button
                                   variant="outline"
@@ -674,19 +677,19 @@ export function NhrpContent() {
                                   }}
                                 >
                                   <Plus className="h-3 w-3 mr-1" />
-                                  Add
+                                  {tc("add")}
                                 </Button>
                               )}
                             </CardHeader>
                             <CardContent className="px-4 pb-3">
                               {tunnel.nhs_entries.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">No NHS entries configured</p>
+                                <p className="text-sm text-muted-foreground">{t("tunnel.noNhsEntries")}</p>
                               ) : (
                                 <Table>
                                   <TableHeader>
                                     <TableRow>
-                                      <TableHead>Tunnel IP</TableHead>
-                                      <TableHead>NBMA Addresses</TableHead>
+                                      <TableHead>{t("tunnel.tunnelIp")}</TableHead>
+                                      <TableHead>{t("tunnel.nbmaAddresses")}</TableHead>
                                       {hasWritePermission && <TableHead className="w-20" />}
                                     </TableRow>
                                   </TableHeader>
@@ -743,7 +746,7 @@ export function NhrpContent() {
                         {capabilities?.features.dynamic_map.supported && (
                           <Card>
                             <CardHeader className="py-3 px-4 flex flex-row items-center justify-between">
-                              <CardTitle className="text-sm">Dynamic Maps</CardTitle>
+                              <CardTitle className="text-sm">{t("stats.dynamicMaps")}</CardTitle>
                               {hasWritePermission && (
                                 <Button
                                   variant="outline"
@@ -756,19 +759,19 @@ export function NhrpContent() {
                                   }}
                                 >
                                   <Plus className="h-3 w-3 mr-1" />
-                                  Add
+                                  {tc("add")}
                                 </Button>
                               )}
                             </CardHeader>
                             <CardContent className="px-4 pb-3">
                               {tunnel.dynamic_maps.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">No dynamic maps configured</p>
+                                <p className="text-sm text-muted-foreground">{t("tunnel.noDynamicMaps")}</p>
                               ) : (
                                 <Table>
                                   <TableHeader>
                                     <TableRow>
-                                      <TableHead>Network</TableHead>
-                                      <TableHead>NBMA Domain Name</TableHead>
+                                      <TableHead>{t("tunnel.network")}</TableHead>
+                                      <TableHead>{t("tunnel.nbmaDomainName")}</TableHead>
                                       {hasWritePermission && <TableHead className="w-20" />}
                                     </TableRow>
                                   </TableHeader>
@@ -816,7 +819,7 @@ export function NhrpContent() {
                         {capabilities?.features.shortcut_target.supported && (
                           <Card>
                             <CardHeader className="py-3 px-4 flex flex-row items-center justify-between">
-                              <CardTitle className="text-sm">Shortcut Targets</CardTitle>
+                              <CardTitle className="text-sm">{t("tunnel.shortcutTargets")}</CardTitle>
                               {hasWritePermission && (
                                 <Button
                                   variant="outline"
@@ -829,19 +832,19 @@ export function NhrpContent() {
                                   }}
                                 >
                                   <Plus className="h-3 w-3 mr-1" />
-                                  Add
+                                  {tc("add")}
                                 </Button>
                               )}
                             </CardHeader>
                             <CardContent className="px-4 pb-3">
                               {tunnel.shortcut_targets.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">No shortcut targets configured</p>
+                                <p className="text-sm text-muted-foreground">{t("tunnel.noShortcutTargets")}</p>
                               ) : (
                                 <Table>
                                   <TableHeader>
                                     <TableRow>
-                                      <TableHead>Target</TableHead>
-                                      <TableHead>Holding Time</TableHead>
+                                      <TableHead>{t("tunnel.target")}</TableHead>
+                                      <TableHead>{t("tunnel.holdingTime")}</TableHead>
                                       {hasWritePermission && <TableHead className="w-20" />}
                                     </TableRow>
                                   </TableHeader>
@@ -888,7 +891,7 @@ export function NhrpContent() {
                         {/* Multicast */}
                         <Card>
                           <CardHeader className="py-3 px-4">
-                            <CardTitle className="text-sm">Multicast</CardTitle>
+                            <CardTitle className="text-sm">{t("stats.multicast")}</CardTitle>
                           </CardHeader>
                           <CardContent className="px-4 pb-3">
                             <div className="flex flex-wrap gap-2">
@@ -907,7 +910,7 @@ export function NhrpContent() {
                                 </Badge>
                               ))}
                               {tunnel.multicast.length === 0 && (
-                                <span className="text-sm text-muted-foreground">None configured</span>
+                                <span className="text-sm text-muted-foreground">{t("tunnel.noneConfigured")}</span>
                               )}
                             </div>
                             {hasWritePermission && (
@@ -917,7 +920,7 @@ export function NhrpContent() {
                                   onChange={(e) =>
                                     setMulticastInput((prev) => ({ ...prev, [tunnel.name]: e.target.value }))
                                   }
-                                  placeholder="e.g. dynamic or NBMA address"
+                                  placeholder={t("tunnel.multicastPlaceholder")}
                                   className="h-8 text-sm"
                                   onKeyDown={(e) => {
                                     if (e.key === "Enter") {
@@ -934,7 +937,7 @@ export function NhrpContent() {
                                   disabled={!(multicastInput[tunnel.name] || "").trim()}
                                 >
                                   <Plus className="h-3 w-3 mr-1" />
-                                  Add
+                                  {tc("add")}
                                 </Button>
                               </div>
                             )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -45,6 +46,8 @@ export function ComprehensiveEthernetModal({
   onSuccess,
   mode,
 }: ComprehensiveEthernetModalProps) {
+  const t = useTranslations("ethernet");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -662,7 +665,7 @@ export function ComprehensiveEthernetModal({
     try {
       if (mode === "create") {
         if (!interfaceName.trim()) {
-          throw new Error("Interface name is required");
+          throw new Error(t("modal.nameRequired"));
         }
 
         const operations = buildOperations();
@@ -674,7 +677,7 @@ export function ComprehensiveEthernetModal({
         const operations = buildOperations();
 
         if (operations.length === 0) {
-          setError("No changes detected");
+          setError(t("modal.noChanges"));
           setLoading(false);
           return;
         }
@@ -688,7 +691,7 @@ export function ComprehensiveEthernetModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : `Failed to ${mode} interface`);
+      setError(err instanceof Error ? err.message : (mode === "create" ? t("modal.createFailed") : t("modal.editFailed")));
     } finally {
       setLoading(false);
     }
@@ -699,12 +702,12 @@ export function ComprehensiveEthernetModal({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {mode === "create" ? "Create Ethernet Interface" : `Edit Interface: ${iface?.name}`}
+            {mode === "create" ? t("modal.createTitle") : t("modal.editTitle", { name: String(iface?.name) })}
           </DialogTitle>
           <DialogDescription>
             {mode === "create"
-              ? "Configure a new ethernet interface with advanced settings"
-              : "Modify the configuration of this ethernet interface"}
+              ? t("modal.createDescription")
+              : t("modal.editDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -718,11 +721,11 @@ export function ComprehensiveEthernetModal({
 
           <Tabs defaultValue="basic" className="w-full">
             <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="basic">Basic</TabsTrigger>
-              <TabsTrigger value="advanced">Advanced</TabsTrigger>
+              <TabsTrigger value="basic">{t("modal.tabs.basic")}</TabsTrigger>
+              <TabsTrigger value="advanced">{t("modal.tabs.advanced")}</TabsTrigger>
               <TabsTrigger value="ip">IP/IPv6</TabsTrigger>
               <TabsTrigger value="dhcp">DHCP</TabsTrigger>
-              <TabsTrigger value="special">Special</TabsTrigger>
+              <TabsTrigger value="special">{t("modal.tabs.special")}</TabsTrigger>
             </TabsList>
 
             {/* Basic Tab */}
@@ -730,16 +733,16 @@ export function ComprehensiveEthernetModal({
               {mode === "create" && (
                 <div className="space-y-2">
                   <Label htmlFor="interface-name">
-                    Interface Name <span className="text-destructive">*</span>
+                    {t("modal.interfaceName")} <span className="text-destructive">*</span>
                   </Label>
                   {loadingInterfaces ? (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground h-9">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Loading available interfaces…
+                      {t("modal.loadingInterfaces")}
                     </div>
                   ) : availableInterfaces.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
-                      All ethernet interfaces are already configured.
+                      {t("modal.allConfigured")}
                     </p>
                   ) : (
                     <InterfaceSelect
@@ -747,7 +750,7 @@ export function ComprehensiveEthernetModal({
                       onValueChange={setInterfaceName}
                       id="interface-name"
                       interfaces={availableInterfaces.map((n) => ({ name: n, type: "ethernet", description: null }))}
-                      placeholder="Select an interface"
+                      placeholder={t("modal.selectInterface")}
                     />
                   )}
                 </div>
@@ -755,10 +758,10 @@ export function ComprehensiveEthernetModal({
 
               {capabilities?.features.basic.description && (
                 <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description">{tc("description")}</Label>
                   <Input
                     id="description"
-                    placeholder="WAN Interface"
+                    placeholder={t("modal.descriptionPlaceholder")}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                   />
@@ -767,11 +770,11 @@ export function ComprehensiveEthernetModal({
 
               {capabilities?.features.basic.address && (
                 <div className="space-y-2">
-                  <Label>IP Addresses</Label>
+                  <Label>{t("modal.ipAddresses")}</Label>
                   {addresses.map((address, index) => (
                     <div key={index} className="flex gap-2">
                       <Input
-                        placeholder="10.0.0.1/24 or 2001:db8::1/64"
+                        placeholder={t("modal.addressPlaceholder")}
                         value={address}
                         onChange={(e) => handleAddressChange(index, e.target.value)}
                       />
@@ -793,7 +796,7 @@ export function ComprehensiveEthernetModal({
                     size="sm"
                     onClick={handleAddAddress}
                   >
-                    Add Address
+                    {t("modal.addAddress")}
                   </Button>
                 </div>
               )}
@@ -801,13 +804,13 @@ export function ComprehensiveEthernetModal({
               <div className="grid grid-cols-2 gap-4">
                 {capabilities?.features.ethernet.speed && (
                   <div className="space-y-2">
-                    <Label htmlFor="speed">Speed</Label>
+                    <Label htmlFor="speed">{t("modal.speed")}</Label>
                     <Select value={speed || "auto"} onValueChange={(v) => setSpeed(v === "auto" ? "" : v)}>
                       <SelectTrigger id="speed">
-                        <SelectValue placeholder="Auto" />
+                        <SelectValue placeholder={t("modal.auto")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="auto">Auto</SelectItem>
+                        <SelectItem value="auto">{t("modal.auto")}</SelectItem>
                         <SelectItem value="10">10 Mbps</SelectItem>
                         <SelectItem value="100">100 Mbps</SelectItem>
                         <SelectItem value="1000">1 Gbps</SelectItem>
@@ -825,15 +828,15 @@ export function ComprehensiveEthernetModal({
 
                 {capabilities?.features.ethernet.duplex && (
                   <div className="space-y-2">
-                    <Label htmlFor="duplex">Duplex</Label>
+                    <Label htmlFor="duplex">{t("modal.duplex")}</Label>
                     <Select value={duplex || "auto"} onValueChange={(v) => setDuplex(v === "auto" ? "" : v)}>
                       <SelectTrigger id="duplex">
-                        <SelectValue placeholder="Auto" />
+                        <SelectValue placeholder={t("modal.auto")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="auto">Auto</SelectItem>
-                        <SelectItem value="half">Half</SelectItem>
-                        <SelectItem value="full">Full</SelectItem>
+                        <SelectItem value="auto">{t("modal.auto")}</SelectItem>
+                        <SelectItem value="half">{t("modal.half")}</SelectItem>
+                        <SelectItem value="full">{t("modal.full")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -865,7 +868,7 @@ export function ComprehensiveEthernetModal({
 
                 {iface?.hw_id && mode === "edit" && (
                   <div className="space-y-2">
-                    <Label htmlFor="hw-id">Hardware MAC Address</Label>
+                    <Label htmlFor="hw-id">{t("modal.hardwareMac")}</Label>
                     <Input
                       id="hw-id"
                       value={iface.hw_id}
@@ -877,7 +880,7 @@ export function ComprehensiveEthernetModal({
 
                 {capabilities?.features.ethernet.mac && mode === "create" && (
                   <div className="space-y-2">
-                    <Label htmlFor="mac">MAC Address</Label>
+                    <Label htmlFor="mac">{t("modal.macAddress")}</Label>
                     <Input
                       id="mac"
                       placeholder="00:11:22:33:44:55"
@@ -896,7 +899,7 @@ export function ComprehensiveEthernetModal({
                     onCheckedChange={(checked) => setDisabled(checked as boolean)}
                   />
                   <Label htmlFor="disable" className="cursor-pointer">
-                    Administratively disable interface
+                    {t("modal.adminDisable")}
                   </Label>
                 </div>
               )}
@@ -906,7 +909,7 @@ export function ComprehensiveEthernetModal({
             <TabsContent value="advanced" className="space-y-4">
               {capabilities?.features.offload && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-semibold">Offload Settings</h3>
+                  <h3 className="text-sm font-semibold">{t("modal.offloadSettings")}</h3>
 
                   <div className="grid grid-cols-3 gap-4">
 
@@ -915,11 +918,11 @@ export function ComprehensiveEthernetModal({
                       <Label htmlFor="offload-gro">GRO</Label>
                       <Select value={offloadGro} onValueChange={setOffloadGro}>
                         <SelectTrigger id="offload-gro">
-                          <SelectValue placeholder="Select..." />
+                          <SelectValue placeholder={t("modal.selectPlaceholder")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="on">On</SelectItem>
-                          <SelectItem value="off">Off</SelectItem>
+                          <SelectItem value="on">{t("modal.on")}</SelectItem>
+                          <SelectItem value="off">{t("modal.off")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -929,11 +932,11 @@ export function ComprehensiveEthernetModal({
                       <Label htmlFor="offload-gso">GSO</Label>
                       <Select value={offloadGso} onValueChange={setOffloadGso}>
                         <SelectTrigger id="offload-gso">
-                          <SelectValue placeholder="Select..." />
+                          <SelectValue placeholder={t("modal.selectPlaceholder")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="on">On</SelectItem>
-                          <SelectItem value="off">Off</SelectItem>
+                          <SelectItem value="on">{t("modal.on")}</SelectItem>
+                          <SelectItem value="off">{t("modal.off")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -943,11 +946,11 @@ export function ComprehensiveEthernetModal({
                       <Label htmlFor="offload-lro">LRO</Label>
                       <Select value={offloadLro} onValueChange={setOffloadLro}>
                         <SelectTrigger id="offload-lro">
-                          <SelectValue placeholder="Select..." />
+                          <SelectValue placeholder={t("modal.selectPlaceholder")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="on">On</SelectItem>
-                          <SelectItem value="off">Off</SelectItem>
+                          <SelectItem value="on">{t("modal.on")}</SelectItem>
+                          <SelectItem value="off">{t("modal.off")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -957,11 +960,11 @@ export function ComprehensiveEthernetModal({
                       <Label htmlFor="offload-rps">RPS</Label>
                       <Select value={offloadRps} onValueChange={setOffloadRps}>
                         <SelectTrigger id="offload-rps">
-                          <SelectValue placeholder="Select..." />
+                          <SelectValue placeholder={t("modal.selectPlaceholder")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="on">On</SelectItem>
-                          <SelectItem value="off">Off</SelectItem>
+                          <SelectItem value="on">{t("modal.on")}</SelectItem>
+                          <SelectItem value="off">{t("modal.off")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -971,11 +974,11 @@ export function ComprehensiveEthernetModal({
                       <Label htmlFor="offload-sg">SG</Label>
                       <Select value={offloadSg} onValueChange={setOffloadSg}>
                         <SelectTrigger id="offload-sg">
-                          <SelectValue placeholder="Select..." />
+                          <SelectValue placeholder={t("modal.selectPlaceholder")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="on">On</SelectItem>
-                          <SelectItem value="off">Off</SelectItem>
+                          <SelectItem value="on">{t("modal.on")}</SelectItem>
+                          <SelectItem value="off">{t("modal.off")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -985,11 +988,11 @@ export function ComprehensiveEthernetModal({
                       <Label htmlFor="offload-tso">TSO</Label>
                       <Select value={offloadTso} onValueChange={setOffloadTso}>
                         <SelectTrigger id="offload-tso">
-                          <SelectValue placeholder="Select..." />
+                          <SelectValue placeholder={t("modal.selectPlaceholder")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="on">On</SelectItem>
-                          <SelectItem value="off">Off</SelectItem>
+                          <SelectItem value="on">{t("modal.on")}</SelectItem>
+                          <SelectItem value="off">{t("modal.off")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -997,14 +1000,14 @@ export function ComprehensiveEthernetModal({
                     {/* HW TC Offload */}
                     {capabilities?.features.offload.hw_tc_offload && (
                       <div className="space-y-2">
-                        <Label htmlFor="offload-hw-tc">HW TC Offload</Label>
+                        <Label htmlFor="offload-hw-tc">{t("modal.hwTcOffload")}</Label>
                         <Select value={offloadHwTcOffload} onValueChange={setOffloadHwTcOffload}>
                           <SelectTrigger id="offload-hw-tc">
-                            <SelectValue placeholder="Select..." />
+                            <SelectValue placeholder={t("modal.selectPlaceholder")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="on">On</SelectItem>
-                            <SelectItem value="off">Off</SelectItem>
+                            <SelectItem value="on">{t("modal.on")}</SelectItem>
+                            <SelectItem value="off">{t("modal.off")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -1016,11 +1019,11 @@ export function ComprehensiveEthernetModal({
                         <Label htmlFor="offload-rfs">RFS</Label>
                         <Select value={offloadRfs} onValueChange={setOffloadRfs}>
                           <SelectTrigger id="offload-rfs">
-                            <SelectValue placeholder="Select..." />
+                            <SelectValue placeholder={t("modal.selectPlaceholder")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="on">On</SelectItem>
-                            <SelectItem value="off">Off</SelectItem>
+                            <SelectItem value="on">{t("modal.on")}</SelectItem>
+                            <SelectItem value="off">{t("modal.off")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -1032,10 +1035,10 @@ export function ComprehensiveEthernetModal({
 
               {capabilities?.features.ring_buffer && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-semibold">Ring Buffer</h3>
+                  <h3 className="text-sm font-semibold">{t("modal.ringBuffer")}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="ring-rx">RX Buffer</Label>
+                      <Label htmlFor="ring-rx">{t("modal.rxBuffer")}</Label>
                       <Input
                         id="ring-rx"
                         type="number"
@@ -1045,7 +1048,7 @@ export function ComprehensiveEthernetModal({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="ring-tx">TX Buffer</Label>
+                      <Label htmlFor="ring-tx">{t("modal.txBuffer")}</Label>
                       <Input
                         id="ring-tx"
                         type="number"
@@ -1063,7 +1066,7 @@ export function ComprehensiveEthernetModal({
                   <h3 className="text-sm font-semibold">TCP MSS</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="ip-mss">IPv4 Adjust MSS</Label>
+                      <Label htmlFor="ip-mss">{t("modal.ipv4AdjustMss")}</Label>
                       <Input
                         id="ip-mss"
                         type="number"
@@ -1079,12 +1082,12 @@ export function ComprehensiveEthernetModal({
                           onCheckedChange={(checked) => setIpClampMssToPmtu(checked as boolean)}
                         />
                         <Label htmlFor="ip-clamp-pmtu" className="cursor-pointer text-xs">
-                          Clamp to PMTU
+                          {t("modal.clampToPmtu")}
                         </Label>
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="ipv6-mss">IPv6 Adjust MSS</Label>
+                      <Label htmlFor="ipv6-mss">{t("modal.ipv6AdjustMss")}</Label>
                       <Input
                         id="ipv6-mss"
                         type="number"
@@ -1100,7 +1103,7 @@ export function ComprehensiveEthernetModal({
                           onCheckedChange={(checked) => setIpv6ClampMssToPmtu(checked as boolean)}
                         />
                         <Label htmlFor="ipv6-clamp-pmtu" className="cursor-pointer text-xs">
-                          Clamp to PMTU
+                          {t("modal.clampToPmtu")}
                         </Label>
                       </div>
                     </div>
@@ -1110,7 +1113,7 @@ export function ComprehensiveEthernetModal({
 
               {(capabilities?.features.flow_control || capabilities?.features.link_detect) && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-semibold">Flow Control & Link Detection</h3>
+                  <h3 className="text-sm font-semibold">{t("modal.flowLinkTitle")}</h3>
                   <div className="space-y-2">
                     {capabilities?.features.flow_control && (
                       <div className="flex items-center space-x-2">
@@ -1120,7 +1123,7 @@ export function ComprehensiveEthernetModal({
                           onCheckedChange={(checked) => setDisableFlowControl(checked as boolean)}
                         />
                         <Label htmlFor="disable-flow-control" className="cursor-pointer">
-                          Disable Flow Control
+                          {t("modal.disableFlowControl")}
                         </Label>
                       </div>
                     )}
@@ -1132,7 +1135,7 @@ export function ComprehensiveEthernetModal({
                           onCheckedChange={(checked) => setDisableLinkDetect(checked as boolean)}
                         />
                         <Label htmlFor="disable-link-detect" className="cursor-pointer">
-                          Disable Link Detection
+                          {t("modal.disableLinkDetect")}
                         </Label>
                       </div>
                     )}
@@ -1145,10 +1148,10 @@ export function ComprehensiveEthernetModal({
             <TabsContent value="ip" className="space-y-4">
               {capabilities?.features.arp && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-semibold">ARP Settings</h3>
+                  <h3 className="text-sm font-semibold">{t("modal.arpSettings")}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="arp-cache-timeout">Cache Timeout (seconds)</Label>
+                      <Label htmlFor="arp-cache-timeout">{t("modal.arpCacheTimeout")}</Label>
                       <Input
                         id="arp-cache-timeout"
                         type="number"
@@ -1166,7 +1169,7 @@ export function ComprehensiveEthernetModal({
                         onCheckedChange={(checked) => setArpDisableFilter(checked as boolean)}
                       />
                       <Label htmlFor="arp-disable-filter" className="cursor-pointer text-sm">
-                        Disable ARP Filter
+                        {t("modal.disableArpFilter")}
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -1176,7 +1179,7 @@ export function ComprehensiveEthernetModal({
                         onCheckedChange={(checked) => setArpEnableAccept(checked as boolean)}
                       />
                       <Label htmlFor="arp-enable-accept" className="cursor-pointer text-sm">
-                        Enable ARP Accept
+                        {t("modal.enableArpAccept")}
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -1186,7 +1189,7 @@ export function ComprehensiveEthernetModal({
                         onCheckedChange={(checked) => setArpEnableAnnounce(checked as boolean)}
                       />
                       <Label htmlFor="arp-enable-announce" className="cursor-pointer text-sm">
-                        Enable ARP Announce
+                        {t("modal.enableArpAnnounce")}
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -1196,7 +1199,7 @@ export function ComprehensiveEthernetModal({
                         onCheckedChange={(checked) => setArpEnableIgnore(checked as boolean)}
                       />
                       <Label htmlFor="arp-enable-ignore" className="cursor-pointer text-sm">
-                        Enable ARP Ignore
+                        {t("modal.enableArpIgnore")}
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -1206,7 +1209,7 @@ export function ComprehensiveEthernetModal({
                         onCheckedChange={(checked) => setArpEnableProxyArp(checked as boolean)}
                       />
                       <Label htmlFor="arp-enable-proxy" className="cursor-pointer text-sm">
-                        Enable Proxy ARP
+                        {t("modal.enableProxyArp")}
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -1216,7 +1219,7 @@ export function ComprehensiveEthernetModal({
                         onCheckedChange={(checked) => setArpProxyArpPvlan(checked as boolean)}
                       />
                       <Label htmlFor="arp-proxy-pvlan" className="cursor-pointer text-sm">
-                        Proxy ARP PVLAN
+                        {t("modal.proxyArpPvlan")}
                       </Label>
                     </div>
                   </div>
@@ -1225,18 +1228,18 @@ export function ComprehensiveEthernetModal({
 
               {capabilities?.features.ip && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-semibold">IP Settings</h3>
+                  <h3 className="text-sm font-semibold">{t("modal.ipSettings")}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="ip-source-validation">Source Validation</Label>
+                      <Label htmlFor="ip-source-validation">{t("modal.sourceValidation")}</Label>
                       <Select value={ipSourceValidation || "none"} onValueChange={(v) => setIpSourceValidation(v === "none" ? "" : v)}>
                         <SelectTrigger id="ip-source-validation">
-                          <SelectValue placeholder="None" />
+                          <SelectValue placeholder={tc("none")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
-                          <SelectItem value="strict">Strict</SelectItem>
-                          <SelectItem value="loose">Loose</SelectItem>
+                          <SelectItem value="none">{tc("none")}</SelectItem>
+                          <SelectItem value="strict">{t("modal.strict")}</SelectItem>
+                          <SelectItem value="loose">{t("modal.loose")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1250,7 +1253,7 @@ export function ComprehensiveEthernetModal({
                           onCheckedChange={(checked) => setIpEnableDirectedBroadcast(checked as boolean)}
                         />
                         <Label htmlFor="ip-directed-broadcast" className="cursor-pointer text-sm">
-                          Enable Directed Broadcast
+                          {t("modal.enableDirectedBroadcast")}
                         </Label>
                       </div>
                     )}
@@ -1262,7 +1265,7 @@ export function ComprehensiveEthernetModal({
                           onCheckedChange={(checked) => setIpDisableForwarding(checked as boolean)}
                         />
                         <Label htmlFor="ip-disable-forwarding" className="cursor-pointer text-sm">
-                          Disable Forwarding
+                          {t("modal.disableForwarding")}
                         </Label>
                       </div>
                     )}
@@ -1272,10 +1275,10 @@ export function ComprehensiveEthernetModal({
 
               {capabilities?.features.ipv6 && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-semibold">IPv6 Settings</h3>
+                  <h3 className="text-sm font-semibold">{t("modal.ipv6Settings")}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="ipv6-eui64">EUI-64 Prefix</Label>
+                      <Label htmlFor="ipv6-eui64">{t("modal.eui64Prefix")}</Label>
                       <Input
                         id="ipv6-eui64"
                         placeholder="2001:db8::/64"
@@ -1284,7 +1287,7 @@ export function ComprehensiveEthernetModal({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="ipv6-dad">Duplicate Address Detection</Label>
+                      <Label htmlFor="ipv6-dad">{t("modal.dupAddrDetect")}</Label>
                       <Input
                         id="ipv6-dad"
                         type="number"
@@ -1295,11 +1298,11 @@ export function ComprehensiveEthernetModal({
                     </div>
                     {capabilities?.features.ipv6.accept_dad && (
                       <div className="space-y-2">
-                        <Label htmlFor="ipv6-accept-dad">Accept DAD</Label>
+                        <Label htmlFor="ipv6-accept-dad">{t("modal.acceptDad")}</Label>
                         <Input
                           id="ipv6-accept-dad"
                           type="number"
-                          placeholder="0, 1, or 2"
+                          placeholder={t("modal.acceptDadPlaceholder")}
                           value={ipv6AcceptDad}
                           onChange={(e) => setIpv6AcceptDad(e.target.value)}
                         />
@@ -1307,7 +1310,7 @@ export function ComprehensiveEthernetModal({
                     )}
                     {capabilities?.features.ipv6.base_reachable_time && (
                       <div className="space-y-2">
-                        <Label htmlFor="ipv6-base-reachable-time">Base Reachable Time</Label>
+                        <Label htmlFor="ipv6-base-reachable-time">{t("modal.baseReachableTime")}</Label>
                         <Input
                           id="ipv6-base-reachable-time"
                           type="number"
@@ -1319,15 +1322,15 @@ export function ComprehensiveEthernetModal({
                     )}
                     {capabilities?.features.ipv6.source_validation && (
                       <div className="space-y-2">
-                        <Label htmlFor="ipv6-source-validation">Source Validation</Label>
+                        <Label htmlFor="ipv6-source-validation">{t("modal.sourceValidation")}</Label>
                         <Select value={ipv6SourceValidation || "none"} onValueChange={(v) => setIpv6SourceValidation(v === "none" ? "" : v)}>
                           <SelectTrigger id="ipv6-source-validation">
-                            <SelectValue placeholder="None" />
+                            <SelectValue placeholder={tc("none")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
-                            <SelectItem value="strict">Strict</SelectItem>
-                            <SelectItem value="loose">Loose</SelectItem>
+                            <SelectItem value="none">{tc("none")}</SelectItem>
+                            <SelectItem value="strict">{t("modal.strict")}</SelectItem>
+                            <SelectItem value="loose">{t("modal.loose")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -1341,7 +1344,7 @@ export function ComprehensiveEthernetModal({
                         onCheckedChange={(checked) => setIpv6Autoconf(checked as boolean)}
                       />
                       <Label htmlFor="ipv6-autoconf" className="cursor-pointer text-sm">
-                        Enable Autoconfig
+                        {t("modal.enableAutoconfig")}
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -1351,7 +1354,7 @@ export function ComprehensiveEthernetModal({
                         onCheckedChange={(checked) => setIpv6DisableForwarding(checked as boolean)}
                       />
                       <Label htmlFor="ipv6-disable-forwarding" className="cursor-pointer text-sm">
-                        Disable Forwarding
+                        {t("modal.disableForwarding")}
                       </Label>
                     </div>
                     {capabilities?.features.ipv6.no_default_link_local && (
@@ -1362,7 +1365,7 @@ export function ComprehensiveEthernetModal({
                           onCheckedChange={(checked) => setIpv6NoDefaultLinkLocal(checked as boolean)}
                         />
                         <Label htmlFor="ipv6-no-default-link-local" className="cursor-pointer text-sm">
-                          No Default Link-Local
+                          {t("modal.noDefaultLinkLocal")}
                         </Label>
                       </div>
                     )}
@@ -1375,10 +1378,10 @@ export function ComprehensiveEthernetModal({
             <TabsContent value="dhcp" className="space-y-4">
               {capabilities?.features.dhcp && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-semibold">DHCP Options</h3>
+                  <h3 className="text-sm font-semibold">{t("modal.dhcpOptions")}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="dhcp-client-id">Client ID</Label>
+                      <Label htmlFor="dhcp-client-id">{t("modal.clientId")}</Label>
                       <Input
                         id="dhcp-client-id"
                         placeholder="client-identifier"
@@ -1387,7 +1390,7 @@ export function ComprehensiveEthernetModal({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="dhcp-hostname">Host Name</Label>
+                      <Label htmlFor="dhcp-hostname">{t("modal.hostName")}</Label>
                       <Input
                         id="dhcp-hostname"
                         placeholder="my-host"
@@ -1396,7 +1399,7 @@ export function ComprehensiveEthernetModal({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="dhcp-vendor-class">Vendor Class ID</Label>
+                      <Label htmlFor="dhcp-vendor-class">{t("modal.vendorClassId")}</Label>
                       <Input
                         id="dhcp-vendor-class"
                         placeholder="vendor-class"
@@ -1405,7 +1408,7 @@ export function ComprehensiveEthernetModal({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="dhcp-route-distance">Default Route Distance</Label>
+                      <Label htmlFor="dhcp-route-distance">{t("modal.defaultRouteDistance")}</Label>
                       <Input
                         id="dhcp-route-distance"
                         type="number"
@@ -1416,7 +1419,7 @@ export function ComprehensiveEthernetModal({
                     </div>
                     {capabilities?.features.dhcp.reject && (
                       <div className="space-y-2">
-                        <Label htmlFor="dhcp-reject">Reject Server</Label>
+                        <Label htmlFor="dhcp-reject">{t("modal.rejectServer")}</Label>
                         <Input
                           id="dhcp-reject"
                           placeholder="192.168.1.1"
@@ -1427,7 +1430,7 @@ export function ComprehensiveEthernetModal({
                     )}
                     {capabilities?.features.dhcp.user_class && (
                       <div className="space-y-2">
-                        <Label htmlFor="dhcp-user-class">User Class</Label>
+                        <Label htmlFor="dhcp-user-class">{t("modal.userClass")}</Label>
                         <Input
                           id="dhcp-user-class"
                           placeholder="user-class"
@@ -1445,7 +1448,7 @@ export function ComprehensiveEthernetModal({
                         onCheckedChange={(checked) => setDhcpNoDefaultRoute(checked as boolean)}
                       />
                       <Label htmlFor="dhcp-no-default-route" className="cursor-pointer text-sm">
-                        No Default Route
+                        {t("modal.noDefaultRoute")}
                       </Label>
                     </div>
                     {capabilities?.features.dhcp.mtu && (
@@ -1456,7 +1459,7 @@ export function ComprehensiveEthernetModal({
                           onCheckedChange={(checked) => setDhcpMtu(checked as boolean)}
                         />
                         <Label htmlFor="dhcp-mtu" className="cursor-pointer text-sm">
-                          Request MTU
+                          {t("modal.requestMtu")}
                         </Label>
                       </div>
                     )}
@@ -1466,7 +1469,7 @@ export function ComprehensiveEthernetModal({
 
               {capabilities?.features.dhcpv6 && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-semibold">DHCPv6 Options</h3>
+                  <h3 className="text-sm font-semibold">{t("modal.dhcpv6Options")}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="dhcpv6-duid">DUID</Label>
@@ -1486,7 +1489,7 @@ export function ComprehensiveEthernetModal({
                         onCheckedChange={(checked) => setDhcpv6RapidCommit(checked as boolean)}
                       />
                       <Label htmlFor="dhcpv6-rapid-commit" className="cursor-pointer text-sm">
-                        Rapid Commit
+                        {t("modal.rapidCommit")}
                       </Label>
                     </div>
                     {capabilities?.features.dhcpv6.no_release && (
@@ -1497,7 +1500,7 @@ export function ComprehensiveEthernetModal({
                           onCheckedChange={(checked) => setDhcpv6NoRelease(checked as boolean)}
                         />
                         <Label htmlFor="dhcpv6-no-release" className="cursor-pointer text-sm">
-                          No Release
+                          {t("modal.noRelease")}
                         </Label>
                       </div>
                     )}
@@ -1509,7 +1512,7 @@ export function ComprehensiveEthernetModal({
                           onCheckedChange={(checked) => setDhcpv6ParametersOnly(checked as boolean)}
                         />
                         <Label htmlFor="dhcpv6-parameters-only" className="cursor-pointer text-sm">
-                          Parameters Only
+                          {t("modal.parametersOnly")}
                         </Label>
                       </div>
                     )}
@@ -1521,7 +1524,7 @@ export function ComprehensiveEthernetModal({
                           onCheckedChange={(checked) => setDhcpv6Temporary(checked as boolean)}
                         />
                         <Label htmlFor="dhcpv6-temporary" className="cursor-pointer text-sm">
-                          Temporary
+                          {t("modal.temporary")}
                         </Label>
                       </div>
                     )}
@@ -1534,10 +1537,10 @@ export function ComprehensiveEthernetModal({
             <TabsContent value="special" className="space-y-4">
               {capabilities?.features.port_mirror && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-semibold">Port Mirroring</h3>
+                  <h3 className="text-sm font-semibold">{t("modal.portMirroring")}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="mirror-ingress">Ingress Interface</Label>
+                      <Label htmlFor="mirror-ingress">{t("modal.ingressInterface")}</Label>
                       <Input
                         id="mirror-ingress"
                         placeholder="eth0"
@@ -1546,7 +1549,7 @@ export function ComprehensiveEthernetModal({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="mirror-egress">Egress Interface</Label>
+                      <Label htmlFor="mirror-egress">{t("modal.egressInterface")}</Label>
                       <Input
                         id="mirror-egress"
                         placeholder="eth1"
@@ -1563,7 +1566,7 @@ export function ComprehensiveEthernetModal({
                   <h3 className="text-sm font-semibold">EAPoL (802.1X)</h3>
                   <div className="grid grid-cols-1 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="eapol-ca-cert">CA Certificate File</Label>
+                      <Label htmlFor="eapol-ca-cert">{t("modal.caCertFile")}</Label>
                       <Input
                         id="eapol-ca-cert"
                         placeholder="/config/auth/ca.pem"
@@ -1572,7 +1575,7 @@ export function ComprehensiveEthernetModal({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="eapol-cert">Certificate File</Label>
+                      <Label htmlFor="eapol-cert">{t("modal.certFile")}</Label>
                       <Input
                         id="eapol-cert"
                         placeholder="/config/auth/cert.pem"
@@ -1581,7 +1584,7 @@ export function ComprehensiveEthernetModal({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="eapol-key">Key File</Label>
+                      <Label htmlFor="eapol-key">{t("modal.keyFile")}</Label>
                       <Input
                         id="eapol-key"
                         placeholder="/config/auth/key.pem"
@@ -1591,11 +1594,11 @@ export function ComprehensiveEthernetModal({
                     </div>
                     {capabilities?.features.eapol.passphrase && (
                       <div className="space-y-2">
-                        <Label htmlFor="eapol-passphrase">Passphrase</Label>
+                        <Label htmlFor="eapol-passphrase">{t("modal.passphrase")}</Label>
                         <Input
                           id="eapol-passphrase"
                           type="password"
-                          placeholder="EAPoL passphrase"
+                          placeholder={t("modal.passphrasePlaceholder")}
                           value={eapolPassphrase}
                           onChange={(e) => setEapolPassphrase(e.target.value)}
                         />
@@ -1615,7 +1618,7 @@ export function ComprehensiveEthernetModal({
                       onCheckedChange={(checked) => setEvpnUplink(checked as boolean)}
                     />
                     <Label htmlFor="evpn-uplink" className="cursor-pointer text-sm">
-                      Enable EVPN Uplink Tracking
+                      {t("modal.enableEvpnUplink")}
                     </Label>
                   </div>
                 </div>
@@ -1623,9 +1626,9 @@ export function ComprehensiveEthernetModal({
 
               {capabilities?.features.redirect && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-semibold">Traffic Redirect</h3>
+                  <h3 className="text-sm font-semibold">{t("modal.trafficRedirect")}</h3>
                   <div className="space-y-2">
-                    <Label htmlFor="redirect">Redirect to Interface</Label>
+                    <Label htmlFor="redirect">{t("modal.redirectTo")}</Label>
                     <Input
                       id="redirect"
                       placeholder="eth1"
@@ -1646,7 +1649,7 @@ export function ComprehensiveEthernetModal({
                       onCheckedChange={(checked) => setSwitchdev(checked as boolean)}
                     />
                     <Label htmlFor="switchdev" className="cursor-pointer text-sm">
-                      Enable Switchdev Mode
+                      {t("modal.enableSwitchdev")}
                     </Label>
                   </div>
                 </div>
@@ -1654,10 +1657,10 @@ export function ComprehensiveEthernetModal({
 
               {capabilities?.features.interrupt_coalescing?.supported && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-semibold">Interrupt Coalescing</h3>
+                  <h3 className="text-sm font-semibold">{t("modal.interruptCoalescing")}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="ic-rx-usecs">RX Usecs</Label>
+                      <Label htmlFor="ic-rx-usecs">{t("modal.rxUsecs")}</Label>
                       <Input
                         id="ic-rx-usecs"
                         type="number"
@@ -1667,7 +1670,7 @@ export function ComprehensiveEthernetModal({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="ic-tx-usecs">TX Usecs</Label>
+                      <Label htmlFor="ic-tx-usecs">{t("modal.txUsecs")}</Label>
                       <Input
                         id="ic-tx-usecs"
                         type="number"
@@ -1677,7 +1680,7 @@ export function ComprehensiveEthernetModal({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="ic-rx-frames">RX Frames</Label>
+                      <Label htmlFor="ic-rx-frames">{t("modal.rxFrames")}</Label>
                       <Input
                         id="ic-rx-frames"
                         type="number"
@@ -1687,7 +1690,7 @@ export function ComprehensiveEthernetModal({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="ic-tx-frames">TX Frames</Label>
+                      <Label htmlFor="ic-tx-frames">{t("modal.txFrames")}</Label>
                       <Input
                         id="ic-tx-frames"
                         type="number"
@@ -1705,7 +1708,7 @@ export function ComprehensiveEthernetModal({
                         onCheckedChange={(checked) => setIcAdaptiveRx(checked as boolean)}
                       />
                       <Label htmlFor="ic-adaptive-rx" className="cursor-pointer text-sm">
-                        Adaptive RX
+                        {t("modal.adaptiveRx")}
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -1715,7 +1718,7 @@ export function ComprehensiveEthernetModal({
                         onCheckedChange={(checked) => setIcAdaptiveTx(checked as boolean)}
                       />
                       <Label htmlFor="ic-adaptive-tx" className="cursor-pointer text-sm">
-                        Adaptive TX
+                        {t("modal.adaptiveTx")}
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -1725,7 +1728,7 @@ export function ComprehensiveEthernetModal({
                         onCheckedChange={(checked) => setIcCqeModeRx(checked as boolean)}
                       />
                       <Label htmlFor="ic-cqe-mode-rx" className="cursor-pointer text-sm">
-                        CQE Mode RX
+                        {t("modal.cqeModeRx")}
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -1735,7 +1738,7 @@ export function ComprehensiveEthernetModal({
                         onCheckedChange={(checked) => setIcCqeModeTx(checked as boolean)}
                       />
                       <Label htmlFor="ic-cqe-mode-tx" className="cursor-pointer text-sm">
-                        CQE Mode TX
+                        {t("modal.cqeModeTx")}
                       </Label>
                     </div>
                   </div>
@@ -1751,14 +1754,14 @@ export function ComprehensiveEthernetModal({
               onClick={() => onOpenChange(false)}
               disabled={loading}
             >
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button
               type="submit"
               disabled={loading || (mode === "create" && (loadingInterfaces || availableInterfaces.length === 0))}
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {mode === "create" ? "Create Interface" : "Save Changes"}
+              {mode === "create" ? t("modal.createInterface") : t("modal.saveChanges")}
             </Button>
           </DialogFooter>
         </form>

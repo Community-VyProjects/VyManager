@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useTranslations } from "next-intl";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { RipNetworkDistance } from "@/lib/api/rip";
 
@@ -39,6 +40,8 @@ export function RipNetworkDistanceModal({
   existingPrefixes,
   accessListNames,
 }: RipNetworkDistanceModalProps) {
+  const t = useTranslations("rip");
+  const tc = useTranslations("common");
   const isEditMode = !!existingEntry;
 
   const [prefix, setPrefix] = useState("");
@@ -71,13 +74,13 @@ export function RipNetworkDistanceModal({
   };
 
   const validate = (): string | null => {
-    if (!prefix.trim()) return "Network prefix is required";
+    if (!prefix.trim()) return t("validation.prefixRequired");
     if (!isEditMode && existingPrefixes.includes(prefix.trim())) {
-      return "This prefix is already configured";
+      return t("validation.prefixExists");
     }
-    if (!distance.trim()) return "Distance is required";
+    if (!distance.trim()) return t("validation.distanceRequired");
     const dist = parseInt(distance.trim(), 10);
-    if (isNaN(dist) || dist < 1 || dist > 255) return "Distance must be between 1 and 255";
+    if (isNaN(dist) || dist < 1 || dist > 255) return t("validation.distanceRange");
     return null;
   };
 
@@ -100,7 +103,7 @@ export function RipNetworkDistanceModal({
       await onSubmit(entry);
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -111,19 +114,19 @@ export function RipNetworkDistanceModal({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit Network Distance" : "Add Network Distance"}
+            {isEditMode ? t("ndModal.editTitle") : t("ndModal.addTitle")}
           </DialogTitle>
           <DialogDescription>
-            Set administrative distance for routes from a specific network.
+            {t("ndModal.description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* Prefix */}
           <div className="space-y-2">
-            <Label>Network Prefix</Label>
+            <Label>{t("filters.networkPrefix")}</Label>
             <Input
-              placeholder="e.g. 10.0.0.0/8"
+              placeholder={t("example", { value: "10.0.0.0/8" })}
               value={prefix}
               onChange={(e) => setPrefix(e.target.value)}
               disabled={isEditMode}
@@ -133,7 +136,7 @@ export function RipNetworkDistanceModal({
 
           {/* Distance */}
           <div className="space-y-2">
-            <Label>Distance <span className="text-muted-foreground text-xs">(1-255)</span></Label>
+            <Label>{t("filters.distance")} <span className="text-muted-foreground text-xs">(1-255)</span></Label>
             <Input
               type="number"
               min={1}
@@ -146,13 +149,13 @@ export function RipNetworkDistanceModal({
 
           {/* Access List */}
           <div className="space-y-2">
-            <Label>Access List <span className="text-muted-foreground text-xs">(optional)</span></Label>
+            <Label>{t("filters.accessList")} <span className="text-muted-foreground text-xs">{t("modal.optionalHint")}</span></Label>
             <Select value={accessList || "none"} onValueChange={(v) => setAccessList(v === "none" ? "" : v)}>
               <SelectTrigger>
-                <SelectValue placeholder="None" />
+                <SelectValue placeholder={tc("none")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">None</SelectItem>
+                <SelectItem value="none">{tc("none")}</SelectItem>
                 {accessListNames.map((al) => (
                   <SelectItem key={al} value={al} className="font-mono">{al}</SelectItem>
                 ))}
@@ -170,18 +173,18 @@ export function RipNetworkDistanceModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Adding..."}
+                {isEditMode ? tc("saving") : t("modal.adding")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("modal.saveChanges")
             ) : (
-              "Add"
+              tc("add")
             )}
           </Button>
         </DialogFooter>

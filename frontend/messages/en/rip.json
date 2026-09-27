@@ -1,1 +1,160 @@
-{}
+{
+  "example": "e.g. {value}",
+  "header": {
+    "title": "RIP Protocol",
+    "readOnly": "Read Only",
+    "subtitle": "Routing Information Protocol — distance-vector routing"
+  },
+  "errors": {
+    "loadFailed": "Failed to load RIP configuration",
+    "saveSettingsFailed": "Failed to save settings",
+    "addNetworkFailed": "Failed to add network",
+    "removeNetworkFailed": "Failed to remove network",
+    "addNeighborFailed": "Failed to add neighbor",
+    "removeNeighborFailed": "Failed to remove neighbor",
+    "addRouteFailed": "Failed to add route",
+    "removeRouteFailed": "Failed to remove route",
+    "addPassiveIfaceFailed": "Failed to add passive interface",
+    "removePassiveIfaceFailed": "Failed to remove passive interface",
+    "saveFiltersFailed": "Failed to save filters"
+  },
+  "stats": {
+    "version": "Version",
+    "networks": "Networks",
+    "interfaces": "Interfaces",
+    "redistribute": "Redistribute"
+  },
+  "tabs": {
+    "overview": "Overview",
+    "networks": "Networks",
+    "interfaces": "Interfaces",
+    "redistribute": "Redistribute",
+    "filters": "Filters"
+  },
+  "overview": {
+    "description": "Global RIP settings and timers",
+    "globalSettings": "Global Settings",
+    "version": "Version",
+    "defaultDistance": "Default Distance",
+    "defaultDistanceHelp": "Administrative distance (1-255)",
+    "defaultMetric": "Default Metric",
+    "defaultMetricHelp": "Metric for redistributed routes (1-16)",
+    "routeMap": "Route Map",
+    "originate": "Default Information Originate",
+    "timers": "Timers",
+    "updateInterval": "Update Interval (seconds)",
+    "updateHelp": "How often to send routing updates (default: 30)",
+    "timeoutInterval": "Timeout Interval (seconds)",
+    "timeoutHelp": "Time before a route is marked invalid (default: 180)",
+    "garbageCollection": "Garbage Collection (seconds)",
+    "gcHelp": "Time before a stale route is removed (default: 120)"
+  },
+  "networks": {
+    "description": "Configure RIP networks, neighbors, static routes, and passive interfaces",
+    "ripNetworks": "RIP Networks",
+    "neighbors": "Neighbors",
+    "staticRoutes": "Static Routes",
+    "passiveInterfaces": "Passive Interfaces",
+    "selectOrTypeInterface": "Select or type interface",
+    "noneConfigured": "None configured"
+  },
+  "interfaces": {
+    "description": "Per-interface authentication, version, and split-horizon settings",
+    "addInterface": "Add Interface",
+    "empty": "No interface settings configured",
+    "emptyHint": "Add one to configure authentication or split-horizon.",
+    "interface": "Interface",
+    "authType": "Auth Type",
+    "sendVersion": "Send Version",
+    "recvVersion": "Recv Version",
+    "splitHorizon": "Split Horizon",
+    "default": "default"
+  },
+  "redistribute": {
+    "description": "Redistribute routes from other protocols into RIP",
+    "empty": "No redistribution configured",
+    "protocol": "Protocol",
+    "metric": "Metric",
+    "routeMap": "Route Map"
+  },
+  "filters": {
+    "distributeLists": "Distribute Lists",
+    "globalFilters": "Global Filters",
+    "accessListIn": "Access List In",
+    "accessListOut": "Access List Out",
+    "prefixListIn": "Prefix List In",
+    "prefixListOut": "Prefix List Out",
+    "perInterfaceFilters": "Per-Interface Filters",
+    "perInterfaceEmpty": "No per-interface filters configured",
+    "aclIn": "ACL In",
+    "aclOut": "ACL Out",
+    "plIn": "PL In",
+    "plOut": "PL Out",
+    "networkDistance": "Network Distance",
+    "networkDistanceEmpty": "No network distance entries configured",
+    "networkPrefix": "Network Prefix",
+    "distance": "Distance",
+    "accessList": "Access List"
+  },
+  "deleteModal": {
+    "title": "Delete RIP {type, select, interface {Interface} redistribution {Redistribution} networkDistance {Network Distance} other {Interface Filter}}",
+    "description": "Are you sure you want to delete the RIP {type, select, interface {interface} redistribution {redistribution} networkDistance {network distance} other {interface filter}} <mono>{name}</mono>? This action cannot be undone.",
+    "confirm": "Delete {type, select, interface {Interface} redistribution {Redistribution} networkDistance {Network Distance} other {Interface Filter}}"
+  },
+  "modal": {
+    "adding": "Adding...",
+    "saveChanges": "Save Changes",
+    "optionalHint": "(optional)"
+  },
+  "validation": {
+    "selectInterface": "Please select an interface",
+    "md5KeyIdRequired": "All MD5 keys must have a key ID",
+    "md5KeyIdRange": "MD5 key ID must be 1-255",
+    "md5PasswordRequired": "All MD5 keys must have a password",
+    "md5PasswordLength": "MD5 key password must be ≤16 characters",
+    "plaintextLength": "Plaintext password must be ≤16 characters",
+    "prefixRequired": "Network prefix is required",
+    "prefixExists": "This prefix is already configured",
+    "distanceRequired": "Distance is required",
+    "distanceRange": "Distance must be between 1 and 255",
+    "selectProtocol": "Please select a protocol",
+    "metricRange": "Metric must be between 1 and 16"
+  },
+  "interfaceModal": {
+    "editTitle": "Edit RIP Interface",
+    "addTitle": "Add RIP Interface",
+    "editDescription": "Modify RIP settings for {name}.",
+    "addDescription": "Configure per-interface RIP authentication, version, and split-horizon.",
+    "authentication": "Authentication",
+    "plaintext": "Plaintext",
+    "md5Help": "MD5 key pairs (key ID 1-255, password ≤16 chars)",
+    "keyId": "Key ID",
+    "password": "Password",
+    "addKey": "Add Key",
+    "plaintextPlaceholder": "Password (≤16 chars)",
+    "sendVersion": "Send Version",
+    "receiveVersion": "Receive Version",
+    "disable": "Disable",
+    "poisonReverse": "Poison Reverse"
+  },
+  "dlModal": {
+    "editTitle": "Edit Interface Filter",
+    "addTitle": "Add Interface Filter",
+    "description": "Configure distribute list filters for a specific interface.",
+    "selectInterface": "Select interface",
+    "addFilter": "Add Filter"
+  },
+  "ndModal": {
+    "editTitle": "Edit Network Distance",
+    "addTitle": "Add Network Distance",
+    "description": "Set administrative distance for routes from a specific network."
+  },
+  "redistModal": {
+    "editTitle": "Edit Redistribution",
+    "addTitle": "Add Redistribution",
+    "editDescription": "Modify redistribution settings for {protocol}.",
+    "addDescription": "Configure a new protocol to redistribute into RIP.",
+    "selectProtocol": "Select protocol",
+    "metricHint": "(optional, 1-16)"
+  }
+}

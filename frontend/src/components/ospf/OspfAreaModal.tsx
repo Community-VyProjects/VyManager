@@ -23,6 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
 import type { OspfArea } from "@/lib/api/ospf";
+import { useTranslations } from "next-intl";
 
 interface OspfAreaModalProps {
   open: boolean;
@@ -39,6 +40,8 @@ export function OspfAreaModal({
   existingArea,
   accessListNames = [],
 }: OspfAreaModalProps) {
+  const t = useTranslations("ospf");
+  const tc = useTranslations("common");
   const isEditMode = !!existingArea;
 
   const [areaId, setAreaId] = useState("");
@@ -96,7 +99,7 @@ export function OspfAreaModal({
     const net = newNetwork.trim();
     if (!net) return;
     if (networks.includes(net)) {
-      setError("Network already exists");
+      setError(t("areaModal.networkExists"));
       return;
     }
     setNetworks([...networks, net]);
@@ -109,7 +112,7 @@ export function OspfAreaModal({
   };
 
   const validateForm = (): string | null => {
-    if (!areaId.trim()) return "Area ID is required";
+    if (!areaId.trim()) return t("areaModal.areaIdRequired");
     return null;
   };
 
@@ -141,7 +144,7 @@ export function OspfAreaModal({
       await onSubmit(area);
       handleClose();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Operation failed";
+      const message = err instanceof Error ? err.message : tc("operationFailed");
       setError(message);
     } finally {
       setLoading(false);
@@ -155,12 +158,12 @@ export function OspfAreaModal({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit OSPF Area" : "Add OSPF Area"}
+            {isEditMode ? t("areaModal.titleEdit") : t("areaModal.titleAdd")}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? `Modify OSPF area ${existingArea?.area_id} configuration.`
-              : "Configure a new OSPF area."}
+              ? t("areaModal.descriptionEdit", { areaId: existingArea?.area_id ?? "" })
+              : t("areaModal.descriptionAdd")}
           </DialogDescription>
         </DialogHeader>
 
@@ -168,30 +171,30 @@ export function OspfAreaModal({
           <div className="space-y-4 pb-2">
             {/* Area ID */}
             <div className="space-y-2">
-              <Label htmlFor="ospf-area-id">Area ID</Label>
+              <Label htmlFor="ospf-area-id">{t("fields.areaId")}</Label>
               <Input
                 id="ospf-area-id"
                 value={areaId}
                 onChange={(e) => setAreaId(e.target.value)}
-                placeholder="0.0.0.0 or integer"
+                placeholder={t("areaModal.areaIdPlaceholder")}
                 disabled={isEditMode}
                 className={isEditMode ? "bg-muted" : ""}
               />
               <p className="text-xs text-muted-foreground">
-                Area identifier in dotted-decimal or integer format.
+                {t("areaModal.areaIdHelp")}
               </p>
             </div>
 
             {/* Area Type */}
             <div className="space-y-2">
-              <Label htmlFor="ospf-area-type">Area Type</Label>
+              <Label htmlFor="ospf-area-type">{t("areaModal.areaType")}</Label>
               <Select value={areaType} onValueChange={setAreaType}>
                 <SelectTrigger id="ospf-area-type">
-                  <SelectValue placeholder="Normal (default)" />
+                  <SelectValue placeholder={t("areaModal.areaTypePlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="normal">Normal</SelectItem>
-                  <SelectItem value="stub">Stub</SelectItem>
+                  <SelectItem value="normal">{t("areaModal.normal")}</SelectItem>
+                  <SelectItem value="stub">{t("areaModal.stub")}</SelectItem>
                   <SelectItem value="nssa">NSSA</SelectItem>
                 </SelectContent>
               </Select>
@@ -207,17 +210,17 @@ export function OspfAreaModal({
                     onCheckedChange={(checked) => setNoSummary(checked === true)}
                   />
                   <Label htmlFor="ospf-area-no-summary" className="cursor-pointer">
-                    No Summary (Totally {areaType === "stub" ? "Stubby" : "NSSA"})
+                    {areaType === "stub" ? t("areaModal.noSummaryStub") : t("areaModal.noSummaryNssa")}
                   </Label>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ospf-area-default-cost">Default Cost</Label>
+                  <Label htmlFor="ospf-area-default-cost">{t("areaModal.defaultCost")}</Label>
                   <Input
                     id="ospf-area-default-cost"
                     type="number"
                     value={defaultCost}
                     onChange={(e) => setDefaultCost(e.target.value)}
-                    placeholder="Default cost for injected default route"
+                    placeholder={t("areaModal.defaultCostPlaceholder")}
                     min={0}
                   />
                 </div>
@@ -226,12 +229,12 @@ export function OspfAreaModal({
 
             {/* Networks */}
             <div className="space-y-2">
-              <Label>Networks</Label>
+              <Label>{t("fields.networks")}</Label>
               <div className="flex gap-2">
                 <Input
                   value={newNetwork}
                   onChange={(e) => setNewNetwork(e.target.value)}
-                  placeholder="e.g. 10.0.0.0/24"
+                  placeholder={t("areaModal.networkPlaceholder")}
                   onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addNetwork())}
                 />
                 <Button type="button" variant="outline" size="icon" onClick={addNetwork}>
@@ -251,20 +254,20 @@ export function OspfAreaModal({
                 </div>
               )}
               <p className="text-xs text-muted-foreground">
-                CIDR prefixes to include in this area.
+                {t("areaModal.networksHelp")}
               </p>
             </div>
 
             {/* Authentication */}
             <div className="space-y-2">
-              <Label htmlFor="ospf-area-auth">Authentication</Label>
+              <Label htmlFor="ospf-area-auth">{t("fields.authentication")}</Label>
               <Select value={authentication} onValueChange={setAuthentication}>
                 <SelectTrigger id="ospf-area-auth">
-                  <SelectValue placeholder="None" />
+                  <SelectValue placeholder={tc("none")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="plaintext-password">Plaintext Password</SelectItem>
+                  <SelectItem value="none">{tc("none")}</SelectItem>
+                  <SelectItem value="plaintext-password">{t("fields.plaintextPassword")}</SelectItem>
                   <SelectItem value="md5">MD5</SelectItem>
                 </SelectContent>
               </Select>
@@ -272,15 +275,15 @@ export function OspfAreaModal({
 
             {/* Shortcut */}
             <div className="space-y-2">
-              <Label htmlFor="ospf-area-shortcut">Shortcut</Label>
+              <Label htmlFor="ospf-area-shortcut">{t("areaModal.shortcut")}</Label>
               <Select value={shortcut} onValueChange={setShortcut}>
                 <SelectTrigger id="ospf-area-shortcut">
-                  <SelectValue placeholder="Default" />
+                  <SelectValue placeholder={tc("default")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="default">Default</SelectItem>
-                  <SelectItem value="enable">Enable</SelectItem>
-                  <SelectItem value="disable">Disable</SelectItem>
+                  <SelectItem value="default">{tc("default")}</SelectItem>
+                  <SelectItem value="enable">{t("areaModal.enable")}</SelectItem>
+                  <SelectItem value="disable">{t("areaModal.disable")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -288,16 +291,16 @@ export function OspfAreaModal({
             {/* Export/Import Lists */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="ospf-area-export">Export List</Label>
+                <Label htmlFor="ospf-area-export">{t("areaModal.exportList")}</Label>
                 <Select
                   value={exportList}
                   onValueChange={(v) => setExportList(v === "__none__" ? "" : v)}
                 >
                   <SelectTrigger id="ospf-area-export">
-                    <SelectValue placeholder="None" />
+                    <SelectValue placeholder={tc("none")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">None</SelectItem>
+                    <SelectItem value="__none__">{tc("none")}</SelectItem>
                     {accessListNames.map((name) => (
                       <SelectItem key={name} value={name}>{name}</SelectItem>
                     ))}
@@ -305,16 +308,16 @@ export function OspfAreaModal({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ospf-area-import">Import List</Label>
+                <Label htmlFor="ospf-area-import">{t("areaModal.importList")}</Label>
                 <Select
                   value={importList}
                   onValueChange={(v) => setImportList(v === "__none__" ? "" : v)}
                 >
                   <SelectTrigger id="ospf-area-import">
-                    <SelectValue placeholder="None" />
+                    <SelectValue placeholder={tc("none")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">None</SelectItem>
+                    <SelectItem value="__none__">{tc("none")}</SelectItem>
                     {accessListNames.map((name) => (
                       <SelectItem key={name} value={name}>{name}</SelectItem>
                     ))}
@@ -334,18 +337,18 @@ export function OspfAreaModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Creating..."}
+                {isEditMode ? tc("saving") : t("fields.creating")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("fields.saveChanges")
             ) : (
-              "Add Area"
+              t("fields.addArea")
             )}
           </Button>
         </DialogFooter>

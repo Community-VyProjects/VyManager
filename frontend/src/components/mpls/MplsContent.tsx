@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -88,6 +89,8 @@ const emptyLdp: MplsLdpConfig = {
 // ============================================================================
 
 export function MplsContent() {
+  const t = useTranslations("mpls");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWritePermission = canWrite(FeatureGroup.MPLS);
 
@@ -147,11 +150,11 @@ export function MplsContent() {
       setConfig(configData);
       setCapabilities(capData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load MPLS configuration");
+      setError(err instanceof Error ? err.message : t("errors.loadConfig"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -199,7 +202,7 @@ export function MplsContent() {
       await mplsService.setGlobalInterface(iface);
       await loadData(true);
     } catch (err: unknown) {
-      setGlobalIfaceError(err instanceof Error ? err.message : "Failed to add interface");
+      setGlobalIfaceError(err instanceof Error ? err.message : t("errors.addInterface"));
     }
   };
 
@@ -208,7 +211,7 @@ export function MplsContent() {
       await mplsService.deleteGlobalInterface(iface);
       await loadData(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to remove interface");
+      setError(err instanceof Error ? err.message : t("errors.removeInterface"));
     }
   };
 
@@ -225,7 +228,7 @@ export function MplsContent() {
       setParamsEditing(false);
       await loadData(true);
     } catch (err: unknown) {
-      setParamsError(err instanceof Error ? err.message : "Failed to save parameters");
+      setParamsError(err instanceof Error ? err.message : t("errors.saveParameters"));
     } finally {
       setParamsSaving(false);
     }
@@ -253,7 +256,7 @@ export function MplsContent() {
       setDeletingLdpIface(null);
       await loadData(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to delete LDP interface");
+      setError(err instanceof Error ? err.message : t("errors.deleteLdpInterface"));
     }
   };
 
@@ -279,7 +282,7 @@ export function MplsContent() {
       setDeletingNeighbor(null);
       await loadData(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to delete LDP neighbor");
+      setError(err instanceof Error ? err.message : t("errors.deleteLdpNeighbor"));
     }
   };
 
@@ -295,7 +298,7 @@ export function MplsContent() {
       setLdpGeneralEditing(false);
       await loadData(true);
     } catch (err: unknown) {
-      setLdpGeneralError(err instanceof Error ? err.message : "Failed to save LDP general settings");
+      setLdpGeneralError(err instanceof Error ? err.message : t("errors.saveLdpGeneral"));
     } finally {
       setLdpGeneralSaving(false);
     }
@@ -313,7 +316,7 @@ export function MplsContent() {
       setFiltersEditing(false);
       await loadData(true);
     } catch (err: unknown) {
-      setFiltersError(err instanceof Error ? err.message : "Failed to save LDP filters");
+      setFiltersError(err instanceof Error ? err.message : t("errors.saveLdpFilters"));
     } finally {
       setFiltersSaving(false);
     }
@@ -348,7 +351,7 @@ export function MplsContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -364,16 +367,16 @@ export function MplsContent() {
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl font-bold text-foreground">MPLS</h1>
                 {!hasWritePermission && (
-                  <Badge variant="secondary" className="text-xs">Read Only</Badge>
+                  <Badge variant="secondary" className="text-xs">{t("header.readOnly")}</Badge>
                 )}
               </div>
               <p className="text-sm text-muted-foreground mt-1">
-                Multiprotocol Label Switching and Label Distribution Protocol
+                {t("header.subtitle")}
               </p>
             </div>
             <Button variant="outline" size="sm" onClick={() => loadData(true)}>
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              {tc("refresh")}
             </Button>
           </div>
 
@@ -393,7 +396,7 @@ export function MplsContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{globalIfaceCount}</p>
-                    <p className="text-xs text-muted-foreground">MPLS Interfaces</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.mplsInterfaces")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -406,7 +409,7 @@ export function MplsContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{ldpIfaceCount}</p>
-                    <p className="text-xs text-muted-foreground">LDP Interfaces</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.ldpInterfaces")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -419,7 +422,7 @@ export function MplsContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{neighborCount}</p>
-                    <p className="text-xs text-muted-foreground">LDP Neighbors</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.ldpNeighbors")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -432,7 +435,7 @@ export function MplsContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{targetedCount}</p>
-                    <p className="text-xs text-muted-foreground">Targeted Sessions</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.targetedSessions")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -444,23 +447,23 @@ export function MplsContent() {
         <div className="flex-1 p-6 pt-4 overflow-auto">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="overview">{t("tabs.overview")}</TabsTrigger>
               <TabsTrigger value="ldp-interfaces">
-                LDP Interfaces
+                {t("stats.ldpInterfaces")}
                 {ldpIfaceCount > 0 && (
                   <Badge variant="secondary" className="ml-2">{ldpIfaceCount}</Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger value="neighbors">
-                Neighbors
+                {t("tabs.neighbors")}
                 {neighborCount > 0 && (
                   <Badge variant="secondary" className="ml-2">{neighborCount}</Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="ldp-general">LDP General</TabsTrigger>
-              <TabsTrigger value="filters">Filters</TabsTrigger>
+              <TabsTrigger value="ldp-general">{t("tabs.ldpGeneral")}</TabsTrigger>
+              <TabsTrigger value="filters">{t("tabs.filters")}</TabsTrigger>
               <TabsTrigger value="targeted">
-                Targeted
+                {t("tabs.targeted")}
                 {targetedCount > 0 && (
                   <Badge variant="secondary" className="ml-2">{targetedCount}</Badge>
                 )}
@@ -474,7 +477,7 @@ export function MplsContent() {
               {/* Global MPLS Interfaces */}
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base">MPLS-Enabled Interfaces</CardTitle>
+                  <CardTitle className="text-base">{t("overview.enabledInterfaces")}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex flex-wrap gap-2 min-h-[36px]">
@@ -485,7 +488,7 @@ export function MplsContent() {
                           <button
                             onClick={() => handleDeleteGlobalIface(iface)}
                             className="ml-1 hover:text-destructive transition-colors"
-                            aria-label={`Remove ${iface}`}
+                            aria-label={t("overview.removeInterface", { name: iface })}
                           >
                             <X className="h-3 w-3" />
                           </button>
@@ -493,7 +496,7 @@ export function MplsContent() {
                       </Badge>
                     ))}
                     {globalIfaceCount === 0 && (
-                      <span className="text-sm text-muted-foreground">No MPLS interfaces configured</span>
+                      <span className="text-sm text-muted-foreground">{t("overview.noInterfaces")}</span>
                     )}
                   </div>
 
@@ -507,10 +510,10 @@ export function MplsContent() {
                         onValueChange={handleAddGlobalIface}
                         interfaces={unenabledInterfaces}
                         className="max-w-xs"
-                        placeholder="Add interface..."
+                        placeholder={t("overview.addInterfacePlaceholder")}
                       />
                     ) : availableInterfaces.length > 0 ? (
-                      <p className="text-xs text-muted-foreground">All available interfaces are already enabled</p>
+                      <p className="text-xs text-muted-foreground">{t("overview.allInterfacesEnabled")}</p>
                     ) : null;
                   })()}
                   {globalIfaceError && (
@@ -523,7 +526,7 @@ export function MplsContent() {
               <Card>
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">MPLS Parameters</CardTitle>
+                    <CardTitle className="text-base">{t("overview.parameters")}</CardTitle>
                     {hasWritePermission && !paramsEditing && (
                       <Button
                         variant="ghost"
@@ -534,7 +537,7 @@ export function MplsContent() {
                         }}
                       >
                         <Pencil className="h-4 w-4 mr-1" />
-                        Edit
+                        {tc("edit")}
                       </Button>
                     )}
                   </div>
@@ -543,7 +546,7 @@ export function MplsContent() {
                   {paramsEditing ? (
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="params-max-ttl">Maximum TTL</Label>
+                        <Label htmlFor="params-max-ttl">{t("overview.maximumTtl")}</Label>
                         <Input
                           id="params-max-ttl"
                           type="number"
@@ -556,7 +559,7 @@ export function MplsContent() {
                               maximum_ttl: e.target.value ? parseInt(e.target.value, 10) : null,
                             })
                           }
-                          placeholder="Default (255)"
+                          placeholder={t("overview.defaultMaxTtl")}
                           className="max-w-xs"
                         />
                       </div>
@@ -570,7 +573,7 @@ export function MplsContent() {
                           }
                         />
                         <Label htmlFor="params-no-prop-ttl" className="cursor-pointer">
-                          No Propagate TTL
+                          {t("overview.noPropagateTtl")}
                         </Label>
                       </div>
 
@@ -583,7 +586,7 @@ export function MplsContent() {
 
                       <div className="flex gap-2">
                         <Button size="sm" onClick={handleSaveParams} disabled={paramsSaving}>
-                          {paramsSaving ? "Saving..." : "Save"}
+                          {paramsSaving ? tc("saving") : tc("save")}
                         </Button>
                         <Button
                           size="sm"
@@ -591,22 +594,22 @@ export function MplsContent() {
                           onClick={() => { setParamsEditing(false); setParamsError(null); }}
                           disabled={paramsSaving}
                         >
-                          Cancel
+                          {tc("cancel")}
                         </Button>
                       </div>
                     </div>
                   ) : (
                     <dl className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                      <dt className="text-muted-foreground">Maximum TTL</dt>
+                      <dt className="text-muted-foreground">{t("overview.maximumTtl")}</dt>
                       <dd className="font-medium">
-                        {config?.parameters.maximum_ttl ?? <span className="text-muted-foreground">Default (255)</span>}
+                        {config?.parameters.maximum_ttl ?? <span className="text-muted-foreground">{t("overview.defaultMaxTtl")}</span>}
                       </dd>
-                      <dt className="text-muted-foreground">No Propagate TTL</dt>
+                      <dt className="text-muted-foreground">{t("overview.noPropagateTtl")}</dt>
                       <dd className="font-medium">
                         {config?.parameters.no_propagate_ttl ? (
-                          <Badge variant="secondary">Enabled</Badge>
+                          <Badge variant="secondary">{tc("enabled")}</Badge>
                         ) : (
-                          <span className="text-muted-foreground">Disabled</span>
+                          <span className="text-muted-foreground">{tc("disabled")}</span>
                         )}
                       </dd>
                     </dl>
@@ -618,40 +621,40 @@ export function MplsContent() {
               <Card>
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">LDP Summary</CardTitle>
+                    <CardTitle className="text-base">{t("overview.ldpSummary")}</CardTitle>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setActiveTab("ldp-general")}
                     >
-                      Configure LDP
+                      {t("overview.configureLdp")}
                     </Button>
                   </div>
                 </CardHeader>
                 <CardContent>
                   {config?.ldp ? (
                     <dl className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                      <dt className="text-muted-foreground">Router ID</dt>
+                      <dt className="text-muted-foreground">{t("general.routerId")}</dt>
                       <dd className="font-mono font-medium">
-                        {ldp.router_id ?? <span className="text-muted-foreground font-sans font-normal">Not set</span>}
+                        {ldp.router_id ?? <span className="text-muted-foreground font-sans font-normal">{tc("notSet")}</span>}
                       </dd>
-                      <dt className="text-muted-foreground">Transport IPv4</dt>
+                      <dt className="text-muted-foreground">{t("overview.transportIpv4")}</dt>
                       <dd className="font-mono font-medium">
-                        {ldp.discovery.transport_ipv4_address ?? <span className="text-muted-foreground font-sans font-normal">Not set</span>}
+                        {ldp.discovery.transport_ipv4_address ?? <span className="text-muted-foreground font-sans font-normal">{tc("notSet")}</span>}
                       </dd>
-                      <dt className="text-muted-foreground">Transport IPv6</dt>
+                      <dt className="text-muted-foreground">{t("overview.transportIpv6")}</dt>
                       <dd className="font-mono font-medium">
-                        {ldp.discovery.transport_ipv6_address ?? <span className="text-muted-foreground font-sans font-normal">Not set</span>}
+                        {ldp.discovery.transport_ipv6_address ?? <span className="text-muted-foreground font-sans font-normal">{tc("notSet")}</span>}
                       </dd>
-                      <dt className="text-muted-foreground">Cisco Interop TLV</dt>
-                      <dd>{ldp.parameters.cisco_interop_tlv ? <Badge variant="secondary">On</Badge> : <span className="text-muted-foreground">Off</span>}</dd>
-                      <dt className="text-muted-foreground">Ordered Control</dt>
-                      <dd>{ldp.parameters.ordered_control ? <Badge variant="secondary">On</Badge> : <span className="text-muted-foreground">Off</span>}</dd>
-                      <dt className="text-muted-foreground">Transport Prefer IPv4</dt>
-                      <dd>{ldp.parameters.transport_prefer_ipv4 ? <Badge variant="secondary">On</Badge> : <span className="text-muted-foreground">Off</span>}</dd>
+                      <dt className="text-muted-foreground">{t("general.ciscoInteropTlv")}</dt>
+                      <dd>{ldp.parameters.cisco_interop_tlv ? <Badge variant="secondary">{t("overview.on")}</Badge> : <span className="text-muted-foreground">{t("overview.off")}</span>}</dd>
+                      <dt className="text-muted-foreground">{t("general.orderedControl")}</dt>
+                      <dd>{ldp.parameters.ordered_control ? <Badge variant="secondary">{t("overview.on")}</Badge> : <span className="text-muted-foreground">{t("overview.off")}</span>}</dd>
+                      <dt className="text-muted-foreground">{t("general.transportPreferIpv4")}</dt>
+                      <dd>{ldp.parameters.transport_prefer_ipv4 ? <Badge variant="secondary">{t("overview.on")}</Badge> : <span className="text-muted-foreground">{t("overview.off")}</span>}</dd>
                     </dl>
                   ) : (
-                    <p className="text-sm text-muted-foreground">LDP is not configured. Add an LDP interface to get started.</p>
+                    <p className="text-sm text-muted-foreground">{t("overview.ldpNotConfigured")}</p>
                   )}
                 </CardContent>
               </Card>
@@ -663,12 +666,12 @@ export function MplsContent() {
             <TabsContent value="ldp-interfaces">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Interfaces participating in LDP neighbor discovery
+                  {t("ldpInterfaces.description")}
                 </p>
                 {hasWritePermission && (
                   <Button size="sm" onClick={() => { setEditingLdpIface(null); setLdpIfaceModalOpen(true); }}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Interface
+                    {t("ldpInterfaces.add")}
                   </Button>
                 )}
               </div>
@@ -677,14 +680,14 @@ export function MplsContent() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <Network className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">No LDP interfaces configured</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("ldpInterfaces.empty")}</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      Add an interface to enable LDP neighbor discovery
+                      {t("ldpInterfaces.emptyHint")}
                     </p>
                     {hasWritePermission && (
                       <Button size="sm" onClick={() => { setEditingLdpIface(null); setLdpIfaceModalOpen(true); }}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Interface
+                        {t("ldpInterfaces.add")}
                       </Button>
                     )}
                   </CardContent>
@@ -695,9 +698,9 @@ export function MplsContent() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Interface</TableHead>
-                          <TableHead>Disable Hello</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead>{t("ldpInterfaces.interface")}</TableHead>
+                          <TableHead>{t("ldpInterfaces.disableHello")}</TableHead>
+                          <TableHead className="text-right">{tc("actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -707,10 +710,10 @@ export function MplsContent() {
                             <TableCell>
                               {iface.disable_establish_hello ? (
                                 <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600">
-                                  Disabled
+                                  {tc("disabled")}
                                 </Badge>
                               ) : (
-                                <span className="text-muted-foreground text-sm">Enabled</span>
+                                <span className="text-muted-foreground text-sm">{tc("enabled")}</span>
                               )}
                             </TableCell>
                             <TableCell className="text-right">
@@ -723,14 +726,14 @@ export function MplsContent() {
                                         size="sm"
                                         onClick={() => handleDeleteLdpIface(iface.name)}
                                       >
-                                        Confirm Delete
+                                        {t("confirmDelete")}
                                       </Button>
                                       <Button
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => setDeletingLdpIface(null)}
                                       >
-                                        Cancel
+                                        {tc("cancel")}
                                       </Button>
                                     </>
                                   ) : (
@@ -774,12 +777,12 @@ export function MplsContent() {
             <TabsContent value="neighbors">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Per-neighbor LDP session settings
+                  {t("neighbors.description")}
                 </p>
                 {hasWritePermission && (
                   <Button size="sm" onClick={() => { setEditingNeighbor(null); setNeighborModalOpen(true); }}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Neighbor
+                    {t("neighbors.add")}
                   </Button>
                 )}
               </div>
@@ -788,14 +791,14 @@ export function MplsContent() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <Users className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">No LDP neighbors configured</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("neighbors.empty")}</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      Configure neighbor-specific settings like passwords and holdtimes
+                      {t("neighbors.emptyHint")}
                     </p>
                     {hasWritePermission && (
                       <Button size="sm" onClick={() => { setEditingNeighbor(null); setNeighborModalOpen(true); }}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Neighbor
+                        {t("neighbors.add")}
                       </Button>
                     )}
                   </CardContent>
@@ -806,11 +809,11 @@ export function MplsContent() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Peer Address</TableHead>
-                          <TableHead>Session Holdtime</TableHead>
-                          <TableHead>TTL Security</TableHead>
-                          <TableHead>Password</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead>{t("neighbors.peerAddress")}</TableHead>
+                          <TableHead>{t("neighbors.sessionHoldtime")}</TableHead>
+                          <TableHead>{t("neighbors.ttlSecurity")}</TableHead>
+                          <TableHead>{t("neighbors.password")}</TableHead>
+                          <TableHead className="text-right">{tc("actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -821,7 +824,7 @@ export function MplsContent() {
                               {neighbor.session_holdtime != null ? (
                                 <span className="font-mono text-sm">{neighbor.session_holdtime}s</span>
                               ) : (
-                                <span className="text-muted-foreground text-sm">Default</span>
+                                <span className="text-muted-foreground text-sm">{tc("default")}</span>
                               )}
                             </TableCell>
                             <TableCell>
@@ -837,7 +840,7 @@ export function MplsContent() {
                               {neighbor.password ? (
                                 <span className="text-sm">••••••••</span>
                               ) : (
-                                <span className="text-muted-foreground text-sm">None</span>
+                                <span className="text-muted-foreground text-sm">{tc("none")}</span>
                               )}
                             </TableCell>
                             <TableCell className="text-right">
@@ -850,14 +853,14 @@ export function MplsContent() {
                                         size="sm"
                                         onClick={() => handleDeleteNeighbor(neighbor.address)}
                                       >
-                                        Confirm Delete
+                                        {t("confirmDelete")}
                                       </Button>
                                       <Button
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => setDeletingNeighbor(null)}
                                       >
-                                        Cancel
+                                        {tc("cancel")}
                                       </Button>
                                     </>
                                   ) : (
@@ -901,7 +904,7 @@ export function MplsContent() {
             <TabsContent value="ldp-general">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  LDP router ID, discovery timers, transport addresses, and protocol parameters
+                  {t("general.description")}
                 </p>
                 {hasWritePermission && !ldpGeneralEditing && (
                   <Button
@@ -913,7 +916,7 @@ export function MplsContent() {
                     }}
                   >
                     <Pencil className="h-4 w-4 mr-2" />
-                    Edit
+                    {tc("edit")}
                   </Button>
                 )}
               </div>
@@ -923,13 +926,13 @@ export function MplsContent() {
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                      Router ID
+                      {t("general.routerId")}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     {ldpGeneralEditing ? (
                       <div className="space-y-2">
-                        <Label htmlFor="ldp-router-id">Router ID</Label>
+                        <Label htmlFor="ldp-router-id">{t("general.routerId")}</Label>
                         <Input
                           id="ldp-router-id"
                           value={ldpGeneralForm.router_id ?? ""}
@@ -939,13 +942,13 @@ export function MplsContent() {
                               router_id: e.target.value || null,
                             })
                           }
-                          placeholder="e.g. 10.0.0.1"
+                          placeholder={t("general.ipv4Placeholder")}
                           className="max-w-xs font-mono"
                         />
                       </div>
                     ) : (
                       <p className="font-mono text-sm">
-                        {ldp.router_id ?? <span className="text-muted-foreground font-sans">Not configured</span>}
+                        {ldp.router_id ?? <span className="text-muted-foreground font-sans">{t("general.notConfigured")}</span>}
                       </p>
                     )}
                   </CardContent>
@@ -955,22 +958,22 @@ export function MplsContent() {
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                      Discovery Timers &amp; Transport Addresses
+                      {t("general.discoveryTitle")}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     {ldpGeneralEditing ? (
                       <div className="grid grid-cols-2 gap-4">
                         {[
-                          { label: "Hello IPv4 Holdtime (s)", key: "hello_ipv4_holdtime" as const },
-                          { label: "Hello IPv4 Interval (s)", key: "hello_ipv4_interval" as const },
-                          { label: "Hello IPv6 Holdtime (s)", key: "hello_ipv6_holdtime" as const },
-                          { label: "Hello IPv6 Interval (s)", key: "hello_ipv6_interval" as const },
-                          { label: "Session IPv4 Holdtime (s)", key: "session_ipv4_holdtime" as const },
-                          { label: "Session IPv6 Holdtime (s)", key: "session_ipv6_holdtime" as const },
+                          { label: "helloIpv4HoldtimeS" as const, key: "hello_ipv4_holdtime" as const },
+                          { label: "helloIpv4IntervalS" as const, key: "hello_ipv4_interval" as const },
+                          { label: "helloIpv6HoldtimeS" as const, key: "hello_ipv6_holdtime" as const },
+                          { label: "helloIpv6IntervalS" as const, key: "hello_ipv6_interval" as const },
+                          { label: "sessionIpv4HoldtimeS" as const, key: "session_ipv4_holdtime" as const },
+                          { label: "sessionIpv6HoldtimeS" as const, key: "session_ipv6_holdtime" as const },
                         ].map(({ label, key }) => (
                           <div key={key} className="space-y-1">
-                            <Label className="text-xs">{label}</Label>
+                            <Label className="text-xs">{t(`general.${label}`)}</Label>
                             <Input
                               type="number"
                               min={0}
@@ -984,12 +987,12 @@ export function MplsContent() {
                                   },
                                 })
                               }
-                              placeholder="Default"
+                              placeholder={tc("default")}
                             />
                           </div>
                         ))}
                         <div className="space-y-1">
-                          <Label className="text-xs">Transport IPv4 Address</Label>
+                          <Label className="text-xs">{t("general.transportIpv4Address")}</Label>
                           <Input
                             value={ldpGeneralForm.discovery.transport_ipv4_address ?? ""}
                             onChange={(e) =>
@@ -1001,12 +1004,12 @@ export function MplsContent() {
                                 },
                               })
                             }
-                            placeholder="e.g. 10.0.0.1"
+                            placeholder={t("general.ipv4Placeholder")}
                             className="font-mono"
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-xs">Transport IPv6 Address</Label>
+                          <Label className="text-xs">{t("general.transportIpv6Address")}</Label>
                           <Input
                             value={ldpGeneralForm.discovery.transport_ipv6_address ?? ""}
                             onChange={(e) =>
@@ -1018,27 +1021,27 @@ export function MplsContent() {
                                 },
                               })
                             }
-                            placeholder="e.g. 2001:db8::1"
+                            placeholder={t("general.ipv6Placeholder")}
                             className="font-mono"
                           />
                         </div>
                       </div>
                     ) : (
                       <dl className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                        {[
-                          ["Hello IPv4 Holdtime", ldp.discovery.hello_ipv4_holdtime, "s"],
-                          ["Hello IPv4 Interval", ldp.discovery.hello_ipv4_interval, "s"],
-                          ["Hello IPv6 Holdtime", ldp.discovery.hello_ipv6_holdtime, "s"],
-                          ["Hello IPv6 Interval", ldp.discovery.hello_ipv6_interval, "s"],
-                          ["Session IPv4 Holdtime", ldp.discovery.session_ipv4_holdtime, "s"],
-                          ["Session IPv6 Holdtime", ldp.discovery.session_ipv6_holdtime, "s"],
-                          ["Transport IPv4", ldp.discovery.transport_ipv4_address, ""],
-                          ["Transport IPv6", ldp.discovery.transport_ipv6_address, ""],
-                        ].map(([label, val, unit]) => (
+                        {([
+                          ["general.helloIpv4Holdtime", ldp.discovery.hello_ipv4_holdtime, "s"],
+                          ["general.helloIpv4Interval", ldp.discovery.hello_ipv4_interval, "s"],
+                          ["general.helloIpv6Holdtime", ldp.discovery.hello_ipv6_holdtime, "s"],
+                          ["general.helloIpv6Interval", ldp.discovery.hello_ipv6_interval, "s"],
+                          ["general.sessionIpv4Holdtime", ldp.discovery.session_ipv4_holdtime, "s"],
+                          ["general.sessionIpv6Holdtime", ldp.discovery.session_ipv6_holdtime, "s"],
+                          ["overview.transportIpv4", ldp.discovery.transport_ipv4_address, ""],
+                          ["overview.transportIpv6", ldp.discovery.transport_ipv6_address, ""],
+                        ] as const).map(([label, val, unit]) => (
                           <>
-                            <dt key={`dt-${label}`} className="text-muted-foreground">{label}</dt>
+                            <dt key={`dt-${label}`} className="text-muted-foreground">{t(label)}</dt>
                             <dd key={`dd-${label}`} className="font-medium font-mono">
-                              {val != null ? `${val}${unit}` : <span className="font-sans font-normal text-muted-foreground">Default</span>}
+                              {val != null ? `${val}${unit}` : <span className="font-sans font-normal text-muted-foreground">{tc("default")}</span>}
                             </dd>
                           </>
                         ))}
@@ -1051,16 +1054,16 @@ export function MplsContent() {
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                      LDP Parameters
+                      {t("general.ldpParameters")}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     {ldpGeneralEditing ? (
                       <div className="space-y-3">
                         {[
-                          { key: "cisco_interop_tlv" as const, label: "Cisco Interop TLV", desc: "Enable Cisco-specific LDP interoperability TLV" },
-                          { key: "ordered_control" as const, label: "Ordered Control", desc: "Use ordered label distribution control" },
-                          { key: "transport_prefer_ipv4" as const, label: "Transport Prefer IPv4", desc: "Prefer IPv4 transport over IPv6" },
+                          { key: "cisco_interop_tlv" as const, label: t("general.ciscoInteropTlv"), desc: t("general.ciscoInteropTlvDesc") },
+                          { key: "ordered_control" as const, label: t("general.orderedControl"), desc: t("general.orderedControlDesc") },
+                          { key: "transport_prefer_ipv4" as const, label: t("general.transportPreferIpv4"), desc: t("general.transportPreferIpv4Desc") },
                         ].map(({ key, label, desc }) => (
                           <div key={key} className="flex items-center gap-3">
                             <Checkbox
@@ -1085,12 +1088,12 @@ export function MplsContent() {
                       </div>
                     ) : (
                       <dl className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                        <dt className="text-muted-foreground">Cisco Interop TLV</dt>
-                        <dd>{ldp.parameters.cisco_interop_tlv ? <Badge variant="secondary">Enabled</Badge> : <span className="text-muted-foreground">Disabled</span>}</dd>
-                        <dt className="text-muted-foreground">Ordered Control</dt>
-                        <dd>{ldp.parameters.ordered_control ? <Badge variant="secondary">Enabled</Badge> : <span className="text-muted-foreground">Disabled</span>}</dd>
-                        <dt className="text-muted-foreground">Transport Prefer IPv4</dt>
-                        <dd>{ldp.parameters.transport_prefer_ipv4 ? <Badge variant="secondary">Enabled</Badge> : <span className="text-muted-foreground">Disabled</span>}</dd>
+                        <dt className="text-muted-foreground">{t("general.ciscoInteropTlv")}</dt>
+                        <dd>{ldp.parameters.cisco_interop_tlv ? <Badge variant="secondary">{tc("enabled")}</Badge> : <span className="text-muted-foreground">{tc("disabled")}</span>}</dd>
+                        <dt className="text-muted-foreground">{t("general.orderedControl")}</dt>
+                        <dd>{ldp.parameters.ordered_control ? <Badge variant="secondary">{tc("enabled")}</Badge> : <span className="text-muted-foreground">{tc("disabled")}</span>}</dd>
+                        <dt className="text-muted-foreground">{t("general.transportPreferIpv4")}</dt>
+                        <dd>{ldp.parameters.transport_prefer_ipv4 ? <Badge variant="secondary">{tc("enabled")}</Badge> : <span className="text-muted-foreground">{tc("disabled")}</span>}</dd>
                       </dl>
                     )}
                   </CardContent>
@@ -1106,14 +1109,14 @@ export function MplsContent() {
                     )}
                     <div className="flex gap-2">
                       <Button onClick={handleSaveLdpGeneral} disabled={ldpGeneralSaving}>
-                        {ldpGeneralSaving ? "Saving..." : "Save Changes"}
+                        {ldpGeneralSaving ? tc("saving") : t("saveChanges")}
                       </Button>
                       <Button
                         variant="outline"
                         onClick={() => { setLdpGeneralEditing(false); setLdpGeneralError(null); }}
                         disabled={ldpGeneralSaving}
                       >
-                        Cancel
+                        {tc("cancel")}
                       </Button>
                     </div>
                   </>
@@ -1127,7 +1130,7 @@ export function MplsContent() {
             <TabsContent value="filters">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  LDP FEC allocation, export, and import filtering via access-lists
+                  {t("filters.description")}
                 </p>
                 {hasWritePermission && !filtersEditing && (
                   <Button
@@ -1139,7 +1142,7 @@ export function MplsContent() {
                     }}
                   >
                     <Pencil className="h-4 w-4 mr-2" />
-                    Edit
+                    {tc("edit")}
                   </Button>
                 )}
               </div>
@@ -1150,14 +1153,14 @@ export function MplsContent() {
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
                       <Filter className="h-4 w-4" />
-                      Allocation
+                      {t("filters.allocation")}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     {filtersEditing ? (
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
-                          <Label className="text-xs">IPv4 Access List</Label>
+                          <Label className="text-xs">{t("filters.ipv4AccessList")}</Label>
                           <Input
                             value={filtersForm.allocation.ipv4_access_list ?? ""}
                             onChange={(e) =>
@@ -1166,11 +1169,11 @@ export function MplsContent() {
                                 allocation: { ...filtersForm.allocation, ipv4_access_list: e.target.value || null },
                               })
                             }
-                            placeholder="ACL name or number"
+                            placeholder={t("filters.aclPlaceholder")}
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-xs">IPv6 Access List</Label>
+                          <Label className="text-xs">{t("filters.ipv6AccessList")}</Label>
                           <Input
                             value={filtersForm.allocation.ipv6_access_list ?? ""}
                             onChange={(e) =>
@@ -1179,16 +1182,16 @@ export function MplsContent() {
                                 allocation: { ...filtersForm.allocation, ipv6_access_list: e.target.value || null },
                               })
                             }
-                            placeholder="ACL name or number"
+                            placeholder={t("filters.aclPlaceholder")}
                           />
                         </div>
                       </div>
                     ) : (
                       <dl className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                        <dt className="text-muted-foreground">IPv4 Access List</dt>
-                        <dd className="font-mono font-medium">{ldp.allocation.ipv4_access_list ?? <span className="font-sans font-normal text-muted-foreground">None</span>}</dd>
-                        <dt className="text-muted-foreground">IPv6 Access List</dt>
-                        <dd className="font-mono font-medium">{ldp.allocation.ipv6_access_list ?? <span className="font-sans font-normal text-muted-foreground">None</span>}</dd>
+                        <dt className="text-muted-foreground">{t("filters.ipv4AccessList")}</dt>
+                        <dd className="font-mono font-medium">{ldp.allocation.ipv4_access_list ?? <span className="font-sans font-normal text-muted-foreground">{tc("none")}</span>}</dd>
+                        <dt className="text-muted-foreground">{t("filters.ipv6AccessList")}</dt>
+                        <dd className="font-mono font-medium">{ldp.allocation.ipv6_access_list ?? <span className="font-sans font-normal text-muted-foreground">{tc("none")}</span>}</dd>
                       </dl>
                     )}
                   </CardContent>
@@ -1199,7 +1202,7 @@ export function MplsContent() {
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
                       <Filter className="h-4 w-4" />
-                      Export
+                      {t("filters.export")}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -1218,11 +1221,11 @@ export function MplsContent() {
                                 })
                               }
                             />
-                            <Label htmlFor="export-ipv4-explicit-null" className="cursor-pointer">IPv4 Explicit Null</Label>
+                            <Label htmlFor="export-ipv4-explicit-null" className="cursor-pointer">{t("filters.ipv4ExplicitNull")}</Label>
                           </div>
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
-                              <Label className="text-xs">Filter Access List</Label>
+                              <Label className="text-xs">{t("filters.filterAccessList")}</Label>
                               <Input
                                 value={filtersForm.export.ipv4_export_filter.filter_access_list ?? ""}
                                 onChange={(e) =>
@@ -1237,11 +1240,11 @@ export function MplsContent() {
                                     },
                                   })
                                 }
-                                placeholder="ACL name"
+                                placeholder={t("filters.aclNamePlaceholder")}
                               />
                             </div>
                             <div className="space-y-1">
-                              <Label className="text-xs">Neighbor Access List</Label>
+                              <Label className="text-xs">{t("filters.neighborAccessList")}</Label>
                               <Input
                                 value={filtersForm.export.ipv4_export_filter.neighbor_access_list ?? ""}
                                 onChange={(e) =>
@@ -1256,7 +1259,7 @@ export function MplsContent() {
                                     },
                                   })
                                 }
-                                placeholder="ACL name"
+                                placeholder={t("filters.aclNamePlaceholder")}
                               />
                             </div>
                           </div>
@@ -1275,11 +1278,11 @@ export function MplsContent() {
                                 })
                               }
                             />
-                            <Label htmlFor="export-ipv6-explicit-null" className="cursor-pointer">IPv6 Explicit Null</Label>
+                            <Label htmlFor="export-ipv6-explicit-null" className="cursor-pointer">{t("filters.ipv6ExplicitNull")}</Label>
                           </div>
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
-                              <Label className="text-xs">Filter Access List</Label>
+                              <Label className="text-xs">{t("filters.filterAccessList")}</Label>
                               <Input
                                 value={filtersForm.export.ipv6_export_filter.filter_access_list ?? ""}
                                 onChange={(e) =>
@@ -1294,11 +1297,11 @@ export function MplsContent() {
                                     },
                                   })
                                 }
-                                placeholder="ACL name"
+                                placeholder={t("filters.aclNamePlaceholder")}
                               />
                             </div>
                             <div className="space-y-1">
-                              <Label className="text-xs">Neighbor Access List</Label>
+                              <Label className="text-xs">{t("filters.neighborAccessList")}</Label>
                               <Input
                                 value={filtersForm.export.ipv6_export_filter.neighbor_access_list ?? ""}
                                 onChange={(e) =>
@@ -1313,7 +1316,7 @@ export function MplsContent() {
                                     },
                                   })
                                 }
-                                placeholder="ACL name"
+                                placeholder={t("filters.aclNamePlaceholder")}
                               />
                             </div>
                           </div>
@@ -1321,18 +1324,18 @@ export function MplsContent() {
                       </div>
                     ) : (
                       <dl className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                        <dt className="text-muted-foreground">IPv4 Explicit Null</dt>
-                        <dd>{ldp.export.ipv4_explicit_null ? <Badge variant="secondary">Enabled</Badge> : <span className="text-muted-foreground">Disabled</span>}</dd>
-                        <dt className="text-muted-foreground">IPv4 Filter ACL</dt>
-                        <dd className="font-mono font-medium">{ldp.export.ipv4_export_filter.filter_access_list ?? <span className="font-sans font-normal text-muted-foreground">None</span>}</dd>
-                        <dt className="text-muted-foreground">IPv4 Neighbor ACL</dt>
-                        <dd className="font-mono font-medium">{ldp.export.ipv4_export_filter.neighbor_access_list ?? <span className="font-sans font-normal text-muted-foreground">None</span>}</dd>
-                        <dt className="text-muted-foreground">IPv6 Explicit Null</dt>
-                        <dd>{ldp.export.ipv6_explicit_null ? <Badge variant="secondary">Enabled</Badge> : <span className="text-muted-foreground">Disabled</span>}</dd>
-                        <dt className="text-muted-foreground">IPv6 Filter ACL</dt>
-                        <dd className="font-mono font-medium">{ldp.export.ipv6_export_filter.filter_access_list ?? <span className="font-sans font-normal text-muted-foreground">None</span>}</dd>
-                        <dt className="text-muted-foreground">IPv6 Neighbor ACL</dt>
-                        <dd className="font-mono font-medium">{ldp.export.ipv6_export_filter.neighbor_access_list ?? <span className="font-sans font-normal text-muted-foreground">None</span>}</dd>
+                        <dt className="text-muted-foreground">{t("filters.ipv4ExplicitNull")}</dt>
+                        <dd>{ldp.export.ipv4_explicit_null ? <Badge variant="secondary">{tc("enabled")}</Badge> : <span className="text-muted-foreground">{tc("disabled")}</span>}</dd>
+                        <dt className="text-muted-foreground">{t("filters.ipv4FilterAcl")}</dt>
+                        <dd className="font-mono font-medium">{ldp.export.ipv4_export_filter.filter_access_list ?? <span className="font-sans font-normal text-muted-foreground">{tc("none")}</span>}</dd>
+                        <dt className="text-muted-foreground">{t("filters.ipv4NeighborAcl")}</dt>
+                        <dd className="font-mono font-medium">{ldp.export.ipv4_export_filter.neighbor_access_list ?? <span className="font-sans font-normal text-muted-foreground">{tc("none")}</span>}</dd>
+                        <dt className="text-muted-foreground">{t("filters.ipv6ExplicitNull")}</dt>
+                        <dd>{ldp.export.ipv6_explicit_null ? <Badge variant="secondary">{tc("enabled")}</Badge> : <span className="text-muted-foreground">{tc("disabled")}</span>}</dd>
+                        <dt className="text-muted-foreground">{t("filters.ipv6FilterAcl")}</dt>
+                        <dd className="font-mono font-medium">{ldp.export.ipv6_export_filter.filter_access_list ?? <span className="font-sans font-normal text-muted-foreground">{tc("none")}</span>}</dd>
+                        <dt className="text-muted-foreground">{t("filters.ipv6NeighborAcl")}</dt>
+                        <dd className="font-mono font-medium">{ldp.export.ipv6_export_filter.neighbor_access_list ?? <span className="font-sans font-normal text-muted-foreground">{tc("none")}</span>}</dd>
                       </dl>
                     )}
                   </CardContent>
@@ -1343,7 +1346,7 @@ export function MplsContent() {
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
                       <Filter className="h-4 w-4" />
-                      Import
+                      {t("filters.import")}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -1353,7 +1356,7 @@ export function MplsContent() {
                           <p className="text-xs font-semibold text-muted-foreground">IPv4</p>
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
-                              <Label className="text-xs">Filter Access List</Label>
+                              <Label className="text-xs">{t("filters.filterAccessList")}</Label>
                               <Input
                                 value={filtersForm.ldp_import.ipv4_import_filter.filter_access_list ?? ""}
                                 onChange={(e) =>
@@ -1368,11 +1371,11 @@ export function MplsContent() {
                                     },
                                   })
                                 }
-                                placeholder="ACL name"
+                                placeholder={t("filters.aclNamePlaceholder")}
                               />
                             </div>
                             <div className="space-y-1">
-                              <Label className="text-xs">Neighbor Access List</Label>
+                              <Label className="text-xs">{t("filters.neighborAccessList")}</Label>
                               <Input
                                 value={filtersForm.ldp_import.ipv4_import_filter.neighbor_access_list ?? ""}
                                 onChange={(e) =>
@@ -1387,7 +1390,7 @@ export function MplsContent() {
                                     },
                                   })
                                 }
-                                placeholder="ACL name"
+                                placeholder={t("filters.aclNamePlaceholder")}
                               />
                             </div>
                           </div>
@@ -1397,7 +1400,7 @@ export function MplsContent() {
                           <p className="text-xs font-semibold text-muted-foreground">IPv6</p>
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
-                              <Label className="text-xs">Filter Access List</Label>
+                              <Label className="text-xs">{t("filters.filterAccessList")}</Label>
                               <Input
                                 value={filtersForm.ldp_import.ipv6_import_filter.filter_access_list ?? ""}
                                 onChange={(e) =>
@@ -1412,11 +1415,11 @@ export function MplsContent() {
                                     },
                                   })
                                 }
-                                placeholder="ACL name"
+                                placeholder={t("filters.aclNamePlaceholder")}
                               />
                             </div>
                             <div className="space-y-1">
-                              <Label className="text-xs">Neighbor Access List</Label>
+                              <Label className="text-xs">{t("filters.neighborAccessList")}</Label>
                               <Input
                                 value={filtersForm.ldp_import.ipv6_import_filter.neighbor_access_list ?? ""}
                                 onChange={(e) =>
@@ -1431,7 +1434,7 @@ export function MplsContent() {
                                     },
                                   })
                                 }
-                                placeholder="ACL name"
+                                placeholder={t("filters.aclNamePlaceholder")}
                               />
                             </div>
                           </div>
@@ -1439,14 +1442,14 @@ export function MplsContent() {
                       </div>
                     ) : (
                       <dl className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                        <dt className="text-muted-foreground">IPv4 Filter ACL</dt>
-                        <dd className="font-mono font-medium">{ldp.ldp_import.ipv4_import_filter.filter_access_list ?? <span className="font-sans font-normal text-muted-foreground">None</span>}</dd>
-                        <dt className="text-muted-foreground">IPv4 Neighbor ACL</dt>
-                        <dd className="font-mono font-medium">{ldp.ldp_import.ipv4_import_filter.neighbor_access_list ?? <span className="font-sans font-normal text-muted-foreground">None</span>}</dd>
-                        <dt className="text-muted-foreground">IPv6 Filter ACL</dt>
-                        <dd className="font-mono font-medium">{ldp.ldp_import.ipv6_import_filter.filter_access_list ?? <span className="font-sans font-normal text-muted-foreground">None</span>}</dd>
-                        <dt className="text-muted-foreground">IPv6 Neighbor ACL</dt>
-                        <dd className="font-mono font-medium">{ldp.ldp_import.ipv6_import_filter.neighbor_access_list ?? <span className="font-sans font-normal text-muted-foreground">None</span>}</dd>
+                        <dt className="text-muted-foreground">{t("filters.ipv4FilterAcl")}</dt>
+                        <dd className="font-mono font-medium">{ldp.ldp_import.ipv4_import_filter.filter_access_list ?? <span className="font-sans font-normal text-muted-foreground">{tc("none")}</span>}</dd>
+                        <dt className="text-muted-foreground">{t("filters.ipv4NeighborAcl")}</dt>
+                        <dd className="font-mono font-medium">{ldp.ldp_import.ipv4_import_filter.neighbor_access_list ?? <span className="font-sans font-normal text-muted-foreground">{tc("none")}</span>}</dd>
+                        <dt className="text-muted-foreground">{t("filters.ipv6FilterAcl")}</dt>
+                        <dd className="font-mono font-medium">{ldp.ldp_import.ipv6_import_filter.filter_access_list ?? <span className="font-sans font-normal text-muted-foreground">{tc("none")}</span>}</dd>
+                        <dt className="text-muted-foreground">{t("filters.ipv6NeighborAcl")}</dt>
+                        <dd className="font-mono font-medium">{ldp.ldp_import.ipv6_import_filter.neighbor_access_list ?? <span className="font-sans font-normal text-muted-foreground">{tc("none")}</span>}</dd>
                       </dl>
                     )}
                   </CardContent>
@@ -1462,14 +1465,14 @@ export function MplsContent() {
                     )}
                     <div className="flex gap-2">
                       <Button onClick={handleSaveFilters} disabled={filtersSaving}>
-                        {filtersSaving ? "Saving..." : "Save Changes"}
+                        {filtersSaving ? tc("saving") : t("saveChanges")}
                       </Button>
                       <Button
                         variant="outline"
                         onClick={() => { setFiltersEditing(false); setFiltersError(null); }}
                         disabled={filtersSaving}
                       >
-                        Cancel
+                        {tc("cancel")}
                       </Button>
                     </div>
                   </>
@@ -1483,12 +1486,12 @@ export function MplsContent() {
             <TabsContent value="targeted">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Targeted LDP sessions for LDP-over-TE and RSVP scenarios
+                  {t("targeted.description")}
                 </p>
                 {hasWritePermission && (
                   <Button size="sm" variant="outline" onClick={() => setTargetedModalOpen(true)}>
                     <Settings2 className="h-4 w-4 mr-2" />
-                    Configure
+                    {t("targeted.configure")}
                   </Button>
                 )}
               </div>
@@ -1498,11 +1501,11 @@ export function MplsContent() {
                 <Card>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">IPv4 Targeted Neighbors</CardTitle>
+                      <CardTitle className="text-base">{t("targeted.ipv4Title")}</CardTitle>
                       {ldp.targeted_neighbor_ipv4.enable ? (
-                        <Badge variant="secondary" className="bg-green-500/10 text-green-600">Enabled</Badge>
+                        <Badge variant="secondary" className="bg-green-500/10 text-green-600">{tc("enabled")}</Badge>
                       ) : (
-                        <Badge variant="secondary">Disabled</Badge>
+                        <Badge variant="secondary">{tc("disabled")}</Badge>
                       )}
                     </div>
                   </CardHeader>
@@ -1514,13 +1517,13 @@ export function MplsContent() {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground">No IPv4 targeted neighbor addresses</p>
+                      <p className="text-sm text-muted-foreground">{t("targeted.noIpv4Addresses")}</p>
                     )}
                     <dl className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm">
-                      <dt className="text-muted-foreground">Hello Holdtime</dt>
-                      <dd className="font-mono">{ldp.targeted_neighbor_ipv4.hello_holdtime != null ? `${ldp.targeted_neighbor_ipv4.hello_holdtime}s` : <span className="font-sans text-muted-foreground">Default</span>}</dd>
-                      <dt className="text-muted-foreground">Hello Interval</dt>
-                      <dd className="font-mono">{ldp.targeted_neighbor_ipv4.hello_interval != null ? `${ldp.targeted_neighbor_ipv4.hello_interval}s` : <span className="font-sans text-muted-foreground">Default</span>}</dd>
+                      <dt className="text-muted-foreground">{t("targeted.helloHoldtime")}</dt>
+                      <dd className="font-mono">{ldp.targeted_neighbor_ipv4.hello_holdtime != null ? `${ldp.targeted_neighbor_ipv4.hello_holdtime}s` : <span className="font-sans text-muted-foreground">{tc("default")}</span>}</dd>
+                      <dt className="text-muted-foreground">{t("targeted.helloInterval")}</dt>
+                      <dd className="font-mono">{ldp.targeted_neighbor_ipv4.hello_interval != null ? `${ldp.targeted_neighbor_ipv4.hello_interval}s` : <span className="font-sans text-muted-foreground">{tc("default")}</span>}</dd>
                     </dl>
                   </CardContent>
                 </Card>
@@ -1529,11 +1532,11 @@ export function MplsContent() {
                 <Card>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">IPv6 Targeted Neighbors</CardTitle>
+                      <CardTitle className="text-base">{t("targeted.ipv6Title")}</CardTitle>
                       {ldp.targeted_neighbor_ipv6.enable ? (
-                        <Badge variant="secondary" className="bg-green-500/10 text-green-600">Enabled</Badge>
+                        <Badge variant="secondary" className="bg-green-500/10 text-green-600">{tc("enabled")}</Badge>
                       ) : (
-                        <Badge variant="secondary">Disabled</Badge>
+                        <Badge variant="secondary">{tc("disabled")}</Badge>
                       )}
                     </div>
                   </CardHeader>
@@ -1545,13 +1548,13 @@ export function MplsContent() {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground">No IPv6 targeted neighbor addresses</p>
+                      <p className="text-sm text-muted-foreground">{t("targeted.noIpv6Addresses")}</p>
                     )}
                     <dl className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm">
-                      <dt className="text-muted-foreground">Hello Holdtime</dt>
-                      <dd className="font-mono">{ldp.targeted_neighbor_ipv6.hello_holdtime != null ? `${ldp.targeted_neighbor_ipv6.hello_holdtime}s` : <span className="font-sans text-muted-foreground">Default</span>}</dd>
-                      <dt className="text-muted-foreground">Hello Interval</dt>
-                      <dd className="font-mono">{ldp.targeted_neighbor_ipv6.hello_interval != null ? `${ldp.targeted_neighbor_ipv6.hello_interval}s` : <span className="font-sans text-muted-foreground">Default</span>}</dd>
+                      <dt className="text-muted-foreground">{t("targeted.helloHoldtime")}</dt>
+                      <dd className="font-mono">{ldp.targeted_neighbor_ipv6.hello_holdtime != null ? `${ldp.targeted_neighbor_ipv6.hello_holdtime}s` : <span className="font-sans text-muted-foreground">{tc("default")}</span>}</dd>
+                      <dt className="text-muted-foreground">{t("targeted.helloInterval")}</dt>
+                      <dd className="font-mono">{ldp.targeted_neighbor_ipv6.hello_interval != null ? `${ldp.targeted_neighbor_ipv6.hello_interval}s` : <span className="font-sans text-muted-foreground">{tc("default")}</span>}</dd>
                     </dl>
                   </CardContent>
                 </Card>

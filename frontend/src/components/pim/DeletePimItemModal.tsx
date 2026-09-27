@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +29,9 @@ export function DeletePimItemModal({
   itemName,
   onConfirm,
 }: DeletePimItemModalProps) {
+  const t = useTranslations("pim");
+  const tc = useTranslations("common");
+  const itemKey = itemType === "interface" ? "interface" : "rpAddress";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +41,7 @@ export function DeletePimItemModal({
     try {
       await onConfirm();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : `Failed to delete ${itemType}`;
+      const message = err instanceof Error ? err.message : t(`deleteModal.${itemKey}.failed`);
       setError(message);
       setLoading(false);
       return;
@@ -52,17 +56,14 @@ export function DeletePimItemModal({
     onOpenChange(open);
   };
 
-  const label = itemType === "interface" ? "Interface" : "RP Address";
-  const description =
-    itemType === "interface"
-      ? "Are you sure you want to remove this PIM interface? This will remove all PIM and IGMP settings for this interface."
-      : "Are you sure you want to remove this Rendezvous Point address? This will remove all associated multicast groups.";
+  const title = t(`deleteModal.${itemKey}.title`);
+  const description = t(`deleteModal.${itemKey}.description`);
 
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Remove {label}</AlertDialogTitle>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>
             {description}
             <br />
@@ -78,7 +79,7 @@ export function DeletePimItemModal({
         )}
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
             disabled={loading}
@@ -87,10 +88,10 @@ export function DeletePimItemModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Removing...
+                {t("deleteModal.removing")}
               </>
             ) : (
-              `Remove ${label}`
+              title
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

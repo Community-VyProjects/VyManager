@@ -1,1 +1,133 @@
-{}
+{
+  "validation": {
+    "destinationRequired": "目标为必填项",
+    "invalidIpv4Cidr": "IPv4 CIDR 格式无效（例如 10.0.0.0/8）",
+    "invalidIpv6Cidr": "IPv6 CIDR 格式无效（例如 2001:db8::/32）",
+    "routingMethodRequired": "至少需要一个下一跳、接口、黑洞或拒绝",
+    "interfaceRequired": "接口为必填项",
+    "ipAddressRequired": "IP 地址为必填项",
+    "invalidIpv4Address": "IPv4 地址格式无效",
+    "macAddressRequired": "MAC 地址为必填项",
+    "invalidMacAddress": "MAC 地址格式无效（格式为 XX:XX:XX:XX:XX:XX）",
+    "tableIdRequired": "路由表 ID 为必填项",
+    "tableIdRange": "路由表 ID 必须是 1 到 200 之间的数字"
+  },
+  "shared": {
+    "interface": "接口",
+    "interfaces": "接口",
+    "selectInterface": "选择接口...",
+    "descriptionOptional": "描述（可选）",
+    "interfaceColon": "接口：",
+    "ipAddressColon": "IP 地址：",
+    "nextHops": "下一跳",
+    "nextHopAddress": "下一跳地址",
+    "distance": "距离",
+    "disable": "禁用",
+    "blackhole": "黑洞",
+    "reject": "拒绝",
+    "arpProxy": "ARP 代理（IPv4）",
+    "ndProxy": "ND 代理（IPv6）",
+    "createEntry": "创建条目",
+    "createRoute": "创建路由",
+    "saveChanges": "保存更改"
+  },
+  "arpModal": {
+    "updateFailed": "更新 ARP 条目失败",
+    "createFailed": "创建 ARP 条目失败",
+    "editTitle": "编辑 ARP 条目",
+    "createTitle": "创建静态 ARP 条目",
+    "editDescription": "修改 {interface} 上 {ip} 的静态 ARP 条目",
+    "createDescription": "添加静态 ARP 条目，将 IP 地址映射到 MAC 地址",
+    "ipAddress": "IP 地址",
+    "ipLocked": "IP 地址无法更改。如需更改，请删除后重新创建。",
+    "macAddress": "MAC 地址",
+    "descriptionPlaceholder": "此 ARP 条目的描述",
+    "updateEntry": "更新条目"
+  },
+  "deleteArp": {
+    "failed": "删除 ARP 条目失败",
+    "title": "删除 ARP 条目",
+    "description": "确定要删除此静态 ARP 条目吗？",
+    "macAddress": "MAC 地址：",
+    "descriptionColon": "描述："
+  },
+  "mrouteModal": {
+    "prefixRequired": "前缀为必填项",
+    "invalidPrefix": "前缀格式无效（请使用 CIDR 格式，例如 224.0.0.0/4）",
+    "nextHopOrInterfaceRequired": "至少需要一个下一跳或接口",
+    "createFailed": "创建组播路由失败",
+    "title": "创建组播路由",
+    "description": "为组播 RIB 添加静态组播路由",
+    "prefixCidr": "前缀（CIDR）"
+  },
+  "deleteMroute": {
+    "failed": "删除组播路由失败",
+    "title": "删除组播路由",
+    "description": "确定要删除此组播路由吗？",
+    "prefix": "前缀：",
+    "nextHops": "下一跳：",
+    "interfaces": "接口："
+  },
+  "neighborProxyModal": {
+    "ipRequired": "IP 地址为必填项",
+    "interfaceRequired": "接口为必填项",
+    "invalidIpv4": "IPv4 地址格式无效",
+    "invalidIpv6": "IPv6 地址格式无效",
+    "createFailed": "创建邻居代理条目失败",
+    "title": "创建邻居代理条目",
+    "description": "为 ARP（IPv4）或 ND（IPv6）添加邻居代理条目",
+    "ipv4Address": "IPv4 地址",
+    "ipv6Address": "IPv6 地址"
+  },
+  "deleteNeighborProxy": {
+    "failed": "删除邻居代理条目失败",
+    "title": "删除 {type} 代理条目",
+    "description": "确定要删除此邻居代理条目吗？",
+    "type": "类型：",
+    "ipv4AddressColon": "IPv4 地址：",
+    "ipv6AddressColon": "IPv6 地址：",
+    "interfacesColon": "接口："
+  },
+  "routingTableModal": {
+    "updateFailed": "更新路由表失败",
+    "createFailed": "创建路由表失败",
+    "editTitle": "编辑路由表 {id}",
+    "createTitle": "创建路由表",
+    "editDescription": "更新此路由表的描述",
+    "createDescription": "创建用于策略路由的自定义路由表",
+    "tableId": "路由表 ID（1-200）",
+    "descriptionPlaceholder": "此路由表的描述",
+    "ipv4Routes": "IPv4 路由：",
+    "ipv6Routes": "IPv6 路由：",
+    "createTable": "创建路由表"
+  },
+  "tableRouteModal": {
+    "updateFailed": "更新路由失败",
+    "createFailed": "创建路由失败",
+    "editTitle": "编辑路由表 {id} 中的路由",
+    "addTitle": "向路由表 {id} 添加路由",
+    "editDescription": "修改路由 {destination}（{type}）",
+    "createDescription": "在此路由表中创建新的静态路由",
+    "destinationCidr": "目标（CIDR）",
+    "destinationLocked": "目标无法更改。如需更改目标，请删除后重新创建。",
+    "routeType": "路由类型",
+    "descriptionPlaceholder": "路由描述"
+  },
+  "accordion": {
+    "updateDescriptionFailed": "更新描述失败",
+    "deleteTableConfirm": "确定要删除路由表 {id} 吗？这将移除该表中的所有路由。",
+    "deleteTableFailed": "删除路由表失败",
+    "deleteRouteFailed": "删除路由失败",
+    "emptyTitle": "没有路由表",
+    "emptyDescription": "未配置自定义路由表。创建一个即可开始使用。",
+    "descriptionPlaceholder": "输入描述...",
+    "noDescription": "无描述",
+    "addRoute": "添加路由",
+    "noRoutes": "此路由表中没有路由",
+    "addRouteHint": "点击“添加路由”创建一条",
+    "type": "类型",
+    "destination": "目标",
+    "nextHopInterface": "下一跳 / 接口",
+    "action": "操作"
+  }
+}

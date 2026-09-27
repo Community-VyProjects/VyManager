@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +27,8 @@ export function DeleteAdminGroupModal({
   groupName,
   onConfirm,
 }: DeleteAdminGroupModalProps) {
+  const t = useTranslations("trafficEngineering");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
 
   const handleConfirm = async () => {
@@ -41,16 +44,17 @@ export function DeleteAdminGroupModal({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Admin Group</AlertDialogTitle>
+          <AlertDialogTitle>{t("deleteGroup.title")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Remove admin group{" "}
-            <span className="font-mono font-semibold">{groupName}</span>? Interfaces referencing
-            this group will lose the assignment.
+            {t.rich("deleteGroup.description", {
+              name: groupName,
+              mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
             disabled={loading}
@@ -59,10 +63,10 @@ export function DeleteAdminGroupModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Admin Group"
+              t("deleteGroup.title")
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

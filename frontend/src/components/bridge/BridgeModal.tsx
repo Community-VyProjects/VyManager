@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -56,6 +57,8 @@ export function BridgeModal({
   existingInterfaces,
   existing,
 }: BridgeModalProps) {
+  const t = useTranslations("bridgeInterface");
+  const tc = useTranslations("common");
   const isEdit = !!existing;
   // Basic
   const [name, setName] = useState("br0");
@@ -299,9 +302,9 @@ export function BridgeModal({
   };
 
   const validateForm = (): string | null => {
-    if (!name.trim()) return "Interface name is required";
-    if (!/^br\d+$/.test(name)) return "Name must be br0, br1, etc.";
-    if (existingInterfaces.includes(name)) return `Interface ${name} already exists`;
+    if (!name.trim()) return t("errNameRequired");
+    if (!/^br\d+$/.test(name)) return t("errNameFormat");
+    if (existingInterfaces.includes(name)) return t("errNameExists", { name });
     return null;
   };
 
@@ -408,10 +411,10 @@ export function BridgeModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to update bridge interface");
+        setError(result.error || t("errUpdate"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to update bridge interface");
+      setError((err as ApiError).message || t("errUpdate"));
     } finally {
       setLoading(false);
     }
@@ -558,10 +561,10 @@ export function BridgeModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to create bridge interface");
+        setError(result.error || t("errCreate"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to create bridge interface");
+      setError((err as ApiError).message || t("errCreate"));
     } finally {
       setLoading(false);
     }
@@ -601,29 +604,29 @@ export function BridgeModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Network className="h-5 w-5" />
-            {isEdit ? `Edit Bridge: ${existing.name}` : "Create Bridge Interface"}
+            {isEdit ? t("editTitle", { name: existing.name }) : t("createTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Modify bridge interface configuration"
-              : "Create a new bridge interface for layer-2 network bridging"}
+              ? t("editDescription")
+              : t("createDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
           <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="basic">Basic</TabsTrigger>
-            <TabsTrigger value="members">Members</TabsTrigger>
-            <TabsTrigger value="addresses">Addresses</TabsTrigger>
+            <TabsTrigger value="basic">{t("tabBasic")}</TabsTrigger>
+            <TabsTrigger value="members">{t("tabMembers")}</TabsTrigger>
+            <TabsTrigger value="addresses">{t("tabAddresses")}</TabsTrigger>
             <TabsTrigger value="ip">IP / IPv6</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            <TabsTrigger value="advanced">{t("tabAdvanced")}</TabsTrigger>
           </TabsList>
 
           {/* Basic Tab */}
           <TabsContent value="basic" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Interface Name</Label>
+                <Label htmlFor="name">{t("interfaceName")}</Label>
                 <Input
                   id="name"
                   value={isEdit ? existing.name : name}
@@ -633,39 +636,39 @@ export function BridgeModal({
                 />
                 <p className="text-xs text-muted-foreground">
                   {isEdit
-                    ? "Interface name cannot be changed."
-                    : "Must be br0, br1, etc."}
+                    ? t("nameLocked")
+                    : t("nameHint")}
                 </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description" />
+                <Label htmlFor="description">{tc("description")}</Label>
+                <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("optionalDescription")} />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="flex items-center gap-2">
                 <Checkbox checked={disabled} onCheckedChange={(c) => setDisabled(c === true)} />
-                <Label className="font-normal text-sm">Administratively Disabled</Label>
+                <Label className="font-normal text-sm">{t("adminDisabled")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox checked={disableLinkDetect} onCheckedChange={(c) => setDisableLinkDetect(c === true)} />
-                <Label className="font-normal text-sm">Disable Link Detect</Label>
+                <Label className="font-normal text-sm">{t("disableLinkDetect")}</Label>
               </div>
             </div>
 
             <div className="space-y-3 rounded-lg border p-4">
               <div className="flex items-center gap-2">
                 <Checkbox checked={stp} onCheckedChange={(c) => setStp(c === true)} />
-                <Label className="font-medium text-sm">Enable Spanning Tree Protocol (STP)</Label>
+                <Label className="font-medium text-sm">{t("enableStp")}</Label>
               </div>
               {stp && (
                 <>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Protocol</Label>
+                      <Label>{t("protocol")}</Label>
                       <Select value={protocol} onValueChange={setProtocol}>
-                        <SelectTrigger><SelectValue placeholder="Select protocol" /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder={t("selectProtocol")} /></SelectTrigger>
                         <SelectContent>
                           {(capabilities?.features.protocol?.options || ["802.1d", "802.1w"]).map((p) => (
                             <SelectItem key={p} value={p}>{p}</SelectItem>
@@ -674,25 +677,25 @@ export function BridgeModal({
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="bridge-priority">Priority</Label>
+                      <Label htmlFor="bridge-priority">{t("priority")}</Label>
                       <Input id="bridge-priority" value={bridgePriority} onChange={(e) => setBridgePriority(e.target.value)} placeholder="32768" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="aging">Aging (seconds)</Label>
+                      <Label htmlFor="aging">{t("aging")}</Label>
                       <Input id="aging" value={aging} onChange={(e) => setAging(e.target.value)} placeholder="300" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="forwarding-delay">Forwarding Delay (seconds)</Label>
+                      <Label htmlFor="forwarding-delay">{t("forwardingDelay")}</Label>
                       <Input id="forwarding-delay" value={forwardingDelay} onChange={(e) => setForwardingDelay(e.target.value)} placeholder="15" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="hello-time">Hello Time (seconds)</Label>
+                      <Label htmlFor="hello-time">{t("helloTime")}</Label>
                       <Input id="hello-time" value={helloTime} onChange={(e) => setHelloTime(e.target.value)} placeholder="2" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="max-age">Max Age (seconds)</Label>
+                      <Label htmlFor="max-age">{t("maxAge")}</Label>
                       <Input id="max-age" value={maxAge} onChange={(e) => setMaxAge(e.target.value)} placeholder="20" />
                     </div>
                   </div>
@@ -703,15 +706,15 @@ export function BridgeModal({
             <div className="grid grid-cols-2 gap-3">
               <div className="flex items-center gap-2">
                 <Checkbox checked={igmpSnooping} onCheckedChange={(c) => setIgmpSnooping(c === true)} />
-                <Label className="font-normal text-sm">IGMP Snooping</Label>
+                <Label className="font-normal text-sm">{t("igmpSnooping")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox checked={igmpQuerier} onCheckedChange={(c) => setIgmpQuerier(c === true)} />
-                <Label className="font-normal text-sm">IGMP Querier</Label>
+                <Label className="font-normal text-sm">{t("igmpQuerier")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox checked={enableVlan} onCheckedChange={(c) => setEnableVlan(c === true)} />
-                <Label className="font-normal text-sm">Enable VLAN-Aware Bridge</Label>
+                <Label className="font-normal text-sm">{t("enableVlanAware")}</Label>
               </div>
             </div>
           </TabsContent>
@@ -719,9 +722,9 @@ export function BridgeModal({
           {/* Members Tab */}
           <TabsContent value="members" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>Member Interfaces</Label>
+              <Label>{t("memberInterfaces")}</Label>
               <p className="text-sm text-muted-foreground">
-                Select interfaces to include in this bridge. Configure per-member STP and VLAN properties below.
+                {t("membersHelp")}
               </p>
             </div>
 
@@ -731,10 +734,10 @@ export function BridgeModal({
                 onValueChange={setMemberToAdd}
                 interfaces={selectableInterfaces}
                 className="flex-1"
-                placeholder="Select an interface to add"
+                placeholder={t("selectInterfaceToAdd")}
               />
               <Button variant="outline" onClick={addMember} disabled={!memberToAdd}>
-                <Plus className="h-4 w-4 mr-1" /> Add
+                <Plus className="h-4 w-4 mr-1" /> {tc("add")}
               </Button>
             </div>
 
@@ -750,51 +753,51 @@ export function BridgeModal({
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <Label className="text-xs">STP Cost</Label>
-                        <Input className="h-8 text-sm" value={member.cost} onChange={(e) => updateMember(idx, "cost", e.target.value)} placeholder="Default" />
+                        <Label className="text-xs">{t("stpCost")}</Label>
+                        <Input className="h-8 text-sm" value={member.cost} onChange={(e) => updateMember(idx, "cost", e.target.value)} placeholder={tc("default")} />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">STP Priority</Label>
-                        <Input className="h-8 text-sm" value={member.priority} onChange={(e) => updateMember(idx, "priority", e.target.value)} placeholder="Default" />
+                        <Label className="text-xs">{t("stpPriority")}</Label>
+                        <Input className="h-8 text-sm" value={member.priority} onChange={(e) => updateMember(idx, "priority", e.target.value)} placeholder={tc("default")} />
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-2">
                       <div className="flex items-center gap-1.5">
                         <Checkbox checked={member.isolated} onCheckedChange={(c) => updateMember(idx, "isolated", c === true)} />
-                        <Label className="font-normal text-xs">Isolated</Label>
+                        <Label className="font-normal text-xs">{t("isolated")}</Label>
                       </div>
                       {capabilities?.features.member_interface_bpdu_guard?.supported && (
                         <div className="flex items-center gap-1.5">
                           <Checkbox checked={member.bpdu_guard} onCheckedChange={(c) => updateMember(idx, "bpdu_guard", c === true)} />
-                          <Label className="font-normal text-xs">BPDU Guard</Label>
+                          <Label className="font-normal text-xs">{t("bpduGuard")}</Label>
                         </div>
                       )}
                       {capabilities?.features.member_interface_root_guard?.supported && (
                         <div className="flex items-center gap-1.5">
                           <Checkbox checked={member.root_guard} onCheckedChange={(c) => updateMember(idx, "root_guard", c === true)} />
-                          <Label className="font-normal text-xs">Root Guard</Label>
+                          <Label className="font-normal text-xs">{t("rootGuard")}</Label>
                         </div>
                       )}
                     </div>
                     {enableVlan && (
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <Label className="text-xs">Native VLAN</Label>
+                          <Label className="text-xs">{t("nativeVlan")}</Label>
                           <Input className="h-8 text-sm" value={member.native_vlan} onChange={(e) => updateMember(idx, "native_vlan", e.target.value)} placeholder="VLAN ID" />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-xs">Allowed VLANs</Label>
+                          <Label className="text-xs">{t("allowedVlans")}</Label>
                           <Input className="h-8 text-sm" value={member.allowed_vlan} onChange={(e) => updateMember(idx, "allowed_vlan", e.target.value)} placeholder="1,2,10-20" />
                         </div>
                       </div>
                     )}
                   </div>
                 ))}
-                <p className="text-xs text-muted-foreground">{members.length} member{members.length !== 1 ? "s" : ""} selected</p>
+                <p className="text-xs text-muted-foreground">{t("membersSelected", { count: members.length })}</p>
               </div>
             ) : (
               <div className="rounded-lg border border-dashed p-6 text-center">
-                <p className="text-sm text-muted-foreground">No members selected. Add interfaces above.</p>
+                <p className="text-sm text-muted-foreground">{t("noMembers")}</p>
               </div>
             )}
           </TabsContent>
@@ -802,9 +805,9 @@ export function BridgeModal({
           {/* Addresses Tab */}
           <TabsContent value="addresses" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="addresses">IP Addresses</Label>
+              <Label htmlFor="addresses">{t("ipAddresses")}</Label>
               <Input id="addresses" value={addresses} onChange={(e) => setAddresses(e.target.value)} placeholder="192.168.1.1/24, 10.0.0.1/24" />
-              <p className="text-xs text-muted-foreground">Comma-separated CIDR addresses</p>
+              <p className="text-xs text-muted-foreground">{t("addressesHint")}</p>
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
@@ -816,18 +819,18 @@ export function BridgeModal({
                 <VrfSelect id="vrf" value={vrf} onValueChange={setVrf} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="mac">MAC Override</Label>
+                <Label htmlFor="mac">{t("macOverride")}</Label>
                 <Input id="mac" value={mac} onChange={(e) => setMac(e.target.value)} placeholder="xx:xx:xx:xx:xx:xx" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Mirror Ingress</Label>
-                <Input value={mirrorIngress} onChange={(e) => setMirrorIngress(e.target.value)} placeholder="Target interface" />
+                <Label>{t("mirrorIngress")}</Label>
+                <Input value={mirrorIngress} onChange={(e) => setMirrorIngress(e.target.value)} placeholder={t("targetInterface")} />
               </div>
               <div className="space-y-2">
-                <Label>Mirror Egress</Label>
-                <Input value={mirrorEgress} onChange={(e) => setMirrorEgress(e.target.value)} placeholder="Target interface" />
+                <Label>{t("mirrorEgress")}</Label>
+                <Input value={mirrorEgress} onChange={(e) => setMirrorEgress(e.target.value)} placeholder={t("targetInterface")} />
               </div>
             </div>
           </TabsContent>
@@ -835,20 +838,20 @@ export function BridgeModal({
           {/* IP / IPv6 Tab */}
           <TabsContent value="ip" className="space-y-6 mt-4">
             <div>
-              <h4 className="font-medium mb-3">IPv4 Settings</h4>
+              <h4 className="font-medium mb-3">{t("ipv4Settings")}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Adjust MSS</Label>
-                  <Input value={ipAdjustMss} onChange={(e) => setIpAdjustMss(e.target.value)} placeholder="clamp-mss-to-pmtu or value" />
+                  <Label>{t("adjustMss")}</Label>
+                  <Input value={ipAdjustMss} onChange={(e) => setIpAdjustMss(e.target.value)} placeholder={t("adjustMssPlaceholder")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>ARP Cache Timeout</Label>
+                  <Label>{t("arpCacheTimeout")}</Label>
                   <Input value={ipArpCacheTimeout} onChange={(e) => setIpArpCacheTimeout(e.target.value)} placeholder="30" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Source Validation</Label>
+                  <Label>{t("sourceValidation")}</Label>
                   <Select value={ipSourceValidation} onValueChange={setIpSourceValidation}>
-                    <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="strict">strict</SelectItem>
                       <SelectItem value="loose">loose</SelectItem>
@@ -859,14 +862,14 @@ export function BridgeModal({
               </div>
               <div className="grid grid-cols-2 gap-3 mt-3">
                 {[
-                  { label: "Disable ARP Filter", state: ipDisableArpFilter, setter: setIpDisableArpFilter },
-                  { label: "Disable Forwarding", state: ipDisableForwarding, setter: setIpDisableForwarding },
-                  { label: "Enable ARP Accept", state: ipEnableArpAccept, setter: setIpEnableArpAccept },
-                  { label: "Enable ARP Announce", state: ipEnableArpAnnounce, setter: setIpEnableArpAnnounce },
-                  { label: "Enable ARP Ignore", state: ipEnableArpIgnore, setter: setIpEnableArpIgnore },
-                  { label: "Enable Directed Broadcast", state: ipEnableDirectedBroadcast, setter: setIpEnableDirectedBroadcast },
-                  { label: "Enable Proxy ARP", state: ipEnableProxyArp, setter: setIpEnableProxyArp },
-                  { label: "Proxy ARP PVLAN", state: ipProxyArpPvlan, setter: setIpProxyArpPvlan },
+                  { label: t("disableArpFilter"), state: ipDisableArpFilter, setter: setIpDisableArpFilter },
+                  { label: t("disableForwarding"), state: ipDisableForwarding, setter: setIpDisableForwarding },
+                  { label: t("enableArpAccept"), state: ipEnableArpAccept, setter: setIpEnableArpAccept },
+                  { label: t("enableArpAnnounce"), state: ipEnableArpAnnounce, setter: setIpEnableArpAnnounce },
+                  { label: t("enableArpIgnore"), state: ipEnableArpIgnore, setter: setIpEnableArpIgnore },
+                  { label: t("enableDirectedBroadcast"), state: ipEnableDirectedBroadcast, setter: setIpEnableDirectedBroadcast },
+                  { label: t("enableProxyArp"), state: ipEnableProxyArp, setter: setIpEnableProxyArp },
+                  { label: t("proxyArpPvlan"), state: ipProxyArpPvlan, setter: setIpProxyArpPvlan },
                 ].map(({ label, state, setter }) => (
                   <div key={label} className="flex items-center gap-2">
                     <Checkbox checked={state} onCheckedChange={(c) => setter(c === true)} />
@@ -877,28 +880,28 @@ export function BridgeModal({
             </div>
 
             <div>
-              <h4 className="font-medium mb-3">IPv6 Settings</h4>
+              <h4 className="font-medium mb-3">{t("ipv6Settings")}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Accept DAD</Label>
-                  <Input value={ipv6AcceptDad} onChange={(e) => setIpv6AcceptDad(e.target.value)} placeholder="0, 1, or 2" />
+                  <Label>{t("acceptDad")}</Label>
+                  <Input value={ipv6AcceptDad} onChange={(e) => setIpv6AcceptDad(e.target.value)} placeholder={t("acceptDadPlaceholder")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Adjust MSS</Label>
-                  <Input value={ipv6AdjustMss} onChange={(e) => setIpv6AdjustMss(e.target.value)} placeholder="clamp-mss-to-pmtu or value" />
+                  <Label>{t("adjustMss")}</Label>
+                  <Input value={ipv6AdjustMss} onChange={(e) => setIpv6AdjustMss(e.target.value)} placeholder={t("adjustMssPlaceholder")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Base Reachable Time</Label>
+                  <Label>{t("baseReachableTime")}</Label>
                   <Input value={ipv6BaseReachableTime} onChange={(e) => setIpv6BaseReachableTime(e.target.value)} placeholder="30" />
                 </div>
                 <div className="space-y-2">
-                  <Label>DAD Transmits</Label>
+                  <Label>{t("dadTransmits")}</Label>
                   <Input value={ipv6DupAddrDetectTransmits} onChange={(e) => setIpv6DupAddrDetectTransmits(e.target.value)} placeholder="1" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Source Validation</Label>
+                  <Label>{t("sourceValidation")}</Label>
                   <Select value={ipv6SourceValidation} onValueChange={setIpv6SourceValidation}>
-                    <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="strict">strict</SelectItem>
                       <SelectItem value="loose">loose</SelectItem>
@@ -908,7 +911,7 @@ export function BridgeModal({
                 </div>
                 {capabilities?.features.ipv6_address_interface_identifier?.supported && (
                   <div className="space-y-2">
-                    <Label>Interface Identifier</Label>
+                    <Label>{t("interfaceIdentifier")}</Label>
                     <Input value={ipv6AddressInterfaceIdentifier} onChange={(e) => setIpv6AddressInterfaceIdentifier(e.target.value)} placeholder="::1" />
                   </div>
                 )}
@@ -916,21 +919,21 @@ export function BridgeModal({
               <div className="grid grid-cols-2 gap-3 mt-3">
                 <div className="flex items-center gap-2">
                   <Checkbox checked={ipv6DisableForwarding} onCheckedChange={(c) => setIpv6DisableForwarding(c === true)} />
-                  <Label className="font-normal text-sm">Disable Forwarding</Label>
+                  <Label className="font-normal text-sm">{t("disableForwarding")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox checked={ipv6AddressAutoconf} onCheckedChange={(c) => setIpv6AddressAutoconf(c === true)} />
-                  <Label className="font-normal text-sm">Address Autoconf</Label>
+                  <Label className="font-normal text-sm">{t("addressAutoconf")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox checked={ipv6AddressNoDefaultLinkLocal} onCheckedChange={(c) => setIpv6AddressNoDefaultLinkLocal(c === true)} />
-                  <Label className="font-normal text-sm">No Default Link-Local</Label>
+                  <Label className="font-normal text-sm">{t("noDefaultLinkLocal")}</Label>
                 </div>
               </div>
               <div className="mt-3 space-y-2">
-                <Label>EUI-64 Addresses</Label>
+                <Label>{t("eui64Addresses")}</Label>
                 <Input value={ipv6AddressEui64} onChange={(e) => setIpv6AddressEui64(e.target.value)} placeholder="2001:db8::/64" />
-                <p className="text-xs text-muted-foreground">Comma-separated IPv6 prefixes</p>
+                <p className="text-xs text-muted-foreground">{t("eui64Hint")}</p>
               </div>
             </div>
           </TabsContent>
@@ -939,92 +942,92 @@ export function BridgeModal({
           <TabsContent value="advanced" className="space-y-6 mt-4">
             {/* Redirect */}
             <div>
-              <h4 className="font-medium mb-3">Interface Options</h4>
+              <h4 className="font-medium mb-3">{t("interfaceOptions")}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Redirect</Label>
-                  <Input value={redirect} onChange={(e) => setRedirect(e.target.value)} placeholder="Target interface" />
+                  <Label>{t("redirect")}</Label>
+                  <Input value={redirect} onChange={(e) => setRedirect(e.target.value)} placeholder={t("targetInterface")} />
                 </div>
               </div>
             </div>
 
             {/* DHCP Options */}
             <div>
-              <h4 className="font-medium mb-3">DHCP Options</h4>
+              <h4 className="font-medium mb-3">{t("dhcpOptions")}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Client ID</Label>
-                  <Input value={dhcpClientId} onChange={(e) => setDhcpClientId(e.target.value)} placeholder="Client identifier" />
+                  <Label>{t("clientId")}</Label>
+                  <Input value={dhcpClientId} onChange={(e) => setDhcpClientId(e.target.value)} placeholder={t("clientIdentifier")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Default Route Distance</Label>
+                  <Label>{t("defaultRouteDistance")}</Label>
                   <Input value={dhcpDefaultRouteDistance} onChange={(e) => setDhcpDefaultRouteDistance(e.target.value)} placeholder="210" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Host Name</Label>
-                  <Input value={dhcpHostName} onChange={(e) => setDhcpHostName(e.target.value)} placeholder="Hostname" />
+                  <Label>{t("hostName")}</Label>
+                  <Input value={dhcpHostName} onChange={(e) => setDhcpHostName(e.target.value)} placeholder={t("hostnamePlaceholder")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>User Class</Label>
-                  <Input value={dhcpUserClass} onChange={(e) => setDhcpUserClass(e.target.value)} placeholder="User class" />
+                  <Label>{t("userClass")}</Label>
+                  <Input value={dhcpUserClass} onChange={(e) => setDhcpUserClass(e.target.value)} placeholder={t("userClassPlaceholder")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Vendor Class ID</Label>
-                  <Input value={dhcpVendorClassId} onChange={(e) => setDhcpVendorClassId(e.target.value)} placeholder="Vendor class" />
+                  <Label>{t("vendorClassId")}</Label>
+                  <Input value={dhcpVendorClassId} onChange={(e) => setDhcpVendorClassId(e.target.value)} placeholder={t("vendorClassPlaceholder")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Reject Servers</Label>
-                  <Input value={dhcpReject} onChange={(e) => setDhcpReject(e.target.value)} placeholder="Comma-separated IPs" />
+                  <Label>{t("rejectServers")}</Label>
+                  <Input value={dhcpReject} onChange={(e) => setDhcpReject(e.target.value)} placeholder={t("commaSeparatedIps")} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 mt-3">
                 <div className="flex items-center gap-2">
                   <Checkbox checked={dhcpMtu} onCheckedChange={(c) => setDhcpMtu(c === true)} />
-                  <Label className="font-normal text-sm">Use MTU from DHCP</Label>
+                  <Label className="font-normal text-sm">{t("useMtuFromDhcp")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox checked={dhcpNoDefaultRoute} onCheckedChange={(c) => setDhcpNoDefaultRoute(c === true)} />
-                  <Label className="font-normal text-sm">No Default Route</Label>
+                  <Label className="font-normal text-sm">{t("noDefaultRoute")}</Label>
                 </div>
               </div>
             </div>
 
             {/* DHCPv6 Options */}
             <div>
-              <h4 className="font-medium mb-3">DHCPv6 Options</h4>
+              <h4 className="font-medium mb-3">{t("dhcpv6Options")}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>DUID</Label>
-                  <Input value={dhcpv6Duid} onChange={(e) => setDhcpv6Duid(e.target.value)} placeholder="DUID value" />
+                  <Input value={dhcpv6Duid} onChange={(e) => setDhcpv6Duid(e.target.value)} placeholder={t("duidValue")} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 mt-3">
                 <div className="flex items-center gap-2">
                   <Checkbox checked={dhcpv6NoRelease} onCheckedChange={(c) => setDhcpv6NoRelease(c === true)} />
-                  <Label className="font-normal text-sm">No Release</Label>
+                  <Label className="font-normal text-sm">{t("noRelease")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox checked={dhcpv6ParametersOnly} onCheckedChange={(c) => setDhcpv6ParametersOnly(c === true)} />
-                  <Label className="font-normal text-sm">Parameters Only</Label>
+                  <Label className="font-normal text-sm">{t("parametersOnly")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox checked={dhcpv6RapidCommit} onCheckedChange={(c) => setDhcpv6RapidCommit(c === true)} />
-                  <Label className="font-normal text-sm">Rapid Commit</Label>
+                  <Label className="font-normal text-sm">{t("rapidCommit")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox checked={dhcpv6Temporary} onCheckedChange={(c) => setDhcpv6Temporary(c === true)} />
-                  <Label className="font-normal text-sm">Temporary</Label>
+                  <Label className="font-normal text-sm">{t("temporary")}</Label>
                 </div>
                 {capabilities?.features.dhcpv6_no_request_dns?.supported && (
                   <div className="flex items-center gap-2">
                     <Checkbox checked={dhcpv6NoRequestDns} onCheckedChange={(c) => setDhcpv6NoRequestDns(c === true)} />
-                    <Label className="font-normal text-sm">No Request DNS</Label>
+                    <Label className="font-normal text-sm">{t("noRequestDns")}</Label>
                   </div>
                 )}
                 {capabilities?.features.dhcpv6_no_request_domain_name?.supported && (
                   <div className="flex items-center gap-2">
                     <Checkbox checked={dhcpv6NoRequestDomainName} onCheckedChange={(c) => setDhcpv6NoRequestDomainName(c === true)} />
-                    <Label className="font-normal text-sm">No Request Domain Name</Label>
+                    <Label className="font-normal text-sm">{t("noRequestDomainName")}</Label>
                   </div>
                 )}
               </div>
@@ -1041,18 +1044,18 @@ export function BridgeModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? "Saving..." : "Creating..."}
+                {isEdit ? tc("saving") : t("creating")}
               </>
             ) : isEdit ? (
-              "Save Changes"
+              t("saveChanges")
             ) : (
-              "Create Bridge"
+              t("createBridge")
             )}
           </Button>
         </DialogFooter>

@@ -34,6 +34,7 @@ import {
   Cable,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   staticRoutesService,
   type StaticRoute,
@@ -58,6 +59,8 @@ import { RoutingTableModal } from "@/components/routing/RoutingTableModal";
 import { RoutingTablesAccordion } from "@/components/routing/RoutingTablesAccordion";
 
 function StaticRoutesPageInner() {
+  const t = useTranslations("staticRoutes");
+  const tc = useTranslations("common");
   const searchParams = useSearchParams();
   const [config, setConfig] = useState<StaticRoutesConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -98,7 +101,7 @@ function StaticRoutesPageInner() {
       setConfig(configData);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to load static routes configuration"
+        err instanceof Error ? err.message : t("errors.loadFailed")
       );
       console.error("Error fetching static routes config:", err);
     } finally {
@@ -108,6 +111,7 @@ function StaticRoutesPageInner() {
 
   useEffect(() => {
     fetchConfig();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount; a language switch re-renders via router.refresh()
   }, []);
 
   useEffect(() => {
@@ -157,11 +161,11 @@ function StaticRoutesPageInner() {
       <div className="flex items-center justify-center h-full">
         <div className="text-center space-y-4">
           <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-          <h2 className="text-xl font-semibold text-foreground">Error Loading Static Routes</h2>
+          <h2 className="text-xl font-semibold text-foreground">{t("page.errorTitle")}</h2>
           <p className="text-muted-foreground max-w-md">{error}</p>
           <Button onClick={() => fetchConfig(true)} variant="outline">
             <RefreshCw className="h-4 w-4 mr-2" />
-            Retry
+            {tc("retry")}
           </Button>
         </div>
       </div>
@@ -175,15 +179,15 @@ function StaticRoutesPageInner() {
         <div className="p-6 pb-4 border-b border-border">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Static Routes</h1>
+              <h1 className="text-3xl font-bold text-foreground">{t("page.title")}</h1>
               <p className="text-muted-foreground mt-2">
-                Manage static routes, ARP entries, multicast routes, and neighbor proxies
+                {t("page.subtitle")}
               </p>
             </div>
             <div className="flex items-center gap-3">
               <Button onClick={() => fetchConfig(true)} variant="outline" size="sm">
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -194,7 +198,7 @@ function StaticRoutesPageInner() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Total Routes</p>
+                    <p className="text-sm text-muted-foreground">{t("stats.totalRoutes")}</p>
                     <p className="text-2xl font-bold text-foreground mt-1">
                       {totalRoutes}
                     </p>
@@ -208,7 +212,7 @@ function StaticRoutesPageInner() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">IPv4 Routes</p>
+                    <p className="text-sm text-muted-foreground">{t("stats.ipv4Routes")}</p>
                     <p className="text-2xl font-bold text-foreground mt-1">
                       {totalIPv4Routes}
                     </p>
@@ -222,7 +226,7 @@ function StaticRoutesPageInner() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">IPv6 Routes</p>
+                    <p className="text-sm text-muted-foreground">{t("stats.ipv6Routes")}</p>
                     <p className="text-2xl font-bold text-foreground mt-1">
                       {totalIPv6Routes}
                     </p>
@@ -236,7 +240,7 @@ function StaticRoutesPageInner() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">ARP Entries</p>
+                    <p className="text-sm text-muted-foreground">{t("stats.arpEntries")}</p>
                     <p className="text-2xl font-bold text-foreground mt-1">
                       {totalArpEntries}
                     </p>
@@ -250,7 +254,7 @@ function StaticRoutesPageInner() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Multicast</p>
+                    <p className="text-sm text-muted-foreground">{t("stats.multicast")}</p>
                     <p className="text-2xl font-bold text-foreground mt-1">
                       {totalMroutes}
                     </p>
@@ -264,7 +268,7 @@ function StaticRoutesPageInner() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Neighbor Proxy</p>
+                    <p className="text-sm text-muted-foreground">{t("stats.neighborProxy")}</p>
                     <p className="text-2xl font-bold text-foreground mt-1">
                       {totalNeighborProxies}
                     </p>
@@ -281,31 +285,31 @@ function StaticRoutesPageInner() {
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
               <TabsTrigger value="routes">
-                Static Routes
+                {t("tabs.routes")}
                 {totalRoutes > 0 && (
                   <Badge variant="secondary" className="ml-2">{totalRoutes}</Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger value="arp">
-                Static ARP
+                {t("tabs.arp")}
                 {totalArpEntries > 0 && (
                   <Badge variant="secondary" className="ml-2">{totalArpEntries}</Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger value="mroute">
-                Multicast Routes
+                {t("tabs.mroute")}
                 {totalMroutes > 0 && (
                   <Badge variant="secondary" className="ml-2">{totalMroutes}</Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger value="neighbor-proxy">
-                Neighbor Proxy
+                {t("tabs.neighborProxy")}
                 {totalNeighborProxies > 0 && (
                   <Badge variant="secondary" className="ml-2">{totalNeighborProxies}</Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger value="tables">
-                Routing Tables
+                {t("tabs.tables")}
                 {totalTables > 0 && (
                   <Badge variant="secondary" className="ml-2">{totalTables}</Badge>
                 )}
@@ -346,7 +350,7 @@ function StaticRoutesPageInner() {
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search routes..."
+                    placeholder={t("routes.searchPlaceholder")}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10"
@@ -355,7 +359,7 @@ function StaticRoutesPageInner() {
 
                 <Button onClick={() => { setSelectedType(selectedType); setCreateModalOpen(true); }} size="sm">
                   <Plus className="h-4 w-4 mr-2" />
-                  Create {selectedType.toUpperCase()} Route
+                  {t("routes.createRoute", { type: selectedType.toUpperCase() })}
                 </Button>
               </div>
 
@@ -366,17 +370,17 @@ function StaticRoutesPageInner() {
                     <CardContent className="flex flex-col items-center justify-center py-12">
                       <Route className="h-12 w-12 text-muted-foreground mb-4" />
                       <h3 className="text-lg font-semibold text-foreground mb-2">
-                        No Routes Found
+                        {t("routes.emptyTitle")}
                       </h3>
                       <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
                         {searchQuery
-                          ? "No routes match your search criteria"
-                          : `No ${selectedType.toUpperCase()} static routes configured`}
+                          ? t("routes.noMatch")
+                          : t("routes.emptyType", { type: selectedType.toUpperCase() })}
                       </p>
                       {!searchQuery && (
                         <Button onClick={() => { setSelectedType(selectedType); setCreateModalOpen(true); }}>
                           <Plus className="h-4 w-4 mr-2" />
-                          Create {selectedType.toUpperCase()} Route
+                          {t("routes.createRoute", { type: selectedType.toUpperCase() })}
                         </Button>
                       )}
                     </CardContent>
@@ -384,14 +388,14 @@ function StaticRoutesPageInner() {
                     <Table>
                       <TableHeader>
                         <TableRow className="hover:bg-transparent">
-                          <TableHead>Destination</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Next Hops</TableHead>
-                          <TableHead>Interfaces</TableHead>
-                          <TableHead>Distance</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead>{t("routes.destination")}</TableHead>
+                          <TableHead>{tc("description")}</TableHead>
+                          <TableHead>{t("routes.nextHops")}</TableHead>
+                          <TableHead>{t("routes.interfaces")}</TableHead>
+                          <TableHead>{t("routes.distance")}</TableHead>
+                          <TableHead>{t("routes.type")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
+                          <TableHead className="text-right">{tc("actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -417,7 +421,7 @@ function StaticRoutesPageInner() {
                                 {isBlackhole ? (
                                   <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20">
                                     <Shield className="h-3 w-3 mr-1" />
-                                    Blackhole
+                                    {t("routes.blackhole")}
                                   </Badge>
                                 ) : hasNextHops ? (
                                   <div className="flex flex-wrap gap-1">
@@ -432,7 +436,7 @@ function StaticRoutesPageInner() {
                                       >
                                         <ArrowRight className="h-3 w-3 mr-1" />
                                         {nh.address}
-                                        {nh.disable && " (disabled)"}
+                                        {nh.disable && t("routes.disabledSuffix")}
                                       </Badge>
                                     ))}
                                     {route.next_hops.length > 2 && (
@@ -458,7 +462,7 @@ function StaticRoutesPageInner() {
                                         )}
                                       >
                                         {iface.interface}
-                                        {iface.disable && " (disabled)"}
+                                        {iface.disable && t("routes.disabledSuffix")}
                                       </Badge>
                                     ))}
                                     {route.interfaces.length > 2 && (
@@ -478,7 +482,7 @@ function StaticRoutesPageInner() {
                                   route.next_hops[0]?.distance ? (
                                     <Badge variant="outline">{route.next_hops[0].distance}</Badge>
                                   ) : (
-                                    <span className="text-muted-foreground">Default</span>
+                                    <span className="text-muted-foreground">{tc("default")}</span>
                                   )
                                 ) : hasInterfaces && route.interfaces[0]?.distance ? (
                                   <Badge variant="outline">{route.interfaces[0].distance}</Badge>
@@ -503,7 +507,7 @@ function StaticRoutesPageInner() {
                                   variant="outline"
                                   className="bg-green-500/10 text-green-500 border-green-500/20"
                                 >
-                                  Active
+                                  {t("routes.active")}
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-right">
@@ -540,7 +544,7 @@ function StaticRoutesPageInner() {
                 <div className="flex-1 relative max-w-md">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search ARP entries..."
+                    placeholder={t("arp.searchPlaceholder")}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10"
@@ -548,7 +552,7 @@ function StaticRoutesPageInner() {
                 </div>
                 <Button onClick={() => setCreateArpModalOpen(true)} size="sm">
                   <Plus className="h-4 w-4 mr-2" />
-                  Create ARP Entry
+                  {t("arp.create")}
                 </Button>
               </div>
 
@@ -558,25 +562,25 @@ function StaticRoutesPageInner() {
                     <CardContent className="flex flex-col items-center justify-center py-12">
                       <Cable className="h-12 w-12 text-muted-foreground mb-4" />
                       <h3 className="text-lg font-semibold text-foreground mb-2">
-                        No Static ARP Entries
+                        {t("arp.emptyTitle")}
                       </h3>
                       <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
-                        No static ARP entries configured
+                        {t("arp.emptyDescription")}
                       </p>
                       <Button onClick={() => setCreateArpModalOpen(true)}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Create ARP Entry
+                        {t("arp.create")}
                       </Button>
                     </CardContent>
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow className="hover:bg-transparent">
-                          <TableHead>Interface</TableHead>
-                          <TableHead>IP Address</TableHead>
-                          <TableHead>MAC Address</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead>{t("arp.interface")}</TableHead>
+                          <TableHead>{t("arp.ipAddress")}</TableHead>
+                          <TableHead>{t("arp.macAddress")}</TableHead>
+                          <TableHead>{tc("description")}</TableHead>
+                          <TableHead className="text-right">{tc("actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -631,7 +635,7 @@ function StaticRoutesPageInner() {
                 <div className="flex-1 relative max-w-md">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search multicast routes..."
+                    placeholder={t("mroute.searchPlaceholder")}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10"
@@ -639,7 +643,7 @@ function StaticRoutesPageInner() {
                 </div>
                 <Button onClick={() => setCreateMrouteModalOpen(true)} size="sm">
                   <Plus className="h-4 w-4 mr-2" />
-                  Create Multicast Route
+                  {t("mroute.create")}
                 </Button>
               </div>
 
@@ -649,24 +653,24 @@ function StaticRoutesPageInner() {
                     <CardContent className="flex flex-col items-center justify-center py-12">
                       <Radio className="h-12 w-12 text-muted-foreground mb-4" />
                       <h3 className="text-lg font-semibold text-foreground mb-2">
-                        No Multicast Routes
+                        {t("mroute.emptyTitle")}
                       </h3>
                       <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
-                        No static multicast routes configured
+                        {t("mroute.emptyDescription")}
                       </p>
                       <Button onClick={() => setCreateMrouteModalOpen(true)}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Create Multicast Route
+                        {t("mroute.create")}
                       </Button>
                     </CardContent>
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow className="hover:bg-transparent">
-                          <TableHead>Prefix</TableHead>
-                          <TableHead>Next Hops</TableHead>
-                          <TableHead>Interfaces</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead>{t("mroute.prefix")}</TableHead>
+                          <TableHead>{t("routes.nextHops")}</TableHead>
+                          <TableHead>{t("routes.interfaces")}</TableHead>
+                          <TableHead className="text-right">{tc("actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -691,7 +695,7 @@ function StaticRoutesPageInner() {
                                       )}
                                     >
                                       {nh.address}
-                                      {nh.distance && ` (d:${nh.distance})`}
+                                      {nh.distance && t("mroute.distanceSuffix", { distance: String(nh.distance) })}
                                     </Badge>
                                   ))}
                                   {route.next_hops.length > 3 && (
@@ -717,7 +721,7 @@ function StaticRoutesPageInner() {
                                       )}
                                     >
                                       {iface.interface}
-                                      {iface.distance && ` (d:${iface.distance})`}
+                                      {iface.distance && t("mroute.distanceSuffix", { distance: String(iface.distance) })}
                                     </Badge>
                                   ))}
                                   {route.interfaces.length > 3 && (
@@ -756,7 +760,7 @@ function StaticRoutesPageInner() {
                 <div className="flex-1 relative max-w-md">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search neighbor proxy entries..."
+                    placeholder={t("neighborProxy.searchPlaceholder")}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10"
@@ -764,7 +768,7 @@ function StaticRoutesPageInner() {
                 </div>
                 <Button onClick={() => setCreateNeighborProxyModalOpen(true)} size="sm">
                   <Plus className="h-4 w-4 mr-2" />
-                  Create Neighbor Proxy
+                  {t("neighborProxy.create")}
                 </Button>
               </div>
 
@@ -775,24 +779,24 @@ function StaticRoutesPageInner() {
                     <CardContent className="flex flex-col items-center justify-center py-12">
                       <Users className="h-12 w-12 text-muted-foreground mb-4" />
                       <h3 className="text-lg font-semibold text-foreground mb-2">
-                        No Neighbor Proxy Entries
+                        {t("neighborProxy.emptyTitle")}
                       </h3>
                       <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
-                        No neighbor proxy entries configured (ARP or ND)
+                        {t("neighborProxy.emptyDescription")}
                       </p>
                       <Button onClick={() => setCreateNeighborProxyModalOpen(true)}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Create Neighbor Proxy
+                        {t("neighborProxy.create")}
                       </Button>
                     </CardContent>
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow className="hover:bg-transparent">
-                          <TableHead>Type</TableHead>
-                          <TableHead>IP Address</TableHead>
-                          <TableHead>Interface</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead>{t("routes.type")}</TableHead>
+                          <TableHead>{t("arp.ipAddress")}</TableHead>
+                          <TableHead>{t("arp.interface")}</TableHead>
+                          <TableHead className="text-right">{tc("actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -870,7 +874,7 @@ function StaticRoutesPageInner() {
               <div className="flex items-center justify-end mb-4">
                 <Button onClick={() => setCreateTableModalOpen(true)} size="sm">
                   <Plus className="h-4 w-4 mr-2" />
-                  Create Routing Table
+                  {t("tables.create")}
                 </Button>
               </div>
 

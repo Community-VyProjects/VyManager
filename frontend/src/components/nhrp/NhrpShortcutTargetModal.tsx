@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,8 @@ export function NhrpShortcutTargetModal({
   onSubmit,
   existingTarget,
 }: NhrpShortcutTargetModalProps) {
+  const t = useTranslations("nhrp");
+  const tc = useTranslations("common");
   const isEditMode = existingTarget !== null;
 
   const [target, setTarget] = useState("");
@@ -48,7 +51,7 @@ export function NhrpShortcutTargetModal({
 
   const handleSubmit = async () => {
     if (!target.trim()) {
-      setError("Target prefix is required");
+      setError(t("shortcutTargetModal.prefixRequired"));
       return;
     }
 
@@ -58,7 +61,7 @@ export function NhrpShortcutTargetModal({
       await onSubmit(target.trim(), holdingTime.trim());
       onOpenChange(false);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -69,13 +72,13 @@ export function NhrpShortcutTargetModal({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit Shortcut Target" : "Add Shortcut Target"}
+            {isEditMode ? t("shortcutTargetModal.editTitle") : t("shortcutTargetModal.addTitle")}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label htmlFor="sctarget-prefix">Target Prefix</Label>
+            <Label htmlFor="sctarget-prefix">{t("shortcutTargetModal.targetPrefix")}</Label>
             {isEditMode ? (
               <p className="text-sm font-mono font-medium px-3 py-2 bg-muted rounded-md">
                 {existingTarget?.target}
@@ -85,18 +88,18 @@ export function NhrpShortcutTargetModal({
                 id="sctarget-prefix"
                 value={target}
                 onChange={(e) => setTarget(e.target.value)}
-                placeholder="e.g. 10.0.0.0/8"
+                placeholder={t("shortcutTargetModal.prefixPlaceholder")}
               />
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="sctarget-holding-time">Holding Time (seconds)</Label>
+            <Label htmlFor="sctarget-holding-time">{t("tunnelModal.holdingTimeSeconds")}</Label>
             <Input
               id="sctarget-holding-time"
               value={holdingTime}
               onChange={(e) => setHoldingTime(e.target.value)}
-              placeholder="Optional"
+              placeholder={tc("optional")}
               type="number"
             />
           </div>
@@ -111,18 +114,18 @@ export function NhrpShortcutTargetModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Adding..."}
+                {isEditMode ? tc("saving") : t("adding")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("saveChanges")
             ) : (
-              "Add Target"
+              t("shortcutTargetModal.addTarget")
             )}
           </Button>
         </DialogFooter>

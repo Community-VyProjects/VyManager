@@ -25,6 +25,7 @@ import { AlertCircle, Loader2 } from "lucide-react";
 import type { BabelInterface, BabelCapabilities } from "@/lib/api/babel";
 import { showService, InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
+import { useTranslations } from "next-intl";
 
 interface BabelInterfaceModalProps {
   open: boolean;
@@ -40,6 +41,8 @@ export function BabelInterfaceModal({
   onSubmit,
   existingInterface,
 }: BabelInterfaceModalProps) {
+  const t = useTranslations("babel");
+  const tc = useTranslations("common");
   const isEditMode = !!existingInterface;
 
   // Form state
@@ -144,7 +147,7 @@ export function BabelInterfaceModal({
 
   const validateForm = (): string | null => {
     if (!name) {
-      return "Please select an interface";
+      return t("interfaceModal.selectInterface");
     }
 
     if (channel.trim()) {
@@ -155,7 +158,7 @@ export function BabelInterfaceModal({
       ) {
         const num = parseInt(channelVal, 10);
         if (isNaN(num) || num < 1 || num > 254) {
-          return "Channel must be 1-254, 'interfering', or 'non-interfering'";
+          return t("interfaceModal.channelInvalid");
         }
       }
     }
@@ -163,49 +166,49 @@ export function BabelInterfaceModal({
     if (helloInterval.trim()) {
       const val = parseInt(helloInterval.trim(), 10);
       if (isNaN(val) || val < 20 || val > 655340) {
-        return "Hello interval must be between 20 and 655340 ms";
+        return t("interfaceModal.helloIntervalRange");
       }
     }
 
     if (updateInterval.trim()) {
       const val = parseInt(updateInterval.trim(), 10);
       if (isNaN(val) || val < 20 || val > 655340) {
-        return "Update interval must be between 20 and 655340 ms";
+        return t("interfaceModal.updateIntervalRange");
       }
     }
 
     if (rxcost.trim()) {
       const val = parseInt(rxcost.trim(), 10);
       if (isNaN(val) || val < 1 || val > 65534) {
-        return "RX cost must be between 1 and 65534";
+        return t("interfaceModal.rxCostRange");
       }
     }
 
     if (maxRttPenalty.trim()) {
       const val = parseInt(maxRttPenalty.trim(), 10);
       if (isNaN(val) || val < 0 || val > 65535) {
-        return "Max RTT penalty must be between 0 and 65535 ms";
+        return t("interfaceModal.maxRttPenaltyRange");
       }
     }
 
     if (rttDecay.trim()) {
       const val = parseInt(rttDecay.trim(), 10);
       if (isNaN(val) || val < 1 || val > 256) {
-        return "RTT decay must be between 1 and 256";
+        return t("interfaceModal.rttDecayRange");
       }
     }
 
     if (rttMin.trim()) {
       const val = parseInt(rttMin.trim(), 10);
       if (isNaN(val) || val < 1 || val > 65535) {
-        return "RTT min must be between 1 and 65535 ms";
+        return t("interfaceModal.rttMinRange");
       }
     }
 
     if (rttMax.trim()) {
       const val = parseInt(rttMax.trim(), 10);
       if (isNaN(val) || val < 1 || val > 65535) {
-        return "RTT max must be between 1 and 65535 ms";
+        return t("interfaceModal.rttMaxRange");
       }
     }
 
@@ -250,7 +253,7 @@ export function BabelInterfaceModal({
       handleClose();
     } catch (err: unknown) {
       const message =
-        err instanceof Error ? err.message : "Operation failed";
+        err instanceof Error ? err.message : tc("operationFailed");
       setError(message);
     } finally {
       setLoading(false);
@@ -262,12 +265,12 @@ export function BabelInterfaceModal({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit Babel Interface" : "Add Babel Interface"}
+            {isEditMode ? t("interfaceModal.titleEdit") : t("interfaceModal.titleAdd")}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? `Modify the Babel protocol configuration for ${existingInterface?.name}.`
-              : "Configure a new interface for the Babel routing protocol."}
+              ? t("interfaceModal.descriptionEdit", { name: existingInterface?.name ?? "" })
+              : t("interfaceModal.descriptionAdd")}
           </DialogDescription>
         </DialogHeader>
 
@@ -277,7 +280,7 @@ export function BabelInterfaceModal({
             <div className="space-y-4">
               {/* Interface Name */}
               <div className="space-y-2">
-                <Label htmlFor="babel-iface-name">Interface</Label>
+                <Label htmlFor="babel-iface-name">{t("fields.interface")}</Label>
                 <InterfaceSelect
                   value={name}
                   onValueChange={setName}
@@ -287,58 +290,57 @@ export function BabelInterfaceModal({
                   interfaces={availableInterfaces}
                 />
                 <p className="text-xs text-muted-foreground">
-                  The VyOS interface to enable Babel on.
+                  {t("interfaceModal.interfaceHelp")}
                 </p>
               </div>
 
               {/* Type */}
               <div className="space-y-2">
-                <Label htmlFor="babel-iface-type">Type</Label>
+                <Label htmlFor="babel-iface-type">{t("fields.type")}</Label>
                 <Select value={type} onValueChange={setType}>
                   <SelectTrigger id="babel-iface-type">
-                    <SelectValue placeholder="Select type (optional)" />
+                    <SelectValue placeholder={t("interfaceModal.typePlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="auto">Auto</SelectItem>
-                    <SelectItem value="wired">Wired</SelectItem>
-                    <SelectItem value="wireless">Wireless</SelectItem>
+                    <SelectItem value="auto">{t("interfaceModal.typeAuto")}</SelectItem>
+                    <SelectItem value="wired">{t("interfaceModal.typeWired")}</SelectItem>
+                    <SelectItem value="wireless">{t("interfaceModal.typeWireless")}</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Interface type determines default cost and hello interval.
+                  {t("interfaceModal.typeHelp")}
                 </p>
               </div>
 
               {/* Channel */}
               <div className="space-y-2">
-                <Label htmlFor="babel-iface-channel">Channel</Label>
+                <Label htmlFor="babel-iface-channel">{t("fields.channel")}</Label>
                 <Input
                   id="babel-iface-channel"
                   value={channel}
                   onChange={(e) => setChannel(e.target.value)}
-                  placeholder="1-254, interfering, or non-interfering"
+                  placeholder={t("interfaceModal.channelPlaceholder")}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Babel channel number (1-254) or &quot;interfering&quot; /
-                  &quot;non-interfering&quot;.
+                  {t("interfaceModal.channelHelp")}
                 </p>
               </div>
 
               {/* Split Horizon */}
               <div className="space-y-2">
-                <Label htmlFor="babel-iface-split-horizon">Split Horizon</Label>
+                <Label htmlFor="babel-iface-split-horizon">{t("fields.splitHorizon")}</Label>
                 <Select value={splitHorizon} onValueChange={setSplitHorizon}>
                   <SelectTrigger id="babel-iface-split-horizon">
-                    <SelectValue placeholder="Select split horizon (optional)" />
+                    <SelectValue placeholder={t("interfaceModal.splitHorizonPlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="default">Default</SelectItem>
-                    <SelectItem value="enable">Enable</SelectItem>
-                    <SelectItem value="disable">Disable</SelectItem>
+                    <SelectItem value="default">{tc("default")}</SelectItem>
+                    <SelectItem value="enable">{t("interfaceModal.enable")}</SelectItem>
+                    <SelectItem value="disable">{t("interfaceModal.disable")}</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Controls the split-horizon optimization for this interface.
+                  {t("interfaceModal.splitHorizonHelp")}
                 </p>
               </div>
 
@@ -356,11 +358,10 @@ export function BabelInterfaceModal({
                     htmlFor="babel-iface-timestamps"
                     className="cursor-pointer"
                   >
-                    Enable Timestamps
+                    {t("interfaceModal.enableTimestamps")}
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Enable timestamps on Hello and IHU packets for RTT
-                    estimation.
+                    {t("interfaceModal.timestampsHelp")}
                   </p>
                 </div>
               </div>
@@ -368,11 +369,11 @@ export function BabelInterfaceModal({
 
             {/* Timing & Cost Section */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium">Timing &amp; Cost</h4>
+              <h4 className="text-sm font-medium">{t("interfaceModal.timingCost")}</h4>
               <div className="grid grid-cols-2 gap-4">
                 {/* Hello Interval */}
                 <div className="space-y-2">
-                  <Label htmlFor="babel-iface-hello">Hello Interval (ms)</Label>
+                  <Label htmlFor="babel-iface-hello">{t("interfaceModal.helloInterval")}</Label>
                   <Input
                     id="babel-iface-hello"
                     type="number"
@@ -387,7 +388,7 @@ export function BabelInterfaceModal({
                 {/* Update Interval */}
                 <div className="space-y-2">
                   <Label htmlFor="babel-iface-update">
-                    Update Interval (ms)
+                    {t("interfaceModal.updateInterval")}
                   </Label>
                   <Input
                     id="babel-iface-update"
@@ -402,7 +403,7 @@ export function BabelInterfaceModal({
 
                 {/* RX Cost */}
                 <div className="space-y-2">
-                  <Label htmlFor="babel-iface-rxcost">RX Cost</Label>
+                  <Label htmlFor="babel-iface-rxcost">{t("interfaces.rxCost")}</Label>
                   <Input
                     id="babel-iface-rxcost"
                     type="number"
@@ -418,12 +419,12 @@ export function BabelInterfaceModal({
 
             {/* RTT Settings Section */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium">RTT Settings</h4>
+              <h4 className="text-sm font-medium">{t("interfaceModal.rttSettings")}</h4>
               <div className="grid grid-cols-2 gap-4">
                 {/* Max RTT Penalty */}
                 <div className="space-y-2">
                   <Label htmlFor="babel-iface-max-rtt">
-                    Max RTT Penalty (ms)
+                    {t("interfaceModal.maxRttPenalty")}
                   </Label>
                   <Input
                     id="babel-iface-max-rtt"
@@ -438,7 +439,7 @@ export function BabelInterfaceModal({
 
                 {/* RTT Decay */}
                 <div className="space-y-2">
-                  <Label htmlFor="babel-iface-rtt-decay">RTT Decay</Label>
+                  <Label htmlFor="babel-iface-rtt-decay">{t("interfaceModal.rttDecay")}</Label>
                   <Input
                     id="babel-iface-rtt-decay"
                     type="number"
@@ -452,7 +453,7 @@ export function BabelInterfaceModal({
 
                 {/* RTT Min */}
                 <div className="space-y-2">
-                  <Label htmlFor="babel-iface-rtt-min">RTT Min (ms)</Label>
+                  <Label htmlFor="babel-iface-rtt-min">{t("interfaceModal.rttMin")}</Label>
                   <Input
                     id="babel-iface-rtt-min"
                     type="number"
@@ -466,7 +467,7 @@ export function BabelInterfaceModal({
 
                 {/* RTT Max */}
                 <div className="space-y-2">
-                  <Label htmlFor="babel-iface-rtt-max">RTT Max (ms)</Label>
+                  <Label htmlFor="babel-iface-rtt-max">{t("interfaceModal.rttMax")}</Label>
                   <Input
                     id="babel-iface-rtt-max"
                     type="number"
@@ -492,18 +493,18 @@ export function BabelInterfaceModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Creating..."}
+                {isEditMode ? tc("saving") : t("fields.creating")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("fields.saveChanges")
             ) : (
-              "Add Interface"
+              t("fields.addInterface")
             )}
           </Button>
         </DialogFooter>

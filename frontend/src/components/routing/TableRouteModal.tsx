@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { showService, InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import type { RoutingTable, StaticRoute } from "@/lib/api/static-routes";
@@ -52,6 +53,8 @@ export function TableRouteModal({
   table,
   existing,
 }: TableRouteModalProps) {
+  const t = useTranslations("routingExtras");
+  const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +83,7 @@ export function TableRouteModal({
       ? validateTableRouteEdit(draft)
       : validateTableRouteCreate(draft);
     if (validationError) {
-      setError(validationError);
+      setError(t(`validation.${validationError}`));
       return;
     }
 
@@ -94,13 +97,13 @@ export function TableRouteModal({
           ? await submitTableRouteUpdate(table.table_id, existing, draft)
           : await submitTableRouteCreate(table.table_id, draft);
       if (result && result.success === false) {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
         return;
       }
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : isEdit ? "Failed to update route" : "Failed to create route");
+      setError(err instanceof Error ? err.message : isEdit ? t("tableRouteModal.updateFailed") : t("tableRouteModal.createFailed"));
     } finally {
       setLoading(false);
     }
@@ -128,13 +131,13 @@ export function TableRouteModal({
         <DialogHeader>
           <DialogTitle>
             {isEdit
-              ? `Edit Route in Table ${table?.table_id ?? ""}`
-              : `Add Route to Table ${table?.table_id ?? ""}`}
+              ? t("tableRouteModal.editTitle", { id: String(table?.table_id ?? "") })
+              : t("tableRouteModal.addTitle", { id: String(table?.table_id ?? "") })}
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? `Modify route ${existing.destination} (${existing.route_type.toUpperCase()})`
-              : "Create a new static route in this routing table"}
+              ? t("tableRouteModal.editDescription", { destination: existing.destination, type: existing.route_type.toUpperCase() })
+              : t("tableRouteModal.createDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -148,16 +151,16 @@ export function TableRouteModal({
 
           {isEdit ? (
             <div className="space-y-2">
-              <Label>Destination (CIDR)</Label>
+              <Label>{t("tableRouteModal.destinationCidr")}</Label>
               <Input value={lockedDestination.value} disabled className="bg-muted font-mono" />
               <p className="text-xs text-muted-foreground">
-                Destination cannot be changed. Delete and recreate to change destination.
+                {t("tableRouteModal.destinationLocked")}
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Route Type</Label>
+                <Label>{t("tableRouteModal.routeType")}</Label>
                 <Select value={draft.routeType} onValueChange={(v) => patch({ routeType: v as "ipv4" | "ipv6" })}>
                   <SelectTrigger>
                     <SelectValue />
@@ -169,7 +172,7 @@ export function TableRouteModal({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="destination">Destination (CIDR)</Label>
+                <Label htmlFor="destination">{t("tableRouteModal.destinationCidr")}</Label>
                 <Input
                   id="destination"
                   placeholder={draft.routeType === "ipv4" ? "10.0.0.0/8" : "2001:db8::/32"}
@@ -181,10 +184,10 @@ export function TableRouteModal({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description (optional)</Label>
+            <Label htmlFor="description">{t("shared.descriptionOptional")}</Label>
             <Input
               id="description"
-              placeholder="Route description"
+              placeholder={t("tableRouteModal.descriptionPlaceholder")}
               value={draft.description}
               onChange={(e) => patch({ description: e.target.value })}
             />
@@ -192,23 +195,23 @@ export function TableRouteModal({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Next Hops</Label>
+              <Label>{t("shared.nextHops")}</Label>
               <Button type="button" variant="outline" size="sm" onClick={addNextHop}>
                 <Plus className="h-4 w-4 mr-1" />
-                Add
+                {tc("add")}
               </Button>
             </div>
             {draft.nextHops.map((nh, index) => (
               <div key={index} className="border rounded-lg p-3 space-y-2">
                 <div className="flex items-center gap-2">
                   <Input
-                    placeholder="Next-hop address"
+                    placeholder={t("shared.nextHopAddress")}
                     value={nh.address}
                     onChange={(e) => updateNextHop(index, "address", e.target.value)}
                     className="flex-1"
                   />
                   <Input
-                    placeholder="Distance"
+                    placeholder={t("shared.distance")}
                     type="number"
                     min="1"
                     max="255"
@@ -226,7 +229,7 @@ export function TableRouteModal({
                     checked={nh.disable}
                     onCheckedChange={(checked) => updateNextHop(index, "disable", !!checked)}
                   />
-                  <Label htmlFor={`nh-disable-${index}`} className="text-sm">Disable</Label>
+                  <Label htmlFor={`nh-disable-${index}`} className="text-sm">{t("shared.disable")}</Label>
                 </div>
               </div>
             ))}
@@ -234,10 +237,10 @@ export function TableRouteModal({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Interfaces</Label>
+              <Label>{t("shared.interfaces")}</Label>
               <Button type="button" variant="outline" size="sm" onClick={addInterface}>
                 <Plus className="h-4 w-4 mr-1" />
-                Add
+                {tc("add")}
               </Button>
             </div>
             {draft.interfaces.map((iface, index) => (
@@ -248,10 +251,10 @@ export function TableRouteModal({
                     onValueChange={(value) => updateInterface(index, "interface", value)}
                     interfaces={availableInterfaces}
                     className="flex-1"
-                    placeholder="Select interface..."
+                    placeholder={t("shared.selectInterface")}
                   />
                   <Input
-                    placeholder="Distance"
+                    placeholder={t("shared.distance")}
                     type="number"
                     min="1"
                     max="255"
@@ -269,7 +272,7 @@ export function TableRouteModal({
                     checked={iface.disable}
                     onCheckedChange={(checked) => updateInterface(index, "disable", !!checked)}
                   />
-                  <Label htmlFor={`iface-disable-${index}`} className="text-sm">Disable</Label>
+                  <Label htmlFor={`iface-disable-${index}`} className="text-sm">{t("shared.disable")}</Label>
                 </div>
               </div>
             ))}
@@ -285,11 +288,11 @@ export function TableRouteModal({
                     patch({ isBlackhole: !!checked, isReject: checked ? false : draft.isReject });
                   }}
                 />
-                <Label htmlFor="blackhole">Blackhole</Label>
+                <Label htmlFor="blackhole">{t("shared.blackhole")}</Label>
               </div>
               {draft.isBlackhole && (
                 <Input
-                  placeholder="Distance"
+                  placeholder={t("shared.distance")}
                   type="number"
                   min="1"
                   max="255"
@@ -307,11 +310,11 @@ export function TableRouteModal({
                     patch({ isReject: !!checked, isBlackhole: checked ? false : draft.isBlackhole });
                   }}
                 />
-                <Label htmlFor="reject">Reject</Label>
+                <Label htmlFor="reject">{t("shared.reject")}</Label>
               </div>
               {draft.isReject && (
                 <Input
-                  placeholder="Distance"
+                  placeholder={t("shared.distance")}
                   type="number"
                   min="1"
                   max="255"
@@ -325,11 +328,11 @@ export function TableRouteModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? "Save Changes" : "Create Route"}
+            {isEdit ? t("shared.saveChanges") : t("shared.createRoute")}
           </Button>
         </DialogFooter>
       </DialogContent>

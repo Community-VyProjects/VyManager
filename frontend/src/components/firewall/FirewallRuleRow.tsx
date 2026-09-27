@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Pencil, Trash2, Copy, ArrowRight, Globe } from "lucide-react";
@@ -47,6 +48,7 @@ export function FirewallRuleRow({
   groups = [],
   visibleOrderedColumns = DEFAULT_COLUMNS,
 }: FirewallRuleRowProps) {
+  const t = useTranslations("firewallPolicies");
   const getGroupMembers = (groupName: string): string[] => {
     const cleanName = groupName.startsWith("!") ? groupName.substring(1) : groupName;
     const group = groups.find((g) => g.name === cleanName);
@@ -78,7 +80,7 @@ export function FirewallRuleRow({
             {rule.protocol ? (
               <span className="text-sm font-medium text-foreground uppercase">{rule.protocol}</span>
             ) : (
-              <span className="text-sm text-muted-foreground">all</span>
+              <span className="text-sm text-muted-foreground">{t("rule.all")}</span>
             )}
           </TableCell>
         );
@@ -98,12 +100,12 @@ export function FirewallRuleRow({
                 {rule.source.group &&
                   Object.entries(rule.source.group)
                     .filter(([t]) => t !== "port-group")
-                    .map(([t, name]) => {
+                    .map(([groupType, name]) => {
                       const inv = name.startsWith("!");
                       const display = inv ? name.substring(1) : name;
                       const members = getGroupMembers(name);
                       return (
-                        <TooltipProvider key={t}>
+                        <TooltipProvider key={groupType}>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Badge variant="outline" className={cn("text-xs cursor-help", inv && "bg-orange-500/10 text-orange-500 border-orange-500/20")}>
@@ -112,7 +114,7 @@ export function FirewallRuleRow({
                             </TooltipTrigger>
                             <TooltipContent>
                               <div className="max-w-xs">
-                                <p className="font-semibold text-xs mb-2">{inv ? `NOT ${display}` : display}</p>
+                                <p className="font-semibold text-xs mb-2">{inv ? t("rule.not", { name: display }) : display}</p>
                                 {members.length > 0 ? (
                                   <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
                                     {members.map((m, i) => (
@@ -120,7 +122,7 @@ export function FirewallRuleRow({
                                     ))}
                                   </div>
                                 ) : (
-                                  <p className="text-xs text-muted-foreground">No members</p>
+                                  <p className="text-xs text-muted-foreground">{t("rule.noMembers")}</p>
                                 )}
                               </div>
                             </TooltipContent>
@@ -138,14 +140,14 @@ export function FirewallRuleRow({
                             {rule.source.geoip.inverse_match && "!"}
                             {rule.source.geoip.country_code.length === 1
                               ? rule.source.geoip.country_code[0].toUpperCase()
-                              : `Countries (${rule.source.geoip.country_code.length})`}
+                              : t("rule.countries", { count: rule.source.geoip.country_code.length })}
                           </span>
                         </Badge>
                       </TooltipTrigger>
                       <TooltipContent>
                         <div className="max-w-xs">
                           <p className="font-semibold text-xs mb-2">
-                            {rule.source.geoip.inverse_match ? "Excluded Countries" : "Source Countries"}
+                            {rule.source.geoip.inverse_match ? t("rule.excludedCountries") : t("rule.sourceCountries")}
                           </p>
                           <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
                             {rule.source.geoip.country_code.map((c, i) => (
@@ -159,7 +161,7 @@ export function FirewallRuleRow({
                 )}
               </div>
             ) : (
-              <span className="text-sm text-muted-foreground">any</span>
+              <span className="text-sm text-muted-foreground">{t("rule.any")}</span>
             )}
           </TableCell>
         );
@@ -190,7 +192,7 @@ export function FirewallRuleRow({
                           </TooltipTrigger>
                           <TooltipContent>
                             <div className="max-w-xs">
-                              <p className="font-semibold text-xs mb-2">{inv ? `NOT ${display}` : display}</p>
+                              <p className="font-semibold text-xs mb-2">{inv ? t("rule.not", { name: display }) : display}</p>
                               {members.length > 0 ? (
                                 <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
                                   {members.map((m, i) => (
@@ -198,7 +200,7 @@ export function FirewallRuleRow({
                                   ))}
                                 </div>
                               ) : (
-                                <p className="text-xs text-muted-foreground">No ports</p>
+                                <p className="text-xs text-muted-foreground">{t("rule.noPorts")}</p>
                               )}
                             </div>
                           </TooltipContent>
@@ -208,7 +210,7 @@ export function FirewallRuleRow({
                   })()}
               </div>
             ) : (
-              <span className="text-sm text-muted-foreground">any</span>
+              <span className="text-sm text-muted-foreground">{t("rule.any")}</span>
             )}
           </TableCell>
         );
@@ -228,12 +230,12 @@ export function FirewallRuleRow({
                 {rule.destination.group &&
                   Object.entries(rule.destination.group)
                     .filter(([t]) => t !== "port-group")
-                    .map(([t, name]) => {
+                    .map(([groupType, name]) => {
                       const inv = name.startsWith("!");
                       const display = inv ? name.substring(1) : name;
                       const members = getGroupMembers(name);
                       return (
-                        <TooltipProvider key={t}>
+                        <TooltipProvider key={groupType}>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Badge variant="outline" className={cn("text-xs cursor-help", inv && "bg-orange-500/10 text-orange-500 border-orange-500/20")}>
@@ -242,7 +244,7 @@ export function FirewallRuleRow({
                             </TooltipTrigger>
                             <TooltipContent>
                               <div className="max-w-xs">
-                                <p className="font-semibold text-xs mb-2">{inv ? `NOT ${display}` : display}</p>
+                                <p className="font-semibold text-xs mb-2">{inv ? t("rule.not", { name: display }) : display}</p>
                                 {members.length > 0 ? (
                                   <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
                                     {members.map((m, i) => (
@@ -250,7 +252,7 @@ export function FirewallRuleRow({
                                     ))}
                                   </div>
                                 ) : (
-                                  <p className="text-xs text-muted-foreground">No members</p>
+                                  <p className="text-xs text-muted-foreground">{t("rule.noMembers")}</p>
                                 )}
                               </div>
                             </TooltipContent>
@@ -268,14 +270,14 @@ export function FirewallRuleRow({
                             {rule.destination.geoip.inverse_match && "!"}
                             {rule.destination.geoip.country_code.length === 1
                               ? rule.destination.geoip.country_code[0].toUpperCase()
-                              : `Countries (${rule.destination.geoip.country_code.length})`}
+                              : t("rule.countries", { count: rule.destination.geoip.country_code.length })}
                           </span>
                         </Badge>
                       </TooltipTrigger>
                       <TooltipContent>
                         <div className="max-w-xs">
                           <p className="font-semibold text-xs mb-2">
-                            {rule.destination.geoip.inverse_match ? "Excluded Countries" : "Destination Countries"}
+                            {rule.destination.geoip.inverse_match ? t("rule.excludedCountries") : t("rule.destinationCountries")}
                           </p>
                           <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
                             {rule.destination.geoip.country_code.map((c, i) => (
@@ -289,7 +291,7 @@ export function FirewallRuleRow({
                 )}
               </div>
             ) : (
-              <span className="text-sm text-muted-foreground">any</span>
+              <span className="text-sm text-muted-foreground">{t("rule.any")}</span>
             )}
           </TableCell>
         );
@@ -320,7 +322,7 @@ export function FirewallRuleRow({
                           </TooltipTrigger>
                           <TooltipContent>
                             <div className="max-w-xs">
-                              <p className="font-semibold text-xs mb-2">{inv ? `NOT ${display}` : display}</p>
+                              <p className="font-semibold text-xs mb-2">{inv ? t("rule.not", { name: display }) : display}</p>
                               {members.length > 0 ? (
                                 <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
                                   {members.map((m, i) => (
@@ -328,7 +330,7 @@ export function FirewallRuleRow({
                                   ))}
                                 </div>
                               ) : (
-                                <p className="text-xs text-muted-foreground">No ports</p>
+                                <p className="text-xs text-muted-foreground">{t("rule.noPorts")}</p>
                               )}
                             </div>
                           </TooltipContent>
@@ -338,7 +340,7 @@ export function FirewallRuleRow({
                   })()}
               </div>
             ) : (
-              <span className="text-sm text-muted-foreground">any</span>
+              <span className="text-sm text-muted-foreground">{t("rule.any")}</span>
             )}
           </TableCell>
         );
@@ -370,7 +372,7 @@ export function FirewallRuleRow({
         return (
           <TableCell key="status">
             <Badge variant="outline" className={rule.disable ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-green-500/10 text-green-500 border-green-500/20"}>
-              {rule.disable ? "disabled" : "enabled"}
+              {rule.disable ? t("rule.disabled") : t("rule.enabled")}
             </Badge>
           </TableCell>
         );
@@ -379,9 +381,9 @@ export function FirewallRuleRow({
         return (
           <TableCell key="log">
             {rule.log ? (
-              <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">on</Badge>
+              <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">{t("rule.logOn")}</Badge>
             ) : (
-              <span className="text-sm text-muted-foreground">off</span>
+              <span className="text-sm text-muted-foreground">{t("rule.logOff")}</span>
             )}
           </TableCell>
         );
@@ -396,7 +398,7 @@ export function FirewallRuleRow({
                 <span>{rule.interface.outbound || "*"}</span>
               </div>
             ) : (
-              <span className="text-sm text-muted-foreground">any</span>
+              <span className="text-sm text-muted-foreground">{t("rule.any")}</span>
             )}
           </TableCell>
         );
@@ -505,7 +507,7 @@ export function FirewallRuleRow({
                 {rule.connection_status.nat}
               </Badge>
             ) : (
-              <span className="text-sm text-muted-foreground">any</span>
+              <span className="text-sm text-muted-foreground">{t("rule.any")}</span>
             )}
           </TableCell>
         );

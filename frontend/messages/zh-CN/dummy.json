@@ -1,1 +1,58 @@
-{}
+{
+  "delete": {
+    "failed": "删除虚拟接口失败",
+    "title": "删除接口：{name}",
+    "confirm": "确定要删除此虚拟接口吗？此操作无法撤销。",
+    "addressCount": "{count} 个地址",
+    "submit": "删除接口"
+  },
+  "modal": {
+    "editTitle": "编辑虚拟接口",
+    "createTitle": "创建虚拟接口",
+    "editingInterface": "正在编辑接口 <code>{name}</code>",
+    "createDescription": "创建一个新的纯软件虚拟接口。",
+    "tabs": {
+      "basic": "基本",
+      "addresses": "地址",
+      "advanced": "高级"
+    },
+    "interfaceName": "接口名称",
+    "nameImmutable": "接口名称不可更改。",
+    "namePatternHint": "必须符合格式：dum0、dum1、dum2、…",
+    "descriptionPlaceholder": "可选描述",
+    "mtuHint": "有效范围：68–16000",
+    "disableInterface": "禁用接口",
+    "ipAddresses": "IP 地址",
+    "addressesHint": "每行一个地址，使用 IPv4 或 IPv6 CIDR 格式",
+    "eui64Prefixes": "IPv6 EUI-64 前缀",
+    "eui64Hint": "每行一个 /64 前缀",
+    "noDefaultLinkLocal": "不使用默认链路本地地址",
+    "ipSettings": "IP 设置",
+    "disableIpv4Forwarding": "禁用 IPv4 转发",
+    "sourceValidation": "源地址验证",
+    "sourceValidationStrict": "严格",
+    "sourceValidationLoose": "宽松",
+    "sourceValidationDisable": "禁用",
+    "ipv6Settings": "IPv6 设置",
+    "disableIpv6Forwarding": "禁用 IPv6 转发",
+    "trafficMirroring": "流量镜像",
+    "mirrorIngress": "镜像入站流量 →",
+    "mirrorEgress": "镜像出站流量 →",
+    "redirectTo": "重定向到",
+    "hardware": "硬件",
+    "macAddress": "MAC 地址",
+    "networkNamespace": "网络命名空间",
+    "namespacePlaceholder": "命名空间名称",
+    "creating": "正在创建...",
+    "saveChanges": "保存更改",
+    "createInterface": "创建接口",
+    "errors": {
+      "mtuRange": "MTU 必须介于 68 到 16000 之间",
+      "nameRequired": "接口名称为必填项",
+      "namePattern": "名称必须为 dum0、dum1 等",
+      "nameExists": "接口 {name} 已存在",
+      "updateFailed": "更新虚拟接口失败",
+      "createFailed": "创建虚拟接口失败"
+    }
+  }
+}

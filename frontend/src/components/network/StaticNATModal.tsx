@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { natService } from "@/lib/api/nat";
 import type { StaticNATRule } from "@/lib/api/nat";
 
@@ -19,6 +20,8 @@ interface StaticNATModalProps {
 }
 
 export function StaticNATModal({ open, onOpenChange, existing, onSuccess }: StaticNATModalProps) {
+  const t = useTranslations("nat");
+  const tc = useTranslations("common");
   const isEdit = !!existing;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,11 +84,11 @@ export function StaticNATModal({ open, onOpenChange, existing, onSuccess }: Stat
 
   const handleSubmit = async () => {
     if (!destinationAddress.trim()) {
-      setError("Destination address is required");
+      setError(t("staticModal.destinationRequired"));
       return;
     }
     if (!translationAddress.trim()) {
-      setError("Translation address is required");
+      setError(t("staticModal.translationRequired"));
       return;
     }
 
@@ -111,7 +114,7 @@ export function StaticNATModal({ open, onOpenChange, existing, onSuccess }: Stat
       handleClose();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : isEdit ? "Failed to update static NAT rule" : "Failed to create static NAT rule");
+      setError(err instanceof Error ? err.message : isEdit ? t("staticModal.updateFailed") : t("staticModal.createFailed"));
     } finally {
       setLoading(false);
     }
@@ -122,12 +125,12 @@ export function StaticNATModal({ open, onOpenChange, existing, onSuccess }: Stat
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? `Edit Static NAT Rule ${existing?.rule_number}` : "Create Static NAT Rule"}
+            {isEdit ? t("staticModal.editTitle", { number: String(existing?.rule_number) }) : t("staticModal.createTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Modify the static NAT rule configuration (1:1 mapping)."
-              : "Create a new static NAT rule for one-to-one address translation."}
+              ? t("staticModal.editDescription")
+              : t("staticModal.createDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -142,53 +145,53 @@ export function StaticNATModal({ open, onOpenChange, existing, onSuccess }: Stat
           )}
 
           <div className="space-y-2 bg-muted/30 border border-muted rounded-lg p-4">
-            <Label htmlFor="rule-number">{isEdit ? "Rule Number" : "Rule Number (Auto-assigned)"}</Label>
+            <Label htmlFor="rule-number">{isEdit ? t("fields.ruleNumber") : t("staticModal.ruleNumberAuto")}</Label>
             <div className="text-2xl font-mono font-bold text-primary">
               {isEdit ? existing?.rule_number : ruleNumber}
             </div>
             {!isEdit && (
               <p className="text-xs text-muted-foreground">
-                This rule will be automatically assigned number {ruleNumber}
+                {t("staticModal.autoAssignedHint", { number: String(ruleNumber) })}
               </p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{tc("description")}</Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description for this rule"
+              placeholder={t("form.descriptionPlaceholder")}
               rows={2}
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="destination-address">
-              Destination Address {isEdit ? "(External)" : <span className="text-destructive">*</span>}
+              {t("fields.destinationAddress")} {isEdit ? t("staticModal.external") : <span className="text-destructive">*</span>}
             </Label>
             <Input
               id="destination-address"
               value={destinationAddress}
               onChange={(e) => setDestinationAddress(e.target.value)}
-              placeholder="e.g., 203.0.113.10"
+              placeholder={t("form.example", { value: "203.0.113.10" })}
               className="font-mono"
             />
             <p className="text-xs text-muted-foreground">
-              {isEdit ? "The external/public IP address" : "The external/public IP address to translate from"}
+              {isEdit ? t("staticModal.destinationHelpEdit") : t("staticModal.destinationHelpCreate")}
             </p>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="inbound-interface">
-              {isEdit ? "Inbound Interface (Optional)" : "Inbound Interface"}
+              {isEdit ? t("staticModal.inboundInterfaceOptional") : t("fields.inboundInterface")}
             </Label>
             <InterfaceSelect
               value={inboundInterface}
               onValueChange={setInboundInterface}
               id="inbound-interface"
-              placeholder={isEdit ? "Select interface (optional)" : "Select interface"}
+              placeholder={isEdit ? t("staticModal.selectInterfaceOptional") : t("form.selectInterface")}
             />
             {isEdit && inboundInterface && (
               <Button
@@ -197,38 +200,37 @@ export function StaticNATModal({ open, onOpenChange, existing, onSuccess }: Stat
                 onClick={() => setInboundInterface("")}
                 className="h-6 text-xs text-muted-foreground hover:text-foreground"
               >
-                Clear selection
+                {t("staticModal.clearSelection")}
               </Button>
             )}
             {!isEdit && (
               <p className="text-xs text-muted-foreground">
-                The interface on which the traffic arrives
+                {t("staticModal.inboundHelp")}
               </p>
             )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="translation-address">
-              Translation Address {isEdit ? "(Internal)" : <span className="text-destructive">*</span>}
+              {t("fields.translationAddress")} {isEdit ? t("staticModal.internal") : <span className="text-destructive">*</span>}
             </Label>
             <Input
               id="translation-address"
               value={translationAddress}
               onChange={(e) => setTranslationAddress(e.target.value)}
-              placeholder="e.g., 192.168.1.10"
+              placeholder={t("form.example", { value: "192.168.1.10" })}
               className="font-mono"
             />
             <p className="text-xs text-muted-foreground">
-              The internal/private IP address to translate to
+              {t("staticModal.translationHelp")}
             </p>
           </div>
 
           {!isEdit && (
             <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 space-y-2">
-              <p className="text-sm font-semibold text-blue-500">Static NAT Mapping</p>
+              <p className="text-sm font-semibold text-blue-500">{t("staticModal.mappingTitle")}</p>
               <p className="text-xs text-muted-foreground">
-                Static NAT creates a one-to-one mapping between external and internal IP addresses.
-                Traffic arriving at the destination address will be translated to the translation address.
+                {t("staticModal.mappingHelp")}
               </p>
               <p className="text-xs text-muted-foreground font-mono">
                 {destinationAddress || "203.0.113.10"} → {translationAddress || "192.168.1.10"}
@@ -239,10 +241,10 @@ export function StaticNATModal({ open, onOpenChange, existing, onSuccess }: Stat
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? (isEdit ? "Updating..." : "Creating...") : isEdit ? "Update Rule" : "Create Rule"}
+            {loading ? (isEdit ? t("form.updating") : t("form.creating")) : isEdit ? t("form.updateRule") : t("form.createRule")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -53,6 +54,8 @@ export function EditZoneModal({
   peerZones,
   isLastNonLocalZone,
 }: EditZoneModalProps) {
+  const t = useTranslations("firewallZones");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -138,7 +141,7 @@ export function EditZoneModal({
       handleClose();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update zone");
+      setError(err instanceof Error ? err.message : t("editZone.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -156,7 +159,7 @@ export function EditZoneModal({
       handleClose();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete zone");
+      setError(err instanceof Error ? err.message : t("editZone.deleteFailed"));
     } finally {
       setDeleteLoading(false);
     }
@@ -168,11 +171,11 @@ export function EditZoneModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Zone: {zone.name}</DialogTitle>
+          <DialogTitle>{t("editZone.title", { name: zone.name })}</DialogTitle>
           <DialogDescription>
             {zone.local_zone
-              ? "The LOCAL zone is managed automatically. You can update the description and default action."
-              : "Modify firewall zone configuration. Zone name cannot be changed."}
+              ? t("editZone.descriptionLocal")
+              : t("editZone.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -186,38 +189,38 @@ export function EditZoneModal({
 
           {/* Basic */}
           <div className="space-y-4">
-            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Basic</p>
+            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t("zoneForm.basic")}</p>
 
             <div className="space-y-2">
-              <Label>Zone Name</Label>
+              <Label>{t("zoneTable.zoneName")}</Label>
               <Input value={zone.name} disabled className="font-mono bg-muted/50" />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-description">Description</Label>
+              <Label htmlFor="edit-description">{tc("description")}</Label>
               <Input
                 id="edit-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional description"
+                placeholder={t("zoneForm.descriptionPlaceholder")}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-default-action">Default Action</Label>
+                <Label htmlFor="edit-default-action">{t("zoneForm.defaultAction")}</Label>
                 <Select value={defaultAction} onValueChange={setDefaultAction}>
                   <SelectTrigger id="edit-default-action">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="drop">Drop</SelectItem>
-                    <SelectItem value="reject">Reject</SelectItem>
+                    <SelectItem value="drop">{t("zoneForm.drop")}</SelectItem>
+                    <SelectItem value="reject">{t("zoneForm.reject")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Default Log</Label>
+                <Label>{t("zoneForm.defaultLog")}</Label>
                 <div className="flex items-center gap-2 h-10">
                   <Checkbox
                     id="edit-default-log"
@@ -225,7 +228,7 @@ export function EditZoneModal({
                     onCheckedChange={(v) => setDefaultLog(!!v)}
                   />
                   <label htmlFor="edit-default-log" className="text-sm cursor-pointer">
-                    Log default-action packets
+                    {t("zoneForm.logDefault")}
                   </label>
                 </div>
               </div>
@@ -235,14 +238,14 @@ export function EditZoneModal({
           {/* Interfaces (only for non-local zones) */}
           {!zone.local_zone && (
             <div className="space-y-3">
-              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Interfaces</p>
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t("zoneForm.interfaces")}</p>
 
               <div className="space-y-2">
-                <Label>Member Interfaces</Label>
+                <Label>{t("zoneForm.memberInterfaces")}</Label>
                 {loadingInterfaces ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading interfaces…
+                    {t("zoneForm.loadingInterfaces")}
                   </div>
                 ) : availableInterfaces.length > 0 ? (
                   <div className="border rounded-md max-h-44 overflow-y-auto p-2 space-y-1">
@@ -266,7 +269,7 @@ export function EditZoneModal({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No interfaces found</p>
+                  <p className="text-sm text-muted-foreground">{t("zoneForm.noInterfaces")}</p>
                 )}
 
                 {interfaces.length > 0 && (
@@ -286,7 +289,7 @@ export function EditZoneModal({
 
               {supportsVrf && (
                 <div className="space-y-2">
-                  <Label>Member VRFs</Label>
+                  <Label>{t("zoneForm.memberVrfs")}</Label>
                   <VrfSelect
                     value=""
                     onValueChange={(v) => {
@@ -294,7 +297,7 @@ export function EditZoneModal({
                     }}
                     filter={(v) => !vrfs.includes(v.name)}
                     includeNone={false}
-                    placeholder="Add VRF"
+                    placeholder={t("zoneForm.addVrf")}
                     className="font-mono"
                   />
                   {vrfs.length > 0 && (
@@ -318,23 +321,23 @@ export function EditZoneModal({
           {/* Intra-Zone Filtering (non-local zones only) */}
           {!zone.local_zone && (
             <div className="space-y-3">
-              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Intra-Zone Filtering</p>
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t("editZone.intraTitle")}</p>
               <div className="space-y-2">
-                <Label>Mode</Label>
+                <Label>{t("editZone.mode")}</Label>
                 <Select value={intraMode} onValueChange={(v) => setIntraMode(v as IntraMode)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="chain">Firewall Chains</SelectItem>
-                    <SelectItem value="accept">Accept All</SelectItem>
-                    <SelectItem value="drop">Drop All</SelectItem>
-                    <SelectItem value="none">Default</SelectItem>
+                    <SelectItem value="chain">{t("editZone.modeChain")}</SelectItem>
+                    <SelectItem value="accept">{t("editZone.modeAccept")}</SelectItem>
+                    <SelectItem value="drop">{t("editZone.modeDrop")}</SelectItem>
+                    <SelectItem value="none">{tc("default")}</SelectItem>
                   </SelectContent>
                 </Select>
                 {intraMode === "chain" && (
                   <div className="text-xs text-muted-foreground space-y-1 rounded-md border px-3 py-2 bg-muted/30">
-                    <p>Intra-zone traffic is filtered by dedicated ruleset chains.</p>
+                    <p>{t("editZone.chainHelp")}</p>
                     <p className="mt-1">
                       IPv4: <span className="font-mono text-foreground">{zone.intra_zone_filtering?.firewall_name ?? `${zone.name}-${zone.name}`}</span>
                     </p>
@@ -344,13 +347,13 @@ export function EditZoneModal({
                   </div>
                 )}
                 {intraMode === "accept" && (
-                  <p className="text-xs text-muted-foreground">All intra-zone traffic is accepted without inspection.</p>
+                  <p className="text-xs text-muted-foreground">{t("editZone.acceptHelp")}</p>
                 )}
                 {intraMode === "drop" && (
-                  <p className="text-xs text-muted-foreground">All intra-zone traffic is dropped.</p>
+                  <p className="text-xs text-muted-foreground">{t("editZone.dropHelp")}</p>
                 )}
                 {intraMode === "none" && (
-                  <p className="text-xs text-muted-foreground">No explicit intra-zone filtering. Zone default action applies.</p>
+                  <p className="text-xs text-muted-foreground">{t("editZone.noneHelp")}</p>
                 )}
               </div>
             </div>
@@ -359,7 +362,7 @@ export function EditZoneModal({
           {/* Delete warning for last zone */}
           {confirmDelete && isLastNonLocalZone && (
             <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-sm text-amber-700 dark:text-amber-400">
-              This is the last zone. Deleting it will also remove the LOCAL zone and all associated firewall chains.
+              {t("editZone.lastZoneWarning")}
             </div>
           )}
         </div>
@@ -376,12 +379,12 @@ export function EditZoneModal({
               {deleteLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                  Deleting…
+                  {t("editZone.deleting")}
                 </>
               ) : (
                 <>
                   <Trash2 className="h-4 w-4 mr-1" />
-                  {confirmDelete ? "Confirm Delete" : "Delete Zone"}
+                  {confirmDelete ? t("editZone.confirmDelete") : t("editZone.deleteZone")}
                 </>
               )}
             </Button>
@@ -389,14 +392,14 @@ export function EditZoneModal({
           <div className="flex gap-2 ml-auto">
             {confirmDelete && (
               <Button variant="outline" onClick={() => setConfirmDelete(false)} disabled={deleteLoading}>
-                Cancel Delete
+                {t("editZone.cancelDelete")}
               </Button>
             )}
             <Button variant="outline" onClick={handleClose} disabled={loading || deleteLoading}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button onClick={handleSave} disabled={loading || deleteLoading}>
-              {loading ? "Saving..." : "Save Changes"}
+              {loading ? tc("saving") : t("editZone.saveChanges")}
             </Button>
           </div>
         </DialogFooter>

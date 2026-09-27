@@ -1,1 +1,121 @@
-{}
+{
+  "fields": {
+    "interface": "接口",
+    "type": "类型",
+    "channel": "信道",
+    "splitHorizon": "水平分割",
+    "editParameters": "编辑参数",
+    "addInterface": "添加接口",
+    "saveChanges": "保存更改",
+    "creating": "正在创建..."
+  },
+  "values": {
+    "default": "默认",
+    "on": "开",
+    "off": "关",
+    "active": "已启用"
+  },
+  "page": {
+    "title": "Babel 协议",
+    "subtitle": "适用于 Mesh 网络的距离矢量路由协议",
+    "loadFailed": "加载 Babel 配置失败",
+    "saveParametersFailed": "保存参数失败",
+    "saveRedistributionFailed": "保存重分发设置失败",
+    "saveDistributeListFailed": "保存分发列表失败"
+  },
+  "stats": {
+    "interfaces": "接口",
+    "diversity": "多样性",
+    "redistributed": "已重分发",
+    "filters": "过滤器"
+  },
+  "tabs": {
+    "interfaces": "接口",
+    "parameters": "参数",
+    "redistribute": "重分发",
+    "distributeList": "分发列表"
+  },
+  "interfaces": {
+    "description": "在网络接口上配置 Babel",
+    "emptyTitle": "尚未配置 Babel 接口",
+    "emptyHint": "添加接口以开始使用 Babel 路由",
+    "helloInt": "Hello 间隔",
+    "updateInt": "更新间隔",
+    "rxCost": "RX 开销",
+    "timestamps": "时间戳"
+  },
+  "parameters": {
+    "description": "Babel 全局协议参数",
+    "diversityRouting": "多样性路由",
+    "enableDiversity": "启用多样性感知路由",
+    "diversityFactor": "多样性因子",
+    "diversityFactorHelp": "乘法因子（1-256，默认：256）",
+    "timing": "计时",
+    "resendDelay": "重发延迟",
+    "resendDelayHelp": "重发前的等待时间（20-655340 ms，默认：2000）",
+    "smoothingHalfLife": "平滑半衰期",
+    "smoothingHalfLifeHelp": "平滑半衰期（0-65534 秒，默认：4）"
+  },
+  "redistribute": {
+    "description": "选择要重分发到 Babel 的协议",
+    "ipv4Protocols": "IPv4 协议",
+    "ipv6Protocols": "IPv6 协议"
+  },
+  "distributeList": {
+    "description": "使用访问列表和前缀列表配置路由过滤",
+    "ipv4Global": "IPv4 全局过滤器",
+    "ipv6Global": "IPv6 全局过滤器",
+    "accessListIn": "入站访问列表",
+    "accessListOut": "出站访问列表",
+    "prefixListIn": "入站前缀列表",
+    "prefixListOut": "出站前缀列表",
+    "perInterface": "按接口过滤器",
+    "addressFamily": "地址族",
+    "aclIn": "入站 ACL",
+    "aclOut": "出站 ACL",
+    "prefixIn": "入站前缀",
+    "prefixOut": "出站前缀"
+  },
+  "delete": {
+    "title": "删除 Babel 接口",
+    "description": "确定要删除 Babel 接口 <mono>{name}</mono> 吗？此操作无法撤销。",
+    "confirm": "删除接口"
+  },
+  "interfaceModal": {
+    "titleEdit": "编辑 Babel 接口",
+    "titleAdd": "添加 Babel 接口",
+    "descriptionEdit": "修改 {name} 的 Babel 协议配置。",
+    "descriptionAdd": "为 Babel 路由协议配置新接口。",
+    "interfaceHelp": "要启用 Babel 的 VyOS 接口。",
+    "typePlaceholder": "选择类型（可选）",
+    "typeAuto": "自动",
+    "typeWired": "有线",
+    "typeWireless": "无线",
+    "typeHelp": "接口类型决定默认开销和 Hello 间隔。",
+    "channelPlaceholder": "1-254、interfering 或 non-interfering",
+    "channelHelp": "Babel 信道编号 (1-254) 或 \"interfering\" / \"non-interfering\"。",
+    "splitHorizonPlaceholder": "选择水平分割（可选）",
+    "enable": "启用",
+    "disable": "禁用",
+    "splitHorizonHelp": "控制此接口的水平分割优化。",
+    "enableTimestamps": "启用时间戳",
+    "timestampsHelp": "在 Hello 和 IHU 报文中启用时间戳，用于估算 RTT。",
+    "timingCost": "计时与开销",
+    "helloInterval": "Hello 间隔 (ms)",
+    "updateInterval": "更新间隔 (ms)",
+    "rttSettings": "RTT 设置",
+    "maxRttPenalty": "最大 RTT 惩罚 (ms)",
+    "rttDecay": "RTT 衰减",
+    "rttMin": "RTT 最小值 (ms)",
+    "rttMax": "RTT 最大值 (ms)",
+    "selectInterface": "请选择接口",
+    "channelInvalid": "信道必须为 1-254、'interfering' 或 'non-interfering'",
+    "helloIntervalRange": "Hello 间隔必须介于 20 到 655340 ms 之间",
+    "updateIntervalRange": "更新间隔必须介于 20 到 655340 ms 之间",
+    "rxCostRange": "RX 开销必须介于 1 到 65534 之间",
+    "maxRttPenaltyRange": "最大 RTT 惩罚必须介于 0 到 65535 ms 之间",
+    "rttDecayRange": "RTT 衰减必须介于 1 到 256 之间",
+    "rttMinRange": "RTT 最小值必须介于 1 到 65535 ms 之间",
+    "rttMaxRange": "RTT 最大值必须介于 1 到 65535 ms 之间"
+  }
+}

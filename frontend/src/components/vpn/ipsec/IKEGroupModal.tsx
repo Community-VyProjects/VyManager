@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -50,6 +51,8 @@ export function IKEGroupModal({
   onSuccess,
   existingGroup,
 }: IKEGroupModalProps) {
+  const t = useTranslations("ipsecSettings");
+  const tc = useTranslations("common");
   const isEdit = !!existingGroup;
 
   const [name, setName] = useState("");
@@ -127,7 +130,7 @@ export function IKEGroupModal({
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      setError("Name is required");
+      setError(t("shared.nameRequired"));
       return;
     }
 
@@ -162,10 +165,10 @@ export function IKEGroupModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to save IKE group");
+        setError(result.error || t("ike.saveFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to save IKE group");
+      setError((err as ApiError).message || t("ike.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -177,17 +180,17 @@ export function IKEGroupModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
-            {isEdit ? "Edit" : "Create"} IKE Group
+            {isEdit ? t("ike.titleEdit") : t("ike.titleCreate")}
           </DialogTitle>
           <DialogDescription>
-            Configure Internet Key Exchange group parameters and proposals.
+            {t("ike.description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* Name */}
           <div className="space-y-2">
-            <Label>Name</Label>
+            <Label>{tc("name")}</Label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -199,7 +202,7 @@ export function IKEGroupModal({
           {/* Key Exchange + Lifetime */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Key Exchange</Label>
+              <Label>{t("ike.keyExchange")}</Label>
               <Select value={keyExchange} onValueChange={setKeyExchange}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -209,7 +212,7 @@ export function IKEGroupModal({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Lifetime (seconds)</Label>
+              <Label>{t("shared.lifetimeSeconds")}</Label>
               <Input value={lifetime} onChange={(e) => setLifetime(e.target.value)} placeholder="28800" />
             </div>
           </div>
@@ -218,25 +221,25 @@ export function IKEGroupModal({
           <div className="grid grid-cols-2 gap-4">
             {keyExchange === "ikev1" && (
               <div className="space-y-2">
-                <Label>Mode</Label>
+                <Label>{t("shared.mode")}</Label>
                 <Select value={mode} onValueChange={setMode}>
-                  <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("ike.select")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="main">Main</SelectItem>
-                    <SelectItem value="aggressive">Aggressive</SelectItem>
+                    <SelectItem value="main">{t("ike.modeMain")}</SelectItem>
+                    <SelectItem value="aggressive">{t("ike.modeAggressive")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             )}
             <div className="space-y-2">
-              <Label>Close Action</Label>
+              <Label>{t("ike.closeAction")}</Label>
               <Select value={closeAction} onValueChange={setCloseAction}>
-                <SelectTrigger><SelectValue placeholder="Default" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={tc("default")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="hold">Hold</SelectItem>
-                  <SelectItem value="clear">Clear</SelectItem>
-                  <SelectItem value="restart">Restart</SelectItem>
+                  <SelectItem value="none">{tc("none")}</SelectItem>
+                  <SelectItem value="hold">{t("ike.actionHold")}</SelectItem>
+                  <SelectItem value="clear">{t("ike.actionClear")}</SelectItem>
+                  <SelectItem value="restart">{t("ike.actionRestart")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -244,26 +247,26 @@ export function IKEGroupModal({
 
           {/* DPD */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Dead Peer Detection</Label>
+            <Label className="text-sm font-medium">{t("ike.dpd")}</Label>
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Action</Label>
+                <Label className="text-xs text-muted-foreground">{t("ike.dpdAction")}</Label>
                 <Select value={dpdAction} onValueChange={setDpdAction}>
-                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="restart">Restart</SelectItem>
-                    <SelectItem value="clear">Clear</SelectItem>
-                    <SelectItem value="hold">Hold</SelectItem>
-                    <SelectItem value="trap">Trap</SelectItem>
+                    <SelectItem value="restart">{t("ike.actionRestart")}</SelectItem>
+                    <SelectItem value="clear">{t("ike.actionClear")}</SelectItem>
+                    <SelectItem value="hold">{t("ike.actionHold")}</SelectItem>
+                    <SelectItem value="trap">{t("ike.actionTrap")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Interval (s)</Label>
+                <Label className="text-xs text-muted-foreground">{t("ike.dpdInterval")}</Label>
                 <Input value={dpdInterval} onChange={(e) => setDpdInterval(e.target.value)} placeholder="15" />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Timeout (s)</Label>
+                <Label className="text-xs text-muted-foreground">{t("ike.dpdTimeout")}</Label>
                 <Input value={dpdTimeout} onChange={(e) => setDpdTimeout(e.target.value)} placeholder="60" />
               </div>
             </div>
@@ -273,27 +276,27 @@ export function IKEGroupModal({
           <div className="flex gap-6">
             <div className="flex items-center gap-2">
               <Checkbox id="disableMobike" checked={disableMobike} onCheckedChange={(c) => setDisableMobike(c === true)} />
-              <Label htmlFor="disableMobike" className="cursor-pointer text-sm">Disable MOBIKE</Label>
+              <Label htmlFor="disableMobike" className="cursor-pointer text-sm">{t("ike.disableMobike")}</Label>
             </div>
             <div className="flex items-center gap-2">
               <Checkbox id="ikev2Reauth" checked={ikev2Reauth} onCheckedChange={(c) => setIkev2Reauth(c === true)} />
-              <Label htmlFor="ikev2Reauth" className="cursor-pointer text-sm">IKEv2 Re-authentication</Label>
+              <Label htmlFor="ikev2Reauth" className="cursor-pointer text-sm">{t("ike.ikev2Reauth")}</Label>
             </div>
           </div>
 
           {/* Proposals */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Proposals</Label>
+              <Label className="text-sm font-medium">{t("shared.proposals")}</Label>
               <Button type="button" variant="outline" size="sm" onClick={addProposal}>
-                <Plus className="h-4 w-4 mr-1" /> Add
+                <Plus className="h-4 w-4 mr-1" /> {tc("add")}
               </Button>
             </div>
             {proposals.map((p) => (
               <div key={p.id} className="grid grid-cols-[auto_1fr_1fr_1fr_1fr_auto] gap-2 items-end rounded-lg border p-3">
                 <div className="text-xs text-muted-foreground font-mono w-6 text-center pt-5">#{p.id}</div>
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Encryption</Label>
+                  <Label className="text-xs text-muted-foreground">{t("shared.encryption")}</Label>
                   <Select value={p.encryption} onValueChange={(v) => updateProposal(p.id, "encryption", v)}>
                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -302,7 +305,7 @@ export function IKEGroupModal({
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Hash</Label>
+                  <Label className="text-xs text-muted-foreground">{t("shared.hash")}</Label>
                   <Select value={p.hash} onValueChange={(v) => updateProposal(p.id, "hash", v)}>
                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -311,7 +314,7 @@ export function IKEGroupModal({
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">DH Group</Label>
+                  <Label className="text-xs text-muted-foreground">{t("ike.dhGroup")}</Label>
                   <Select value={p.dh_group} onValueChange={(v) => updateProposal(p.id, "dh_group", v)}>
                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -322,9 +325,9 @@ export function IKEGroupModal({
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">PRF</Label>
                   <Select value={p.prf || "_none"} onValueChange={(v) => updateProposal(p.id, "prf", v === "_none" ? "" : v)}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Auto" /></SelectTrigger>
+                    <SelectTrigger className="h-9"><SelectValue placeholder={t("ike.auto")} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="_none">Auto</SelectItem>
+                      <SelectItem value="_none">{t("ike.auto")}</SelectItem>
                       {HASH_OPTIONS.map((h) => <SelectItem key={h} value={h}>{h}</SelectItem>)}
                     </SelectContent>
                   </Select>
@@ -352,9 +355,9 @@ export function IKEGroupModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? "Saving..." : "Creating..."}</> : isEdit ? "Save Changes" : "Create IKE Group"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("shared.creating")}</> : isEdit ? t("shared.saveChanges") : t("ike.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

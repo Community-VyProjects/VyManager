@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +27,8 @@ export function DeleteIgmpProxyInterfaceModal({
   interfaceName,
   onConfirm,
 }: DeleteIgmpProxyInterfaceModalProps) {
+  const t = useTranslations("igmpProxy");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,7 +38,7 @@ export function DeleteIgmpProxyInterfaceModal({
     try {
       await onConfirm();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to delete interface";
+      const message = err instanceof Error ? err.message : t("deleteModal.failed");
       setError(message);
       setLoading(false);
       return;
@@ -54,12 +57,12 @@ export function DeleteIgmpProxyInterfaceModal({
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Remove Interface</AlertDialogTitle>
+          <AlertDialogTitle>{t("deleteModal.title")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to remove{" "}
-            <span className="font-mono font-semibold">{interfaceName}</span>{" "}
-            from the IGMP proxy configuration? This will remove the interface role,
-            threshold, alt-subnets, and whitelist entries.
+            {t.rich("deleteModal.description", {
+              name: interfaceName,
+              mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -71,7 +74,7 @@ export function DeleteIgmpProxyInterfaceModal({
         )}
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
             disabled={loading}
@@ -80,10 +83,10 @@ export function DeleteIgmpProxyInterfaceModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Removing...
+                {t("deleteModal.removing")}
               </>
             ) : (
-              "Remove Interface"
+              t("deleteModal.title")
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

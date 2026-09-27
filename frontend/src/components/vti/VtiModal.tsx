@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -55,6 +56,8 @@ export function VtiModal({
   existingInterfaces,
   existing,
 }: VtiModalProps) {
+  const t = useTranslations("vti");
+  const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
 
   // Basic
@@ -215,33 +218,33 @@ export function VtiModal({
 
   const validateForm = (): string | null => {
     if (!isEdit) {
-      if (!name.trim()) return "Interface name is required";
-      if (!/^vti\d+$/.test(name)) return "Name must be vti0, vti1, vti2, …";
-      if (existingInterfaces.includes(name)) return `Interface ${name} already exists`;
+      if (!name.trim()) return t("validation.nameRequired");
+      if (!/^vti\d+$/.test(name)) return t("validation.nameFormat");
+      if (existingInterfaces.includes(name)) return t("validation.nameExists", { name });
     }
     if (mtuMode === "custom") {
       const v = parseInt(mtu.trim(), 10);
-      if (isNaN(v) || v < 68 || v > 16000) return "MTU must be between 68 and 16000";
+      if (isNaN(v) || v < 68 || v > 16000) return t("validation.mtuRange");
     }
     if (ipAdjustMssMode === "custom" && ipAdjustMss) {
       const v = parseInt(ipAdjustMss.trim(), 10);
-      if (isNaN(v) || v < 536 || v > 65535) return "TCP MSS must be between 536 and 65535";
+      if (isNaN(v) || v < 536 || v > 65535) return t("validation.tcpMssRange");
     }
     if (ipArpCacheTimeoutMode === "custom" && ipArpCacheTimeout) {
       const v = parseInt(ipArpCacheTimeout.trim(), 10);
-      if (isNaN(v) || v < 1 || v > 86400) return "ARP cache timeout must be between 1 and 86400";
+      if (isNaN(v) || v < 1 || v > 86400) return t("validation.arpCacheTimeoutRange");
     }
     if (ipv6AdjustMssMode === "custom" && ipv6AdjustMss) {
       const v = parseInt(ipv6AdjustMss.trim(), 10);
-      if (isNaN(v) || v < 536 || v > 65535) return "IPv6 TCP MSS must be between 536 and 65535";
+      if (isNaN(v) || v < 536 || v > 65535) return t("validation.ipv6TcpMssRange");
     }
     if (ipv6BaseReachableTimeMode === "custom" && ipv6BaseReachableTime) {
       const v = parseInt(ipv6BaseReachableTime.trim(), 10);
-      if (isNaN(v) || v < 1 || v > 86400) return "Base reachable time must be between 1 and 86400";
+      if (isNaN(v) || v < 1 || v > 86400) return t("validation.baseReachableTimeRange");
     }
     if (dadTransmitsMode === "custom" && ipv6DupAddrDetectTransmits) {
       const v = parseInt(ipv6DupAddrDetectTransmits.trim(), 10);
-      if (isNaN(v) || v < 0) return "DAD transmits must be a non-negative integer";
+      if (isNaN(v) || v < 0) return t("validation.dadTransmitsInvalid");
     }
     return null;
   };
@@ -339,7 +342,7 @@ export function VtiModal({
         onSuccess();
       } else {
         setError(
-          result.error || (isEdit ? "Failed to update VTI interface" : "Failed to create VTI interface"),
+          result.error || (isEdit ? t("modal.updateFailed") : t("modal.createFailed")),
         );
       }
     } catch (err) {
@@ -356,28 +359,28 @@ export function VtiModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Lock className="h-5 w-5" />
-            {isEdit ? `Edit: ${existing.name}` : "Create VTI Interface"}
+            {isEdit ? t("modal.editTitle", { name: existing.name }) : t("modal.createTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Modify Virtual Tunnel Interface configuration."
-              : "Create a new Virtual Tunnel Interface for use with IPsec."}
+              ? t("modal.editDescription")
+              : t("modal.createDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="mt-2">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="basic">Basic</TabsTrigger>
-            <TabsTrigger value="addresses">Addresses</TabsTrigger>
-            <TabsTrigger value="ip">IP Settings</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            <TabsTrigger value="basic">{t("tabs.basic")}</TabsTrigger>
+            <TabsTrigger value="addresses">{t("tabs.addresses")}</TabsTrigger>
+            <TabsTrigger value="ip">{t("tabs.ipSettings")}</TabsTrigger>
+            <TabsTrigger value="advanced">{t("tabs.advanced")}</TabsTrigger>
           </TabsList>
 
           {/* Basic Tab */}
           <TabsContent value="basic" className="space-y-4 mt-4">
             <div className="space-y-2">
               <Label htmlFor="vti-name">
-                Interface Name {!isEdit && <span className="text-destructive">*</span>}
+                {t("basic.interfaceName")} {!isEdit && <span className="text-destructive">*</span>}
               </Label>
               <Input
                 id="vti-name"
@@ -389,18 +392,18 @@ export function VtiModal({
               />
               <p className="text-xs text-muted-foreground">
                 {lockedName.disabled
-                  ? "Interface name cannot be changed."
-                  : "Must match pattern: vti0, vti1, vti2, …"}
+                  ? t("basic.nameLocked")
+                  : t("basic.nameHint")}
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="vti-description">Description</Label>
+              <Label htmlFor="vti-description">{tc("description")}</Label>
               <Input
                 id="vti-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional description"
+                placeholder={t("basic.descriptionPlaceholder")}
               />
             </div>
 
@@ -414,21 +417,21 @@ export function VtiModal({
                   else { setMtu(v); setMtuIsCustom(false); }
                 }}
               >
-                <SelectTrigger id="vti-mtu"><SelectValue placeholder="Default (1500)" /></SelectTrigger>
+                <SelectTrigger id="vti-mtu"><SelectValue placeholder={t("basic.mtuDefault")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="default">Default (1500)</SelectItem>
-                  <SelectItem value="1280">1280 — IPv6 minimum</SelectItem>
-                  <SelectItem value="1400">1400 — common for IPsec/VPN</SelectItem>
-                  <SelectItem value="1500">1500 — standard Ethernet</SelectItem>
-                  <SelectItem value="9000">9000 — jumbo frames</SelectItem>
-                  <SelectItem value="custom">Custom value (68–16000)</SelectItem>
+                  <SelectItem value="default">{t("basic.mtuDefault")}</SelectItem>
+                  <SelectItem value="1280">{t("basic.mtu1280")}</SelectItem>
+                  <SelectItem value="1400">{t("basic.mtu1400")}</SelectItem>
+                  <SelectItem value="1500">{t("basic.mtu1500")}</SelectItem>
+                  <SelectItem value="9000">{t("basic.mtu9000")}</SelectItem>
+                  <SelectItem value="custom">{t("basic.mtuCustom")}</SelectItem>
                 </SelectContent>
               </Select>
               {mtuMode === "custom" && (
                 <Input
                   value={mtu}
                   onChange={(e) => setMtu(e.target.value)}
-                  placeholder="Enter MTU (68–16000)"
+                  placeholder={t("basic.mtuPlaceholder")}
                   className="mt-2"
                 />
               )}
@@ -445,14 +448,14 @@ export function VtiModal({
 
             <div className="flex items-center gap-2">
               <Checkbox checked={disabled} onCheckedChange={(c) => setDisabled(c === true)} id="vti-disabled" />
-              <Label htmlFor="vti-disabled" className="font-normal">Disable Interface</Label>
+              <Label htmlFor="vti-disabled" className="font-normal">{t("basic.disableInterface")}</Label>
             </div>
           </TabsContent>
 
           {/* Addresses Tab */}
           <TabsContent value="addresses" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="vti-addresses">IP Addresses</Label>
+              <Label htmlFor="vti-addresses">{t("addresses.ipAddresses")}</Label>
               <Textarea
                 id="vti-addresses"
                 value={addresses}
@@ -460,11 +463,11 @@ export function VtiModal({
                 placeholder={"10.0.0.1/32\n192.168.1.1/24"}
                 rows={4}
               />
-              <p className="text-xs text-muted-foreground">One address per line, IPv4 or IPv6 CIDR notation</p>
+              <p className="text-xs text-muted-foreground">{t("addresses.ipAddressesHint")}</p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="vti-eui64">IPv6 EUI-64 Prefixes</Label>
+              <Label htmlFor="vti-eui64">{t("addresses.eui64Prefixes")}</Label>
               <Textarea
                 id="vti-eui64"
                 value={ipv6AddressEui64}
@@ -472,7 +475,7 @@ export function VtiModal({
                 placeholder={"2001:db8::/64"}
                 rows={3}
               />
-              <p className="text-xs text-muted-foreground">One /64 prefix per line</p>
+              <p className="text-xs text-muted-foreground">{t("addresses.eui64Hint")}</p>
             </div>
 
             <div className="flex items-center gap-2">
@@ -481,7 +484,7 @@ export function VtiModal({
                 checked={ipv6AddressAutoconf}
                 onCheckedChange={(c) => setIpv6AddressAutoconf(c === true)}
               />
-              <Label htmlFor="vti-ipv6Autoconf" className="font-normal">IPv6 Address Autoconf (SLAAC)</Label>
+              <Label htmlFor="vti-ipv6Autoconf" className="font-normal">{t("addresses.autoconf")}</Label>
             </div>
 
             <div className="flex items-center gap-2">
@@ -490,7 +493,7 @@ export function VtiModal({
                 checked={ipv6AddressNoDefaultLinkLocal}
                 onCheckedChange={(c) => setIpv6AddressNoDefaultLinkLocal(c === true)}
               />
-              <Label htmlFor="vti-noDefaultLinkLocal" className="font-normal">No Default Link-Local</Label>
+              <Label htmlFor="vti-noDefaultLinkLocal" className="font-normal">{t("addresses.noDefaultLinkLocal")}</Label>
             </div>
           </TabsContent>
 
@@ -501,7 +504,7 @@ export function VtiModal({
               <h4 className="text-sm font-medium text-foreground">IPv4</h4>
 
               <div className="space-y-2">
-                <Label htmlFor="vti-ipAdjustMss">Adjust TCP MSS</Label>
+                <Label htmlFor="vti-ipAdjustMss">{t("ip.adjustTcpMss")}</Label>
                 <Select
                   value={ipAdjustMssMode}
                   onValueChange={(v) => {
@@ -510,25 +513,25 @@ export function VtiModal({
                     else { setIpAdjustMss(""); setIpAdjustMssIsCustom(true); }
                   }}
                 >
-                  <SelectTrigger id="vti-ipAdjustMss"><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectTrigger id="vti-ipAdjustMss"><SelectValue placeholder={tc("none")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">None (default)</SelectItem>
-                    <SelectItem value="clamp">Clamp to PMTU — auto-fit to path MTU</SelectItem>
-                    <SelectItem value="custom">Custom value (536–65535)</SelectItem>
+                    <SelectItem value="none">{t("ip.mssNone")}</SelectItem>
+                    <SelectItem value="clamp">{t("ip.mssClamp")}</SelectItem>
+                    <SelectItem value="custom">{t("ip.mssCustom")}</SelectItem>
                   </SelectContent>
                 </Select>
                 {ipAdjustMssMode === "custom" && (
                   <Input
                     value={ipAdjustMss}
                     onChange={(e) => setIpAdjustMss(e.target.value)}
-                    placeholder="Enter value (536–65535)"
+                    placeholder={t("ip.mssPlaceholder")}
                     className="mt-2"
                   />
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="vti-ipArpCacheTimeout">ARP Cache Timeout</Label>
+                <Label htmlFor="vti-ipArpCacheTimeout">{t("ip.arpCacheTimeout")}</Label>
                 <Select
                   value={ipArpCacheTimeoutMode}
                   onValueChange={(v) => {
@@ -537,36 +540,36 @@ export function VtiModal({
                     else { setIpArpCacheTimeout(v); setIpArpCacheTimeoutIsCustom(false); }
                   }}
                 >
-                  <SelectTrigger id="vti-ipArpCacheTimeout"><SelectValue placeholder="Default (30s)" /></SelectTrigger>
+                  <SelectTrigger id="vti-ipArpCacheTimeout"><SelectValue placeholder={t("ip.timeoutDefault")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Default (30s)</SelectItem>
-                    <SelectItem value="30">30 seconds</SelectItem>
-                    <SelectItem value="60">1 minute</SelectItem>
-                    <SelectItem value="300">5 minutes</SelectItem>
-                    <SelectItem value="600">10 minutes</SelectItem>
-                    <SelectItem value="3600">1 hour</SelectItem>
-                    <SelectItem value="custom">Custom (1–86400 seconds)</SelectItem>
+                    <SelectItem value="none">{t("ip.timeoutDefault")}</SelectItem>
+                    <SelectItem value="30">{t("ip.seconds30")}</SelectItem>
+                    <SelectItem value="60">{t("ip.minute1")}</SelectItem>
+                    <SelectItem value="300">{t("ip.minutes5")}</SelectItem>
+                    <SelectItem value="600">{t("ip.minutes10")}</SelectItem>
+                    <SelectItem value="3600">{t("ip.hour1")}</SelectItem>
+                    <SelectItem value="custom">{t("ip.timeoutCustom")}</SelectItem>
                   </SelectContent>
                 </Select>
                 {ipArpCacheTimeoutMode === "custom" && (
                   <Input
                     value={ipArpCacheTimeout}
                     onChange={(e) => setIpArpCacheTimeout(e.target.value)}
-                    placeholder="Enter seconds (1–86400)"
+                    placeholder={t("ip.secondsPlaceholder")}
                     className="mt-2"
                   />
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="vti-ipSourceValidation">Source Validation</Label>
+                <Label htmlFor="vti-ipSourceValidation">{t("ip.sourceValidation")}</Label>
                 <Select value={ipSourceValidation || "none"} onValueChange={(v) => setIpSourceValidation(v === "none" ? "" : v)}>
-                  <SelectTrigger id="vti-ipSourceValidation"><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectTrigger id="vti-ipSourceValidation"><SelectValue placeholder={tc("none")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    <SelectItem value="strict">Strict</SelectItem>
-                    <SelectItem value="loose">Loose</SelectItem>
-                    <SelectItem value="disable">Disable</SelectItem>
+                    <SelectItem value="none">{tc("none")}</SelectItem>
+                    <SelectItem value="strict">{t("ip.strict")}</SelectItem>
+                    <SelectItem value="loose">{t("ip.loose")}</SelectItem>
+                    <SelectItem value="disable">{t("ip.disable")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -574,35 +577,35 @@ export function VtiModal({
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <div className="flex items-center gap-2">
                   <Checkbox id="vti-ipDisableArpFilter" checked={ipDisableArpFilter} onCheckedChange={(c) => setIpDisableArpFilter(c === true)} />
-                  <Label htmlFor="vti-ipDisableArpFilter" className="font-normal text-sm">Disable ARP Filter</Label>
+                  <Label htmlFor="vti-ipDisableArpFilter" className="font-normal text-sm">{t("ip.disableArpFilter")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox id="vti-ipDisableForwarding" checked={ipDisableForwarding} onCheckedChange={(c) => setIpDisableForwarding(c === true)} />
-                  <Label htmlFor="vti-ipDisableForwarding" className="font-normal text-sm">Disable Forwarding</Label>
+                  <Label htmlFor="vti-ipDisableForwarding" className="font-normal text-sm">{t("ip.disableForwarding")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox id="vti-ipEnableArpAccept" checked={ipEnableArpAccept} onCheckedChange={(c) => setIpEnableArpAccept(c === true)} />
-                  <Label htmlFor="vti-ipEnableArpAccept" className="font-normal text-sm">Enable ARP Accept</Label>
+                  <Label htmlFor="vti-ipEnableArpAccept" className="font-normal text-sm">{t("ip.enableArpAccept")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox id="vti-ipEnableArpAnnounce" checked={ipEnableArpAnnounce} onCheckedChange={(c) => setIpEnableArpAnnounce(c === true)} />
-                  <Label htmlFor="vti-ipEnableArpAnnounce" className="font-normal text-sm">Enable ARP Announce</Label>
+                  <Label htmlFor="vti-ipEnableArpAnnounce" className="font-normal text-sm">{t("ip.enableArpAnnounce")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox id="vti-ipEnableArpIgnore" checked={ipEnableArpIgnore} onCheckedChange={(c) => setIpEnableArpIgnore(c === true)} />
-                  <Label htmlFor="vti-ipEnableArpIgnore" className="font-normal text-sm">Enable ARP Ignore</Label>
+                  <Label htmlFor="vti-ipEnableArpIgnore" className="font-normal text-sm">{t("ip.enableArpIgnore")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox id="vti-ipEnableDirectedBroadcast" checked={ipEnableDirectedBroadcast} onCheckedChange={(c) => setIpEnableDirectedBroadcast(c === true)} />
-                  <Label htmlFor="vti-ipEnableDirectedBroadcast" className="font-normal text-sm">Enable Directed Broadcast</Label>
+                  <Label htmlFor="vti-ipEnableDirectedBroadcast" className="font-normal text-sm">{t("ip.enableDirectedBroadcast")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox id="vti-ipEnableProxyArp" checked={ipEnableProxyArp} onCheckedChange={(c) => setIpEnableProxyArp(c === true)} />
-                  <Label htmlFor="vti-ipEnableProxyArp" className="font-normal text-sm">Enable Proxy ARP</Label>
+                  <Label htmlFor="vti-ipEnableProxyArp" className="font-normal text-sm">{t("ip.enableProxyArp")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox id="vti-ipProxyArpPvlan" checked={ipProxyArpPvlan} onCheckedChange={(c) => setIpProxyArpPvlan(c === true)} />
-                  <Label htmlFor="vti-ipProxyArpPvlan" className="font-normal text-sm">Private VLAN Proxy ARP</Label>
+                  <Label htmlFor="vti-ipProxyArpPvlan" className="font-normal text-sm">{t("ip.proxyArpPvlan")}</Label>
                 </div>
               </div>
             </div>
@@ -612,20 +615,20 @@ export function VtiModal({
               <h4 className="text-sm font-medium text-foreground">IPv6</h4>
 
               <div className="space-y-2">
-                <Label htmlFor="vti-ipv6AcceptDad">Accept DAD</Label>
+                <Label htmlFor="vti-ipv6AcceptDad">{t("ip.acceptDad")}</Label>
                 <Select value={ipv6AcceptDad || "default"} onValueChange={(v) => setIpv6AcceptDad(v === "default" ? "" : v)}>
-                  <SelectTrigger id="vti-ipv6AcceptDad"><SelectValue placeholder="Default" /></SelectTrigger>
+                  <SelectTrigger id="vti-ipv6AcceptDad"><SelectValue placeholder={tc("default")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="default">Default</SelectItem>
-                    <SelectItem value="0">0 — Disabled</SelectItem>
-                    <SelectItem value="1">1 — Enabled (default)</SelectItem>
-                    <SelectItem value="2">2 — Enabled, disable IPv6 if MAC-based duplicate found</SelectItem>
+                    <SelectItem value="default">{tc("default")}</SelectItem>
+                    <SelectItem value="0">{t("ip.acceptDad0")}</SelectItem>
+                    <SelectItem value="1">{t("ip.acceptDad1")}</SelectItem>
+                    <SelectItem value="2">{t("ip.acceptDad2")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="vti-ipv6AdjustMss">Adjust TCP MSS (IPv6)</Label>
+                <Label htmlFor="vti-ipv6AdjustMss">{t("ip.adjustTcpMssIpv6")}</Label>
                 <Select
                   value={ipv6AdjustMssMode}
                   onValueChange={(v) => {
@@ -634,25 +637,25 @@ export function VtiModal({
                     else { setIpv6AdjustMss(""); setIpv6AdjustMssIsCustom(true); }
                   }}
                 >
-                  <SelectTrigger id="vti-ipv6AdjustMss"><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectTrigger id="vti-ipv6AdjustMss"><SelectValue placeholder={tc("none")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">None (default)</SelectItem>
-                    <SelectItem value="clamp">Clamp to PMTU — auto-fit to path MTU</SelectItem>
-                    <SelectItem value="custom">Custom value (536–65535)</SelectItem>
+                    <SelectItem value="none">{t("ip.mssNone")}</SelectItem>
+                    <SelectItem value="clamp">{t("ip.mssClamp")}</SelectItem>
+                    <SelectItem value="custom">{t("ip.mssCustom")}</SelectItem>
                   </SelectContent>
                 </Select>
                 {ipv6AdjustMssMode === "custom" && (
                   <Input
                     value={ipv6AdjustMss}
                     onChange={(e) => setIpv6AdjustMss(e.target.value)}
-                    placeholder="Enter value (536–65535)"
+                    placeholder={t("ip.mssPlaceholder")}
                     className="mt-2"
                   />
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="vti-ipv6BaseReachableTime">Base Reachable Time</Label>
+                <Label htmlFor="vti-ipv6BaseReachableTime">{t("ip.baseReachableTime")}</Label>
                 <Select
                   value={ipv6BaseReachableTimeMode}
                   onValueChange={(v) => {
@@ -661,29 +664,29 @@ export function VtiModal({
                     else { setIpv6BaseReachableTime(v); setIpv6BaseReachableTimeIsCustom(false); }
                   }}
                 >
-                  <SelectTrigger id="vti-ipv6BaseReachableTime"><SelectValue placeholder="Default (30s)" /></SelectTrigger>
+                  <SelectTrigger id="vti-ipv6BaseReachableTime"><SelectValue placeholder={t("ip.timeoutDefault")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Default (30s)</SelectItem>
-                    <SelectItem value="30">30 seconds</SelectItem>
-                    <SelectItem value="60">1 minute</SelectItem>
-                    <SelectItem value="300">5 minutes</SelectItem>
-                    <SelectItem value="600">10 minutes</SelectItem>
-                    <SelectItem value="3600">1 hour</SelectItem>
-                    <SelectItem value="custom">Custom (1–86400 seconds)</SelectItem>
+                    <SelectItem value="none">{t("ip.timeoutDefault")}</SelectItem>
+                    <SelectItem value="30">{t("ip.seconds30")}</SelectItem>
+                    <SelectItem value="60">{t("ip.minute1")}</SelectItem>
+                    <SelectItem value="300">{t("ip.minutes5")}</SelectItem>
+                    <SelectItem value="600">{t("ip.minutes10")}</SelectItem>
+                    <SelectItem value="3600">{t("ip.hour1")}</SelectItem>
+                    <SelectItem value="custom">{t("ip.timeoutCustom")}</SelectItem>
                   </SelectContent>
                 </Select>
                 {ipv6BaseReachableTimeMode === "custom" && (
                   <Input
                     value={ipv6BaseReachableTime}
                     onChange={(e) => setIpv6BaseReachableTime(e.target.value)}
-                    placeholder="Enter seconds (1–86400)"
+                    placeholder={t("ip.secondsPlaceholder")}
                     className="mt-2"
                   />
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="vti-ipv6DupAddrDetectTransmits">Duplicate Address Detect Transmits</Label>
+                <Label htmlFor="vti-ipv6DupAddrDetectTransmits">{t("ip.dadTransmits")}</Label>
                 <Select
                   value={dadTransmitsMode}
                   onValueChange={(v) => {
@@ -692,42 +695,42 @@ export function VtiModal({
                     else { setIpv6DupAddrDetectTransmits(v); setDadIsCustom(false); }
                   }}
                 >
-                  <SelectTrigger id="vti-ipv6DupAddrDetectTransmits"><SelectValue placeholder="Default" /></SelectTrigger>
+                  <SelectTrigger id="vti-ipv6DupAddrDetectTransmits"><SelectValue placeholder={tc("default")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="default">Default</SelectItem>
-                    <SelectItem value="0">0 — Disabled (skip DAD)</SelectItem>
-                    <SelectItem value="1">1 — 1 transmit (default behavior)</SelectItem>
-                    <SelectItem value="2">2 — 2 transmits</SelectItem>
-                    <SelectItem value="3">3 — 3 transmits</SelectItem>
-                    <SelectItem value="custom">Custom count</SelectItem>
+                    <SelectItem value="default">{tc("default")}</SelectItem>
+                    <SelectItem value="0">{t("ip.dadTransmits0")}</SelectItem>
+                    <SelectItem value="1">{t("ip.dadTransmits1")}</SelectItem>
+                    <SelectItem value="2">{t("ip.dadTransmits2")}</SelectItem>
+                    <SelectItem value="3">{t("ip.dadTransmits3")}</SelectItem>
+                    <SelectItem value="custom">{t("ip.dadTransmitsCustom")}</SelectItem>
                   </SelectContent>
                 </Select>
                 {dadTransmitsMode === "custom" && (
                   <Input
                     value={ipv6DupAddrDetectTransmits}
                     onChange={(e) => setIpv6DupAddrDetectTransmits(e.target.value)}
-                    placeholder="Enter count (0 or greater)"
+                    placeholder={t("ip.dadTransmitsPlaceholder")}
                     className="mt-2"
                   />
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="vti-ipv6SourceValidation">Source Validation (IPv6)</Label>
+                <Label htmlFor="vti-ipv6SourceValidation">{t("ip.sourceValidationIpv6")}</Label>
                 <Select value={ipv6SourceValidation || "none"} onValueChange={(v) => setIpv6SourceValidation(v === "none" ? "" : v)}>
-                  <SelectTrigger id="vti-ipv6SourceValidation"><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectTrigger id="vti-ipv6SourceValidation"><SelectValue placeholder={tc("none")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    <SelectItem value="strict">Strict</SelectItem>
-                    <SelectItem value="loose">Loose</SelectItem>
-                    <SelectItem value="disable">Disable</SelectItem>
+                    <SelectItem value="none">{tc("none")}</SelectItem>
+                    <SelectItem value="strict">{t("ip.strict")}</SelectItem>
+                    <SelectItem value="loose">{t("ip.loose")}</SelectItem>
+                    <SelectItem value="disable">{t("ip.disable")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="flex items-center gap-2">
                 <Checkbox id="vti-ipv6DisableForwarding" checked={ipv6DisableForwarding} onCheckedChange={(c) => setIpv6DisableForwarding(c === true)} />
-                <Label htmlFor="vti-ipv6DisableForwarding" className="font-normal">Disable IPv6 Forwarding</Label>
+                <Label htmlFor="vti-ipv6DisableForwarding" className="font-normal">{t("ip.disableIpv6Forwarding")}</Label>
               </div>
             </div>
           </TabsContent>
@@ -735,35 +738,35 @@ export function VtiModal({
           {/* Advanced Tab */}
           <TabsContent value="advanced" className="space-y-4 mt-4">
             <div className="space-y-3">
-              <h4 className="text-sm font-medium text-foreground">Traffic Mirroring &amp; Redirect</h4>
+              <h4 className="text-sm font-medium text-foreground">{t("advanced.mirroringRedirect")}</h4>
               <div className="space-y-2">
-                <Label>Mirror Ingress</Label>
+                <Label>{t("advanced.mirrorIngress")}</Label>
                 <InterfaceSelect
                   value={mirrorIngress || "none"}
                   onValueChange={(v) => setMirrorIngress(v === "none" ? "" : v)}
                   interfaces={availableInterfaces}
-                  noneOption={{ label: "None", value: "none" }}
-                  placeholder="None"
+                  noneOption={{ label: tc("none"), value: "none" }}
+                  placeholder={tc("none")}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Mirror Egress</Label>
+                <Label>{t("advanced.mirrorEgress")}</Label>
                 <InterfaceSelect
                   value={mirrorEgress || "none"}
                   onValueChange={(v) => setMirrorEgress(v === "none" ? "" : v)}
                   interfaces={availableInterfaces}
-                  noneOption={{ label: "None", value: "none" }}
-                  placeholder="None"
+                  noneOption={{ label: tc("none"), value: "none" }}
+                  placeholder={tc("none")}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Redirect To</Label>
+                <Label>{t("advanced.redirectTo")}</Label>
                 <InterfaceSelect
                   value={redirect || "none"}
                   onValueChange={(v) => setRedirect(v === "none" ? "" : v)}
                   interfaces={availableInterfaces}
-                  noneOption={{ label: "None", value: "none" }}
-                  placeholder="None"
+                  noneOption={{ label: tc("none"), value: "none" }}
+                  placeholder={tc("none")}
                 />
               </div>
             </div>
@@ -778,16 +781,16 @@ export function VtiModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? "Saving..." : "Creating..."}
+                {isEdit ? tc("saving") : t("modal.creating")}
               </>
             ) : (
-              isEdit ? "Save Changes" : "Create Interface"
+              isEdit ? t("modal.saveChanges") : t("modal.createInterface")
             )}
           </Button>
         </DialogFooter>

@@ -1,1 +1,43 @@
-{}
+{
+  "unicast": {
+    "title": "单播路由协议",
+    "subtitle": "动态路由协议",
+    "loading": "正在加载协议...",
+    "empty": "没有可访问的协议",
+    "items": {
+      "bgp": { "name": "BGP", "description": "边界网关协议" },
+      "ospf": { "name": "OSPF", "description": "开放最短路径优先" },
+      "ospfv3": { "name": "OSPFv3", "description": "适用于 IPv6 的 OSPF" },
+      "isis": { "name": "IS-IS", "description": "中间系统到中间系统" },
+      "openfabric": { "name": "OpenFabric", "description": "OpenFabric 协议" },
+      "rip": { "name": "RIP", "description": "路由信息协议" },
+      "ripng": { "name": "RIPng", "description": "下一代 RIP" },
+      "babel": { "name": "Babel", "description": "Babel 路由协议" }
+    }
+  },
+  "infrastructure": {
+    "title": "路由基础设施",
+    "subtitle": "高级路由功能",
+    "loading": "正在加载基础设施...",
+    "empty": "没有可访问的基础设施",
+    "items": {
+      "bfd": { "name": "BFD", "description": "双向转发检测" },
+      "mpls": { "name": "MPLS", "description": "多协议标签交换" },
+      "segment-routing": { "name": "段路由", "description": "基于段的源路由" },
+      "nhrp": { "name": "NHRP", "description": "下一跳解析协议" },
+      "rpki": { "name": "RPKI", "description": "资源公钥基础设施" },
+      "traffic-engineering": { "name": "流量工程", "description": "MPLS-TE 链路参数配置" }
+    }
+  },
+  "multicast": {
+    "title": "组播",
+    "subtitle": "组播路由协议",
+    "loading": "正在加载组播协议...",
+    "empty": "没有可访问的组播协议",
+    "items": {
+      "igmp-proxy": { "name": "IGMP 代理", "description": "互联网组管理协议代理" },
+      "pim": { "name": "PIM", "description": "协议无关组播" },
+      "pim6": { "name": "PIM6", "description": "适用于 IPv6 的协议无关组播" }
+    }
+  }
+}

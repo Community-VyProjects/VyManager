@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -53,6 +54,8 @@ export function NAT66RuleDialog({
   nextRuleNumber,
   onSuccess,
 }: NAT66RuleDialogProps) {
+  const t = useTranslations("nat66");
+  const tc = useTranslations("common");
   const isEditing = !!editingRule;
   const isSource = ruleType === "source";
   const groupsSupported = capabilities?.features?.groups?.supported ?? false;
@@ -378,7 +381,7 @@ export function NAT66RuleDialog({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSaving(false);
     }
@@ -392,13 +395,13 @@ export function NAT66RuleDialog({
         <DialogHeader>
           <DialogTitle>
             {isEditing
-              ? `Edit ${isSource ? "Source" : "Destination"} Rule ${editingRule!.rule_number}`
-              : `Create ${isSource ? "Source" : "Destination"} NAT66 Rule`}
+              ? t("ruleDialog.editTitle", { type: ruleType, number: String(editingRule!.rule_number) })
+              : t("ruleDialog.createTitle", { type: ruleType })}
           </DialogTitle>
           <DialogDescription>
             {isSource
-              ? "Configure an IPv6-to-IPv6 source address translation rule."
-              : "Configure an IPv6-to-IPv6 destination address translation rule."}
+              ? t("ruleDialog.descriptionSource")
+              : t("ruleDialog.descriptionDestination")}
           </DialogDescription>
         </DialogHeader>
 
@@ -415,33 +418,33 @@ export function NAT66RuleDialog({
 
           {/* Rule Number (Auto-calculated) */}
           <div className="space-y-2 bg-muted/30 border border-muted rounded-lg p-4">
-            <Label>Rule Number (Auto-assigned)</Label>
+            <Label>{t("ruleDialog.ruleNumberAuto")}</Label>
             <div className="text-2xl font-mono font-bold text-primary">
               {isEditing ? editingRule!.rule_number : nextRuleNumber}
             </div>
             <p className="text-xs text-muted-foreground">
-              This rule will be automatically assigned number {isEditing ? editingRule!.rule_number : nextRuleNumber}
+              {t("ruleDialog.autoAssignedHint", { number: String(isEditing ? editingRule!.rule_number : nextRuleNumber) })}
             </p>
           </div>
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="nat66-desc">Description</Label>
+            <Label htmlFor="nat66-desc">{tc("description")}</Label>
             <Textarea
               id="nat66-desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description for this rule"
+              placeholder={t("ruleDialog.descriptionPlaceholder")}
               rows={2}
             />
           </div>
 
           <Tabs defaultValue="basic" className="w-full">
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="basic">Basic</TabsTrigger>
-              <TabsTrigger value="source">Source</TabsTrigger>
-              <TabsTrigger value="destination">Destination</TabsTrigger>
-              <TabsTrigger value="advanced">Advanced</TabsTrigger>
+              <TabsTrigger value="basic">{t("ruleDialog.tabBasic")}</TabsTrigger>
+              <TabsTrigger value="source">{t("ruleDialog.tabSource")}</TabsTrigger>
+              <TabsTrigger value="destination">{t("ruleDialog.tabDestination")}</TabsTrigger>
+              <TabsTrigger value="advanced">{t("ruleDialog.tabAdvanced")}</TabsTrigger>
             </TabsList>
 
             {/* Basic Tab */}
@@ -449,28 +452,28 @@ export function NAT66RuleDialog({
               {/* Interface - dropdown from /vyos/show/all-interfaces */}
               <div className="space-y-2">
                 <Label htmlFor="nat66-iface">
-                  {isSource ? "Outbound Interface" : "Inbound Interface"}
+                  {isSource ? t("ruleDialog.outboundInterface") : t("ruleDialog.inboundInterface")}
                 </Label>
                 <InterfaceSelect
                   value={interfaceName}
                   onValueChange={setInterfaceName}
                   id="nat66-iface"
-                  placeholder="Select interface"
+                  placeholder={t("ruleDialog.selectInterface")}
                 />
               </div>
 
               {/* Translation */}
               {isSource && (
                 <div className="space-y-2">
-                  <Label>Translation Type</Label>
+                  <Label>{t("ruleDialog.translationType")}</Label>
                   <RadioGroup value={translationType} onValueChange={(v) => setTranslationType(v as "address" | "masquerade")}>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="masquerade" id="nat66-trans-masq" />
-                      <Label htmlFor="nat66-trans-masq">Masquerade (use outbound interface address)</Label>
+                      <Label htmlFor="nat66-trans-masq">{t("ruleDialog.masquerade")}</Label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="address" id="nat66-trans-addr-radio" />
-                      <Label htmlFor="nat66-trans-addr-radio">IPv6 Address</Label>
+                      <Label htmlFor="nat66-trans-addr-radio">{t("ruleDialog.ipv6Address")}</Label>
                     </div>
                   </RadioGroup>
                 </div>
@@ -479,7 +482,7 @@ export function NAT66RuleDialog({
               {(translationType !== "masquerade" || !isSource) && (
                 <div className="space-y-2">
                   <Label htmlFor="nat66-trans-addr">
-                    Translation Address
+                    {t("ruleDialog.translationAddress")}
                   </Label>
                   <Input
                     id="nat66-trans-addr"
@@ -493,12 +496,12 @@ export function NAT66RuleDialog({
 
               {showPortFields && (
                 <div className="space-y-2">
-                  <Label htmlFor="nat66-trans-port">Translation Port</Label>
+                  <Label htmlFor="nat66-trans-port">{t("ruleDialog.translationPort")}</Label>
                   <Input
                     id="nat66-trans-port"
                     value={translationPort}
                     onChange={(e) => setTranslationPort(e.target.value)}
-                    placeholder="e.g., 8080"
+                    placeholder={t("ruleDialog.translationPortPlaceholder")}
                     className="font-mono"
                   />
                 </div>
@@ -506,16 +509,16 @@ export function NAT66RuleDialog({
 
               {/* Protocol */}
               <div className="space-y-2">
-                <Label htmlFor="nat66-protocol">Protocol</Label>
+                <Label htmlFor="nat66-protocol">{t("ruleDialog.protocol")}</Label>
                 <Select value={protocol} onValueChange={setProtocol}>
                   <SelectTrigger id="nat66-protocol">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All (default)</SelectItem>
+                    <SelectItem value="all">{t("ruleDialog.protocolAll")}</SelectItem>
                     <SelectItem value="tcp">TCP</SelectItem>
                     <SelectItem value="udp">UDP</SelectItem>
-                    <SelectItem value="tcp_udp">TCP & UDP</SelectItem>
+                    <SelectItem value="tcp_udp">{t("ruleDialog.protocolTcpUdp")}</SelectItem>
                     <SelectItem value="icmpv6">ICMPv6</SelectItem>
                   </SelectContent>
                 </Select>
@@ -525,7 +528,7 @@ export function NAT66RuleDialog({
             {/* Source Tab */}
             <TabsContent value="source" className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="nat66-source-input">{isSource ? "Source Prefix" : "Source Address"}</Label>
+                <Label htmlFor="nat66-source-input">{isSource ? t("ruleDialog.sourcePrefix") : t("ruleDialog.sourceAddress")}</Label>
                 <Input
                   id="nat66-source-input"
                   value={sourceValue}
@@ -536,12 +539,12 @@ export function NAT66RuleDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="nat66-source-port">Source Port</Label>
+                <Label htmlFor="nat66-source-port">{t("ruleDialog.sourcePort")}</Label>
                 <Input
                   id="nat66-source-port"
                   value={sourcePort}
                   onChange={(e) => setSourcePort(e.target.value)}
-                  placeholder="e.g., 80, 443, 1024-65535"
+                  placeholder={t("ruleDialog.sourcePortPlaceholder")}
                   className="font-mono"
                 />
               </div>
@@ -551,16 +554,16 @@ export function NAT66RuleDialog({
             <TabsContent value="destination" className="space-y-4">
               {/* Destination address/prefix vs firewall group — independent of port */}
               <div className="space-y-3">
-                <Label className="text-base font-medium">{isSource ? "Destination Prefix" : "Destination Address"}</Label>
+                <Label className="text-base font-medium">{isSource ? t("ruleDialog.destinationPrefix") : t("ruleDialog.destinationAddress")}</Label>
                 <RadioGroup value={destinationType} onValueChange={(v) => setDestinationType(v as "input" | "group")}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="input" id="nat66-dest-input-radio" />
-                    <Label htmlFor="nat66-dest-input-radio">Address/Network</Label>
+                    <Label htmlFor="nat66-dest-input-radio">{t("ruleDialog.addressNetwork")}</Label>
                   </div>
                   {groupsSupported && (
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="group" id="nat66-dest-group-radio" />
-                      <Label htmlFor="nat66-dest-group-radio">Firewall Group</Label>
+                      <Label htmlFor="nat66-dest-group-radio">{t("ruleDialog.firewallGroup")}</Label>
                     </div>
                   )}
                 </RadioGroup>
@@ -577,18 +580,18 @@ export function NAT66RuleDialog({
                   <div className="space-y-2">
                     <Select value={destinationGroupType} onValueChange={(v) => { setDestinationGroupType(v); setDestinationGroupName(""); }}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select group type" />
+                        <SelectValue placeholder={t("ruleDialog.selectGroupType")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="address-group">IPv6 Address Group</SelectItem>
-                        <SelectItem value="network-group">IPv6 Network Group</SelectItem>
-                        <SelectItem value="domain-group">Domain Group</SelectItem>
-                        <SelectItem value="mac-group">MAC Group</SelectItem>
+                        <SelectItem value="address-group">{t("ruleDialog.ipv6AddressGroup")}</SelectItem>
+                        <SelectItem value="network-group">{t("ruleDialog.ipv6NetworkGroup")}</SelectItem>
+                        <SelectItem value="domain-group">{t("ruleDialog.domainGroup")}</SelectItem>
+                        <SelectItem value="mac-group">{t("ruleDialog.macGroup")}</SelectItem>
                       </SelectContent>
                     </Select>
                     <Select value={destinationGroupName} onValueChange={setDestinationGroupName}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select group" />
+                        <SelectValue placeholder={t("ruleDialog.selectGroup")} />
                       </SelectTrigger>
                       <SelectContent>
                         {getGroupsByType(destinationGroupType).map((g) => (
@@ -602,7 +605,7 @@ export function NAT66RuleDialog({
 
               {/* Destination port vs port group — independent of address */}
               <div className="space-y-3">
-                <Label className="text-base font-medium">Destination Port</Label>
+                <Label className="text-base font-medium">{t("ruleDialog.destinationPort")}</Label>
                 <RadioGroup value={destPortType} onValueChange={(v) => {
                   setDestPortType(v as "input" | "group");
                   if (v === "input") setDestPortGroupName("");
@@ -610,12 +613,12 @@ export function NAT66RuleDialog({
                 }}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="input" id="nat66-dest-port-input-radio" />
-                    <Label htmlFor="nat66-dest-port-input-radio">Port</Label>
+                    <Label htmlFor="nat66-dest-port-input-radio">{t("ruleDialog.port")}</Label>
                   </div>
                   {groupsSupported && (
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="group" id="nat66-dest-port-group-radio" />
-                      <Label htmlFor="nat66-dest-port-group-radio">Port Group</Label>
+                      <Label htmlFor="nat66-dest-port-group-radio">{t("ruleDialog.portGroup")}</Label>
                     </div>
                   )}
                 </RadioGroup>
@@ -625,13 +628,13 @@ export function NAT66RuleDialog({
                     id="nat66-dest-port"
                     value={destinationPort}
                     onChange={(e) => setDestinationPort(e.target.value)}
-                    placeholder="e.g., 80, 443, 8080"
+                    placeholder={t("ruleDialog.destinationPortPlaceholder")}
                     className="font-mono"
                   />
                 ) : (
                   <Select value={destPortGroupName} onValueChange={setDestPortGroupName}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select port group" />
+                      <SelectValue placeholder={t("ruleDialog.selectPortGroup")} />
                     </SelectTrigger>
                     <SelectContent>
                       {getPortGroups().map((g) => (
@@ -646,7 +649,7 @@ export function NAT66RuleDialog({
             {/* Advanced Tab */}
             <TabsContent value="advanced" className="space-y-4">
               <div className="space-y-4">
-                <h4 className="font-medium">Rule Flags</h4>
+                <h4 className="font-medium">{t("ruleDialog.ruleFlags")}</h4>
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
                     <Checkbox
@@ -655,7 +658,7 @@ export function NAT66RuleDialog({
                       onCheckedChange={(checked) => setDisable(checked === true)}
                     />
                     <Label htmlFor="nat66-disable" className="text-sm font-normal">
-                      Disable this rule
+                      {t("ruleDialog.disableRule")}
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -665,7 +668,7 @@ export function NAT66RuleDialog({
                       onCheckedChange={(checked) => setExclude(checked === true)}
                     />
                     <Label htmlFor="nat66-exclude" className="text-sm font-normal">
-                      Exclude from NAT
+                      {t("ruleDialog.excludeFromNat")}
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -675,7 +678,7 @@ export function NAT66RuleDialog({
                       onCheckedChange={(checked) => setLog(checked === true)}
                     />
                     <Label htmlFor="nat66-log" className="text-sm font-normal">
-                      Enable logging
+                      {t("ruleDialog.enableLogging")}
                     </Label>
                   </div>
                 </div>
@@ -686,10 +689,10 @@ export function NAT66RuleDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? (isEditing ? "Saving..." : "Creating...") : (isEditing ? "Save" : "Create Rule")}
+            {saving ? (isEditing ? tc("saving") : t("ruleDialog.creating")) : (isEditing ? tc("save") : t("ruleDialog.createRule"))}
           </Button>
         </DialogFooter>
       </DialogContent>

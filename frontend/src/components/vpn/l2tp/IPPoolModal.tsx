@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,8 @@ export function IPPoolModal({
   onSuccess,
   existingPool,
 }: IPPoolModalProps) {
+  const t = useTranslations("l2tp");
+  const tc = useTranslations("common");
   const isEdit = !!existingPool;
 
   const [name, setName] = useState("");
@@ -54,7 +57,7 @@ export function IPPoolModal({
   }, [open, existingPool]);
 
   const handleSubmit = async () => {
-    if (!name.trim()) { setError("Pool name is required"); return; }
+    if (!name.trim()) { setError(t("shared.poolNameRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -71,10 +74,10 @@ export function IPPoolModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to save pool");
+        setError(result.error || t("shared.saveFailedPool"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to save pool");
+      setError((err as ApiError).message || t("shared.saveFailedPool"));
     } finally {
       setLoading(false);
     }
@@ -86,25 +89,25 @@ export function IPPoolModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Network className="h-5 w-5 text-primary" />
-            {isEdit ? "Edit" : "Create"} IP Pool
+            {isEdit ? t("ipPool.titleEdit") : t("ipPool.titleCreate")}
           </DialogTitle>
-          <DialogDescription>Configure an IPv4 client address pool.</DialogDescription>
+          <DialogDescription>{t("ipPool.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Pool Name</Label>
+            <Label>{t("shared.poolName")}</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="pool1" disabled={isEdit} />
           </div>
           <div className="space-y-2">
-            <Label>Range</Label>
+            <Label>{t("ipPool.range")}</Label>
             <Input value={range} onChange={(e) => setRange(e.target.value)} placeholder="10.255.0.2-10.255.0.254" />
-            <p className="text-xs text-muted-foreground">IP range in format: start-end</p>
+            <p className="text-xs text-muted-foreground">{t("ipPool.rangeHelp")}</p>
           </div>
           <div className="space-y-2">
-            <Label>Next Pool</Label>
-            <Input value={nextPool} onChange={(e) => setNextPool(e.target.value)} placeholder="pool2 (optional)" />
-            <p className="text-xs text-muted-foreground">Pool to use when this one is exhausted</p>
+            <Label>{t("ipPool.nextPool")}</Label>
+            <Input value={nextPool} onChange={(e) => setNextPool(e.target.value)} placeholder={t("ipPool.nextPoolPlaceholder")} />
+            <p className="text-xs text-muted-foreground">{t("ipPool.nextPoolHelp")}</p>
           </div>
         </div>
 
@@ -116,9 +119,9 @@ export function IPPoolModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? "Saving..." : "Creating..."}</> : isEdit ? "Save Changes" : "Create Pool"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("shared.creating")}</> : isEdit ? t("shared.saveChanges") : t("shared.createPool")}
           </Button>
         </DialogFooter>
       </DialogContent>

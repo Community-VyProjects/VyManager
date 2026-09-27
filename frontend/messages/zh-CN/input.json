@@ -1,1 +1,32 @@
-{}
+{
+  "delete": {
+    "failed": "删除 Input 接口失败",
+    "title": "删除接口：{name}",
+    "confirm": "确定要删除此 Input 接口吗？此操作无法撤销。",
+    "redirect": "重定向：{redirect}",
+    "submit": "删除接口"
+  },
+  "modal": {
+    "editTitle": "编辑 Input 接口",
+    "createTitle": "创建 Input 接口",
+    "editingInterface": "正在编辑接口 <code>{name}</code>",
+    "createDescription": "创建新的 Input 功能块 (IFB) 接口，用于流量重定向和入站流量整形。",
+    "interfaceName": "接口名称",
+    "nameImmutable": "接口名称不可更改。",
+    "namePatternHint": "必须符合格式：ifb0、ifb1、ifb2、...",
+    "descriptionPlaceholder": "可选描述",
+    "redirectTo": "重定向到",
+    "redirectHint": "将传入的数据包重定向到目标接口",
+    "disableInterface": "禁用接口",
+    "creating": "正在创建...",
+    "saveChanges": "保存更改",
+    "createInterface": "创建接口",
+    "errors": {
+      "nameRequired": "接口名称为必填项",
+      "namePattern": "名称必须为 ifb0、ifb1 等",
+      "nameExists": "接口 {name} 已存在",
+      "updateFailed": "更新 Input 接口失败",
+      "createFailed": "创建 Input 接口失败"
+    }
+  }
+}

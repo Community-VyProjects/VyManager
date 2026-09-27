@@ -1,1 +1,160 @@
-{}
+{
+  "example": "例如 {value}",
+  "header": {
+    "title": "RIP 协议",
+    "readOnly": "只读",
+    "subtitle": "路由信息协议 — 距离矢量路由"
+  },
+  "errors": {
+    "loadFailed": "加载 RIP 配置失败",
+    "saveSettingsFailed": "保存设置失败",
+    "addNetworkFailed": "添加网络失败",
+    "removeNetworkFailed": "移除网络失败",
+    "addNeighborFailed": "添加邻居失败",
+    "removeNeighborFailed": "移除邻居失败",
+    "addRouteFailed": "添加路由失败",
+    "removeRouteFailed": "移除路由失败",
+    "addPassiveIfaceFailed": "添加被动接口失败",
+    "removePassiveIfaceFailed": "移除被动接口失败",
+    "saveFiltersFailed": "保存过滤器失败"
+  },
+  "stats": {
+    "version": "版本",
+    "networks": "网络",
+    "interfaces": "接口",
+    "redistribute": "重分发"
+  },
+  "tabs": {
+    "overview": "概览",
+    "networks": "网络",
+    "interfaces": "接口",
+    "redistribute": "重分发",
+    "filters": "过滤器"
+  },
+  "overview": {
+    "description": "全局 RIP 设置和计时器",
+    "globalSettings": "全局设置",
+    "version": "版本",
+    "defaultDistance": "默认距离",
+    "defaultDistanceHelp": "管理距离（1-255）",
+    "defaultMetric": "默认度量值",
+    "defaultMetricHelp": "重分发路由的度量值（1-16）",
+    "routeMap": "路由映射",
+    "originate": "通告默认路由信息",
+    "timers": "计时器",
+    "updateInterval": "更新间隔（秒）",
+    "updateHelp": "发送路由更新的频率（默认：30）",
+    "timeoutInterval": "超时间隔（秒）",
+    "timeoutHelp": "路由被标记为无效之前的时间（默认：180）",
+    "garbageCollection": "垃圾回收（秒）",
+    "gcHelp": "失效路由被移除之前的时间（默认：120）"
+  },
+  "networks": {
+    "description": "配置 RIP 网络、邻居、静态路由和被动接口",
+    "ripNetworks": "RIP 网络",
+    "neighbors": "邻居",
+    "staticRoutes": "静态路由",
+    "passiveInterfaces": "被动接口",
+    "selectOrTypeInterface": "选择或输入接口",
+    "noneConfigured": "未配置"
+  },
+  "interfaces": {
+    "description": "每个接口的认证、版本和水平分割设置",
+    "addInterface": "添加接口",
+    "empty": "未配置接口设置",
+    "emptyHint": "添加一个接口以配置认证或水平分割。",
+    "interface": "接口",
+    "authType": "认证类型",
+    "sendVersion": "发送版本",
+    "recvVersion": "接收版本",
+    "splitHorizon": "水平分割",
+    "default": "默认"
+  },
+  "redistribute": {
+    "description": "将其他协议的路由重分发到 RIP",
+    "empty": "未配置重分发",
+    "protocol": "协议",
+    "metric": "度量值",
+    "routeMap": "路由映射"
+  },
+  "filters": {
+    "distributeLists": "分发列表",
+    "globalFilters": "全局过滤器",
+    "accessListIn": "入站访问列表",
+    "accessListOut": "出站访问列表",
+    "prefixListIn": "入站前缀列表",
+    "prefixListOut": "出站前缀列表",
+    "perInterfaceFilters": "每接口过滤器",
+    "perInterfaceEmpty": "未配置每接口过滤器",
+    "aclIn": "入站 ACL",
+    "aclOut": "出站 ACL",
+    "plIn": "入站前缀列表",
+    "plOut": "出站前缀列表",
+    "networkDistance": "网络距离",
+    "networkDistanceEmpty": "未配置网络距离条目",
+    "networkPrefix": "网络前缀",
+    "distance": "距离",
+    "accessList": "访问列表"
+  },
+  "deleteModal": {
+    "title": "删除 RIP {type, select, interface {接口} redistribution {重分发} networkDistance {网络距离} other {接口过滤器}}",
+    "description": "确定要删除 RIP {type, select, interface {接口} redistribution {重分发} networkDistance {网络距离} other {接口过滤器}} <mono>{name}</mono> 吗？此操作无法撤销。",
+    "confirm": "删除{type, select, interface {接口} redistribution {重分发} networkDistance {网络距离} other {接口过滤器}}"
+  },
+  "modal": {
+    "adding": "正在添加...",
+    "saveChanges": "保存更改",
+    "optionalHint": "（可选）"
+  },
+  "validation": {
+    "selectInterface": "请选择一个接口",
+    "md5KeyIdRequired": "所有 MD5 密钥都必须有密钥 ID",
+    "md5KeyIdRange": "MD5 密钥 ID 必须为 1-255",
+    "md5PasswordRequired": "所有 MD5 密钥都必须有密码",
+    "md5PasswordLength": "MD5 密钥密码不能超过 16 个字符",
+    "plaintextLength": "明文密码不能超过 16 个字符",
+    "prefixRequired": "网络前缀为必填项",
+    "prefixExists": "该前缀已配置",
+    "distanceRequired": "距离为必填项",
+    "distanceRange": "距离必须在 1 到 255 之间",
+    "selectProtocol": "请选择一个协议",
+    "metricRange": "度量值必须在 1 到 16 之间"
+  },
+  "interfaceModal": {
+    "editTitle": "编辑 RIP 接口",
+    "addTitle": "添加 RIP 接口",
+    "editDescription": "修改 {name} 的 RIP 设置。",
+    "addDescription": "配置每个接口的 RIP 认证、版本和水平分割。",
+    "authentication": "认证",
+    "plaintext": "明文",
+    "md5Help": "MD5 密钥对（密钥 ID 1-255，密码不超过 16 个字符）",
+    "keyId": "密钥 ID",
+    "password": "密码",
+    "addKey": "添加密钥",
+    "plaintextPlaceholder": "密码（不超过 16 个字符）",
+    "sendVersion": "发送版本",
+    "receiveVersion": "接收版本",
+    "disable": "禁用",
+    "poisonReverse": "毒性逆转"
+  },
+  "dlModal": {
+    "editTitle": "编辑接口过滤器",
+    "addTitle": "添加接口过滤器",
+    "description": "为指定接口配置分发列表过滤器。",
+    "selectInterface": "选择接口",
+    "addFilter": "添加过滤器"
+  },
+  "ndModal": {
+    "editTitle": "编辑网络距离",
+    "addTitle": "添加网络距离",
+    "description": "为来自指定网络的路由设置管理距离。"
+  },
+  "redistModal": {
+    "editTitle": "编辑重分发",
+    "addTitle": "添加重分发",
+    "editDescription": "修改 {protocol} 的重分发设置。",
+    "addDescription": "配置一个要重分发到 RIP 的新协议。",
+    "selectProtocol": "选择协议",
+    "metricHint": "（可选，1-16）"
+  }
+}

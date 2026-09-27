@@ -126,7 +126,7 @@ export function EntityListEditor({
     <Card>
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
         <CardTitle className="text-base">
-          {st.group(group, "plural", pluralLabel)} {ids.length > 0 && <Badge variant="secondary" className="ml-1">{ids.length}</Badge>}
+          {pluralLabel} {ids.length > 0 && <Badge variant="secondary" className="ml-1">{ids.length}</Badge>}
         </CardTitle>
         {canWrite && group.fixedIds && unusedFixed.length > 0 && (
           <div className="flex items-center gap-2">
@@ -170,7 +170,7 @@ export function EntityListEditor({
           </pre>
         )}
         {ids.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-2">{st.group(group, "empty", `No ${pluralLabel.toLowerCase()} configured.`)}</p>
+          <p className="text-sm text-muted-foreground py-2">No {pluralLabel.toLowerCase()} configured.</p>
         ) : (
           <div className="space-y-1.5">
             {ids.map((id) => (
@@ -186,7 +186,7 @@ export function EntityListEditor({
                   {(group.children || []).map((cg, idx) => (
                     <Button key={cg.label + idx} size="sm" variant="ghost" onClick={() => setChildCtx({ id, index: idx })} disabled={busy}>
                       <Layers className="h-3.5 w-3.5 mr-1" />
-                      {st.group(cg, "plural", cg.pluralLabel ?? `${cg.label}s`)}
+                      {cg.pluralLabel ?? `${cg.label}s`}
                     </Button>
                   ))}
                   {canWrite && (
@@ -224,15 +224,7 @@ export function EntityListEditor({
           <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
-                {t("entityList.childTitle", {
-                  plural: st.group(
-                    group.children[childCtx.index],
-                    "plural",
-                    group.children[childCtx.index].pluralLabel ?? `${group.children[childCtx.index].label}s`
-                  ),
-                  label: groupLabel,
-                  id: childCtx.id,
-                })}
+                {group.children[childCtx.index].pluralLabel ?? `${group.children[childCtx.index].label}s`} — {group.label} {childCtx.id}
               </DialogTitle>
             </DialogHeader>
             <EntityListEditor

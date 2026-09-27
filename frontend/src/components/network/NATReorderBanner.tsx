@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertCircle, Save, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -12,6 +13,8 @@ interface NATReorderBannerProps {
 }
 
 export function NATReorderBanner({ onSave, onCancel, saving }: NATReorderBannerProps) {
+  const t = useTranslations("nat");
+  const tc = useTranslations("common");
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom duration-300">
       <Card className="shadow-lg border-2 border-primary bg-card">
@@ -22,10 +25,10 @@ export function NATReorderBanner({ onSave, onCancel, saving }: NATReorderBannerP
             </div>
             <div>
               <p className="font-semibold text-foreground">
-                Rules have been reordered
+                {t("reorder.title")}
               </p>
               <p className="text-sm text-muted-foreground">
-                Do you want to save your changes?
+                {t("reorder.prompt")}
               </p>
             </div>
           </div>
@@ -39,7 +42,7 @@ export function NATReorderBanner({ onSave, onCancel, saving }: NATReorderBannerP
               className="gap-2"
             >
               <X className="h-4 w-4" />
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button
               size="sm"
@@ -48,7 +51,7 @@ export function NATReorderBanner({ onSave, onCancel, saving }: NATReorderBannerP
               className="gap-2 bg-primary hover:bg-primary/90"
             >
               <Save className="h-4 w-4" />
-              {saving ? "Saving..." : "Save Changes"}
+              {saving ? tc("saving") : t("reorder.saveChanges")}
             </Button>
           </div>
         </div>

@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Plus, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { showService, InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import { staticRoutesService, type StaticRoute, type StaticRoutesCapabilities } from "@/lib/api/static-routes";
@@ -41,6 +42,8 @@ export function StaticRouteModal({
   routeType,
   existing,
 }: StaticRouteModalProps) {
+  const t = useTranslations("staticRoutes");
+  const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +76,7 @@ export function StaticRouteModal({
       ? validateStaticRouteEdit(draft)
       : validateStaticRouteCreate(draft);
     if (validationError) {
-      setError(validationError);
+      setError(t(`validation.${validationError}`));
       return;
     }
 
@@ -89,13 +92,13 @@ export function StaticRouteModal({
           : await submitStaticRouteCreate({ ...draft, routeType: effectiveType }, dhcpSupported);
 
       if (result && result.success === false) {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
         return;
       }
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : isEdit ? "Failed to update route" : "Failed to create route");
+      setError(err instanceof Error ? err.message : isEdit ? t("modal.updateFailed") : t("modal.createFailed"));
     } finally {
       setLoading(false);
     }
@@ -130,30 +133,30 @@ export function StaticRouteModal({
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? "Edit Static Route" : `Create ${effectiveType.toUpperCase()} Static Route`}
+            {isEdit ? t("modal.editTitle") : t("modal.createTitle", { type: effectiveType.toUpperCase() })}
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? `Modify configuration for ${existing.destination}`
-              : `Configure a new static route for ${effectiveType === "ipv4" ? "IPv4" : "IPv6"} traffic`}
+              ? t("modal.editDescription", { destination: existing.destination })
+              : t("modal.createDescription", { family: effectiveType === "ipv4" ? "IPv4" : "IPv6" })}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="basic">Basic</TabsTrigger>
-            <TabsTrigger value="routing">Routing</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            <TabsTrigger value="basic">{t("modal.tabs.basic")}</TabsTrigger>
+            <TabsTrigger value="routing">{t("modal.tabs.routing")}</TabsTrigger>
+            <TabsTrigger value="advanced">{t("modal.tabs.advanced")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="basic" className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="destination">
-                Destination Network {isEdit ? null : <span className="text-destructive">*</span>}
+                {t("modal.destinationNetwork")} {isEdit ? null : <span className="text-destructive">*</span>}
               </Label>
               <Input
                 id="destination"
-                placeholder={effectiveType === "ipv4" ? "e.g., 10.0.0.0/24" : "e.g., 2001:db8::/32"}
+                placeholder={t("modal.example", { value: effectiveType === "ipv4" ? "10.0.0.0/24" : "2001:db8::/32" })}
                 value={lockedDestination.value}
                 disabled={lockedDestination.disabled}
                 className={lockedDestination.disabled ? "bg-muted" : undefined}
@@ -161,18 +164,18 @@ export function StaticRouteModal({
               />
               {isEdit ? (
                 <p className="text-xs text-muted-foreground">
-                  Destination cannot be changed. Delete and recreate to change destination.
+                  {t("modal.destinationLocked")}
                 </p>
               ) : (
-                <p className="text-xs text-muted-foreground">Network in CIDR notation</p>
+                <p className="text-xs text-muted-foreground">{t("modal.cidrHint")}</p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{tc("description")}</Label>
               <Textarea
                 id="description"
-                placeholder="Optional description for this route"
+                placeholder={t("modal.descriptionPlaceholder")}
                 value={draft.description}
                 onChange={(e) => patch({ description: e.target.value })}
                 rows={2}
@@ -183,10 +186,10 @@ export function StaticRouteModal({
           <TabsContent value="routing" className="space-y-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label className="text-base font-semibold">Next-Hops</Label>
+                <Label className="text-base font-semibold">{t("modal.nextHops")}</Label>
                 <Button type="button" variant="outline" size="sm" onClick={addNextHop}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Next-Hop
+                  {t("modal.addNextHop")}
                 </Button>
               </div>
 
@@ -194,7 +197,7 @@ export function StaticRouteModal({
                 draft.nextHops.map((nh, index) => (
                   <div key={index} className="border rounded-lg p-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Next-Hop #{index + 1}</span>
+                      <span className="text-sm font-medium">{t("modal.nextHopN", { n: index + 1 })}</span>
                       <Button type="button" variant="ghost" size="sm" onClick={() => removeNextHop(index)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -203,19 +206,19 @@ export function StaticRouteModal({
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
                         <Label>
-                          Address <span className="text-destructive">*</span>
+                          {t("modal.address")} <span className="text-destructive">*</span>
                         </Label>
                         <Input
-                          placeholder={effectiveType === "ipv4" ? "e.g., 192.168.1.1" : "e.g., 2001:db8::1"}
+                          placeholder={t("modal.example", { value: effectiveType === "ipv4" ? "192.168.1.1" : "2001:db8::1" })}
                           value={nh.address}
                           onChange={(e) => updateNextHop(index, "address", e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Distance (Metric)</Label>
+                        <Label>{t("modal.distanceMetric")}</Label>
                         <Input
                           type="number"
-                          placeholder="Default: 1"
+                          placeholder={t("modal.defaultOne")}
                           value={nh.distance}
                           onChange={(e) => updateNextHop(index, "distance", e.target.value)}
                         />
@@ -228,7 +231,7 @@ export function StaticRouteModal({
                         <VrfSelect
                           value={nh.vrf}
                           onValueChange={(v) => updateNextHop(index, "vrf", v)}
-                          extraOptions={[{ label: "Default", value: "default" }]}
+                          extraOptions={[{ label: tc("default"), value: "default" }]}
                         />
                       </div>
                     )}
@@ -241,13 +244,13 @@ export function StaticRouteModal({
                             checked={nh.bfd_enable}
                             onCheckedChange={(checked) => updateNextHop(index, "bfd_enable", checked === true)}
                           />
-                          <Label htmlFor={`bfd-enable-${index}`}>Enable BFD Monitoring</Label>
+                          <Label htmlFor={`bfd-enable-${index}`}>{t("modal.enableBfd")}</Label>
                         </div>
                         {nh.bfd_enable && (
                           <div className="space-y-2 ml-6">
-                            <Label>BFD Profile</Label>
+                            <Label>{t("modal.bfdProfile")}</Label>
                             <Input
-                              placeholder="BFD profile name (optional)"
+                              placeholder={t("modal.bfdProfilePlaceholder")}
                               value={nh.bfd_profile}
                               onChange={(e) => updateNextHop(index, "bfd_profile", e.target.value)}
                             />
@@ -262,23 +265,23 @@ export function StaticRouteModal({
                         checked={nh.disable}
                         onCheckedChange={(checked) => updateNextHop(index, "disable", checked === true)}
                       />
-                      <Label htmlFor={`nh-disable-${index}`}>Disable this next-hop</Label>
+                      <Label htmlFor={`nh-disable-${index}`}>{t("modal.disableNextHop")}</Label>
                     </div>
                   </div>
                 ))
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">
-                  No next-hops configured. Click &quot;Add Next-Hop&quot; to add one.
+                  {t("modal.noNextHops")}
                 </p>
               )}
             </div>
 
             <div className="space-y-4 border-t pt-4">
               <div className="flex items-center justify-between">
-                <Label className="text-base font-semibold">Interface Routes</Label>
+                <Label className="text-base font-semibold">{t("modal.interfaceRoutes")}</Label>
                 <Button type="button" variant="outline" size="sm" onClick={addInterface}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Interface
+                  {t("modal.addInterface")}
                 </Button>
               </div>
 
@@ -286,7 +289,7 @@ export function StaticRouteModal({
                 draft.interfaces.map((iface, index) => (
                   <div key={index} className="border rounded-lg p-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Interface #{index + 1}</span>
+                      <span className="text-sm font-medium">{t("modal.interfaceN", { n: index + 1 })}</span>
                       <Button type="button" variant="ghost" size="sm" onClick={() => removeInterface(index)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -294,20 +297,20 @@ export function StaticRouteModal({
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
                         <Label>
-                          Interface <span className="text-destructive">*</span>
+                          {t("modal.interface")} <span className="text-destructive">*</span>
                         </Label>
                         <InterfaceSelect
                           value={iface.interface}
                           onValueChange={(value) => updateInterface(index, "interface", value)}
                           interfaces={availableInterfaces}
-                          placeholder="Select interface"
+                          placeholder={t("modal.selectInterface")}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Distance (Metric)</Label>
+                        <Label>{t("modal.distanceMetric")}</Label>
                         <Input
                           type="number"
-                          placeholder="Default: 1"
+                          placeholder={t("modal.defaultOne")}
                           value={iface.distance}
                           onChange={(e) => updateInterface(index, "distance", e.target.value)}
                         />
@@ -319,13 +322,13 @@ export function StaticRouteModal({
                         checked={iface.disable}
                         onCheckedChange={(checked) => updateInterface(index, "disable", checked === true)}
                       />
-                      <Label htmlFor={`iface-disable-${index}`}>Disable this interface route</Label>
+                      <Label htmlFor={`iface-disable-${index}`}>{t("modal.disableInterface")}</Label>
                     </div>
                   </div>
                 ))
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">
-                  No interface routes configured. Click &quot;Add Interface&quot; to add one.
+                  {t("modal.noInterfaces")}
                 </p>
               )}
             </div>
@@ -340,29 +343,29 @@ export function StaticRouteModal({
                   }
                 />
                 <Label htmlFor="blackhole" className="text-base font-semibold cursor-pointer">
-                  Blackhole Route (Drop silently)
+                  {t("modal.blackholeRoute")}
                 </Label>
               </div>
               {draft.isBlackhole && (
                 <div className="ml-6 space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    Packets matching this route will be dropped without notification.
+                    {t("modal.blackholeHelp")}
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label>Distance (Metric)</Label>
+                      <Label>{t("modal.distanceMetric")}</Label>
                       <Input
                         type="number"
-                        placeholder="Default: 1"
+                        placeholder={t("modal.defaultOne")}
                         value={draft.blackholeDistance}
                         onChange={(e) => patch({ blackholeDistance: e.target.value })}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Tag</Label>
+                      <Label>{t("modal.tag")}</Label>
                       <Input
                         type="number"
-                        placeholder="Optional"
+                        placeholder={tc("optional")}
                         value={draft.blackholeTag}
                         onChange={(e) => patch({ blackholeTag: e.target.value })}
                       />
@@ -382,29 +385,29 @@ export function StaticRouteModal({
                   }
                 />
                 <Label htmlFor="reject" className="text-base font-semibold cursor-pointer">
-                  Reject Route (ICMP unreachable)
+                  {t("modal.rejectRoute")}
                 </Label>
               </div>
               {draft.isReject && (
                 <div className="ml-6 space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    Packets matching this route will be rejected with ICMP unreachable response.
+                    {t("modal.rejectHelp")}
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label>Distance (Metric)</Label>
+                      <Label>{t("modal.distanceMetric")}</Label>
                       <Input
                         type="number"
-                        placeholder="Default: 1"
+                        placeholder={t("modal.defaultOne")}
                         value={draft.rejectDistance}
                         onChange={(e) => patch({ rejectDistance: e.target.value })}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Tag</Label>
+                      <Label>{t("modal.tag")}</Label>
                       <Input
                         type="number"
-                        placeholder="Optional"
+                        placeholder={tc("optional")}
                         value={draft.rejectTag}
                         onChange={(e) => patch({ rejectTag: e.target.value })}
                       />
@@ -418,17 +421,17 @@ export function StaticRouteModal({
           <TabsContent value="advanced" className="space-y-4">
             {capabilities?.features.dhcp_interface.supported && (
               <div className="space-y-2">
-                <Label htmlFor="dhcp-interface">DHCP Interface</Label>
+                <Label htmlFor="dhcp-interface">{t("modal.dhcpInterface")}</Label>
                 <InterfaceSelect
                   id="dhcp-interface"
                   value={draft.dhcpInterface || "__none__"}
                   onValueChange={(v) => patch({ dhcpInterface: v === "__none__" ? "" : v })}
                   interfaces={availableInterfaces}
-                  noneOption={{ label: "None", value: "__none__" }}
-                  placeholder="Select interface"
+                  noneOption={{ label: tc("none"), value: "__none__" }}
+                  placeholder={t("modal.selectInterface")}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Use gateway from DHCP on this interface
+                  {t("modal.dhcpHelp")}
                 </p>
               </div>
             )}
@@ -436,7 +439,7 @@ export function StaticRouteModal({
             {!capabilities?.features.dhcp_interface.supported && (
               <div className="bg-muted/50 border rounded-lg p-4">
                 <p className="text-sm text-muted-foreground">
-                  No advanced options available on this device.
+                  {t("modal.noAdvanced")}
                 </p>
               </div>
             )}
@@ -452,10 +455,10 @@ export function StaticRouteModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? (isEdit ? "Updating..." : "Creating...") : isEdit ? "Update Route" : "Create Route"}
+            {loading ? (isEdit ? t("modal.updating") : t("modal.creating")) : isEdit ? t("modal.updateRoute") : t("modal.createRoute")}
           </Button>
         </DialogFooter>
       </DialogContent>

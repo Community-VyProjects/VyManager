@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,8 @@ export function RpkiCacheServerModal({
   onSubmit,
   existingServer,
 }: RpkiCacheServerModalProps) {
+  const t = useTranslations("rpki");
+  const tc = useTranslations("common");
   const isEditMode = !!existingServer;
 
   const [address, setAddress] = useState("");
@@ -86,20 +89,20 @@ export function RpkiCacheServerModal({
   }, [open, existingServer]);
 
   const validateForm = (): string | null => {
-    if (!address.trim()) return "Cache server address is required";
+    if (!address.trim()) return t("modal.addressRequired");
 
     if (port) {
       const p = parseInt(port, 10);
-      if (isNaN(p) || p < 1 || p > 65535) return "Port must be an integer between 1 and 65535";
+      if (isNaN(p) || p < 1 || p > 65535) return t("modal.portRange");
     }
 
     if (preference) {
       const pref = parseInt(preference, 10);
-      if (isNaN(pref) || pref < 1 || pref > 255) return "Preference must be an integer between 1 and 255";
+      if (isNaN(pref) || pref < 1 || pref > 255) return t("modal.preferenceRange");
     }
 
     if (sshEnabled && !sshKey.trim() && !sshUsername.trim()) {
-      return "SSH key or username is required when SSH transport is enabled";
+      return t("modal.sshRequired");
     }
 
     return null;
@@ -133,7 +136,7 @@ export function RpkiCacheServerModal({
       await onSubmit(server);
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -144,10 +147,10 @@ export function RpkiCacheServerModal({
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit Cache Server" : "Add Cache Server"}
+            {isEditMode ? t("modal.editTitle") : t("servers.add")}
           </DialogTitle>
           <DialogDescription>
-            Configure an RPKI cache server for BGP route origin validation.
+            {t("modal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -155,17 +158,17 @@ export function RpkiCacheServerModal({
           <div className="space-y-5 py-2">
             {/* Address */}
             <div className="space-y-1.5">
-              <Label htmlFor="rpki-address">Cache Server Address</Label>
+              <Label htmlFor="rpki-address">{t("modal.address")}</Label>
               <Input
                 id="rpki-address"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                placeholder="e.g. 192.0.2.1 or rpki.example.com"
+                placeholder={t("modal.addressPlaceholder")}
                 disabled={isEditMode}
                 className={isEditMode ? "bg-muted" : ""}
               />
               <p className="text-xs text-muted-foreground">
-                IPv4 address, IPv6 address, or fully-qualified domain name
+                {t("modal.addressHelp")}
               </p>
             </div>
 
@@ -173,7 +176,7 @@ export function RpkiCacheServerModal({
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="rpki-port">Port</Label>
+                  <Label htmlFor="rpki-port">{t("servers.port")}</Label>
                   <Input
                     id="rpki-port"
                     type="number"
@@ -181,11 +184,11 @@ export function RpkiCacheServerModal({
                     max={65535}
                     value={port}
                     onChange={(e) => setPort(e.target.value)}
-                    placeholder="Optional"
+                    placeholder={tc("optional")}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="rpki-preference">Preference</Label>
+                  <Label htmlFor="rpki-preference">{t("servers.preference")}</Label>
                   <Input
                     id="rpki-preference"
                     type="number"
@@ -193,17 +196,17 @@ export function RpkiCacheServerModal({
                     max={255}
                     value={preference}
                     onChange={(e) => setPreference(e.target.value)}
-                    placeholder="Optional (1–255)"
+                    placeholder={t("modal.preferencePlaceholder")}
                   />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="rpki-source-address">Source Address</Label>
+                <Label htmlFor="rpki-source-address">{t("servers.sourceAddress")}</Label>
                 <Input
                   id="rpki-source-address"
                   value={sourceAddress}
                   onChange={(e) => setSourceAddress(e.target.value)}
-                  placeholder="Optional IPv4 source address"
+                  placeholder={t("modal.sourceAddressPlaceholder")}
                 />
               </div>
             </div>
@@ -218,10 +221,10 @@ export function RpkiCacheServerModal({
                 />
                 <div className="space-y-0.5">
                   <Label htmlFor="rpki-ssh-enabled" className="cursor-pointer">
-                    Use SSH Transport
+                    {t("modal.useSsh")}
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Connect via SSH instead of plain TCP
+                    {t("modal.useSshHelp")}
                   </p>
                 </div>
               </div>
@@ -229,16 +232,16 @@ export function RpkiCacheServerModal({
               {sshEnabled && (
                 <div className="pl-7 space-y-3">
                   <div className="space-y-1.5">
-                    <Label>SSH Key</Label>
+                    <Label>{t("modal.sshKey")}</Label>
                     {opensshKeys.length === 0 ? (
                       <p className="text-sm text-muted-foreground py-1">
-                        No SSH keys configured — add one in PKI → OpenSSH
+                        {t("modal.noSshKeys")}
                       </p>
                     ) : (
                       <>
                         <Select value={sshKey} onValueChange={setSshKey}>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select a key" />
+                            <SelectValue placeholder={t("modal.selectKey")} />
                           </SelectTrigger>
                           <SelectContent>
                             {opensshKeys.map((name) => (
@@ -249,18 +252,18 @@ export function RpkiCacheServerModal({
                           </SelectContent>
                         </Select>
                         <p className="text-xs text-muted-foreground">
-                          Configured in PKI → OpenSSH
+                          {t("modal.keyHelp")}
                         </p>
                       </>
                     )}
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="rpki-ssh-username">SSH Username</Label>
+                    <Label htmlFor="rpki-ssh-username">{t("modal.sshUsername")}</Label>
                     <Input
                       id="rpki-ssh-username"
                       value={sshUsername}
                       onChange={(e) => setSshUsername(e.target.value)}
-                      placeholder="e.g. rpki-user"
+                      placeholder={t("modal.usernamePlaceholder")}
                     />
                   </div>
                 </div>
@@ -278,18 +281,18 @@ export function RpkiCacheServerModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Creating..."}
+                {isEditMode ? tc("saving") : t("modal.creating")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("modal.saveChanges")
             ) : (
-              "Add Cache Server"
+              t("servers.add")
             )}
           </Button>
         </DialogFooter>
