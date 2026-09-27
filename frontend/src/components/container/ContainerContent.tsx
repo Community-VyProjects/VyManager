@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { containerTabFromSearch, type ContainerTab } from "@/lib/query-tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,8 @@ import { FeatureGroup } from "@/lib/api/user-management";
 import { SSHNotConfigured } from "@/components/console/SSHNotConfigured";
 
 export function ContainerContent() {
+  const t = useTranslations("containers");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWritePermission = canWrite(FeatureGroup.CONTAINER);
   const searchParams = useSearchParams();
@@ -45,11 +48,11 @@ export function ContainerContent() {
       setCapabilities(capsData);
       setBaseDirExists(baseDirData.exists);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load container configuration");
+      setError(err instanceof Error ? err.message : t("content.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -82,7 +85,7 @@ export function ContainerContent() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         {error === "SSH key not configured." ? <SSHNotConfigured /> : <p className="text-destructive">{error}</p>}
-        {error !== "SSH key not configured." && <Button variant="outline" onClick={() => loadData()}>Retry</Button>}
+        {error !== "SSH key not configured." && <Button variant="outline" onClick={() => loadData()}>{tc("retry")}</Button>}
       </div>
     );
   }
@@ -98,16 +101,16 @@ export function ContainerContent() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold text-foreground">Containers</h1>
-                {!hasWritePermission && <Badge variant="secondary">Read Only</Badge>}
+                <h1 className="text-2xl font-bold text-foreground">{t("content.title")}</h1>
+                {!hasWritePermission && <Badge variant="secondary">{t("content.readOnly")}</Badge>}
               </div>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Manage container instances, networks, and registries
+                {t("content.subtitle")}
               </p>
             </div>
           </div>
           <Button variant="outline" size="sm" onClick={() => loadData(true)}>
-            <RefreshCw className="h-4 w-4 mr-2" />Refresh
+            <RefreshCw className="h-4 w-4 mr-2" />{tc("refresh")}
           </Button>
         </div>
 
@@ -127,7 +130,7 @@ export function ContainerContent() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{totalContainers}</p>
-                  <p className="text-xs text-muted-foreground">Containers</p>
+                  <p className="text-xs text-muted-foreground">{t("content.containers")}</p>
                 </div>
               </div>
             </CardContent>
@@ -140,7 +143,7 @@ export function ContainerContent() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{totalNetworks}</p>
-                  <p className="text-xs text-muted-foreground">Networks</p>
+                  <p className="text-xs text-muted-foreground">{t("content.networks")}</p>
                 </div>
               </div>
             </CardContent>
@@ -153,7 +156,7 @@ export function ContainerContent() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{totalRegistries}</p>
-                  <p className="text-xs text-muted-foreground">Registries</p>
+                  <p className="text-xs text-muted-foreground">{t("content.registries")}</p>
                 </div>
               </div>
             </CardContent>
@@ -165,11 +168,11 @@ export function ContainerContent() {
       <div className="flex-1 p-6 pt-4 overflow-auto">
         <Tabs value={selectedTab} onValueChange={(value) => setSelectedTab(value as ContainerTab)}>
           <TabsList>
-            <TabsTrigger value="containers">Containers</TabsTrigger>
-            {showNetworks && <TabsTrigger value="networks">Networks</TabsTrigger>}
-            {showRegistries && <TabsTrigger value="registries">Registries</TabsTrigger>}
-            <TabsTrigger value="images">Images</TabsTrigger>
-            <TabsTrigger value="apps">Apps</TabsTrigger>
+            <TabsTrigger value="containers">{t("content.containers")}</TabsTrigger>
+            {showNetworks && <TabsTrigger value="networks">{t("content.networks")}</TabsTrigger>}
+            {showRegistries && <TabsTrigger value="registries">{t("content.registries")}</TabsTrigger>}
+            <TabsTrigger value="images">{t("content.images")}</TabsTrigger>
+            <TabsTrigger value="apps">{t("content.apps")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="containers" className="mt-4">
