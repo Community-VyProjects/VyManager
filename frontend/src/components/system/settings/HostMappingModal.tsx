@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,8 @@ interface Props {
 }
 
 export function HostMappingModal({ open, onOpenChange, onSuccess }: Props) {
+  const t = useTranslations("systemGeneral");
+  const tc = useTranslations("common");
   const [hostname, setHostname] = useState("");
   const [inetList, setInetList] = useState<string[]>([]);
   const [inetInput, setInetInput] = useState("");
@@ -75,11 +78,11 @@ export function HostMappingModal({ open, onOpenChange, onSuccess }: Props) {
     setError(null);
 
     if (!hostname.trim()) {
-      setError("Hostname is required.");
+      setError(t("hostModal.hostnameRequired"));
       return;
     }
     if (inetList.length === 0) {
-      setError("At least one IP address is required.");
+      setError(t("hostModal.ipRequired"));
       return;
     }
 
@@ -92,14 +95,14 @@ export function HostMappingModal({ open, onOpenChange, onSuccess }: Props) {
       );
 
       if (!result.success) {
-        setError(result.error ?? "Failed to create host mapping");
+        setError(result.error ?? t("hostModal.createFailed"));
         return;
       }
 
       handleClose();
       onSuccess();
     } catch {
-      setError("An unexpected error occurred");
+      setError(t("unexpectedError"));
     } finally {
       setLoading(false);
     }
@@ -111,10 +114,10 @@ export function HostMappingModal({ open, onOpenChange, onSuccess }: Props) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MapPin className="h-5 w-5" />
-            Add Static Host Mapping
+            {t("hostModal.title")}
           </DialogTitle>
           <DialogDescription>
-            Map a hostname to a static IP address.
+            {t("hostModal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -131,7 +134,7 @@ export function HostMappingModal({ open, onOpenChange, onSuccess }: Props) {
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="hostname">Hostname</Label>
+            <Label htmlFor="hostname">{t("general.hostname")}</Label>
             <Input
               id="hostname"
               value={hostname}
@@ -141,7 +144,7 @@ export function HostMappingModal({ open, onOpenChange, onSuccess }: Props) {
           </div>
 
           <div className="space-y-2">
-            <Label>IP Address(es)</Label>
+            <Label>{t("hostModal.ipAddresses")}</Label>
             <div className="flex gap-2">
               <Input
                 value={inetInput}
@@ -174,7 +177,7 @@ export function HostMappingModal({ open, onOpenChange, onSuccess }: Props) {
 
           {/* Aliases */}
           <div className="space-y-2">
-            <Label>Aliases (optional)</Label>
+            <Label>{t("hostModal.aliasesOptional")}</Label>
             <div className="flex gap-2">
               <Input
                 value={aliasInput}
@@ -207,10 +210,10 @@ export function HostMappingModal({ open, onOpenChange, onSuccess }: Props) {
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Adding…" : "Add Mapping"}
+              {loading ? t("hostModal.adding") : t("hostMap.addMapping")}
             </Button>
           </div>
         </form>

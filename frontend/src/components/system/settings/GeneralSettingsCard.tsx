@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Card,
   CardContent,
@@ -106,6 +107,8 @@ interface Props {
 }
 
 export function GeneralSettingsCard({ config, capabilities, isReadOnly, onRefresh }: Props) {
+  const t = useTranslations("systemGeneral");
+  const tc = useTranslations("common");
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -181,15 +184,15 @@ export function GeneralSettingsCard({ config, capabilities, isReadOnly, onRefres
       });
 
       if (!result.success) {
-        setError(result.error ?? "Operation failed");
+        setError(result.error ?? tc("operationFailed"));
         return;
       }
 
-      toast.success("General settings saved");
+      toast.success(t("general.saved"));
       setEditing(false);
       onRefresh();
     } catch {
-      setError("Failed to save settings");
+      setError(t("general.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -200,24 +203,24 @@ export function GeneralSettingsCard({ config, capabilities, isReadOnly, onRefres
       <CardHeader>
         <div className="flex items-start justify-between">
           <div>
-            <CardTitle>General</CardTitle>
+            <CardTitle>{t("general.title")}</CardTitle>
             <CardDescription>
-              Hostname, domain, name servers, timezone, and performance profile.
+              {t("general.description")}
             </CardDescription>
           </div>
           {!isReadOnly && !editing && (
             <Button variant="outline" size="sm" onClick={startEditing}>
               <Edit2 className="h-4 w-4 mr-2" />
-              Edit
+              {tc("edit")}
             </Button>
           )}
           {editing && (
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={cancelEditing} disabled={saving}>
-                Cancel
+                {tc("cancel")}
               </Button>
               <Button size="sm" onClick={handleSave} disabled={saving}>
-                {saving ? "Saving…" : "Save"}
+                {saving ? t("general.saving") : tc("save")}
               </Button>
             </div>
           )}
@@ -238,7 +241,7 @@ export function GeneralSettingsCard({ config, capabilities, isReadOnly, onRefres
         <div className="grid gap-6 sm:grid-cols-2">
           {/* Hostname */}
           <div className="space-y-2">
-            <Label htmlFor="hostname">Hostname</Label>
+            <Label htmlFor="hostname">{t("general.hostname")}</Label>
             {editing ? (
               <Input
                 id="hostname"
@@ -248,14 +251,14 @@ export function GeneralSettingsCard({ config, capabilities, isReadOnly, onRefres
               />
             ) : (
               <p className="text-sm text-foreground font-medium">
-                {config.hostname || <span className="text-muted-foreground">Not set</span>}
+                {config.hostname || <span className="text-muted-foreground">{tc("notSet")}</span>}
               </p>
             )}
           </div>
 
           {/* Domain Name */}
           <div className="space-y-2">
-            <Label htmlFor="domain">Domain Name</Label>
+            <Label htmlFor="domain">{t("general.domainName")}</Label>
             {editing ? (
               <Input
                 id="domain"
@@ -265,18 +268,18 @@ export function GeneralSettingsCard({ config, capabilities, isReadOnly, onRefres
               />
             ) : (
               <p className="text-sm text-foreground font-medium">
-                {config.domain_name || <span className="text-muted-foreground">Not set</span>}
+                {config.domain_name || <span className="text-muted-foreground">{tc("notSet")}</span>}
               </p>
             )}
           </div>
 
           {/* Timezone */}
           <div className="space-y-2">
-            <Label htmlFor="timezone">Timezone</Label>
+            <Label htmlFor="timezone">{t("general.timezone")}</Label>
             {editing ? (
               <Select value={timeZone} onValueChange={setTimeZone}>
                 <SelectTrigger id="timezone">
-                  <SelectValue placeholder="Select timezone" />
+                  <SelectValue placeholder={t("general.selectTimezone")} />
                 </SelectTrigger>
                 <SelectContent>
                   {COMMON_TIMEZONES.map((tz) => (
@@ -288,24 +291,24 @@ export function GeneralSettingsCard({ config, capabilities, isReadOnly, onRefres
               </Select>
             ) : (
               <p className="text-sm text-foreground font-medium">
-                {config.time_zone || <span className="text-muted-foreground">Not set</span>}
+                {config.time_zone || <span className="text-muted-foreground">{tc("notSet")}</span>}
               </p>
             )}
           </div>
 
           {/* Performance Profile */}
           <div className="space-y-2">
-            <Label htmlFor="performance">Performance Profile</Label>
+            <Label htmlFor="performance">{t("general.performanceProfile")}</Label>
             {editing ? (
               <Select
                 value={performance || "__none__"}
                 onValueChange={(v) => setPerformance(v === "__none__" ? "" : v)}
               >
                 <SelectTrigger id="performance">
-                  <SelectValue placeholder="Default (not set)" />
+                  <SelectValue placeholder={t("general.defaultNotSet")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">Default (not set)</SelectItem>
+                  <SelectItem value="__none__">{t("general.defaultNotSet")}</SelectItem>
                   {capabilities.performance_options.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value} title={opt.description}>
                       {opt.label}
@@ -316,7 +319,7 @@ export function GeneralSettingsCard({ config, capabilities, isReadOnly, onRefres
             ) : (
               <p className="text-sm text-foreground font-medium">
                 {capabilities.performance_options.find((o) => o.value === config.performance)
-                  ?.label || <span className="text-muted-foreground">Default (not set)</span>}
+                  ?.label || <span className="text-muted-foreground">{t("general.defaultNotSet")}</span>}
               </p>
             )}
           </div>
@@ -324,7 +327,7 @@ export function GeneralSettingsCard({ config, capabilities, isReadOnly, onRefres
 
         {/* Name Servers */}
         <div className="space-y-2">
-          <Label>Name Servers</Label>
+          <Label>{t("general.nameServers")}</Label>
           <div className="flex flex-wrap gap-2">
             {(editing ? nameServers : config.name_servers).map((ns) => (
               <Badge key={ns} variant="secondary" className="flex items-center gap-1">
@@ -341,7 +344,7 @@ export function GeneralSettingsCard({ config, capabilities, isReadOnly, onRefres
               </Badge>
             ))}
             {!editing && config.name_servers.length === 0 && (
-              <span className="text-sm text-muted-foreground">None configured</span>
+              <span className="text-sm text-muted-foreground">{t("general.noneConfigured")}</span>
             )}
           </div>
           {editing && (
@@ -360,7 +363,7 @@ export function GeneralSettingsCard({ config, capabilities, isReadOnly, onRefres
               />
               <Button type="button" variant="outline" size="sm" onClick={addNameServer}>
                 <Plus className="h-4 w-4 mr-1" />
-                Add
+                {tc("add")}
               </Button>
             </div>
           )}

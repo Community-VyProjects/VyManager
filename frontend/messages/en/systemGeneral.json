@@ -1,1 +1,78 @@
-{}
+{
+  "unexpectedError": "An unexpected error occurred",
+  "page": {
+    "loadFailed": "Failed to load system configuration.",
+    "title": "System Settings",
+    "subtitle": "Manage VyOS system configuration — hostname, users, syslog, conntrack, and more.",
+    "readOnly": "You have read-only access to system settings.",
+    "loading": "Loading system configuration…",
+    "tabs": {
+      "general": "General",
+      "users": "Users & Login",
+      "syslog": "Syslog",
+      "conntrack": "Conntrack",
+      "hostmap": "Host Mapping",
+      "ipSettings": "IP Settings",
+      "scheduler": "Scheduler",
+      "flowAccounting": "Flow Accounting",
+      "advanced": "Advanced"
+    }
+  },
+  "general": {
+    "saved": "General settings saved",
+    "saveFailed": "Failed to save settings",
+    "title": "General",
+    "description": "Hostname, domain, name servers, timezone, and performance profile.",
+    "saving": "Saving…",
+    "hostname": "Hostname",
+    "domainName": "Domain Name",
+    "timezone": "Timezone",
+    "selectTimezone": "Select timezone",
+    "performanceProfile": "Performance Profile",
+    "defaultNotSet": "Default (not set)",
+    "nameServers": "Name Servers",
+    "noneConfigured": "None configured"
+  },
+  "ip": {
+    "saveIpFailed": "Failed to save IP settings",
+    "ipSaved": "IP settings saved",
+    "saveIpv6Failed": "Failed to save IPv6 settings",
+    "ipv6Saved": "IPv6 settings saved",
+    "ipv4Title": "IPv4 Settings",
+    "ipv4Description": "Kernel IPv4 forwarding and multipath options.",
+    "ipv6Title": "IPv6 Settings",
+    "ipv6Description": "Kernel IPv6 forwarding and neighbor discovery options.",
+    "arpNdpTableSize": "ARP/NDP Table Size",
+    "neighborTableSize": "Neighbor Table Size",
+    "disableForwarding": "Disable Forwarding",
+    "multipathIgnoreUnreachable": "Multipath Ignore Unreachable",
+    "multipathLayer4Hashing": "Multipath Layer4 Hashing",
+    "nhtNoResolveViaDefault": "NHT No Resolve via Default",
+    "strictDad": "Strict DAD"
+  },
+  "hostMap": {
+    "deleteFailed": "Delete failed",
+    "deleteFailedDetail": "Failed to delete host mapping",
+    "removed": "Host mapping removed",
+    "title": "Static Host Mapping",
+    "description": "Map hostnames to static IP addresses for local DNS resolution.",
+    "addMapping": "Add Mapping",
+    "ipAddress": "IP Address",
+    "aliases": "Aliases",
+    "empty": "No host mappings configured",
+    "removeTitle": "Remove Host Mapping",
+    "removeConfirm": "Remove the static mapping for <strong>{name}</strong>?",
+    "removing": "Removing…",
+    "remove": "Remove"
+  },
+  "hostModal": {
+    "hostnameRequired": "Hostname is required.",
+    "ipRequired": "At least one IP address is required.",
+    "createFailed": "Failed to create host mapping",
+    "title": "Add Static Host Mapping",
+    "description": "Map a hostname to a static IP address.",
+    "ipAddresses": "IP Address(es)",
+    "aliasesOptional": "Aliases (optional)",
+    "adding": "Adding…"
+  }
+}
