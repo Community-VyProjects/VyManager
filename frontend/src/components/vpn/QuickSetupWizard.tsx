@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -49,6 +50,7 @@ export function QuickSetupWizard({
   existingInterfaces,
   existingPorts,
 }: QuickSetupWizardProps) {
+  const t = useTranslations("wireguardTools");
   // Wizard state
   const [step, setStep] = useState<WizardStep>("welcome");
   const [loading, setLoading] = useState(false);
@@ -155,26 +157,26 @@ export function QuickSetupWizard({
   // Validate server step
   const validateServerStep = (): string | null => {
     if (!interfaceName.trim()) {
-      return "Interface name is required";
+      return t("quickSetup.validation.interfaceNameRequired");
     }
     if (!/^wg\d+$/.test(interfaceName.trim())) {
-      return "Interface name must be in format 'wg0', 'wg1', etc.";
+      return t("quickSetup.validation.interfaceNameFormat");
     }
     if (existingInterfaces.includes(interfaceName.trim())) {
-      return `Interface ${interfaceName} already exists`;
+      return t("quickSetup.validation.interfaceExists", { name: interfaceName });
     }
     if (!serverAddress.trim()) {
-      return "Server address is required";
+      return t("quickSetup.validation.serverAddressRequired");
     }
     if (!listenPort.trim()) {
-      return "Listen port is required";
+      return t("quickSetup.validation.listenPortRequired");
     }
     // Check if port is already in use
     if (existingPorts.includes(listenPort.trim())) {
-      return `Port ${listenPort} is already in use by another WireGuard interface`;
+      return t("quickSetup.validation.portInUse", { port: listenPort });
     }
     if (createClient && !publicEndpoint.trim()) {
-      return "Public endpoint is required for client configuration";
+      return t("quickSetup.validation.publicEndpointRequired");
     }
     return null;
   };
@@ -183,13 +185,13 @@ export function QuickSetupWizard({
   const validateClientStep = (): string | null => {
     if (createClient) {
       if (!clientName.trim()) {
-        return "Client name is required";
+        return t("quickSetup.validation.clientNameRequired");
       }
       if (/\s/.test(clientName.trim())) {
-        return "Client name cannot contain spaces";
+        return t("quickSetup.validation.clientNameNoSpaces");
       }
       if (!clientAddress.trim()) {
-        return "Client address is required";
+        return t("quickSetup.validation.clientAddressRequired");
       }
     }
     return null;
@@ -224,7 +226,7 @@ PersistentKeepalive = 25`;
       // Step 1: Generate server keypair
       const serverKeypair = await wireguardService.generateKeypair();
       if (!serverKeypair.private_key || !serverKeypair.public_key) {
-        throw new Error("Failed to generate server keypair");
+        throw new Error(t("quickSetup.serverKeypairFailed"));
       }
 
       // Step 2: Generate client keypair upfront if creating a client
@@ -233,7 +235,7 @@ PersistentKeepalive = 25`;
       if (createClient) {
         clientKeypair = await wireguardService.generateKeypair();
         if (!clientKeypair.private_key || !clientKeypair.public_key) {
-          throw new Error("Failed to generate client keypair");
+          throw new Error(t("quickSetup.clientKeypairFailed"));
         }
       }
 
@@ -258,7 +260,7 @@ PersistentKeepalive = 25`;
       const interfaceResult = await wireguardService.createInterface(interfaceConfig);
 
       if (!interfaceResult.success) {
-        throw new Error(interfaceResult.error || "Failed to create interface");
+        throw new Error(interfaceResult.error || t("quickSetup.createInterfaceFailed"));
       }
 
       const setupResult: SetupResult = {
@@ -284,7 +286,7 @@ PersistentKeepalive = 25`;
       setResult(setupResult);
       setStep("complete");
     } catch (err) {
-      setError((err as ApiError).message || "Setup failed");
+      setError((err as ApiError).message || t("quickSetup.setupFailed"));
     } finally {
       setLoading(false);
     }
@@ -367,13 +369,13 @@ PersistentKeepalive = 25`;
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wand2 className="h-5 w-5 text-primary" />
-            Quick Setup Wizard
+            {t("quickSetup.title")}
           </DialogTitle>
           <DialogDescription>
-            {step === "welcome" && "Set up a WireGuard VPN server in minutes."}
-            {step === "server" && "Configure your WireGuard server."}
-            {step === "client" && "Configure your first client device."}
-            {step === "complete" && "Your WireGuard VPN is ready!"}
+            {step === "welcome" && t("quickSetup.welcomeDescription")}
+            {step === "server" && t("quickSetup.serverDescription")}
+            {step === "client" && t("quickSetup.clientDescription")}
+            {step === "complete" && t("quickSetup.completeDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -386,12 +388,10 @@ PersistentKeepalive = 25`;
             <div className="rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 p-6 text-center">
               <Sparkles className="h-12 w-12 mx-auto text-primary mb-4" />
               <h3 className="text-lg font-semibold mb-2">
-                Let&apos;s set up your WireGuard VPN
+                {t("quickSetup.welcomeTitle")}
               </h3>
               <p className="text-sm text-muted-foreground">
-                This wizard will guide you through creating a secure VPN tunnel.
-                We&apos;ll generate encryption keys automatically and configure
-                everything for you.
+                {t("quickSetup.welcomeText")}
               </p>
             </div>
 
@@ -399,27 +399,27 @@ PersistentKeepalive = 25`;
               <div className="flex items-start gap-3 rounded-lg border p-3">
                 <Server className="h-5 w-5 text-primary mt-0.5" />
                 <div>
-                  <p className="font-medium text-sm">Server Setup</p>
+                  <p className="font-medium text-sm">{t("quickSetup.featureServer")}</p>
                   <p className="text-xs text-muted-foreground">
-                    Create a WireGuard interface with secure encryption keys.
+                    {t("quickSetup.featureServerText")}
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3 rounded-lg border p-3">
                 <Users className="h-5 w-5 text-primary mt-0.5" />
                 <div>
-                  <p className="font-medium text-sm">Client Configuration</p>
+                  <p className="font-medium text-sm">{t("quickSetup.featureClient")}</p>
                   <p className="text-xs text-muted-foreground">
-                    Generate a ready-to-use config for your first device.
+                    {t("quickSetup.featureClientText")}
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3 rounded-lg border p-3">
                 <ShieldCheck className="h-5 w-5 text-primary mt-0.5" />
                 <div>
-                  <p className="font-medium text-sm">Secure by Default</p>
+                  <p className="font-medium text-sm">{t("quickSetup.featureSecure")}</p>
                   <p className="text-xs text-muted-foreground">
-                    Modern cryptography with perfect forward secrecy.
+                    {t("quickSetup.featureSecureText")}
                   </p>
                 </div>
               </div>
@@ -432,7 +432,7 @@ PersistentKeepalive = 25`;
           <div className="space-y-4 py-2">
             {/* Interface Name */}
             <div className="space-y-2">
-              <Label htmlFor="wizard-interface">Interface Name</Label>
+              <Label htmlFor="wizard-interface">{t("quickSetup.interfaceName")}</Label>
               <Input
                 id="wizard-interface"
                 value={interfaceName}
@@ -443,7 +443,7 @@ PersistentKeepalive = 25`;
 
             {/* Server Address */}
             <div className="space-y-2">
-              <Label htmlFor="wizard-server-addr">VPN Network Address</Label>
+              <Label htmlFor="wizard-server-addr">{t("quickSetup.serverAddress")}</Label>
               <Input
                 id="wizard-server-addr"
                 value={serverAddress}
@@ -451,13 +451,13 @@ PersistentKeepalive = 25`;
                 placeholder="10.10.0.1/24"
               />
               <p className="text-xs text-muted-foreground">
-                The server&apos;s address on the VPN network. Use a private range.
+                {t("quickSetup.serverAddressHint")}
               </p>
             </div>
 
             {/* Listen Port */}
             <div className="space-y-2">
-              <Label htmlFor="wizard-port">Listen Port</Label>
+              <Label htmlFor="wizard-port">{t("quickSetup.listenPort")}</Label>
               <Input
                 id="wizard-port"
                 type="number"
@@ -477,12 +477,12 @@ PersistentKeepalive = 25`;
               />
               <div className="flex-1">
                 <Label htmlFor="wizard-create-client" className="cursor-pointer">
-                  Create a client configuration
+                  {t("quickSetup.createClient")}
                 </Label>
                 <p className="text-xs text-muted-foreground">
                   {peerRequiredOnCreate
-                    ? "This device requires at least one peer when creating an interface."
-                    : "Generate a config file and QR code for your first device."}
+                    ? t("quickSetup.peerRequiredHint")
+                    : t("quickSetup.createClientHint")}
                 </p>
               </div>
             </div>
@@ -491,16 +491,16 @@ PersistentKeepalive = 25`;
             {createClient && (
               <div className="space-y-2">
                 <Label htmlFor="wizard-endpoint">
-                  Public Endpoint (for clients)
+                  {t("quickSetup.publicEndpoint")}
                 </Label>
                 <Input
                   id="wizard-endpoint"
                   value={publicEndpoint}
                   onChange={(e) => setPublicEndpoint(e.target.value)}
-                  placeholder="vpn.example.com or your public IP"
+                  placeholder={t("quickSetup.publicEndpointPlaceholder")}
                 />
                 <p className="text-xs text-muted-foreground">
-                  The public IP or hostname clients will connect to.
+                  {t("quickSetup.publicEndpointHint")}
                 </p>
               </div>
             )}
@@ -512,7 +512,7 @@ PersistentKeepalive = 25`;
           <div className="space-y-4 py-2">
             {/* Client Name */}
             <div className="space-y-2">
-              <Label htmlFor="wizard-client-name">Client Name</Label>
+              <Label htmlFor="wizard-client-name">{t("quickSetup.clientName")}</Label>
               <Input
                 id="wizard-client-name"
                 value={clientName}
@@ -520,13 +520,13 @@ PersistentKeepalive = 25`;
                 placeholder="my-phone"
               />
               <p className="text-xs text-muted-foreground">
-                A friendly name for this client device.
+                {t("quickSetup.clientNameHint")}
               </p>
             </div>
 
             {/* Client Address */}
             <div className="space-y-2">
-              <Label htmlFor="wizard-client-addr">Client IP Address</Label>
+              <Label htmlFor="wizard-client-addr">{t("quickSetup.clientAddress")}</Label>
               <Input
                 id="wizard-client-addr"
                 value={clientAddress}
@@ -534,14 +534,13 @@ PersistentKeepalive = 25`;
                 placeholder="10.10.0.2/32"
               />
               <p className="text-xs text-muted-foreground">
-                The IP address to assign to this client on the VPN.
+                {t("quickSetup.clientAddressHint")}
               </p>
             </div>
 
             <div className="rounded-lg bg-muted/50 border p-3">
               <p className="text-sm text-muted-foreground">
-                We&apos;ll generate a complete configuration file that you can import
-                into the WireGuard app or scan as a QR code.
+                {t("quickSetup.clientStepNotice")}
               </p>
             </div>
           </div>
@@ -552,9 +551,9 @@ PersistentKeepalive = 25`;
           <div className="space-y-4 py-2">
             <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-4 text-center">
               <Check className="h-10 w-10 mx-auto text-green-600 mb-2" />
-              <h3 className="font-semibold text-green-700">Setup Complete!</h3>
+              <h3 className="font-semibold text-green-700">{t("quickSetup.completeTitle")}</h3>
               <p className="text-sm text-green-600">
-                Your WireGuard VPN is configured and ready to use.
+                {t("quickSetup.completeText")}
               </p>
             </div>
 
@@ -562,20 +561,20 @@ PersistentKeepalive = 25`;
             <div className="rounded-lg border p-3 space-y-2">
               <h4 className="font-medium text-sm flex items-center gap-2">
                 <Server className="h-4 w-4" />
-                Server Details
+                {t("quickSetup.serverDetails")}
               </h4>
               <div className="grid grid-cols-2 gap-2 text-sm">
-                <span className="text-muted-foreground">Interface:</span>
+                <span className="text-muted-foreground">{t("quickSetup.interfaceLabel")}</span>
                 <span className="font-mono">{result.interfaceName}</span>
-                <span className="text-muted-foreground">Address:</span>
+                <span className="text-muted-foreground">{t("quickSetup.addressLabel")}</span>
                 <span className="font-mono">{result.interfaceAddress}</span>
-                <span className="text-muted-foreground">Port:</span>
+                <span className="text-muted-foreground">{t("quickSetup.portLabel")}</span>
                 <span className="font-mono">{result.port}</span>
               </div>
               <div className="pt-2 border-t">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs text-muted-foreground">
-                    Server Public Key
+                    {t("quickSetup.serverPublicKey")}
                   </span>
                   <Button
                     type="button"
@@ -587,12 +586,12 @@ PersistentKeepalive = 25`;
                     {copied === "server" ? (
                       <>
                         <Check className="h-3 w-3" />
-                        Copied
+                        {t("quickSetup.copied")}
                       </>
                     ) : (
                       <>
                         <Copy className="h-3 w-3" />
-                        Copy
+                        {t("quickSetup.copy")}
                       </>
                     )}
                   </Button>
@@ -608,7 +607,7 @@ PersistentKeepalive = 25`;
               <div className="space-y-3">
                 <h4 className="font-medium text-sm flex items-center gap-2">
                   <Users className="h-4 w-4" />
-                  Client: {result.clientName}
+                  {t("quickSetup.clientLabel", { name: result.clientName ?? "" })}
                 </h4>
 
                 {/* QR Code */}
@@ -632,7 +631,7 @@ PersistentKeepalive = 25`;
                     ) : (
                       <Copy className="h-4 w-4" />
                     )}
-                    Copy Config
+                    {t("quickSetup.copyConfig")}
                   </Button>
                   <Button
                     variant="outline"
@@ -641,12 +640,11 @@ PersistentKeepalive = 25`;
                     className="gap-2"
                   >
                     <Download className="h-4 w-4" />
-                    Download
+                    {t("quickSetup.download")}
                   </Button>
                 </div>
                 <p className="text-xs text-center text-muted-foreground">
-                  Scan the QR code or download the config file to set up your
-                  device.
+                  {t("quickSetup.scanHint")}
                 </p>
               </div>
             )}
@@ -665,31 +663,31 @@ PersistentKeepalive = 25`;
           {step !== "welcome" && step !== "complete" && (
             <Button variant="outline" onClick={handleBack} disabled={loading}>
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
+              {t("quickSetup.back")}
             </Button>
           )}
           {step === "complete" ? (
-            <Button onClick={handleClose}>Done</Button>
+            <Button onClick={handleClose}>{t("quickSetup.done")}</Button>
           ) : (
             <Button onClick={handleNext} disabled={loading}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Setting up...
+                  {t("quickSetup.settingUp")}
                 </>
               ) : step === "welcome" ? (
                 <>
-                  Get Started
+                  {t("quickSetup.getStarted")}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </>
               ) : step === "client" || (step === "server" && !createClient) ? (
                 <>
                   <Sparkles className="mr-2 h-4 w-4" />
-                  Create VPN
+                  {t("quickSetup.createVpn")}
                 </>
               ) : (
                 <>
-                  Next
+                  {t("quickSetup.next")}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </>
               )}

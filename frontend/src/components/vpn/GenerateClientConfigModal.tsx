@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +42,8 @@ export function GenerateClientConfigModal({
   onSuccess,
   interfaceData,
 }: GenerateClientConfigModalProps) {
+  const t = useTranslations("wireguardTools");
+  const tc = useTranslations("common");
   // Form state
   const [clientName, setClientName] = useState("");
   const [serverEndpoint, setServerEndpoint] = useState("");
@@ -111,10 +114,10 @@ export function GenerateClientConfigModal({
         setClientPrivateKey(result.private_key);
         setClientPublicKey(result.public_key);
       } else {
-        setError("Failed to generate keypair");
+        setError(t("generateClient.generateKeypairFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to generate keypair");
+      setError((err as ApiError).message || t("generateClient.generateKeypairFailed"));
     } finally {
       setGenerating(false);
     }
@@ -144,22 +147,22 @@ export function GenerateClientConfigModal({
   // Validate form
   const validateForm = (): string | null => {
     if (!clientName.trim()) {
-      return "Client name is required";
+      return t("generateClient.validation.clientNameRequired");
     }
     if (/\s/.test(clientName.trim())) {
-      return "Client name cannot contain spaces";
+      return t("generateClient.validation.clientNameNoSpaces");
     }
     if (!serverEndpoint.trim()) {
-      return "Server endpoint is required";
+      return t("generateClient.validation.serverEndpointRequired");
     }
     if (!clientAddress.trim()) {
-      return "Client address is required";
+      return t("generateClient.validation.clientAddressRequired");
     }
     if (!clientPublicKey.trim()) {
-      return "Client public key is required. Generate a keypair first.";
+      return t("generateClient.validation.clientPublicKeyRequired");
     }
     if (!serverPublicKey) {
-      return "Server public key not available. Ensure the interface has a private key configured.";
+      return t("generateClient.validation.serverPublicKeyUnavailable");
     }
     return null;
   };
@@ -210,7 +213,7 @@ PersistentKeepalive = 25`;
       });
 
       if (!peerResult.success) {
-        throw new Error(peerResult.error || "Failed to create peer on server");
+        throw new Error(peerResult.error || t("generateClient.createPeerFailed"));
       }
 
       // Build client config with the server's public key
@@ -222,7 +225,7 @@ PersistentKeepalive = 25`;
       setStep("result");
       onSuccess(); // Refresh the interface list
     } catch (err) {
-      setError((err as ApiError).message || "Failed to create client configuration");
+      setError((err as ApiError).message || t("generateClient.createConfigFailed"));
     } finally {
       setLoading(false);
     }
@@ -278,12 +281,12 @@ PersistentKeepalive = 25`;
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Smartphone className="h-5 w-5 text-primary" />
-            Add Client to {interfaceData.name}
+            {t("generateClient.title", { interface: interfaceData.name })}
           </DialogTitle>
           <DialogDescription>
             {step === "input"
-              ? "Generate keys and add a new client peer to this interface."
-              : "Your client has been added! Copy the configuration below."}
+              ? t("generateClient.inputDescription")
+              : t("generateClient.resultDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -291,7 +294,7 @@ PersistentKeepalive = 25`;
           <div className="space-y-4">
             {/* Client Name */}
             <div className="space-y-2">
-              <Label htmlFor="config-client-name">Client Name</Label>
+              <Label htmlFor="config-client-name">{t("generateClient.clientName")}</Label>
               <Input
                 id="config-client-name"
                 value={clientName}
@@ -299,20 +302,20 @@ PersistentKeepalive = 25`;
                 placeholder="my-phone"
               />
               <p className="text-xs text-muted-foreground">
-                A name to identify this client (used as peer name).
+                {t("generateClient.clientNameHint")}
               </p>
             </div>
 
             {/* Client Keypair */}
             <div className="space-y-2">
-              <Label>Client Keys</Label>
+              <Label>{t("generateClient.clientKeys")}</Label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Input
                     type={showPrivateKey ? "text" : "password"}
                     value={clientPrivateKey}
                     onChange={(e) => setClientPrivateKey(e.target.value)}
-                    placeholder="Generate or enter private key"
+                    placeholder={t("generateClient.privateKeyPlaceholder")}
                     className="pr-10 font-mono text-xs"
                   />
                   <Button
@@ -341,12 +344,12 @@ PersistentKeepalive = 25`;
                   ) : (
                     <Sparkles className="h-4 w-4" />
                   )}
-                  Generate
+                  {t("generateClient.generate")}
                 </Button>
               </div>
               {clientPublicKey && (
                 <div className="rounded bg-muted p-2 mt-2">
-                  <p className="text-xs text-muted-foreground mb-1">Public Key:</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t("generateClient.publicKeyLabel")}</p>
                   <p className="font-mono text-xs break-all">{clientPublicKey}</p>
                 </div>
               )}
@@ -354,21 +357,21 @@ PersistentKeepalive = 25`;
 
             {/* Server Endpoint */}
             <div className="space-y-2">
-              <Label htmlFor="config-server">Server Endpoint</Label>
+              <Label htmlFor="config-server">{t("generateClient.serverEndpoint")}</Label>
               <Input
                 id="config-server"
                 value={serverEndpoint}
                 onChange={(e) => setServerEndpoint(e.target.value)}
-                placeholder="vpn.example.com or public IP"
+                placeholder={t("generateClient.serverEndpointPlaceholder")}
               />
               <p className="text-xs text-muted-foreground">
-                The public IP or hostname clients will connect to.
+                {t("generateClient.serverEndpointHint")}
               </p>
             </div>
 
             {/* Client Address */}
             <div className="space-y-2">
-              <Label htmlFor="config-client-addr">Client IP Address</Label>
+              <Label htmlFor="config-client-addr">{t("generateClient.clientAddress")}</Label>
               <Input
                 id="config-client-addr"
                 value={clientAddress}
@@ -376,13 +379,13 @@ PersistentKeepalive = 25`;
                 placeholder="10.0.0.2/32"
               />
               <p className="text-xs text-muted-foreground">
-                The IP address to assign to the client on the VPN.
+                {t("generateClient.clientAddressHint")}
               </p>
             </div>
 
             {/* DNS Servers */}
             <div className="space-y-2">
-              <Label htmlFor="config-dns">DNS Servers (Optional)</Label>
+              <Label htmlFor="config-dns">{t("generateClient.dnsServers")}</Label>
               <Input
                 id="config-dns"
                 value={dns}
@@ -390,7 +393,7 @@ PersistentKeepalive = 25`;
                 placeholder="1.1.1.1, 8.8.8.8"
               />
               <p className="text-xs text-muted-foreground">
-                Comma-separated DNS servers for the client to use when connected.
+                {t("generateClient.dnsServersHint")}
               </p>
             </div>
 
@@ -398,21 +401,21 @@ PersistentKeepalive = 25`;
             <div className="rounded-lg border p-3 bg-muted/30">
               <div className="flex items-center gap-2">
                 <Key className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Server Public Key</span>
+                <span className="text-sm font-medium">{t("generateClient.serverPublicKey")}</span>
                 {loadingServerKey ? (
                   <span className="text-xs text-muted-foreground flex items-center gap-1 ml-auto">
                     <Loader2 className="h-3 w-3 animate-spin" />
-                    Loading...
+                    {tc("loading")}
                   </span>
                 ) : serverPublicKey ? (
                   <span className="text-xs text-green-600 ml-auto flex items-center gap-1">
                     <Check className="h-3 w-3" />
-                    Retrieved
+                    {t("generateClient.retrieved")}
                   </span>
                 ) : (
                   <span className="text-xs text-amber-600 ml-auto flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
-                    Not available
+                    {t("generateClient.notAvailable")}
                   </span>
                 )}
               </div>
@@ -438,22 +441,21 @@ PersistentKeepalive = 25`;
               </div>
             </div>
             <p className="text-sm text-center text-muted-foreground">
-              Scan this QR code with the WireGuard app.
+              {t("generateClient.scanQr")}
             </p>
 
             {/* Success Message */}
             <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-3">
-              <p className="text-sm text-green-700 font-medium">Ready to Use</p>
+              <p className="text-sm text-green-700 font-medium">{t("generateClient.readyTitle")}</p>
               <p className="text-xs text-green-600 mt-1">
-                This configuration is complete and ready to import into the WireGuard app.
-                The server public key has been automatically included.
+                {t("generateClient.readyDescription")}
               </p>
             </div>
 
             {/* Config Text */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Configuration File</Label>
+                <Label>{t("generateClient.configFile")}</Label>
                 <div className="flex gap-2">
                   <Button
                     type="button"
@@ -465,12 +467,12 @@ PersistentKeepalive = 25`;
                     {copied ? (
                       <>
                         <Check className="h-3 w-3" />
-                        Copied
+                        {t("generateClient.copied")}
                       </>
                     ) : (
                       <>
                         <Copy className="h-3 w-3" />
-                        Copy
+                        {t("generateClient.copy")}
                       </>
                     )}
                   </Button>
@@ -482,7 +484,7 @@ PersistentKeepalive = 25`;
                     className="h-7 gap-1 text-xs"
                   >
                     <Download className="h-3 w-3" />
-                    Download
+                    {t("generateClient.download")}
                   </Button>
                 </div>
               </div>
@@ -505,7 +507,7 @@ PersistentKeepalive = 25`;
           {step === "input" ? (
             <>
               <Button variant="outline" onClick={handleClose} disabled={loading}>
-                Cancel
+                {tc("cancel")}
               </Button>
               <Button
                 onClick={handleGenerate}
@@ -514,24 +516,24 @@ PersistentKeepalive = 25`;
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
+                    {t("generateClient.creating")}
                   </>
                 ) : loadingServerKey ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Loading...
+                    {tc("loading")}
                   </>
                 ) : (
-                  "Add Client"
+                  t("generateClient.addClient")
                 )}
               </Button>
             </>
           ) : (
             <>
               <Button variant="outline" onClick={() => setStep("input")}>
-                Add Another
+                {t("generateClient.addAnother")}
               </Button>
-              <Button onClick={handleClose}>Done</Button>
+              <Button onClick={handleClose}>{t("generateClient.done")}</Button>
             </>
           )}
         </DialogFooter>
