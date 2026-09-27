@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,8 @@ export function IgmpProxyInterfaceModal({
   onSubmit,
   existingInterface,
 }: IgmpProxyInterfaceModalProps) {
+  const t = useTranslations("igmpProxy");
+  const tc = useTranslations("common");
   const isEditMode = !!existingInterface;
 
   // Available interfaces from VyOS
@@ -106,29 +109,29 @@ export function IgmpProxyInterfaceModal({
 
   const validateForm = (): string | null => {
     if (!name) {
-      return "Interface is required";
+      return t("interfaceModal.interfaceRequired");
     }
 
     if (!role) {
-      return "Interface role is required";
+      return t("interfaceModal.roleRequired");
     }
 
     if (threshold.trim()) {
       const val = parseInt(threshold.trim(), 10);
       if (isNaN(val) || val < 1 || val > 255) {
-        return "Threshold must be between 1 and 255";
+        return t("interfaceModal.thresholdRange");
       }
     }
 
     for (const subnet of altSubnets) {
       if (!subnet.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/)) {
-        return `Invalid alt-subnet format: ${subnet}. Use CIDR notation (e.g., 10.0.0.0/8)`;
+        return t("interfaceModal.invalidAltSubnet", { value: subnet });
       }
     }
 
     for (const wl of whitelists) {
       if (!wl.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/)) {
-        return `Invalid whitelist format: ${wl}. Use CIDR notation (e.g., 239.0.0.0/8)`;
+        return t("interfaceModal.invalidWhitelist", { value: wl });
       }
     }
 
@@ -139,7 +142,7 @@ export function IgmpProxyInterfaceModal({
     const value = newAltSubnet.trim();
     if (!value) return;
     if (altSubnets.includes(value)) {
-      setError("Alt-subnet already exists");
+      setError(t("interfaceModal.altSubnetExists"));
       return;
     }
     setAltSubnets([...altSubnets, value]);
@@ -155,7 +158,7 @@ export function IgmpProxyInterfaceModal({
     const value = newWhitelist.trim();
     if (!value) return;
     if (whitelists.includes(value)) {
-      setError("Whitelist entry already exists");
+      setError(t("interfaceModal.whitelistExists"));
       return;
     }
     setWhitelists([...whitelists, value]);
@@ -189,7 +192,7 @@ export function IgmpProxyInterfaceModal({
       await onSubmit(iface);
       handleClose();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Operation failed";
+      const message = err instanceof Error ? err.message : tc("operationFailed");
       setError(message);
     } finally {
       setLoading(false);
@@ -201,12 +204,12 @@ export function IgmpProxyInterfaceModal({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit Interface" : "Add Interface"}
+            {isEditMode ? t("interfaceModal.editTitle") : t("addInterface")}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? `Modify the IGMP proxy configuration for ${existingInterface?.name}.`
-              : "Add a new interface to the IGMP proxy configuration."}
+              ? t("interfaceModal.editDescription", { name: String(existingInterface?.name) })
+              : t("interfaceModal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -214,7 +217,7 @@ export function IgmpProxyInterfaceModal({
           <div className="space-y-6 pb-2">
             {/* Interface Name */}
             <div className="space-y-2">
-              <Label>Interface</Label>
+              <Label>{t("interface")}</Label>
               {isEditMode ? (
                 <Input
                   value={name}
@@ -226,55 +229,55 @@ export function IgmpProxyInterfaceModal({
                   value={name}
                   onValueChange={setName}
                   interfaces={availableInterfaces}
-                  placeholder="Select interface"
+                  placeholder={t("selectInterface")}
                 />
               )}
               <p className="text-xs text-muted-foreground">
-                Network interface to participate in IGMP proxy.
+                {t("interfaceModal.interfaceHelp")}
               </p>
             </div>
 
             {/* Role */}
             <div className="space-y-2">
-              <Label>Role</Label>
+              <Label>{t("interfaceModal.role")}</Label>
               <Select value={role} onValueChange={setRole}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select interface role" />
+                  <SelectValue placeholder={t("interfaceModal.selectRole")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="upstream">Upstream</SelectItem>
-                  <SelectItem value="downstream">Downstream</SelectItem>
-                  <SelectItem value="disabled">Disabled</SelectItem>
+                  <SelectItem value="upstream">{t("upstream")}</SelectItem>
+                  <SelectItem value="downstream">{t("downstream")}</SelectItem>
+                  <SelectItem value="disabled">{tc("disabled")}</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Upstream receives multicast from the source network. Downstream forwards multicast to client networks.
+                {t("interfaceModal.roleHelp")}
               </p>
             </div>
 
             {/* Threshold */}
             <div className="space-y-2">
-              <Label htmlFor="igmp-iface-threshold">TTL Threshold</Label>
+              <Label htmlFor="igmp-iface-threshold">{t("ttlThreshold")}</Label>
               <Input
                 id="igmp-iface-threshold"
                 type="number"
                 value={threshold}
                 onChange={(e) => setThreshold(e.target.value)}
-                placeholder="1 (default)"
+                placeholder={t("thresholdPlaceholder")}
                 min={1}
                 max={255}
               />
               <p className="text-xs text-muted-foreground">
-                Minimum TTL required for multicast packets to be forwarded (1-255).
+                {t("interfaceModal.thresholdHelp")}
               </p>
             </div>
 
             {/* Alt Subnets */}
             <div className="space-y-3">
               <div>
-                <Label>Alternate Subnets</Label>
+                <Label>{t("alternateSubnets")}</Label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Allow multicast from sources outside the directly connected subnet. Typically used on the upstream interface.
+                  {t("interfaceModal.altSubnetsHelp")}
                 </p>
               </div>
 
@@ -302,7 +305,7 @@ export function IgmpProxyInterfaceModal({
                 <Input
                   value={newAltSubnet}
                   onChange={(e) => setNewAltSubnet(e.target.value)}
-                  placeholder="e.g. 10.0.0.0/8"
+                  placeholder={t("altSubnetPlaceholder")}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
@@ -324,9 +327,9 @@ export function IgmpProxyInterfaceModal({
             {/* Whitelists */}
             <div className="space-y-3">
               <div>
-                <Label>Multicast Group Whitelist</Label>
+                <Label>{t("whitelist")}</Label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Only proxy multicast traffic for these group address ranges. Leave empty to allow all groups.
+                  {t("interfaceModal.whitelistHelp")}
                 </p>
               </div>
 
@@ -354,7 +357,7 @@ export function IgmpProxyInterfaceModal({
                 <Input
                   value={newWhitelist}
                   onChange={(e) => setNewWhitelist(e.target.value)}
-                  placeholder="e.g. 239.0.0.0/8"
+                  placeholder={t("whitelistPlaceholder")}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
@@ -385,18 +388,18 @@ export function IgmpProxyInterfaceModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Adding..."}
+                {isEditMode ? tc("saving") : t("adding")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("saveChanges")
             ) : (
-              "Add Interface"
+              t("addInterface")
             )}
           </Button>
         </DialogFooter>

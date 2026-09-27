@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,8 @@ export function IgmpProxySetupModal({
   onOpenChange,
   onSubmit,
 }: IgmpProxySetupModalProps) {
+  const t = useTranslations("igmpProxy");
+  const tc = useTranslations("common");
   // Available interfaces from VyOS
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
   const [, setInterfacesLoading] = useState(false);
@@ -103,38 +106,38 @@ export function IgmpProxySetupModal({
 
   const validateForm = (): string | null => {
     if (!upstreamName) {
-      return "Upstream interface is required";
+      return t("setupModal.upstreamRequired");
     }
     if (!downstreamName) {
-      return "Downstream interface is required";
+      return t("setupModal.downstreamRequired");
     }
     if (upstreamName === downstreamName) {
-      return "Upstream and downstream must be different interfaces";
+      return t("setupModal.mustDiffer");
     }
 
     if (upstreamThreshold.trim()) {
       const val = parseInt(upstreamThreshold.trim(), 10);
       if (isNaN(val) || val < 1 || val > 255) {
-        return "Upstream threshold must be between 1 and 255";
+        return t("setupModal.upstreamThresholdRange");
       }
     }
 
     if (downstreamThreshold.trim()) {
       const val = parseInt(downstreamThreshold.trim(), 10);
       if (isNaN(val) || val < 1 || val > 255) {
-        return "Downstream threshold must be between 1 and 255";
+        return t("setupModal.downstreamThresholdRange");
       }
     }
 
     for (const subnet of upstreamAltSubnets) {
       if (!validateCidr(subnet)) {
-        return `Invalid upstream alt-subnet: ${subnet}. Use CIDR notation (e.g., 10.0.0.0/8)`;
+        return t("setupModal.invalidUpstreamAltSubnet", { value: subnet });
       }
     }
 
     for (const wl of [...upstreamWhitelists, ...downstreamWhitelists]) {
       if (!validateCidr(wl)) {
-        return `Invalid whitelist: ${wl}. Use CIDR notation (e.g., 239.0.0.0/8)`;
+        return t("setupModal.invalidWhitelist", { value: wl });
       }
     }
 
@@ -172,7 +175,7 @@ export function IgmpProxySetupModal({
       await onSubmit(interfaces);
       handleClose();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Operation failed";
+      const message = err instanceof Error ? err.message : tc("operationFailed");
       setError(message);
     } finally {
       setLoading(false);
@@ -189,7 +192,7 @@ export function IgmpProxySetupModal({
     const trimmed = value.trim();
     if (!trimmed) return;
     if (list.includes(trimmed)) {
-      setError("Entry already exists");
+      setError(t("setupModal.entryExists"));
       return;
     }
     setList([...list, trimmed]);
@@ -209,10 +212,9 @@ export function IgmpProxySetupModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Setup IGMP Proxy</DialogTitle>
+          <DialogTitle>{t("setupProxy")}</DialogTitle>
           <DialogDescription>
-            IGMP proxy requires at least one upstream and one downstream interface.
-            Configure both to get started.
+            {t("setupModal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -224,30 +226,30 @@ export function IgmpProxySetupModal({
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <ArrowUpFromLine className="h-4 w-4 text-blue-500" />
-                <h4 className="text-sm font-semibold">Upstream Interface</h4>
+                <h4 className="text-sm font-semibold">{t("setupModal.upstreamInterface")}</h4>
               </div>
               <p className="text-xs text-muted-foreground -mt-2">
-                Receives multicast traffic from the source network.
+                {t("setupModal.upstreamHelp")}
               </p>
 
               <div className="space-y-2">
-                <Label>Interface</Label>
+                <Label>{t("interface")}</Label>
                 <InterfaceSelect
                   value={upstreamName}
                   onValueChange={setUpstreamName}
                   interfaces={availableInterfaces}
-                  placeholder="Select interface"
+                  placeholder={t("selectInterface")}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="setup-upstream-threshold">TTL Threshold</Label>
+                <Label htmlFor="setup-upstream-threshold">{t("ttlThreshold")}</Label>
                 <Input
                   id="setup-upstream-threshold"
                   type="number"
                   value={upstreamThreshold}
                   onChange={(e) => setUpstreamThreshold(e.target.value)}
-                  placeholder="1 (default)"
+                  placeholder={t("thresholdPlaceholder")}
                   min={1}
                   max={255}
                 />
@@ -255,9 +257,9 @@ export function IgmpProxySetupModal({
 
               {/* Upstream Alt Subnets */}
               <div className="space-y-2">
-                <Label>Alternate Subnets</Label>
+                <Label>{t("alternateSubnets")}</Label>
                 <p className="text-xs text-muted-foreground">
-                  Allow multicast from sources outside the directly connected subnet.
+                  {t("setupModal.altSubnetsHelp")}
                 </p>
                 {upstreamAltSubnets.length > 0 && (
                   <div className="space-y-2">
@@ -282,7 +284,7 @@ export function IgmpProxySetupModal({
                   <Input
                     value={newUpstreamAltSubnet}
                     onChange={(e) => setNewUpstreamAltSubnet(e.target.value)}
-                    placeholder="e.g. 10.0.0.0/8"
+                    placeholder={t("altSubnetPlaceholder")}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
@@ -303,9 +305,9 @@ export function IgmpProxySetupModal({
 
               {/* Upstream Whitelists */}
               <div className="space-y-2">
-                <Label>Multicast Group Whitelist</Label>
+                <Label>{t("whitelist")}</Label>
                 <p className="text-xs text-muted-foreground">
-                  Only proxy these multicast group ranges. Leave empty for all.
+                  {t("setupModal.whitelistHelp")}
                 </p>
                 {upstreamWhitelists.length > 0 && (
                   <div className="space-y-2">
@@ -330,7 +332,7 @@ export function IgmpProxySetupModal({
                   <Input
                     value={newUpstreamWhitelist}
                     onChange={(e) => setNewUpstreamWhitelist(e.target.value)}
-                    placeholder="e.g. 239.0.0.0/8"
+                    placeholder={t("whitelistPlaceholder")}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
@@ -358,30 +360,30 @@ export function IgmpProxySetupModal({
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <ArrowDownToLine className="h-4 w-4 text-green-500" />
-                <h4 className="text-sm font-semibold">Downstream Interface</h4>
+                <h4 className="text-sm font-semibold">{t("setupModal.downstreamInterface")}</h4>
               </div>
               <p className="text-xs text-muted-foreground -mt-2">
-                Forwards multicast traffic to the client network.
+                {t("setupModal.downstreamHelp")}
               </p>
 
               <div className="space-y-2">
-                <Label>Interface</Label>
+                <Label>{t("interface")}</Label>
                 <InterfaceSelect
                   value={downstreamName}
                   onValueChange={setDownstreamName}
                   interfaces={availableInterfaces}
-                  placeholder="Select interface"
+                  placeholder={t("selectInterface")}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="setup-downstream-threshold">TTL Threshold</Label>
+                <Label htmlFor="setup-downstream-threshold">{t("ttlThreshold")}</Label>
                 <Input
                   id="setup-downstream-threshold"
                   type="number"
                   value={downstreamThreshold}
                   onChange={(e) => setDownstreamThreshold(e.target.value)}
-                  placeholder="1 (default)"
+                  placeholder={t("thresholdPlaceholder")}
                   min={1}
                   max={255}
                 />
@@ -389,9 +391,9 @@ export function IgmpProxySetupModal({
 
               {/* Downstream Whitelists */}
               <div className="space-y-2">
-                <Label>Multicast Group Whitelist</Label>
+                <Label>{t("whitelist")}</Label>
                 <p className="text-xs text-muted-foreground">
-                  Only proxy these multicast group ranges. Leave empty for all.
+                  {t("setupModal.whitelistHelp")}
                 </p>
                 {downstreamWhitelists.length > 0 && (
                   <div className="space-y-2">
@@ -416,7 +418,7 @@ export function IgmpProxySetupModal({
                   <Input
                     value={newDownstreamWhitelist}
                     onChange={(e) => setNewDownstreamWhitelist(e.target.value)}
-                    placeholder="e.g. 239.0.0.0/8"
+                    placeholder={t("whitelistPlaceholder")}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
@@ -448,16 +450,16 @@ export function IgmpProxySetupModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Setting up...
+                {t("setupModal.settingUp")}
               </>
             ) : (
-              "Setup IGMP Proxy"
+              t("setupProxy")
             )}
           </Button>
         </DialogFooter>
