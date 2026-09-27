@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Select,
   SelectContent,
@@ -58,15 +59,17 @@ export function VrfSelect({
   onValueChange,
   vrfs,
   filter,
-  placeholder = "Select VRF",
+  placeholder,
   disabled,
   id,
   className,
-  emptyText = "No VRFs available",
+  emptyText,
   includeNone = true,
-  noneLabel = "None",
+  noneLabel,
   extraOptions,
 }: VrfSelectProps) {
+  const t = useTranslations("sharedUi");
+  const tc = useTranslations("common");
   const provided = vrfs !== undefined;
   const [fetched, setFetched] = useState<VrfInstance[]>([]);
   const [loading, setLoading] = useState(false);
@@ -116,10 +119,10 @@ export function VrfSelect({
       disabled={disabled}
     >
       <SelectTrigger id={id} className={className}>
-        <SelectValue placeholder={loading ? "Loading VRFs..." : placeholder} />
+        <SelectValue placeholder={loading ? t("vrfSelect.loading") : (placeholder ?? t("vrfSelect.placeholder"))} />
       </SelectTrigger>
       <SelectContent>
-        {includeNone && <SelectItem value={NONE_SENTINEL}>{noneLabel}</SelectItem>}
+        {includeNone && <SelectItem value={NONE_SENTINEL}>{noneLabel ?? tc("none")}</SelectItem>}
         {extraOptions?.map((o) => (
           <SelectItem key={o.value} value={o.value}>
             {o.label}
@@ -131,7 +134,7 @@ export function VrfSelect({
           </SelectItem>
         )}
         {list.length === 0 && !includeNone && !extraOptions?.length ? (
-          <div className="px-2 py-1.5 text-sm text-muted-foreground">{emptyText}</div>
+          <div className="px-2 py-1.5 text-sm text-muted-foreground">{emptyText ?? t("vrfSelect.empty")}</div>
         ) : (
           list.map((vrf) => (
             <SelectItem key={vrf.name} value={vrf.name}>

@@ -1,1 +1,72 @@
-{}
+{
+  "vrfSelect": {
+    "placeholder": "选择 VRF",
+    "loading": "正在加载 VRF...",
+    "empty": "没有可用的 VRF"
+  },
+  "interfaceSelect": {
+    "placeholder": "选择接口",
+    "loading": "正在加载接口...",
+    "empty": "没有可用的接口"
+  },
+  "theme": {
+    "title": "主题",
+    "createCustom": "创建自定义主题"
+  },
+  "themeEditor": {
+    "defaultName": "我的主题",
+    "editTitle": "编辑主题",
+    "variant": "模式",
+    "dark": "深色",
+    "light": "浅色",
+    "primaryHue": "主色调 — {hue}°",
+    "preview": "预览",
+    "saveChanges": "保存更改",
+    "saveTheme": "保存主题"
+  },
+  "clickable": {
+    "unknownNetwork": "未知网络",
+    "unknownInterface": "未知接口"
+  },
+  "unifiedView": {
+    "noInformation": "暂无信息",
+    "noItems": "没有可显示的项目",
+    "notSet": "未设置",
+    "enabled": "已启用",
+    "disabled": "已禁用",
+    "subnet": {
+      "title": "子网总览",
+      "headerTitle": "子网：{subnet}",
+      "headerDescription": "共享网络“{name}”中的 DHCP 子网",
+      "defaultRouter": "默认路由器",
+      "leaseTime": "租约时间",
+      "dnsServers": "DNS 服务器",
+      "clientsTab": "客户端",
+      "activeLeases": "活动租约",
+      "activeLeasesDescription": "此子网当前活动的 DHCP 租约",
+      "noActiveLeases": "此子网没有活动租约",
+      "staticMappings": "静态映射",
+      "staticMappingsDescription": "已配置的 DHCP 静态映射",
+      "noStaticMappings": "此子网没有静态映射",
+      "mappingSubtitle": "IP: {ip} | MAC: {mac}"
+    },
+    "client": {
+      "title": "客户端总览",
+      "headerTitle": "WireGuard 对等体：{name}",
+      "headerDescription": "接口 {name} 上的对等体",
+      "publicKey": "公钥",
+      "endpoint": "端点",
+      "allowedIps": "允许的 IP",
+      "description": "描述"
+    }
+  },
+  "inProgress": {
+    "title": "建设中",
+    "subtitle": "我们正在打造一些很棒的功能",
+    "comingSoon": "即将推出",
+    "inDevelopment": "开发中"
+  },
+  "appLayout": {
+    "redirecting": "正在跳转到站点管理..."
+  }
+}

@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { Moon, Sun } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -30,8 +31,10 @@ function extractHue(variables: Record<string, string>): number {
 }
 
 export function CustomThemeEditor({ open, onOpenChange, editingTheme }: CustomThemeEditorProps) {
+  const t = useTranslations("sharedUi");
+  const tc = useTranslations("common");
   const { addCustomTheme, updateCustomTheme, setThemeId } = useTheme();
-  const [name, setName] = useState("My Theme");
+  const [name, setName] = useState(t("themeEditor.defaultName"));
   const [hue, setHue] = useState(250);
   const [isDark, setIsDark] = useState(true);
 
@@ -43,11 +46,11 @@ export function CustomThemeEditor({ open, onOpenChange, editingTheme }: CustomTh
       setHue(extractHue(editingTheme.variables));
       setIsDark(editingTheme.isDark);
     } else if (open && !editingTheme) {
-      setName("My Theme");
+      setName(t("themeEditor.defaultName"));
       setHue(250);
       setIsDark(true);
     }
-  }, [open, editingTheme]);
+  }, [open, editingTheme, t]);
 
   const preview = useMemo(() => deriveThemeFromPrimary(hue, isDark), [hue, isDark]);
 
@@ -61,7 +64,7 @@ export function CustomThemeEditor({ open, onOpenChange, editingTheme }: CustomTh
       });
     } else {
       const id = `custom-${Date.now()}`;
-      addCustomTheme({ id, name: name.trim() || "My Theme", isDark, isCustom: true, variables: preview });
+      addCustomTheme({ id, name: name.trim() || t("themeEditor.defaultName"), isDark, isCustom: true, variables: preview });
       setThemeId(id);
     }
     onOpenChange(false);
@@ -71,22 +74,22 @@ export function CustomThemeEditor({ open, onOpenChange, editingTheme }: CustomTh
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>{editingTheme ? "Edit theme" : "Create custom theme"}</DialogTitle>
+          <DialogTitle>{editingTheme ? t("themeEditor.editTitle") : t("theme.createCustom")}</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col gap-4 py-2">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Name</label>
+            <label className="text-xs font-medium text-muted-foreground">{tc("name")}</label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="My Theme"
+              placeholder={t("themeEditor.defaultName")}
               maxLength={32}
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Variant</label>
+            <label className="text-xs font-medium text-muted-foreground">{t("themeEditor.variant")}</label>
             <div className="flex rounded-md border border-border overflow-hidden">
               <button
                 onClick={() => setIsDark(true)}
@@ -98,7 +101,7 @@ export function CustomThemeEditor({ open, onOpenChange, editingTheme }: CustomTh
                 )}
               >
                 <Moon className="h-3.5 w-3.5" />
-                Dark
+                {t("themeEditor.dark")}
               </button>
               <button
                 onClick={() => setIsDark(false)}
@@ -110,14 +113,14 @@ export function CustomThemeEditor({ open, onOpenChange, editingTheme }: CustomTh
                 )}
               >
                 <Sun className="h-3.5 w-3.5" />
-                Light
+                {t("themeEditor.light")}
               </button>
             </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground">
-              Primary hue — {hue}°
+              {t("themeEditor.primaryHue", { hue: String(hue) })}
             </label>
             <input
               type="range"
@@ -134,7 +137,7 @@ export function CustomThemeEditor({ open, onOpenChange, editingTheme }: CustomTh
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Preview</label>
+            <label className="text-xs font-medium text-muted-foreground">{t("themeEditor.preview")}</label>
             <div className="flex flex-col gap-1 rounded-md border p-2">
               <div className="flex h-8 gap-0.5 overflow-hidden rounded">
                 <div className="flex-1" style={{ background: preview["background"] }} />
@@ -157,9 +160,9 @@ export function CustomThemeEditor({ open, onOpenChange, editingTheme }: CustomTh
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tc("cancel")}
           </Button>
-          <Button onClick={handleSave}>{editingTheme ? "Save changes" : "Save theme"}</Button>
+          <Button onClick={handleSave}>{editingTheme ? t("themeEditor.saveChanges") : t("themeEditor.saveTheme")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

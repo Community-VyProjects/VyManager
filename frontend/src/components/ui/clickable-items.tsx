@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Network, Database } from "lucide-react";
 import { useUnifiedView } from "@/contexts/UnifiedViewContext";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 interface ClickableSubnetProps {
   subnet: string;
@@ -27,6 +28,7 @@ export function ClickableSubnet({
   size = "sm",
   showIcon = true
 }: ClickableSubnetProps) {
+  const t = useTranslations("sharedUi");
   const { openUnifiedView } = useUnifiedView();
 
   const handleClick = () => {
@@ -35,7 +37,7 @@ export function ClickableSubnet({
     } else {
       // Fallback with minimal data
       const subnetData = {
-        network: { name: networkName || 'Unknown Network' },
+        network: { name: networkName || t("clickable.unknownNetwork") },
         subnet: {
           subnet,
           name_servers: [],
@@ -93,6 +95,7 @@ export function ClickableClient({
   size = "sm",
   showIcon = true
 }: ClickableClientProps) {
+  const t = useTranslations("sharedUi");
   const { openUnifiedView } = useUnifiedView();
 
   const handleClick = () => {
@@ -101,7 +104,7 @@ export function ClickableClient({
     } else {
       // Fallback with minimal data
       const clientData = {
-        interface: { name: interfaceName || 'Unknown Interface' },
+        interface: { name: interfaceName || t("clickable.unknownInterface") },
         peer: {
           name: clientName,
           allowed_ips: [],
