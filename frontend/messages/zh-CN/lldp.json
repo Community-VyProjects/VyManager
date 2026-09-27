@@ -1,1 +1,79 @@
-{}
+{
+  "content": {
+    "loadFailed": "加载 LLDP 配置失败",
+    "readOnly": "只读",
+    "subtitle": "链路层发现协议 — 通告并发现网络邻居",
+    "editSettings": "编辑设置",
+    "managementAddresses": "管理地址",
+    "configuredInterfaces": "已配置接口",
+    "legacyProtocols": "旧版协议",
+    "globalSettings": "全局设置",
+    "noneConfigured": "未配置",
+    "legacyDiscoveryProtocols": "旧版发现协议",
+    "noneActive": "未启用任何协议",
+    "interfaceOverrides": "接口覆盖配置",
+    "addOverride": "添加接口覆盖配置",
+    "colInterface": "接口",
+    "colMode": "模式",
+    "colLocation": "位置",
+    "emptyTitle": "没有接口覆盖配置",
+    "emptyHint": "所有接口均使用默认 LLDP 行为"
+  },
+  "mode": {
+    "rxTx": "发送和接收",
+    "rx": "仅接收",
+    "tx": "仅发送",
+    "disable": "已禁用"
+  },
+  "location": {
+    "elin": "ELIN：{value}",
+    "coord": "坐标：{value}",
+    "coordinate": "坐标"
+  },
+  "delete": {
+    "title": "移除接口覆盖配置",
+    "description": "要移除 <mono>{name}</mono> 的 LLDP 覆盖配置吗？该接口将恢复为默认 LLDP 行为。",
+    "remove": "移除"
+  },
+  "settings": {
+    "invalidAddress": "请输入有效的 IPv4 或 IPv6 地址",
+    "addressExists": "该地址已添加",
+    "title": "编辑 LLDP 设置",
+    "description": "配置全局 LLDP 服务设置",
+    "managementAddresses": "管理地址",
+    "managementAddressesHint": "通过 LLDP 向邻居通告的 IPv4/IPv6 地址",
+    "addressPlaceholder": "例如 192.168.1.1 或 2001:db8::1",
+    "snmp": "允许通过 SNMP 查询 LLDP 数据库",
+    "legacyProtocols": "旧版发现协议",
+    "legacyProtocolsHint": "除 LLDP 外，还监听厂商专有协议"
+  },
+  "modal": {
+    "selectInterfaceError": "请选择接口",
+    "overrideExists": "“{name}”的覆盖配置已存在",
+    "latLongRequired": "纬度和经度为必填项",
+    "elinInvalid": "ELIN 必须为 10–25 位数字",
+    "allInterfaces": "应用于所有接口",
+    "editTitle": "编辑接口覆盖配置",
+    "addTitle": "添加接口覆盖配置",
+    "description": "配置按接口的 LLDP 行为",
+    "interface": "接口",
+    "selectInterface": "选择接口",
+    "mode": "模式",
+    "modeRxTx": "发送和接收（默认）",
+    "modeRx": "仅接收",
+    "modeTx": "仅发送",
+    "disableFlag": "在此接口上禁用 LLDP",
+    "location": "LLDP-MED 位置",
+    "coordinateBased": "基于坐标",
+    "elin": "ELIN（紧急位置）",
+    "latitude": "纬度",
+    "latitudePlaceholder": "例如 37.524449N",
+    "longitude": "经度",
+    "longitudePlaceholder": "例如 122.267255W",
+    "altitude": "海拔",
+    "altitudePlaceholder": "例如 10（米，可选）",
+    "datum": "基准",
+    "emergencyNumber": "紧急号码",
+    "emergencyNumberPlaceholder": "10–25 位紧急号码"
+  }
+}

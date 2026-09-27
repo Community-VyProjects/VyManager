@@ -1,1 +1,79 @@
-{}
+{
+  "content": {
+    "loadFailed": "Failed to load LLDP configuration",
+    "readOnly": "Read Only",
+    "subtitle": "Link Layer Discovery Protocol — advertise and discover network neighbours",
+    "editSettings": "Edit Settings",
+    "managementAddresses": "Management Addresses",
+    "configuredInterfaces": "Configured Interfaces",
+    "legacyProtocols": "Legacy Protocols",
+    "globalSettings": "Global Settings",
+    "noneConfigured": "None configured",
+    "legacyDiscoveryProtocols": "Legacy Discovery Protocols",
+    "noneActive": "None active",
+    "interfaceOverrides": "Interface Overrides",
+    "addOverride": "Add Interface Override",
+    "colInterface": "Interface",
+    "colMode": "Mode",
+    "colLocation": "Location",
+    "emptyTitle": "No interface overrides",
+    "emptyHint": "All interfaces use default LLDP behaviour"
+  },
+  "mode": {
+    "rxTx": "Send & Receive",
+    "rx": "Receive Only",
+    "tx": "Transmit Only",
+    "disable": "Disabled"
+  },
+  "location": {
+    "elin": "ELIN: {value}",
+    "coord": "Coord: {value}",
+    "coordinate": "Coordinate"
+  },
+  "delete": {
+    "title": "Remove Interface Override",
+    "description": "Remove LLDP configuration override for <mono>{name}</mono>? The interface will revert to default LLDP behaviour.",
+    "remove": "Remove"
+  },
+  "settings": {
+    "invalidAddress": "Enter a valid IPv4 or IPv6 address",
+    "addressExists": "Address already added",
+    "title": "Edit LLDP Settings",
+    "description": "Configure global LLDP service settings",
+    "managementAddresses": "Management Addresses",
+    "managementAddressesHint": "IPv4/IPv6 addresses advertised via LLDP to neighbors",
+    "addressPlaceholder": "e.g. 192.168.1.1 or 2001:db8::1",
+    "snmp": "Enable SNMP queries of the LLDP database",
+    "legacyProtocols": "Legacy Discovery Protocols",
+    "legacyProtocolsHint": "Listen for vendor-specific protocols in addition to LLDP"
+  },
+  "modal": {
+    "selectInterfaceError": "Select an interface",
+    "overrideExists": "Override for \"{name}\" already exists",
+    "latLongRequired": "Latitude and longitude are required",
+    "elinInvalid": "ELIN must be 10–25 digits",
+    "allInterfaces": "Apply to all interfaces",
+    "editTitle": "Edit Interface Override",
+    "addTitle": "Add Interface Override",
+    "description": "Configure per-interface LLDP behaviour",
+    "interface": "Interface",
+    "selectInterface": "Select interface",
+    "mode": "Mode",
+    "modeRxTx": "Send and receive (default)",
+    "modeRx": "Receive only",
+    "modeTx": "Transmit only",
+    "disableFlag": "Disable LLDP on this interface",
+    "location": "LLDP-MED Location",
+    "coordinateBased": "Coordinate-based",
+    "elin": "ELIN (Emergency Location)",
+    "latitude": "Latitude",
+    "latitudePlaceholder": "e.g. 37.524449N",
+    "longitude": "Longitude",
+    "longitudePlaceholder": "e.g. 122.267255W",
+    "altitude": "Altitude",
+    "altitudePlaceholder": "e.g. 10 (meters, optional)",
+    "datum": "Datum",
+    "emergencyNumber": "Emergency Number",
+    "emergencyNumberPlaceholder": "10–25 digit emergency number"
+  }
+}

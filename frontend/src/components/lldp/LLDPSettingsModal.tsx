@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, KeyboardEvent } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -44,6 +45,8 @@ export function LLDPSettingsModal({
   config,
   onSuccess,
 }: LLDPSettingsModalProps) {
+  const t = useTranslations("lldp");
+  const tc = useTranslations("common");
   const [managementAddresses, setManagementAddresses] = useState<string[]>(
     config.management_addresses
   );
@@ -61,11 +64,11 @@ export function LLDPSettingsModal({
     const val = addrInput.trim();
     if (!val) return;
     if (!isValidIP(val)) {
-      setAddrError("Enter a valid IPv4 or IPv6 address");
+      setAddrError(t("settings.invalidAddress"));
       return;
     }
     if (managementAddresses.includes(val)) {
-      setAddrError("Address already added");
+      setAddrError(t("settings.addressExists"));
       return;
     }
     setManagementAddresses((prev) => [...prev, val]);
@@ -103,7 +106,7 @@ export function LLDPSettingsModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -113,9 +116,9 @@ export function LLDPSettingsModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit LLDP Settings</DialogTitle>
+          <DialogTitle>{t("settings.title")}</DialogTitle>
           <DialogDescription>
-            Configure global LLDP service settings
+            {t("settings.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -124,15 +127,15 @@ export function LLDPSettingsModal({
             {/* Management Addresses */}
             <div className="space-y-3">
               <div>
-                <Label className="text-sm font-medium">Management Addresses</Label>
+                <Label className="text-sm font-medium">{t("settings.managementAddresses")}</Label>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  IPv4/IPv6 addresses advertised via LLDP to neighbors
+                  {t("settings.managementAddressesHint")}
                 </p>
               </div>
               <div className="flex gap-2">
                 <Input
                   ref={inputRef}
-                  placeholder="e.g. 192.168.1.1 or 2001:db8::1"
+                  placeholder={t("settings.addressPlaceholder")}
                   value={addrInput}
                   onChange={(e) => {
                     setAddrInput(e.target.value);
@@ -176,7 +179,7 @@ export function LLDPSettingsModal({
                 onCheckedChange={(checked) => setSnmpEnabled(!!checked)}
               />
               <Label htmlFor="snmp" className="cursor-pointer">
-                Enable SNMP queries of the LLDP database
+                {t("settings.snmp")}
               </Label>
             </div>
 
@@ -185,9 +188,9 @@ export function LLDPSettingsModal({
             {/* Legacy Protocols */}
             <div className="space-y-3">
               <div>
-                <Label className="text-sm font-medium">Legacy Discovery Protocols</Label>
+                <Label className="text-sm font-medium">{t("settings.legacyProtocols")}</Label>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Listen for vendor-specific protocols in addition to LLDP
+                  {t("settings.legacyProtocolsHint")}
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -257,11 +260,11 @@ export function LLDPSettingsModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>
