@@ -25,10 +25,12 @@ import { SearchCommand } from "@/components/search/SearchCommand";
 import { BugReportModal } from "@/components/bug-report/BugReportModal";
 
 import { getSidebarNavigation, type NavItem, type NavChild } from "@/lib/navigation";
+import { useNavTitle } from "@/i18n/nav-title";
 
 
 export function Sidebar() {
   const t = useTranslations("sidebar");
+  const navTitle = useNavTitle();
   const pathname = usePathname();
   const router = useRouter();
   const [openItems, setOpenItems] = useState<string[]>([]);
@@ -248,7 +250,7 @@ export function Sidebar() {
                       <span className={cn(
                         "transition-colors",
                         isActive ? "text-foreground" : "text-muted-foreground group-hover:text-foreground/80"
-                      )}>{item.title}</span>
+                      )}>{navTitle(item.title)}</span>
                     </div>
                     <ChevronDown
                       className={cn(
@@ -287,7 +289,7 @@ export function Sidebar() {
                               )}
                             />
                           )}
-                          {child.title}
+                          {navTitle(child.title)}
                         </Link>
                       );
                     })}
@@ -311,7 +313,7 @@ export function Sidebar() {
                   "h-4 w-4 transition-colors",
                   isActive ? "text-primary glow-text" : "text-muted-foreground group-hover:text-primary/70"
                 )} />
-                {item.title}
+                {navTitle(item.title)}
               </Link>
             );
           })}

@@ -4,14 +4,18 @@
 import common from "./common.json";
 import language from "./language.json";
 import login from "./login.json";
+import navigation from "./navigation.json";
 import onboarding from "./onboarding.json";
+import search from "./search.json";
 import sidebar from "./sidebar.json";
 
 const messages = {
   common,
   language,
   login,
+  navigation,
   onboarding,
+  search,
   sidebar,
 };
 

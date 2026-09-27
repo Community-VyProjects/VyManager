@@ -1,0 +1,23 @@
+{
+  "trigger": "搜索全部…",
+  "placeholder": "搜索页面、规则、接口、NAT、BGP、HAProxy…",
+  "filter": "筛选",
+  "all": "全部",
+  "allTypes": "全部类型",
+  "columnsLabel": "显示列：",
+  "columns": {
+    "title": "标题",
+    "context": "位置",
+    "kind": "类型",
+    "description": "描述"
+  },
+  "buildingIndex": "正在建立搜索索引…",
+  "noResults": "没有找到结果",
+  "startTyping": "输入关键词开始搜索",
+  "starred": "已收藏",
+  "addFavorite": "收藏",
+  "removeFavorite": "取消收藏",
+  "toOpen": "K 打开",
+  "resultCount": "{count} 个结果 · ",
+  "shortcuts": "↑↓ 选择 · Enter 打开 · ★ 收藏"
+}
