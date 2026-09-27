@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +26,8 @@ interface LocalUserModalProps {
 }
 
 export function LocalUserModal({ open, onOpenChange, onSuccess, existingUser }: LocalUserModalProps) {
+  const t = useTranslations("pppoeServerSettings");
+  const tc = useTranslations("common");
   const isEdit = !!existingUser;
 
   const [username, setUsername] = useState("");
@@ -59,8 +62,8 @@ export function LocalUserModal({ open, onOpenChange, onSuccess, existingUser }: 
   }, [open, existingUser]);
 
   const handleSubmit = async () => {
-    if (!username.trim()) { setError("Username is required"); return; }
-    if (!isEdit && !password.trim()) { setError("Password is required for new users"); return; }
+    if (!username.trim()) { setError(t("localUser.usernameRequired")); return; }
+    if (!isEdit && !password.trim()) { setError(t("localUser.passwordRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -89,10 +92,10 @@ export function LocalUserModal({ open, onOpenChange, onSuccess, existingUser }: 
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to save user");
+        setError(result.error || t("localUser.saveFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to save user");
+      setError((err as ApiError).message || t("localUser.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -104,42 +107,42 @@ export function LocalUserModal({ open, onOpenChange, onSuccess, existingUser }: 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5 text-primary" />
-            {isEdit ? "Edit" : "Add"} Local User
+            {isEdit ? t("localUser.editTitle") : t("localUser.addTitle")}
           </DialogTitle>
-          <DialogDescription>Configure a PPPoE local authentication user.</DialogDescription>
+          <DialogDescription>{t("localUser.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Username</Label>
+            <Label>{t("localUser.username")}</Label>
             <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="user@example.com" disabled={isEdit} />
           </div>
           <div className="space-y-2">
-            <Label>Password</Label>
+            <Label>{t("localUser.password")}</Label>
             <Input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={isEdit ? "Leave blank to keep current" : "Enter password"}
+              placeholder={isEdit ? t("leaveBlankToKeep") : t("localUser.enterPassword")}
             />
           </div>
           <div className="space-y-2">
-            <Label>Static IP (optional)</Label>
+            <Label>{t("localUser.staticIp")}</Label>
             <Input value={staticIp} onChange={(e) => setStaticIp(e.target.value)} placeholder="192.168.100.10" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Rate Limit Download</Label>
+              <Label>{t("localUser.rateDownload")}</Label>
               <Input value={rateDownload} onChange={(e) => setRateDownload(e.target.value)} placeholder="10m" />
             </div>
             <div className="space-y-2">
-              <Label>Rate Limit Upload</Label>
+              <Label>{t("localUser.rateUpload")}</Label>
               <Input value={rateUpload} onChange={(e) => setRateUpload(e.target.value)} placeholder="5m" />
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Checkbox id="user-disabled" checked={disabled} onCheckedChange={(v) => setDisabled(!!v)} />
-            <Label htmlFor="user-disabled" className="cursor-pointer">Disabled</Label>
+            <Label htmlFor="user-disabled" className="cursor-pointer">{tc("disabled")}</Label>
           </div>
         </div>
 
@@ -151,9 +154,9 @@ export function LocalUserModal({ open, onOpenChange, onSuccess, existingUser }: 
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? "Saving..." : "Adding..."}</> : isEdit ? "Save Changes" : "Add User"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("adding")}</> : isEdit ? t("saveChanges") : t("localUser.addUser")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +26,8 @@ interface IPPoolModalProps {
 }
 
 export function IPPoolModal({ open, onOpenChange, onSuccess, existingPool }: IPPoolModalProps) {
+  const t = useTranslations("pppoeServerSettings");
+  const tc = useTranslations("common");
   const isEdit = !!existingPool;
 
   const [name, setName] = useState("");
@@ -60,7 +63,7 @@ export function IPPoolModal({ open, onOpenChange, onSuccess, existingPool }: IPP
   };
 
   const handleSubmit = async () => {
-    if (!name.trim()) { setError("Pool name is required"); return; }
+    if (!name.trim()) { setError(t("poolNameRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -77,10 +80,10 @@ export function IPPoolModal({ open, onOpenChange, onSuccess, existingPool }: IPP
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to save pool");
+        setError(result.error || t("ipPool.saveFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to save pool");
+      setError((err as ApiError).message || t("ipPool.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -92,28 +95,28 @@ export function IPPoolModal({ open, onOpenChange, onSuccess, existingPool }: IPP
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Network className="h-5 w-5 text-primary" />
-            {isEdit ? "Edit" : "Create"} IP Pool
+            {isEdit ? t("ipPool.editTitle") : t("ipPool.createTitle")}
           </DialogTitle>
-          <DialogDescription>Configure an IPv4 client address pool.</DialogDescription>
+          <DialogDescription>{t("ipPool.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Pool Name</Label>
+            <Label>{t("poolName")}</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="pool1" disabled={isEdit} />
           </div>
 
           <div className="space-y-2">
-            <Label>Ranges</Label>
+            <Label>{t("ipPool.ranges")}</Label>
             <div className="flex gap-2">
               <Input
                 value={rangeInput}
                 onChange={(e) => setRangeInput(e.target.value)}
-                placeholder="192.168.100.0/24 or 192.168.1.1-192.168.1.254"
+                placeholder={t("ipPool.rangePlaceholder")}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addRange(); } }}
                 className="flex-1"
               />
-              <Button type="button" variant="outline" size="sm" onClick={addRange}>Add</Button>
+              <Button type="button" variant="outline" size="sm" onClick={addRange}>{tc("add")}</Button>
             </div>
             <div className="flex flex-wrap gap-1">
               {ranges.map((r) => (
@@ -128,9 +131,9 @@ export function IPPoolModal({ open, onOpenChange, onSuccess, existingPool }: IPP
           </div>
 
           <div className="space-y-2">
-            <Label>Next Pool (optional)</Label>
+            <Label>{t("ipPool.nextPool")}</Label>
             <Input value={nextPool} onChange={(e) => setNextPool(e.target.value)} placeholder="pool2" />
-            <p className="text-xs text-muted-foreground">Pool to use when this one is exhausted</p>
+            <p className="text-xs text-muted-foreground">{t("ipPool.nextPoolHelp")}</p>
           </div>
         </div>
 
@@ -142,9 +145,9 @@ export function IPPoolModal({ open, onOpenChange, onSuccess, existingPool }: IPP
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? "Saving..." : "Creating..."}</> : isEdit ? "Save Changes" : "Create Pool"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("creating")}</> : isEdit ? t("saveChanges") : t("createPool")}
           </Button>
         </DialogFooter>
       </DialogContent>

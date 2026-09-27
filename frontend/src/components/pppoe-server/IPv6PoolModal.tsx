@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,8 @@ interface IPv6PoolModalProps {
 }
 
 export function IPv6PoolModal({ open, onOpenChange, onSuccess, existingPool }: IPv6PoolModalProps) {
+  const t = useTranslations("pppoeServerSettings");
+  const tc = useTranslations("common");
   const isEdit = !!existingPool;
 
   const [name, setName] = useState("");
@@ -49,7 +52,7 @@ export function IPv6PoolModal({ open, onOpenChange, onSuccess, existingPool }: I
   }, [open, existingPool]);
 
   const handleSubmit = async () => {
-    if (!name.trim()) { setError("Pool name is required"); return; }
+    if (!name.trim()) { setError(t("poolNameRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -67,10 +70,10 @@ export function IPv6PoolModal({ open, onOpenChange, onSuccess, existingPool }: I
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to save IPv6 pool");
+        setError(result.error || t("ipv6Pool.saveFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to save IPv6 pool");
+      setError((err as ApiError).message || t("ipv6Pool.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -82,22 +85,22 @@ export function IPv6PoolModal({ open, onOpenChange, onSuccess, existingPool }: I
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Network className="h-5 w-5 text-primary" />
-            {isEdit ? "Edit" : "Create"} IPv6 Pool
+            {isEdit ? t("ipv6Pool.editTitle") : t("ipv6Pool.createTitle")}
           </DialogTitle>
-          <DialogDescription>Configure an IPv6 client address pool.</DialogDescription>
+          <DialogDescription>{t("ipv6Pool.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Pool Name</Label>
+            <Label>{t("poolName")}</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="ipv6-pool1" disabled={isEdit} />
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Prefixes</Label>
+              <Label>{t("ipv6Pool.prefixes")}</Label>
               <Button type="button" variant="ghost" size="sm" onClick={() => setPrefixes([...prefixes, { prefix: "", mask: "" }])}>
-                <Plus className="h-3 w-3 mr-1" /> Add
+                <Plus className="h-3 w-3 mr-1" /> {tc("add")}
               </Button>
             </div>
             {prefixes.map((p, i) => (
@@ -111,7 +114,7 @@ export function IPv6PoolModal({ open, onOpenChange, onSuccess, existingPool }: I
                 <Input
                   value={p.mask}
                   onChange={(e) => { const np = [...prefixes]; np[i].mask = e.target.value; setPrefixes(np); }}
-                  placeholder="mask (48-128)"
+                  placeholder={t("ipv6Pool.maskPlaceholder")}
                   className="w-32"
                 />
                 <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => setPrefixes(prefixes.filter((_, j) => j !== i))}>
@@ -123,9 +126,9 @@ export function IPv6PoolModal({ open, onOpenChange, onSuccess, existingPool }: I
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Delegate Prefixes</Label>
+              <Label>{t("ipv6Pool.delegatePrefixes")}</Label>
               <Button type="button" variant="ghost" size="sm" onClick={() => setDelegates([...delegates, { prefix: "", delegation_prefix: "" }])}>
-                <Plus className="h-3 w-3 mr-1" /> Add
+                <Plus className="h-3 w-3 mr-1" /> {tc("add")}
               </Button>
             </div>
             {delegates.map((d, i) => (
@@ -139,7 +142,7 @@ export function IPv6PoolModal({ open, onOpenChange, onSuccess, existingPool }: I
                 <Input
                   value={d.delegation_prefix}
                   onChange={(e) => { const nd = [...delegates]; nd[i].delegation_prefix = e.target.value; setDelegates(nd); }}
-                  placeholder="delegation (32-64)"
+                  placeholder={t("ipv6Pool.delegationPlaceholder")}
                   className="w-36"
                 />
                 <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => setDelegates(delegates.filter((_, j) => j !== i))}>
@@ -158,9 +161,9 @@ export function IPv6PoolModal({ open, onOpenChange, onSuccess, existingPool }: I
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? "Saving..." : "Creating..."}</> : isEdit ? "Save Changes" : "Create Pool"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("creating")}</> : isEdit ? t("saveChanges") : t("createPool")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,8 @@ interface GeneralSettingsModalProps {
 }
 
 export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: GeneralSettingsModalProps) {
+  const t = useTranslations("pppoeServerSettings");
+  const tc = useTranslations("common");
   const [description, setDescription] = useState("");
   const [accessConcentrator, setAccessConcentrator] = useState("");
   const [serviceName, setServiceName] = useState("");
@@ -109,10 +112,10 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to update settings");
+        setError(result.error || t("general.updateFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to update settings");
+      setError((err as ApiError).message || t("general.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -124,31 +127,31 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5 text-primary" />
-            General Settings
+            {t("general.title")}
           </DialogTitle>
-          <DialogDescription>Configure PPPoE server general settings.</DialogDescription>
+          <DialogDescription>{t("general.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          <h4 className="text-sm font-medium">Server Identity</h4>
+          <h4 className="text-sm font-medium">{t("general.serverIdentity")}</h4>
           <div className="space-y-2">
-            <Label>Description</Label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="PPPoE broadband server" />
+            <Label>{tc("description")}</Label>
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("general.descriptionPlaceholder")} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Access Concentrator</Label>
+              <Label>{t("general.accessConcentrator")}</Label>
               <Input value={accessConcentrator} onChange={(e) => setAccessConcentrator(e.target.value)} placeholder="vyos-ac" />
             </div>
             <div className="space-y-2">
-              <Label>Service Name</Label>
+              <Label>{t("general.serviceName")}</Label>
               <Input value={serviceName} onChange={(e) => setServiceName(e.target.value)} placeholder="internet" />
             </div>
           </div>
 
-          <h4 className="text-sm font-medium">Addressing</h4>
+          <h4 className="text-sm font-medium">{t("general.addressing")}</h4>
           <div className="space-y-2">
-            <Label>Gateway Addresses</Label>
+            <Label>{t("general.gatewayAddresses")}</Label>
             <div className="flex gap-2">
               <Input
                 value={gatewayInput}
@@ -157,7 +160,7 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addToList(gatewayInput, gatewayAddresses, setGatewayAddresses, setGatewayInput); } }}
                 className="flex-1"
               />
-              <Button type="button" variant="outline" size="sm" onClick={() => addToList(gatewayInput, gatewayAddresses, setGatewayAddresses, setGatewayInput)}>Add</Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => addToList(gatewayInput, gatewayAddresses, setGatewayAddresses, setGatewayInput)}>{tc("add")}</Button>
             </div>
             <div className="flex flex-wrap gap-1">
               {gatewayAddresses.map((addr) => (
@@ -172,7 +175,7 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
           </div>
 
           <div className="space-y-2">
-            <Label>Name Servers</Label>
+            <Label>{t("general.nameServers")}</Label>
             <div className="flex gap-2">
               <Input
                 value={nameServerInput}
@@ -181,7 +184,7 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addToList(nameServerInput, nameServers, setNameServers, setNameServerInput); } }}
                 className="flex-1"
               />
-              <Button type="button" variant="outline" size="sm" onClick={() => addToList(nameServerInput, nameServers, setNameServers, setNameServerInput)}>Add</Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => addToList(nameServerInput, nameServers, setNameServers, setNameServerInput)}>{tc("add")}</Button>
             </div>
             <div className="flex flex-wrap gap-1">
               {nameServers.map((ns) => (
@@ -196,7 +199,7 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
           </div>
 
           <div className="space-y-2">
-            <Label>WINS Servers</Label>
+            <Label>{t("general.winsServers")}</Label>
             <div className="flex gap-2">
               <Input
                 value={winsInput}
@@ -205,7 +208,7 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addToList(winsInput, winsServers, setWinsServers, setWinsInput); } }}
                 className="flex-1"
               />
-              <Button type="button" variant="outline" size="sm" onClick={() => addToList(winsInput, winsServers, setWinsServers, setWinsInput)}>Add</Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => addToList(winsInput, winsServers, setWinsServers, setWinsInput)}>{tc("add")}</Button>
             </div>
             <div className="flex flex-wrap gap-1">
               {winsServers.map((ws) => (
@@ -219,26 +222,26 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
             </div>
           </div>
 
-          <h4 className="text-sm font-medium">Pools & Session</h4>
+          <h4 className="text-sm font-medium">{t("general.poolsSession")}</h4>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Default Pool</Label>
+              <Label>{t("general.defaultPool")}</Label>
               <Input value={defaultPool} onChange={(e) => setDefaultPool(e.target.value)} placeholder="pool1" />
             </div>
             <div className="space-y-2">
-              <Label>Default IPv6 Pool</Label>
+              <Label>{t("general.defaultIpv6Pool")}</Label>
               <Input value={defaultIpv6Pool} onChange={(e) => setDefaultIpv6Pool(e.target.value)} placeholder="ipv6-pool1" />
             </div>
           </div>
           <div className="space-y-2">
-            <Label>Session Control</Label>
+            <Label>{t("general.sessionControl")}</Label>
             <Select value={sessionControl} onValueChange={setSessionControl}>
-              <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">None</SelectItem>
-                <SelectItem value="deny">Deny</SelectItem>
-                <SelectItem value="disable">Disable</SelectItem>
-                <SelectItem value="replace">Replace</SelectItem>
+                <SelectItem value="__none__">{tc("none")}</SelectItem>
+                <SelectItem value="deny">{t("general.sessionDeny")}</SelectItem>
+                <SelectItem value="disable">{t("general.sessionDisable")}</SelectItem>
+                <SelectItem value="replace">{t("general.sessionReplace")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -248,24 +251,24 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
               <Input value={mtu} onChange={(e) => setMtu(e.target.value)} placeholder="1492" />
             </div>
             <div className="space-y-2">
-              <Label>Max Sessions</Label>
+              <Label>{t("general.maxSessions")}</Label>
               <Input value={maxSessions} onChange={(e) => setMaxSessions(e.target.value)} placeholder="0-65535" />
             </div>
             <div className="space-y-2">
-              <Label>Thread Count</Label>
-              <Input value={threadCount} onChange={(e) => setThreadCount(e.target.value)} placeholder="auto" />
+              <Label>{t("general.threadCount")}</Label>
+              <Input value={threadCount} onChange={(e) => setThreadCount(e.target.value)} placeholder={t("general.threadCountPlaceholder")} />
             </div>
           </div>
 
-          <h4 className="text-sm font-medium">Flags</h4>
+          <h4 className="text-sm font-medium">{t("general.flags")}</h4>
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Checkbox id="accept-any" checked={acceptAnyService} onCheckedChange={(v) => setAcceptAnyService(!!v)} />
-              <Label htmlFor="accept-any" className="cursor-pointer">Accept Any Service</Label>
+              <Label htmlFor="accept-any" className="cursor-pointer">{t("general.acceptAnyService")}</Label>
             </div>
             <div className="flex items-center gap-2">
               <Checkbox id="accept-blank" checked={acceptBlankService} onCheckedChange={(v) => setAcceptBlankService(!!v)} />
-              <Label htmlFor="accept-blank" className="cursor-pointer">Accept Blank Service</Label>
+              <Label htmlFor="accept-blank" className="cursor-pointer">{t("general.acceptBlankService")}</Label>
             </div>
           </div>
         </div>
@@ -278,9 +281,9 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save Changes"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : t("saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>
