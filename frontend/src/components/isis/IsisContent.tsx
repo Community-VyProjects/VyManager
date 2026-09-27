@@ -63,13 +63,14 @@ import { IsisRedistributeModal } from "./IsisRedistributeModal";
 import { IsisDefaultInfoModal } from "./IsisDefaultInfoModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
+import { useTranslations } from "next-intl";
 
 // ============================================================================
 // Helpers
 // ============================================================================
 
-function levelBadge(level: string | null) {
-  if (!level) return <span className="text-muted-foreground text-sm">auto</span>;
+function levelBadge(level: string | null, autoLabel: string) {
+  if (!level) return <span className="text-muted-foreground text-sm">{autoLabel}</span>;
   const map: Record<string, string> = {
     "level-1": "L1",
     "level-2": "L2",
@@ -83,6 +84,8 @@ function levelBadge(level: string | null) {
 // ============================================================================
 
 export function IsisContent() {
+  const t = useTranslations("isis");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWritePermission = canWrite(FeatureGroup.ISIS);
 
@@ -169,11 +172,11 @@ export function IsisContent() {
         .catch(() => []);
       setRouteMapNames(rmNames);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load IS-IS configuration");
+      setError(err instanceof Error ? err.message : t("page.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -243,7 +246,7 @@ export function IsisContent() {
       await loadData(true);
       setOverviewEditing(false);
     } catch (err) {
-      setOverviewError(err instanceof Error ? err.message : "Failed to save configuration");
+      setOverviewError(err instanceof Error ? err.message : t("page.saveConfigFailed"));
     } finally {
       setOverviewSaving(false);
     }
@@ -292,7 +295,7 @@ export function IsisContent() {
       await loadData(true);
       setAdvancedEditing(false);
     } catch (err) {
-      setAdvancedError(err instanceof Error ? err.message : "Failed to save timers");
+      setAdvancedError(err instanceof Error ? err.message : t("page.saveTimersFailed"));
     } finally {
       setAdvancedSaving(false);
     }
@@ -329,7 +332,7 @@ export function IsisContent() {
       await loadData(true);
       setSpfDelayEditing(false);
     } catch (err) {
-      setSpfDelayError(err instanceof Error ? err.message : "Failed to save SPF delay");
+      setSpfDelayError(err instanceof Error ? err.message : t("page.saveSpfDelayFailed"));
     } finally {
       setSpfDelaySaving(false);
     }
@@ -429,7 +432,7 @@ export function IsisContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -449,18 +452,18 @@ export function IsisContent() {
         <div className="p-6 pb-4 border-b border-border">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-foreground">IS-IS Configuration</h1>
+              <h1 className="text-2xl font-bold text-foreground">{t("page.title")}</h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Intermediate System to Intermediate System routing protocol
+                {t("page.subtitle")}
               </p>
             </div>
             <div className="flex items-center gap-2">
               {!hasWritePermission && (
-                <Badge variant="secondary">Read Only</Badge>
+                <Badge variant="secondary">{t("page.readOnly")}</Badge>
               )}
               <Button variant="outline" size="sm" onClick={() => loadData(true)}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -481,8 +484,8 @@ export function IsisContent() {
                     <Settings2 className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Level</p>
-                    <div className="mt-0.5">{levelBadge(g?.level ?? null)}</div>
+                    <p className="text-sm font-medium">{t("fields.level")}</p>
+                    <div className="mt-0.5">{levelBadge(g?.level ?? null, t("values.auto"))}</div>
                   </div>
                 </div>
               </CardContent>
@@ -495,7 +498,7 @@ export function IsisContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{ifaceCount}</p>
-                    <p className="text-xs text-muted-foreground">Interfaces</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.interfaces")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -508,7 +511,7 @@ export function IsisContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{redistCount}</p>
-                    <p className="text-xs text-muted-foreground">Redistributed</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.redistributed")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -521,7 +524,7 @@ export function IsisContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{netCount}</p>
-                    <p className="text-xs text-muted-foreground">NET{netCount !== 1 ? "s" : ""}</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.nets", { count: netCount })}</p>
                   </div>
                 </div>
               </CardContent>
@@ -535,16 +538,16 @@ export function IsisContent() {
         <div className="flex-1 p-6 pt-4 overflow-auto">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="overview">{t("tabs.overview")}</TabsTrigger>
               <TabsTrigger value="interfaces">
-                Interfaces
+                {t("tabs.interfaces")}
                 {ifaceCount > 0 && <Badge variant="secondary" className="ml-2">{ifaceCount}</Badge>}
               </TabsTrigger>
               <TabsTrigger value="redistribute">
-                Redistribute
+                {t("tabs.redistribute")}
                 {redistCount > 0 && <Badge variant="secondary" className="ml-2">{redistCount}</Badge>}
               </TabsTrigger>
-              <TabsTrigger value="advanced">Advanced</TabsTrigger>
+              <TabsTrigger value="advanced">{t("tabs.advanced")}</TabsTrigger>
             </TabsList>
 
             {/* ============================================================ */}
@@ -553,20 +556,20 @@ export function IsisContent() {
             <TabsContent value="overview">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Global IS-IS protocol settings
+                  {t("overview.description")}
                 </p>
                 {hasWritePermission && (
                   !overviewEditing ? (
                     <Button size="sm" variant="outline" onClick={startEditOverview}>
                       <Pencil className="h-4 w-4 mr-2" />
-                      Edit Settings
+                      {t("overview.editSettings")}
                     </Button>
                   ) : (
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={cancelEditOverview}>Cancel</Button>
+                      <Button size="sm" variant="outline" onClick={cancelEditOverview}>{tc("cancel")}</Button>
                       <Button size="sm" onClick={saveOverview} disabled={overviewSaving}>
                         {overviewSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                        Save
+                        {tc("save")}
                       </Button>
                     </div>
                   )
@@ -584,11 +587,11 @@ export function IsisContent() {
                 {/* Global Settings Card */}
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4">Global Settings</h3>
+                    <h3 className="font-semibold mb-4">{t("overview.globalSettings")}</h3>
                     <div className="space-y-4">
                       {/* NET Addresses */}
                       <div className="space-y-2">
-                        <Label className="text-sm">NET Address(es)</Label>
+                        <Label className="text-sm">{t("overview.netAddresses")}</Label>
                         <div className="flex flex-wrap gap-1 min-h-[36px] p-2 rounded-md border border-input bg-background">
                           {(overviewEditing ? nets : (g?.net ?? [])).map((net) => (
                             <span
@@ -607,7 +610,7 @@ export function IsisContent() {
                             </span>
                           ))}
                           {(overviewEditing ? nets : (g?.net ?? [])).length === 0 && (
-                            <span className="text-muted-foreground text-xs">No NET configured</span>
+                            <span className="text-muted-foreground text-xs">{t("overview.noNet")}</span>
                           )}
                         </div>
                         {overviewEditing && (
@@ -616,7 +619,7 @@ export function IsisContent() {
                               value={netInput}
                               onChange={(e) => setNetInput(e.target.value)}
                               onKeyDown={(e) => e.key === "Enter" && addNet()}
-                              placeholder="e.g. 49.0001.1921.6800.1001.00"
+                              placeholder={t("overview.netPlaceholder")}
                               className="font-mono text-sm h-8"
                             />
                             <Button size="sm" variant="outline" onClick={addNet}>
@@ -628,37 +631,37 @@ export function IsisContent() {
 
                       {/* Level */}
                       <div className="space-y-2">
-                        <Label className="text-sm">IS-IS Level</Label>
+                        <Label className="text-sm">{t("fields.isisLevel")}</Label>
                         {overviewEditing ? (
                           <Select value={level} onValueChange={setLevel}>
                             <SelectTrigger>
-                              <SelectValue placeholder="Auto (L1-2)" />
+                              <SelectValue placeholder={t("overview.levelPlaceholder")} />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="level-1">Level 1 Only</SelectItem>
-                              <SelectItem value="level-2">Level 2 Only</SelectItem>
-                              <SelectItem value="level-1-2">Level 1 and 2</SelectItem>
+                              <SelectItem value="level-1">{t("fields.level1Only")}</SelectItem>
+                              <SelectItem value="level-2">{t("fields.level2Only")}</SelectItem>
+                              <SelectItem value="level-1-2">{t("fields.level1And2")}</SelectItem>
                             </SelectContent>
                           </Select>
                         ) : (
                           <div className="h-9 flex items-center">
-                            {levelBadge(g?.level ?? null)}
+                            {levelBadge(g?.level ?? null, t("values.auto"))}
                           </div>
                         )}
                       </div>
 
                       {/* Metric Style */}
                       <div className="space-y-2">
-                        <Label className="text-sm">Metric Style</Label>
+                        <Label className="text-sm">{t("overview.metricStyle")}</Label>
                         {overviewEditing ? (
                           <Select value={metricStyle} onValueChange={setMetricStyle}>
                             <SelectTrigger>
-                              <SelectValue placeholder="Default (narrow)" />
+                              <SelectValue placeholder={t("overview.metricStylePlaceholder")} />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="narrow">Narrow</SelectItem>
-                              <SelectItem value="transition">Transition</SelectItem>
-                              <SelectItem value="wide">Wide</SelectItem>
+                              <SelectItem value="narrow">{t("overview.narrow")}</SelectItem>
+                              <SelectItem value="transition">{t("overview.transition")}</SelectItem>
+                              <SelectItem value="wide">{t("overview.wide")}</SelectItem>
                             </SelectContent>
                           </Select>
                         ) : (
@@ -666,7 +669,7 @@ export function IsisContent() {
                             {g?.metric_style ? (
                               <Badge variant="outline">{g.metric_style}</Badge>
                             ) : (
-                              <span className="text-sm text-muted-foreground">narrow (default)</span>
+                              <span className="text-sm text-muted-foreground">{t("overview.narrowDefault")}</span>
                             )}
                           </div>
                         )}
@@ -678,16 +681,16 @@ export function IsisContent() {
                 {/* Options Card */}
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4">Options</h3>
+                    <h3 className="font-semibold mb-4">{t("overview.options")}</h3>
                     <div className="space-y-3">
                       {[
-                        { id: "dynamic-hostname", label: "Dynamic Hostname", field: "dynamic_hostname" as const, value: dynamicHostname, setter: setDynamicHostname },
-                        { id: "log-adj", label: "Log Adjacency Changes", field: "log_adjacency_changes" as const, value: logAdjChanges, setter: setLogAdjChanges },
-                        { id: "purge-orig", label: "Purge Originator Identification", field: "purge_originator" as const, value: purgeOriginator, setter: setPurgeOriginator },
-                        { id: "adv-passive", label: "Advertise Passive Interfaces Only", field: "advertise_passive_only" as const, value: advertisePassiveOnly, setter: setAdvertisePassiveOnly },
-                        { id: "adv-high-metrics", label: "Advertise High Metrics", field: "advertise_high_metrics" as const, value: advertiseHighMetrics, setter: setAdvertiseHighMetrics },
-                        { id: "attached-bit", label: "Set Attached Bit", field: "set_attached_bit" as const, value: setAttachedBit, setter: setSetAttachedBit },
-                        { id: "overload-bit", label: "Set Overload Bit", field: "set_overload_bit" as const, value: setOverloadBit, setter: setSetOverloadBit },
+                        { id: "dynamic-hostname", label: t("overview.dynamicHostname"), field: "dynamic_hostname" as const, value: dynamicHostname, setter: setDynamicHostname },
+                        { id: "log-adj", label: t("overview.logAdjacencyChanges"), field: "log_adjacency_changes" as const, value: logAdjChanges, setter: setLogAdjChanges },
+                        { id: "purge-orig", label: t("overview.purgeOriginator"), field: "purge_originator" as const, value: purgeOriginator, setter: setPurgeOriginator },
+                        { id: "adv-passive", label: t("overview.advertisePassiveOnly"), field: "advertise_passive_only" as const, value: advertisePassiveOnly, setter: setAdvertisePassiveOnly },
+                        { id: "adv-high-metrics", label: t("overview.advertiseHighMetrics"), field: "advertise_high_metrics" as const, value: advertiseHighMetrics, setter: setAdvertiseHighMetrics },
+                        { id: "attached-bit", label: t("overview.setAttachedBit"), field: "set_attached_bit" as const, value: setAttachedBit, setter: setSetAttachedBit },
+                        { id: "overload-bit", label: t("overview.setOverloadBit"), field: "set_overload_bit" as const, value: setOverloadBit, setter: setSetOverloadBit },
                       ].map(({ id, label, field, value, setter }) => (
                         <div key={id} className="flex items-center gap-3">
                           <Checkbox
@@ -707,16 +710,16 @@ export function IsisContent() {
                 <Card className="col-span-2">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-semibold">Default Information Originate</h3>
+                      <h3 className="font-semibold">{t("overview.defaultInformation")}</h3>
                       {hasWritePermission && (
                         <Button size="sm" variant="outline" onClick={() => setDefaultInfoModalOpen(true)}>
                           <Plus className="h-4 w-4 mr-2" />
-                          Add
+                          {tc("add")}
                         </Button>
                       )}
                     </div>
                     {allDefaultInfo.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">None configured</p>
+                      <p className="text-sm text-muted-foreground">{t("overview.noneConfigured")}</p>
                     ) : (
                       <div className="space-y-2">
                         {allDefaultInfo.map((entry) => (
@@ -728,10 +731,10 @@ export function IsisContent() {
                             <Badge variant="outline">{entry.level}</Badge>
                             {entry.always && <Badge variant="secondary">always</Badge>}
                             {entry.metric != null && (
-                              <span className="text-muted-foreground">metric: {entry.metric}</span>
+                              <span className="text-muted-foreground">{t("values.metric", { metric: String(entry.metric) })}</span>
                             )}
                             {entry.route_map && (
-                              <span className="text-muted-foreground">route-map: {entry.route_map}</span>
+                              <span className="text-muted-foreground">{t("values.routeMap", { name: entry.route_map })}</span>
                             )}
                             {hasWritePermission && (
                               <Button
@@ -758,14 +761,14 @@ export function IsisContent() {
             <TabsContent value="interfaces">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <p className="text-sm text-muted-foreground">IS-IS enabled interfaces</p>
+                  <p className="text-sm text-muted-foreground">{t("interfaces.description")}</p>
                   {ifaceCount > 3 && (
                     <div className="relative">
                       <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input
                         value={ifaceSearch}
                         onChange={(e) => setIfaceSearch(e.target.value)}
-                        placeholder="Filter interfaces..."
+                        placeholder={t("interfaces.filterPlaceholder")}
                         className="pl-8 h-9 w-48"
                       />
                     </div>
@@ -774,7 +777,7 @@ export function IsisContent() {
                 {hasWritePermission && (
                   <Button size="sm" onClick={() => { setEditingIface(null); setIfaceModalOpen(true); }}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Interface
+                    {t("fields.addInterface")}
                   </Button>
                 )}
               </div>
@@ -783,14 +786,14 @@ export function IsisContent() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <Network className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">No IS-IS interfaces configured</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("interfaces.emptyTitle")}</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      Add an interface to enable IS-IS routing on it
+                      {t("interfaces.emptyHint")}
                     </p>
                     {hasWritePermission && (
                       <Button size="sm" onClick={() => { setEditingIface(null); setIfaceModalOpen(true); }}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Interface
+                        {t("fields.addInterface")}
                       </Button>
                     )}
                   </CardContent>
@@ -801,13 +804,13 @@ export function IsisContent() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Interface</TableHead>
-                          <TableHead>Circuit Type</TableHead>
-                          <TableHead>Metric</TableHead>
-                          <TableHead>Flags</TableHead>
+                          <TableHead>{t("fields.interface")}</TableHead>
+                          <TableHead>{t("fields.circuitType")}</TableHead>
+                          <TableHead>{t("fields.metric")}</TableHead>
+                          <TableHead>{t("interfaces.flags")}</TableHead>
                           <TableHead>BFD</TableHead>
                           <TableHead>LFA</TableHead>
-                          {hasWritePermission && <TableHead className="text-right">Actions</TableHead>}
+                          {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -818,14 +821,14 @@ export function IsisContent() {
                               {iface.circuit_type ? (
                                 <Badge variant="outline">{iface.circuit_type}</Badge>
                               ) : (
-                                <span className="text-muted-foreground text-sm">inherit</span>
+                                <span className="text-muted-foreground text-sm">{t("values.inherit")}</span>
                               )}
                             </TableCell>
                             <TableCell>
                               {iface.metric != null ? (
                                 <span className="font-mono text-sm">{iface.metric}</span>
                               ) : (
-                                <span className="text-muted-foreground text-sm">default</span>
+                                <span className="text-muted-foreground text-sm">{t("values.default")}</span>
                               )}
                             </TableCell>
                             <TableCell>
@@ -839,9 +842,9 @@ export function IsisContent() {
                             </TableCell>
                             <TableCell>
                               {iface.bfd ? (
-                                <Badge variant="secondary" className="text-xs">Yes</Badge>
+                                <Badge variant="secondary" className="text-xs">{t("values.yes")}</Badge>
                               ) : (
-                                <span className="text-muted-foreground text-sm">No</span>
+                                <span className="text-muted-foreground text-sm">{t("values.no")}</span>
                               )}
                             </TableCell>
                             <TableCell>
@@ -894,12 +897,12 @@ export function IsisContent() {
             <TabsContent value="redistribute">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Route redistribution into IS-IS
+                  {t("redistribute.description")}
                 </p>
                 {hasWritePermission && (
                   <Button size="sm" onClick={() => setRedistModalOpen(true)}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Redistribute
+                    {t("fields.addRedistribute")}
                   </Button>
                 )}
               </div>
@@ -908,14 +911,14 @@ export function IsisContent() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <ArrowLeftRight className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">No route redistribution configured</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("redistribute.emptyTitle")}</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      Import routes from other protocols into IS-IS
+                      {t("redistribute.emptyHint")}
                     </p>
                     {hasWritePermission && (
                       <Button size="sm" onClick={() => setRedistModalOpen(true)}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Redistribute
+                        {t("fields.addRedistribute")}
                       </Button>
                     )}
                   </CardContent>
@@ -926,12 +929,12 @@ export function IsisContent() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Family</TableHead>
-                          <TableHead>Protocol</TableHead>
-                          <TableHead>Level</TableHead>
-                          <TableHead>Metric</TableHead>
-                          <TableHead>Route Map</TableHead>
-                          {hasWritePermission && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead>{t("redistribute.family")}</TableHead>
+                          <TableHead>{t("fields.protocol")}</TableHead>
+                          <TableHead>{t("fields.level")}</TableHead>
+                          <TableHead>{t("fields.metric")}</TableHead>
+                          <TableHead>{t("fields.routeMap")}</TableHead>
+                          {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -948,7 +951,7 @@ export function IsisContent() {
                               {entry.metric != null ? (
                                 <span className="font-mono text-sm">{entry.metric}</span>
                               ) : (
-                                <span className="text-muted-foreground text-sm">default</span>
+                                <span className="text-muted-foreground text-sm">{t("values.default")}</span>
                               )}
                             </TableCell>
                             <TableCell>
@@ -984,7 +987,7 @@ export function IsisContent() {
             {/* ============================================================ */}
             <TabsContent value="advanced">
               <p className="text-sm text-muted-foreground mb-4">
-                LSP timers, SPF tuning, and protocol options
+                {t("advanced.description")}
               </p>
 
               <div className="grid grid-cols-2 gap-6">
@@ -992,7 +995,7 @@ export function IsisContent() {
                 <Card>
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-semibold">LSP Timers</h3>
+                      <h3 className="font-semibold">{t("advanced.lspTimers")}</h3>
                       {hasWritePermission && (
                         !advancedEditing ? (
                           <Button size="sm" variant="ghost" className="h-7 px-2" onClick={startEditAdvanced}>
@@ -1020,12 +1023,12 @@ export function IsisContent() {
 
                     <div className="space-y-4">
                       {[
-                        { label: "LSP MTU (bytes)", key: "lsp_mtu" as const, value: lspMtu, setter: setLspMtu, placeholder: "Default (1497)", min: 128, max: 4352, cur: g?.lsp_mtu },
-                        { label: "LSP Generation Interval (s)", key: "lsp_gen_interval" as const, value: lspGenInterval, setter: setLspGenInterval, placeholder: "Default", min: 1, max: 120, cur: g?.lsp_gen_interval },
-                        { label: "LSP Refresh Interval (s)", key: "lsp_refresh_interval" as const, value: lspRefreshInterval, setter: setLspRefreshInterval, placeholder: "Default (900)", min: isisLspRefreshMinSeconds(capabilities?.features), max: 65235, cur: g?.lsp_refresh_interval },
-                        { label: "Max LSP Lifetime (s)", key: "max_lsp_lifetime" as const, value: maxLspLifetime, setter: setMaxLspLifetime, placeholder: "Default (1200)", min: 350, max: 65535, cur: g?.max_lsp_lifetime },
-                        { label: "SPF Interval (ms)", key: "spf_interval" as const, value: spfInterval, setter: setSpfInterval, placeholder: "Default", min: 1, max: 120000, cur: g?.spf_interval },
-                        { label: "LDP Sync Holddown (s)", key: "ldp_sync_holddown" as const, value: ldpSyncHolddown, setter: setLdpSyncHolddown, placeholder: "Disabled", min: 1, max: 10000, cur: g?.ldp_sync_holddown },
+                        { label: t("advanced.lspMtu"), key: "lsp_mtu" as const, value: lspMtu, setter: setLspMtu, placeholder: t("fields.defaultValue", { value: "1497" }), min: 128, max: 4352, cur: g?.lsp_mtu },
+                        { label: t("advanced.lspGenInterval"), key: "lsp_gen_interval" as const, value: lspGenInterval, setter: setLspGenInterval, placeholder: tc("default"), min: 1, max: 120, cur: g?.lsp_gen_interval },
+                        { label: t("advanced.lspRefreshInterval"), key: "lsp_refresh_interval" as const, value: lspRefreshInterval, setter: setLspRefreshInterval, placeholder: t("fields.defaultValue", { value: "900" }), min: isisLspRefreshMinSeconds(capabilities?.features), max: 65235, cur: g?.lsp_refresh_interval },
+                        { label: t("advanced.maxLspLifetime"), key: "max_lsp_lifetime" as const, value: maxLspLifetime, setter: setMaxLspLifetime, placeholder: t("fields.defaultValue", { value: "1200" }), min: 350, max: 65535, cur: g?.max_lsp_lifetime },
+                        { label: t("advanced.spfInterval"), key: "spf_interval" as const, value: spfInterval, setter: setSpfInterval, placeholder: tc("default"), min: 1, max: 120000, cur: g?.spf_interval },
+                        { label: t("fields.ldpSyncHolddown"), key: "ldp_sync_holddown" as const, value: ldpSyncHolddown, setter: setLdpSyncHolddown, placeholder: tc("disabled"), min: 1, max: 10000, cur: g?.ldp_sync_holddown },
                       ].map(({ label, value, setter, placeholder, min, max, cur }) => (
                         <div key={label} className="space-y-1">
                           <Label className="text-sm">{label}</Label>
@@ -1049,7 +1052,7 @@ export function IsisContent() {
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-semibold">SPF Delay IETF</h3>
+                        <h3 className="font-semibold">{t("advanced.spfDelayIetf")}</h3>
                         <Zap className="h-4 w-4 text-muted-foreground" />
                       </div>
                       {hasWritePermission && (
@@ -1078,11 +1081,11 @@ export function IsisContent() {
 
                     <div className="space-y-3">
                       {[
-                        { label: "Init Delay (ms)", value: spfInitDelay, setter: setSpfInitDelay, cur: g?.spf_delay_ietf.init_delay },
-                        { label: "Short Delay (ms)", value: spfShortDelay, setter: setSpfShortDelay, cur: g?.spf_delay_ietf.short_delay },
-                        { label: "Long Delay (ms)", value: spfLongDelay, setter: setSpfLongDelay, cur: g?.spf_delay_ietf.long_delay },
-                        { label: "Hold-down (ms)", value: spfHolddown, setter: setSpfHolddown, cur: g?.spf_delay_ietf.holddown },
-                        { label: "Time-to-Learn (ms)", value: spfTimeToLearn, setter: setSpfTimeToLearn, cur: g?.spf_delay_ietf.time_to_learn },
+                        { label: t("advanced.initDelay"), value: spfInitDelay, setter: setSpfInitDelay, cur: g?.spf_delay_ietf.init_delay },
+                        { label: t("advanced.shortDelay"), value: spfShortDelay, setter: setSpfShortDelay, cur: g?.spf_delay_ietf.short_delay },
+                        { label: t("advanced.longDelay"), value: spfLongDelay, setter: setSpfLongDelay, cur: g?.spf_delay_ietf.long_delay },
+                        { label: t("advanced.holddown"), value: spfHolddown, setter: setSpfHolddown, cur: g?.spf_delay_ietf.holddown },
+                        { label: t("advanced.timeToLearn"), value: spfTimeToLearn, setter: setSpfTimeToLearn, cur: g?.spf_delay_ietf.time_to_learn },
                       ].map(({ label, value, setter, cur }) => (
                         <div key={label} className="space-y-1">
                           <Label className="text-xs text-muted-foreground">{label}</Label>
@@ -1091,7 +1094,7 @@ export function IsisContent() {
                             value={spfDelayEditing ? value : (cur != null ? String(cur) : "")}
                             disabled={!spfDelayEditing}
                             onChange={(e) => setter(e.target.value)}
-                            placeholder="Not set"
+                            placeholder={tc("notSet")}
                             min={0}
                             className="h-8 text-sm"
                           />
@@ -1106,34 +1109,34 @@ export function IsisContent() {
                   <Card>
                     <CardContent className="p-6">
                       <div className="flex items-center gap-2 mb-4">
-                        <h3 className="font-semibold">Segment Routing (SR-MPLS)</h3>
+                        <h3 className="font-semibold">{t("advanced.segmentRouting")}</h3>
                       </div>
                       <div className="space-y-3">
                         <div className="grid grid-cols-2 gap-3 text-sm">
                           <div>
-                            <p className="text-xs text-muted-foreground mb-1">SRGB Low</p>
-                            <p className="font-mono">{config?.segment_routing.global_block_low ?? <span className="text-muted-foreground">default</span>}</p>
+                            <p className="text-xs text-muted-foreground mb-1">{t("advanced.srgbLow")}</p>
+                            <p className="font-mono">{config?.segment_routing.global_block_low ?? <span className="text-muted-foreground">{t("values.default")}</span>}</p>
                           </div>
                           <div>
-                            <p className="text-xs text-muted-foreground mb-1">SRGB High</p>
-                            <p className="font-mono">{config?.segment_routing.global_block_high ?? <span className="text-muted-foreground">default</span>}</p>
+                            <p className="text-xs text-muted-foreground mb-1">{t("advanced.srgbHigh")}</p>
+                            <p className="font-mono">{config?.segment_routing.global_block_high ?? <span className="text-muted-foreground">{t("values.default")}</span>}</p>
                           </div>
                           <div>
-                            <p className="text-xs text-muted-foreground mb-1">SRLB Low</p>
-                            <p className="font-mono">{config?.segment_routing.local_block_low ?? <span className="text-muted-foreground">default</span>}</p>
+                            <p className="text-xs text-muted-foreground mb-1">{t("advanced.srlbLow")}</p>
+                            <p className="font-mono">{config?.segment_routing.local_block_low ?? <span className="text-muted-foreground">{t("values.default")}</span>}</p>
                           </div>
                           <div>
-                            <p className="text-xs text-muted-foreground mb-1">SRLB High</p>
-                            <p className="font-mono">{config?.segment_routing.local_block_high ?? <span className="text-muted-foreground">default</span>}</p>
+                            <p className="text-xs text-muted-foreground mb-1">{t("advanced.srlbHigh")}</p>
+                            <p className="font-mono">{config?.segment_routing.local_block_high ?? <span className="text-muted-foreground">{t("values.default")}</span>}</p>
                           </div>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground mb-1">Prefix SIDs</p>
-                          <p className="text-sm">{config?.segment_routing.prefixes.length ?? 0} configured</p>
+                          <p className="text-xs text-muted-foreground mb-1">{t("advanced.prefixSids")}</p>
+                          <p className="text-sm">{t("advanced.prefixSidsConfigured", { count: String(config?.segment_routing.prefixes.length ?? 0) })}</p>
                         </div>
                         {isisSrv6Supported(capabilities?.features) && config?.segment_routing.srv6_locator && (
                           <div>
-                            <p className="text-xs text-muted-foreground mb-1">SRv6 Locator</p>
+                            <p className="text-xs text-muted-foreground mb-1">{t("advanced.srv6Locator")}</p>
                             <Badge variant="secondary" className="font-mono">{config.segment_routing.srv6_locator}</Badge>
                           </div>
                         )}
@@ -1146,7 +1149,7 @@ export function IsisContent() {
                 {capabilities?.features.lfa_priority_limit?.supported && (
                   <Card className="col-span-2">
                     <CardContent className="p-6 space-y-4">
-                      <h3 className="font-semibold">Fast Reroute LFA</h3>
+                      <h3 className="font-semibold">{t("advanced.fastRerouteLfa")}</h3>
                       <div className="flex flex-wrap gap-4">
                         <div className="flex items-center gap-2">
                           <Checkbox
@@ -1158,7 +1161,7 @@ export function IsisContent() {
                               await loadData(true);
                             }}
                           />
-                          <Label htmlFor="lfa-ls-l1">Disable load-sharing L1</Label>
+                          <Label htmlFor="lfa-ls-l1">{t("advanced.disableLoadSharingL1")}</Label>
                         </div>
                         <div className="flex items-center gap-2">
                           <Checkbox
@@ -1170,11 +1173,11 @@ export function IsisContent() {
                               await loadData(true);
                             }}
                           />
-                          <Label htmlFor="lfa-ls-l2">Disable load-sharing L2</Label>
+                          <Label htmlFor="lfa-ls-l2">{t("advanced.disableLoadSharingL2")}</Label>
                         </div>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground mb-2">Priority limit</p>
+                        <p className="text-xs text-muted-foreground mb-2">{t("advanced.priorityLimit")}</p>
                         <div className="flex flex-wrap gap-1 mb-2">
                           {(config?.fast_reroute.lfa_priority_limit ?? []).map((e) => (
                             <Badge
@@ -1214,7 +1217,7 @@ export function IsisContent() {
                       </div>
                       {capabilities.features.lfa_tiebreaker?.supported && (
                         <div>
-                          <p className="text-xs text-muted-foreground mb-2">Tiebreaker</p>
+                          <p className="text-xs text-muted-foreground mb-2">{t("advanced.tiebreaker")}</p>
                           <div className="flex flex-wrap gap-1 mb-2">
                             {(config?.fast_reroute.lfa_tiebreaker ?? []).map((e) => (
                               <Badge
@@ -1230,7 +1233,7 @@ export function IsisContent() {
                           {hasWritePermission && (
                             <div className="flex flex-wrap gap-2 items-end">
                               <div className="space-y-1">
-                                <Label className="text-xs">Type</Label>
+                                <Label className="text-xs">{t("advanced.type")}</Label>
                                 <Select value={tbType} onValueChange={setTbType}>
                                   <SelectTrigger className="h-8 w-48">
                                     <SelectValue />
@@ -1243,11 +1246,11 @@ export function IsisContent() {
                                 </Select>
                               </div>
                               <div className="space-y-1">
-                                <Label className="text-xs">Index</Label>
+                                <Label className="text-xs">{t("advanced.index")}</Label>
                                 <Input className="h-8 w-20" value={tbIndex} onChange={(e) => setTbIndex(e.target.value)} />
                               </div>
                               <div className="space-y-1">
-                                <Label className="text-xs">Level</Label>
+                                <Label className="text-xs">{t("fields.level")}</Label>
                                 <Select value={tbLevel} onValueChange={setTbLevel}>
                                   <SelectTrigger className="h-8 w-28">
                                     <SelectValue />
@@ -1264,7 +1267,7 @@ export function IsisContent() {
                                 disabled={!tbIndex.trim()}
                                 onClick={() => isisService.addFrrTiebreaker(tbType, tbIndex.trim(), tbLevel).then(() => loadData(true))}
                               >
-                                Add
+                                {tc("add")}
                               </Button>
                             </div>
                           )}
@@ -1272,7 +1275,7 @@ export function IsisContent() {
                       )}
                       {capabilities.features.lfa_remote_prefix_list?.supported && (
                         <div>
-                          <p className="text-xs text-muted-foreground mb-2">Remote prefix-list</p>
+                          <p className="text-xs text-muted-foreground mb-2">{t("advanced.remotePrefixList")}</p>
                           <div className="flex flex-wrap gap-1 mb-2">
                             {(config?.fast_reroute.lfa_remote_prefix_list ?? []).map((e) => (
                               <Badge
@@ -1288,11 +1291,11 @@ export function IsisContent() {
                           {hasWritePermission && (
                             <div className="flex flex-wrap gap-2 items-end">
                               <div className="space-y-1">
-                                <Label className="text-xs">Prefix list</Label>
+                                <Label className="text-xs">{t("advanced.prefixList")}</Label>
                                 <Input className="h-8 w-40" value={plName} onChange={(e) => setPlName(e.target.value)} />
                               </div>
                               <div className="space-y-1">
-                                <Label className="text-xs">Level</Label>
+                                <Label className="text-xs">{t("fields.level")}</Label>
                                 <Select value={plLevel} onValueChange={setPlLevel}>
                                   <SelectTrigger className="h-8 w-28">
                                     <SelectValue />
@@ -1309,7 +1312,7 @@ export function IsisContent() {
                                 disabled={!plName.trim()}
                                 onClick={() => isisService.addFrrRemotePrefixList(plName.trim(), plLevel).then(() => { setPlName(""); return loadData(true); })}
                               >
-                                Add
+                                {tc("add")}
                               </Button>
                             </div>
                           )}
@@ -1322,22 +1325,22 @@ export function IsisContent() {
                 {/* Traffic Engineering */}
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4">Traffic Engineering</h3>
+                    <h3 className="font-semibold mb-4">{t("advanced.trafficEngineering")}</h3>
                     <div className="space-y-3 text-sm">
                       <div className="flex items-center gap-3">
                         <div className={`h-2 w-2 rounded-full ${config?.traffic_engineering.enabled ? "bg-green-500" : "bg-muted-foreground/30"}`} />
-                        <span>{config?.traffic_engineering.enabled ? "Enabled" : "Disabled"}</span>
+                        <span>{config?.traffic_engineering.enabled ? tc("enabled") : tc("disabled")}</span>
                       </div>
                       {config?.traffic_engineering.address && (
                         <div>
-                          <p className="text-xs text-muted-foreground mb-1">TE Router Address</p>
+                          <p className="text-xs text-muted-foreground mb-1">{t("advanced.teRouterAddress")}</p>
                           <p className="font-mono">{config.traffic_engineering.address}</p>
                         </div>
                       )}
                       {isisTeExportSupported(capabilities?.features) && (
                         <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground">TED Export:</span>
-                          <span>{config?.traffic_engineering.export ? "Yes" : "No"}</span>
+                          <span className="text-muted-foreground">{t("advanced.tedExport")}</span>
+                          <span>{config?.traffic_engineering.export ? t("values.yes") : t("values.no")}</span>
                         </div>
                       )}
                     </div>
@@ -1383,19 +1386,21 @@ export function IsisContent() {
       <AlertDialog open={!!deletingIface} onOpenChange={(open: boolean) => !open && setDeletingIface(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove IS-IS Interface</AlertDialogTitle>
+            <AlertDialogTitle>{t("delete.interfaceTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Remove IS-IS from interface <strong className="font-mono">{deletingIface?.name}</strong>?
-              This will delete all IS-IS configuration for this interface.
+              {t.rich("delete.interfaceDescription", {
+                name: deletingIface?.name ?? "",
+                mono: (chunks) => <strong className="font-mono">{chunks}</strong>,
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={handleDeleteInterface}
             >
-              Remove
+              {t("delete.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1405,19 +1410,23 @@ export function IsisContent() {
       <AlertDialog open={!!deletingRedist} onOpenChange={(open: boolean) => !open && setDeletingRedist(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Redistribution</AlertDialogTitle>
+            <AlertDialogTitle>{t("delete.redistributeTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Stop redistributing <strong className="capitalize">{deletingRedist?.protocol}</strong>{" "}
-              into IS-IS at <strong>{deletingRedist?.level}</strong>?
+              {t.rich("delete.redistributeDescription", {
+                protocol: deletingRedist?.protocol ?? "",
+                level: deletingRedist?.level ?? "",
+                proto: (chunks) => <strong className="capitalize">{chunks}</strong>,
+                b: (chunks) => <strong>{chunks}</strong>,
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={handleDeleteRedistribute}
             >
-              Remove
+              {t("delete.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1426,18 +1435,18 @@ export function IsisContent() {
       <AlertDialog open={!!deletingDefaultInfo} onOpenChange={(open: boolean) => !open && setDeletingDefaultInfo(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Default Information</AlertDialogTitle>
+            <AlertDialogTitle>{t("delete.defaultInfoTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Remove {deletingDefaultInfo?.family} default-information at {deletingDefaultInfo?.level}?
+              {t("delete.defaultInfoDescription", { family: deletingDefaultInfo?.family ?? "", level: deletingDefaultInfo?.level ?? "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={handleDeleteDefaultInfo}
             >
-              Remove
+              {t("delete.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
