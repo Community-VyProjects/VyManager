@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,8 @@ const PARITY_OPTIONS = ["none", "even", "odd"];
 const STOP_BITS_OPTIONS = ["1", "2"];
 
 export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleServerModalProps) {
+  const t = useTranslations("consoleServer");
+  const tc = useTranslations("common");
   const isEditing = device !== null;
 
   const [loading, setLoading] = useState(false);
@@ -82,13 +85,13 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
   }, [open, device]);
 
   function validate(): string | null {
-    if (!deviceName.trim()) return "Device name is required.";
-    if (alias.length > 128) return "Alias must be 128 characters or fewer.";
-    if (description.length > 255) return "Description must be 255 characters or fewer.";
+    if (!deviceName.trim()) return t("modal.nameRequired");
+    if (alias.length > 128) return t("modal.aliasTooLong");
+    if (description.length > 255) return t("modal.descriptionTooLong");
     if (sshPort) {
       const port = parseInt(sshPort, 10);
       if (isNaN(port) || port < 1 || port > 65535) {
-        return "SSH port must be a number between 1 and 65535.";
+        return t("modal.sshPortRange");
       }
     }
     return null;
@@ -116,7 +119,7 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
       };
       await onSubmit(updated);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred.");
+      setError(err instanceof Error ? err.message : t("modal.unexpectedError"));
     } finally {
       setLoading(false);
     }
@@ -126,9 +129,9 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit Console Device" : "Add Console Device"}</DialogTitle>
+          <DialogTitle>{isEditing ? t("modal.editTitle") : t("modal.addTitle")}</DialogTitle>
           <DialogDescription>
-            Configure a serial console device for remote out-of-band access.
+            {t("modal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -136,15 +139,15 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
           <div className="space-y-6 py-2">
             {/* Device Identity */}
             <div className="space-y-4">
-              <p className="text-sm font-medium">Device Identity</p>
+              <p className="text-sm font-medium">{t("modal.deviceIdentity")}</p>
 
               <div className="space-y-1.5">
                 <Label htmlFor="device-name" className="text-xs">
-                  Device Name <span className="text-destructive">*</span>
+                  {t("modal.deviceName")} <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="device-name"
-                  placeholder="e.g. ttyS0 or ttyUSB0"
+                  placeholder={t("modal.deviceNamePlaceholder")}
                   value={deviceName}
                   onChange={(e) => setDeviceName(e.target.value)}
                   disabled={isEditing}
@@ -152,18 +155,18 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
                 />
                 {isEditing && (
                   <p className="text-xs text-muted-foreground">
-                    Device name cannot be changed. Delete and re-add to use a different device.
+                    {t("modal.deviceNameLocked")}
                   </p>
                 )}
               </div>
 
               <div className="space-y-1.5">
                 <Label htmlFor="device-alias" className="text-xs">
-                  Alias <span className="text-muted-foreground">(optional)</span>
+                  {t("modal.alias")} <span className="text-muted-foreground">{t("modal.optionalSuffix")}</span>
                 </Label>
                 <Input
                   id="device-alias"
-                  placeholder="e.g. Router-OOB"
+                  placeholder={t("modal.aliasPlaceholder")}
                   value={alias}
                   onChange={(e) => setAlias(e.target.value)}
                   maxLength={128}
@@ -172,11 +175,11 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
 
               <div className="space-y-1.5">
                 <Label htmlFor="device-description" className="text-xs">
-                  Description <span className="text-muted-foreground">(optional)</span>
+                  {tc("description")} <span className="text-muted-foreground">{t("modal.optionalSuffix")}</span>
                 </Label>
                 <Input
                   id="device-description"
-                  placeholder="e.g. Main router out-of-band console"
+                  placeholder={t("modal.descriptionPlaceholder")}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   maxLength={255}
@@ -189,17 +192,17 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
             {/* Serial Parameters */}
             <div className="space-y-4">
               <div>
-                <p className="text-sm font-medium">Serial Parameters</p>
+                <p className="text-sm font-medium">{t("modal.serialParameters")}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Leave fields unset to use VyOS defaults (9600 baud, 8N1).
+                  {t("modal.serialParametersHint")}
                 </p>
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs">Speed (baud)</Label>
+                <Label className="text-xs">{t("modal.speed")}</Label>
                 <Select value={speed} onValueChange={setSpeed}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Default: 9600" />
+                    <SelectValue placeholder={t("modal.defaultValue", { value: "9600" })} />
                   </SelectTrigger>
                   <SelectContent>
                     {SPEED_OPTIONS.map((s) => (
@@ -213,10 +216,10 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
 
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Data Bits</Label>
+                  <Label className="text-xs">{t("modal.dataBits")}</Label>
                   <Select value={dataBits} onValueChange={setDataBits}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Default: 8" />
+                      <SelectValue placeholder={t("modal.defaultValue", { value: "8" })} />
                     </SelectTrigger>
                     <SelectContent>
                       {DATA_BITS_OPTIONS.map((b) => (
@@ -229,10 +232,10 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Parity</Label>
+                  <Label className="text-xs">{t("modal.parity")}</Label>
                   <Select value={parity} onValueChange={setParity}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Default: none" />
+                      <SelectValue placeholder={t("modal.defaultValue", { value: "none" })} />
                     </SelectTrigger>
                     <SelectContent>
                       {PARITY_OPTIONS.map((p) => (
@@ -245,10 +248,10 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Stop Bits</Label>
+                  <Label className="text-xs">{t("modal.stopBits")}</Label>
                   <Select value={stopBits} onValueChange={setStopBits}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Default: 1" />
+                      <SelectValue placeholder={t("modal.defaultValue", { value: "1" })} />
                     </SelectTrigger>
                     <SelectContent>
                       {STOP_BITS_OPTIONS.map((b) => (
@@ -267,27 +270,27 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
             {/* Remote Access */}
             <div className="space-y-4">
               <div>
-                <p className="text-sm font-medium">Remote Access</p>
+                <p className="text-sm font-medium">{t("modal.remoteAccess")}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Enable SSH access to this serial console from the network.
+                  {t("modal.remoteAccessHint")}
                 </p>
               </div>
 
               <div className="space-y-1.5">
                 <Label htmlFor="ssh-port" className="text-xs">
-                  SSH Port <span className="text-muted-foreground">(optional)</span>
+                  {t("modal.sshPort")} <span className="text-muted-foreground">{t("modal.optionalSuffix")}</span>
                 </Label>
                 <Input
                   id="ssh-port"
                   type="number"
-                  placeholder="e.g. 2300"
+                  placeholder={t("modal.sshPortPlaceholder")}
                   min={1}
                   max={65535}
                   value={sshPort}
                   onChange={(e) => setSshPort(e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Each device must have a unique port. Leave empty to disable SSH access.
+                  {t("modal.sshPortHint")}
                 </p>
               </div>
             </div>
@@ -303,11 +306,11 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
 
         <DialogFooter className="shrink-0">
           <Button variant="outline" onClick={onClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEditing ? "Save Changes" : "Add Device"}
+            {isEditing ? t("modal.saveChanges") : t("content.addDevice")}
           </Button>
         </DialogFooter>
       </DialogContent>

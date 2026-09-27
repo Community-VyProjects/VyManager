@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +53,8 @@ function formatSerialConfig(device: ConsoleDevice): string {
 }
 
 export function ConsoleServerContent() {
+  const t = useTranslations("consoleServer");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWritePermission = canWrite(FeatureGroup.CONSOLE_SERVER);
 
@@ -80,11 +83,11 @@ export function ConsoleServerContent() {
       const data = await consoleServerService.getConfig(refresh);
       setConfig(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load console server configuration");
+      setError(err instanceof Error ? err.message : t("content.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -120,7 +123,7 @@ export function ConsoleServerContent() {
       setDeleteTarget(null);
       await loadData(true);
     } catch (err) {
-      setDeleteDeviceError(err instanceof Error ? err.message : "Failed to delete device.");
+      setDeleteDeviceError(err instanceof Error ? err.message : t("content.deleteDeviceFailed"));
     } finally {
       setDeleteDeviceLoading(false);
     }
@@ -134,7 +137,7 @@ export function ConsoleServerContent() {
       setDeleteAllOpen(false);
       await loadData(true);
     } catch (err) {
-      setDeleteAllError(err instanceof Error ? err.message : "Failed to remove configuration.");
+      setDeleteAllError(err instanceof Error ? err.message : t("content.removeAllFailed"));
     } finally {
       setDeleteAllLoading(false);
     }
@@ -155,7 +158,7 @@ export function ConsoleServerContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -173,26 +176,26 @@ export function ConsoleServerContent() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold text-foreground">Console Server</h1>
+                  <h1 className="text-2xl font-bold text-foreground">{t("content.title")}</h1>
                   {!hasWritePermission && (
-                    <Badge variant="secondary">Read Only</Badge>
+                    <Badge variant="secondary">{t("content.readOnly")}</Badge>
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Serial console server for remote out-of-band device access
+                  {t("content.subtitle")}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => loadData(true)}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {tc("refresh")}
               </Button>
               {hasWritePermission && (
                 <>
                   <Button size="sm" onClick={openAddModal}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Device
+                    {t("content.addDevice")}
                   </Button>
                   {hasDevices && (
                     <Button
@@ -204,7 +207,7 @@ export function ConsoleServerContent() {
                       }}
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
-                      Remove All
+                      {t("content.removeAll")}
                     </Button>
                   )}
                 </>
@@ -226,12 +229,12 @@ export function ConsoleServerContent() {
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <MonitorSpeaker className="h-12 w-12 text-muted-foreground/30 mb-4" />
                 <p className="text-sm text-muted-foreground mb-4">
-                  No serial console devices configured
+                  {t("content.empty")}
                 </p>
                 {hasWritePermission && (
                   <Button size="sm" onClick={openAddModal}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Device
+                    {t("content.addDevice")}
                   </Button>
                 )}
               </CardContent>
@@ -241,14 +244,14 @@ export function ConsoleServerContent() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[140px]">Device</TableHead>
-                    <TableHead>Alias</TableHead>
-                    <TableHead className="w-[110px]">Speed</TableHead>
-                    <TableHead className="w-[80px]">Config</TableHead>
-                    <TableHead className="w-[100px]">SSH Port</TableHead>
-                    <TableHead>Description</TableHead>
+                    <TableHead className="w-[140px]">{t("content.colDevice")}</TableHead>
+                    <TableHead>{t("content.colAlias")}</TableHead>
+                    <TableHead className="w-[110px]">{t("content.colSpeed")}</TableHead>
+                    <TableHead className="w-[80px]">{t("content.colConfig")}</TableHead>
+                    <TableHead className="w-[100px]">{t("content.colSshPort")}</TableHead>
+                    <TableHead>{tc("description")}</TableHead>
                     {hasWritePermission && (
-                      <TableHead className="w-[100px] text-right">Actions</TableHead>
+                      <TableHead className="w-[100px] text-right">{tc("actions")}</TableHead>
                     )}
                   </TableRow>
                 </TableHeader>
@@ -333,11 +336,12 @@ export function ConsoleServerContent() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Console Device</AlertDialogTitle>
+            <AlertDialogTitle>{t("deleteDevice.title")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove the console device{" "}
-              <span className="font-mono font-medium">{deleteTarget}</span> and stop all
-              associated SSH access. This action cannot be undone.
+              {t.rich("deleteDevice.description", {
+                name: deleteTarget ?? "",
+                mono: (chunks) => <span className="font-mono font-medium">{chunks}</span>,
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {deleteDeviceError && (
@@ -349,7 +353,7 @@ export function ConsoleServerContent() {
             </div>
           )}
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteDeviceLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteDeviceLoading}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
@@ -359,7 +363,7 @@ export function ConsoleServerContent() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteDeviceLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Remove
+              {t("deleteDevice.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -369,10 +373,9 @@ export function ConsoleServerContent() {
       <AlertDialog open={deleteAllOpen} onOpenChange={setDeleteAllOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove All Console Server Configuration</AlertDialogTitle>
+            <AlertDialogTitle>{t("deleteAll.title")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete all console server devices and their configurations. All serial
-              console access will stop immediately. This action cannot be undone.
+              {t("deleteAll.description")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {deleteAllError && (
@@ -384,7 +387,7 @@ export function ConsoleServerContent() {
             </div>
           )}
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteAllLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteAllLoading}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
@@ -394,7 +397,7 @@ export function ConsoleServerContent() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteAllLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Remove All
+              {t("content.removeAll")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

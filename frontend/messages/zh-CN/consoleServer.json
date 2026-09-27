@@ -1,1 +1,58 @@
-{}
+{
+  "content": {
+    "loadFailed": "加载控制台服务器配置失败",
+    "deleteDeviceFailed": "删除设备失败。",
+    "removeAllFailed": "移除配置失败。",
+    "title": "控制台服务器",
+    "readOnly": "只读",
+    "subtitle": "用于远程带外访问设备的串口控制台服务器",
+    "addDevice": "添加设备",
+    "removeAll": "全部移除",
+    "empty": "尚未配置串口控制台设备",
+    "colDevice": "设备",
+    "colAlias": "别名",
+    "colSpeed": "波特率",
+    "colConfig": "配置",
+    "colSshPort": "SSH 端口"
+  },
+  "deleteDevice": {
+    "title": "移除控制台设备",
+    "description": "这将移除控制台设备 <mono>{name}</mono>，并停止所有相关的 SSH 访问。此操作无法撤销。",
+    "remove": "移除"
+  },
+  "deleteAll": {
+    "title": "移除全部控制台服务器配置",
+    "description": "这将删除所有控制台服务器设备及其配置。所有串口控制台访问将立即停止。此操作无法撤销。"
+  },
+  "modal": {
+    "nameRequired": "设备名称为必填项。",
+    "aliasTooLong": "别名不能超过 128 个字符。",
+    "descriptionTooLong": "描述不能超过 255 个字符。",
+    "sshPortRange": "SSH 端口必须是 1 到 65535 之间的数字。",
+    "unexpectedError": "发生意外错误。",
+    "editTitle": "编辑控制台设备",
+    "addTitle": "添加控制台设备",
+    "description": "配置用于远程带外访问的串口控制台设备。",
+    "deviceIdentity": "设备标识",
+    "deviceName": "设备名称",
+    "deviceNamePlaceholder": "例如 ttyS0 或 ttyUSB0",
+    "deviceNameLocked": "设备名称无法更改。如需使用其他设备，请删除后重新添加。",
+    "alias": "别名",
+    "optionalSuffix": "（可选）",
+    "aliasPlaceholder": "例如 Router-OOB",
+    "descriptionPlaceholder": "例如 主路由器带外控制台",
+    "serialParameters": "串口参数",
+    "serialParametersHint": "留空则使用 VyOS 默认值（9600 波特，8N1）。",
+    "speed": "波特率",
+    "defaultValue": "默认：{value}",
+    "dataBits": "数据位",
+    "parity": "校验",
+    "stopBits": "停止位",
+    "remoteAccess": "远程访问",
+    "remoteAccessHint": "允许从网络通过 SSH 访问此串口控制台。",
+    "sshPort": "SSH 端口",
+    "sshPortPlaceholder": "例如 2300",
+    "sshPortHint": "每个设备必须使用唯一的端口。留空则禁用 SSH 访问。",
+    "saveChanges": "保存更改"
+  }
+}

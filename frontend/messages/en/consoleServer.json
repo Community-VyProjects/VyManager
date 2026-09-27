@@ -1,1 +1,58 @@
-{}
+{
+  "content": {
+    "loadFailed": "Failed to load console server configuration",
+    "deleteDeviceFailed": "Failed to delete device.",
+    "removeAllFailed": "Failed to remove configuration.",
+    "title": "Console Server",
+    "readOnly": "Read Only",
+    "subtitle": "Serial console server for remote out-of-band device access",
+    "addDevice": "Add Device",
+    "removeAll": "Remove All",
+    "empty": "No serial console devices configured",
+    "colDevice": "Device",
+    "colAlias": "Alias",
+    "colSpeed": "Speed",
+    "colConfig": "Config",
+    "colSshPort": "SSH Port"
+  },
+  "deleteDevice": {
+    "title": "Remove Console Device",
+    "description": "This will remove the console device <mono>{name}</mono> and stop all associated SSH access. This action cannot be undone.",
+    "remove": "Remove"
+  },
+  "deleteAll": {
+    "title": "Remove All Console Server Configuration",
+    "description": "This will delete all console server devices and their configurations. All serial console access will stop immediately. This action cannot be undone."
+  },
+  "modal": {
+    "nameRequired": "Device name is required.",
+    "aliasTooLong": "Alias must be 128 characters or fewer.",
+    "descriptionTooLong": "Description must be 255 characters or fewer.",
+    "sshPortRange": "SSH port must be a number between 1 and 65535.",
+    "unexpectedError": "An unexpected error occurred.",
+    "editTitle": "Edit Console Device",
+    "addTitle": "Add Console Device",
+    "description": "Configure a serial console device for remote out-of-band access.",
+    "deviceIdentity": "Device Identity",
+    "deviceName": "Device Name",
+    "deviceNamePlaceholder": "e.g. ttyS0 or ttyUSB0",
+    "deviceNameLocked": "Device name cannot be changed. Delete and re-add to use a different device.",
+    "alias": "Alias",
+    "optionalSuffix": "(optional)",
+    "aliasPlaceholder": "e.g. Router-OOB",
+    "descriptionPlaceholder": "e.g. Main router out-of-band console",
+    "serialParameters": "Serial Parameters",
+    "serialParametersHint": "Leave fields unset to use VyOS defaults (9600 baud, 8N1).",
+    "speed": "Speed (baud)",
+    "defaultValue": "Default: {value}",
+    "dataBits": "Data Bits",
+    "parity": "Parity",
+    "stopBits": "Stop Bits",
+    "remoteAccess": "Remote Access",
+    "remoteAccessHint": "Enable SSH access to this serial console from the network.",
+    "sshPort": "SSH Port",
+    "sshPortPlaceholder": "e.g. 2300",
+    "sshPortHint": "Each device must have a unique port. Leave empty to disable SSH access.",
+    "saveChanges": "Save Changes"
+  }
+}
