@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -84,6 +85,8 @@ export function OpenvpnModal({
   existingNames,
   existing,
 }: OpenvpnModalProps) {
+  const t = useTranslations("openvpn");
+  const tc = useTranslations("common");
   const isEdit = openvpnModalIsEdit(existing);
   const is15 = capabilities?.version_info.is_1_5 ?? false;
 
@@ -747,10 +750,10 @@ export function OpenvpnModal({
           onOpenChange(false);
           onSuccess();
         } else {
-          setError(result.error || "Failed to update OpenVPN interface");
+          setError(result.error || t("modal.updateFailed"));
         }
       } catch (err) {
-        setError((err as ApiError).message || "Failed to update OpenVPN interface");
+        setError((err as ApiError).message || t("modal.updateFailed"));
       } finally {
         setLoading(false);
       }
@@ -759,11 +762,11 @@ export function OpenvpnModal({
 
     setError(null);
     if (!name.trim()) {
-      setError("Interface name is required");
+      setError(t("modal.nameRequired"));
       return;
     }
     if (existingNames.includes(name)) {
-      setError(`Interface "${name}" already exists`);
+      setError(t("modal.alreadyExists", { name }));
       return;
     }
 
@@ -774,10 +777,10 @@ export function OpenvpnModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to create OpenVPN interface");
+        setError(result.error || t("modal.createFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to create OpenVPN interface");
+      setError((err as ApiError).message || t("modal.createFailed"));
     } finally {
       setLoading(false);
     }
@@ -788,41 +791,41 @@ export function OpenvpnModal({
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? "Edit OpenVPN Interface" : "Create OpenVPN Interface"}
+            {isEdit ? t("modal.editTitle") : t("modal.createTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEdit ? (
               <>
-                Editing interface{" "}
+                {t("modal.editingInterface")}{" "}
                 <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">
                   {existing.name}
                 </code>
               </>
             ) : (
-              "Advanced configuration. All fields are optional except the name."
+              t("modal.createDescription")
             )}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-8">
-            <TabsTrigger value="basic">Basic</TabsTrigger>
-            <TabsTrigger value="network">Network</TabsTrigger>
-            <TabsTrigger value="encryption">Encryption</TabsTrigger>
+            <TabsTrigger value="basic">{t("modal.tabs.basic")}</TabsTrigger>
+            <TabsTrigger value="network">{t("modal.tabs.network")}</TabsTrigger>
+            <TabsTrigger value="encryption">{t("encryption")}</TabsTrigger>
             <TabsTrigger value="tls">TLS</TabsTrigger>
             <TabsTrigger value="server" disabled={mode !== "server"}>
-              Server
+              {t("modes.server")}
             </TabsTrigger>
-            <TabsTrigger value="auth">Auth</TabsTrigger>
+            <TabsTrigger value="auth">{t("modal.tabs.auth")}</TabsTrigger>
             <TabsTrigger value="ip">IP</TabsTrigger>
-            <TabsTrigger value="mirror">Mirror</TabsTrigger>
+            <TabsTrigger value="mirror">{t("modal.tabs.mirror")}</TabsTrigger>
           </TabsList>
 
           {/* Basic */}
           <TabsContent value="basic" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="name">Interface Name {isEdit ? null : "*"}</Label>
+                <Label htmlFor="name">{t("modal.interfaceName")} {isEdit ? null : "*"}</Label>
                 <Input
                   id="name"
                   value={openvpnLockedName(existing, name).value}
@@ -832,26 +835,26 @@ export function OpenvpnModal({
                 />
                 {isEdit ? (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Interface name cannot be changed.
+                    {t("modal.nameLocked")}
                   </p>
                 ) : null}
               </div>
               <div>
-                <Label htmlFor="mode">Mode</Label>
+                <Label htmlFor="mode">{t("mode")}</Label>
                 <Select value={mode} onValueChange={setMode}>
                   <SelectTrigger id="mode">
-                    <SelectValue placeholder="Select mode" />
+                    <SelectValue placeholder={t("modal.selectMode")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="server">Server</SelectItem>
-                    <SelectItem value="client">Client</SelectItem>
-                    <SelectItem value="site-to-site">Site-to-Site</SelectItem>
+                    <SelectItem value="server">{t("modes.server")}</SelectItem>
+                    <SelectItem value="client">{t("modes.client")}</SelectItem>
+                    <SelectItem value="site-to-site">{t("modes.siteToSite")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div>
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{tc("description")}</Label>
               <Input
                 id="description"
                 value={description}
@@ -860,7 +863,7 @@ export function OpenvpnModal({
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="deviceType">Device Type</Label>
+                <Label htmlFor="deviceType">{t("modal.deviceType")}</Label>
                 <Select value={deviceType} onValueChange={setDeviceType}>
                   <SelectTrigger id="deviceType">
                     <SelectValue placeholder="—" />
@@ -872,7 +875,7 @@ export function OpenvpnModal({
                 </Select>
               </div>
               <div>
-                <Label htmlFor="protocol">Protocol</Label>
+                <Label htmlFor="protocol">{t("modal.protocol")}</Label>
                 <Select value={protocol} onValueChange={setProtocol}>
                   <SelectTrigger id="protocol">
                     <SelectValue placeholder="—" />
@@ -890,39 +893,39 @@ export function OpenvpnModal({
               </div>
             </div>
             <div>
-              <Label htmlFor="redirect">Redirect</Label>
+              <Label htmlFor="redirect">{t("modal.redirect")}</Label>
               <InterfaceSelect
                 value={redirect}
                 onValueChange={setRedirect}
                 id="redirect"
                 interfaces={availableInterfaces}
-                placeholder="Select interface"
+                placeholder={t("modal.selectInterface")}
               />
             </div>
             <Separator />
             <div className="space-y-2">
               <label className="flex items-center gap-2">
                 <Checkbox checked={disabled} onCheckedChange={(v) => setDisabled(!!v)} />
-                <span>Disabled</span>
+                <span>{tc("disabled")}</span>
               </label>
               <label className="flex items-center gap-2">
                 <Checkbox checked={persistentTunnel} onCheckedChange={(v) => setPersistentTunnel(!!v)} />
-                <span>Persistent tunnel</span>
+                <span>{t("modal.persistentTunnel")}</span>
               </label>
               <label className="flex items-center gap-2">
                 <Checkbox checked={useLzo} onCheckedChange={(v) => setUseLzo(!!v)} />
-                <span>Use LZO compression</span>
+                <span>{t("modal.useLzo")}</span>
               </label>
               <label className="flex items-center gap-2">
                 <Checkbox checked={offloadDco} onCheckedChange={(v) => setOffloadDco(!!v)} />
-                <span>Offload DCO</span>
+                <span>{t("modal.offloadDco")}</span>
               </label>
               <label className="flex items-center gap-2">
                 <Checkbox
                   checked={replaceDefaultRoute}
                   onCheckedChange={(v) => setReplaceDefaultRoute(!!v)}
                 />
-                <span>Replace default route</span>
+                <span>{t("modal.replaceDefaultRoute")}</span>
               </label>
               {replaceDefaultRoute && (
                 <label className="flex items-center gap-2 ml-6">
@@ -930,13 +933,13 @@ export function OpenvpnModal({
                     checked={replaceDefaultRouteLocal}
                     onCheckedChange={(v) => setReplaceDefaultRouteLocal(!!v)}
                   />
-                  <span>Local</span>
+                  <span>{t("local")}</span>
                 </label>
               )}
             </div>
             <Separator />
             <div>
-              <Label htmlFor="openvpnOpts">Raw OpenVPN Options (one per line)</Label>
+              <Label htmlFor="openvpnOpts">{t("modal.rawOptions")}</Label>
               <Textarea
                 id="openvpnOpts"
                 value={openvpnOptionsText}
@@ -951,7 +954,7 @@ export function OpenvpnModal({
           <TabsContent value="network" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="localHost">Local Host</Label>
+                <Label htmlFor="localHost">{t("modal.localHost")}</Label>
                 <Input
                   id="localHost"
                   value={localHost}
@@ -959,7 +962,7 @@ export function OpenvpnModal({
                 />
               </div>
               <div>
-                <Label htmlFor="localPort">Local Port</Label>
+                <Label htmlFor="localPort">{t("modal.localPort")}</Label>
                 <Input
                   id="localPort"
                   value={localPort}
@@ -969,7 +972,7 @@ export function OpenvpnModal({
               </div>
             </div>
             <div>
-              <Label htmlFor="remotePort">Remote Port</Label>
+              <Label htmlFor="remotePort">{t("modal.remotePort")}</Label>
               <Input
                 id="remotePort"
                 value={remotePort}
@@ -977,7 +980,7 @@ export function OpenvpnModal({
               />
             </div>
             <div>
-              <Label htmlFor="remoteHost">Remote Hosts (one per line)</Label>
+              <Label htmlFor="remoteHost">{t("modal.remoteHosts")}</Label>
               <Textarea
                 id="remoteHost"
                 value={remoteHostText}
@@ -986,7 +989,7 @@ export function OpenvpnModal({
               />
             </div>
             <div>
-              <Label htmlFor="remoteAddress">Remote Addresses (one per line)</Label>
+              <Label htmlFor="remoteAddress">{t("modal.remoteAddresses")}</Label>
               <Textarea
                 id="remoteAddress"
                 value={remoteAddressText}
@@ -997,7 +1000,7 @@ export function OpenvpnModal({
             <Separator />
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label>Local Addresses</Label>
+                <Label>{t("modal.localAddresses")}</Label>
                 <Button
                   type="button"
                   size="sm"
@@ -1006,7 +1009,7 @@ export function OpenvpnModal({
                     setLocalAddresses([...localAddresses, { address: "", subnet_mask: "" }])
                   }
                 >
-                  <Plus className="h-3 w-3 mr-1" /> Add
+                  <Plus className="h-3 w-3 mr-1" /> {tc("add")}
                 </Button>
               </div>
               <div className="space-y-2">
@@ -1047,7 +1050,7 @@ export function OpenvpnModal({
             <Separator />
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="kaInterval">Keepalive Interval</Label>
+                <Label htmlFor="kaInterval">{t("modal.keepaliveInterval")}</Label>
                 <Input
                   id="kaInterval"
                   value={keepAliveInterval}
@@ -1055,7 +1058,7 @@ export function OpenvpnModal({
                 />
               </div>
               <div>
-                <Label htmlFor="kaFailure">Keepalive Failure Count</Label>
+                <Label htmlFor="kaFailure">{t("modal.keepaliveFailureCount")}</Label>
                 <Input
                   id="kaFailure"
                   value={keepAliveFailure}
@@ -1069,10 +1072,10 @@ export function OpenvpnModal({
           <TabsContent value="encryption" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="cipher">Cipher (legacy)</Label>
+                <Label htmlFor="cipher">{t("modal.cipherLegacy")}</Label>
                 <Select value={cipher} onValueChange={setCipher}>
                   <SelectTrigger id="cipher">
-                    <SelectValue placeholder="Select cipher" />
+                    <SelectValue placeholder={t("modal.selectCipher")} />
                   </SelectTrigger>
                   <SelectContent>
                     {LEGACY_CIPHERS.map((c) => (
@@ -1084,10 +1087,10 @@ export function OpenvpnModal({
                 </Select>
               </div>
               <div>
-                <Label htmlFor="hash">Hash</Label>
+                <Label htmlFor="hash">{t("modal.hash")}</Label>
                 <Select value={hash} onValueChange={setHash}>
                   <SelectTrigger id="hash">
-                    <SelectValue placeholder="Select hash" />
+                    <SelectValue placeholder={t("modal.selectHash")} />
                   </SelectTrigger>
                   <SelectContent>
                     {HASH_ALGORITHMS.map((h) => (
@@ -1101,9 +1104,9 @@ export function OpenvpnModal({
             </div>
             {is15 && (
               <div>
-                <Label>Data Ciphers</Label>
+                <Label>{t("modal.dataCiphers")}</Label>
                 <p className="text-xs text-muted-foreground mb-2">
-                  Select one or more ciphers the peer is allowed to negotiate.
+                  {t("modal.dataCiphersHint")}
                 </p>
                 <div className="grid grid-cols-4 gap-2 rounded-md border p-3">
                   {DATA_CIPHERS.map((c) => (
@@ -1124,10 +1127,10 @@ export function OpenvpnModal({
             )}
             {is15 && (
               <div>
-                <Label htmlFor="dataCiphersFallback">Data Ciphers Fallback</Label>
+                <Label htmlFor="dataCiphersFallback">{t("modal.dataCiphersFallback")}</Label>
                 <Select value={dataCiphersFallback} onValueChange={setDataCiphersFallback}>
                   <SelectTrigger id="dataCiphersFallback">
-                    <SelectValue placeholder="Select fallback cipher" />
+                    <SelectValue placeholder={t("modal.selectFallbackCipher")} />
                   </SelectTrigger>
                   <SelectContent>
                     {DATA_CIPHERS.map((c) => (
@@ -1140,10 +1143,10 @@ export function OpenvpnModal({
               </div>
             )}
             <div>
-              <Label htmlFor="sharedSecret">Shared Secret Key</Label>
+              <Label htmlFor="sharedSecret">{t("modal.sharedSecretKey")}</Label>
               <Select value={sharedSecretKey} onValueChange={setSharedSecretKey}>
                 <SelectTrigger id="sharedSecret">
-                  <SelectValue placeholder="Select from PKI" />
+                  <SelectValue placeholder={t("modal.selectFromPki")} />
                 </SelectTrigger>
                 <SelectContent>
                   {pki?.openvpn_shared_secrets.map((s) => (
@@ -1160,9 +1163,9 @@ export function OpenvpnModal({
           <TabsContent value="tls" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>CA Certificate(s)</Label>
+                <Label>{t("modal.caCertificates")}</Label>
                 <p className="text-xs text-muted-foreground mb-2">
-                  Select one or more CAs (e.g. an intermediate CA chain).
+                  {t("modal.caHint")}
                 </p>
                 <div className="grid grid-cols-2 gap-2 rounded-md border p-3">
                   {pki?.ca.map((c) => (
@@ -1181,10 +1184,10 @@ export function OpenvpnModal({
                 </div>
               </div>
               <div>
-                <Label htmlFor="tlsCert">Certificate</Label>
+                <Label htmlFor="tlsCert">{t("modal.certificate")}</Label>
                 <Select value={tlsCert} onValueChange={setTlsCert}>
                   <SelectTrigger id="tlsCert">
-                    <SelectValue placeholder="Select cert" />
+                    <SelectValue placeholder={t("modal.selectCert")} />
                   </SelectTrigger>
                   <SelectContent>
                     {pki?.certificates.map((c) => (
@@ -1198,10 +1201,10 @@ export function OpenvpnModal({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="tlsDh">DH Parameters</Label>
+                <Label htmlFor="tlsDh">{t("modal.dhParameters")}</Label>
                 <Select value={tlsDh} onValueChange={setTlsDh}>
                   <SelectTrigger id="tlsDh">
-                    <SelectValue placeholder="Select DH" />
+                    <SelectValue placeholder={t("modal.selectDh")} />
                   </SelectTrigger>
                   <SelectContent>
                     {pki?.dh.map((d) => (
@@ -1213,10 +1216,10 @@ export function OpenvpnModal({
                 </Select>
               </div>
               <div>
-                <Label htmlFor="tlsAuth">TLS Auth Key</Label>
+                <Label htmlFor="tlsAuth">{t("modal.tlsAuthKey")}</Label>
                 <Select value={tlsAuthKey} onValueChange={setTlsAuthKey}>
                   <SelectTrigger id="tlsAuth">
-                    <SelectValue placeholder="Select shared secret" />
+                    <SelectValue placeholder={t("modal.selectSharedSecret")} />
                   </SelectTrigger>
                   <SelectContent>
                     {pki?.openvpn_shared_secrets.map((s) => (
@@ -1230,10 +1233,10 @@ export function OpenvpnModal({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="tlsCrypt">TLS Crypt Key</Label>
+                <Label htmlFor="tlsCrypt">{t("modal.tlsCryptKey")}</Label>
                 <Select value={tlsCryptKey} onValueChange={setTlsCryptKey}>
                   <SelectTrigger id="tlsCrypt">
-                    <SelectValue placeholder="Select shared secret" />
+                    <SelectValue placeholder={t("modal.selectSharedSecret")} />
                   </SelectTrigger>
                   <SelectContent>
                     {pki?.openvpn_shared_secrets.map((s) => (
@@ -1245,20 +1248,20 @@ export function OpenvpnModal({
                 </Select>
               </div>
               <div>
-                <Label htmlFor="tlsRole">TLS Role</Label>
+                <Label htmlFor="tlsRole">{t("modal.tlsRole")}</Label>
                 <Select value={tlsRole} onValueChange={setTlsRole}>
                   <SelectTrigger id="tlsRole">
                     <SelectValue placeholder="—" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="passive">Passive</SelectItem>
+                    <SelectItem value="active">{t("active")}</SelectItem>
+                    <SelectItem value="passive">{t("modal.passive")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div>
-              <Label htmlFor="tlsVersion">TLS Version Min</Label>
+              <Label htmlFor="tlsVersion">{t("modal.tlsVersionMin")}</Label>
               <Select value={tlsVersionMin} onValueChange={setTlsVersionMin}>
                 <SelectTrigger id="tlsVersion">
                   <SelectValue placeholder="—" />
@@ -1273,7 +1276,7 @@ export function OpenvpnModal({
               </Select>
             </div>
             <div>
-              <Label htmlFor="tlsFingerprints">Peer Fingerprints (one per line)</Label>
+              <Label htmlFor="tlsFingerprints">{t("modal.peerFingerprints")}</Label>
               <Textarea
                 id="tlsFingerprints"
                 value={tlsFingerprintsText}
@@ -1286,7 +1289,7 @@ export function OpenvpnModal({
           {/* Server */}
           <TabsContent value="server" className="space-y-4">
             <div>
-              <Label htmlFor="serverSubnet">Subnets (one per line)</Label>
+              <Label htmlFor="serverSubnet">{t("modal.subnets")}</Label>
               <Textarea
                 id="serverSubnet"
                 value={serverSubnetText}
@@ -1296,7 +1299,7 @@ export function OpenvpnModal({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="serverTopology">Topology</Label>
+                <Label htmlFor="serverTopology">{t("modal.topology")}</Label>
                 <Select value={serverTopology} onValueChange={setServerTopology}>
                   <SelectTrigger id="serverTopology">
                     <SelectValue placeholder="—" />
@@ -1309,7 +1312,7 @@ export function OpenvpnModal({
                 </Select>
               </div>
               <div>
-                <Label htmlFor="serverDomain">Domain Name</Label>
+                <Label htmlFor="serverDomain">{t("modal.domainName")}</Label>
                 <Input
                   id="serverDomain"
                   value={serverDomainName}
@@ -1319,7 +1322,7 @@ export function OpenvpnModal({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="serverMaxConn">Max Connections</Label>
+                <Label htmlFor="serverMaxConn">{t("modal.maxConnections")}</Label>
                 <Input
                   id="serverMaxConn"
                   value={serverMaxConnections}
@@ -1327,7 +1330,7 @@ export function OpenvpnModal({
                 />
               </div>
               <div>
-                <Label htmlFor="serverNS">Name Servers (one per line)</Label>
+                <Label htmlFor="serverNS">{t("modal.nameServers")}</Label>
                 <Textarea
                   id="serverNS"
                   value={serverNameServersText}
@@ -1341,12 +1344,12 @@ export function OpenvpnModal({
                 checked={serverRejectUnconfigured}
                 onCheckedChange={(v) => setServerRejectUnconfigured(!!v)}
               />
-              <span>Reject unconfigured clients</span>
+              <span>{t("modal.rejectUnconfigured")}</span>
             </label>
             <Separator />
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label>Push Routes</Label>
+                <Label>{t("modal.pushRoutes")}</Label>
                 <Button
                   type="button"
                   size="sm"
@@ -1355,7 +1358,7 @@ export function OpenvpnModal({
                     setServerPushRoutes([...serverPushRoutes, { route: "", metric: "" }])
                   }
                 >
-                  <Plus className="h-3 w-3 mr-1" /> Add
+                  <Plus className="h-3 w-3 mr-1" /> {tc("add")}
                 </Button>
               </div>
               <div className="space-y-2">
@@ -1371,7 +1374,7 @@ export function OpenvpnModal({
                       }}
                     />
                     <Input
-                      placeholder="metric"
+                      placeholder={t("modal.metricPlaceholder")}
                       value={pr.metric}
                       onChange={(e) => {
                         const next = [...serverPushRoutes];
@@ -1395,20 +1398,20 @@ export function OpenvpnModal({
             </div>
             <Separator />
             <div>
-              <div className="text-sm font-semibold mb-2">Client IP Pool</div>
+              <div className="text-sm font-semibold mb-2">{t("modal.clientIpPool")}</div>
               <div className="grid grid-cols-3 gap-2">
                 <Input
-                  placeholder="Start"
+                  placeholder={t("modal.start")}
                   value={serverClientIpPoolStart}
                   onChange={(e) => setServerClientIpPoolStart(e.target.value)}
                 />
                 <Input
-                  placeholder="Stop"
+                  placeholder={t("modal.stop")}
                   value={serverClientIpPoolStop}
                   onChange={(e) => setServerClientIpPoolStop(e.target.value)}
                 />
                 <Input
-                  placeholder="Mask"
+                  placeholder={t("modal.mask")}
                   value={serverClientIpPoolMask}
                   onChange={(e) => setServerClientIpPoolMask(e.target.value)}
                 />
@@ -1418,11 +1421,11 @@ export function OpenvpnModal({
                   checked={serverClientIpPoolDisable}
                   onCheckedChange={(v) => setServerClientIpPoolDisable(!!v)}
                 />
-                <span>Disable IP pool</span>
+                <span>{t("modal.disableIpPool")}</span>
               </label>
             </div>
             <div>
-              <Label htmlFor="serverV6Base">Client IPv6 Pool Base</Label>
+              <Label htmlFor="serverV6Base">{t("modal.clientIpv6PoolBase")}</Label>
               <Input
                 id="serverV6Base"
                 value={serverClientIpv6PoolBase}
@@ -1433,36 +1436,36 @@ export function OpenvpnModal({
                   checked={serverClientIpv6PoolDisable}
                   onCheckedChange={(v) => setServerClientIpv6PoolDisable(!!v)}
                 />
-                <span>Disable IPv6 pool</span>
+                <span>{t("modal.disableIpv6Pool")}</span>
               </label>
             </div>
             <Separator />
             <div>
-              <div className="text-sm font-semibold mb-2">Server Bridge (TAP mode)</div>
+              <div className="text-sm font-semibold mb-2">{t("modal.serverBridge")}</div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <Label>Gateway</Label>
+                  <Label>{t("modal.gateway")}</Label>
                   <Input
                     value={serverBridgeGateway}
                     onChange={(e) => setServerBridgeGateway(e.target.value)}
                   />
                 </div>
                 <div>
-                  <Label>Subnet Mask</Label>
+                  <Label>{t("modal.subnetMask")}</Label>
                   <Input
                     value={serverBridgeMask}
                     onChange={(e) => setServerBridgeMask(e.target.value)}
                   />
                 </div>
                 <div>
-                  <Label>DHCP Pool Start</Label>
+                  <Label>{t("modal.dhcpPoolStart")}</Label>
                   <Input
                     value={serverBridgeStart}
                     onChange={(e) => setServerBridgeStart(e.target.value)}
                   />
                 </div>
                 <div>
-                  <Label>DHCP Pool Stop</Label>
+                  <Label>{t("modal.dhcpPoolStop")}</Label>
                   <Input
                     value={serverBridgeStop}
                     onChange={(e) => setServerBridgeStop(e.target.value)}
@@ -1474,23 +1477,23 @@ export function OpenvpnModal({
                   checked={serverBridgeDisable}
                   onCheckedChange={(v) => setServerBridgeDisable(!!v)}
                 />
-                <span>Disable bridge</span>
+                <span>{t("modal.disableBridge")}</span>
               </label>
             </div>
             <Separator />
             <div>
-              <div className="text-sm font-semibold mb-2">MFA TOTP (Two-Factor Authentication)</div>
+              <div className="text-sm font-semibold mb-2">{t("modal.mfaTitle")}</div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <Label>Challenge Prompt</Label>
+                  <Label>{t("modal.challengePrompt")}</Label>
                   <Input
                     value={mfaChallenge}
                     onChange={(e) => setMfaChallenge(e.target.value)}
-                    placeholder="Enter TOTP code"
+                    placeholder={t("modal.challengePlaceholder")}
                   />
                 </div>
                 <div>
-                  <Label>Digits</Label>
+                  <Label>{t("modal.digits")}</Label>
                   <Input
                     value={mfaDigits}
                     onChange={(e) => setMfaDigits(e.target.value)}
@@ -1498,21 +1501,21 @@ export function OpenvpnModal({
                   />
                 </div>
                 <div>
-                  <Label>Drift (seconds)</Label>
+                  <Label>{t("modal.driftSeconds")}</Label>
                   <Input
                     value={mfaDrift}
                     onChange={(e) => setMfaDrift(e.target.value)}
                   />
                 </div>
                 <div>
-                  <Label>Slop (seconds)</Label>
+                  <Label>{t("modal.slopSeconds")}</Label>
                   <Input
                     value={mfaSlop}
                     onChange={(e) => setMfaSlop(e.target.value)}
                   />
                 </div>
                 <div>
-                  <Label>Step (seconds)</Label>
+                  <Label>{t("modal.stepSeconds")}</Label>
                   <Input
                     value={mfaStep}
                     onChange={(e) => setMfaStep(e.target.value)}
@@ -1524,7 +1527,7 @@ export function OpenvpnModal({
             <Separator />
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label>Per-Client Configuration</Label>
+                <Label>{t("modal.perClientConfig")}</Label>
                 <Button
                   type="button"
                   size="sm"
@@ -1536,7 +1539,7 @@ export function OpenvpnModal({
                     ])
                   }
                 >
-                  <Plus className="h-3 w-3 mr-1" /> Add
+                  <Plus className="h-3 w-3 mr-1" /> {tc("add")}
                 </Button>
               </div>
               <div className="space-y-3">
@@ -1544,7 +1547,7 @@ export function OpenvpnModal({
                   <div key={idx} className="border rounded-md p-3 space-y-2">
                     <div className="flex gap-2">
                       <Input
-                        placeholder="Client name"
+                        placeholder={t("modal.clientName")}
                         value={c.name}
                         onChange={(e) => {
                           const next = [...serverClients];
@@ -1553,7 +1556,7 @@ export function OpenvpnModal({
                         }}
                       />
                       <Input
-                        placeholder="IP (comma-separated)"
+                        placeholder={t("modal.ipCommaSeparated")}
                         value={c.ip}
                         onChange={(e) => {
                           const next = [...serverClients];
@@ -1574,7 +1577,7 @@ export function OpenvpnModal({
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <Textarea
-                        placeholder="Subnets (one per line)"
+                        placeholder={t("modal.subnets")}
                         value={c.subnet}
                         onChange={(e) => {
                           const next = [...serverClients];
@@ -1584,7 +1587,7 @@ export function OpenvpnModal({
                         rows={2}
                       />
                       <Textarea
-                        placeholder="Push routes (one per line)"
+                        placeholder={t("modal.pushRoutesPlaceholder")}
                         value={c.push_route}
                         onChange={(e) => {
                           const next = [...serverClients];
@@ -1603,7 +1606,7 @@ export function OpenvpnModal({
                           setServerClients(next);
                         }}
                       />
-                      <span>Disabled</span>
+                      <span>{tc("disabled")}</span>
                     </label>
                   </div>
                 ))}
@@ -1614,7 +1617,7 @@ export function OpenvpnModal({
           {/* Auth */}
           <TabsContent value="auth" className="space-y-4">
             <div>
-              <Label htmlFor="authUser">Username</Label>
+              <Label htmlFor="authUser">{t("modal.username")}</Label>
               <Input
                 id="authUser"
                 value={authUsername}
@@ -1623,7 +1626,7 @@ export function OpenvpnModal({
               />
             </div>
             <div>
-              <Label htmlFor="authPass">Password</Label>
+              <Label htmlFor="authPass">{t("modal.password")}</Label>
               <Input
                 id="authPass"
                 type="password"
@@ -1639,7 +1642,7 @@ export function OpenvpnModal({
             <div className="text-sm font-semibold">IPv4</div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="ipMss">Adjust MSS</Label>
+                <Label htmlFor="ipMss">{t("modal.adjustMss")}</Label>
                 <Input
                   id="ipMss"
                   value={ipAdjustMss}
@@ -1647,7 +1650,7 @@ export function OpenvpnModal({
                 />
               </div>
               <div>
-                <Label htmlFor="ipArpTimeout">ARP Cache Timeout</Label>
+                <Label htmlFor="ipArpTimeout">{t("modal.arpCacheTimeout")}</Label>
                 <Input
                   id="ipArpTimeout"
                   value={ipArpCacheTimeout}
@@ -1655,7 +1658,7 @@ export function OpenvpnModal({
                 />
               </div>
               <div>
-                <Label htmlFor="ipSv">Source Validation</Label>
+                <Label htmlFor="ipSv">{t("modal.sourceValidation")}</Label>
                 <Select value={ipSourceValidation} onValueChange={setIpSourceValidation}>
                   <SelectTrigger id="ipSv">
                     <SelectValue placeholder="—" />
@@ -1674,56 +1677,56 @@ export function OpenvpnModal({
                   checked={ipDisableForwarding}
                   onCheckedChange={(v) => setIpDisableForwarding(!!v)}
                 />
-                <span>Disable forwarding</span>
+                <span>{t("modal.disableForwarding")}</span>
               </label>
               <label className="flex items-center gap-2">
                 <Checkbox
                   checked={ipDisableArpFilter}
                   onCheckedChange={(v) => setIpDisableArpFilter(!!v)}
                 />
-                <span>Disable ARP filter</span>
+                <span>{t("modal.disableArpFilter")}</span>
               </label>
               <label className="flex items-center gap-2">
                 <Checkbox
                   checked={ipEnableArpAccept}
                   onCheckedChange={(v) => setIpEnableArpAccept(!!v)}
                 />
-                <span>Enable ARP accept</span>
+                <span>{t("modal.enableArpAccept")}</span>
               </label>
               <label className="flex items-center gap-2">
                 <Checkbox
                   checked={ipEnableArpAnnounce}
                   onCheckedChange={(v) => setIpEnableArpAnnounce(!!v)}
                 />
-                <span>Enable ARP announce</span>
+                <span>{t("modal.enableArpAnnounce")}</span>
               </label>
               <label className="flex items-center gap-2">
                 <Checkbox
                   checked={ipEnableArpIgnore}
                   onCheckedChange={(v) => setIpEnableArpIgnore(!!v)}
                 />
-                <span>Enable ARP ignore</span>
+                <span>{t("modal.enableArpIgnore")}</span>
               </label>
               <label className="flex items-center gap-2">
                 <Checkbox
                   checked={ipEnableDirectedBroadcast}
                   onCheckedChange={(v) => setIpEnableDirectedBroadcast(!!v)}
                 />
-                <span>Enable directed broadcast</span>
+                <span>{t("modal.enableDirectedBroadcast")}</span>
               </label>
               <label className="flex items-center gap-2">
                 <Checkbox
                   checked={ipEnableProxyArp}
                   onCheckedChange={(v) => setIpEnableProxyArp(!!v)}
                 />
-                <span>Enable proxy ARP</span>
+                <span>{t("modal.enableProxyArp")}</span>
               </label>
               <label className="flex items-center gap-2">
                 <Checkbox
                   checked={ipProxyArpPvlan}
                   onCheckedChange={(v) => setIpProxyArpPvlan(!!v)}
                 />
-                <span>Proxy ARP PVLAN</span>
+                <span>{t("modal.proxyArpPvlan")}</span>
               </label>
             </div>
 
@@ -1732,7 +1735,7 @@ export function OpenvpnModal({
             <div className="text-sm font-semibold">IPv6</div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="ipv6Mss">Adjust MSS</Label>
+                <Label htmlFor="ipv6Mss">{t("modal.adjustMss")}</Label>
                 <Input
                   id="ipv6Mss"
                   value={ipv6AdjustMss}
@@ -1740,7 +1743,7 @@ export function OpenvpnModal({
                 />
               </div>
               <div>
-                <Label htmlFor="ipv6Sv">Source Validation</Label>
+                <Label htmlFor="ipv6Sv">{t("modal.sourceValidation")}</Label>
                 <Select value={ipv6SourceValidation} onValueChange={setIpv6SourceValidation}>
                   <SelectTrigger id="ipv6Sv">
                     <SelectValue placeholder="—" />
@@ -1753,7 +1756,7 @@ export function OpenvpnModal({
                 </Select>
               </div>
               <div>
-                <Label htmlFor="ipv6AcceptDad">Accept DAD</Label>
+                <Label htmlFor="ipv6AcceptDad">{t("modal.acceptDad")}</Label>
                 <Input
                   id="ipv6AcceptDad"
                   value={ipv6AcceptDad}
@@ -1762,7 +1765,7 @@ export function OpenvpnModal({
                 />
               </div>
               <div>
-                <Label htmlFor="ipv6Eui64">Address EUI-64</Label>
+                <Label htmlFor="ipv6Eui64">{t("modal.addressEui64")}</Label>
                 <Input
                   id="ipv6Eui64"
                   value={ipv6AddressEui64}
@@ -1771,7 +1774,7 @@ export function OpenvpnModal({
                 />
               </div>
               <div>
-                <Label htmlFor="ipv6BaseReach">Base Reachable Time</Label>
+                <Label htmlFor="ipv6BaseReach">{t("modal.baseReachableTime")}</Label>
                 <Input
                   id="ipv6BaseReach"
                   value={ipv6BaseReachableTime}
@@ -1779,7 +1782,7 @@ export function OpenvpnModal({
                 />
               </div>
               <div>
-                <Label htmlFor="ipv6DadTx">DAD Transmits</Label>
+                <Label htmlFor="ipv6DadTx">{t("modal.dadTransmits")}</Label>
                 <Input
                   id="ipv6DadTx"
                   value={ipv6DupAddrDetectTransmits}
@@ -1789,7 +1792,7 @@ export function OpenvpnModal({
             </div>
             {is15 && (
               <div>
-                <Label htmlFor="ipv6Iid">Interface Identifier</Label>
+                <Label htmlFor="ipv6Iid">{t("modal.interfaceIdentifier")}</Label>
                 <Input
                   id="ipv6Iid"
                   value={ipv6InterfaceIdentifier}
@@ -1804,21 +1807,21 @@ export function OpenvpnModal({
                   checked={ipv6DisableForwarding}
                   onCheckedChange={(v) => setIpv6DisableForwarding(!!v)}
                 />
-                <span>Disable IPv6 forwarding</span>
+                <span>{t("modal.disableIpv6Forwarding")}</span>
               </label>
               <label className="flex items-center gap-2">
                 <Checkbox
                   checked={ipv6AddressAutoconf}
                   onCheckedChange={(v) => setIpv6AddressAutoconf(!!v)}
                 />
-                <span>Address autoconf</span>
+                <span>{t("modal.addressAutoconf")}</span>
               </label>
               <label className="flex items-center gap-2">
                 <Checkbox
                   checked={ipv6AddressNoDefaultLinkLocal}
                   onCheckedChange={(v) => setIpv6AddressNoDefaultLinkLocal(!!v)}
                 />
-                <span>No default link-local</span>
+                <span>{t("modal.noDefaultLinkLocal")}</span>
               </label>
             </div>
           </TabsContent>
@@ -1826,23 +1829,23 @@ export function OpenvpnModal({
           {/* Mirror */}
           <TabsContent value="mirror" className="space-y-4">
             <div>
-              <Label htmlFor="mirrorIn">Ingress Mirror Interface</Label>
+              <Label htmlFor="mirrorIn">{t("modal.ingressMirror")}</Label>
               <InterfaceSelect
                 value={mirrorIngress}
                 onValueChange={setMirrorIngress}
                 id="mirrorIn"
                 interfaces={availableInterfaces}
-                placeholder="Select interface"
+                placeholder={t("modal.selectInterface")}
               />
             </div>
             <div>
-              <Label htmlFor="mirrorOut">Egress Mirror Interface</Label>
+              <Label htmlFor="mirrorOut">{t("modal.egressMirror")}</Label>
               <InterfaceSelect
                 value={mirrorEgress}
                 onValueChange={setMirrorEgress}
                 id="mirrorOut"
                 interfaces={availableInterfaces}
-                placeholder="Select interface"
+                placeholder={t("modal.selectInterface")}
               />
             </div>
           </TabsContent>
@@ -1856,18 +1859,18 @@ export function OpenvpnModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? "Saving..." : "Creating..."}
+                {isEdit ? tc("saving") : t("modal.creating")}
               </>
             ) : isEdit ? (
-              "Save Changes"
+              t("modal.saveChanges")
             ) : (
-              "Create Interface"
+              t("modal.createInterface")
             )}
           </Button>
         </DialogFooter>

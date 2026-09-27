@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -54,12 +55,6 @@ import { ClientExportModal } from "@/components/openvpn/ClientExportModal";
 
 type ModeFilter = "all" | "server" | "client" | "site-to-site";
 
-function modeLabel(mode: string | null): string {
-  if (!mode) return "—";
-  if (mode === "site-to-site") return "Site-to-Site";
-  return mode.charAt(0).toUpperCase() + mode.slice(1);
-}
-
 function modeBadgeVariant(mode: string | null): "default" | "secondary" | "outline" {
   if (mode === "server") return "default";
   if (mode === "client") return "secondary";
@@ -67,6 +62,15 @@ function modeBadgeVariant(mode: string | null): "default" | "secondary" | "outli
 }
 
 export default function OpenvpnPage() {
+  const t = useTranslations("openvpn");
+  const tc = useTranslations("common");
+  const modeLabel = (mode: string | null): string => {
+    if (!mode) return "—";
+    if (mode === "server") return t("modes.server");
+    if (mode === "client") return t("modes.client");
+    if (mode === "site-to-site") return t("modes.siteToSite");
+    return mode.charAt(0).toUpperCase() + mode.slice(1);
+  };
   const { canRead, canWrite } = usePermissions();
   const hasRead = canRead(FeatureGroup.OPENVPN);
   const hasWrite = canWrite(FeatureGroup.OPENVPN);
@@ -97,7 +101,7 @@ export default function OpenvpnPage() {
       setConfig(configData);
       setCapabilities(capsData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load OpenVPN configuration");
+      setError(err instanceof Error ? err.message : t("page.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -105,6 +109,7 @@ export default function OpenvpnPage() {
 
   useEffect(() => {
     if (hasRead) fetchConfig();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount; a language switch re-renders via router.refresh()
   }, [hasRead]);
 
   const interfaces = config?.interfaces ?? [];
@@ -139,9 +144,9 @@ export default function OpenvpnPage() {
         <div className="flex items-center justify-center h-[calc(100vh-200px)]">
           <div className="text-center space-y-4">
             <Lock className="h-12 w-12 text-muted-foreground mx-auto" />
-            <p className="text-lg font-medium">Access Denied</p>
+            <p className="text-lg font-medium">{t("page.accessDenied")}</p>
             <p className="text-sm text-muted-foreground">
-              You do not have permission to view OpenVPN configuration.
+              {t("page.noPermission")}
             </p>
           </div>
         </div>
@@ -155,7 +160,7 @@ export default function OpenvpnPage() {
         <div className="flex items-center justify-center h-[calc(100vh-200px)]">
           <div className="text-center space-y-4">
             <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-            <p className="text-muted-foreground">Loading OpenVPN configuration...</p>
+            <p className="text-muted-foreground">{t("page.loading")}</p>
           </div>
         </div>
       </AppLayout>
@@ -168,11 +173,11 @@ export default function OpenvpnPage() {
         <div className="flex items-center justify-center h-[calc(100vh-200px)]">
           <div className="text-center space-y-4">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-            <p className="text-destructive font-medium">Failed to load configuration</p>
+            <p className="text-destructive font-medium">{t("page.loadConfigFailed")}</p>
             <p className="text-sm text-muted-foreground">{error}</p>
             <Button onClick={() => fetchConfig(true)}>
               <RefreshCw className="h-4 w-4 mr-2" />
-              Retry
+              {tc("retry")}
             </Button>
           </div>
         </div>
@@ -191,7 +196,7 @@ export default function OpenvpnPage() {
               OpenVPN
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Manage OpenVPN tunnels &mdash; server, client and site-to-site modes.
+              {t("page.subtitle")}
             </p>
           </div>
           <div className="flex gap-2">
@@ -199,11 +204,11 @@ export default function OpenvpnPage() {
               <>
                 <Button onClick={() => setShowWizard(true)}>
                   <Wand2 className="h-4 w-4 mr-2" />
-                  Quick Setup
+                  {t("page.quickSetup")}
                 </Button>
                 <Button variant="outline" onClick={() => setShowAdvancedCreate(true)}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Advanced Create
+                  {t("page.advancedCreate")}
                 </Button>
               </>
             )}
@@ -222,7 +227,7 @@ export default function OpenvpnPage() {
               </div>
               <div>
                 <div className="text-2xl font-semibold">{totalCount}</div>
-                <div className="text-xs text-muted-foreground">Total</div>
+                <div className="text-xs text-muted-foreground">{t("page.total")}</div>
               </div>
             </div>
           </Card>
@@ -233,7 +238,7 @@ export default function OpenvpnPage() {
               </div>
               <div>
                 <div className="text-2xl font-semibold">{serverCount}</div>
-                <div className="text-xs text-muted-foreground">Server</div>
+                <div className="text-xs text-muted-foreground">{t("modes.server")}</div>
               </div>
             </div>
           </Card>
@@ -244,7 +249,7 @@ export default function OpenvpnPage() {
               </div>
               <div>
                 <div className="text-2xl font-semibold">{clientCount}</div>
-                <div className="text-xs text-muted-foreground">Client</div>
+                <div className="text-xs text-muted-foreground">{t("modes.client")}</div>
               </div>
             </div>
           </Card>
@@ -255,7 +260,7 @@ export default function OpenvpnPage() {
               </div>
               <div>
                 <div className="text-2xl font-semibold">{s2sCount}</div>
-                <div className="text-xs text-muted-foreground">Site-to-Site</div>
+                <div className="text-xs text-muted-foreground">{t("modes.siteToSite")}</div>
               </div>
             </div>
           </Card>
@@ -266,7 +271,7 @@ export default function OpenvpnPage() {
           <div className="relative flex-1 min-w-[240px]">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by name, description or mode..."
+              placeholder={t("page.searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-8"
@@ -274,13 +279,13 @@ export default function OpenvpnPage() {
           </div>
           <Select value={modeFilter} onValueChange={(v) => setModeFilter(v as ModeFilter)}>
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Mode" />
+              <SelectValue placeholder={t("mode")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Modes</SelectItem>
-              <SelectItem value="server">Server</SelectItem>
-              <SelectItem value="client">Client</SelectItem>
-              <SelectItem value="site-to-site">Site-to-Site</SelectItem>
+              <SelectItem value="all">{t("modes.all")}</SelectItem>
+              <SelectItem value="server">{t("modes.server")}</SelectItem>
+              <SelectItem value="client">{t("modes.client")}</SelectItem>
+              <SelectItem value="site-to-site">{t("modes.siteToSite")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -291,17 +296,17 @@ export default function OpenvpnPage() {
             <div className="text-center space-y-3">
               <Lock className="h-12 w-12 text-muted-foreground/50 mx-auto" />
               <div className="text-lg font-medium">
-                {interfaces.length === 0 ? "No OpenVPN interfaces yet" : "No matching interfaces"}
+                {interfaces.length === 0 ? t("page.emptyTitle") : t("page.noMatchTitle")}
               </div>
               <div className="text-sm text-muted-foreground">
                 {interfaces.length === 0
-                  ? "Create your first OpenVPN tunnel to get started."
-                  : "Try adjusting your search or filter."}
+                  ? t("page.emptyHint")
+                  : t("page.noMatchHint")}
               </div>
               {hasWrite && interfaces.length === 0 && (
                 <Button onClick={() => setShowWizard(true)} className="mt-2">
                   <Wand2 className="h-4 w-4 mr-2" />
-                  Quick Setup
+                  {t("page.quickSetup")}
                 </Button>
               )}
             </div>
@@ -311,14 +316,14 @@ export default function OpenvpnPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Mode</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Local</TableHead>
-                  <TableHead>Remote</TableHead>
-                  <TableHead>Encryption</TableHead>
+                  <TableHead>{tc("name")}</TableHead>
+                  <TableHead>{t("mode")}</TableHead>
+                  <TableHead>{tc("status")}</TableHead>
+                  <TableHead>{t("local")}</TableHead>
+                  <TableHead>{t("remote")}</TableHead>
+                  <TableHead>{t("encryption")}</TableHead>
                   <TableHead>VRF</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="text-right">{tc("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -357,11 +362,11 @@ export default function OpenvpnPage() {
                       <TableCell>
                         {iface.disabled ? (
                           <Badge variant="secondary" className="bg-gray-500/10 text-gray-500">
-                            Disabled
+                            {tc("disabled")}
                           </Badge>
                         ) : (
                           <Badge variant="outline" className="text-green-600 border-green-600/30">
-                            Active
+                            {t("active")}
                           </Badge>
                         )}
                       </TableCell>
@@ -374,7 +379,7 @@ export default function OpenvpnPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            title="View details"
+                            title={t("page.viewDetails")}
                             onClick={() => setViewingInterface(iface)}
                           >
                             <Eye className="h-4 w-4" />
@@ -383,7 +388,7 @@ export default function OpenvpnPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              title="Export client config"
+                              title={t("page.exportClientConfig")}
                               onClick={() => setExportingInterface(iface)}
                             >
                               <Download className="h-4 w-4" />
@@ -394,7 +399,7 @@ export default function OpenvpnPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                title="Edit"
+                                title={tc("edit")}
                                 onClick={() => setEditingInterface(iface)}
                               >
                                 <Pencil className="h-4 w-4" />
@@ -402,7 +407,7 @@ export default function OpenvpnPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                title="Delete"
+                                title={tc("delete")}
                                 onClick={() => setDeletingInterface(iface)}
                               >
                                 <Trash2 className="h-4 w-4 text-destructive" />
