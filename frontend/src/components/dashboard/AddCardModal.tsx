@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -14,10 +15,24 @@ import { Network, Plus, Server, Shield, Lock, TrendingUp, Gauge, ShieldCheck, Wa
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
+type CardKey =
+  | "interfaceStatistics"
+  | "systemInfo"
+  | "hardwareSensors"
+  | "transceiverHealth"
+  | "wireguardPeers"
+  | "networkSpeed"
+  | "pppoeStatistics"
+  | "qosStatistics"
+  | "openvpnStatus"
+  | "vrrpStatus"
+  | "bgpStatus"
+  | "ipsecStatus";
+
 interface AvailableCard {
   type: string;
-  name: string;
-  description: string;
+  /** Message key under dashboard.addCardModal.cards for the name and description. */
+  key: CardKey;
   icon: React.ComponentType<{ className?: string }>;
   /** FeatureGroup key required to add this card. Undefined = no restriction. */
   requiredPermission?: FeatureGroup;
@@ -26,81 +41,69 @@ interface AvailableCard {
 const AVAILABLE_CARDS: AvailableCard[] = [
   {
     type: "interface-statistics",
-    name: "Interface Statistics",
-    description: "View real-time network interface counters and statistics",
+    key: "interfaceStatistics",
     icon: Network,
   },
   {
     type: "system-info",
-    name: "System Information",
-    description: "Monitor memory usage, disk partitions, and VyOS version details",
+    key: "systemInfo",
     icon: Server,
   },
   {
     type: "hardware-sensors",
-    name: "Hardware Sensors",
-    description: "CPU, network card, and system temperature sensors with health status",
+    key: "hardwareSensors",
     icon: Thermometer,
   },
   {
     type: "transceiver-health",
-    name: "Digital Diagnostic Monitoring",
-    description: "SFP/SFP+ presence, DDM measurements, and alarm/warning signal health by Ethernet interface",
+    key: "transceiverHealth",
     icon: Gauge,
     requiredPermission: FeatureGroup.ETHERNET,
   },
   {
     type: "wireguard-peers",
-    name: "WireGuard Peers",
-    description: "Live peer status with handshake times, transfer stats, and connection health",
+    key: "wireguardPeers",
     icon: Shield,
     requiredPermission: FeatureGroup.WIREGUARD,
   },
   {
     type: "network-speed",
-    name: "Network Speed",
-    description: "Real-time download and upload speed graph for any interface over a 2-minute rolling window",
+    key: "networkSpeed",
     icon: TrendingUp,
   },
   {
     type: "pppoe-statistics",
-    name: "PPPoE Statistics",
-    description: "Aggregate PPPoE RX/TX rate, packet rate, and total traffic over a rolling window",
+    key: "pppoeStatistics",
     icon: Activity,
     requiredPermission: FeatureGroup.PPPOE,
   },
   {
     type: "qos-statistics",
-    name: "QoS Statistics",
-    description: "Live per-class shaper bandwidth, drops and policy effectiveness for QoS-enabled interfaces",
+    key: "qosStatistics",
     icon: Gauge,
     requiredPermission: FeatureGroup.QOS,
   },
   {
     type: "openvpn-status",
-    name: "OpenVPN",
-    description: "Live status of OpenVPN servers, clients and site-to-site tunnels with connected client details",
+    key: "openvpnStatus",
     icon: ShieldCheck,
     requiredPermission: FeatureGroup.OPENVPN,
   },
   {
     type: "vrrp-status",
-    name: "VRRP / High Availability",
-    description: "Real-time VRRP group state (MASTER/BACKUP/FAULT) with interface, VRID, priority and last transition",
+    key: "vrrpStatus",
     icon: Waypoints,
     requiredPermission: FeatureGroup.HIGH_AVAILABILITY,
   },
   {
     type: "bgp-status",
-    name: "BGP Sessions",
-    description: "Live BGP neighbor state (Established/Active/Idle) per address family with remote AS, uptime and prefix counts",
+    key: "bgpStatus",
     icon: Route,
     requiredPermission: FeatureGroup.BGP,
   },
   {
     type: "ipsec-status",
-    name: "IPSec Tunnels",
-    description: "Live site-to-site IPSec tunnel state (up/down) with traffic selectors, byte counters and the negotiated ESP proposal",
+    key: "ipsecStatus",
     icon: Lock,
     requiredPermission: FeatureGroup.IPSEC,
   },
@@ -113,6 +116,8 @@ interface AddCardModalProps {
 }
 
 export function AddCardModal({ open, onOpenChange, onAddCard }: AddCardModalProps) {
+  const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const { canRead, isLoading: permissionsLoading } = usePermissions();
 
@@ -128,9 +133,9 @@ export function AddCardModal({ open, onOpenChange, onAddCard }: AddCardModalProp
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] sm:max-w-4xl flex max-h-[85vh] flex-col">
         <DialogHeader>
-          <DialogTitle>Add Dashboard Card</DialogTitle>
+          <DialogTitle>{t("addCardModal.title")}</DialogTitle>
           <DialogDescription>
-            Select a card to add to your dashboard
+            {t("addCardModal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -159,22 +164,22 @@ export function AddCardModal({ open, onOpenChange, onAddCard }: AddCardModalProp
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Icon className="h-5 w-5 text-primary" />
-                      <CardTitle className="text-base">{card.name}</CardTitle>
+                      <CardTitle className="text-base">{t(`addCardModal.cards.${card.key}.name`)}</CardTitle>
                     </div>
                     {locked && (
                       <div
                         className="flex items-center gap-1 text-xs text-muted-foreground"
-                        title={`Requires ${card.requiredPermission} read permission`}
+                        title={t("addCardModal.requiresPermission", { permission: String(card.requiredPermission) })}
                       >
                         <Lock className="h-3 w-3" />
-                        <span>No access</span>
+                        <span>{t("addCardModal.noAccess")}</span>
                       </div>
                     )}
                   </div>
                 </CardHeader>
                 <CardContent>
                   <CardDescription className="text-sm">
-                    {card.description}
+                    {t(`addCardModal.cards.${card.key}.description`)}
                   </CardDescription>
                 </CardContent>
               </Card>
@@ -184,11 +189,11 @@ export function AddCardModal({ open, onOpenChange, onAddCard }: AddCardModalProp
 
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleAdd} disabled={!selectedType}>
             <Plus className="h-4 w-4 mr-2" />
-            Add Card
+            {t("addCardModal.addCard")}
           </Button>
         </div>
       </DialogContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +59,7 @@ function StatPill({ label, value, tone }: { label: string; value: number; tone: 
 }
 
 function TunnelRow({ tunnel }: { tunnel: IPSecTunnelStatus }) {
+  const t = useTranslations("dashboard");
   const up = (tunnel.state ?? "").toLowerCase() === "up";
   const local = tunnel.local_ts.length ? tunnel.local_ts.join(", ") : "any";
   const remote = tunnel.remote_ts.length ? tunnel.remote_ts.join(", ") : "any";
@@ -124,11 +126,11 @@ function TunnelRow({ tunnel }: { tunnel: IPSecTunnelStatus }) {
       {/* line 3: traffic counters + ESP proposal (wraps instead of truncating) */}
       <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 pl-4 text-[11px] tabular-nums text-muted-foreground">
         <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1" title="received">
+          <span className="flex items-center gap-1" title={t("traffic.received")}>
             <ArrowDownToLine className="h-3 w-3 text-blue-500" />
             {formatBytes(tunnel.bytes_in)}
           </span>
-          <span className="flex items-center gap-1" title="sent">
+          <span className="flex items-center gap-1" title={t("traffic.sent")}>
             <ArrowUpFromLine className="h-3 w-3 text-orange-500" />
             {formatBytes(tunnel.bytes_out)}
           </span>
@@ -136,7 +138,7 @@ function TunnelRow({ tunnel }: { tunnel: IPSecTunnelStatus }) {
         {proposal && (
           <span
             className="whitespace-nowrap rounded bg-muted px-1.5 py-0.5 font-mono text-[10px]"
-            title="negotiated ESP proposal"
+            title={t("ipsec.proposal")}
           >
             {proposal}
           </span>
@@ -147,6 +149,7 @@ function TunnelRow({ tunnel }: { tunnel: IPSecTunnelStatus }) {
 }
 
 export function IpsecCard({ onRemove, span = 1, onSpanChange, height, onHeightChange }: IpsecCardProps) {
+  const t = useTranslations("dashboard");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const { status: sseStatus, data: sseData } = useDashboardData();
   // Snapshot the stream so "Paused" freezes the displayed status.
@@ -174,10 +177,10 @@ export function IpsecCard({ onRemove, span = 1, onSpanChange, height, onHeightCh
             variant={autoRefresh ? "default" : "outline"}
             size="sm"
             onClick={() => setAutoRefresh((v) => !v)}
-            title={autoRefresh ? `Live via dashboard stream (${sseStatus})` : "Paused"}
+            title={autoRefresh ? t("stream.liveVia", { status: sseStatus }) : t("stream.paused")}
           >
             <RefreshCw className={`h-4 w-4 mr-1 ${autoRefresh && sseStatus === "connected" ? "animate-spin" : ""}`} />
-            {autoRefresh ? "Live" : "Paused"}
+            {autoRefresh ? t("stream.live") : t("stream.paused")}
           </Button>
           {onSpanChange && (
             <CardSizeMenu
@@ -198,19 +201,19 @@ export function IpsecCard({ onRemove, span = 1, onSpanChange, height, onHeightCh
       {/* summary stat bar */}
       {hasTunnels && (
         <div className="flex items-center gap-5 border-y bg-muted/30 px-4 py-2 shrink-0">
-          <StatPill label="Up" value={status!.up} tone="up" />
-          <StatPill label="Down" value={status!.down} tone="down" />
-          <StatPill label="Total" value={status!.total} tone="total" />
+          <StatPill label={t("ipsec.up")} value={status!.up} tone="up" />
+          <StatPill label={t("ipsec.down")} value={status!.down} tone="down" />
+          <StatPill label={t("ipsec.total")} value={status!.total} tone="total" />
         </div>
       )}
 
       <CardContent className="flex flex-col flex-1 min-h-0 p-0">
         {loading ? (
-          <div className="px-4 py-6 text-center text-muted-foreground text-sm">Loading…</div>
+          <div className="px-4 py-6 text-center text-muted-foreground text-sm">{t("stream.loading")}</div>
         ) : !hasTunnels ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center text-sm text-muted-foreground">
             <ShieldOff className="h-8 w-8 opacity-40" />
-            No active IPSec tunnels.
+            {t("ipsec.noTunnels")}
           </div>
         ) : (
           <div className="flex-1 min-h-0 overflow-y-auto">

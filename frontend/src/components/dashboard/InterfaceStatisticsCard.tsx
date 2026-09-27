@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,13 +99,19 @@ function TrafficBars({
   maxRx: number;
   maxTx: number;
 }) {
+  const t = useTranslations("dashboard");
   const rxPct = maxRx > 0 ? Math.max((rxBytes / maxRx) * 100, rxBytes > 0 ? 2 : 0) : 0;
   const txPct = maxTx > 0 ? Math.max((txBytes / maxTx) * 100, txBytes > 0 ? 2 : 0) : 0;
 
   return (
     <div
       className="flex-1 min-w-0 space-y-1"
-      title={`RX: ${formatBytes(rxBytes)} / ${rxPackets.toLocaleString()} pkts\nTX: ${formatBytes(txBytes)} / ${txPackets.toLocaleString()} pkts`}
+      title={t("interfaceStatistics.trafficTooltip", {
+        rx: formatBytes(rxBytes),
+        rxPackets: rxPackets.toLocaleString(),
+        tx: formatBytes(txBytes),
+        txPackets: txPackets.toLocaleString(),
+      })}
     >
       <div className="flex items-center gap-1.5">
         <ArrowDown className="h-3 w-3 text-blue-500 shrink-0" />
@@ -144,6 +151,7 @@ interface IfaceRowProps {
 }
 
 function IfaceRow({ iface, expanded, onToggle, maxRx, maxTx, indent = false }: IfaceRowProps) {
+  const t = useTranslations("dashboard");
   const hasVifs = !indent && (iface.vifs?.length ?? 0) > 0;
   const errors = iface.rx_errors + iface.tx_errors + iface.rx_dropped + iface.tx_dropped;
 
@@ -212,7 +220,10 @@ function IfaceRow({ iface, expanded, onToggle, maxRx, maxTx, indent = false }: I
             <Badge
               variant="destructive"
               className="text-[10px] h-4 px-1"
-              title={`Dropped: ${iface.rx_dropped + iface.tx_dropped} · Errors: ${iface.rx_errors + iface.tx_errors}`}
+              title={t("interfaceStatistics.droppedErrors", {
+                dropped: String(iface.rx_dropped + iface.tx_dropped),
+                errors: String(iface.rx_errors + iface.tx_errors),
+              })}
             >
               <AlertTriangle className="h-2 w-2 mr-0.5" />
               {errors}
@@ -259,6 +270,8 @@ export function InterfaceStatisticsCard({
   height,
   onHeightChange,
 }: InterfaceStatisticsCardProps) {
+  const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   const [interfaces, setInterfaces] = useState<InterfaceWithType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -402,11 +415,11 @@ export function InterfaceStatisticsCard({
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 shrink-0">
         <div className="flex items-center gap-2">
           <Network className="h-5 w-5 text-primary" />
-          <CardTitle className="text-lg font-medium">Interface Statistics</CardTitle>
+          <CardTitle className="text-lg font-medium">{t("interfaceStatistics.title")}</CardTitle>
         </div>
         <div className="flex items-center gap-1.5">
           <Input
-            placeholder="Filter..."
+            placeholder={t("interfaceStatistics.filterPlaceholder")}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             className="h-7 w-28 text-xs"
@@ -415,12 +428,12 @@ export function InterfaceStatisticsCard({
             variant={autoRefresh ? "default" : "outline"}
             size="sm"
             onClick={() => setAutoRefresh((v) => !v)}
-            title={autoRefresh ? `Streaming (${sseStatus})` : "Paused"}
+            title={autoRefresh ? t("stream.streaming", { status: sseStatus }) : t("stream.paused")}
           >
             <RefreshCw
               className={`h-4 w-4 mr-1 ${autoRefresh && isConnected ? "animate-spin" : ""}`}
             />
-            {autoRefresh ? "Live" : "Paused"}
+            {autoRefresh ? t("stream.live") : t("stream.paused")}
           </Button>
           {onSpanChange && (
             <CardSizeMenu
@@ -442,15 +455,15 @@ export function InterfaceStatisticsCard({
         {error ? (
           <div className="px-4 py-6 text-destructive text-sm text-center">{error}</div>
         ) : loading ? (
-          <div className="px-4 py-6 text-center text-muted-foreground text-sm">Connecting...</div>
+          <div className="px-4 py-6 text-center text-muted-foreground text-sm">{t("stream.connecting")}</div>
         ) : (
           <>
             {/* Sort + count bar — pinned */}
             <div className="flex items-center gap-2 px-3 py-1.5 border-b border-t bg-muted/20 text-xs shrink-0">
-              <span className="text-muted-foreground shrink-0">Sort:</span>
+              <span className="text-muted-foreground shrink-0">{t("interfaceStatistics.sort")}</span>
               {(["interface", "rx_bytes", "tx_bytes"] as SortKey[]).map((key) => {
                 const labels: Record<SortKey, string> = {
-                  interface: "Name",
+                  interface: tc("name"),
                   rx_bytes: "↓ RX",
                   tx_bytes: "↑ TX",
                 };
@@ -477,7 +490,7 @@ export function InterfaceStatisticsCard({
               })}
               <div className="flex-1" />
               <span className="text-muted-foreground">
-                {filtered.length} interface{filtered.length !== 1 ? "s" : ""}
+                {t("interfaceStatistics.count", { count: filtered.length })}
               </span>
             </div>
 
@@ -485,7 +498,7 @@ export function InterfaceStatisticsCard({
             <div className="flex-1 min-h-0 overflow-y-auto">
               {paged.length === 0 ? (
                 <div className="px-4 py-6 text-center text-muted-foreground text-sm">
-                  {filter ? `No interfaces matching "${filter}"` : "No interfaces"}
+                  {filter ? t("interfaceStatistics.noMatch", { filter }) : t("interfaceStatistics.noInterfaces")}
                 </div>
               ) : (
                 paged.map((iface) => (
@@ -512,10 +525,10 @@ export function InterfaceStatisticsCard({
                   onClick={() => setCurrentPage((p) => p - 1)}
                 >
                   <ChevronLeft className="h-3 w-3 mr-1" />
-                  Prev
+                  {t("interfaceStatistics.prev")}
                 </Button>
                 <span>
-                  Page {currentPage + 1} of {pageCount}
+                  {t("interfaceStatistics.page", { current: currentPage + 1, total: pageCount })}
                 </span>
                 <Button
                   variant="ghost"
@@ -524,7 +537,7 @@ export function InterfaceStatisticsCard({
                   disabled={currentPage === pageCount - 1}
                   onClick={() => setCurrentPage((p) => p + 1)}
                 >
-                  Next
+                  {t("interfaceStatistics.next")}
                   <ChevronRight className="h-3 w-3 ml-1" />
                 </Button>
               </div>

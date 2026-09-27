@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,11 +14,15 @@ import { WireGuardPeerData, WireGuardInterfaceData } from "@/hooks/useDashboardS
 // Helpers
 // ============================================================================
 
-function formatHandshake(raw: string | null, seconds: number | null): string {
+function formatHandshake(
+  raw: string | null,
+  seconds: number | null,
+  labels: { never: string; justNow: string },
+): string {
   if (!raw || raw.toLowerCase() === "(none)" || raw.toLowerCase() === "none") {
-    return "Never";
+    return labels.never;
   }
-  if (seconds !== null && seconds < 30) return "Just now";
+  if (seconds !== null && seconds < 30) return labels.justNow;
   // Strip trailing "ago" and normalise spacing
   return raw.replace(/\s*ago\s*$/i, "").trim();
 }
@@ -30,11 +35,11 @@ function statusColor(status: WireGuardPeerData["status"]): string {
   }
 }
 
-function statusLabel(status: WireGuardPeerData["status"]): string {
+function statusLabelKey(status: WireGuardPeerData["status"]): "connected" | "idle" | "neverConnected" {
   switch (status) {
-    case "connected": return "Connected";
-    case "idle":      return "Idle";
-    default:          return "Never connected";
+    case "connected": return "connected";
+    case "idle":      return "idle";
+    default:          return "neverConnected";
   }
 }
 
@@ -43,17 +48,21 @@ function statusLabel(status: WireGuardPeerData["status"]): string {
 // ============================================================================
 
 function PeerRow({ peer }: { peer: WireGuardPeerData }) {
+  const t = useTranslations("dashboard");
   const allowedIps = peer.allowed_ips.join(", ") || "—";
-  const handshake = formatHandshake(peer.latest_handshake, peer.latest_handshake_seconds);
+  const handshake = formatHandshake(peer.latest_handshake, peer.latest_handshake_seconds, {
+    never: t("wireGuard.never"),
+    justNow: t("wireGuard.justNow"),
+  });
 
   return (
     <div
       className="flex items-center gap-3 px-3 py-2 border-b last:border-0 hover:bg-muted/20 transition-colors min-w-0"
       title={[
-        peer.endpoint ? `Endpoint: ${peer.endpoint}` : null,
+        peer.endpoint ? t("wireGuard.endpoint", { value: peer.endpoint }) : null,
         peer.transfer_rx ? `RX: ${peer.transfer_rx}` : null,
         peer.transfer_tx ? `TX: ${peer.transfer_tx}` : null,
-        peer.public_key ? `Key: ${peer.public_key}` : null,
+        peer.public_key ? t("wireGuard.key", { value: peer.public_key }) : null,
       ]
         .filter(Boolean)
         .join("\n")}
@@ -61,7 +70,7 @@ function PeerRow({ peer }: { peer: WireGuardPeerData }) {
       {/* Status dot */}
       <span
         className={`h-2 w-2 rounded-full shrink-0 ${statusColor(peer.status)}`}
-        title={statusLabel(peer.status)}
+        title={t(`wireGuard.${statusLabelKey(peer.status)}`)}
       />
 
       {/* Peer name */}
@@ -94,6 +103,7 @@ function PeerRow({ peer }: { peer: WireGuardPeerData }) {
 }
 
 function InterfaceSection({ iface }: { iface: WireGuardInterfaceData }) {
+  const t = useTranslations("dashboard");
   const connectedCount = iface.peers.filter((p) => p.status === "connected").length;
 
   return (
@@ -115,18 +125,18 @@ function InterfaceSection({ iface }: { iface: WireGuardInterfaceData }) {
           variant={connectedCount > 0 ? "default" : "secondary"}
           className="text-[10px] h-4 px-1.5 ml-auto shrink-0"
         >
-          {connectedCount}/{iface.peers.length} up
+          {t("upCount", { up: connectedCount, total: iface.peers.length })}
         </Badge>
         {iface.disabled && (
           <Badge variant="destructive" className="text-[10px] h-4 px-1 shrink-0">
-            disabled
+            {t("wireGuard.disabled")}
           </Badge>
         )}
       </div>
 
       {/* Peer rows */}
       {iface.peers.length === 0 ? (
-        <p className="px-3 py-2 text-xs text-muted-foreground italic">No peers configured</p>
+        <p className="px-3 py-2 text-xs text-muted-foreground italic">{t("wireGuard.noPeers")}</p>
       ) : (
         iface.peers.map((peer) => <PeerRow key={peer.name} peer={peer} />)
       )}
@@ -158,6 +168,7 @@ export function WireGuardPeersCard({
   height,
   onHeightChange,
 }: WireGuardPeersCardProps) {
+  const t = useTranslations("dashboard");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const { status: sseStatus, data: sseData } = useDashboardData();
 
@@ -176,7 +187,7 @@ export function WireGuardPeersCard({
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 shrink-0">
         <div className="flex items-center gap-2">
           <Shield className="h-5 w-5 text-primary" />
-          <CardTitle className="text-lg font-medium">WireGuard Peers</CardTitle>
+          <CardTitle className="text-lg font-medium">{t("wireGuard.title")}</CardTitle>
           {data && totalPeers > 0 && (
             <Badge
               variant={connectedPeers === totalPeers ? "default" : "secondary"}
@@ -191,12 +202,12 @@ export function WireGuardPeersCard({
             variant={autoRefresh ? "default" : "outline"}
             size="sm"
             onClick={() => setAutoRefresh((v) => !v)}
-            title={autoRefresh ? `Streaming (${sseStatus})` : "Paused"}
+            title={autoRefresh ? t("stream.streaming", { status: sseStatus }) : t("stream.paused")}
           >
             <RefreshCw
               className={`h-4 w-4 mr-1 ${autoRefresh && isConnected ? "animate-spin" : ""}`}
             />
-            {autoRefresh ? "Live" : "Paused"}
+            {autoRefresh ? t("stream.live") : t("stream.paused")}
           </Button>
           {onSpanChange && (
             <CardSizeMenu
@@ -217,15 +228,15 @@ export function WireGuardPeersCard({
       <CardContent className="flex-1 min-h-0 overflow-y-auto p-0">
         {isLoading ? (
           <div className="px-4 py-6 text-center text-muted-foreground text-sm">
-            Connecting...
+            {t("stream.connecting")}
           </div>
         ) : !data ? (
           <div className="px-4 py-6 text-center text-muted-foreground text-sm">
-            No data — paused or stream not yet received.
+            {t("wireGuard.noDataPaused")}
           </div>
         ) : data.interfaces.length === 0 ? (
           <div className="px-4 py-6 text-center text-muted-foreground text-sm">
-            No WireGuard interfaces configured.
+            {t("wireGuard.noInterfaces")}
           </div>
         ) : (
           data.interfaces.map((iface) => (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,7 @@ function classLabel(c: QoSClassStats): string {
 }
 
 export function QoSStatsCard({ onRemove, span = 1, onSpanChange, height, onHeightChange, config, onConfigChange }: QoSStatsCardProps) {
+  const t = useTranslations("dashboard");
   const [autoRefresh, setAutoRefresh] = useState(true);
   // Watched interface; "" = all. Seeded from saved card config, editable live.
   const [selected, setSelected] = useState<string>(() => (config?.interface as string) || "");
@@ -42,7 +44,7 @@ export function QoSStatsCard({ onRemove, span = 1, onSpanChange, height, onHeigh
   const { status: sseStatus, data: sseData } = useDashboardData();
   const { stats, rates } = useQoSRates(sseData.qosStats, autoRefresh);
   const loading = stats === null;
-  const error = sseStatus === "error" ? "Dashboard stream disconnected" : null;
+  const error = sseStatus === "error" ? t("qos.streamDisconnected") : null;
 
   const shaperIfaces = stats?.interfaces ?? [];
   const cakeIfaces = stats?.cake ?? [];
@@ -71,7 +73,7 @@ export function QoSStatsCard({ onRemove, span = 1, onSpanChange, height, onHeigh
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 shrink-0">
         <div className="flex items-center gap-2">
           <Gauge className="h-5 w-5 text-primary" />
-          <CardTitle className="text-lg font-medium">QoS Statistics</CardTitle>
+          <CardTitle className="text-lg font-medium">{t("qos.title")}</CardTitle>
         </div>
         <div className="flex items-center gap-1.5">
           {applied && (
@@ -85,10 +87,10 @@ export function QoSStatsCard({ onRemove, span = 1, onSpanChange, height, onHeigh
             variant={autoRefresh ? "default" : "outline"}
             size="sm"
             onClick={() => setAutoRefresh((v) => !v)}
-            title={autoRefresh ? `Live via dashboard stream (${sseStatus})` : "Paused"}
+            title={autoRefresh ? t("stream.liveVia", { status: sseStatus }) : t("stream.paused")}
           >
             <RefreshCw className={`h-4 w-4 mr-1 ${autoRefresh && sseStatus === "connected" ? "animate-spin" : ""}`} />
-            {autoRefresh ? "Live" : "Paused"}
+            {autoRefresh ? t("stream.live") : t("stream.paused")}
           </Button>
           {onSpanChange && (
             <CardSizeMenu
@@ -110,18 +112,17 @@ export function QoSStatsCard({ onRemove, span = 1, onSpanChange, height, onHeigh
         {error && !stats ? (
           <div className="px-4 py-6 text-destructive text-sm text-center">{error}</div>
         ) : loading && !stats ? (
-          <div className="px-4 py-6 text-center text-muted-foreground text-sm">Loading…</div>
+          <div className="px-4 py-6 text-center text-muted-foreground text-sm">{t("stream.loading")}</div>
         ) : !applied ? (
           <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-muted-foreground">
-            QoS is not applied to any interface. Attach a policy to an interface to see live
-            traffic here.
+            {t("qos.notApplied")}
           </div>
         ) : (
           <div className="flex-1 min-h-0 overflow-y-auto">
             {stale && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-amber-600 dark:text-amber-400 bg-amber-500/10 border-b">
                 <AlertTriangle className="h-3 w-3 shrink-0" />
-                <span className="truncate">“{selected}” no longer has QoS applied — showing all interfaces.</span>
+                <span className="truncate">{t("qos.stale", { name: selected })}</span>
               </div>
             )}
             {shownInterfaces.map((iface) => {
@@ -141,12 +142,12 @@ export function QoSStatsCard({ onRemove, span = 1, onSpanChange, height, onHeigh
                     {drops > 0 ? (
                       <span className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 shrink-0">
                         <AlertTriangle className="h-3 w-3" />
-                        {drops.toLocaleString()} drops
+                        {t("qos.drops", { count: drops.toLocaleString() })}
                       </span>
                     ) : (
                       <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 shrink-0">
                         <CheckCircle2 className="h-3 w-3" />
-                        no drops
+                        {t("qos.noDrops")}
                       </span>
                     )}
                   </div>
@@ -161,7 +162,18 @@ export function QoSStatsCard({ onRemove, span = 1, onSpanChange, height, onHeigh
                       <div
                         key={c.class_name}
                         className="flex items-center gap-2 px-3 py-2 border-b last:border-0 hover:bg-muted/30 transition-colors"
-                        title={`${formatBytes(c.bytes)} · ${c.packets.toLocaleString()} pkts${c.drops ? ` · ${c.drops.toLocaleString()} drops` : ""}`}
+                        title={
+                          c.drops
+                            ? t("qos.classTooltipDrops", {
+                                bytes: formatBytes(c.bytes),
+                                packets: c.packets.toLocaleString(),
+                                drops: c.drops.toLocaleString(),
+                              })
+                            : t("qos.classTooltip", {
+                                bytes: formatBytes(c.bytes),
+                                packets: c.packets.toLocaleString(),
+                              })
+                        }
                       >
                         <div className="w-24 shrink-0 min-w-0">
                           <p className="font-mono text-xs font-medium truncate">{classLabel(c)}</p>

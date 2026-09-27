@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Router, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +15,7 @@ import { useSessionStore } from "@/store/session-store";
  * /sites.
  */
 export function ConnectFirstInstance() {
+  const t = useTranslations("dashboard");
   const appliance = useSessionStore((s) => s.appliance);
   return (
     <div className="flex min-h-[60vh] items-center justify-center p-4 sm:p-8">
@@ -22,16 +24,16 @@ export function ConnectFirstInstance() {
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
             <Router className="h-7 w-7 text-primary" />
           </div>
-          <h2 className="text-xl font-semibold">Connect your first VyOS instance</h2>
+          <h2 className="text-xl font-semibold">{t("connectFirstInstance.title")}</h2>
           <p className="text-sm text-muted-foreground">
             {appliance
-              ? "This router is unreachable. Check the API and try again."
-              : "VyManager is running, but no router has been added yet. Add a VyOS instance in the Site Manager and connect to it to start managing your network. You will need the router's address and its HTTP API key."}
+              ? t("routerUnreachable")
+              : t("connectFirstInstance.description")}
           </p>
           {!appliance && (
             <Button asChild className="mt-2">
               <Link href="/sites">
-                Open Site Manager
+                {t("connectFirstInstance.openSiteManager")}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
