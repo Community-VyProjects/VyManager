@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -39,6 +40,8 @@ export function SiteModal({
   onSuccess,
   existing,
 }: SiteModalProps) {
+  const t = useTranslations("sites");
+  const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
   const [draft, setDraft] = useState<SiteDraft>(emptySiteDraft());
   const [loading, setLoading] = useState(false);
@@ -61,7 +64,7 @@ export function SiteModal({
 
     const validationError = validateSiteDraft(draft);
     if (validationError) {
-      setError(validationError);
+      setError(t(`validation.${validationError}`));
       return;
     }
 
@@ -80,7 +83,7 @@ export function SiteModal({
     } catch (err) {
       setError(
         (err as ApiError).message ||
-          (isEdit ? "Failed to update site" : "Failed to create site"),
+          (isEdit ? t("siteModal.updateFailed") : t("siteModal.createFailed")),
       );
     } finally {
       setLoading(false);
@@ -96,11 +99,11 @@ export function SiteModal({
               <Building2 className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <DialogTitle>{isEdit ? "Edit Site" : "Create New Site"}</DialogTitle>
+              <DialogTitle>{isEdit ? t("editSite") : t("siteModal.createTitle")}</DialogTitle>
               <DialogDescription>
                 {isEdit
-                  ? "Update site information"
-                  : "Create a new site to organize your VyOS instances"}
+                  ? t("siteModal.editDescription")
+                  : t("siteModal.createDescription")}
               </DialogDescription>
             </div>
           </div>
@@ -119,30 +122,30 @@ export function SiteModal({
 
             <div className="space-y-2">
               <Label htmlFor="name" className="required">
-                Site Name
+                {t("siteModal.nameLabel")}
               </Label>
               <Input
                 id="name"
                 value={draft.name}
                 onChange={(e) => patch({ name: e.target.value })}
-                placeholder="e.g., Main Office, Data Center 1"
+                placeholder={t("siteModal.namePlaceholder")}
                 disabled={loading}
                 required
               />
               {!isEdit && (
                 <p className="text-xs text-muted-foreground">
-                  A descriptive name for this site
+                  {t("siteModal.nameHint")}
                 </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description (Optional)</Label>
+              <Label htmlFor="description">{t("descriptionOptional")}</Label>
               <Textarea
                 id="description"
                 value={draft.description}
                 onChange={(e) => patch({ description: e.target.value })}
-                placeholder="Additional information about this site..."
+                placeholder={t("siteModal.descriptionPlaceholder")}
                 rows={3}
                 disabled={loading}
               />
@@ -156,18 +159,18 @@ export function SiteModal({
               onClick={() => onOpenChange(false)}
               disabled={loading}
             >
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button type="submit" disabled={loading}>
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  {isEdit ? "Saving..." : "Creating..."}
+                  {isEdit ? tc("saving") : t("creating")}
                 </>
               ) : isEdit ? (
-                "Save Changes"
+                t("saveChanges")
               ) : (
-                "Create Site"
+                t("siteModal.createButton")
               )}
             </Button>
           </DialogFooter>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Building2, ChevronDown, ChevronRight, Loader2, MoreVertical, Pencil, Trash2, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ export function SiteCard({
   onDeleteSite,
   onRefresh,
 }: SiteCardProps) {
+  const t = useTranslations("sites");
   const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,11 +61,11 @@ export function SiteCard({
       const data = await sessionService.listInstances(site.id);
       setInstances(data);
     } catch (err) {
-      setError((err as ApiError).message || "Failed to load instances");
+      setError((err as ApiError).message || t("siteCard.loadInstancesFailed"));
     } finally {
       setLoading(false);
     }
-  }, [site.id]);
+  }, [site.id, t]);
 
   useEffect(() => {
     loadInstances();
@@ -135,7 +137,7 @@ export function SiteCard({
             </Badge>
             {instances.length > 0 && (
               <Badge variant="outline">
-                {instances.length} {instances.length === 1 ? "instance" : "instances"}
+                {t("instanceCount", { count: instances.length })}
               </Badge>
             )}
 
@@ -155,7 +157,7 @@ export function SiteCard({
                   disabled={site.role !== "ADMIN"}
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Instance
+                  {t("addInstance")}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -166,7 +168,7 @@ export function SiteCard({
                   disabled={site.role !== "ADMIN"}
                 >
                   <Pencil className="h-4 w-4 mr-2" />
-                  Edit Site
+                  {t("editSite")}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={(e) => {
@@ -177,7 +179,7 @@ export function SiteCard({
                   className="text-destructive focus:text-destructive"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Site
+                  {t("deleteSite")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -202,7 +204,7 @@ export function SiteCard({
             {!loading && !error && instances.length === 0 && (
               <div className="text-center py-8">
                 <p className="text-sm text-muted-foreground">
-                  No instances configured for this site.
+                  {t("siteCard.noInstances")}
                 </p>
               </div>
             )}

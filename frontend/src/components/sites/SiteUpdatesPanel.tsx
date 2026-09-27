@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -34,39 +35,42 @@ interface SiteUpdatesPanelProps {
   onRefresh: () => void;
 }
 
-function statusBadge(inst: InstanceUpdateStatus) {
+function statusBadge(
+  inst: InstanceUpdateStatus,
+  t: ReturnType<typeof useTranslations<"sites">>
+) {
   switch (inst.status) {
     case "ok":
       return inst.update_available ? (
         <Badge variant="secondary" className="bg-amber-500/15 text-amber-600 dark:text-amber-400">
           <ArrowUpCircle className="h-3 w-3" />
-          {inst.available_version ?? "Update available"}
+          {inst.available_version ?? t("updates.updateAvailable")}
         </Badge>
       ) : (
         <Badge variant="secondary" className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
           <CheckCircle2 className="h-3 w-3" />
-          Up to date
+          {t("updates.upToDate")}
         </Badge>
       );
     case "not_configured":
       return (
         <Badge variant="outline" className="text-muted-foreground">
           <MinusCircle className="h-3 w-3" />
-          Not configured
+          {t("updates.notConfigured")}
         </Badge>
       );
     case "inactive":
       return (
         <Badge variant="outline" className="text-muted-foreground">
           <MinusCircle className="h-3 w-3" />
-          Inactive
+          {t("inactive")}
         </Badge>
       );
     default: // unreachable | error
       return (
         <Badge variant="secondary" className="bg-destructive/15 text-destructive">
           <AlertTriangle className="h-3 w-3" />
-          Unreachable
+          {t("unreachable")}
         </Badge>
       );
   }
@@ -78,6 +82,8 @@ export function SiteUpdatesPanel({
   error,
   onRefresh,
 }: SiteUpdatesPanelProps) {
+  const t = useTranslations("sites");
+  const tc = useTranslations("common");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -99,7 +105,7 @@ export function SiteUpdatesPanel({
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
-        Checking for updates…
+        {t("updates.checking")}
       </div>
     );
   }
@@ -113,7 +119,7 @@ export function SiteUpdatesPanel({
         </div>
         <Button variant="ghost" size="sm" onClick={onRefresh} disabled={loading}>
           <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -135,36 +141,35 @@ export function SiteUpdatesPanel({
           <span className="text-sm font-medium truncate">
             {summary.with_updates > 0 ? (
               <>
-                {summary.with_updates} of {summary.total}{" "}
-                {summary.total === 1 ? "router" : "routers"} have updates available
+                {t("updates.summary", { withUpdates: summary.with_updates, total: summary.total })}
               </>
             ) : (
-              <>All routers up to date</>
+              <>{t("updates.allUpToDate")}</>
             )}
           </span>
           <div className="flex items-center gap-1.5 shrink-0">
             {summary.with_updates > 0 && (
               <Badge variant="secondary" className="bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                {summary.with_updates} update{summary.with_updates === 1 ? "" : "s"}
+                {t("updates.updatesBadge", { count: summary.with_updates })}
               </Badge>
             )}
             {summary.unreachable > 0 && (
               <Badge variant="secondary" className="bg-destructive/15 text-destructive">
-                {summary.unreachable} unreachable
+                {t("updates.unreachableBadge", { count: summary.unreachable })}
               </Badge>
             )}
           </div>
         </button>
         <div className="flex items-center gap-1 shrink-0">
           <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
-            View all
+            {t("updates.viewAll")}
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={onRefresh}
             disabled={loading}
-            title="Re-check all instances"
+            title={t("updates.recheckTitle")}
           >
             <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
           </Button>
@@ -176,14 +181,13 @@ export function SiteUpdatesPanel({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <PackageSearch className="h-5 w-5" />
-              Update status
+              {t("updates.dialogTitle")}
             </DialogTitle>
             <DialogDescription>
-              {summary.with_updates} of {summary.total} instances have updates
-              available
-              {summary.unreachable > 0 ? ` · ${summary.unreachable} unreachable` : ""}
+              {t("updates.dialogDescription", { withUpdates: summary.with_updates, total: summary.total })}
+              {summary.unreachable > 0 ? t("updates.unreachableSuffix", { count: summary.unreachable }) : ""}
               {summary.not_configured > 0
-                ? ` · ${summary.not_configured} not configured`
+                ? t("updates.notConfiguredSuffix", { count: summary.not_configured })
                 : ""}
             </DialogDescription>
           </DialogHeader>
@@ -193,7 +197,7 @@ export function SiteUpdatesPanel({
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               autoFocus
-              placeholder="Search instances…"
+              placeholder={t("updates.searchPlaceholder")}
               className="pl-9"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -204,7 +208,7 @@ export function SiteUpdatesPanel({
           <div className="max-h-[55vh] overflow-y-auto -mx-1 px-1 rounded-md border border-border divide-y divide-border">
             {filtered.length === 0 ? (
               <div className="py-10 text-center text-sm text-muted-foreground">
-                No instances match “{query}”.
+                {t("updates.noMatch", { query })}
               </div>
             ) : (
               filtered.map((inst) => (
@@ -220,7 +224,7 @@ export function SiteUpdatesPanel({
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    {statusBadge(inst)}
+                    {statusBadge(inst, t)}
                   </div>
                 </div>
               ))
@@ -229,7 +233,7 @@ export function SiteUpdatesPanel({
 
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">
-              {filtered.length} of {summary.total} shown
+              {t("updates.shownCount", { shown: filtered.length, total: summary.total })}
             </p>
             <Button
               variant="outline"
@@ -238,7 +242,7 @@ export function SiteUpdatesPanel({
               disabled={loading}
             >
               <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-              Re-check all
+              {t("updates.recheckAll")}
             </Button>
           </div>
         </DialogContent>

@@ -83,7 +83,7 @@ const storedInstance: Instance = {
 
 describe("site create", () => {
   it("rejects a missing name", () => {
-    assert.equal(validateSiteDraft(emptySiteDraft()), "Site name is required");
+    assert.equal(validateSiteDraft(emptySiteDraft()), "siteNameRequired");
   });
 
   it("emits only the fields the operator filled in", async () => {
@@ -141,7 +141,7 @@ describe("instance create", () => {
     const draft = emptyInstanceDraft();
     draft.name = "edge-1";
     draft.host = "192.0.2.1";
-    assert.equal(validateInstanceCreate(draft, "site-1"), "API Key is required");
+    assert.equal(validateInstanceCreate(draft, "site-1"), "apiKeyRequired");
     assert.equal(validateInstanceShared(draft), null);
   });
 

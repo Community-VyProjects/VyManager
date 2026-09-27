@@ -20,6 +20,19 @@ import {
   type SiteUpdateRequest,
 } from "@/lib/api/session";
 
+/**
+ * Validation failures are returned as message keys (messages/<locale>/sites.json
+ * under "validation") so the modals can show them in the user's language.
+ */
+export type SitesFormError =
+  | "siteNameRequired"
+  | "instanceNameRequired"
+  | "hostRequired"
+  | "portRange"
+  | "sshPortRange"
+  | "siteRequired"
+  | "apiKeyRequired";
+
 const emptyToNull = (value: string): string | null => value.trim() || null;
 
 const storedText = (value: string | null | undefined): string => value ?? "";
@@ -51,8 +64,8 @@ export function siteDraftFrom(site: Site): SiteDraft {
   };
 }
 
-export function validateSiteDraft(draft: SiteDraft): string | null {
-  if (!draft.name.trim()) return "Site name is required";
+export function validateSiteDraft(draft: SiteDraft): SitesFormError | null {
+  if (!draft.name.trim()) return "siteNameRequired";
   return null;
 }
 
@@ -152,19 +165,19 @@ export function instanceDraftFrom(instance: Instance): InstanceDraft {
   };
 }
 
-export function validateInstanceShared(draft: InstanceDraft): string | null {
-  if (!draft.name.trim()) return "Instance name is required";
-  if (!draft.host.trim()) return "Host is required";
-  if (parsePort(draft.port) == null) return "Port must be between 1 and 65535";
-  if (parsePort(draft.sshPort) == null) return "SSH port must be between 1 and 65535";
+export function validateInstanceShared(draft: InstanceDraft): SitesFormError | null {
+  if (!draft.name.trim()) return "instanceNameRequired";
+  if (!draft.host.trim()) return "hostRequired";
+  if (parsePort(draft.port) == null) return "portRange";
+  if (parsePort(draft.sshPort) == null) return "sshPortRange";
   return null;
 }
 
-export function validateInstanceCreate(draft: InstanceDraft, siteId: string | undefined): string | null {
+export function validateInstanceCreate(draft: InstanceDraft, siteId: string | undefined): SitesFormError | null {
   const shared = validateInstanceShared(draft);
   if (shared) return shared;
-  if (!siteId) return "Site is required";
-  if (!draft.apiKey.trim()) return "API Key is required";
+  if (!siteId) return "siteRequired";
+  if (!draft.apiKey.trim()) return "apiKeyRequired";
   return null;
 }
 

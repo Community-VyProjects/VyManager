@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,8 @@ export function MoveInstanceModal({
   currentSite,
   allSites,
 }: MoveInstanceModalProps) {
+  const t = useTranslations("sites");
+  const tc = useTranslations("common");
   const [destinationSiteId, setDestinationSiteId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +57,7 @@ export function MoveInstanceModal({
 
   const handleMove = async () => {
     if (!instance || !destinationSiteId) {
-      setError("Please select a destination site");
+      setError(t("moveInstanceModal.selectDestination"));
       return;
     }
 
@@ -69,7 +72,7 @@ export function MoveInstanceModal({
       handleClose();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to move instance");
+      setError(err instanceof Error ? err.message : t("moveInstanceModal.failed"));
       setLoading(false);
     }
   };
@@ -95,17 +98,16 @@ export function MoveInstanceModal({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Move Instance to Another Site</DialogTitle>
+          <DialogTitle>{t("moveInstanceModal.title")}</DialogTitle>
           <DialogDescription>
-            Move &quot;{instance.name}&quot; to a different site. You can only move instances
-            to sites where you have Owner or Admin permissions.
+            {t("moveInstanceModal.description", { name: instance.name })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           {/* Current Site */}
           <div className="space-y-2">
-            <Label>Current Site</Label>
+            <Label>{t("moveInstanceModal.currentSite")}</Label>
             <div className="rounded-lg border border-border bg-muted/50 p-3">
               <p className="font-medium text-sm">{currentSite.name}</p>
               {currentSite.description && (
@@ -118,12 +120,11 @@ export function MoveInstanceModal({
 
           {/* Destination Site */}
           <div className="space-y-2">
-            <Label htmlFor="destination-site">Destination Site *</Label>
+            <Label htmlFor="destination-site">{t("moveInstanceModal.destinationSite")}</Label>
             {availableSites.length === 0 ? (
               <div className="rounded-lg border border-border bg-muted/50 p-4 text-center">
                 <p className="text-sm text-muted-foreground">
-                  No other sites available. You need Owner or Admin permissions on
-                  another site to move this instance.
+                  {t("moveInstanceModal.noOtherSites")}
                 </p>
               </div>
             ) : (
@@ -133,7 +134,7 @@ export function MoveInstanceModal({
                 disabled={loading}
               >
                 <SelectTrigger id="destination-site">
-                  <SelectValue placeholder="Select destination site" />
+                  <SelectValue placeholder={t("moveInstanceModal.selectPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
                   {availableSites.map((site) => (
@@ -159,12 +160,10 @@ export function MoveInstanceModal({
               <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">
-                  Important
+                  {t("moveInstanceModal.important")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Moving this instance will immediately change its site association.
-                  If you&apos;re currently connected to this instance, you&apos;ll be
-                  disconnected.
+                  {t("moveInstanceModal.importantText")}
                 </p>
               </div>
             </div>
@@ -176,7 +175,7 @@ export function MoveInstanceModal({
               <div className="flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-destructive">Error</p>
+                  <p className="text-sm font-medium text-destructive">{t("moveInstanceModal.error")}</p>
                   <p className="text-sm text-destructive mt-1">{error}</p>
                 </div>
               </div>
@@ -186,7 +185,7 @@ export function MoveInstanceModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button
             onClick={handleMove}
@@ -195,12 +194,12 @@ export function MoveInstanceModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Moving...
+                {t("moveInstanceModal.moving")}
               </>
             ) : (
               <>
                 <MoveRight className="mr-2 h-4 w-4" />
-                Move Instance
+                {t("moveInstanceModal.moveButton")}
               </>
             )}
           </Button>

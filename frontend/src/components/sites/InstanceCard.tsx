@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -39,6 +40,8 @@ export function InstanceCard({
   onMove,
   onDelete,
 }: InstanceCardProps) {
+  const t = useTranslations("sites");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,7 +53,7 @@ export function InstanceCard({
     try {
       await onConnect(instance.id);
     } catch (err) {
-      setError((err as ApiError).message || "Failed to connect");
+      setError((err as ApiError).message || t("instanceCard.connectFailed"));
     } finally {
       setLoading(false);
     }
@@ -62,7 +65,7 @@ export function InstanceCard({
     try {
       await onDisconnect();
     } catch (err) {
-      setError((err as ApiError).message || "Failed to disconnect");
+      setError((err as ApiError).message || t("instanceCard.disconnectFailed"));
     } finally {
       setLoading(false);
     }
@@ -107,11 +110,11 @@ export function InstanceCard({
           {/* Status Badge */}
           {isActive && (
             <Badge variant="default" className="bg-primary">
-              Connected
+              {t("connected")}
             </Badge>
           )}
           {!instance.is_active && !isActive && (
-            <Badge variant="secondary">Inactive</Badge>
+            <Badge variant="secondary">{t("inactive")}</Badge>
           )}
 
           {/* Instance Management Dropdown */}
@@ -125,11 +128,11 @@ export function InstanceCard({
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => onEdit(instance)}>
                   <Pencil className="h-4 w-4 mr-2" />
-                  Edit
+                  {tc("edit")}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onMove(instance)}>
                   <MoveRight className="h-4 w-4 mr-2" />
-                  Move to Site
+                  {t("moveToSite")}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -137,7 +140,7 @@ export function InstanceCard({
                   className="text-destructive focus:text-destructive"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
+                  {tc("delete")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -171,12 +174,12 @@ export function InstanceCard({
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Connecting...
+                {t("connecting")}
               </>
             ) : (
               <>
                 <Power className="h-4 w-4 mr-2" />
-                Connect
+                {t("connect")}
               </>
             )}
           </Button>
@@ -191,12 +194,12 @@ export function InstanceCard({
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Disconnecting...
+                {t("disconnecting")}
               </>
             ) : (
               <>
                 <PowerOff className="h-4 w-4 mr-2" />
-                Disconnect
+                {t("disconnect")}
               </>
             )}
           </Button>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,8 @@ export function DeleteSiteModal({
   site,
   instanceCount,
 }: DeleteSiteModalProps) {
+  const t = useTranslations("sites");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,7 +51,7 @@ export function DeleteSiteModal({
       handleClose();
       onSuccess();
     } catch (err) {
-      setError((err as ApiError).message || "Failed to delete site");
+      setError((err as ApiError).message || t("deleteSiteModal.failed"));
     } finally {
       setLoading(false);
     }
@@ -65,9 +68,9 @@ export function DeleteSiteModal({
               <AlertTriangle className="h-5 w-5 text-destructive" />
             </div>
             <div>
-              <DialogTitle>Delete Site</DialogTitle>
+              <DialogTitle>{t("deleteSite")}</DialogTitle>
               <DialogDescription>
-                This action cannot be undone
+                {t("cannotBeUndone")}
               </DialogDescription>
             </div>
           </div>
@@ -87,18 +90,19 @@ export function DeleteSiteModal({
           {/* Warning Message */}
           <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
             <p className="text-sm text-foreground mb-2">
-              Are you sure you want to delete <strong>{site.name}</strong>?
+              {t.rich("deleteConfirm", {
+                name: site.name,
+                strong: (chunks) => <strong>{chunks}</strong>,
+              })}
             </p>
             {instanceCount > 0 && (
               <p className="text-sm text-destructive font-medium">
-                ⚠️ This will also delete {instanceCount}{" "}
-                {instanceCount === 1 ? "instance" : "instances"} associated
-                with this site.
+                {t("deleteSiteModal.alsoDeletes", { count: instanceCount })}
               </p>
             )}
             {instanceCount === 0 && (
               <p className="text-sm text-muted-foreground">
-                This site has no instances.
+                {t("deleteSiteModal.noInstances")}
               </p>
             )}
           </div>
@@ -107,7 +111,7 @@ export function DeleteSiteModal({
           {site.role !== "ADMIN" && (
             <div className="rounded-lg border border-warning/30 bg-warning/5 p-3">
               <p className="text-sm text-warning">
-                Only site ADMIN can delete sites. Your role: {site.role}
+                {t("deleteSiteModal.adminOnly", { role: site.role })}
               </p>
             </div>
           )}
@@ -120,7 +124,7 @@ export function DeleteSiteModal({
             onClick={handleClose}
             disabled={loading}
           >
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button
             variant="destructive"
@@ -130,10 +134,10 @@ export function DeleteSiteModal({
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Site"
+              t("deleteSite")
             )}
           </Button>
         </DialogFooter>

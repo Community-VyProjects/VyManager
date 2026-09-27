@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,8 @@ export function DeleteInstanceModal({
   instance,
   userRole,
 }: DeleteInstanceModalProps) {
+  const t = useTranslations("sites");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,7 +51,7 @@ export function DeleteInstanceModal({
       handleClose();
       onSuccess();
     } catch (err) {
-      setError((err as ApiError).message || "Failed to delete instance");
+      setError((err as ApiError).message || t("deleteInstanceModal.failed"));
     } finally {
       setLoading(false);
     }
@@ -67,9 +70,9 @@ export function DeleteInstanceModal({
               <AlertTriangle className="h-5 w-5 text-destructive" />
             </div>
             <div>
-              <DialogTitle>Delete Instance</DialogTitle>
+              <DialogTitle>{t("deleteInstance")}</DialogTitle>
               <DialogDescription>
-                This action cannot be undone
+                {t("cannotBeUndone")}
               </DialogDescription>
             </div>
           </div>
@@ -89,10 +92,13 @@ export function DeleteInstanceModal({
           {/* Warning Message */}
           <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
             <p className="text-sm text-foreground mb-2">
-              Are you sure you want to delete <strong>{instance.name}</strong>?
+              {t.rich("deleteConfirm", {
+                name: instance.name,
+                strong: (chunks) => <strong>{chunks}</strong>,
+              })}
             </p>
             <div className="text-sm text-muted-foreground space-y-1 mt-2">
-              <p>• Host: {instance.host}:{instance.port}</p>
+              <p>{t("deleteInstanceModal.hostLine", { host: instance.host, port: String(instance.port) })}</p>
               {instance.description && <p>• {instance.description}</p>}
             </div>
           </div>
@@ -101,7 +107,7 @@ export function DeleteInstanceModal({
           {!canDelete && (
             <div className="rounded-lg border border-warning/30 bg-warning/5 p-3">
               <p className="text-sm text-warning">
-                Only ADMIN can delete instances. Your role: {userRole}
+                {t("deleteInstanceModal.adminOnly", { role: userRole })}
               </p>
             </div>
           )}
@@ -114,7 +120,7 @@ export function DeleteInstanceModal({
             onClick={handleClose}
             disabled={loading}
           >
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button
             variant="destructive"
@@ -124,10 +130,10 @@ export function DeleteInstanceModal({
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Instance"
+              t("deleteInstance")
             )}
           </Button>
         </DialogFooter>
