@@ -1,13 +1,21 @@
 import { Settings } from "lucide-react";
+import { navTitleKey } from "@/i18n/nav-title";
 import { buildHref, createSearchResult } from "./utils";
 import type { SearchResult } from "./types";
+import { englishSearchI18n, type SearchI18n, type SearchIndexKey } from "./i18n";
 
 export type UiFieldControlType = "select" | "toggle" | "input";
 
-const CONTROL_WORD: Record<UiFieldControlType, string> = {
-  select: "selector",
-  toggle: "toggle",
-  input: "field",
+const CONTROL_WORD: Record<UiFieldControlType, SearchIndexKey> = {
+  select: "uiFields.controls.select",
+  toggle: "uiFields.controls.toggle",
+  input: "uiFields.controls.input",
+};
+
+const CONTROL_TYPE_LABEL: Record<UiFieldControlType, SearchIndexKey> = {
+  select: "uiFields.types.select",
+  toggle: "uiFields.types.toggle",
+  input: "uiFields.types.input",
 };
 
 const systemField = (
@@ -34,30 +42,38 @@ export interface UiFieldDefinition {
   hint?: string;
 }
 
-function fieldDescription(field: UiFieldDefinition): string {
-  const control = CONTROL_WORD[field.controlType];
-  return `${field.label} ${control} from ${field.sectionTitle} within ${field.pageTitle} from ${field.feature}`;
-}
-
-function fieldToResult(field: UiFieldDefinition): SearchResult {
-  const subcategory = `${field.feature} · ${field.pageTitle} · ${field.sectionTitle}`;
+function fieldToResult(field: UiFieldDefinition, i18n: SearchI18n): SearchResult {
+  // Labels, section and page titles are English ids in the registry, translated here
+  const label = i18n.label(field.label);
+  const section = i18n.label(field.sectionTitle);
+  const page = i18n.label(field.pageTitle);
+  const feature = i18n.nav(field.feature);
+  const subcategory = `${feature} · ${page} · ${section}`;
+  const description = i18n.t("uiFields.description", {
+    label,
+    control: i18n.t(CONTROL_WORD[field.controlType]),
+    section,
+    page,
+    feature,
+  });
+  const hint = field.hint && i18n.text(`uiFields.hints.${navTitleKey(field.id)}`, field.hint);
   return createSearchResult({
     id: field.id,
-    title: field.label,
+    title: label,
     subtitle: subcategory,
-    description: field.hint ? `${fieldDescription(field)} — ${field.hint}` : fieldDescription(field),
+    description: hint ? i18n.t("uiFields.withHint", { description, hint }) : description,
     kind: "ui-field",
-    typeLabel: field.controlType === "select" ? "Selector" : field.controlType === "toggle" ? "Toggle" : "Setting",
+    typeLabel: i18n.t(CONTROL_TYPE_LABEL[field.controlType]),
     feature: field.feature,
     category: field.feature,
     subcategory,
     href: buildHref(field.href, field.searchParams),
     icon: Settings,
     keywords: [
-      field.label,
-      field.sectionTitle,
-      field.pageTitle,
-      field.feature,
+      label,
+      section,
+      page,
+      feature,
       field.sectionId,
       ...(field.aliases ?? []),
     ],
@@ -406,8 +422,6 @@ export const uiFieldDefinitions: UiFieldDefinition[] = [
   }),
 ];
 
-export function buildUiFieldsSearchIndex(): SearchResult[] {
-  return uiFieldDefinitions.map(fieldToResult);
+export function buildUiFieldsSearchIndex(i18n: SearchI18n = englishSearchI18n): SearchResult[] {
+  return uiFieldDefinitions.map((field) => fieldToResult(field, i18n));
 }
-
-export const uiFieldsSearchIndex = buildUiFieldsSearchIndex();

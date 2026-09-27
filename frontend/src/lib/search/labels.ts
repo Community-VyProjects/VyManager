@@ -1,41 +1,43 @@
 import type { SearchEntityKind, SearchResult } from "./types";
+import { englishSearchI18n, type SearchI18n, type SearchIndexKey } from "./i18n";
 
-/** Known kinds — anything else is derived automatically */
-const KIND_LABEL_OVERRIDES: Partial<Record<SearchEntityKind, string>> = {
-  page: "Page",
-  section: "Section",
-  interface: "Interface",
-  "dhcp-subnet": "DHCP Subnet",
-  "dhcp-range": "DHCP Range",
-  "dhcp-static": "DHCP Static",
-  "wireguard-peer": "WireGuard Peer",
-  "firewall-rule": "Firewall Rule",
-  "firewall-chain": "Custom Chain",
-  "firewall-group": "Firewall Group",
-  "firewall-zone": "Zone",
-  "bridge-chain": "Bridge Chain",
-  "bgp-neighbor": "BGP Neighbor",
-  "bgp-peer-group": "BGP Peer Group",
-  "ospf-interface": "OSPF Interface",
-  "vrf-instance": "VRF Instance",
-  "vrf-tab": "VRF Tab",
-  "nat-source": "Source NAT",
-  "nat-destination": "Destination NAT",
-  "nat-static": "Static NAT",
-  "nat-cgnat": "CGNAT",
-  "host-mapping": "Host Mapping",
-  "system-user": "System User",
-  "ssh-key": "SSH Key",
-  container: "Container",
-  "container-registry": "Registry",
-  "container-network": "Container Network",
-  "haproxy-backend": "HAProxy Backend",
-  "haproxy-service": "HAProxy Service",
-  "haproxy-server": "HAProxy Server",
-  "haproxy-rule": "HAProxy Rule",
-  "pki-certificate": "Certificate",
-  "pki-dh": "DH Parameters",
-  "ui-field": "Setting",
+/** Message key of the display label for each kind */
+const KIND_LABEL_KEYS: Record<SearchEntityKind, SearchIndexKey> = {
+  page: "kinds.page",
+  section: "kinds.section",
+  interface: "kinds.interface",
+  "dhcp-subnet": "kinds.dhcpSubnet",
+  "dhcp-range": "kinds.dhcpRange",
+  "dhcp-static": "kinds.dhcpStatic",
+  "wireguard-peer": "kinds.wireguardPeer",
+  "firewall-rule": "kinds.firewallRule",
+  "firewall-chain": "kinds.firewallChain",
+  "firewall-group": "kinds.firewallGroup",
+  "firewall-zone": "kinds.firewallZone",
+  "bridge-chain": "kinds.bridgeChain",
+  "bgp-neighbor": "kinds.bgpNeighbor",
+  "bgp-peer-group": "kinds.bgpPeerGroup",
+  "ospf-interface": "kinds.ospfInterface",
+  "vrf-instance": "kinds.vrfInstance",
+  "vrf-tab": "kinds.vrfTab",
+  "nat-source": "kinds.natSource",
+  "nat-destination": "kinds.natDestination",
+  "nat-static": "kinds.natStatic",
+  "nat-cgnat": "kinds.natCgnat",
+  "host-mapping": "kinds.hostMapping",
+  "system-user": "kinds.systemUser",
+  "ssh-key": "kinds.sshKey",
+  container: "kinds.container",
+  "container-registry": "kinds.containerRegistry",
+  "container-network": "kinds.containerNetwork",
+  "haproxy-backend": "kinds.haproxyBackend",
+  "haproxy-service": "kinds.haproxyService",
+  "haproxy-server": "kinds.haproxyServer",
+  "haproxy-rule": "kinds.haproxyRule",
+  "pki-certificate": "kinds.pkiCertificate",
+  "pki-dh": "kinds.pkiDh",
+  "config-entity": "kinds.configEntity",
+  "ui-field": "kinds.uiField",
 };
 
 export function humanizeToken(token: string): string {
@@ -49,10 +51,9 @@ export function humanizeToken(token: string): string {
 }
 
 /** Turn `bgp-peer-group` or `pre_shared_keys` into readable text */
-export function humanizeKind(kind: string): string {
-  if (KIND_LABEL_OVERRIDES[kind as SearchEntityKind]) {
-    return KIND_LABEL_OVERRIDES[kind as SearchEntityKind]!;
-  }
+export function humanizeKind(kind: string, i18n: SearchI18n = englishSearchI18n): string {
+  const key = KIND_LABEL_KEYS[kind as SearchEntityKind];
+  if (key) return i18n.t(key);
   return kind
     .split("-")
     .map((part) => humanizeToken(part))
@@ -81,14 +82,14 @@ export function typeLabelFromPath(subcategory?: string): string | undefined {
 /**
  * Display label for the "kind" column — works for every indexed item without maintaining a giant enum map.
  */
-export function getResultTypeLabel(result: SearchResult): string {
+export function getResultTypeLabel(result: SearchResult, i18n: SearchI18n = englishSearchI18n): string {
   if (result.typeLabel) return result.typeLabel;
 
   const fromPath = typeLabelFromPath(result.subcategory);
   if (result.kind === "config-entity" || result.kind === "section") {
     if (fromPath) return fromPath;
-    return "Configuration";
+    return i18n.t("kinds.configuration");
   }
 
-  return KIND_LABEL_OVERRIDES[result.kind] ?? humanizeKind(result.kind);
+  return humanizeKind(result.kind, i18n);
 }
