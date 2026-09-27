@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Plus, Search, RefreshCw, AlertCircle, Map, Trash2, Pencil } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { DndContext, type DragStartEvent, type DragEndEvent, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import {
@@ -29,6 +30,8 @@ import { RouteMapRuleRow } from "@/components/policies/RouteMapRuleRow";
 import { RouteMapReorderBanner } from "@/components/policies/RouteMapReorderBanner";
 
 export default function RouteMapPage() {
+  const t = useTranslations("routeMap");
+  const tc = useTranslations("common");
   const [config, setConfig] = useState<RouteMapConfig | null>(null);
   const [selectedRouteMap, setSelectedRouteMap] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,13 +81,13 @@ export default function RouteMapPage() {
       }
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to load route-map configuration"
+        err instanceof Error ? err.message : t("page.loadFailed")
       );
       console.error("Error fetching route-map config:", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchConfig();
@@ -172,7 +175,7 @@ export default function RouteMapPage() {
       await fetchConfig(true);
     } catch (err) {
       console.error("Error saving reordered rules:", err);
-      setError(err instanceof Error ? err.message : "Failed to save reordered rules");
+      setError(err instanceof Error ? err.message : t("page.saveReorderFailed"));
     } finally {
       setSavingReorder(false);
     }
@@ -221,11 +224,11 @@ export default function RouteMapPage() {
         <div className="flex items-center justify-center h-full">
           <div className="text-center space-y-4">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-            <h2 className="text-xl font-semibold text-foreground">Error Loading Route Maps</h2>
+            <h2 className="text-xl font-semibold text-foreground">{t("page.errorTitle")}</h2>
             <p className="text-muted-foreground max-w-md">{error}</p>
             <Button onClick={() => fetchConfig(true)} variant="outline">
               <RefreshCw className="h-4 w-4 mr-2" />
-              Retry
+              {tc("retry")}
             </Button>
           </div>
         </div>
@@ -244,9 +247,9 @@ export default function RouteMapPage() {
                 <Map className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-foreground">Route Maps</h1>
+                <h1 className="text-lg font-semibold text-foreground">{t("page.title")}</h1>
                 <p className="text-xs text-muted-foreground">
-                  {routeMaps.length} map{routeMaps.length !== 1 ? "s" : ""} · {totalRules} rule{totalRules !== 1 ? "s" : ""}
+                  {t("page.summary", { mapCount: routeMaps.length, ruleCount: totalRules })}
                 </p>
               </div>
             </div>
@@ -255,7 +258,7 @@ export default function RouteMapPage() {
             <div className="relative mb-4">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search route-maps..."
+                placeholder={t("page.searchPlaceholder")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -268,7 +271,7 @@ export default function RouteMapPage() {
               size="sm"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Create Route Map
+              {t("page.createRouteMap")}
             </Button>
           </div>
 
@@ -280,7 +283,7 @@ export default function RouteMapPage() {
               {filteredRouteMaps.length === 0 ? (
                 <div className="px-2 py-8 text-center">
                   <p className="text-sm text-muted-foreground">
-                    {searchQuery ? "No route-maps match your search" : "No route-maps configured"}
+                    {searchQuery ? t("page.noMatch") : t("page.noneConfigured")}
                   </p>
                   {!searchQuery && (
                     <Button
@@ -289,7 +292,7 @@ export default function RouteMapPage() {
                       onClick={() => setCreateModalOpen(true)}
                       className="mt-2"
                     >
-                      Create your first route-map
+                      {t("page.createFirst")}
                     </Button>
                   )}
                 </div>
@@ -371,11 +374,11 @@ export default function RouteMapPage() {
                   <div className="flex items-center gap-3">
                     <Button onClick={() => fetchConfig(true)} variant="outline" size="sm">
                       <RefreshCw className="h-4 w-4 mr-2" />
-                      Refresh
+                      {tc("refresh")}
                     </Button>
                     <Button onClick={() => setAddRuleModalOpen(true)} size="sm">
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Rule
+                      {t("page.addRule")}
                     </Button>
                   </div>
                 </div>
@@ -384,7 +387,7 @@ export default function RouteMapPage() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search rules..."
+                    placeholder={t("page.searchRules")}
                     value={ruleSearchQuery}
                     onChange={(e) => setRuleSearchQuery(e.target.value)}
                     className="pl-10"
@@ -409,17 +412,17 @@ export default function RouteMapPage() {
                     <CardContent className="flex flex-col items-center justify-center py-12">
                       <Map className="h-12 w-12 text-muted-foreground mb-4" />
                       <h3 className="text-lg font-semibold text-foreground mb-2">
-                        {ruleSearchQuery ? "No Rules Match Search" : "No Rules Configured"}
+                        {ruleSearchQuery ? t("page.noRulesMatch") : t("page.noRules")}
                       </h3>
                       <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
                         {ruleSearchQuery
-                          ? "Try adjusting your search criteria"
-                          : "Add rules to this route-map to control route matching and modification"}
+                          ? t("page.adjustSearch")
+                          : t("page.addRulesHint")}
                       </p>
                       {!ruleSearchQuery && (
                         <Button onClick={() => setAddRuleModalOpen(true)}>
                           <Plus className="h-4 w-4 mr-2" />
-                          Add First Rule
+                          {t("page.addFirstRule")}
                         </Button>
                       )}
                     </CardContent>
@@ -437,12 +440,12 @@ export default function RouteMapPage() {
                           <TableHeader>
                             <TableRow className="hover:bg-transparent">
                               <TableHead className="w-12"></TableHead>
-                              <TableHead>Rule</TableHead>
-                              <TableHead>Action</TableHead>
-                              <TableHead>Description</TableHead>
-                              <TableHead>Match Conditions</TableHead>
-                              <TableHead>Set Actions</TableHead>
-                              <TableHead className="text-right">Actions</TableHead>
+                              <TableHead>{t("page.colRule")}</TableHead>
+                              <TableHead>{t("page.colAction")}</TableHead>
+                              <TableHead>{tc("description")}</TableHead>
+                              <TableHead>{t("page.colMatch")}</TableHead>
+                              <TableHead>{t("page.colSet")}</TableHead>
+                              <TableHead className="text-right">{tc("actions")}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -472,17 +475,17 @@ export default function RouteMapPage() {
               <div className="text-center space-y-4">
                 <Map className="h-16 w-16 text-muted-foreground mx-auto" />
                 <h2 className="text-xl font-semibold text-foreground">
-                  No Route Map Selected
+                  {t("page.noSelection")}
                 </h2>
                 <p className="text-muted-foreground max-w-md">
                   {routeMaps.length === 0
-                    ? "Create a route-map to get started"
-                    : "Select a route-map from the sidebar to view its rules"}
+                    ? t("page.createToStart")
+                    : t("page.selectFromSidebar")}
                 </p>
                 {routeMaps.length === 0 && (
                   <Button onClick={() => setCreateModalOpen(true)}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Create Route Map
+                    {t("page.createRouteMap")}
                   </Button>
                 )}
               </div>
