@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -61,6 +62,8 @@ export function DHCPv6ServerAddressRangeModal({
   onClose,
   onSuccess,
 }: Props) {
+  const t = useTranslations("dhcpv6Server");
+  const tc = useTranslations("common");
   const isEditing = range !== null;
   const is15 = caps.features.address_ranges_named.supported;
   const [loading, setLoading] = useState(false);
@@ -115,7 +118,7 @@ export function DHCPv6ServerAddressRangeModal({
     setLoading(true);
     setError(null);
 
-    if (!selectedSubnet) { setError("Select a subnet"); setLoading(false); return; }
+    if (!selectedSubnet) { setError(t("range.errors.selectSubnet")); setLoading(false); return; }
 
     // Compute the next available range ID from existing ranges on the selected subnet
     const subnetRanges = allSubnets?.find(s => s.subnet === selectedSubnet)?.address_ranges ?? [];
@@ -136,7 +139,7 @@ export function DHCPv6ServerAddressRangeModal({
       };
     } else {
       if (mode === "start-stop") {
-        if (!start14.trim() || !stop14.trim()) { setError("Start and Stop are required"); setLoading(false); return; }
+        if (!start14.trim() || !stop14.trim()) { setError(t("range.errors.startStopRequired")); setLoading(false); return; }
         updated = {
           range_id: nextId,
           start: start14.trim(),
@@ -145,7 +148,7 @@ export function DHCPv6ServerAddressRangeModal({
           temporary: false,
         };
       } else {
-        if (!prefix14.trim()) { setError("Prefix is required"); setLoading(false); return; }
+        if (!prefix14.trim()) { setError(t("range.errors.prefixRequired")); setLoading(false); return; }
         updated = {
           range_id: nextId,
           start: null,
@@ -158,7 +161,7 @@ export function DHCPv6ServerAddressRangeModal({
 
     const result = await dhcpv6ServerService.saveAddressRange(netName, selectedSubnet, is15, range, updated);
     setLoading(false);
-    if (!result.success) { setError(result.error ?? "Operation failed"); return; }
+    if (!result.success) { setError(result.error ?? tc("operationFailed")); return; }
     onSuccess();
     onClose();
   }
@@ -167,16 +170,16 @@ export function DHCPv6ServerAddressRangeModal({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit Address Range" : "Add Address Range"}</DialogTitle>
+          <DialogTitle>{isEditing ? t("range.editTitle") : t("range.addTitle")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-1">
           {!isEditing && availableSubnets && availableSubnets.length > 1 ? (
             <div className="space-y-1.5">
-              <Label>Subnet</Label>
+              <Label>{t("subnet")}</Label>
               <Select value={selectedSubnet} onValueChange={setSelectedSubnet}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select subnet" />
+                  <SelectValue placeholder={t("selectSubnet")} />
                 </SelectTrigger>
                 <SelectContent>
                   {availableSubnets.map(s => (
@@ -187,35 +190,35 @@ export function DHCPv6ServerAddressRangeModal({
             </div>
           ) : (
             <div className="text-xs text-muted-foreground font-mono">
-              Network: {netName}{selectedSubnet ? ` / Subnet: ${selectedSubnet}` : ""}
+              {t("networkLine", { network: netName })}{selectedSubnet ? t("subnetSuffix", { subnet: selectedSubnet }) : ""}
             </div>
           )}
 
           {is15 ? (
             <>
               <div className="space-y-1.5">
-                <Label htmlFor="range-start">Start Address</Label>
+                <Label htmlFor="range-start">{t("range.startAddress")}</Label>
                 <Input
                   id="range-start"
-                  placeholder="2001:db8::1 (optional)"
+                  placeholder={t("optionalExample", { example: "2001:db8::1" })}
                   value={start}
                   onChange={(e) => setStart(e.target.value)}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="range-stop">Stop Address</Label>
+                <Label htmlFor="range-stop">{t("range.stopAddress")}</Label>
                 <Input
                   id="range-stop"
-                  placeholder="2001:db8::ff (optional)"
+                  placeholder={t("optionalExample", { example: "2001:db8::ff" })}
                   value={stop}
                   onChange={(e) => setStop(e.target.value)}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="range-prefix">Prefix</Label>
+                <Label htmlFor="range-prefix">{t("range.prefix")}</Label>
                 <Input
                   id="range-prefix"
-                  placeholder="2001:db8::/64 (optional)"
+                  placeholder={t("optionalExample", { example: "2001:db8::/64" })}
                   value={prefix}
                   onChange={(e) => setPrefix(e.target.value)}
                 />
@@ -233,7 +236,7 @@ export function DHCPv6ServerAddressRangeModal({
                   }`}
                   onClick={() => setMode("start-stop")}
                 >
-                  Start / Stop
+                  {t("range.modeStartStop")}
                 </button>
                 <button
                   type="button"
@@ -244,14 +247,14 @@ export function DHCPv6ServerAddressRangeModal({
                   }`}
                   onClick={() => setMode("prefix")}
                 >
-                  Prefix
+                  {t("range.prefix")}
                 </button>
               </div>
 
               {mode === "start-stop" ? (
                 <>
                   <div className="space-y-1.5">
-                    <Label htmlFor="start14">Start Address</Label>
+                    <Label htmlFor="start14">{t("range.startAddress")}</Label>
                     <Input
                       id="start14"
                       placeholder="2001:db8::1"
@@ -260,7 +263,7 @@ export function DHCPv6ServerAddressRangeModal({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="stop14">Stop Address</Label>
+                    <Label htmlFor="stop14">{t("range.stopAddress")}</Label>
                     <Input
                       id="stop14"
                       placeholder="2001:db8::ff"
@@ -272,7 +275,7 @@ export function DHCPv6ServerAddressRangeModal({
               ) : (
                 <>
                   <div className="space-y-1.5">
-                    <Label htmlFor="prefix14">Prefix</Label>
+                    <Label htmlFor="prefix14">{t("range.prefix")}</Label>
                     <Input
                       id="prefix14"
                       placeholder="2001:db8::/64"
@@ -286,7 +289,7 @@ export function DHCPv6ServerAddressRangeModal({
                       checked={temporary}
                       onCheckedChange={(v) => setTemporary(Boolean(v))}
                     />
-                    <Label htmlFor="temporary" className="cursor-pointer">Temporary addresses</Label>
+                    <Label htmlFor="temporary" className="cursor-pointer">{t("range.temporary")}</Label>
                   </div>
                 </>
               )}
@@ -302,10 +305,10 @@ export function DHCPv6ServerAddressRangeModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isEditing ? "Save" : "Add Range"}
+            {isEditing ? tc("save") : t("range.addRange")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,8 @@ export function DeleteDHCPModal({
   subnet,
   deleteEntireNetwork = false,
 }: DeleteDHCPModalProps) {
+  const t = useTranslations("dhcpServer");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,7 +51,7 @@ export function DeleteDHCPModal({
         await dhcpService.deleteSharedNetwork(networkName);
       } else {
         if (!subnet) {
-          throw new Error("Subnet is required for subnet deletion");
+          throw new Error(t("deleteNetwork.subnetRequired"));
         }
         await dhcpService.deleteSubnet(networkName, subnet);
       }
@@ -56,7 +59,7 @@ export function DeleteDHCPModal({
       handleClose();
       onSuccess();
     } catch (err) {
-      setError((err as ApiError).message || "Failed to delete DHCP configuration");
+      setError((err as ApiError).message || t("deleteNetwork.failed"));
     } finally {
       setLoading(false);
     }
@@ -68,26 +71,26 @@ export function DeleteDHCPModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            {deleteEntireNetwork ? "Delete Shared Network" : "Delete DHCP Subnet"}
+            {deleteEntireNetwork ? t("deleteNetwork.titleNetwork") : t("deleteNetwork.titleSubnet")}
           </DialogTitle>
           <DialogDescription>
             {deleteEntireNetwork
-              ? "This will delete the entire shared network and all its subnets."
-              : "This will permanently delete this DHCP subnet configuration."}
+              ? t("deleteNetwork.descriptionNetwork")
+              : t("deleteNetwork.descriptionSubnet")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
             <div className="space-y-2 text-sm">
-              <p className="font-medium text-foreground">You are about to delete:</p>
+              <p className="font-medium text-foreground">{t("deleteNetwork.aboutToDelete")}</p>
               <div className="space-y-1 text-muted-foreground">
                 <p>
-                  <span className="font-medium">Network:</span> {networkName}
+                  <span className="font-medium">{t("networkLabel")}</span> {networkName}
                 </p>
                 {!deleteEntireNetwork && subnet && (
                   <p>
-                    <span className="font-medium">Subnet:</span> {subnet}
+                    <span className="font-medium">{t("subnetLabel")}</span> {subnet}
                   </p>
                 )}
               </div>
@@ -99,10 +102,9 @@ export function DeleteDHCPModal({
               <div className="flex gap-2">
                 <AlertTriangle className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
                 <div className="text-sm">
-                  <p className="font-medium text-foreground mb-1">Warning</p>
+                  <p className="font-medium text-foreground mb-1">{t("deleteNetwork.warning")}</p>
                   <p className="text-muted-foreground">
-                    Deleting a shared network will remove all associated subnets, ranges,
-                    static mappings, and configuration. This action cannot be undone.
+                    {t("deleteNetwork.warningText")}
                   </p>
                 </div>
               </div>
@@ -119,10 +121,10 @@ export function DeleteDHCPModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
-            {loading ? "Deleting..." : "Delete"}
+            {loading ? tc("deleting") : tc("delete")}
           </Button>
         </DialogFooter>
       </DialogContent>

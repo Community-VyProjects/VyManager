@@ -1,1 +1,66 @@
-{}
+{
+  "content": {
+    "loadFailed": "加载 DHCP 中继配置失败",
+    "statusFailed": "更新服务状态失败",
+    "unconfigured": "未配置",
+    "active": "活动",
+    "title": "DHCP 中继",
+    "readOnly": "只读",
+    "subtitle": "将客户端的 DHCP 请求转发到集中式 DHCP 服务器",
+    "enableService": "启用服务",
+    "disableService": "禁用服务",
+    "editConfiguration": "编辑配置",
+    "configure": "配置",
+    "disabledBanner": "DHCP 中继已禁用，客户端请求将不会被转发。",
+    "reenable": "重新启用",
+    "emptyTitle": "未配置 DHCP 中继",
+    "emptyDescription": "配置 DHCP 中继代理，将客户端广播请求转发到位于其他子网的集中式 DHCP 服务器。",
+    "configureRelay": "配置 DHCP 中继",
+    "serviceStatus": "服务状态",
+    "dhcpServers": "DHCP 服务器",
+    "listenInterfaces": "监听接口",
+    "upstreamInterfaces": "上游接口",
+    "broadcastInterfaces": "广播接口",
+    "noServers": "未配置服务器",
+    "relayOptions": "中继选项",
+    "hopCount": "跳数",
+    "maxPacketSize": "最大数据包大小",
+    "bytes": "{value} 字节",
+    "relayAgentsPolicy": "中继代理策略",
+    "usingDefaults": "使用 VyOS 默认值"
+  },
+  "modal": {
+    "errors": {
+      "serverInvalid": "服务器地址必须是有效的 IPv4 地址（例如 10.0.0.1）",
+      "serverDuplicate": "该服务器地址已在列表中",
+      "serverRequired": "至少需要一个 DHCP 服务器地址",
+      "hopCountRange": "跳数必须是 1 到 255 之间的整数",
+      "maxSizeRange": "最大数据包大小必须是 64 到 1400 之间的整数",
+      "configFailed": "配置失败"
+    },
+    "editTitle": "编辑 DHCP 中继配置",
+    "editDescription": "修改 DHCP 中继服务设置。",
+    "createDescription": "设置 DHCP 中继代理，将客户端请求转发到集中式服务器。",
+    "disableService": "禁用 DHCP 中继服务",
+    "serversHelp": "要将请求中继到的 DHCP 服务器的 IPv4 地址。至少需要一个。",
+    "examplePlaceholder": "例如 {example}",
+    "listenHelp": "中继代理监听客户端 DHCP 请求的接口。",
+    "upstreamHelp": "用于将 DHCP 请求转发到服务器的接口。",
+    "broadcastHelp": "可选——用于广播环境的监听/上游合一接口。",
+    "relayOptionsHelp": "高级调优——留空则使用 VyOS 默认值。",
+    "defaultValue": "{value}（默认）",
+    "hopCountHelp": "丢弃达到此跳数的数据包（1–255）。",
+    "maxSizeHelp": "发送到 DHCP 服务器的最大数据包大小，单位为字节（64–1400）。",
+    "policies": {
+      "append": "将自身中继选项追加到数据包",
+      "replace": "替换现有的代理选项字段",
+      "forward": "原样转发数据包",
+      "discard": "丢弃数据包"
+    },
+    "relayAgentsPolicyHelp": "如何处理已包含中继代理选项的传入数据包。",
+    "saveConfiguration": "保存配置",
+    "optionalSuffix": "（可选）",
+    "selectInterface": "选择要添加的接口",
+    "noInterfaces": "没有其他可用接口"
+  }
+}

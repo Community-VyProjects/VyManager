@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -70,6 +71,8 @@ function isConfigured(config: ConntrackSyncConfig): boolean {
 }
 
 export function ConntrackSyncContent() {
+  const t = useTranslations("conntrackSync");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWritePermission = canWrite(FeatureGroup.CONNTRACK_SYNC);
 
@@ -88,11 +91,11 @@ export function ConntrackSyncContent() {
       const data = await conntrackSyncService.getConfig(refresh);
       setConfig(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load conntrack-sync configuration");
+      setError(err instanceof Error ? err.message : t("content.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -112,7 +115,7 @@ export function ConntrackSyncContent() {
       setDeleteDialogOpen(false);
       await loadData(true);
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : "Failed to delete configuration.");
+      setDeleteError(err instanceof Error ? err.message : t("content.deleteFailed"));
     } finally {
       setDeleteLoading(false);
     }
@@ -133,7 +136,7 @@ export function ConntrackSyncContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -151,26 +154,26 @@ export function ConntrackSyncContent() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold text-foreground">Conntrack Sync</h1>
+                  <h1 className="text-2xl font-bold text-foreground">{t("content.title")}</h1>
                   {!hasWritePermission && (
-                    <Badge variant="secondary">Read Only</Badge>
+                    <Badge variant="secondary">{t("content.readOnly")}</Badge>
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Connection tracking synchronization between firewall nodes
+                  {t("content.subtitle")}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => loadData(true)}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {tc("refresh")}
               </Button>
               {hasWritePermission && (
                 <>
                   <Button size="sm" onClick={() => setModalOpen(true)}>
                     <Pencil className="h-4 w-4 mr-2" />
-                    {configured ? "Edit Configuration" : "Configure"}
+                    {configured ? t("content.editConfiguration") : t("content.configure")}
                   </Button>
                   {configured && (
                     <Button
@@ -179,7 +182,7 @@ export function ConntrackSyncContent() {
                       onClick={() => setDeleteDialogOpen(true)}
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
-                      Remove
+                      {t("content.remove")}
                     </Button>
                   )}
                 </>
@@ -201,11 +204,11 @@ export function ConntrackSyncContent() {
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <ArrowLeftRight className="h-12 w-12 text-muted-foreground/30 mb-4" />
                 <p className="text-sm text-muted-foreground mb-4">
-                  Conntrack Sync is not configured
+                  {t("content.notConfigured")}
                 </p>
                 {hasWritePermission && (
                   <Button size="sm" onClick={() => setModalOpen(true)}>
-                    Configure
+                    {t("content.configure")}
                   </Button>
                 )}
               </CardContent>
@@ -217,10 +220,10 @@ export function ConntrackSyncContent() {
                 <CardContent className="p-5 space-y-3">
                   <div className="flex items-center gap-2">
                     <Network className="h-4 w-4 text-primary" />
-                    <p className="text-sm font-semibold">Sync Interfaces</p>
+                    <p className="text-sm font-semibold">{t("content.syncInterfaces")}</p>
                   </div>
                   {config.interfaces.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No interfaces configured.</p>
+                    <p className="text-sm text-muted-foreground">{t("content.noInterfaces")}</p>
                   ) : (
                     <div className="space-y-2">
                       {config.interfaces.map((iface) => (
@@ -232,11 +235,14 @@ export function ConntrackSyncContent() {
                             <span className="font-mono font-medium">{iface.name}</span>
                             {iface.peer ? (
                               <div className="text-xs text-muted-foreground mt-0.5">
-                                Peer: <span className="font-mono">{iface.peer}</span>
+                                {t.rich("content.peer", {
+                                  peer: iface.peer,
+                                  mono: (chunks) => <span className="font-mono">{chunks}</span>,
+                                })}
                               </div>
                             ) : (
                               <div className="text-xs text-muted-foreground mt-0.5">
-                                Multicast mode
+                                {t("content.multicastMode")}
                               </div>
                             )}
                           </div>
@@ -257,11 +263,11 @@ export function ConntrackSyncContent() {
                 <CardContent className="p-5 space-y-3">
                   <div className="flex items-center gap-2">
                     <Layers className="h-4 w-4 text-primary" />
-                    <p className="text-sm font-semibold">Protocols</p>
+                    <p className="text-sm font-semibold">{t("content.protocols")}</p>
                   </div>
                   <div className="space-y-2 text-sm">
                     <div>
-                      <span className="text-muted-foreground text-xs">Accept Protocols</span>
+                      <span className="text-muted-foreground text-xs">{t("content.acceptProtocols")}</span>
                       <div className="flex flex-wrap gap-1 mt-1">
                         {config.accept_protocols.length > 0 ? (
                           config.accept_protocols.map((p) => (
@@ -270,12 +276,12 @@ export function ConntrackSyncContent() {
                             </Badge>
                           ))
                         ) : (
-                          <span className="text-xs text-muted-foreground">All (default)</span>
+                          <span className="text-xs text-muted-foreground">{t("content.allDefault")}</span>
                         )}
                       </div>
                     </div>
                     <div>
-                      <span className="text-muted-foreground text-xs">Expect Sync</span>
+                      <span className="text-muted-foreground text-xs">{t("content.expectSync")}</span>
                       <div className="flex flex-wrap gap-1 mt-1">
                         {config.expect_sync.length > 0 ? (
                           config.expect_sync.map((p) => (
@@ -284,7 +290,7 @@ export function ConntrackSyncContent() {
                             </Badge>
                           ))
                         ) : (
-                          <span className="text-xs text-muted-foreground">None</span>
+                          <span className="text-xs text-muted-foreground">{tc("none")}</span>
                         )}
                       </div>
                     </div>
@@ -297,11 +303,11 @@ export function ConntrackSyncContent() {
                 <CardContent className="p-5 space-y-3">
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="h-4 w-4 text-primary" />
-                    <p className="text-sm font-semibold">Failover Mechanism</p>
+                    <p className="text-sm font-semibold">{t("content.failoverMechanism")}</p>
                   </div>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground w-28 shrink-0">VRRP Sync Group</span>
+                      <span className="text-muted-foreground w-28 shrink-0">{t("content.vrrpSyncGroup")}</span>
                       {config.failover_mechanism?.vrrp?.sync_group ? (
                         <Badge variant="outline" className="font-mono">
                           {config.failover_mechanism.vrrp.sync_group}
@@ -311,7 +317,7 @@ export function ConntrackSyncContent() {
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground w-28 shrink-0">Startup Resync</span>
+                      <span className="text-muted-foreground w-28 shrink-0">{t("content.startupResync")}</span>
                       {config.startup_resync ? (
                         <CheckCircle2 className="h-4 w-4 text-green-500" />
                       ) : (
@@ -327,48 +333,48 @@ export function ConntrackSyncContent() {
                 <CardContent className="p-5 space-y-3">
                   <div className="flex items-center gap-2">
                     <Settings2 className="h-4 w-4 text-primary" />
-                    <p className="text-sm font-semibold">Advanced</p>
+                    <p className="text-sm font-semibold">{t("content.advanced")}</p>
                   </div>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground w-28 shrink-0">Multicast Group</span>
+                      <span className="text-muted-foreground w-28 shrink-0">{t("content.multicastGroup")}</span>
                       <span className="font-mono text-xs">{config.mcast_group ?? "225.0.0.50"}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground w-28 shrink-0">Event Queue</span>
+                      <span className="text-muted-foreground w-28 shrink-0">{t("content.eventQueue")}</span>
                       <span className="font-mono text-xs">
                         {config.event_listen_queue_size != null
                           ? `${config.event_listen_queue_size} MB`
-                          : "8 MB (default)"}
+                          : t("content.defaultMb", { value: "8" })}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground w-28 shrink-0">Sync Queue</span>
+                      <span className="text-muted-foreground w-28 shrink-0">{t("content.syncQueue")}</span>
                       <span className="font-mono text-xs">
                         {config.sync_queue_size != null
                           ? `${config.sync_queue_size} MB`
-                          : "1 MB (default)"}
+                          : t("content.defaultMb", { value: "1" })}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground w-28 shrink-0">Ext. Cache</span>
+                      <span className="text-muted-foreground w-28 shrink-0">{t("content.extCache")}</span>
                       {config.disable_external_cache ? (
-                        <Badge variant="secondary" className="text-xs">Disabled</Badge>
+                        <Badge variant="secondary" className="text-xs">{tc("disabled")}</Badge>
                       ) : (
-                        <span className="text-muted-foreground text-xs">Enabled</span>
+                        <span className="text-muted-foreground text-xs">{tc("enabled")}</span>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-muted-foreground w-28 shrink-0">Syslog</span>
                       {config.disable_syslog ? (
-                        <Badge variant="secondary" className="text-xs">Disabled</Badge>
+                        <Badge variant="secondary" className="text-xs">{tc("disabled")}</Badge>
                       ) : (
-                        <span className="text-muted-foreground text-xs">Enabled</span>
+                        <span className="text-muted-foreground text-xs">{tc("enabled")}</span>
                       )}
                     </div>
                     {config.listen_addresses.length > 0 && (
                       <div>
-                        <span className="text-muted-foreground text-xs">Listen Addresses</span>
+                        <span className="text-muted-foreground text-xs">{t("content.listenAddresses")}</span>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {config.listen_addresses.map((a) => (
                             <Badge key={a} variant="secondary" className="font-mono text-xs">
@@ -380,7 +386,7 @@ export function ConntrackSyncContent() {
                     )}
                     {config.ignore_addresses.length > 0 && (
                       <div>
-                        <span className="text-muted-foreground text-xs">Ignore Addresses</span>
+                        <span className="text-muted-foreground text-xs">{t("content.ignoreAddresses")}</span>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {config.ignore_addresses.map((a) => (
                             <Badge key={a} variant="outline" className="font-mono text-xs">
@@ -408,10 +414,9 @@ export function ConntrackSyncContent() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Conntrack Sync Configuration</AlertDialogTitle>
+            <AlertDialogTitle>{t("delete.title")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete the entire conntrack-sync configuration. Connection tracking
-              synchronization will stop immediately. This action cannot be undone.
+              {t("delete.description")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {deleteError && (
@@ -421,7 +426,7 @@ export function ConntrackSyncContent() {
             </div>
           )}
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteLoading}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
@@ -431,7 +436,7 @@ export function ConntrackSyncContent() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Remove
+              {t("content.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

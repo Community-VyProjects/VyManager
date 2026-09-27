@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,8 @@ interface AdvancedSettingsModalProps {
 }
 
 export function AdvancedSettingsModal({ open, onOpenChange, onSuccess, config }: AdvancedSettingsModalProps) {
+  const t = useTranslations("ipoeServer");
+  const tc = useTranslations("common");
   const [logLevel, setLogLevel] = useState("");
   const [shaperFwmark, setShaperFwmark] = useState("");
   const [snmpMasterAgent, setSnmpMasterAgent] = useState(false);
@@ -83,10 +86,10 @@ export function AdvancedSettingsModal({ open, onOpenChange, onSuccess, config }:
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to update advanced settings");
+        setError(result.error || t("advancedModal.updateFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to update advanced settings");
+      setError((err as ApiError).message || t("advancedModal.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -98,19 +101,19 @@ export function AdvancedSettingsModal({ open, onOpenChange, onSuccess, config }:
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5 text-primary" />
-            Advanced Settings
+            {t("advancedModal.title")}
           </DialogTitle>
-          <DialogDescription>Configure logging, shaper, SNMP, limits, and scripts.</DialogDescription>
+          <DialogDescription>{t("advancedModal.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Log Level</Label>
+              <Label>{t("advancedModal.logLevel")}</Label>
               <Select value={logLevel || "__clear__"} onValueChange={(v) => setLogLevel(v === "__clear__" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="Default" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={tc("default")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__clear__">Default</SelectItem>
+                  <SelectItem value="__clear__">{tc("default")}</SelectItem>
                   {["0", "1", "2", "3", "4", "5"].map((l) => (
                     <SelectItem key={l} value={l}>{l}</SelectItem>
                   ))}
@@ -118,51 +121,51 @@ export function AdvancedSettingsModal({ open, onOpenChange, onSuccess, config }:
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Shaper FWMark</Label>
+              <Label>{t("advancedModal.shaperFwmark")}</Label>
               <Input value={shaperFwmark} onChange={(e) => setShaperFwmark(e.target.value)} placeholder="0x1000" />
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Checkbox id="snmp-agent" checked={snmpMasterAgent} onCheckedChange={(v) => setSnmpMasterAgent(!!v)} />
-            <Label htmlFor="snmp-agent" className="cursor-pointer">SNMP Master Agent</Label>
+            <Label htmlFor="snmp-agent" className="cursor-pointer">{t("advancedModal.snmpMasterAgent")}</Label>
           </div>
 
           <Separator />
-          <h4 className="text-sm font-medium">Connection Limits</h4>
+          <h4 className="text-sm font-medium">{t("advancedModal.connectionLimits")}</h4>
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Burst</Label>
+              <Label>{t("advancedModal.burst")}</Label>
               <Input value={limitsBurst} onChange={(e) => setLimitsBurst(e.target.value)} placeholder="10" />
             </div>
             <div className="space-y-2">
-              <Label>Conn. Limit</Label>
+              <Label>{t("advancedModal.connLimit")}</Label>
               <Input value={limitsConnLimit} onChange={(e) => setLimitsConnLimit(e.target.value)} placeholder="1/min" />
             </div>
             <div className="space-y-2">
-              <Label>Timeout</Label>
+              <Label>{t("advancedModal.timeout")}</Label>
               <Input value={limitsTimeout} onChange={(e) => setLimitsTimeout(e.target.value)} placeholder="60" />
             </div>
           </div>
 
           <Separator />
-          <h4 className="text-sm font-medium">Extended Scripts</h4>
+          <h4 className="text-sm font-medium">{t("advancedModal.extendedScripts")}</h4>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>On Change</Label>
+              <Label>{t("advancedModal.onChange")}</Label>
               <Input value={scriptsOnChange} onChange={(e) => setScriptsOnChange(e.target.value)} placeholder="/path/to/script" />
             </div>
             <div className="space-y-2">
-              <Label>On Down</Label>
+              <Label>{t("advancedModal.onDown")}</Label>
               <Input value={scriptsOnDown} onChange={(e) => setScriptsOnDown(e.target.value)} placeholder="/path/to/script" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>On Pre-Up</Label>
+              <Label>{t("advancedModal.onPreUp")}</Label>
               <Input value={scriptsOnPreUp} onChange={(e) => setScriptsOnPreUp(e.target.value)} placeholder="/path/to/script" />
             </div>
             <div className="space-y-2">
-              <Label>On Up</Label>
+              <Label>{t("advancedModal.onUp")}</Label>
               <Input value={scriptsOnUp} onChange={(e) => setScriptsOnUp(e.target.value)} placeholder="/path/to/script" />
             </div>
           </div>
@@ -176,9 +179,9 @@ export function AdvancedSettingsModal({ open, onOpenChange, onSuccess, config }:
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save Changes"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : t("saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

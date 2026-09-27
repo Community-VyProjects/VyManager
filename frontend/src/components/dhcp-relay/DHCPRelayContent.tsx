@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,8 @@ function isConfigured(config: DHCPRelayConfig): boolean {
 }
 
 export function DHCPRelayContent() {
+  const t = useTranslations("dhcpRelay");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWritePermission = canWrite(FeatureGroup.DHCP_RELAY);
 
@@ -50,11 +53,11 @@ export function DHCPRelayContent() {
       const data = await dhcpRelayService.getConfig(refresh);
       setConfig(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load DHCP relay configuration");
+      setError(err instanceof Error ? err.message : t("content.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -66,7 +69,7 @@ export function DHCPRelayContent() {
     setError(null);
     const result = await dhcpRelayService.setDisabled(!config.disabled);
     if (!result.success) {
-      setError(result.error ?? "Failed to update service status");
+      setError(result.error ?? t("content.statusFailed"));
     } else {
       await loadData(true);
     }
@@ -86,7 +89,7 @@ export function DHCPRelayContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -95,11 +98,11 @@ export function DHCPRelayContent() {
   const configured = config ? isConfigured(config) : false;
 
   const statusBadge = !configured ? (
-    <Badge variant="secondary" className="bg-muted text-muted-foreground">Unconfigured</Badge>
+    <Badge variant="secondary" className="bg-muted text-muted-foreground">{t("content.unconfigured")}</Badge>
   ) : config?.disabled ? (
-    <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 dark:text-amber-400">Disabled</Badge>
+    <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 dark:text-amber-400">{tc("disabled")}</Badge>
   ) : (
-    <Badge variant="secondary" className="bg-green-500/10 text-green-600 dark:text-green-500">Active</Badge>
+    <Badge variant="secondary" className="bg-green-500/10 text-green-600 dark:text-green-500">{t("content.active")}</Badge>
   );
 
   return (
@@ -114,14 +117,14 @@ export function DHCPRelayContent() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold text-foreground">DHCP Relay</h1>
+                  <h1 className="text-2xl font-bold text-foreground">{t("content.title")}</h1>
                   {statusBadge}
                   {!hasWritePermission && (
-                    <Badge variant="secondary">Read Only</Badge>
+                    <Badge variant="secondary">{t("content.readOnly")}</Badge>
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Forward DHCP requests from clients to a centralized DHCP server
+                  {t("content.subtitle")}
                 </p>
               </div>
             </div>
@@ -135,18 +138,18 @@ export function DHCPRelayContent() {
                   disabled={disableLoading}
                 >
                   {disableLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                  {config?.disabled ? "Enable Service" : "Disable Service"}
+                  {config?.disabled ? t("content.enableService") : t("content.disableService")}
                 </Button>
               )}
               {hasWritePermission && (
                 <Button size="sm" onClick={() => setModalOpen(true)}>
                   <Pencil className="h-4 w-4 mr-2" />
-                  {configured ? "Edit Configuration" : "Configure"}
+                  {configured ? t("content.editConfiguration") : t("content.configure")}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={() => loadData(true)}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -156,7 +159,7 @@ export function DHCPRelayContent() {
             <div className="mb-4 flex items-center gap-3 p-3 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400">
               <AlertTriangle className="h-4 w-4 shrink-0" />
               <span className="text-sm font-medium">
-                DHCP relay is disabled. Client requests will not be forwarded.
+                {t("content.disabledBanner")}
               </span>
               {hasWritePermission && (
                 <Button
@@ -166,7 +169,7 @@ export function DHCPRelayContent() {
                   onClick={handleToggleDisable}
                   disabled={disableLoading}
                 >
-                  Re-enable
+                  {t("content.reenable")}
                 </Button>
               )}
             </div>
@@ -189,15 +192,14 @@ export function DHCPRelayContent() {
                 <div className="rounded-full p-4 bg-muted mb-4">
                   <Network className="h-10 w-10 text-muted-foreground/50" />
                 </div>
-                <h3 className="text-base font-semibold mb-1">DHCP Relay is not configured</h3>
+                <h3 className="text-base font-semibold mb-1">{t("content.emptyTitle")}</h3>
                 <p className="text-sm text-muted-foreground text-center max-w-sm mb-6">
-                  Configure the DHCP relay agent to forward client broadcast requests to a
-                  centralized DHCP server on a different subnet.
+                  {t("content.emptyDescription")}
                 </p>
                 {hasWritePermission && (
                   <Button onClick={() => setModalOpen(true)}>
                     <Pencil className="h-4 w-4 mr-2" />
-                    Configure DHCP Relay
+                    {t("content.configureRelay")}
                   </Button>
                 )}
               </CardContent>
@@ -211,25 +213,25 @@ export function DHCPRelayContent() {
                     ? <Ban className="h-4 w-4 text-amber-500" />
                     : <CheckCircle2 className="h-4 w-4 text-green-500" />}
                   iconBg={config?.disabled ? "bg-amber-500/10" : "bg-green-500/10"}
-                  label="Service Status"
-                  value={config?.disabled ? "Disabled" : "Active"}
+                  label={t("content.serviceStatus")}
+                  value={config?.disabled ? tc("disabled") : t("content.active")}
                 />
                 <StatCard
                   icon={<Server className="h-4 w-4 text-primary" />}
                   iconBg="bg-primary/10"
-                  label="DHCP Servers"
+                  label={t("content.dhcpServers")}
                   value={String(config?.servers.length ?? 0)}
                 />
                 <StatCard
                   icon={<ArrowDownToLine className="h-4 w-4 text-primary" />}
                   iconBg="bg-primary/10"
-                  label="Listen Interfaces"
+                  label={t("content.listenInterfaces")}
                   value={String(config?.listen_interfaces.length ?? 0)}
                 />
                 <StatCard
                   icon={<ArrowUpFromLine className="h-4 w-4 text-primary" />}
                   iconBg="bg-primary/10"
-                  label="Upstream Interfaces"
+                  label={t("content.upstreamInterfaces")}
                   value={String(config?.upstream_interfaces.length ?? 0)}
                 />
               </div>
@@ -240,7 +242,7 @@ export function DHCPRelayContent() {
                 <div className="space-y-4">
                   {/* DHCP Servers */}
                   <DetailCard
-                    title="DHCP Servers"
+                    title={t("content.dhcpServers")}
                     icon={<Server className="h-4 w-4 text-muted-foreground" />}
                   >
                     {config && config.servers.length > 0 ? (
@@ -250,13 +252,13 @@ export function DHCPRelayContent() {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground">No servers configured</p>
+                      <p className="text-sm text-muted-foreground">{t("content.noServers")}</p>
                     )}
                   </DetailCard>
 
                   {/* Relay Options */}
                   <DetailCard
-                    title="Relay Options"
+                    title={t("content.relayOptions")}
                     icon={<Settings2 className="h-4 w-4 text-muted-foreground" />}
                   >
                     {config && (
@@ -267,25 +269,25 @@ export function DHCPRelayContent() {
                       <dl className="space-y-2 text-sm">
                         {config.relay_options.hop_count != null && (
                           <div className="flex justify-between">
-                            <dt className="text-muted-foreground">Hop Count</dt>
+                            <dt className="text-muted-foreground">{t("content.hopCount")}</dt>
                             <dd className="font-mono font-medium">{config.relay_options.hop_count}</dd>
                           </div>
                         )}
                         {config.relay_options.max_size != null && (
                           <div className="flex justify-between">
-                            <dt className="text-muted-foreground">Max Packet Size</dt>
-                            <dd className="font-mono font-medium">{config.relay_options.max_size} bytes</dd>
+                            <dt className="text-muted-foreground">{t("content.maxPacketSize")}</dt>
+                            <dd className="font-mono font-medium">{t("content.bytes", { value: String(config.relay_options.max_size) })}</dd>
                           </div>
                         )}
                         {config.relay_options.relay_agents_packets != null && (
                           <div className="flex justify-between">
-                            <dt className="text-muted-foreground">Relay Agents Policy</dt>
+                            <dt className="text-muted-foreground">{t("content.relayAgentsPolicy")}</dt>
                             <dd className="font-mono font-medium capitalize">{config.relay_options.relay_agents_packets}</dd>
                           </div>
                         )}
                       </dl>
                     ) : (
-                      <p className="text-sm text-muted-foreground">Using VyOS defaults</p>
+                      <p className="text-sm text-muted-foreground">{t("content.usingDefaults")}</p>
                     )}
                   </DetailCard>
                 </div>
@@ -294,7 +296,7 @@ export function DHCPRelayContent() {
                 <div className="space-y-4">
                   {config && config.listen_interfaces.length > 0 && (
                     <DetailCard
-                      title="Listen Interfaces"
+                      title={t("content.listenInterfaces")}
                       icon={<ArrowDownToLine className="h-4 w-4 text-muted-foreground" />}
                     >
                       <div className="flex flex-wrap gap-2">
@@ -307,7 +309,7 @@ export function DHCPRelayContent() {
 
                   {config && config.upstream_interfaces.length > 0 && (
                     <DetailCard
-                      title="Upstream Interfaces"
+                      title={t("content.upstreamInterfaces")}
                       icon={<ArrowUpFromLine className="h-4 w-4 text-muted-foreground" />}
                     >
                       <div className="flex flex-wrap gap-2">
@@ -320,7 +322,7 @@ export function DHCPRelayContent() {
 
                   {config && config.interfaces.length > 0 && (
                     <DetailCard
-                      title="Broadcast Interfaces"
+                      title={t("content.broadcastInterfaces")}
                       icon={<Radio className="h-4 w-4 text-muted-foreground" />}
                     >
                       <div className="flex flex-wrap gap-2">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -139,6 +140,16 @@ function formToRaRoute(f: RouteForm): RARoute {
 
 // ---- Validation ----
 
+type ValidationKey =
+  | "prefixRequired"
+  | "prefixInvalid"
+  | "prefixDuplicate"
+  | "routeRequired"
+  | "routeInvalid"
+  | "routeDuplicate"
+  | "nat64Required"
+  | "nat64Invalid";
+
 const IPV6_RE = /^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}(\/\d{1,3})?$|^::1$|^::$/;
 
 function isValidIPv6(v: string): boolean {
@@ -149,11 +160,11 @@ function validatePrefixForm(
   form: PrefixForm,
   existing: string[],
   selfPrefix?: string
-): string | null {
+): ValidationKey | null {
   const trimmed = form.prefix.trim();
-  if (!trimmed) return "Prefix is required";
-  if (!isValidIPv6(trimmed)) return "Enter a valid IPv6 prefix (e.g. 2001:db8::/64)";
-  if (trimmed !== selfPrefix && existing.includes(trimmed)) return "This prefix is already in the list";
+  if (!trimmed) return "prefixRequired";
+  if (!isValidIPv6(trimmed)) return "prefixInvalid";
+  if (trimmed !== selfPrefix && existing.includes(trimmed)) return "prefixDuplicate";
   return null;
 }
 
@@ -161,22 +172,22 @@ function validateRouteForm(
   form: RouteForm,
   existing: string[],
   selfRoute?: string
-): string | null {
+): ValidationKey | null {
   const trimmed = form.route.trim();
-  if (!trimmed) return "Route is required";
-  if (!isValidIPv6(trimmed)) return "Enter a valid IPv6 route (e.g. 2001:db8::/64)";
-  if (trimmed !== selfRoute && existing.includes(trimmed)) return "This route is already in the list";
+  if (!trimmed) return "routeRequired";
+  if (!isValidIPv6(trimmed)) return "routeInvalid";
+  if (trimmed !== selfRoute && existing.includes(trimmed)) return "routeDuplicate";
   return null;
 }
 
 function validateNat64Form(
   form: Nat64Form,
   existing: string[]
-): string | null {
+): ValidationKey | null {
   const trimmed = form.prefix.trim();
-  if (!trimmed) return "NAT64 prefix is required";
-  if (!isValidIPv6(trimmed)) return "Enter a valid IPv6 prefix";
-  if (existing.includes(trimmed)) return "This prefix is already in the list";
+  if (!trimmed) return "nat64Required";
+  if (!isValidIPv6(trimmed)) return "nat64Invalid";
+  if (existing.includes(trimmed)) return "prefixDuplicate";
   return null;
 }
 
@@ -190,6 +201,8 @@ export function RouterAdvertInterfaceModal({
   capabilities,
   onSuccess,
 }: RouterAdvertInterfaceModalProps) {
+  const t = useTranslations("routerAdvert");
+  const tc = useTranslations("common");
   const isEdit = existing !== null;
   const captivePortalSupported = capabilities?.features.captive_portal.supported ?? false;
   const baseIfaceSupported = capabilities?.features.prefix_base_interface.supported ?? false;
@@ -289,7 +302,7 @@ export function RouterAdvertInterfaceModal({
   const saveEditPrefix = () => {
     if (editingPrefixIdx === null) return;
     const err = validatePrefixForm(editingPrefixForm, existingPrefixStrings, prefixes[editingPrefixIdx].prefix);
-    if (err) { setPrefixError(err); return; }
+    if (err) { setPrefixError(t(`validation.${err}`)); return; }
     setPrefixes((prev) => {
       const next = [...prev];
       next[editingPrefixIdx] = { ...editingPrefixForm, prefix: editingPrefixForm.prefix.trim() };
@@ -315,7 +328,7 @@ export function RouterAdvertInterfaceModal({
 
   const confirmAddPrefix = () => {
     const err = validatePrefixForm(newPrefixForm, existingPrefixStrings);
-    if (err) { setPrefixError(err); return; }
+    if (err) { setPrefixError(t(`validation.${err}`)); return; }
     setPrefixes((prev) => [...prev, { ...newPrefixForm, prefix: newPrefixForm.prefix.trim() }]);
     setAddingPrefix(false);
     setNewPrefixForm({ ...emptyPrefixForm });
@@ -336,7 +349,7 @@ export function RouterAdvertInterfaceModal({
   const saveEditRoute = () => {
     if (editingRouteIdx === null) return;
     const err = validateRouteForm(editingRouteForm, existingRouteStrings, routes[editingRouteIdx].route);
-    if (err) { setRouteError(err); return; }
+    if (err) { setRouteError(t(`validation.${err}`)); return; }
     setRoutes((prev) => {
       const next = [...prev];
       next[editingRouteIdx] = { ...editingRouteForm, route: editingRouteForm.route.trim() };
@@ -362,7 +375,7 @@ export function RouterAdvertInterfaceModal({
 
   const confirmAddRoute = () => {
     const err = validateRouteForm(newRouteForm, existingRouteStrings);
-    if (err) { setRouteError(err); return; }
+    if (err) { setRouteError(t(`validation.${err}`)); return; }
     setRoutes((prev) => [...prev, { ...newRouteForm, route: newRouteForm.route.trim() }]);
     setAddingRoute(false);
     setNewRouteForm({ ...emptyRouteForm });
@@ -374,7 +387,7 @@ export function RouterAdvertInterfaceModal({
   const confirmAddNat64 = () => {
     const existing64 = nat64Prefixes.map((n) => n.prefix);
     const err = validateNat64Form(newNat64Form, existing64);
-    if (err) { setNat64Error(err); return; }
+    if (err) { setNat64Error(t(`validation.${err}`)); return; }
     setNat64Prefixes((prev) => [...prev, { ...newNat64Form, prefix: newNat64Form.prefix.trim() }]);
     setAddingNat64(false);
     setNewNat64Form({ ...emptyNat64Form });
@@ -406,13 +419,13 @@ export function RouterAdvertInterfaceModal({
   // ---- Validation & submit ----
 
   const validate = (): string | null => {
-    if (!interfaceName.trim()) return "Interface name is required";
+    if (!interfaceName.trim()) return t("validation.interfaceRequired");
     if (!isEdit && existingNames.includes(interfaceName.trim())) {
-      return `Interface "${interfaceName.trim()}" is already configured`;
+      return t("validation.interfaceExists", { name: interfaceName.trim() });
     }
-    if (editingPrefixIdx !== null || addingPrefix) return "Save or cancel the open prefix form first";
-    if (editingRouteIdx !== null || addingRoute) return "Save or cancel the open route form first";
-    if (addingNat64) return "Save or cancel the open NAT64 form first";
+    if (editingPrefixIdx !== null || addingPrefix) return t("validation.prefixFormOpen");
+    if (editingRouteIdx !== null || addingRoute) return t("validation.routeFormOpen");
+    if (addingNat64) return t("validation.nat64FormOpen");
     return null;
   };
 
@@ -456,7 +469,7 @@ export function RouterAdvertInterfaceModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -466,21 +479,21 @@ export function RouterAdvertInterfaceModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl flex flex-col max-h-[90vh] overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle>{isEdit ? "Edit Interface" : "Add Interface"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("modal.editTitle") : t("modal.addTitle")}</DialogTitle>
           <DialogDescription>
-            Configure router advertisement settings for an interface
+            {t("modal.description")}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="general" className="flex flex-col flex-1 min-h-0 overflow-hidden">
           <TabsList className="w-full shrink-0">
-            <TabsTrigger value="general" className="flex-1">General</TabsTrigger>
+            <TabsTrigger value="general" className="flex-1">{t("modal.tabGeneral")}</TabsTrigger>
             <TabsTrigger value="prefixes" className="flex-1">
-              Prefixes {prefixes.length > 0 && <Badge variant="secondary" className="ml-1.5 text-xs">{prefixes.length}</Badge>}
+              {t("modal.tabPrefixes")} {prefixes.length > 0 && <Badge variant="secondary" className="ml-1.5 text-xs">{prefixes.length}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="dns" className="flex-1">DNS</TabsTrigger>
             <TabsTrigger value="routes" className="flex-1">
-              Routes &amp; NAT64{" "}
+              {t("modal.tabRoutes")}{" "}
               {(routes.length + nat64Prefixes.length) > 0 && (
                 <Badge variant="secondary" className="ml-1.5 text-xs">{routes.length + nat64Prefixes.length}</Badge>
               )}
@@ -493,7 +506,7 @@ export function RouterAdvertInterfaceModal({
               <div className="space-y-5 py-1">
                 {/* Interface name */}
                 <div className="space-y-1.5">
-                  <Label htmlFor="iface-name">Interface Name</Label>
+                  <Label htmlFor="iface-name">{t("modal.interfaceName")}</Label>
                   {isEdit ? (
                     <Input id="iface-name" value={interfaceName} disabled className="font-mono" />
                   ) : (
@@ -502,7 +515,7 @@ export function RouterAdvertInterfaceModal({
                       onValueChange={setInterfaceName}
                       id="iface-name"
                       interfaces={availableInterfaces.filter((i) => !existingNames.includes(i.name))}
-                      placeholder="Select interface"
+                      placeholder={t("modal.selectInterface")}
                     />
                   )}
                 </div>
@@ -510,23 +523,23 @@ export function RouterAdvertInterfaceModal({
                 {/* Timing & Behavior */}
                 <div className="space-y-3">
                   <Label className="text-sm font-medium text-muted-foreground uppercase tracking-wide text-xs">
-                    Timing &amp; Behavior
+                    {t("modal.timingBehavior")}
                   </Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label htmlFor="default-lifetime">Default Lifetime (s)</Label>
+                      <Label htmlFor="default-lifetime">{t("modal.defaultLifetime")}</Label>
                       <Input
                         id="default-lifetime"
-                        placeholder="0 or 4–9000"
+                        placeholder={t("modal.defaultLifetimePlaceholder")}
                         value={defaultLifetime}
                         onChange={(e) => setDefaultLifetime(e.target.value)}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="default-preference">Default Preference</Label>
+                      <Label htmlFor="default-preference">{t("modal.defaultPreference")}</Label>
                       <Select value={defaultPreference} onValueChange={setDefaultPreference}>
                         <SelectTrigger id="default-preference">
-                          <SelectValue placeholder="medium (default)" />
+                          <SelectValue placeholder={t("modal.mediumDefault")} />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="low">low</SelectItem>
@@ -536,68 +549,68 @@ export function RouterAdvertInterfaceModal({
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="hop-limit">Hop Limit (0–255)</Label>
+                      <Label htmlFor="hop-limit">{t("modal.hopLimit")}</Label>
                       <Input
                         id="hop-limit"
                         type="number"
-                        placeholder="64 (default)"
+                        placeholder={t("modal.hopLimitPlaceholder")}
                         value={hopLimit}
                         onChange={(e) => setHopLimit(e.target.value)}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="link-mtu">Link MTU (1280–9000)</Label>
+                      <Label htmlFor="link-mtu">{t("modal.linkMtu")}</Label>
                       <Input
                         id="link-mtu"
                         type="number"
-                        placeholder="Leave empty for default"
+                        placeholder={t("modal.leaveEmptyDefault")}
                         value={linkMtu}
                         onChange={(e) => setLinkMtu(e.target.value)}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="reachable-time">Reachable Time ms</Label>
+                      <Label htmlFor="reachable-time">{t("modal.reachableTime")}</Label>
                       <Input
                         id="reachable-time"
                         type="number"
-                        placeholder="0 or 1–3600000"
+                        placeholder={t("modal.reachableTimePlaceholder")}
                         value={reachableTime}
                         onChange={(e) => setReachableTime(e.target.value)}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="retrans-timer">Retrans Timer ms</Label>
+                      <Label htmlFor="retrans-timer">{t("modal.retransTimer")}</Label>
                       <Input
                         id="retrans-timer"
                         type="number"
-                        placeholder="0 or 1–4294967295"
+                        placeholder={t("modal.retransTimerPlaceholder")}
                         value={retransTimer}
                         onChange={(e) => setRetransTimer(e.target.value)}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="interval-max">Interval Max s (4–1800)</Label>
+                      <Label htmlFor="interval-max">{t("modal.intervalMax")}</Label>
                       <Input
                         id="interval-max"
                         type="number"
-                        placeholder="600 (default)"
+                        placeholder={t("modal.intervalMaxPlaceholder")}
                         value={intervalMax}
                         onChange={(e) => setIntervalMax(e.target.value)}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="interval-min">Interval Min s (3–1350)</Label>
+                      <Label htmlFor="interval-min">{t("modal.intervalMin")}</Label>
                       <Input
                         id="interval-min"
                         type="number"
-                        placeholder="200 (default)"
+                        placeholder={t("modal.intervalMinPlaceholder")}
                         value={intervalMin}
                         onChange={(e) => setIntervalMin(e.target.value)}
                       />
                     </div>
                     {captivePortalSupported && (
                       <div className="col-span-2 space-y-1.5">
-                        <Label htmlFor="captive-portal">Captive Portal URL</Label>
+                        <Label htmlFor="captive-portal">{t("modal.captivePortal")}</Label>
                         <Input
                           id="captive-portal"
                           placeholder="https://portal.example.com/api"
@@ -612,7 +625,7 @@ export function RouterAdvertInterfaceModal({
                 {/* Flags */}
                 <div className="space-y-3">
                   <Label className="text-sm font-medium text-muted-foreground uppercase tracking-wide text-xs">
-                    Flags
+                    {t("modal.flags")}
                   </Label>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex items-start gap-2">
@@ -623,8 +636,8 @@ export function RouterAdvertInterfaceModal({
                         className="mt-0.5"
                       />
                       <div>
-                        <Label htmlFor="managed-flag" className="cursor-pointer text-sm">Managed Flag</Label>
-                        <p className="text-xs text-muted-foreground">Hosts use DHCPv6 for address autoconfiguration</p>
+                        <Label htmlFor="managed-flag" className="cursor-pointer text-sm">{t("modal.managedFlag")}</Label>
+                        <p className="text-xs text-muted-foreground">{t("modal.managedFlagHint")}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
@@ -635,8 +648,8 @@ export function RouterAdvertInterfaceModal({
                         className="mt-0.5"
                       />
                       <div>
-                        <Label htmlFor="other-config-flag" className="cursor-pointer text-sm">Other Config Flag</Label>
-                        <p className="text-xs text-muted-foreground">Hosts use DHCPv6 for other configuration</p>
+                        <Label htmlFor="other-config-flag" className="cursor-pointer text-sm">{t("modal.otherConfigFlag")}</Label>
+                        <p className="text-xs text-muted-foreground">{t("modal.otherConfigFlagHint")}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
@@ -647,8 +660,8 @@ export function RouterAdvertInterfaceModal({
                         className="mt-0.5"
                       />
                       <div>
-                        <Label htmlFor="no-send-advert" className="cursor-pointer text-sm">No Send Advert</Label>
-                        <p className="text-xs text-muted-foreground">Suppress sending router advertisements</p>
+                        <Label htmlFor="no-send-advert" className="cursor-pointer text-sm">{t("modal.noSendAdvert")}</Label>
+                        <p className="text-xs text-muted-foreground">{t("modal.noSendAdvertHint")}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
@@ -659,8 +672,8 @@ export function RouterAdvertInterfaceModal({
                         className="mt-0.5"
                       />
                       <div>
-                        <Label htmlFor="no-send-interval" className="cursor-pointer text-sm">No Send Interval</Label>
-                        <p className="text-xs text-muted-foreground">Suppress Advertisement Interval option in RAs</p>
+                        <Label htmlFor="no-send-interval" className="cursor-pointer text-sm">{t("modal.noSendInterval")}</Label>
+                        <p className="text-xs text-muted-foreground">{t("modal.noSendIntervalHint")}</p>
                       </div>
                     </div>
                   </div>
@@ -668,24 +681,24 @@ export function RouterAdvertInterfaceModal({
 
                 {/* Source Addresses */}
                 <MultiValueField
-                  label="Source Addresses"
+                  label={t("modal.sourceAddresses")}
                   items={sourceAddresses}
                   input={sourceAddrInput}
                   onInputChange={setSourceAddrInput}
                   onAdd={() => addToList(sourceAddresses, setSourceAddresses, sourceAddrInput, setSourceAddrInput)}
                   onRemove={(item) => removeFromList(sourceAddresses, setSourceAddresses, item)}
-                  placeholder="IPv6 address (e.g. 2001:db8::1)"
+                  placeholder={t("modal.sourceAddressPlaceholder")}
                 />
 
                 {/* Auto Ignore */}
                 <MultiValueField
-                  label="Auto Ignore Prefixes"
+                  label={t("modal.autoIgnore")}
                   items={autoIgnore}
                   input={autoIgnoreInput}
                   onInputChange={setAutoIgnoreInput}
                   onAdd={() => addToList(autoIgnore, setAutoIgnore, autoIgnoreInput, setAutoIgnoreInput)}
                   onRemove={(item) => removeFromList(autoIgnore, setAutoIgnore, item)}
-                  placeholder="IPv6 CIDR (e.g. ::/64)"
+                  placeholder={t("modal.autoIgnorePlaceholder")}
                 />
               </div>
             </ScrollArea>
@@ -696,17 +709,17 @@ export function RouterAdvertInterfaceModal({
             <ScrollArea className="h-full pr-4">
               <div className="space-y-3 py-1">
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium">RA Prefixes</Label>
+                  <Label className="text-sm font-medium">{t("modal.raPrefixes")}</Label>
                   {!addingPrefix && editingPrefixIdx === null && (
                     <Button type="button" size="sm" variant="outline" onClick={startAddPrefix}>
                       <Plus className="h-3.5 w-3.5 mr-1" />
-                      Add Prefix
+                      {t("modal.addPrefix")}
                     </Button>
                   )}
                 </div>
 
                 {prefixes.length === 0 && !addingPrefix && (
-                  <p className="text-sm text-muted-foreground">No prefixes configured.</p>
+                  <p className="text-sm text-muted-foreground">{t("modal.noPrefixes")}</p>
                 )}
 
                 <div className="space-y-2">
@@ -783,37 +796,37 @@ export function RouterAdvertInterfaceModal({
             <ScrollArea className="h-full pr-4">
               <div className="space-y-5 py-1">
                 <MultiValueField
-                  label="Name Servers (RDNSS)"
+                  label={t("modal.nameServers")}
                   items={nameServers}
                   input={nameServerInput}
                   onInputChange={setNameServerInput}
                   onAdd={() => addToList(nameServers, setNameServers, nameServerInput, setNameServerInput)}
                   onRemove={(item) => removeFromList(nameServers, setNameServers, item)}
-                  placeholder="IPv6 address (e.g. 2001:db8::53)"
+                  placeholder={t("modal.nameServerPlaceholder")}
                 />
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="ns-lifetime">Name Server Lifetime (s)</Label>
+                  <Label htmlFor="ns-lifetime">{t("modal.nameServerLifetime")}</Label>
                   <Input
                     id="ns-lifetime"
                     type="number"
-                    placeholder="0 or 1–7200"
+                    placeholder={t("modal.nameServerLifetimePlaceholder")}
                     value={nameServerLifetime}
                     onChange={(e) => setNameServerLifetime(e.target.value)}
                   />
-                  <p className="text-xs text-muted-foreground">0 = servers no longer valid</p>
+                  <p className="text-xs text-muted-foreground">{t("modal.nameServerLifetimeHint")}</p>
                 </div>
 
                 <Separator />
 
                 <MultiValueField
-                  label="DNS Search List (DNSSL)"
+                  label={t("modal.dnssl")}
                   items={dnssl}
                   input={dnsslInput}
                   onInputChange={setDnsslInput}
                   onAdd={() => addToList(dnssl, setDnssl, dnsslInput, setDnsslInput)}
                   onRemove={(item) => removeFromList(dnssl, setDnssl, item)}
-                  placeholder="Domain (e.g. example.com)"
+                  placeholder={t("modal.dnsslPlaceholder")}
                 />
               </div>
             </ScrollArea>
@@ -826,17 +839,17 @@ export function RouterAdvertInterfaceModal({
                 {/* Routes section */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium">Routes</Label>
+                    <Label className="text-sm font-medium">{t("modal.routes")}</Label>
                     {!addingRoute && editingRouteIdx === null && (
                       <Button type="button" size="sm" variant="outline" onClick={startAddRoute}>
                         <Plus className="h-3.5 w-3.5 mr-1" />
-                        Add Route
+                        {t("modal.addRoute")}
                       </Button>
                     )}
                   </div>
 
                   {routes.length === 0 && !addingRoute && (
-                    <p className="text-sm text-muted-foreground">No routes configured.</p>
+                    <p className="text-sm text-muted-foreground">{t("modal.noRoutes")}</p>
                   )}
 
                   <div className="space-y-2">
@@ -906,17 +919,17 @@ export function RouterAdvertInterfaceModal({
                 {/* NAT64 Prefixes section */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium">NAT64 Prefixes</Label>
+                    <Label className="text-sm font-medium">{t("modal.nat64Prefixes")}</Label>
                     {!addingNat64 && (
                       <Button type="button" size="sm" variant="outline" onClick={() => { setAddingNat64(true); setNewNat64Form({ ...emptyNat64Form }); setNat64Error(null); }}>
                         <Plus className="h-3.5 w-3.5 mr-1" />
-                        Add NAT64 Prefix
+                        {t("modal.addNat64")}
                       </Button>
                     )}
                   </div>
 
                   {nat64Prefixes.length === 0 && !addingNat64 && (
-                    <p className="text-sm text-muted-foreground">No NAT64 prefixes configured.</p>
+                    <p className="text-sm text-muted-foreground">{t("modal.noNat64")}</p>
                   )}
 
                   <div className="space-y-2">
@@ -941,17 +954,17 @@ export function RouterAdvertInterfaceModal({
                     {addingNat64 && (
                       <div className="rounded-md border bg-muted/30 p-3 space-y-3">
                         <div className="space-y-1.5">
-                          <Label className="text-xs">NAT64 Prefix (IPv6 CIDR)</Label>
+                          <Label className="text-xs">{t("modal.nat64Prefix")}</Label>
                           <Input
-                            placeholder="e.g. 64:ff9b::/96"
+                            placeholder={t("modal.nat64PrefixPlaceholder")}
                             value={newNat64Form.prefix}
                             onChange={(e) => setNewNat64Form({ ...newNat64Form, prefix: e.target.value })}
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-xs">Valid Lifetime (s or &quot;infinity&quot;)</Label>
+                          <Label className="text-xs">{t("modal.nat64ValidLifetime")}</Label>
                           <Input
-                            placeholder="e.g. 65528 or infinity"
+                            placeholder={t("modal.nat64ValidLifetimePlaceholder")}
                             value={newNat64Form.valid_lifetime}
                             onChange={(e) => setNewNat64Form({ ...newNat64Form, valid_lifetime: e.target.value })}
                           />
@@ -963,10 +976,10 @@ export function RouterAdvertInterfaceModal({
                           </p>
                         )}
                         <div className="flex items-center gap-2 pt-1">
-                          <Button type="button" size="sm" onClick={confirmAddNat64}>Add</Button>
+                          <Button type="button" size="sm" onClick={confirmAddNat64}>{tc("add")}</Button>
                           <Button type="button" size="sm" variant="ghost" onClick={() => { setAddingNat64(false); setNat64Error(null); }}>
                             <X className="h-3.5 w-3.5 mr-1" />
-                            Cancel
+                            {tc("cancel")}
                           </Button>
                         </div>
                       </div>
@@ -987,11 +1000,11 @@ export function RouterAdvertInterfaceModal({
 
         <DialogFooter className="shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isEdit ? "Save" : "Add"}
+            {isEdit ? tc("save") : tc("add")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1076,12 +1089,14 @@ function PrefixInlineForm({
   baseIfaceSupported,
   isNew,
 }: PrefixInlineFormProps) {
+  const t = useTranslations("routerAdvert");
+  const tc = useTranslations("common");
   return (
     <div className="rounded-md border bg-muted/30 p-3 space-y-3">
       <div className="space-y-1.5">
-        <Label className="text-xs">IPv6 Prefix</Label>
+        <Label className="text-xs">{t("modal.ipv6Prefix")}</Label>
         <Input
-          placeholder="e.g. 2001:db8::/64"
+          placeholder={t("modal.ipv6PrefixPlaceholder")}
           value={form.prefix}
           onChange={(e) => onChange({ ...form, prefix: e.target.value })}
           disabled={!isNew}
@@ -1090,17 +1105,17 @@ function PrefixInlineForm({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label className="text-xs">Valid Lifetime</Label>
+          <Label className="text-xs">{t("modal.validLifetime")}</Label>
           <Input
-            placeholder="seconds or infinity"
+            placeholder={t("modal.secondsOrInfinity")}
             value={form.valid_lifetime}
             onChange={(e) => onChange({ ...form, valid_lifetime: e.target.value })}
           />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs">Preferred Lifetime</Label>
+          <Label className="text-xs">{t("modal.preferredLifetime")}</Label>
           <Input
-            placeholder="seconds or infinity"
+            placeholder={t("modal.secondsOrInfinity")}
             value={form.preferred_lifetime}
             onChange={(e) => onChange({ ...form, preferred_lifetime: e.target.value })}
           />
@@ -1108,9 +1123,9 @@ function PrefixInlineForm({
       </div>
       {baseIfaceSupported && (
         <div className="space-y-1.5">
-          <Label className="text-xs">Base Interface</Label>
+          <Label className="text-xs">{t("modal.baseInterface")}</Label>
           <Input
-            placeholder="e.g. eth1"
+            placeholder={t("modal.baseInterfacePlaceholder")}
             value={form.base_interface}
             onChange={(e) => onChange({ ...form, base_interface: e.target.value })}
           />
@@ -1124,7 +1139,7 @@ function PrefixInlineForm({
             onCheckedChange={(c) => onChange({ ...form, decrement_lifetime: !!c })}
           />
           <Label htmlFor={`prefix-decr-${isNew ? "new" : form.prefix}`} className="text-xs cursor-pointer">
-            Decrement Lifetime
+            {t("modal.decrementLifetime")}
           </Label>
         </div>
         <div className="flex items-center gap-2">
@@ -1134,7 +1149,7 @@ function PrefixInlineForm({
             onCheckedChange={(c) => onChange({ ...form, deprecate_prefix: !!c })}
           />
           <Label htmlFor={`prefix-depr-${isNew ? "new" : form.prefix}`} className="text-xs cursor-pointer">
-            Deprecate on Shutdown
+            {t("modal.deprecatePrefix")}
           </Label>
         </div>
         <div className="flex items-center gap-2">
@@ -1144,7 +1159,7 @@ function PrefixInlineForm({
             onCheckedChange={(c) => onChange({ ...form, no_autonomous_flag: !!c })}
           />
           <Label htmlFor={`prefix-noauto-${isNew ? "new" : form.prefix}`} className="text-xs cursor-pointer">
-            No Autonomous Flag
+            {t("modal.noAutonomousFlag")}
           </Label>
         </div>
         <div className="flex items-center gap-2">
@@ -1154,7 +1169,7 @@ function PrefixInlineForm({
             onCheckedChange={(c) => onChange({ ...form, no_on_link_flag: !!c })}
           />
           <Label htmlFor={`prefix-noonlink-${isNew ? "new" : form.prefix}`} className="text-xs cursor-pointer">
-            No On-Link Flag
+            {t("modal.noOnLinkFlag")}
           </Label>
         </div>
       </div>
@@ -1165,10 +1180,10 @@ function PrefixInlineForm({
         </p>
       )}
       <div className="flex items-center gap-2 pt-1">
-        <Button type="button" size="sm" onClick={onSave}>{isNew ? "Add" : "Save"}</Button>
+        <Button type="button" size="sm" onClick={onSave}>{isNew ? tc("add") : tc("save")}</Button>
         <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
           <X className="h-3.5 w-3.5 mr-1" />
-          Cancel
+          {tc("cancel")}
         </Button>
       </div>
     </div>
@@ -1194,12 +1209,14 @@ function RouteInlineForm({
   error,
   isNew,
 }: RouteInlineFormProps) {
+  const t = useTranslations("routerAdvert");
+  const tc = useTranslations("common");
   return (
     <div className="rounded-md border bg-muted/30 p-3 space-y-3">
       <div className="space-y-1.5">
-        <Label className="text-xs">IPv6 Route (CIDR)</Label>
+        <Label className="text-xs">{t("modal.ipv6Route")}</Label>
         <Input
-          placeholder="e.g. 2001:db8::/48"
+          placeholder={t("modal.ipv6RoutePlaceholder")}
           value={form.route}
           onChange={(e) => onChange({ ...form, route: e.target.value })}
           disabled={!isNew}
@@ -1208,10 +1225,10 @@ function RouteInlineForm({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label className="text-xs">Route Preference</Label>
+          <Label className="text-xs">{t("modal.routePreference")}</Label>
           <Select value={form.route_preference} onValueChange={(v) => onChange({ ...form, route_preference: v })}>
             <SelectTrigger className="h-8 text-sm">
-              <SelectValue placeholder="medium (default)" />
+              <SelectValue placeholder={t("modal.mediumDefault")} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="low">low</SelectItem>
@@ -1221,9 +1238,9 @@ function RouteInlineForm({
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs">Valid Lifetime</Label>
+          <Label className="text-xs">{t("modal.validLifetime")}</Label>
           <Input
-            placeholder="seconds or infinity"
+            placeholder={t("modal.secondsOrInfinity")}
             value={form.valid_lifetime}
             onChange={(e) => onChange({ ...form, valid_lifetime: e.target.value })}
           />
@@ -1236,7 +1253,7 @@ function RouteInlineForm({
           onCheckedChange={(c) => onChange({ ...form, no_remove_route: !!c })}
         />
         <Label htmlFor={`route-noremove-${isNew ? "new" : form.route}`} className="text-xs cursor-pointer">
-          No Remove Route — do not announce zero lifetime on shutdown
+          {t("modal.noRemoveRoute")}
         </Label>
       </div>
       {error && (
@@ -1246,10 +1263,10 @@ function RouteInlineForm({
         </p>
       )}
       <div className="flex items-center gap-2 pt-1">
-        <Button type="button" size="sm" onClick={onSave}>{isNew ? "Add" : "Save"}</Button>
+        <Button type="button" size="sm" onClick={onSave}>{isNew ? tc("add") : tc("save")}</Button>
         <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
           <X className="h-3.5 w-3.5 mr-1" />
-          Cancel
+          {tc("cancel")}
         </Button>
       </div>
     </div>

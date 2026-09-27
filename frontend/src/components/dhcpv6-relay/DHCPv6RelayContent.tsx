@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,8 @@ function isConfigured(config: DHCPv6RelayConfig): boolean {
 }
 
 export function DHCPv6RelayContent() {
+  const t = useTranslations("dhcpv6Relay");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWritePermission = canWrite(FeatureGroup.DHCPV6_RELAY);
 
@@ -43,11 +46,11 @@ export function DHCPv6RelayContent() {
       const data = await dhcpv6RelayService.getConfig(refresh);
       setConfig(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load DHCPv6 relay configuration");
+      setError(err instanceof Error ? err.message : t("content.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -59,7 +62,7 @@ export function DHCPv6RelayContent() {
     setError(null);
     const result = await dhcpv6RelayService.setDisabled(!config.disabled);
     if (!result.success) {
-      setError(result.error ?? "Failed to update service status");
+      setError(result.error ?? t("content.statusFailed"));
     } else {
       await loadData(true);
     }
@@ -79,7 +82,7 @@ export function DHCPv6RelayContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -88,11 +91,11 @@ export function DHCPv6RelayContent() {
   const configured = config ? isConfigured(config) : false;
 
   const statusBadge = !configured ? (
-    <Badge variant="secondary" className="bg-muted text-muted-foreground">Unconfigured</Badge>
+    <Badge variant="secondary" className="bg-muted text-muted-foreground">{t("content.unconfigured")}</Badge>
   ) : config?.disabled ? (
-    <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 dark:text-amber-400">Disabled</Badge>
+    <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 dark:text-amber-400">{tc("disabled")}</Badge>
   ) : (
-    <Badge variant="secondary" className="bg-green-500/10 text-green-600 dark:text-green-500">Active</Badge>
+    <Badge variant="secondary" className="bg-green-500/10 text-green-600 dark:text-green-500">{t("content.active")}</Badge>
   );
 
   return (
@@ -107,14 +110,14 @@ export function DHCPv6RelayContent() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold text-foreground">DHCPv6 Relay</h1>
+                  <h1 className="text-2xl font-bold text-foreground">{t("content.title")}</h1>
                   {statusBadge}
                   {!hasWritePermission && (
-                    <Badge variant="secondary">Read Only</Badge>
+                    <Badge variant="secondary">{t("content.readOnly")}</Badge>
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Forward DHCPv6 requests from clients to a centralized DHCPv6 server
+                  {t("content.subtitle")}
                 </p>
               </div>
             </div>
@@ -128,18 +131,18 @@ export function DHCPv6RelayContent() {
                   disabled={disableLoading}
                 >
                   {disableLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                  {config?.disabled ? "Enable Service" : "Disable Service"}
+                  {config?.disabled ? t("content.enableService") : t("content.disableService")}
                 </Button>
               )}
               {hasWritePermission && (
                 <Button size="sm" onClick={() => setModalOpen(true)}>
                   <Pencil className="h-4 w-4 mr-2" />
-                  {configured ? "Edit Configuration" : "Configure"}
+                  {configured ? t("content.editConfiguration") : t("content.configure")}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={() => loadData(true)}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -149,7 +152,7 @@ export function DHCPv6RelayContent() {
             <div className="mb-4 flex items-center gap-3 p-3 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400">
               <AlertTriangle className="h-4 w-4 shrink-0" />
               <span className="text-sm font-medium">
-                DHCPv6 relay is disabled. Client requests will not be forwarded.
+                {t("content.disabledBanner")}
               </span>
               {hasWritePermission && (
                 <Button
@@ -159,7 +162,7 @@ export function DHCPv6RelayContent() {
                   onClick={handleToggleDisable}
                   disabled={disableLoading}
                 >
-                  Re-enable
+                  {t("content.reenable")}
                 </Button>
               )}
             </div>
@@ -181,16 +184,14 @@ export function DHCPv6RelayContent() {
                 <div className="rounded-full p-4 bg-muted mb-4">
                   <Network className="h-10 w-10 text-muted-foreground/50" />
                 </div>
-                <h3 className="text-base font-semibold mb-1">DHCPv6 Relay is not configured</h3>
+                <h3 className="text-base font-semibold mb-1">{t("content.emptyTitle")}</h3>
                 <p className="text-sm text-muted-foreground text-center max-w-sm mb-6">
-                  Configure the DHCPv6 relay agent to forward client requests to a centralized
-                  DHCPv6 server. Define listen interfaces (client-facing) and upstream interfaces
-                  (server-facing) with their server addresses.
+                  {t("content.emptyDescription")}
                 </p>
                 {hasWritePermission && (
                   <Button onClick={() => setModalOpen(true)}>
                     <Pencil className="h-4 w-4 mr-2" />
-                    Configure DHCPv6 Relay
+                    {t("content.configureRelay")}
                   </Button>
                 )}
               </CardContent>
@@ -206,25 +207,25 @@ export function DHCPv6RelayContent() {
                       : <CheckCircle2 className="h-4 w-4 text-green-500" />
                   }
                   iconBg={config?.disabled ? "bg-amber-500/10" : "bg-green-500/10"}
-                  label="Service Status"
-                  value={config?.disabled ? "Disabled" : "Active"}
+                  label={t("content.serviceStatus")}
+                  value={config?.disabled ? tc("disabled") : t("content.active")}
                 />
                 <StatCard
                   icon={<Settings2 className="h-4 w-4 text-primary" />}
                   iconBg="bg-primary/10"
-                  label="Max Hop Count"
-                  value={config?.max_hop_count != null ? String(config.max_hop_count) : "Default (10)"}
+                  label={t("content.maxHopCount")}
+                  value={config?.max_hop_count != null ? String(config.max_hop_count) : t("content.defaultTen")}
                 />
                 <StatCard
                   icon={<ArrowDownToLine className="h-4 w-4 text-primary" />}
                   iconBg="bg-primary/10"
-                  label="Listen Interfaces"
+                  label={t("content.listenInterfaces")}
                   value={String(config?.listen_interfaces.length ?? 0)}
                 />
                 <StatCard
                   icon={<ArrowUpFromLine className="h-4 w-4 text-primary" />}
                   iconBg="bg-primary/10"
-                  label="Upstream Interfaces"
+                  label={t("content.upstreamInterfaces")}
                   value={String(config?.upstream_interfaces.length ?? 0)}
                 />
               </div>
@@ -234,25 +235,25 @@ export function DHCPv6RelayContent() {
                 {/* Left column — Global Options */}
                 <div className="space-y-4">
                   <DetailCard
-                    title="Global Options"
+                    title={t("content.globalOptions")}
                     icon={<Settings2 className="h-4 w-4 text-muted-foreground" />}
                   >
                     <dl className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <dt className="text-muted-foreground">Max Hop Count</dt>
+                        <dt className="text-muted-foreground">{t("content.maxHopCount")}</dt>
                         <dd className="font-mono font-medium">
-                          {config?.max_hop_count != null ? config.max_hop_count : "10 (default)"}
+                          {config?.max_hop_count != null ? config.max_hop_count : t("defaultValue", { value: "10" })}
                         </dd>
                       </div>
                       <div className="flex justify-between items-center">
-                        <dt className="text-muted-foreground">Interface-ID Option</dt>
+                        <dt className="text-muted-foreground">{t("content.interfaceIdOption")}</dt>
                         <dd>
                           {config?.use_interface_id_option ? (
                             <Badge variant="secondary" className="bg-green-500/10 text-green-600 dark:text-green-500 text-xs">
-                              Enabled
+                              {tc("enabled")}
                             </Badge>
                           ) : (
-                            <Badge variant="secondary" className="text-xs">Disabled</Badge>
+                            <Badge variant="secondary" className="text-xs">{tc("disabled")}</Badge>
                           )}
                         </dd>
                       </div>
@@ -264,7 +265,7 @@ export function DHCPv6RelayContent() {
                 <div className="space-y-4">
                   {config && config.listen_interfaces.length > 0 && (
                     <DetailCard
-                      title="Listen Interfaces"
+                      title={t("content.listenInterfaces")}
                       icon={<ArrowDownToLine className="h-4 w-4 text-muted-foreground" />}
                     >
                       <div className="space-y-1.5">
@@ -277,7 +278,7 @@ export function DHCPv6RelayContent() {
                                 <Badge variant="outline" className="font-mono text-xs">{li.address}</Badge>
                               </>
                             ) : (
-                              <span className="text-xs text-muted-foreground">all addresses</span>
+                              <span className="text-xs text-muted-foreground">{t("allAddresses")}</span>
                             )}
                           </div>
                         ))}
@@ -287,7 +288,7 @@ export function DHCPv6RelayContent() {
 
                   {config && config.upstream_interfaces.length > 0 && (
                     <DetailCard
-                      title="Upstream Interfaces"
+                      title={t("content.upstreamInterfaces")}
                       icon={<ArrowUpFromLine className="h-4 w-4 text-muted-foreground" />}
                     >
                       <div className="space-y-2">
@@ -301,7 +302,7 @@ export function DHCPv6RelayContent() {
                                 ))}
                               </div>
                             ) : (
-                              <p className="text-xs text-muted-foreground pl-2">No server addresses</p>
+                              <p className="text-xs text-muted-foreground pl-2">{t("content.noServerAddresses")}</p>
                             )}
                           </div>
                         ))}

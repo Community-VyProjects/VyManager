@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
 export function EventHandlerContent() {
+  const t = useTranslations("eventHandler");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWritePermission = canWrite(FeatureGroup.EVENT_HANDLER);
 
@@ -54,11 +57,11 @@ export function EventHandlerContent() {
       const data = await eventHandlerService.getConfig(refresh);
       setConfig(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load event handler configuration");
+      setError(err instanceof Error ? err.message : t("content.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -71,7 +74,7 @@ export function EventHandlerContent() {
       await fn();
       await loadData(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setActionLoading(false);
     }
@@ -89,7 +92,7 @@ export function EventHandlerContent() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => loadData()}>Retry</Button>
+        <Button variant="outline" onClick={() => loadData()}>{tc("retry")}</Button>
       </div>
     );
   }
@@ -109,17 +112,17 @@ export function EventHandlerContent() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold text-foreground">Event Handler</h1>
-                  {!hasWritePermission && <Badge variant="secondary">Read Only</Badge>}
+                  <h1 className="text-2xl font-bold text-foreground">{t("content.title")}</h1>
+                  {!hasWritePermission && <Badge variant="secondary">{t("content.readOnly")}</Badge>}
                   <Badge
                     variant={isConfigured ? "default" : "secondary"}
                     className={isConfigured ? "bg-green-500/10 text-green-600 border-green-500/20" : ""}
                   >
-                    {isConfigured ? "Configured" : "Unconfigured"}
+                    {isConfigured ? t("content.configured") : t("content.unconfigured")}
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  systemd-journal event triggers
+                  {t("content.subtitle")}
                 </p>
               </div>
             </div>
@@ -130,12 +133,12 @@ export function EventHandlerContent() {
                   onClick={() => { setEditingEvent(null); setEventModalOpen(true); }}
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Event
+                  {t("content.addEvent")}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={() => loadData(true)}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -153,9 +156,9 @@ export function EventHandlerContent() {
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Zap className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                <p className="text-sm text-muted-foreground mb-2">No event handlers configured</p>
+                <p className="text-sm text-muted-foreground mb-2">{t("content.emptyTitle")}</p>
                 <p className="text-xs text-muted-foreground mb-4">
-                  Add an event to trigger scripts on matching log entries.
+                  {t("content.emptyHint")}
                 </p>
                 {hasWritePermission && (
                   <Button
@@ -163,7 +166,7 @@ export function EventHandlerContent() {
                     onClick={() => { setEditingEvent(null); setEventModalOpen(true); }}
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Event
+                    {t("content.addEvent")}
                   </Button>
                 )}
               </CardContent>
@@ -174,12 +177,12 @@ export function EventHandlerContent() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Filter Pattern</TableHead>
-                      <TableHead>Syslog ID</TableHead>
-                      <TableHead>Script Path</TableHead>
-                      <TableHead>Env Vars</TableHead>
-                      {hasWritePermission && <TableHead className="text-right">Actions</TableHead>}
+                      <TableHead>{tc("name")}</TableHead>
+                      <TableHead>{t("content.colPattern")}</TableHead>
+                      <TableHead>{t("content.colSyslogId")}</TableHead>
+                      <TableHead>{t("content.colScriptPath")}</TableHead>
+                      <TableHead>{t("content.colEnvVars")}</TableHead>
+                      {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -202,7 +205,7 @@ export function EventHandlerContent() {
                         <TableCell>
                           {ev.script.environment.length > 0 ? (
                             <Badge variant="outline" className="text-xs">
-                              {ev.script.environment.length} var{ev.script.environment.length !== 1 ? "s" : ""}
+                              {t("content.varCount", { count: ev.script.environment.length })}
                             </Badge>
                           ) : (
                             <span className="text-muted-foreground">—</span>
@@ -255,13 +258,16 @@ export function EventHandlerContent() {
       <AlertDialog open={!!deletingEvent} onOpenChange={(open) => { if (!open) setDeletingEvent(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Event Handler</AlertDialogTitle>
+            <AlertDialogTitle>{t("delete.title")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Remove event handler <span className="font-mono">{deletingEvent}</span>? This action cannot be undone.
+              {t.rich("delete.description", {
+                name: deletingEvent ?? "",
+                mono: (chunks) => <span className="font-mono">{chunks}</span>,
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() =>
                 withAction(async () => {
@@ -270,7 +276,7 @@ export function EventHandlerContent() {
                 })
               }
             >
-              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : tc("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

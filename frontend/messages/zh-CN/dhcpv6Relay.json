@@ -1,1 +1,57 @@
-{}
+{
+  "defaultValue": "{value}（默认）",
+  "allAddresses": "所有地址",
+  "content": {
+    "loadFailed": "加载 DHCPv6 中继配置失败",
+    "statusFailed": "更新服务状态失败",
+    "unconfigured": "未配置",
+    "active": "活动",
+    "title": "DHCPv6 中继",
+    "readOnly": "只读",
+    "subtitle": "将客户端的 DHCPv6 请求转发到集中式 DHCPv6 服务器",
+    "enableService": "启用服务",
+    "disableService": "禁用服务",
+    "editConfiguration": "编辑配置",
+    "configure": "配置",
+    "disabledBanner": "DHCPv6 中继已禁用，客户端请求将不会被转发。",
+    "reenable": "重新启用",
+    "emptyTitle": "未配置 DHCPv6 中继",
+    "emptyDescription": "配置 DHCPv6 中继代理，将客户端请求转发到集中式 DHCPv6 服务器。请定义监听接口（面向客户端）和上游接口（面向服务器）及其服务器地址。",
+    "configureRelay": "配置 DHCPv6 中继",
+    "serviceStatus": "服务状态",
+    "maxHopCount": "最大跳数",
+    "defaultTen": "默认（10）",
+    "listenInterfaces": "监听接口",
+    "upstreamInterfaces": "上游接口",
+    "globalOptions": "全局选项",
+    "interfaceIdOption": "Interface-ID 选项",
+    "noServerAddresses": "无服务器地址"
+  },
+  "modal": {
+    "errors": {
+      "invalidIpv6": "“{addr}”不是有效的 IPv6 地址",
+      "duplicateAddress": "{addr} 已在 {iface} 的列表中",
+      "upstreamRequired": "至少需要一个上游接口来转发 DHCPv6 请求",
+      "hopCountRange": "最大跳数必须是 1 到 255 之间的整数",
+      "listenInvalid": "监听接口 {iface}：“{addr}”不是有效的 IPv6 地址",
+      "upstreamInvalid": "上游接口 {iface}：“{addr}”不是有效的 IPv6 地址",
+      "configFailed": "配置失败"
+    },
+    "editTitle": "编辑 DHCPv6 中继配置",
+    "editDescription": "修改 DHCPv6 中继服务设置。",
+    "createDescription": "设置 DHCPv6 中继代理，将客户端请求转发到集中式服务器。",
+    "disableService": "禁用 DHCPv6 中继服务",
+    "optionalSuffix": "（可选）",
+    "listenHelp": "中继代理监听客户端 DHCPv6 请求的接口。可以为每个接口指定要监听的 IPv6 源地址。",
+    "selectInterface": "选择接口",
+    "ipv6AddressOptional": "IPv6 地址（可选）",
+    "upstreamHelp": "用于将 DHCPv6 请求转发到服务器的接口。每个接口可添加一个或多个服务器 IPv6 地址。",
+    "serverIpv6Address": "服务器 IPv6 地址",
+    "selectUpstreamInterface": "选择要添加的上游接口",
+    "globalOptionsHelp": "高级调优——留空则使用默认值。",
+    "hopCountHelp": "丢弃达到此跳数的中继数据包（1–255）。",
+    "useInterfaceIdOption": "使用 Interface-ID 选项",
+    "interfaceIdHelp": "在中继的数据包中添加 interface-ID 选项，用于标识接收客户端请求的接口。",
+    "saveConfiguration": "保存配置"
+  }
+}

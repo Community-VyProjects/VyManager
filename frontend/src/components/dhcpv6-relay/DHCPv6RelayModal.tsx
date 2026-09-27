@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +43,8 @@ function isValidIPv6(value: string): boolean {
 }
 
 export function DHCPv6RelayModal({ open, onClose, onSuccess, config }: DHCPv6RelayModalProps) {
+  const t = useTranslations("dhcpv6Relay");
+  const tc = useTranslations("common");
   const [disabled, setDisabled] = useState(false);
   const [maxHopCount, setMaxHopCount] = useState("");
   const [useInterfaceIdOption, setUseInterfaceIdOption] = useState(false);
@@ -126,7 +129,7 @@ export function DHCPv6RelayModal({ open, onClose, onSuccess, config }: DHCPv6Rel
     if (listenEntries.some((e) => e.interface === listenSelectedIface)) return;
     const addr = listenAddressInput.trim();
     if (addr && !isValidIPv6(addr)) {
-      setError(`"${addr}" is not a valid IPv6 address`);
+      setError(t("modal.errors.invalidIpv6", { addr }));
       return;
     }
     setListenEntries([...listenEntries, { interface: listenSelectedIface, address: addr }]);
@@ -170,11 +173,11 @@ export function DHCPv6RelayModal({ open, onClose, onSuccess, config }: DHCPv6Rel
     const addr = entry.addressInput.trim();
     if (!addr) return;
     if (!isValidIPv6(addr)) {
-      setError(`"${addr}" is not a valid IPv6 address`);
+      setError(t("modal.errors.invalidIpv6", { addr }));
       return;
     }
     if (entry.addresses.includes(addr)) {
-      setError(`${addr} is already listed for ${iface}`);
+      setError(t("modal.errors.duplicateAddress", { addr, iface }));
       return;
     }
     setUpstreamEntries(
@@ -201,23 +204,23 @@ export function DHCPv6RelayModal({ open, onClose, onSuccess, config }: DHCPv6Rel
 
   const validate = (): string | null => {
     if (upstreamEntries.length === 0) {
-      return "At least one upstream interface is required to forward DHCPv6 requests";
+      return t("modal.errors.upstreamRequired");
     }
     if (maxHopCount !== "") {
       const n = parseInt(maxHopCount, 10);
       if (isNaN(n) || n < 1 || n > 255) {
-        return "Max hop count must be an integer between 1 and 255";
+        return t("modal.errors.hopCountRange");
       }
     }
     for (const entry of listenEntries) {
       if (entry.address && !isValidIPv6(entry.address)) {
-        return `Listen interface ${entry.interface}: "${entry.address}" is not a valid IPv6 address`;
+        return t("modal.errors.listenInvalid", { iface: entry.interface, addr: entry.address });
       }
     }
     for (const entry of upstreamEntries) {
       for (const addr of entry.addresses) {
         if (!isValidIPv6(addr)) {
-          return `Upstream interface ${entry.interface}: "${addr}" is not a valid IPv6 address`;
+          return t("modal.errors.upstreamInvalid", { iface: entry.interface, addr });
         }
       }
     }
@@ -252,7 +255,7 @@ export function DHCPv6RelayModal({ open, onClose, onSuccess, config }: DHCPv6Rel
 
     const result = await dhcpv6RelayService.configure(payload);
     if (!result.success) {
-      setError(result.error ?? "Configuration failed");
+      setError(result.error ?? t("modal.errors.configFailed"));
       setLoading(false);
       return;
     }
@@ -280,12 +283,12 @@ export function DHCPv6RelayModal({ open, onClose, onSuccess, config }: DHCPv6Rel
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? "Edit DHCPv6 Relay Configuration" : "Configure DHCPv6 Relay"}
+            {isEditing ? t("modal.editTitle") : t("content.configureRelay")}
           </DialogTitle>
           <DialogDescription>
             {isEditing
-              ? "Modify the DHCPv6 relay service settings."
-              : "Set up the DHCPv6 relay agent to forward client requests to a centralized server."}
+              ? t("modal.editDescription")
+              : t("modal.createDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -300,7 +303,7 @@ export function DHCPv6RelayModal({ open, onClose, onSuccess, config }: DHCPv6Rel
                 onCheckedChange={(checked) => setDisabled(checked === true)}
               />
               <Label htmlFor="dhcpv6r-disabled" className="cursor-pointer">
-                Disable DHCPv6 Relay service
+                {t("modal.disableService")}
               </Label>
             </div>
 
@@ -310,12 +313,11 @@ export function DHCPv6RelayModal({ open, onClose, onSuccess, config }: DHCPv6Rel
             <div className="space-y-3">
               <div>
                 <Label className="text-sm font-semibold">
-                  Listen Interfaces
-                  <span className="ml-2 text-xs font-normal text-muted-foreground">(optional)</span>
+                  {t("content.listenInterfaces")}
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">{t("modal.optionalSuffix")}</span>
                 </Label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Interfaces the relay agent listens on for client DHCPv6 requests. Optionally
-                  specify the IPv6 source address to listen on for each interface.
+                  {t("modal.listenHelp")}
                 </p>
               </div>
 
@@ -337,7 +339,7 @@ export function DHCPv6RelayModal({ open, onClose, onSuccess, config }: DHCPv6Rel
                           </span>
                         </>
                       ) : (
-                        <span className="text-xs text-muted-foreground flex-1">all addresses</span>
+                        <span className="text-xs text-muted-foreground flex-1">{t("allAddresses")}</span>
                       )}
                       <button
                         onClick={() => handleRemoveListenInterface(entry.interface)}
@@ -355,13 +357,13 @@ export function DHCPv6RelayModal({ open, onClose, onSuccess, config }: DHCPv6Rel
                   value={listenSelectedIface}
                   onValueChange={setListenSelectedIface}
                   interfaces={availableForListen}
-                  placeholder="Select interface"
+                  placeholder={t("modal.selectInterface")}
                 />
                 <Input
                   value={listenAddressInput}
                   onChange={(e) => setListenAddressInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddListenInterface(); } }}
-                  placeholder="IPv6 address (optional)"
+                  placeholder={t("modal.ipv6AddressOptional")}
                   className="font-mono text-sm"
                 />
                 <Button
@@ -381,10 +383,9 @@ export function DHCPv6RelayModal({ open, onClose, onSuccess, config }: DHCPv6Rel
             {/* ---- Upstream Interfaces ---- */}
             <div className="space-y-3">
               <div>
-                <Label className="text-sm font-semibold">Upstream Interfaces</Label>
+                <Label className="text-sm font-semibold">{t("content.upstreamInterfaces")}</Label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Interfaces used to forward DHCPv6 requests to the server. Add one or more
-                  server IPv6 addresses per interface.
+                  {t("modal.upstreamHelp")}
                 </p>
               </div>
 
@@ -440,7 +441,7 @@ export function DHCPv6RelayModal({ open, onClose, onSuccess, config }: DHCPv6Rel
                               handleAddUpstreamAddress(entry.interface);
                             }
                           }}
-                          placeholder="Server IPv6 address"
+                          placeholder={t("modal.serverIpv6Address")}
                           className="font-mono text-sm h-8"
                         />
                         <Button
@@ -465,7 +466,7 @@ export function DHCPv6RelayModal({ open, onClose, onSuccess, config }: DHCPv6Rel
                   onValueChange={setUpstreamSelectedIface}
                   interfaces={availableForUpstream}
                   className="flex-1"
-                  placeholder="Select upstream interface to add"
+                  placeholder={t("modal.selectUpstreamInterface")}
                 />
                 <Button
                   variant="outline"
@@ -484,14 +485,14 @@ export function DHCPv6RelayModal({ open, onClose, onSuccess, config }: DHCPv6Rel
             {/* ---- Global Options ---- */}
             <div className="space-y-4">
               <div>
-                <Label className="text-sm font-semibold">Global Options</Label>
+                <Label className="text-sm font-semibold">{t("content.globalOptions")}</Label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Advanced tuning — leave blank to use defaults.
+                  {t("modal.globalOptionsHelp")}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="dhcpv6r-hop-count">Max Hop Count</Label>
+                <Label htmlFor="dhcpv6r-hop-count">{t("content.maxHopCount")}</Label>
                 <Input
                   id="dhcpv6r-hop-count"
                   type="number"
@@ -499,11 +500,11 @@ export function DHCPv6RelayModal({ open, onClose, onSuccess, config }: DHCPv6Rel
                   onChange={(e) => setMaxHopCount(e.target.value)}
                   min={1}
                   max={255}
-                  placeholder="10 (default)"
+                  placeholder={t("defaultValue", { value: "10" })}
                   className="font-mono"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Discard relay packets that have reached this hop count (1–255).
+                  {t("modal.hopCountHelp")}
                 </p>
               </div>
 
@@ -516,11 +517,10 @@ export function DHCPv6RelayModal({ open, onClose, onSuccess, config }: DHCPv6Rel
                 />
                 <div>
                   <Label htmlFor="dhcpv6r-interface-id" className="cursor-pointer font-normal">
-                    Use Interface-ID Option
+                    {t("modal.useInterfaceIdOption")}
                   </Label>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Add an interface-ID option to relayed packets identifying the interface
-                    on which the client request was received.
+                    {t("modal.interfaceIdHelp")}
                   </p>
                 </div>
               </div>
@@ -538,16 +538,16 @@ export function DHCPv6RelayModal({ open, onClose, onSuccess, config }: DHCPv6Rel
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
+                {tc("saving")}
               </>
             ) : (
-              "Save Configuration"
+              t("modal.saveConfiguration")
             )}
           </Button>
         </DialogFooter>

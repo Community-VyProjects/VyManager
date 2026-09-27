@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,8 @@ interface Props {
 type AddressSource = "interface" | "web";
 
 export function DNSDynamicEntryModal({ open, onOpenChange, entry, onSubmit }: Props) {
+  const t = useTranslations("dnsDynamic");
+  const tc = useTranslations("common");
   const isEdit = !!entry;
 
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
@@ -138,7 +141,7 @@ export function DNSDynamicEntryModal({ open, onOpenChange, entry, onSubmit }: Pr
 
   const handleSubmit = async () => {
     if (!isEdit && !name.trim()) {
-      setError("Name is required");
+      setError(t("entry.nameRequired"));
       return;
     }
     setLoading(true);
@@ -165,7 +168,7 @@ export function DNSDynamicEntryModal({ open, onOpenChange, entry, onSubmit }: Pr
       });
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -175,73 +178,73 @@ export function DNSDynamicEntryModal({ open, onOpenChange, entry, onSubmit }: Pr
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit DDNS Entry" : "Add DDNS Entry"}</DialogTitle>
-          <DialogDescription>Configure a Dynamic DNS update entry.</DialogDescription>
+          <DialogTitle>{isEdit ? t("entry.editTitle") : t("entry.addTitle")}</DialogTitle>
+          <DialogDescription>{t("entry.description")}</DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="basic">
           <TabsList className="w-full">
-            <TabsTrigger value="basic" className="flex-1">Basic</TabsTrigger>
-            <TabsTrigger value="address" className="flex-1">Address</TabsTrigger>
-            <TabsTrigger value="options" className="flex-1">Options</TabsTrigger>
+            <TabsTrigger value="basic" className="flex-1">{t("entry.tabBasic")}</TabsTrigger>
+            <TabsTrigger value="address" className="flex-1">{t("entry.tabAddress")}</TabsTrigger>
+            <TabsTrigger value="options" className="flex-1">{t("entry.tabOptions")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="basic">
             <ScrollArea className="h-64 pr-4">
               <div className="space-y-4 py-2">
                 <div className="space-y-2">
-                  <Label htmlFor="ddns-name">Name</Label>
+                  <Label htmlFor="ddns-name">{tc("name")}</Label>
                   <Input
                     id="ddns-name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. my-ddns"
+                    placeholder={t("example", { value: "my-ddns" })}
                     disabled={isEdit}
                     className={isEdit ? "bg-muted font-mono" : "font-mono"}
                   />
-                  {isEdit && <p className="text-xs text-muted-foreground">Name cannot be changed after creation.</p>}
+                  {isEdit && <p className="text-xs text-muted-foreground">{t("entry.nameCannotChange")}</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ddns-protocol">Protocol</Label>
+                  <Label htmlFor="ddns-protocol">{t("protocol")}</Label>
                   <Input
                     id="ddns-protocol"
                     value={protocol}
                     onChange={(e) => setProtocol(e.target.value)}
-                    placeholder="e.g. dyndns2, cloudflare"
+                    placeholder={t("example", { value: "dyndns2, cloudflare" })}
                     className="font-mono"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ddns-server">Server (optional)</Label>
+                  <Label htmlFor="ddns-server">{t("entry.serverOptional")}</Label>
                   <Input
                     id="ddns-server"
                     value={server}
                     onChange={(e) => setServer(e.target.value)}
-                    placeholder="e.g. members.dyndns.org"
+                    placeholder={t("example", { value: "members.dyndns.org" })}
                     className="font-mono"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ddns-user">Username</Label>
+                  <Label htmlFor="ddns-user">{t("entry.username")}</Label>
                   <Input
                     id="ddns-user"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="username"
+                    placeholder={t("entry.usernamePlaceholder")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ddns-pass">Password</Label>
+                  <Label htmlFor="ddns-pass">{t("entry.password")}</Label>
                   <Input
                     id="ddns-pass"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="password"
+                    placeholder={t("entry.passwordPlaceholder")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Hostnames</Label>
+                  <Label>{t("hostnames")}</Label>
                   {hostnames.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                       {hostnames.map((h) => (
@@ -268,14 +271,14 @@ export function DNSDynamicEntryModal({ open, onOpenChange, entry, onSubmit }: Pr
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>IP Version</Label>
+                  <Label>{t("ipVersion")}</Label>
                   <Select value={ipVersion || "none"} onValueChange={(v) => setIpVersion(v === "none" ? "" : v)}>
-                    <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={t("entry.selectPlaceholder")} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Not set</SelectItem>
+                      <SelectItem value="none">{tc("notSet")}</SelectItem>
                       <SelectItem value="ipv4">IPv4</SelectItem>
                       <SelectItem value="ipv6">IPv6</SelectItem>
-                      <SelectItem value="both">Both</SelectItem>
+                      <SelectItem value="both">{t("entry.both")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -287,46 +290,46 @@ export function DNSDynamicEntryModal({ open, onOpenChange, entry, onSubmit }: Pr
             <ScrollArea className="h-64 pr-4">
               <div className="space-y-4 py-2">
                 <div className="space-y-2">
-                  <Label>Source</Label>
+                  <Label>{t("entry.source")}</Label>
                   <Select value={addressSource} onValueChange={(v) => setAddressSource(v as AddressSource)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="interface">Interface</SelectItem>
-                      <SelectItem value="web">Web URL</SelectItem>
+                      <SelectItem value="interface">{t("entry.interface")}</SelectItem>
+                      <SelectItem value="web">{t("entry.webUrl")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 {addressSource === "interface" ? (
                   <div className="space-y-2">
-                    <Label>Interface</Label>
+                    <Label>{t("entry.interface")}</Label>
                     <InterfaceSelect
                       value={addressInterface || "none"}
                       onValueChange={(v) => setAddressInterface(v === "none" ? "" : v)}
                       interfaces={availableInterfaces}
-                      noneOption={{ label: "None", value: "none" }}
+                      noneOption={{ label: tc("none"), value: "none" }}
                       className="font-mono"
-                      placeholder="Select interface"
+                      placeholder={t("entry.selectInterface")}
                     />
                   </div>
                 ) : (
                   <>
                     <div className="space-y-2">
-                      <Label htmlFor="ddns-weburl">Web URL</Label>
+                      <Label htmlFor="ddns-weburl">{t("entry.webUrl")}</Label>
                       <Input
                         id="ddns-weburl"
                         value={webUrl}
                         onChange={(e) => setWebUrl(e.target.value)}
-                        placeholder="e.g. http://checkip.dyndns.org"
+                        placeholder={t("example", { value: "http://checkip.dyndns.org" })}
                         className="font-mono"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="ddns-skip">Skip Words (optional)</Label>
+                      <Label htmlFor="ddns-skip">{t("entry.skipWords")}</Label>
                       <Input
                         id="ddns-skip"
                         value={webSkip}
                         onChange={(e) => setWebSkip(e.target.value)}
-                        placeholder="words to skip in response"
+                        placeholder={t("entry.skipWordsPlaceholder")}
                       />
                     </div>
                   </>
@@ -339,48 +342,48 @@ export function DNSDynamicEntryModal({ open, onOpenChange, entry, onSubmit }: Pr
             <ScrollArea className="h-64 pr-4">
               <div className="space-y-4 py-2">
                 <div className="space-y-2">
-                  <Label htmlFor="ddns-desc">Description</Label>
+                  <Label htmlFor="ddns-desc">{tc("description")}</Label>
                   <Input
                     id="ddns-desc"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="optional description"
+                    placeholder={t("entry.descriptionPlaceholder")}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="ddns-ttl">TTL (seconds)</Label>
+                    <Label htmlFor="ddns-ttl">{t("entry.ttl")}</Label>
                     <Input
                       id="ddns-ttl"
                       type="number"
                       value={ttl}
                       onChange={(e) => setTtl(e.target.value)}
-                      placeholder="e.g. 300"
+                      placeholder={t("example", { value: "300" })}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="ddns-expiry">Expiry Time (days)</Label>
+                    <Label htmlFor="ddns-expiry">{t("entry.expiryTime")}</Label>
                     <Input
                       id="ddns-expiry"
                       type="number"
                       value={expiryTime}
                       onChange={(e) => setExpiryTime(e.target.value)}
-                      placeholder="e.g. 30"
+                      placeholder={t("example", { value: "30" })}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="ddns-wait">Wait Time (seconds)</Label>
+                    <Label htmlFor="ddns-wait">{t("entry.waitTime")}</Label>
                     <Input
                       id="ddns-wait"
                       type="number"
                       value={waitTime}
                       onChange={(e) => setWaitTime(e.target.value)}
-                      placeholder="e.g. 30"
+                      placeholder={t("example", { value: "30" })}
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ddns-key">Key File Path (optional)</Label>
+                  <Label htmlFor="ddns-key">{t("entry.keyFile")}</Label>
                   <Input
                     id="ddns-key"
                     value={key}
@@ -390,12 +393,12 @@ export function DNSDynamicEntryModal({ open, onOpenChange, entry, onSubmit }: Pr
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ddns-zone">DNS Zone (optional)</Label>
+                  <Label htmlFor="ddns-zone">{t("entry.zone")}</Label>
                   <Input
                     id="ddns-zone"
                     value={zone}
                     onChange={(e) => setZone(e.target.value)}
-                    placeholder="e.g. example.com"
+                    placeholder={t("example", { value: "example.com" })}
                     className="font-mono"
                   />
                 </div>
@@ -412,9 +415,9 @@ export function DNSDynamicEntryModal({ open, onOpenChange, entry, onSubmit }: Pr
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? "Saving..." : "Adding..."}</> : isEdit ? "Save Changes" : "Add Entry"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("entry.adding")}</> : isEdit ? t("entry.saveChanges") : t("addEntry")}
           </Button>
         </DialogFooter>
       </DialogContent>

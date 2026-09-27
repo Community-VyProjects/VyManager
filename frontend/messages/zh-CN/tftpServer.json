@@ -1,1 +1,48 @@
-{}
+{
+  "content": {
+    "loadFailed": "加载 TFTP 服务器配置失败",
+    "title": "TFTP 服务器",
+    "readOnly": "只读",
+    "subtitle": "简单文件传输协议 — 向网络设备提供文件",
+    "editSettings": "编辑设置",
+    "settings": "设置",
+    "directory": "根目录",
+    "port": "端口",
+    "defaultPort": "默认 ({value})",
+    "uploads": "上传",
+    "allowed": "允许",
+    "readOnlyUploads": "只读",
+    "directoryWarning": "必须设置根目录，TFTP 服务器才能开始提供文件。",
+    "listenAddresses": "监听地址",
+    "listenAll": "正在监听所有地址。添加地址以限制绑定。",
+    "colAddress": "地址"
+  },
+  "delete": {
+    "title": "移除监听地址",
+    "description": "要从 TFTP 服务器中移除监听地址 <mono>{address}</mono> 吗？此操作无法撤销。",
+    "remove": "移除"
+  },
+  "general": {
+    "directoryRequired": "TFTP 服务器启动需要指定根目录",
+    "title": "TFTP 服务器设置",
+    "description": "配置提供服务的根目录、监听端口和上传行为",
+    "directory": "根目录",
+    "directoryHint": "包含 TFTP 所提供文件的文件夹。服务运行时必须设置。",
+    "directoryPlaceholder": "例如 /config/tftpboot",
+    "port": "端口",
+    "portHint": "要监听的 UDP 端口。留空则使用默认值 ({value})。",
+    "allowUploads": "允许上传",
+    "allowUploadsHint": "允许客户端向服务器写入文件（否则为只读）"
+  },
+  "listen": {
+    "addressRequired": "IP 地址为必填项",
+    "addressInvalid": "请输入有效的 IPv4 或 IPv6 地址",
+    "addressExists": "监听地址“{address}”已存在",
+    "editTitle": "编辑监听地址",
+    "addTitle": "添加监听地址",
+    "description": "将 TFTP 服务器绑定到指定的本地 IP 地址，可选择限定在某个 VRF 中",
+    "ipAddress": "IP 地址",
+    "ipAddressPlaceholder": "例如 192.0.2.1 或 2001:db8::1",
+    "vrfHint": "留空则使用默认路由表。"
+  }
+}

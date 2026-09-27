@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +26,8 @@ interface GeneralSettingsModalProps {
 }
 
 export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: GeneralSettingsModalProps) {
+  const t = useTranslations("ipoeServer");
+  const tc = useTranslations("common");
   const [description, setDescription] = useState("");
   const [defaultPool, setDefaultPool] = useState("");
   const [defaultIpv6Pool, setDefaultIpv6Pool] = useState("");
@@ -89,10 +92,10 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to update settings");
+        setError(result.error || t("generalModal.updateFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to update settings");
+      setError((err as ApiError).message || t("generalModal.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -104,30 +107,30 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5 text-primary" />
-            General Settings
+            {t("generalModal.title")}
           </DialogTitle>
-          <DialogDescription>Configure IPoE server general settings.</DialogDescription>
+          <DialogDescription>{t("generalModal.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Description</Label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="IPoE broadband server" />
+            <Label>{tc("description")}</Label>
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("generalModal.descriptionPlaceholder")} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Default Pool</Label>
+              <Label>{t("generalModal.defaultPool")}</Label>
               <Input value={defaultPool} onChange={(e) => setDefaultPool(e.target.value)} placeholder="pool1" />
             </div>
             <div className="space-y-2">
-              <Label>Default IPv6 Pool</Label>
+              <Label>{t("generalModal.defaultIpv6Pool")}</Label>
               <Input value={defaultIpv6Pool} onChange={(e) => setDefaultIpv6Pool(e.target.value)} placeholder="ipv6-pool1" />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Gateway Addresses</Label>
+            <Label>{t("generalModal.gatewayAddresses")}</Label>
             <div className="flex gap-2">
               <Input
                 value={gatewayInput}
@@ -136,7 +139,7 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addGateway(); } }}
                 className="flex-1"
               />
-              <Button type="button" variant="outline" size="sm" onClick={addGateway}>Add</Button>
+              <Button type="button" variant="outline" size="sm" onClick={addGateway}>{tc("add")}</Button>
             </div>
             <div className="flex flex-wrap gap-1">
               {gatewayAddresses.map((addr) => (
@@ -151,7 +154,7 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
           </div>
 
           <div className="space-y-2">
-            <Label>Name Servers</Label>
+            <Label>{t("generalModal.nameServers")}</Label>
             <div className="flex gap-2">
               <Input
                 value={nameServerInput}
@@ -160,7 +163,7 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addNameServer(); } }}
                 className="flex-1"
               />
-              <Button type="button" variant="outline" size="sm" onClick={addNameServer}>Add</Button>
+              <Button type="button" variant="outline" size="sm" onClick={addNameServer}>{tc("add")}</Button>
             </div>
             <div className="flex flex-wrap gap-1">
               {nameServers.map((ns) => (
@@ -176,17 +179,17 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Max Concurrent Sessions</Label>
+              <Label>{t("generalModal.maxConcurrentSessions")}</Label>
               <Input value={maxSessions} onChange={(e) => setMaxSessions(e.target.value)} placeholder="0-65535" />
             </div>
             <div className="space-y-2">
-              <Label>Thread Count</Label>
-              <Input value={threadCount} onChange={(e) => setThreadCount(e.target.value)} placeholder="auto" />
+              <Label>{t("generalModal.threadCount")}</Label>
+              <Input value={threadCount} onChange={(e) => setThreadCount(e.target.value)} placeholder={t("generalModal.threadCountPlaceholder")} />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Lua File</Label>
+            <Label>{t("generalModal.luaFile")}</Label>
             <Input value={luaFile} onChange={(e) => setLuaFile(e.target.value)} placeholder="/config/scripts/ipoe.lua" />
           </div>
         </div>
@@ -199,9 +202,9 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save Changes"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : t("saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

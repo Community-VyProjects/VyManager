@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +47,8 @@ export function DHCPv6ServerPrefixDelegationModal({
   onClose,
   onSuccess,
 }: Props) {
+  const t = useTranslations("dhcpv6Server");
+  const tc = useTranslations("common");
   const isEditing = pd !== null;
   const is15 = caps.features.prefix_delegation_v15.supported;
   const [loading, setLoading] = useState(false);
@@ -95,8 +98,8 @@ export function DHCPv6ServerPrefixDelegationModal({
     let updated: DHCPv6PrefixDelegation;
 
     if (is15) {
-      if (!prefix.trim()) { setError("Prefix is required"); setLoading(false); return; }
-      if (!delegatedLength.trim()) { setError("Delegated length is required"); setLoading(false); return; }
+      if (!prefix.trim()) { setError(t("range.errors.prefixRequired")); setLoading(false); return; }
+      if (!delegatedLength.trim()) { setError(t("pd.errors.delegatedLengthRequired")); setLoading(false); return; }
       updated = {
         prefix: prefix.trim(),
         delegated_length: parseInt(delegatedLength.trim(), 10),
@@ -107,7 +110,7 @@ export function DHCPv6ServerPrefixDelegationModal({
         stop: null,
       };
     } else {
-      if (!start.trim() || !stop.trim()) { setError("Start and Stop are required"); setLoading(false); return; }
+      if (!start.trim() || !stop.trim()) { setError(t("range.errors.startStopRequired")); setLoading(false); return; }
       updated = {
         prefix: null,
         delegated_length: null,
@@ -119,10 +122,10 @@ export function DHCPv6ServerPrefixDelegationModal({
       };
     }
 
-    if (!selectedSubnet) { setError("Select a subnet"); setLoading(false); return; }
+    if (!selectedSubnet) { setError(t("range.errors.selectSubnet")); setLoading(false); return; }
     const result = await dhcpv6ServerService.savePrefixDelegation(netName, selectedSubnet, is15, pd, updated);
     setLoading(false);
-    if (!result.success) { setError(result.error ?? "Operation failed"); return; }
+    if (!result.success) { setError(result.error ?? tc("operationFailed")); return; }
     onSuccess();
     onClose();
   }
@@ -131,16 +134,16 @@ export function DHCPv6ServerPrefixDelegationModal({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit Prefix Delegation" : "Add Prefix Delegation"}</DialogTitle>
+          <DialogTitle>{isEditing ? t("pd.editTitle") : t("pd.addTitle")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-1">
           {!isEditing && availableSubnets && availableSubnets.length > 1 ? (
             <div className="space-y-1.5">
-              <Label>Subnet</Label>
+              <Label>{t("subnet")}</Label>
               <Select value={selectedSubnet} onValueChange={setSelectedSubnet}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select subnet" />
+                  <SelectValue placeholder={t("selectSubnet")} />
                 </SelectTrigger>
                 <SelectContent>
                   {availableSubnets.map(s => (
@@ -151,14 +154,14 @@ export function DHCPv6ServerPrefixDelegationModal({
             </div>
           ) : (
             <div className="text-xs text-muted-foreground font-mono">
-              Network: {netName}{selectedSubnet ? ` / Subnet: ${selectedSubnet}` : ""}
+              {t("networkLine", { network: netName })}{selectedSubnet ? t("subnetSuffix", { subnet: selectedSubnet }) : ""}
             </div>
           )}
 
           {is15 ? (
             <>
               <div className="space-y-1.5">
-                <Label htmlFor="pd-prefix">Prefix</Label>
+                <Label htmlFor="pd-prefix">{t("range.prefix")}</Label>
                 <Input
                   id="pd-prefix"
                   placeholder="2001:db8::/48"
@@ -167,31 +170,31 @@ export function DHCPv6ServerPrefixDelegationModal({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="pd-delegated-len">Delegated Length</Label>
+                <Label htmlFor="pd-delegated-len">{t("pd.delegatedLength")}</Label>
                 <Input
                   id="pd-delegated-len"
                   type="number"
                   min={32}
                   max={128}
-                  placeholder="e.g. 64"
+                  placeholder={t("pd.delegatedLengthPlaceholder")}
                   value={delegatedLength}
                   onChange={(e) => setDelegatedLength(e.target.value)}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="pd-prefix-len">Prefix Length (optional)</Label>
+                <Label htmlFor="pd-prefix-len">{t("pd.prefixLengthOptional")}</Label>
                 <Input
                   id="pd-prefix-len"
                   type="number"
                   min={0}
                   max={128}
-                  placeholder="Optional"
+                  placeholder={tc("optional")}
                   value={prefixLength}
                   onChange={(e) => setPrefixLength(e.target.value)}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="pd-excl-prefix">Excluded Prefix (optional)</Label>
+                <Label htmlFor="pd-excl-prefix">{t("pd.excludedPrefix")}</Label>
                 <Input
                   id="pd-excl-prefix"
                   placeholder="2001:db8::/64"
@@ -200,13 +203,13 @@ export function DHCPv6ServerPrefixDelegationModal({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="pd-excl-len">Excluded Prefix Length (optional)</Label>
+                <Label htmlFor="pd-excl-len">{t("pd.excludedPrefixLength")}</Label>
                 <Input
                   id="pd-excl-len"
                   type="number"
                   min={0}
                   max={128}
-                  placeholder="Optional"
+                  placeholder={tc("optional")}
                   value={excludedPrefixLength}
                   onChange={(e) => setExcludedPrefixLength(e.target.value)}
                 />
@@ -215,7 +218,7 @@ export function DHCPv6ServerPrefixDelegationModal({
           ) : (
             <>
               <div className="space-y-1.5">
-                <Label htmlFor="pd-start">Start</Label>
+                <Label htmlFor="pd-start">{t("pd.start")}</Label>
                 <Input
                   id="pd-start"
                   placeholder="2001:db8::"
@@ -224,7 +227,7 @@ export function DHCPv6ServerPrefixDelegationModal({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="pd-stop">Stop</Label>
+                <Label htmlFor="pd-stop">{t("pd.stop")}</Label>
                 <Input
                   id="pd-stop"
                   placeholder="2001:db8::ff"
@@ -233,13 +236,13 @@ export function DHCPv6ServerPrefixDelegationModal({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="pd14-prefix-len">Prefix Length (32–64)</Label>
+                <Label htmlFor="pd14-prefix-len">{t("pd.prefixLength14")}</Label>
                 <Input
                   id="pd14-prefix-len"
                   type="number"
                   min={32}
                   max={64}
-                  placeholder="Optional"
+                  placeholder={tc("optional")}
                   value={prefixLength14}
                   onChange={(e) => setPrefixLength14(e.target.value)}
                 />
@@ -256,10 +259,10 @@ export function DHCPv6ServerPrefixDelegationModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isEditing ? "Save" : "Add Delegation"}
+            {isEditing ? tc("save") : t("pd.addDelegation")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,6 +20,8 @@ import { PrometheusTab } from "./PrometheusTab";
 import { NetworkEventTab } from "./NetworkEventTab";
 
 export function ServiceMonitoringContent() {
+  const t = useTranslations("serviceMonitoring");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWrite = canWrite(FeatureGroup.SERVICE_MONITORING);
 
@@ -39,12 +42,12 @@ export function ServiceMonitoringContent() {
       setCaps(c);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to load service monitoring configuration"
+        err instanceof Error ? err.message : t("content.loadFailed")
       );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -63,7 +66,7 @@ export function ServiceMonitoringContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -83,17 +86,17 @@ export function ServiceMonitoringContent() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold text-foreground">Service Monitoring</h1>
-                {!hasWrite && <Badge variant="secondary">Read Only</Badge>}
+                <h1 className="text-2xl font-bold text-foreground">{t("content.title")}</h1>
+                {!hasWrite && <Badge variant="secondary">{t("content.readOnly")}</Badge>}
               </div>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Telegraf, Zabbix, Prometheus exporters, and network event logging
+                {t("content.subtitle")}
               </p>
             </div>
           </div>
           <Button variant="outline" size="sm" onClick={() => loadData(true)}>
             <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+            {tc("refresh")}
           </Button>
         </div>
 
@@ -110,9 +113,9 @@ export function ServiceMonitoringContent() {
         <Tabs defaultValue="telegraf">
           <TabsList>
             <TabsTrigger value="telegraf">Telegraf</TabsTrigger>
-            <TabsTrigger value="zabbix">Zabbix Agent</TabsTrigger>
+            <TabsTrigger value="zabbix">{t("content.tabs.zabbixAgent")}</TabsTrigger>
             {showPrometheus && <TabsTrigger value="prometheus">Prometheus</TabsTrigger>}
-            {showNetworkEvent && <TabsTrigger value="network-event">Network Events</TabsTrigger>}
+            {showNetworkEvent && <TabsTrigger value="network-event">{t("content.tabs.networkEvents")}</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="telegraf" className="mt-4">

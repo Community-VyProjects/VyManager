@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,8 @@ function emptyRecords(): AuthDomainRecords {
 }
 
 export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, capabilities, onSubmit }: Props) {
+  const t = useTranslations("dnsForwarding");
+  const tc = useTranslations("common");
   const isEdit = !!authDomain;
 
   const [domain, setDomain] = useState("");
@@ -89,7 +92,7 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
 
   const handleSubmit = async () => {
     if (!isEdit && !domain.trim()) {
-      setError("Zone name is required");
+      setError(t("zoneNameRequired"));
       return;
     }
     setLoading(true);
@@ -98,7 +101,7 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
       await onSubmit(isEdit ? authDomain!.domain : domain.trim(), disabled, records);
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -179,19 +182,19 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Authoritative Zone" : "Add Authoritative Zone"}</DialogTitle>
-          <DialogDescription>Manage a local DNS zone with resource records.</DialogDescription>
+          <DialogTitle>{isEdit ? t("authDomain.editTitle") : t("authDomain.addTitle")}</DialogTitle>
+          <DialogDescription>{t("authDomain.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="flex items-end gap-4">
             <div className="flex-1 space-y-2">
-              <Label htmlFor="ad-domain">Zone Name</Label>
+              <Label htmlFor="ad-domain">{t("zoneName")}</Label>
               <Input
                 id="ad-domain"
                 value={domain}
                 onChange={(e) => setDomain(e.target.value)}
-                placeholder="e.g. internal.example.com"
+                placeholder={t("authDomain.zonePlaceholder")}
                 disabled={isEdit}
                 className={isEdit ? "bg-muted font-mono" : "font-mono"}
               />
@@ -202,7 +205,7 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                 checked={disabled}
                 onCheckedChange={(c) => setDisabled(c === true)}
               />
-              <Label htmlFor="ad-disabled" className="cursor-pointer">Disable Zone</Label>
+              <Label htmlFor="ad-disabled" className="cursor-pointer">{t("authDomain.disableZone")}</Label>
             </div>
           </div>
 
@@ -232,10 +235,10 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Hostname</TableHead>
-                      <TableHead>Address</TableHead>
+                      <TableHead>{t("authDomain.hostname")}</TableHead>
+                      <TableHead>{t("authDomain.address")}</TableHead>
                       <TableHead>TTL</TableHead>
-                      <TableHead>Disabled</TableHead>
+                      <TableHead>{tc("disabled")}</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -245,7 +248,7 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                         <TableCell className="font-mono">{r.hostname}</TableCell>
                         <TableCell className="font-mono">{r.address ?? "—"}</TableCell>
                         <TableCell>{r.ttl ?? "—"}</TableCell>
-                        <TableCell>{r.disabled ? <Badge variant="secondary">Yes</Badge> : "—"}</TableCell>
+                        <TableCell>{r.disabled ? <Badge variant="secondary">{t("yes")}</Badge> : "—"}</TableCell>
                         <TableCell>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setRecords((rec) => ({ ...rec, a: rec.a.filter((_, j) => j !== i) }))}>
                             <Trash2 className="h-3 w-3" />
@@ -254,7 +257,7 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                       </TableRow>
                     ))}
                     <TableRow>
-                      <TableCell><Input value={newA.hostname} onChange={(e) => setNewA({ ...newA, hostname: e.target.value })} placeholder="hostname" className="h-7 font-mono" /></TableCell>
+                      <TableCell><Input value={newA.hostname} onChange={(e) => setNewA({ ...newA, hostname: e.target.value })} placeholder={t("authDomain.hostnamePlaceholder")} className="h-7 font-mono" /></TableCell>
                       <TableCell><Input value={newA.address} onChange={(e) => setNewA({ ...newA, address: e.target.value })} placeholder="IPv4" className="h-7 font-mono" /></TableCell>
                       <TableCell><Input value={newA.ttl} onChange={(e) => setNewA({ ...newA, ttl: e.target.value })} placeholder="TTL" type="number" className="h-7 w-20" /></TableCell>
                       <TableCell><Checkbox checked={newA.disabled} onCheckedChange={(c) => setNewA({ ...newA, disabled: c === true })} /></TableCell>
@@ -271,10 +274,10 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Hostname</TableHead>
-                      <TableHead>Address</TableHead>
+                      <TableHead>{t("authDomain.hostname")}</TableHead>
+                      <TableHead>{t("authDomain.address")}</TableHead>
                       <TableHead>TTL</TableHead>
-                      <TableHead>Disabled</TableHead>
+                      <TableHead>{tc("disabled")}</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -284,7 +287,7 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                         <TableCell className="font-mono">{r.hostname}</TableCell>
                         <TableCell className="font-mono">{r.address ?? "—"}</TableCell>
                         <TableCell>{r.ttl ?? "—"}</TableCell>
-                        <TableCell>{r.disabled ? <Badge variant="secondary">Yes</Badge> : "—"}</TableCell>
+                        <TableCell>{r.disabled ? <Badge variant="secondary">{t("yes")}</Badge> : "—"}</TableCell>
                         <TableCell>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setRecords((rec) => ({ ...rec, aaaa: rec.aaaa.filter((_, j) => j !== i) }))}>
                             <Trash2 className="h-3 w-3" />
@@ -293,7 +296,7 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                       </TableRow>
                     ))}
                     <TableRow>
-                      <TableCell><Input value={newAAAA.hostname} onChange={(e) => setNewAAAA({ ...newAAAA, hostname: e.target.value })} placeholder="hostname" className="h-7 font-mono" /></TableCell>
+                      <TableCell><Input value={newAAAA.hostname} onChange={(e) => setNewAAAA({ ...newAAAA, hostname: e.target.value })} placeholder={t("authDomain.hostnamePlaceholder")} className="h-7 font-mono" /></TableCell>
                       <TableCell><Input value={newAAAA.address} onChange={(e) => setNewAAAA({ ...newAAAA, address: e.target.value })} placeholder="IPv6" className="h-7 font-mono" /></TableCell>
                       <TableCell><Input value={newAAAA.ttl} onChange={(e) => setNewAAAA({ ...newAAAA, ttl: e.target.value })} placeholder="TTL" type="number" className="h-7 w-20" /></TableCell>
                       <TableCell><Checkbox checked={newAAAA.disabled} onCheckedChange={(c) => setNewAAAA({ ...newAAAA, disabled: c === true })} /></TableCell>
@@ -310,10 +313,10 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Hostname</TableHead>
-                      <TableHead>Target</TableHead>
+                      <TableHead>{t("authDomain.hostname")}</TableHead>
+                      <TableHead>{t("authDomain.target")}</TableHead>
                       <TableHead>TTL</TableHead>
-                      <TableHead>Disabled</TableHead>
+                      <TableHead>{tc("disabled")}</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -323,7 +326,7 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                         <TableCell className="font-mono">{r.hostname}</TableCell>
                         <TableCell className="font-mono">{r.target ?? "—"}</TableCell>
                         <TableCell>{r.ttl ?? "—"}</TableCell>
-                        <TableCell>{r.disabled ? <Badge variant="secondary">Yes</Badge> : "—"}</TableCell>
+                        <TableCell>{r.disabled ? <Badge variant="secondary">{t("yes")}</Badge> : "—"}</TableCell>
                         <TableCell>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setRecords((rec) => ({ ...rec, cname: rec.cname.filter((_, j) => j !== i) }))}>
                             <Trash2 className="h-3 w-3" />
@@ -332,8 +335,8 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                       </TableRow>
                     ))}
                     <TableRow>
-                      <TableCell><Input value={newCNAME.hostname} onChange={(e) => setNewCNAME({ ...newCNAME, hostname: e.target.value })} placeholder="hostname" className="h-7 font-mono" /></TableCell>
-                      <TableCell><Input value={newCNAME.target} onChange={(e) => setNewCNAME({ ...newCNAME, target: e.target.value })} placeholder="target FQDN" className="h-7 font-mono" /></TableCell>
+                      <TableCell><Input value={newCNAME.hostname} onChange={(e) => setNewCNAME({ ...newCNAME, hostname: e.target.value })} placeholder={t("authDomain.hostnamePlaceholder")} className="h-7 font-mono" /></TableCell>
+                      <TableCell><Input value={newCNAME.target} onChange={(e) => setNewCNAME({ ...newCNAME, target: e.target.value })} placeholder={t("authDomain.targetPlaceholder")} className="h-7 font-mono" /></TableCell>
                       <TableCell><Input value={newCNAME.ttl} onChange={(e) => setNewCNAME({ ...newCNAME, ttl: e.target.value })} placeholder="TTL" type="number" className="h-7 w-20" /></TableCell>
                       <TableCell><Checkbox checked={newCNAME.disabled} onCheckedChange={(c) => setNewCNAME({ ...newCNAME, disabled: c === true })} /></TableCell>
                       <TableCell><Button variant="outline" size="icon" className="h-7 w-7" onClick={addCNAME} disabled={!newCNAME.hostname}><Plus className="h-3 w-3" /></Button></TableCell>
@@ -349,11 +352,11 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Hostname</TableHead>
-                      <TableHead>Server</TableHead>
-                      <TableHead>Priority</TableHead>
+                      <TableHead>{t("authDomain.hostname")}</TableHead>
+                      <TableHead>{t("authDomain.server")}</TableHead>
+                      <TableHead>{t("authDomain.priority")}</TableHead>
                       <TableHead>TTL</TableHead>
-                      <TableHead>Disabled</TableHead>
+                      <TableHead>{tc("disabled")}</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -365,7 +368,7 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                           <TableCell className="font-mono">{srv.server}</TableCell>
                           <TableCell>{srv.priority ?? "—"}</TableCell>
                           <TableCell>{r.ttl ?? "—"}</TableCell>
-                          <TableCell>{r.disabled ? <Badge variant="secondary">Yes</Badge> : "—"}</TableCell>
+                          <TableCell>{r.disabled ? <Badge variant="secondary">{t("yes")}</Badge> : "—"}</TableCell>
                           <TableCell>
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setRecords((rec) => ({ ...rec, mx: rec.mx.filter((_, k) => k !== i) }))}>
                               <Trash2 className="h-3 w-3" />
@@ -375,7 +378,7 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                       ))
                     )}
                     <TableRow>
-                      <TableCell><Input value={newMX.hostname} onChange={(e) => setNewMX({ ...newMX, hostname: e.target.value })} placeholder="hostname" className="h-7 font-mono" /></TableCell>
+                      <TableCell><Input value={newMX.hostname} onChange={(e) => setNewMX({ ...newMX, hostname: e.target.value })} placeholder={t("authDomain.hostnamePlaceholder")} className="h-7 font-mono" /></TableCell>
                       <TableCell><Input value={newMX.server} onChange={(e) => setNewMX({ ...newMX, server: e.target.value })} placeholder="mail.example.com" className="h-7 font-mono" /></TableCell>
                       <TableCell><Input value={newMX.priority} onChange={(e) => setNewMX({ ...newMX, priority: e.target.value })} placeholder="10" type="number" className="h-7 w-16" /></TableCell>
                       <TableCell><Input value={newMX.ttl} onChange={(e) => setNewMX({ ...newMX, ttl: e.target.value })} placeholder="TTL" type="number" className="h-7 w-20" /></TableCell>
@@ -393,10 +396,10 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Hostname</TableHead>
-                      <TableHead>Value</TableHead>
+                      <TableHead>{t("authDomain.hostname")}</TableHead>
+                      <TableHead>{t("authDomain.value")}</TableHead>
                       <TableHead>TTL</TableHead>
-                      <TableHead>Disabled</TableHead>
+                      <TableHead>{tc("disabled")}</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -406,7 +409,7 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                         <TableCell className="font-mono">{r.hostname}</TableCell>
                         <TableCell className="font-mono text-xs max-w-xs truncate">{r.value ?? "—"}</TableCell>
                         <TableCell>{r.ttl ?? "—"}</TableCell>
-                        <TableCell>{r.disabled ? <Badge variant="secondary">Yes</Badge> : "—"}</TableCell>
+                        <TableCell>{r.disabled ? <Badge variant="secondary">{t("yes")}</Badge> : "—"}</TableCell>
                         <TableCell>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setRecords((rec) => ({ ...rec, txt: rec.txt.filter((_, j) => j !== i) }))}>
                             <Trash2 className="h-3 w-3" />
@@ -415,8 +418,8 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                       </TableRow>
                     ))}
                     <TableRow>
-                      <TableCell><Input value={newTXT.hostname} onChange={(e) => setNewTXT({ ...newTXT, hostname: e.target.value })} placeholder="hostname" className="h-7 font-mono" /></TableCell>
-                      <TableCell><Input value={newTXT.value} onChange={(e) => setNewTXT({ ...newTXT, value: e.target.value })} placeholder="text value" className="h-7 font-mono" /></TableCell>
+                      <TableCell><Input value={newTXT.hostname} onChange={(e) => setNewTXT({ ...newTXT, hostname: e.target.value })} placeholder={t("authDomain.hostnamePlaceholder")} className="h-7 font-mono" /></TableCell>
+                      <TableCell><Input value={newTXT.value} onChange={(e) => setNewTXT({ ...newTXT, value: e.target.value })} placeholder={t("authDomain.textValuePlaceholder")} className="h-7 font-mono" /></TableCell>
                       <TableCell><Input value={newTXT.ttl} onChange={(e) => setNewTXT({ ...newTXT, ttl: e.target.value })} placeholder="TTL" type="number" className="h-7 w-20" /></TableCell>
                       <TableCell><Checkbox checked={newTXT.disabled} onCheckedChange={(c) => setNewTXT({ ...newTXT, disabled: c === true })} /></TableCell>
                       <TableCell><Button variant="outline" size="icon" className="h-7 w-7" onClick={addTXT} disabled={!newTXT.hostname}><Plus className="h-3 w-3" /></Button></TableCell>
@@ -432,10 +435,10 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Hostname</TableHead>
-                      <TableHead>Target</TableHead>
+                      <TableHead>{t("authDomain.hostname")}</TableHead>
+                      <TableHead>{t("authDomain.target")}</TableHead>
                       <TableHead>TTL</TableHead>
-                      <TableHead>Disabled</TableHead>
+                      <TableHead>{tc("disabled")}</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -445,7 +448,7 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                         <TableCell className="font-mono">{r.hostname}</TableCell>
                         <TableCell className="font-mono">{r.target ?? "—"}</TableCell>
                         <TableCell>{r.ttl ?? "—"}</TableCell>
-                        <TableCell>{r.disabled ? <Badge variant="secondary">Yes</Badge> : "—"}</TableCell>
+                        <TableCell>{r.disabled ? <Badge variant="secondary">{t("yes")}</Badge> : "—"}</TableCell>
                         <TableCell>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setRecords((rec) => ({ ...rec, ns: rec.ns.filter((_, j) => j !== i) }))}>
                             <Trash2 className="h-3 w-3" />
@@ -454,7 +457,7 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                       </TableRow>
                     ))}
                     <TableRow>
-                      <TableCell><Input value={newNS.hostname} onChange={(e) => setNewNS({ ...newNS, hostname: e.target.value })} placeholder="hostname" className="h-7 font-mono" /></TableCell>
+                      <TableCell><Input value={newNS.hostname} onChange={(e) => setNewNS({ ...newNS, hostname: e.target.value })} placeholder={t("authDomain.hostnamePlaceholder")} className="h-7 font-mono" /></TableCell>
                       <TableCell><Input value={newNS.target} onChange={(e) => setNewNS({ ...newNS, target: e.target.value })} placeholder="ns.example.com" className="h-7 font-mono" /></TableCell>
                       <TableCell><Input value={newNS.ttl} onChange={(e) => setNewNS({ ...newNS, ttl: e.target.value })} placeholder="TTL" type="number" className="h-7 w-20" /></TableCell>
                       <TableCell><Checkbox checked={newNS.disabled} onCheckedChange={(c) => setNewNS({ ...newNS, disabled: c === true })} /></TableCell>
@@ -471,10 +474,10 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Hostname</TableHead>
-                      <TableHead>Target</TableHead>
+                      <TableHead>{t("authDomain.hostname")}</TableHead>
+                      <TableHead>{t("authDomain.target")}</TableHead>
                       <TableHead>TTL</TableHead>
-                      <TableHead>Disabled</TableHead>
+                      <TableHead>{tc("disabled")}</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -484,7 +487,7 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                         <TableCell className="font-mono">{r.hostname}</TableCell>
                         <TableCell className="font-mono">{r.target ?? "—"}</TableCell>
                         <TableCell>{r.ttl ?? "—"}</TableCell>
-                        <TableCell>{r.disabled ? <Badge variant="secondary">Yes</Badge> : "—"}</TableCell>
+                        <TableCell>{r.disabled ? <Badge variant="secondary">{t("yes")}</Badge> : "—"}</TableCell>
                         <TableCell>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setRecords((rec) => ({ ...rec, ptr: rec.ptr.filter((_, j) => j !== i) }))}>
                             <Trash2 className="h-3 w-3" />
@@ -493,8 +496,8 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                       </TableRow>
                     ))}
                     <TableRow>
-                      <TableCell><Input value={newPTR.hostname} onChange={(e) => setNewPTR({ ...newPTR, hostname: e.target.value })} placeholder="hostname" className="h-7 font-mono" /></TableCell>
-                      <TableCell><Input value={newPTR.target} onChange={(e) => setNewPTR({ ...newPTR, target: e.target.value })} placeholder="target FQDN" className="h-7 font-mono" /></TableCell>
+                      <TableCell><Input value={newPTR.hostname} onChange={(e) => setNewPTR({ ...newPTR, hostname: e.target.value })} placeholder={t("authDomain.hostnamePlaceholder")} className="h-7 font-mono" /></TableCell>
+                      <TableCell><Input value={newPTR.target} onChange={(e) => setNewPTR({ ...newPTR, target: e.target.value })} placeholder={t("authDomain.targetPlaceholder")} className="h-7 font-mono" /></TableCell>
                       <TableCell><Input value={newPTR.ttl} onChange={(e) => setNewPTR({ ...newPTR, ttl: e.target.value })} placeholder="TTL" type="number" className="h-7 w-20" /></TableCell>
                       <TableCell><Checkbox checked={newPTR.disabled} onCheckedChange={(c) => setNewPTR({ ...newPTR, disabled: c === true })} /></TableCell>
                       <TableCell><Button variant="outline" size="icon" className="h-7 w-7" onClick={addPTR} disabled={!newPTR.hostname}><Plus className="h-3 w-3" /></Button></TableCell>
@@ -510,16 +513,16 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Hostname</TableHead>
-                      <TableHead>Rule</TableHead>
-                      <TableHead>Order</TableHead>
-                      <TableHead>Pref</TableHead>
-                      <TableHead>Service</TableHead>
-                      <TableHead>Replacement</TableHead>
-                      <TableHead>Regexp</TableHead>
-                      <TableHead>Flags</TableHead>
+                      <TableHead>{t("authDomain.hostname")}</TableHead>
+                      <TableHead>{t("authDomain.rule")}</TableHead>
+                      <TableHead>{t("authDomain.order")}</TableHead>
+                      <TableHead>{t("authDomain.pref")}</TableHead>
+                      <TableHead>{t("authDomain.service")}</TableHead>
+                      <TableHead>{t("authDomain.replacement")}</TableHead>
+                      <TableHead>{t("authDomain.regexp")}</TableHead>
+                      <TableHead>{t("authDomain.flags")}</TableHead>
                       <TableHead>TTL</TableHead>
-                      <TableHead>Disabled</TableHead>
+                      <TableHead>{tc("disabled")}</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -536,7 +539,7 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                           <TableCell className="font-mono text-xs max-w-xs truncate">{rule.regexp ?? "—"}</TableCell>
                           <TableCell className="text-xs">{[rule.lookup_a && "A", rule.lookup_srv && "S", rule.protocol_specific && "P", rule.resolve_uri && "U"].filter(Boolean).join(" ") || "—"}</TableCell>
                           <TableCell>{r.ttl ?? "—"}</TableCell>
-                          <TableCell>{r.disabled ? <Badge variant="secondary">Yes</Badge> : "—"}</TableCell>
+                          <TableCell>{r.disabled ? <Badge variant="secondary">{t("yes")}</Badge> : "—"}</TableCell>
                           <TableCell>
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setRecords((rec) => ({
                               ...rec,
@@ -553,7 +556,7 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                       ))
                     )}
                     <TableRow>
-                      <TableCell><Input value={newNAPTR.hostname} onChange={(e) => setNewNAPTR({ ...newNAPTR, hostname: e.target.value })} placeholder="hostname" className="h-7 font-mono" /></TableCell>
+                      <TableCell><Input value={newNAPTR.hostname} onChange={(e) => setNewNAPTR({ ...newNAPTR, hostname: e.target.value })} placeholder={t("authDomain.hostnamePlaceholder")} className="h-7 font-mono" /></TableCell>
                       <TableCell><Input value={newNAPTR.rule} onChange={(e) => setNewNAPTR({ ...newNAPTR, rule: e.target.value })} placeholder="10" className="h-7 w-16 font-mono" /></TableCell>
                       <TableCell><Input value={newNAPTR.order} onChange={(e) => setNewNAPTR({ ...newNAPTR, order: e.target.value })} placeholder="10" type="number" className="h-7 w-16" /></TableCell>
                       <TableCell><Input value={newNAPTR.preference} onChange={(e) => setNewNAPTR({ ...newNAPTR, preference: e.target.value })} placeholder="0" type="number" className="h-7 w-16" /></TableCell>
@@ -588,10 +591,10 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Hostname</TableHead>
-                      <TableHead>Value</TableHead>
+                      <TableHead>{t("authDomain.hostname")}</TableHead>
+                      <TableHead>{t("authDomain.value")}</TableHead>
                       <TableHead>TTL</TableHead>
-                      <TableHead>Disabled</TableHead>
+                      <TableHead>{tc("disabled")}</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -601,7 +604,7 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                         <TableCell className="font-mono">{r.hostname}</TableCell>
                         <TableCell className="font-mono text-xs max-w-xs truncate">{r.value ?? "—"}</TableCell>
                         <TableCell>{r.ttl ?? "—"}</TableCell>
-                        <TableCell>{r.disabled ? <Badge variant="secondary">Yes</Badge> : "—"}</TableCell>
+                        <TableCell>{r.disabled ? <Badge variant="secondary">{t("yes")}</Badge> : "—"}</TableCell>
                         <TableCell>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setRecords((rec) => ({ ...rec, spf: rec.spf.filter((_, j) => j !== i) }))}>
                             <Trash2 className="h-3 w-3" />
@@ -610,7 +613,7 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                       </TableRow>
                     ))}
                     <TableRow>
-                      <TableCell><Input value={newSPF.hostname} onChange={(e) => setNewSPF({ ...newSPF, hostname: e.target.value })} placeholder="hostname" className="h-7 font-mono" /></TableCell>
+                      <TableCell><Input value={newSPF.hostname} onChange={(e) => setNewSPF({ ...newSPF, hostname: e.target.value })} placeholder={t("authDomain.hostnamePlaceholder")} className="h-7 font-mono" /></TableCell>
                       <TableCell><Input value={newSPF.value} onChange={(e) => setNewSPF({ ...newSPF, value: e.target.value })} placeholder="v=spf1" className="h-7 font-mono" /></TableCell>
                       <TableCell><Input value={newSPF.ttl} onChange={(e) => setNewSPF({ ...newSPF, ttl: e.target.value })} placeholder="TTL" type="number" className="h-7 w-20" /></TableCell>
                       <TableCell><Checkbox checked={newSPF.disabled} onCheckedChange={(c) => setNewSPF({ ...newSPF, disabled: c === true })} /></TableCell>
@@ -628,14 +631,14 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Hostname</TableHead>
-                      <TableHead>Entry</TableHead>
-                      <TableHead>Target</TableHead>
-                      <TableHead>Port</TableHead>
-                      <TableHead>Priority</TableHead>
-                      <TableHead>Weight</TableHead>
+                      <TableHead>{t("authDomain.hostname")}</TableHead>
+                      <TableHead>{t("authDomain.entry")}</TableHead>
+                      <TableHead>{t("authDomain.target")}</TableHead>
+                      <TableHead>{t("authDomain.port")}</TableHead>
+                      <TableHead>{t("authDomain.priority")}</TableHead>
+                      <TableHead>{t("authDomain.weight")}</TableHead>
                       <TableHead>TTL</TableHead>
-                      <TableHead>Disabled</TableHead>
+                      <TableHead>{tc("disabled")}</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -650,7 +653,7 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                           <TableCell>{e.priority ?? "—"}</TableCell>
                           <TableCell>{e.weight ?? "—"}</TableCell>
                           <TableCell>{r.ttl ?? "—"}</TableCell>
-                          <TableCell>{r.disabled ? <Badge variant="secondary">Yes</Badge> : "—"}</TableCell>
+                          <TableCell>{r.disabled ? <Badge variant="secondary">{t("yes")}</Badge> : "—"}</TableCell>
                           <TableCell>
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setRecords((rec) => ({
                               ...rec,
@@ -693,9 +696,9 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? "Saving..." : "Adding..."}</> : isEdit ? "Save Changes" : "Add Zone"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("adding")}</> : isEdit ? t("saveChanges") : t("content.addZone")}
           </Button>
         </DialogFooter>
       </DialogContent>

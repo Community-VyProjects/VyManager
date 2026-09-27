@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,12 +23,14 @@ import { SaltMinionSettingsModal } from "./SaltMinionSettingsModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
-function hashLabel(value: string | null): string {
-  if (!value) return "sha256 (default)";
+function hashLabel(value: string | null, defaultLabel: string): string {
+  if (!value) return defaultLabel;
   return value.toUpperCase().replace("SHA", "SHA-");
 }
 
 export function SaltMinionContent() {
+  const t = useTranslations("saltMinion");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWrite = canWrite(FeatureGroup.SALT_MINION);
 
@@ -44,12 +47,12 @@ export function SaltMinionContent() {
       setConfig(cfg);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to load Salt Minion configuration"
+        err instanceof Error ? err.message : t("content.loadFailed")
       );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -68,7 +71,7 @@ export function SaltMinionContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -87,10 +90,10 @@ export function SaltMinionContent() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-2xl font-bold text-foreground">Salt Minion</h1>
-                  {!hasWrite && <Badge variant="secondary">Read Only</Badge>}
+                  {!hasWrite && <Badge variant="secondary">{t("content.readOnly")}</Badge>}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Configuration management agent — connects to a Salt master for automated state enforcement
+                  {t("content.subtitle")}
                 </p>
               </div>
             </div>
@@ -99,12 +102,12 @@ export function SaltMinionContent() {
               {hasWrite && (
                 <Button size="sm" onClick={() => setSettingsOpen(true)}>
                   <Pencil className="h-4 w-4 mr-2" />
-                  Edit Settings
+                  {t("content.editSettings")}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={() => loadData(true)}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -124,27 +127,27 @@ export function SaltMinionContent() {
             <StatCard
               icon={<Server className="h-4 w-4 text-primary" />}
               iconBg="bg-primary/10"
-              label="Masters"
+              label={t("content.masters")}
               value={String(config?.masters.length ?? 0)}
             />
             <StatCard
               icon={<Tag className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
               iconBg="bg-blue-500/10"
-              label="Minion ID"
-              value={config?.id ?? "Hostname"}
+              label={t("content.minionId")}
+              value={config?.id ?? t("content.hostname")}
               mono
             />
             <StatCard
               icon={<Clock className="h-4 w-4 text-green-600 dark:text-green-400" />}
               iconBg="bg-green-500/10"
-              label="Interval"
-              value={config?.interval ? `${config.interval} min` : "60 min (default)"}
+              label={t("content.interval")}
+              value={config?.interval ? t("content.intervalValue", { value: String(config.interval) }) : t("content.intervalDefault")}
             />
             <StatCard
               icon={<ShieldCheck className="h-4 w-4 text-purple-600 dark:text-purple-400" />}
               iconBg="bg-purple-500/10"
-              label="Hash"
-              value={hashLabel(config?.hash ?? null)}
+              label={t("content.hash")}
+              value={hashLabel(config?.hash ?? null, t("content.hashDefault"))}
               mono
             />
           </div>
@@ -155,7 +158,7 @@ export function SaltMinionContent() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
                   <Server className="h-4 w-4" />
-                  Master Servers
+                  {t("content.masterServers")}
                 </CardTitle>
               </div>
             </CardHeader>
@@ -173,9 +176,9 @@ export function SaltMinionContent() {
                   <div className="rounded-full p-3 bg-muted mb-3">
                     <Server className="h-6 w-6 text-muted-foreground/50" />
                   </div>
-                  <p className="text-sm font-medium mb-1">No masters configured</p>
+                  <p className="text-sm font-medium mb-1">{t("content.noMasters")}</p>
                   <p className="text-xs text-muted-foreground">
-                    At least one master server is required for the minion to connect
+                    {t("content.noMastersHint")}
                   </p>
                   {hasWrite && (
                     <Button
@@ -185,7 +188,7 @@ export function SaltMinionContent() {
                       onClick={() => setSettingsOpen(true)}
                     >
                       <Pencil className="h-4 w-4 mr-1" />
-                      Edit Settings
+                      {t("content.editSettings")}
                     </Button>
                   )}
                 </div>
@@ -198,23 +201,23 @@ export function SaltMinionContent() {
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
                 <Bot className="h-4 w-4" />
-                Configuration
+                {t("content.configuration")}
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <div className="space-y-4">
                 <ConfigRow
                   icon={<Link className="h-4 w-4 text-muted-foreground" />}
-                  label="Master Key URL"
+                  label={t("content.masterKeyUrl")}
                   value={config?.master_key ?? null}
-                  placeholder="Not configured"
+                  placeholder={t("content.notConfigured")}
                   mono
                 />
                 <ConfigRow
                   icon={<Network className="h-4 w-4 text-muted-foreground" />}
-                  label="Source Interface"
+                  label={t("content.sourceInterface")}
                   value={config?.source_interface ?? null}
-                  placeholder="Default route"
+                  placeholder={t("content.defaultRoute")}
                   mono
                 />
               </div>

@@ -1,1 +1,57 @@
-{}
+{
+  "defaultValue": "{value} (default)",
+  "allAddresses": "all addresses",
+  "content": {
+    "loadFailed": "Failed to load DHCPv6 relay configuration",
+    "statusFailed": "Failed to update service status",
+    "unconfigured": "Unconfigured",
+    "active": "Active",
+    "title": "DHCPv6 Relay",
+    "readOnly": "Read Only",
+    "subtitle": "Forward DHCPv6 requests from clients to a centralized DHCPv6 server",
+    "enableService": "Enable Service",
+    "disableService": "Disable Service",
+    "editConfiguration": "Edit Configuration",
+    "configure": "Configure",
+    "disabledBanner": "DHCPv6 relay is disabled. Client requests will not be forwarded.",
+    "reenable": "Re-enable",
+    "emptyTitle": "DHCPv6 Relay is not configured",
+    "emptyDescription": "Configure the DHCPv6 relay agent to forward client requests to a centralized DHCPv6 server. Define listen interfaces (client-facing) and upstream interfaces (server-facing) with their server addresses.",
+    "configureRelay": "Configure DHCPv6 Relay",
+    "serviceStatus": "Service Status",
+    "maxHopCount": "Max Hop Count",
+    "defaultTen": "Default (10)",
+    "listenInterfaces": "Listen Interfaces",
+    "upstreamInterfaces": "Upstream Interfaces",
+    "globalOptions": "Global Options",
+    "interfaceIdOption": "Interface-ID Option",
+    "noServerAddresses": "No server addresses"
+  },
+  "modal": {
+    "errors": {
+      "invalidIpv6": "\"{addr}\" is not a valid IPv6 address",
+      "duplicateAddress": "{addr} is already listed for {iface}",
+      "upstreamRequired": "At least one upstream interface is required to forward DHCPv6 requests",
+      "hopCountRange": "Max hop count must be an integer between 1 and 255",
+      "listenInvalid": "Listen interface {iface}: \"{addr}\" is not a valid IPv6 address",
+      "upstreamInvalid": "Upstream interface {iface}: \"{addr}\" is not a valid IPv6 address",
+      "configFailed": "Configuration failed"
+    },
+    "editTitle": "Edit DHCPv6 Relay Configuration",
+    "editDescription": "Modify the DHCPv6 relay service settings.",
+    "createDescription": "Set up the DHCPv6 relay agent to forward client requests to a centralized server.",
+    "disableService": "Disable DHCPv6 Relay service",
+    "optionalSuffix": "(optional)",
+    "listenHelp": "Interfaces the relay agent listens on for client DHCPv6 requests. Optionally specify the IPv6 source address to listen on for each interface.",
+    "selectInterface": "Select interface",
+    "ipv6AddressOptional": "IPv6 address (optional)",
+    "upstreamHelp": "Interfaces used to forward DHCPv6 requests to the server. Add one or more server IPv6 addresses per interface.",
+    "serverIpv6Address": "Server IPv6 address",
+    "selectUpstreamInterface": "Select upstream interface to add",
+    "globalOptionsHelp": "Advanced tuning — leave blank to use defaults.",
+    "hopCountHelp": "Discard relay packets that have reached this hop count (1–255).",
+    "useInterfaceIdOption": "Use Interface-ID Option",
+    "interfaceIdHelp": "Add an interface-ID option to relayed packets identifying the interface on which the client request was received.",
+    "saveConfiguration": "Save Configuration"
+  }
+}

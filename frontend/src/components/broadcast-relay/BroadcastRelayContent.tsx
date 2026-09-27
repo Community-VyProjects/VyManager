@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
 export function BroadcastRelayContent() {
+  const t = useTranslations("broadcastRelay");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWritePermission = canWrite(FeatureGroup.BROADCAST_RELAY);
 
@@ -55,11 +58,11 @@ export function BroadcastRelayContent() {
       const configData = await broadcastRelayService.getConfig(refresh);
       setConfig(configData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load broadcast relay configuration");
+      setError(err instanceof Error ? err.message : t("content.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -80,7 +83,7 @@ export function BroadcastRelayContent() {
       }
       await loadData(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update service status");
+      setError(err instanceof Error ? err.message : t("content.updateStatusFailed"));
     } finally {
       setGlobalDisableLoading(false);
     }
@@ -117,7 +120,7 @@ export function BroadcastRelayContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -135,13 +138,13 @@ export function BroadcastRelayContent() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold text-foreground">Broadcast Relay</h1>
+                  <h1 className="text-2xl font-bold text-foreground">{t("content.title")}</h1>
                   {!hasWritePermission && (
-                    <Badge variant="secondary">Read Only</Badge>
+                    <Badge variant="secondary">{t("content.readOnly")}</Badge>
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  UDP broadcast relay between interfaces
+                  {t("content.subtitle")}
                 </p>
               </div>
             </div>
@@ -156,12 +159,12 @@ export function BroadcastRelayContent() {
                   {globalDisableLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : null}
-                  {config?.globally_disabled ? "Enable Service" : "Disable Service"}
+                  {config?.globally_disabled ? t("content.enableService") : t("content.disableService")}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={() => loadData(true)}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -171,7 +174,7 @@ export function BroadcastRelayContent() {
             <div className="mb-4 flex items-center gap-3 p-3 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400">
               <AlertTriangle className="h-4 w-4 shrink-0" />
               <span className="text-sm font-medium">
-                Broadcast relay service is globally disabled. All instances are inactive.
+                {t("content.globallyDisabled")}
               </span>
               {hasWritePermission && (
                 <Button
@@ -181,7 +184,7 @@ export function BroadcastRelayContent() {
                   onClick={handleToggleGlobalDisable}
                   disabled={globalDisableLoading}
                 >
-                  Re-enable
+                  {t("content.reEnable")}
                 </Button>
               )}
             </div>
@@ -203,7 +206,7 @@ export function BroadcastRelayContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{totalInstances}</p>
-                    <p className="text-xs text-muted-foreground">Total Instances</p>
+                    <p className="text-xs text-muted-foreground">{t("content.totalInstances")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -217,7 +220,7 @@ export function BroadcastRelayContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{activeInstances}</p>
-                    <p className="text-xs text-muted-foreground">Active Instances</p>
+                    <p className="text-xs text-muted-foreground">{t("content.activeInstances")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -231,7 +234,7 @@ export function BroadcastRelayContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{disabledInstances}</p>
-                    <p className="text-xs text-muted-foreground">Disabled Instances</p>
+                    <p className="text-xs text-muted-foreground">{t("content.disabledInstances")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -251,7 +254,7 @@ export function BroadcastRelayContent() {
                 }}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Instance
+                {t("content.addInstance")}
               </Button>
             </div>
           )}
@@ -260,7 +263,7 @@ export function BroadcastRelayContent() {
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Radio className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                <p className="text-sm text-muted-foreground mb-4">No relay instances configured</p>
+                <p className="text-sm text-muted-foreground mb-4">{t("content.empty")}</p>
                 {hasWritePermission && (
                   <Button
                     size="sm"
@@ -270,7 +273,7 @@ export function BroadcastRelayContent() {
                     }}
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Instance
+                    {t("content.addInstance")}
                   </Button>
                 )}
               </CardContent>
@@ -282,13 +285,13 @@ export function BroadcastRelayContent() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>ID</TableHead>
-                      <TableHead>Port</TableHead>
-                      <TableHead>Interfaces</TableHead>
-                      <TableHead>Source Address</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>{t("content.colPort")}</TableHead>
+                      <TableHead>{t("content.colInterfaces")}</TableHead>
+                      <TableHead>{t("content.colSourceAddress")}</TableHead>
+                      <TableHead>{tc("description")}</TableHead>
+                      <TableHead>{tc("status")}</TableHead>
                       {hasWritePermission && (
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead className="text-right">{tc("actions")}</TableHead>
                       )}
                     </TableRow>
                   </TableHeader>
@@ -342,11 +345,11 @@ export function BroadcastRelayContent() {
                         <TableCell>
                           {inst.disabled ? (
                             <Badge variant="secondary" className="bg-muted text-muted-foreground">
-                              Disabled
+                              {tc("disabled")}
                             </Badge>
                           ) : (
                             <Badge variant="secondary" className="bg-green-500/10 text-green-600">
-                              Active
+                              {t("content.active")}
                             </Badge>
                           )}
                         </TableCell>

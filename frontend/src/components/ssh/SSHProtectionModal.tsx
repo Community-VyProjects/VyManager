@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,8 @@ export function SSHProtectionModal({
   capabilities,
   onSuccess,
 }: SSHProtectionModalProps) {
+  const t = useTranslations("ssh");
+  const tc = useTranslations("common");
   const defaults = capabilities.features.dynamic_protection.defaults;
 
   const [disableHostValidation, setDisableHostValidation] = useState(config.disable_host_validation);
@@ -65,7 +68,7 @@ export function SSHProtectionModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -75,9 +78,9 @@ export function SSHProtectionModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Protection &amp; Hardening</DialogTitle>
+          <DialogTitle>{t("content.protection")}</DialogTitle>
           <DialogDescription>
-            Brute-force protection and host lookup behaviour
+            {t("protection.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -90,9 +93,9 @@ export function SSHProtectionModal({
                 onCheckedChange={(c) => setDisableHostValidation(!!c)}
               />
               <Label htmlFor="disable-host-validation" className="cursor-pointer leading-tight">
-                <span className="font-medium">Disable host validation</span>
+                <span className="font-medium">{t("protection.disableHostValidation")}</span>
                 <span className="block text-xs text-muted-foreground mt-0.5">
-                  Skip reverse DNS (IP → hostname) lookups for connecting clients
+                  {t("protection.disableHostValidationHelp")}
                 </span>
               </Label>
             </div>
@@ -106,9 +109,9 @@ export function SSHProtectionModal({
                 onCheckedChange={(c) => setDpEnabled(!!c)}
               />
               <Label htmlFor="dynamic-protection" className="cursor-pointer leading-tight">
-                <span className="font-medium">Enable dynamic protection</span>
+                <span className="font-medium">{t("protection.enableDynamic")}</span>
                 <span className="block text-xs text-muted-foreground mt-0.5">
-                  Track and temporarily block IPs that exceed an attack score
+                  {t("protection.enableDynamicHelp")}
                 </span>
               </Label>
             </div>
@@ -116,22 +119,22 @@ export function SSHProtectionModal({
             {dpEnabled && (
               <div className="space-y-4 pl-7">
                 <SSHMultiValueField
-                  label="Allow From"
-                  description="Addresses/subnets that are never blocked"
-                  placeholder="e.g. 192.0.2.0/24 or 2001:db8::1"
+                  label={t("content.allowFrom")}
+                  description={t("protection.allowFromHelp")}
+                  placeholder={t("protection.allowFromPlaceholder")}
                   values={allowFrom}
                   onChange={setAllowFrom}
                   validate={(v) =>
-                    isValidIP(v, true) ? null : "Enter a valid IP address or network"
+                    isValidIP(v, true) ? null : t("protection.invalidNetwork")
                   }
                 />
 
                 <div className="space-y-1.5">
                   <Label htmlFor="dp-threshold" className="text-xs font-medium">
-                    Threshold
+                    {t("content.threshold")}
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Cumulative attack score before blocking (default {defaults.threshold}).
+                    {t("protection.thresholdHelp", { value: String(defaults.threshold) })}
                   </p>
                   <Input
                     id="dp-threshold"
@@ -146,10 +149,10 @@ export function SSHProtectionModal({
 
                 <div className="space-y-1.5">
                   <Label htmlFor="dp-block" className="text-xs font-medium">
-                    Block Time (seconds)
+                    {t("protection.blockTimeSeconds")}
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Initial block duration; subsequent blocks grow ×1.5 (default {defaults.block_time}).
+                    {t("protection.blockTimeHelp", { value: String(defaults.block_time) })}
                   </p>
                   <Input
                     id="dp-block"
@@ -164,10 +167,10 @@ export function SSHProtectionModal({
 
                 <div className="space-y-1.5">
                   <Label htmlFor="dp-detect" className="text-xs font-medium">
-                    Detect Time (seconds)
+                    {t("protection.detectTimeSeconds")}
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    How long a source IP&apos;s score is remembered before reset (default {defaults.detect_time}).
+                    {t("protection.detectTimeHelp", { value: String(defaults.detect_time) })}
                   </p>
                   <Input
                     id="dp-detect"
@@ -193,11 +196,11 @@ export function SSHProtectionModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +23,8 @@ interface Props {
 }
 
 export function DeleteBroadcastRelayInstanceModal({ open, onOpenChange, instance, onConfirm }: Props) {
+  const t = useTranslations("broadcastRelay");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,7 +34,7 @@ export function DeleteBroadcastRelayInstanceModal({ open, onOpenChange, instance
     try {
       await onConfirm();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to delete instance");
+      setError(err instanceof Error ? err.message : t("delete.failed"));
       setLoading(false);
       return;
     }
@@ -47,17 +50,18 @@ export function DeleteBroadcastRelayInstanceModal({ open, onOpenChange, instance
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Relay Instance</AlertDialogTitle>
+          <AlertDialogTitle>{t("delete.title")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete relay instance{" "}
-            <span className="font-mono font-semibold">#{instance?.id}</span>
-            {instance?.port != null && (
-              <>
-                {" "}(UDP port{" "}
-                <span className="font-mono font-semibold">{instance.port}</span>)
-              </>
-            )}
-            ? This action cannot be undone.
+            {instance?.port != null
+              ? t.rich("delete.descriptionWithPort", {
+                  id: instance.id,
+                  port: String(instance.port),
+                  mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+                })
+              : t.rich("delete.description", {
+                  id: instance?.id ?? "",
+                  mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+                })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -69,7 +73,7 @@ export function DeleteBroadcastRelayInstanceModal({ open, onOpenChange, instance
         )}
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
             disabled={loading}
@@ -78,10 +82,10 @@ export function DeleteBroadcastRelayInstanceModal({ open, onOpenChange, instance
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Instance"
+              t("delete.confirm")
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

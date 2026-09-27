@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,8 @@ const numOrNull = (s: string): number | null => {
 };
 
 export function WebProxyCachePeerModal({ open, onOpenChange, peer, caps, onSubmit }: Props) {
+  const t = useTranslations("webproxy");
+  const tc = useTranslations("common");
   const isEdit = !!peer;
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
@@ -61,11 +64,11 @@ export function WebProxyCachePeerModal({ open, onOpenChange, peer, caps, onSubmi
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      setError("Peer name is required");
+      setError(t("peer.nameRequired"));
       return;
     }
     if (!address.trim()) {
-      setError("Address is required");
+      setError(t("peer.addressRequired"));
       return;
     }
     setLoading(true);
@@ -81,7 +84,7 @@ export function WebProxyCachePeerModal({ open, onOpenChange, peer, caps, onSubmi
       }, isEdit);
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -91,42 +94,42 @@ export function WebProxyCachePeerModal({ open, onOpenChange, peer, caps, onSubmi
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Cache Peer" : "Add Cache Peer"}</DialogTitle>
-          <DialogDescription>Define another cache in the proxy hierarchy.</DialogDescription>
+          <DialogTitle>{isEdit ? t("peer.editTitle") : t("peer.addTitle")}</DialogTitle>
+          <DialogDescription>{t("peer.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="cp-name">Peer Name</Label>
+            <Label htmlFor="cp-name">{t("peer.name")}</Label>
             <Input id="cp-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="upstream-cache" disabled={isEdit} className={isEdit ? "bg-muted font-mono" : "font-mono"} />
-            {isEdit && <p className="text-xs text-muted-foreground">Name cannot be changed after creation.</p>}
+            {isEdit && <p className="text-xs text-muted-foreground">{t("common.nameImmutable")}</p>}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="cp-address">Address / Hostname</Label>
-            <Input id="cp-address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="10.0.0.1 or cache.example.com" className="font-mono" />
+            <Label htmlFor="cp-address">{t("peer.addressHostname")}</Label>
+            <Input id="cp-address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder={t("peer.addressPlaceholder")} className="font-mono" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Type</Label>
+              <Label>{t("content.type")}</Label>
               <Select value={type} onValueChange={setType}>
                 <SelectTrigger><SelectValue placeholder="parent" /></SelectTrigger>
                 <SelectContent>
-                  {(caps?.options.cache_peer_type ?? ["parent", "sibling", "multicast"]).map((t) => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  {(caps?.options.cache_peer_type ?? ["parent", "sibling", "multicast"]).map((pt) => (
+                    <SelectItem key={pt} value={pt}>{pt}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="cp-http">HTTP Port</Label>
+              <Label htmlFor="cp-http">{t("content.httpPort")}</Label>
               <Input id="cp-http" type="number" value={httpPort} onChange={(e) => setHttpPort(e.target.value)} placeholder="3128" className="font-mono" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="cp-icp">ICP Port</Label>
+              <Label htmlFor="cp-icp">{t("content.icpPort")}</Label>
               <Input id="cp-icp" type="number" value={icpPort} onChange={(e) => setIcpPort(e.target.value)} placeholder="0" className="font-mono" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="cp-options">Options</Label>
+              <Label htmlFor="cp-options">{t("content.options")}</Label>
               <Input id="cp-options" value={options} onChange={(e) => setOptions(e.target.value)} placeholder="no-query default" className="font-mono" />
             </div>
           </div>
@@ -140,9 +143,9 @@ export function WebProxyCachePeerModal({ open, onOpenChange, peer, caps, onSubmi
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : isEdit ? "Save Changes" : "Add Peer"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : isEdit ? t("common.saveChanges") : t("content.addPeer")}
           </Button>
         </DialogFooter>
       </DialogContent>

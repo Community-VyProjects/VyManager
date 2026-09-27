@@ -1,1 +1,198 @@
-{}
+{
+  "subnet": "子网",
+  "selectSubnet": "选择子网",
+  "networkLine": "网络：{network}",
+  "subnetSuffix": " / 子网：{subnet}",
+  "optionalExample": "{example}（可选）",
+  "range": {
+    "errors": {
+      "selectSubnet": "请选择子网",
+      "startStopRequired": "起始地址和结束地址为必填项",
+      "prefixRequired": "前缀为必填项"
+    },
+    "editTitle": "编辑地址范围",
+    "addTitle": "添加地址范围",
+    "startAddress": "起始地址",
+    "stopAddress": "结束地址",
+    "prefix": "前缀",
+    "modeStartStop": "起始 / 结束",
+    "temporary": "临时地址",
+    "addRange": "添加地址范围"
+  },
+  "global": {
+    "title": "DHCPv6 服务器全局设置",
+    "disableServer": "禁用 DHCPv6 服务器",
+    "preference": "服务器优先级（0–255）",
+    "preferencePlaceholder": "可选（默认 0）",
+    "nameServers": "全局域名服务器",
+    "listenInterfaces": "监听接口",
+    "disableRouteAutoinstall": "禁用路由自动安装",
+    "disableRouteAutoinstallHint": "（不安装委派前缀路由）"
+  },
+  "pd": {
+    "errors": {
+      "delegatedLengthRequired": "委派长度为必填项"
+    },
+    "editTitle": "编辑前缀委派",
+    "addTitle": "添加前缀委派",
+    "delegatedLength": "委派长度",
+    "delegatedLengthPlaceholder": "例如 64",
+    "prefixLengthOptional": "前缀长度（可选）",
+    "excludedPrefix": "排除前缀（可选）",
+    "excludedPrefixLength": "排除前缀长度（可选）",
+    "start": "起始",
+    "stop": "结束",
+    "prefixLength14": "前缀长度（32–64）",
+    "addDelegation": "添加委派"
+  },
+  "mapping": {
+    "clientIdentifier": "客户端标识符",
+    "errors": {
+      "nameRequired": "映射名称为必填项"
+    },
+    "editTitle": "编辑静态映射",
+    "addTitle": "添加静态映射",
+    "name": "映射名称",
+    "disable": "禁用此映射",
+    "macAddress": "MAC 地址",
+    "ipv6Address": "IPv6 地址",
+    "ipv6Prefix": "IPv6 前缀",
+    "addMapping": "添加映射"
+  },
+  "sharedNetwork": "共享网络",
+  "subnetModal": {
+    "errors": {
+      "selectNetwork": "请选择网络",
+      "cidrRequired": "子网 CIDR 为必填项"
+    },
+    "editTitle": "编辑子网",
+    "addTitle": "添加子网",
+    "tabs": {
+      "basic": "基本",
+      "options": "选项"
+    },
+    "selectNetwork": "选择网络",
+    "subnetCidr": "子网 CIDR",
+    "interfaces": "接口",
+    "leaseDefault": "默认租期（秒）",
+    "leaseMin": "最短租期（秒）",
+    "leaseMax": "最长租期（秒）",
+    "nameServers": "域名服务器",
+    "domainSearch": "搜索域",
+    "infoRefreshTime": "信息刷新时间（秒）",
+    "capwapController": "CAPWAP 控制器",
+    "nisDomain": "NIS 域",
+    "nisplusDomain": "NIS+ 域",
+    "nisServers": "NIS 服务器",
+    "nisplusServers": "NIS+ 服务器",
+    "sipServers": "SIP 服务器",
+    "sipPlaceholder": "2001:db8::1 或 sip.example.com",
+    "sntpServers": "SNTP 服务器",
+    "ciscoTftpServers": "Cisco TFTP 服务器",
+    "addSubnet": "添加子网"
+  },
+  "optionalDescription": "可选描述",
+  "networkModal": {
+    "errors": {
+      "nameRequired": "网络名称为必填项",
+      "saveFailed": "保存网络失败",
+      "createFailed": "创建网络失败"
+    },
+    "tabs": {
+      "network": "网络",
+      "dhcpOptions": "DHCP 选项",
+      "ranges": "地址范围"
+    },
+    "editTitle": "编辑共享网络",
+    "addTitle": "添加共享网络",
+    "name": "网络名称",
+    "disable": "禁用此网络",
+    "firstSubnet": "首个子网",
+    "subnetInterfaces": "子网接口",
+    "sipPlaceholder": "2001:db8::1 或主机名",
+    "rangesHint": "可选——你可以在创建网络后再添加地址范围。",
+    "create": "创建网络"
+  },
+  "content": {
+    "loadFailed": "加载 DHCPv6 服务器配置失败",
+    "loading": "正在加载 DHCPv6 服务器配置...",
+    "errorTitle": "加载 DHCPv6 服务器出错",
+    "title": "DHCPv6 服务器",
+    "globalSettings": "全局设置",
+    "newServer": "新建服务器",
+    "noServersShort": "未配置服务器",
+    "noServersHint": "点击“新建服务器”来创建",
+    "enableNetwork": "启用网络",
+    "disableNetwork": "禁用网络",
+    "deleteNetwork": "删除网络",
+    "stats": {
+      "networks": "网络",
+      "subnets": "子网",
+      "static": "静态"
+    },
+    "globallyDisabled": "DHCPv6 服务器已全局禁用——所有网络均不提供服务。",
+    "nameServersLine": "域名服务器：{servers}",
+    "refreshLine": "刷新：{seconds} 秒",
+    "editNetwork": "编辑网络",
+    "enableDhcpv6": "启用 DHCPv6",
+    "disableDhcpv6": "禁用 DHCPv6",
+    "tabs": {
+      "subnets": "子网",
+      "ranges": "地址范围",
+      "delegation": "前缀委派",
+      "static": "静态映射"
+    },
+    "subnetCount": "{count} 个子网",
+    "noSubnets": "暂无子网",
+    "noSubnetsHint": "为此网络添加子网",
+    "columns": {
+      "leaseDefault": "默认租期",
+      "mappings": "映射",
+      "rangeId": "地址范围 ID",
+      "temporary": "临时",
+      "delegatedLen": "委派长度",
+      "prefixLen": "前缀长度",
+      "excludedPrefix": "排除前缀",
+      "excludedLen": "排除长度",
+      "prefixLength": "前缀长度",
+      "clientId": "客户端 ID"
+    },
+    "seconds": "{value} 秒",
+    "subnetLabel": "子网：",
+    "allSubnets": "所有子网",
+    "rangeCount": "{count} 个地址范围",
+    "noRanges": "暂无地址范围",
+    "noRangesHint": "未配置地址范围",
+    "yes": "是",
+    "delegationCount": "{count} 个委派",
+    "noDelegations": "暂无前缀委派",
+    "noDelegationsHint": "未配置前缀委派",
+    "mappingCount": "{count} 个映射",
+    "noMappings": "暂无静态映射",
+    "noMappingsHint": "未配置 IPv6 静态映射",
+    "active": "活动",
+    "noServers": "暂无 DHCPv6 服务器",
+    "noServersDescription": "创建你的第一个 DHCPv6 服务器，开始管理 IPv6 地址分配。"
+  },
+  "deleteDialog": {
+    "network": "删除网络“{name}”？",
+    "subnet": "删除子网“{subnet}”？",
+    "range": "删除地址范围？",
+    "pd": "删除前缀委派？",
+    "mapping": "删除映射“{name}”？",
+    "description": "此操作无法撤销，并将从 VyOS 中移除该配置。"
+  },
+  "toggle": {
+    "enableServerTitle": "启用 DHCPv6 服务器",
+    "disableServerTitle": "禁用 DHCPv6 服务器",
+    "enableNetworkTitle": "启用网络“{name}”",
+    "disableNetworkTitle": "禁用网络“{name}”",
+    "enableServerDescription": "这将全局启用 DHCPv6 服务器。",
+    "disableServerDescription": "这将全局禁用 DHCPv6 服务器。在重新启用之前，所有网络都不会响应请求。",
+    "enableNetworkDescription": "启用网络“{name}”？它将恢复响应 DHCPv6 请求。",
+    "disableNetworkDescription": "禁用网络“{name}”？它将停止响应 DHCPv6 请求。",
+    "processing": "正在处理...",
+    "enable": "启用",
+    "disable": "禁用"
+  }
+}

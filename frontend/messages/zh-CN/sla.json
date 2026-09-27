@@ -1,1 +1,28 @@
-{}
+{
+  "content": {
+    "portCustom": "{port}（自定义）",
+    "portDefault": "{port}（默认）",
+    "port": "端口",
+    "loadFailed": "加载 SLA 配置失败",
+    "readOnly": "只读",
+    "subtitle": "SLA 监测 — OWAMP 和 TWAMP 测量服务器",
+    "editSettings": "编辑设置",
+    "enabledCount": "{count, plural, =0 {未启用任何测量服务器} other {已启用 # 个测量服务器}}",
+    "owampServer": "OWAMP 服务器",
+    "owampDescription": "测量端点之间的单向网络时延、抖动和丢包。用于非对称路径分析和 SLA 验证。",
+    "twampServer": "TWAMP 服务器",
+    "twampDescription": "测量端点之间的往返网络时延、抖动和丢包。在 OWAMP 基础上增加了双向测量能力。"
+  },
+  "settings": {
+    "portRange": "端口必须是 1 到 65535 之间的数字",
+    "title": "SLA 设置",
+    "description": "配置 OWAMP 和 TWAMP 测量服务器设置",
+    "enableOwamp": "启用 OWAMP 服务器",
+    "owampHint": "One-Way Active Measurement Protocol — 测量单向时延和丢包",
+    "port": "端口",
+    "portPlaceholder": "{port}（默认）",
+    "portHint": "留空则使用默认端口 ({port})",
+    "enableTwamp": "启用 TWAMP 服务器",
+    "twampHint": "Two-Way Active Measurement Protocol — 测量往返时延和丢包"
+  }
+}

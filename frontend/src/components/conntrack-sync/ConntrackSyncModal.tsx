@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -44,6 +45,8 @@ interface IfaceRow extends ConntrackSyncInterface {
 }
 
 export function ConntrackSyncModal({ open, config, onClose, onSubmit }: ConntrackSyncModalProps) {
+  const t = useTranslations("conntrackSync");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -152,13 +155,13 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
 
   function validate(): string | null {
     for (const row of ifaceRows) {
-      if (!row.name.trim()) return "All interface rows must have a name.";
+      if (!row.name.trim()) return t("modal.rowNameRequired");
       if (row.port != null && (row.port < 1 || row.port > 65535)) {
-        return `Interface "${row.name}" port must be between 1 and 65535.`;
+        return t("modal.portRange", { name: row.name });
       }
     }
     const names = ifaceRows.map((r) => r.name.trim());
-    if (new Set(names).size !== names.length) return "Duplicate interface names are not allowed.";
+    if (new Set(names).size !== names.length) return t("modal.duplicateNames");
     return null;
   }
 
@@ -191,7 +194,7 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
       };
       await onSubmit(updated);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred.");
+      setError(err instanceof Error ? err.message : t("modal.unexpectedError"));
     } finally {
       setLoading(false);
     }
@@ -201,9 +204,9 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Configure Conntrack Sync</DialogTitle>
+          <DialogTitle>{t("modal.title")}</DialogTitle>
           <DialogDescription>
-            Synchronize connection tracking tables between firewall nodes for high availability.
+            {t("modal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -211,15 +214,15 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
           <TabsList className="grid w-full grid-cols-3 shrink-0">
             <TabsTrigger value="interfaces" className="flex items-center gap-1.5">
               <Network className="h-3.5 w-3.5" />
-              Interfaces
+              {t("modal.tabInterfaces")}
             </TabsTrigger>
             <TabsTrigger value="protocols" className="flex items-center gap-1.5">
               <Layers className="h-3.5 w-3.5" />
-              Protocols &amp; Failover
+              {t("modal.tabProtocols")}
             </TabsTrigger>
             <TabsTrigger value="advanced" className="flex items-center gap-1.5">
               <Settings2 className="h-3.5 w-3.5" />
-              Advanced
+              {t("modal.tabAdvanced")}
             </TabsTrigger>
           </TabsList>
 
@@ -228,22 +231,22 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
             <ScrollArea className="flex-1 pr-4">
               <div className="space-y-3 py-2">
                 <p className="text-sm text-muted-foreground">
-                  Configure the interface used to exchange conntrack updates. Leave{" "}
-                  <span className="font-medium">Peer</span> empty to use multicast (default{" "}
-                  <span className="font-mono text-xs">225.0.0.50</span>), or enter a unicast IPv4
-                  address to bypass multicast.
+                  {t.rich("modal.interfacesIntro", {
+                    b: (chunks) => <span className="font-medium">{chunks}</span>,
+                    mono: (chunks) => <span className="font-mono text-xs">{chunks}</span>,
+                  })}
                 </p>
 
                 {ifaceRows.length === 0 && (
                   <div className="border border-dashed rounded-md p-6 text-center text-sm text-muted-foreground">
-                    No interfaces configured. Add one below.
+                    {t("modal.noInterfaces")}
                   </div>
                 )}
 
                 {ifaceRows.map((row) => (
                   <div key={row.key} className="grid grid-cols-[1fr_1fr_100px_32px] gap-2 items-end">
                     <div className="space-y-1">
-                      <Label className="text-xs">Interface</Label>
+                      <Label className="text-xs">{t("modal.interface")}</Label>
                       <InterfaceSelect
                         value={row.name}
                         onValueChange={(val) => updateIfaceRow(row.key, "name", val)}
@@ -253,20 +256,20 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
                             iface.name === row.name ||
                             !ifaceRows.some((r) => r.key !== row.key && r.name === iface.name)
                         )}
-                        placeholder="Select interface"
-                        emptyText="No interfaces found"
+                        placeholder={t("modal.selectInterface")}
+                        emptyText={t("modal.noInterfacesFound")}
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Peer IP (optional)</Label>
+                      <Label className="text-xs">{t("modal.peerIp")}</Label>
                       <Input
-                        placeholder="e.g. 10.0.0.2"
+                        placeholder={t("modal.peerIpPlaceholder")}
                         value={row.peer ?? ""}
                         onChange={(e) => updateIfaceRow(row.key, "peer", e.target.value)}
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Port</Label>
+                      <Label className="text-xs">{t("modal.port")}</Label>
                       <Input
                         type="number"
                         placeholder="3780"
@@ -289,7 +292,7 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
 
                 <Button variant="outline" size="sm" className="mt-1" onClick={addIfaceRow}>
                   <Plus className="h-4 w-4 mr-1.5" />
-                  Add Interface
+                  {t("modal.addInterface")}
                 </Button>
               </div>
             </ScrollArea>
@@ -302,9 +305,9 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
                 {/* Accept Protocols */}
                 <div className="space-y-3">
                   <div>
-                    <Label className="text-sm font-medium">Accept Protocols</Label>
+                    <Label className="text-sm font-medium">{t("modal.acceptProtocols")}</Label>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Local conntrack entries for selected protocols will be synced to the peer.
+                      {t("modal.acceptProtocolsHint")}
                     </p>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
@@ -328,9 +331,9 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
                 {/* Expect Sync */}
                 <div className="space-y-3">
                   <div>
-                    <Label className="text-sm font-medium">Expect Sync</Label>
+                    <Label className="text-sm font-medium">{t("modal.expectSync")}</Label>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Synchronize helper-created expect entries for application-layer protocols.
+                      {t("modal.expectSyncHint")}
                     </p>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
@@ -354,18 +357,18 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
                 {/* Failover Mechanism */}
                 <div className="space-y-3">
                   <div>
-                    <Label className="text-sm font-medium">Failover Mechanism</Label>
+                    <Label className="text-sm font-medium">{t("modal.failoverMechanism")}</Label>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      VRRP sync-group used to determine active/backup state.
+                      {t("modal.failoverHint")}
                     </p>
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="vrrp-sync-group" className="text-xs">
-                      VRRP Sync Group
+                      {t("modal.vrrpSyncGroup")}
                     </Label>
                     <Input
                       id="vrrp-sync-group"
-                      placeholder="e.g. VYOS"
+                      placeholder={t("modal.vrrpSyncGroupPlaceholder")}
                       value={vrrpSyncGroup}
                       onChange={(e) => setVrrpSyncGroup(e.target.value)}
                     />
@@ -381,30 +384,30 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
               <div className="space-y-6 py-2">
                 {/* Queue Sizes */}
                 <div className="space-y-3">
-                  <Label className="text-sm font-medium">Queue Sizes</Label>
+                  <Label className="text-sm font-medium">{t("modal.queueSizes")}</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label htmlFor="event-queue" className="text-xs">
-                        Event Listen Queue (MB)
+                        {t("modal.eventQueue")}
                       </Label>
                       <Input
                         id="event-queue"
                         type="number"
                         min={1}
-                        placeholder="Default: 8"
+                        placeholder={t("modal.defaultValue", { value: "8" })}
                         value={eventListenQueueSize}
                         onChange={(e) => setEventListenQueueSize(e.target.value)}
                       />
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="sync-queue" className="text-xs">
-                        Sync Queue (MB)
+                        {t("modal.syncQueue")}
                       </Label>
                       <Input
                         id="sync-queue"
                         type="number"
                         min={1}
-                        placeholder="Default: 1"
+                        placeholder={t("modal.defaultValue", { value: "1" })}
                         value={syncQueueSize}
                         onChange={(e) => setSyncQueueSize(e.target.value)}
                       />
@@ -415,34 +418,34 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
                 {/* Multicast Group */}
                 <div className="space-y-1.5">
                   <Label htmlFor="mcast-group" className="text-sm font-medium">
-                    Multicast Group
+                    {t("modal.multicastGroup")}
                   </Label>
                   <Input
                     id="mcast-group"
-                    placeholder="Default: 225.0.0.50"
+                    placeholder={t("modal.defaultValue", { value: "225.0.0.50" })}
                     value={mcastGroup}
                     onChange={(e) => setMcastGroup(e.target.value)}
                   />
                   <p className="text-xs text-muted-foreground">
-                    IPv4 multicast address used when no unicast peer is configured.
+                    {t("modal.multicastGroupHint")}
                   </p>
                 </div>
 
                 {/* Listen Addresses */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Listen Addresses</Label>
+                  <Label className="text-sm font-medium">{t("modal.listenAddresses")}</Label>
                   <p className="text-xs text-muted-foreground">
-                    Local IPv4 addresses to listen on for incoming sync traffic.
+                    {t("modal.listenAddressesHint")}
                   </p>
                   <div className="flex gap-2">
                     <Input
-                      placeholder="e.g. 10.0.0.1"
+                      placeholder={t("modal.listenAddressPlaceholder")}
                       value={listenInput}
                       onChange={(e) => setListenInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addListenAddress())}
                     />
                     <Button type="button" variant="outline" size="sm" onClick={addListenAddress}>
-                      Add
+                      {tc("add")}
                     </Button>
                   </div>
                   {listenAddresses.length > 0 && (
@@ -463,19 +466,19 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
 
                 {/* Ignore Addresses */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Ignore Addresses</Label>
+                  <Label className="text-sm font-medium">{t("modal.ignoreAddresses")}</Label>
                   <p className="text-xs text-muted-foreground">
-                    IPv4/IPv6 addresses or prefixes excluded from synchronization.
+                    {t("modal.ignoreAddressesHint")}
                   </p>
                   <div className="flex gap-2">
                     <Input
-                      placeholder="e.g. 192.168.1.0/24"
+                      placeholder={t("modal.ignoreAddressPlaceholder")}
                       value={ignoreInput}
                       onChange={(e) => setIgnoreInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addIgnoreAddress())}
                     />
                     <Button type="button" variant="outline" size="sm" onClick={addIgnoreAddress}>
-                      Add
+                      {tc("add")}
                     </Button>
                   </div>
                   {ignoreAddresses.length > 0 && (
@@ -496,7 +499,7 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
 
                 {/* Flags */}
                 <div className="space-y-3">
-                  <Label className="text-sm font-medium">Options</Label>
+                  <Label className="text-sm font-medium">{t("modal.options")}</Label>
                   <div className="space-y-3">
                     <div className="flex items-start space-x-2.5">
                       <Checkbox
@@ -507,10 +510,10 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
                       />
                       <div>
                         <Label htmlFor="disable-external-cache" className="cursor-pointer font-normal">
-                          Disable External Cache
+                          {t("modal.disableExternalCache")}
                         </Label>
                         <p className="text-xs text-muted-foreground">
-                          Directly inject flow-states into the kernel connection tracking system of the backup node.
+                          {t("modal.disableExternalCacheHint")}
                         </p>
                       </div>
                     </div>
@@ -523,10 +526,10 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
                       />
                       <div>
                         <Label htmlFor="disable-syslog" className="cursor-pointer font-normal">
-                          Disable Syslog
+                          {t("modal.disableSyslog")}
                         </Label>
                         <p className="text-xs text-muted-foreground">
-                          Suppress connection tracking event logging via syslog.
+                          {t("modal.disableSyslogHint")}
                         </p>
                       </div>
                     </div>
@@ -539,10 +542,10 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
                       />
                       <div>
                         <Label htmlFor="startup-resync" className="cursor-pointer font-normal">
-                          Startup Resync
+                          {t("modal.startupResync")}
                         </Label>
                         <p className="text-xs text-muted-foreground">
-                          Request a full conntrack table resync from the peer at startup.
+                          {t("modal.startupResyncHint")}
                         </p>
                       </div>
                     </div>
@@ -562,11 +565,11 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
 
         <DialogFooter className="shrink-0">
           <Button variant="outline" onClick={onClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

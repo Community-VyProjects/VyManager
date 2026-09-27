@@ -1,1 +1,76 @@
-{}
+{
+  "content": {
+    "loadFailed": "加载 NDP 代理配置失败",
+    "title": "NDP 代理",
+    "readOnly": "只读",
+    "subtitle": "邻居发现协议代理 — 在接口之间转发 NDP",
+    "editSettings": "编辑设置",
+    "totalInterfaces": "接口总数",
+    "totalPrefixes": "前缀总数",
+    "disabledInterfaces": "已禁用接口",
+    "globalSettings": "全局设置",
+    "routeRefresh": "路由刷新间隔",
+    "routeRefreshDefault": "30000 ms（默认）",
+    "interfaces": "接口",
+    "addInterface": "添加接口",
+    "colInterface": "接口",
+    "colTimeout": "超时",
+    "colPrefixes": "前缀",
+    "defaultValue": "{value}（默认）",
+    "colPrefix": "前缀",
+    "colMode": "模式",
+    "colFwdInterface": "转发接口",
+    "noPrefixes": "此接口尚未配置前缀",
+    "emptyTitle": "尚未配置接口",
+    "emptyHint": "添加一个监听接口以开始代理 NDP"
+  },
+  "delete": {
+    "title": "移除 NDP 代理接口",
+    "description": "要移除 <mono>{name}</mono> 的 NDP 代理配置吗？",
+    "alsoRemove": "这也将移除 <b>{count}</b> 个前缀。",
+    "remove": "移除"
+  },
+  "global": {
+    "wholeNumber": "必须为整数",
+    "outOfRange": "值必须介于 10000 和 120000 ms 之间",
+    "title": "编辑全局设置",
+    "description": "配置全局 NDP 代理服务设置",
+    "routeRefresh": "路由刷新间隔 (ms)",
+    "routeRefreshPlaceholder": "30000（默认）",
+    "routeRefreshHint": "刷新 IPv6 路由的频率。留空则使用默认值 (30000 ms)。有效范围：10000–120000 ms。"
+  },
+  "validation": {
+    "prefixRequired": "前缀为必填项",
+    "prefixInvalid": "请输入有效的 IPv6 前缀或地址（例如 2001:db8::/64）",
+    "prefixDuplicate": "此前缀已在列表中",
+    "fwdInterfaceRequired": "interface 模式需要指定转发接口",
+    "interfaceRequired": "接口名称为必填项",
+    "interfaceExists": "接口“{name}”已配置",
+    "timeoutRange": "超时必须介于 500 和 120000 ms 之间",
+    "ttlRange": "TTL 必须介于 10000 和 120000 ms 之间",
+    "prefixFormOpen": "提交前请先保存或取消当前打开的前缀表单"
+  },
+  "modal": {
+    "editTitle": "编辑接口",
+    "addTitle": "添加接口",
+    "description": "配置 NDP 代理监听接口及其前缀",
+    "interfaceName": "接口名称",
+    "selectInterface": "选择接口",
+    "disableInterface": "禁用此接口",
+    "routerBit": "在邻居通告中启用路由器标志位",
+    "timeout": "超时 (ms)",
+    "timeoutPlaceholder": "500（默认）",
+    "timeoutHint": "NA 响应超时。有效范围：500–120000 ms。留空则使用默认值。",
+    "ttlPlaceholder": "30000（默认）",
+    "ttlHint": "代理条目缓存 TTL。有效范围：10000–120000 ms。留空则使用默认值。",
+    "prefixes": "前缀",
+    "addPrefix": "添加前缀",
+    "noPrefixes": "尚未配置前缀。请为此接口至少添加一个要代理的前缀。",
+    "ipv6Prefix": "IPv6 前缀",
+    "ipv6PrefixPlaceholder": "例如 2001:db8::/64",
+    "disablePrefix": "禁用此前缀",
+    "mode": "模式",
+    "fwdInterface": "转发接口",
+    "fwdInterfacePlaceholder": "例如 eth1"
+  }
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +26,8 @@ interface RadiusServerModalProps {
 }
 
 export function RadiusServerModal({ open, onOpenChange, onSuccess, existingServer }: RadiusServerModalProps) {
+  const t = useTranslations("ipoeServer");
+  const tc = useTranslations("common");
   const isEdit = !!existingServer;
 
   const [address, setAddress] = useState("");
@@ -68,7 +71,7 @@ export function RadiusServerModal({ open, onOpenChange, onSuccess, existingServe
   }, [open, existingServer]);
 
   const handleSubmit = async () => {
-    if (!address.trim()) { setError("Server address is required"); return; }
+    if (!address.trim()) { setError(t("radiusServerModal.addressRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -91,10 +94,10 @@ export function RadiusServerModal({ open, onOpenChange, onSuccess, existingServe
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to save RADIUS server");
+        setError(result.error || t("radiusServerModal.saveFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to save RADIUS server");
+      setError((err as ApiError).message || t("radiusServerModal.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -106,52 +109,52 @@ export function RadiusServerModal({ open, onOpenChange, onSuccess, existingServe
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Server className="h-5 w-5 text-primary" />
-            {isEdit ? "Edit" : "Add"} RADIUS Server
+            {isEdit ? t("radiusServerModal.editTitle") : t("radiusServerModal.addTitle")}
           </DialogTitle>
-          <DialogDescription>Configure a RADIUS authentication server.</DialogDescription>
+          <DialogDescription>{t("radiusServerModal.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Server Address</Label>
+            <Label>{t("radiusServerModal.address")}</Label>
             <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="10.0.0.100" disabled={isEdit} />
           </div>
           <div className="space-y-2">
-            <Label>Shared Key</Label>
-            <Input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder={isEdit ? "Leave blank to keep current" : "Enter shared key"} />
+            <Label>{t("radiusServerModal.sharedKey")}</Label>
+            <Input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder={isEdit ? t("leaveBlankToKeep") : t("radiusServerModal.enterSharedKey")} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Auth Port</Label>
+              <Label>{t("radiusServerModal.authPort")}</Label>
               <Input value={port} onChange={(e) => setPort(e.target.value)} placeholder="1812" />
             </div>
             <div className="space-y-2">
-              <Label>Accounting Port</Label>
+              <Label>{t("radiusServerModal.acctPort")}</Label>
               <Input value={acctPort} onChange={(e) => setAcctPort(e.target.value)} placeholder="1813" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Priority</Label>
+              <Label>{t("radiusServerModal.priority")}</Label>
               <Input value={priority} onChange={(e) => setPriority(e.target.value)} placeholder="1" />
             </div>
             <div className="space-y-2">
-              <Label>Fail Time</Label>
+              <Label>{t("radiusServerModal.failTime")}</Label>
               <Input value={failTime} onChange={(e) => setFailTime(e.target.value)} placeholder="60" />
             </div>
           </div>
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Checkbox id="srv-disabled" checked={disabled} onCheckedChange={(v) => setDisabled(!!v)} />
-              <Label htmlFor="srv-disabled" className="cursor-pointer">Disabled</Label>
+              <Label htmlFor="srv-disabled" className="cursor-pointer">{tc("disabled")}</Label>
             </div>
             <div className="flex items-center gap-2">
               <Checkbox id="srv-backup" checked={backup} onCheckedChange={(v) => setBackup(!!v)} />
-              <Label htmlFor="srv-backup" className="cursor-pointer">Backup Server</Label>
+              <Label htmlFor="srv-backup" className="cursor-pointer">{t("radiusServerModal.backup")}</Label>
             </div>
             <div className="flex items-center gap-2">
               <Checkbox id="srv-no-acct" checked={disableAccounting} onCheckedChange={(v) => setDisableAccounting(!!v)} />
-              <Label htmlFor="srv-no-acct" className="cursor-pointer">Disable Accounting</Label>
+              <Label htmlFor="srv-no-acct" className="cursor-pointer">{t("radiusServerModal.disableAccounting")}</Label>
             </div>
           </div>
         </div>
@@ -164,9 +167,9 @@ export function RadiusServerModal({ open, onOpenChange, onSuccess, existingServe
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? "Saving..." : "Adding..."}</> : isEdit ? "Save Changes" : "Add Server"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("adding")}</> : isEdit ? t("saveChanges") : t("radiusServerModal.addServer")}
           </Button>
         </DialogFooter>
       </DialogContent>

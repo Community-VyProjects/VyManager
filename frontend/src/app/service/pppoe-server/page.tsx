@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useState, useEffect, useRef, Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -143,6 +144,8 @@ const PPPOE_SESSION_COLUMNS: ColumnDef[] = [
 ];
 
 function PPPoEPageInner() {
+  const t = useTranslations("pppoeServer");
+  const tc = useTranslations("common");
   const searchParams = useSearchParams();
   const { canRead, canWrite } = usePermissions();
   const hasRead = canRead(FeatureGroup.PPPOE);
@@ -187,6 +190,20 @@ function PPPoEPageInner() {
     reorderColumns,
     resetToDefault,
   } = useColumnVisibility("pppoe-session-columns", PPPOE_SESSION_COLUMNS);
+  const sessionColumnLabels: Record<string, string> = {
+    username: t("sessionColumns.username"),
+    interface: t("sessionColumns.interface"),
+    ip: t("sessionColumns.ip"),
+    mtu: t("sessionColumns.mtu"),
+    calling_sid: t("sessionColumns.callingSid"),
+    uptime: t("sessionColumns.uptime"),
+    rxRate: t("sessionColumns.rxRate"),
+    txRate: t("sessionColumns.txRate"),
+    rx_bytes: t("sessionColumns.rxBytes"),
+    tx_bytes: t("sessionColumns.txBytes"),
+    labels: t("sessionColumns.labels"),
+  };
+  const translatedColumns = orderedColumns.map((column) => ({ ...column, label: sessionColumnLabels[column.id] ?? column.label }));
   const [activeTab, setActiveTab] = useState("overview");
 
   // Modal state
@@ -218,6 +235,7 @@ function PPPoEPageInner() {
     warning?: string;
     actionLabel?: string;
     actionVerb?: string;
+    isReset?: boolean;
   } | null>(null);
 
   const fetchConfig = async (refresh = false) => {
@@ -231,7 +249,7 @@ function PPPoEPageInner() {
       setConfig(configData);
       setCapabilities(capsData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load PPPoE configuration");
+      setError(err instanceof Error ? err.message : t("errors.loadPppoeConfig"));
     } finally {
       setLoading(false);
     }
@@ -285,7 +303,7 @@ function PPPoEPageInner() {
       applySessions(response);
       setSessionLoading(false);
     } catch (err) {
-      setSessionError(err instanceof Error ? err.message : "Failed to load active sessions");
+      setSessionError(err instanceof Error ? err.message : t("errors.loadSessions"));
       setSessionLoading(false);
     } finally {
       setSessionRefreshing(false);
@@ -308,6 +326,7 @@ function PPPoEPageInner() {
       .catch(() => {
         setSessionLabels([]);
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once when read access is known; a language switch re-renders via router.refresh()
   }, [hasRead]);
 
   useEffect(() => {
@@ -337,9 +356,9 @@ function PPPoEPageInner() {
 
   useEffect(() => {
     if (!sessionStreamError || !sessionStreamError.startsWith("pppoe-sessions:")) return;
-    setSessionError(sessionStreamError.replace(/^pppoe-sessions:\s*/, "") || "Failed to load active sessions");
+    setSessionError(sessionStreamError.replace(/^pppoe-sessions:\s*/, "") || t("errors.loadSessions"));
     setSessionLoading(false);
-  }, [sessionStreamError]);
+  }, [sessionStreamError, t]);
 
   const openLabelEditor = () => {
     setLabelDraft(sessionLabels.map((label) => ({ ...label, rules: label.rules ? { ...label.rules } : {} })));
@@ -368,7 +387,7 @@ function PPPoEPageInner() {
       setLabelDraft(saved.map((label) => ({ ...label, rules: label.rules ? { ...label.rules } : {} })));
       setShowLabelEditor(false);
     } catch (err) {
-      setLabelError(err instanceof Error ? err.message : "Failed to save label definitions");
+      setLabelError(err instanceof Error ? err.message : t("errors.saveLabels"));
     } finally {
       setLabelSaving(false);
     }
@@ -466,7 +485,7 @@ function PPPoEPageInner() {
         <div className="flex items-center justify-center h-[calc(100vh-200px)]">
           <div className="text-center space-y-4">
             <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-            <p className="text-muted-foreground">Loading PPPoE configuration...</p>
+            <p className="text-muted-foreground">{t("loadingConfig")}</p>
           </div>
         </div>
       </AppLayout>
@@ -479,10 +498,10 @@ function PPPoEPageInner() {
         <div className="flex items-center justify-center h-[calc(100vh-200px)]">
           <div className="text-center space-y-4">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-            <p className="text-destructive font-medium">Failed to load configuration</p>
+            <p className="text-destructive font-medium">{t("errors.loadConfig")}</p>
             <p className="text-sm text-muted-foreground">{error}</p>
             <Button onClick={() => fetchConfig(true)}>
-              <RefreshCw className="h-4 w-4 mr-2" /> Retry
+              <RefreshCw className="h-4 w-4 mr-2" /> {tc("retry")}
             </Button>
           </div>
         </div>
@@ -502,14 +521,14 @@ function PPPoEPageInner() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold">PPPoE Server</h1>
+                  <h1 className="text-2xl font-bold">{t("title")}</h1>
                   {config?.configured ? (
-                    <Badge variant="secondary" className="bg-green-500/10 text-green-600">Configured</Badge>
+                    <Badge variant="secondary" className="bg-green-500/10 text-green-600">{t("configured")}</Badge>
                   ) : (
-                    <Badge variant="secondary">Not Configured</Badge>
+                    <Badge variant="secondary">{t("notConfigured")}</Badge>
                   )}
                 </div>
-                <p className="text-muted-foreground">Manage Point-to-Point over Ethernet broadband access server</p>
+                <p className="text-muted-foreground">{t("subtitle")}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -519,19 +538,19 @@ function PPPoEPageInner() {
                   size="sm"
                   className="text-destructive hover:bg-destructive/10"
                   onClick={() => setDeleteTarget({
-                    type: "PPPoE Server",
-                    name: "entire PPPoE configuration",
+                    type: t("deleteTypes.pppoeServer"),
+                    name: t("deleteServer.name"),
                     onDelete: () => pppoeServerService.deletePPPoEServer(),
-                    warning: "This will remove the entire PPPoE server configuration including all users, pools, and settings.",
+                    warning: t("deleteServer.warning"),
                   })}
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Delete PPPoE Server
+                  {t("deleteServer.button")}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={() => fetchConfig(true)} disabled={loading}>
                 <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -542,7 +561,7 @@ function PPPoEPageInner() {
               <div className="flex items-center gap-2">
                 <Activity className="h-4 w-4 text-emerald-500" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Connected Clients</p>
+                  <p className="text-xs text-muted-foreground">{t("stats.connectedClients")}</p>
                   <p className="font-semibold">{sessionTotal}</p>
                 </div>
               </div>
@@ -555,7 +574,7 @@ function PPPoEPageInner() {
                   <Server className="h-4 w-4 text-purple-500" />
                 )}
                 <div>
-                  <p className="text-xs text-muted-foreground">{isLocalAuth ? "Local Users" : "RADIUS Servers"}</p>
+                  <p className="text-xs text-muted-foreground">{isLocalAuth ? t("stats.localUsers") : t("stats.radiusServers")}</p>
                   <p className="font-semibold">{isLocalAuth ? (totals?.local_users ?? 0) : (totals?.radius_servers ?? 0)}</p>
                 </div>
               </div>
@@ -564,7 +583,7 @@ function PPPoEPageInner() {
               <div className="flex items-center gap-2">
                 <Network className="h-4 w-4 text-green-500" />
                 <div>
-                  <p className="text-xs text-muted-foreground">IP Pools</p>
+                  <p className="text-xs text-muted-foreground">{t("stats.ipPools")}</p>
                   <p className="font-semibold">{totals?.client_ip_pools ?? 0}</p>
                 </div>
               </div>
@@ -573,7 +592,7 @@ function PPPoEPageInner() {
               <div className="flex items-center gap-2">
                 <Network className="h-4 w-4 text-cyan-500" />
                 <div>
-                  <p className="text-xs text-muted-foreground">IPv6 Pools</p>
+                  <p className="text-xs text-muted-foreground">{t("stats.ipv6Pools")}</p>
                   <p className="font-semibold">{totals?.client_ipv6_pools ?? 0}</p>
                 </div>
               </div>
@@ -582,7 +601,7 @@ function PPPoEPageInner() {
               <div className="flex items-center gap-2">
                 <Network className="h-4 w-4 text-blue-500" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Interfaces</p>
+                  <p className="text-xs text-muted-foreground">{t("stats.interfaces")}</p>
                   <p className="font-semibold">{totals?.interfaces ?? 0}</p>
                 </div>
               </div>
@@ -595,14 +614,14 @@ function PPPoEPageInner() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
             <div className="px-6 pt-4 border-b">
               <TabsList>
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="sessions">Sessions</TabsTrigger>
-                <TabsTrigger value="interfaces">Interfaces</TabsTrigger>
-                <TabsTrigger value="auth">Authentication</TabsTrigger>
-                <TabsTrigger value="pools">IP Pools</TabsTrigger>
-                <TabsTrigger value="ipv6pools">IPv6 Pools</TabsTrigger>
-                <TabsTrigger value="ppp-options">PPP Options</TabsTrigger>
-                <TabsTrigger value="advanced">Advanced</TabsTrigger>
+                <TabsTrigger value="overview">{t("tabs.overview")}</TabsTrigger>
+                <TabsTrigger value="sessions">{t("tabs.sessions")}</TabsTrigger>
+                <TabsTrigger value="interfaces">{t("tabs.interfaces")}</TabsTrigger>
+                <TabsTrigger value="auth">{t("tabs.authentication")}</TabsTrigger>
+                <TabsTrigger value="pools">{t("tabs.ipPools")}</TabsTrigger>
+                <TabsTrigger value="ipv6pools">{t("tabs.ipv6Pools")}</TabsTrigger>
+                <TabsTrigger value="ppp-options">{t("tabs.pppOptions")}</TabsTrigger>
+                <TabsTrigger value="advanced">{t("tabs.advanced")}</TabsTrigger>
               </TabsList>
             </div>
 
@@ -614,35 +633,35 @@ function PPPoEPageInner() {
                   <div className="grid grid-cols-2 gap-6">
                     <Card className="p-4 space-y-3">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-medium">General Settings</h4>
+                        <h4 className="text-sm font-medium">{t("overview.generalSettings")}</h4>
                         {hasWrite && (
                           <Button variant="ghost" size="sm" onClick={() => setShowGeneralModal(true)}>
-                            <Pencil className="h-3 w-3 mr-1" /> Edit
+                            <Pencil className="h-3 w-3 mr-1" /> {tc("edit")}
                           </Button>
                         )}
                       </div>
                       <div className="space-y-2 text-sm">
-                        <InfoRow label="Description" value={config?.description} />
-                        <InfoRow label="Access Concentrator" value={config?.access_concentrator} />
-                        <InfoRow label="Service Name" value={config?.service_name} />
-                        <InfoRow label="Gateway Addresses" value={(config?.gateway_addresses || []).join(", ")} />
-                        <InfoRow label="Name Servers" value={(config?.name_servers || []).join(", ")} />
-                        <InfoRow label="WINS Servers" value={(config?.wins_servers || []).join(", ")} />
+                        <InfoRow label={tc("description")} value={config?.description} />
+                        <InfoRow label={t("overview.accessConcentrator")} value={config?.access_concentrator} />
+                        <InfoRow label={t("overview.serviceName")} value={config?.service_name} />
+                        <InfoRow label={t("overview.gatewayAddresses")} value={(config?.gateway_addresses || []).join(", ")} />
+                        <InfoRow label={t("overview.nameServers")} value={(config?.name_servers || []).join(", ")} />
+                        <InfoRow label={t("overview.winsServers")} value={(config?.wins_servers || []).join(", ")} />
                         <InfoRow label="MTU" value={config?.mtu} />
-                        <InfoRow label="Max Sessions" value={config?.max_concurrent_sessions} />
-                        <InfoRow label="Threads" value={config?.thread_count} />
-                        <InfoRow label="Default Pool" value={config?.default_pool} />
-                        <InfoRow label="Default IPv6 Pool" value={config?.default_ipv6_pool} />
-                        <InfoRow label="Session Control" value={config?.session_control} />
+                        <InfoRow label={t("overview.maxSessions")} value={config?.max_concurrent_sessions} />
+                        <InfoRow label={t("overview.threads")} value={config?.thread_count} />
+                        <InfoRow label={t("overview.defaultPool")} value={config?.default_pool} />
+                        <InfoRow label={t("overview.defaultIpv6Pool")} value={config?.default_ipv6_pool} />
+                        <InfoRow label={t("overview.sessionControl")} value={config?.session_control} />
                       </div>
                     </Card>
 
                     <Card className="p-4 space-y-3">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-medium">PPP Options</h4>
+                        <h4 className="text-sm font-medium">{t("pppOptions.title")}</h4>
                         {hasWrite && (
                           <Button variant="ghost" size="sm" onClick={() => setShowPPPOptionsModal(true)}>
-                            <Pencil className="h-3 w-3 mr-1" /> Edit
+                            <Pencil className="h-3 w-3 mr-1" /> {tc("edit")}
                           </Button>
                         )}
                       </div>
@@ -650,14 +669,14 @@ function PPPoEPageInner() {
                         <InfoRow label="IPv4" value={config?.ppp_options.ipv4} />
                         <InfoRow label="IPv6" value={config?.ppp_options.ipv6} />
                         <InfoRow label="MPPE" value={config?.ppp_options.mppe} />
-                        <InfoRow label="Min MTU" value={config?.ppp_options.min_mtu} />
+                        <InfoRow label={t("pppOptions.minMtu")} value={config?.ppp_options.min_mtu} />
                         <InfoRow label="MRU" value={config?.ppp_options.mru} />
-                        <InfoRow label="LCP Failure" value={config?.ppp_options.lcp_echo_failure} />
-                        <InfoRow label="LCP Interval" value={config?.ppp_options.lcp_echo_interval} />
+                        <InfoRow label={t("pppOptions.lcpFailure")} value={config?.ppp_options.lcp_echo_failure} />
+                        <InfoRow label={t("pppOptions.lcpInterval")} value={config?.ppp_options.lcp_echo_interval} />
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Disable CCP</span>
+                          <span className="text-muted-foreground">{t("pppOptions.disableCcp")}</span>
                           <Badge variant={config?.ppp_options.disable_ccp ? "default" : "secondary"}>
-                            {config?.ppp_options.disable_ccp ? "Yes" : "No"}
+                            {config?.ppp_options.disable_ccp ? t("yes") : t("no")}
                           </Badge>
                         </div>
                       </div>
@@ -668,75 +687,75 @@ function PPPoEPageInner() {
                 <TabsContent value="sessions" className="mt-0">
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <h3 className="font-semibold">Active PPPoE Sessions</h3>
+                      <h3 className="font-semibold">{t("sessions.title")}</h3>
                       <p className="text-sm text-muted-foreground">
-                        {sessionPaused ? "Updates paused." : "Live counters arrive with the dashboard stream."}
+                        {sessionPaused ? t("sessions.paused") : t("sessions.live")}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">{sessionTotal} sessions</span>
+                      <span className="text-xs text-muted-foreground">{t("sessions.count", { count: String(sessionTotal) })}</span>
                       <Button variant="outline" size="sm" onClick={() => setSessionPaused((paused) => !paused)}>
                         {sessionPaused ? <Play className="h-4 w-4 mr-2" /> : <Pause className="h-4 w-4 mr-2" />}
-                        {sessionPaused ? "Resume" : "Pause"}
+                        {sessionPaused ? t("sessions.resume") : t("sessions.pause")}
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => void fetchSessions()} disabled={sessionRefreshing}>
                         <RefreshCw className={cn("h-4 w-4 mr-2", sessionRefreshing && "animate-spin")} />
-                        Refresh
+                        {tc("refresh")}
                       </Button>
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 mb-4 rounded-md border bg-muted/20 p-3">
                     <div className="relative">
                       <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                      <Input value={sessionSearch} onChange={(event) => setSessionSearch(event.target.value)} placeholder="Search user, IP, interface" className="h-8 w-52 pl-8 text-xs" />
+                      <Input value={sessionSearch} onChange={(event) => setSessionSearch(event.target.value)} placeholder={t("sessions.searchPlaceholder")} className="h-8 w-52 pl-8 text-xs" />
                     </div>
                     {hasWrite && (
                       <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={openLabelEditor}>
-                        <Pencil className="h-3.5 w-3.5 mr-1" /> Labels
+                        <Pencil className="h-3.5 w-3.5 mr-1" /> {t("sessions.labels")}
                       </Button>
                     )}
-                    <Input value={minPps} onChange={(event) => setMinPps(event.target.value)} inputMode="numeric" placeholder="Min PPS" className="h-8 w-24 text-xs" />
-                    <Input value={maxPps} onChange={(event) => setMaxPps(event.target.value)} inputMode="numeric" placeholder="Max PPS" className="h-8 w-24 text-xs" />
+                    <Input value={minPps} onChange={(event) => setMinPps(event.target.value)} inputMode="numeric" placeholder={t("sessions.minPps")} className="h-8 w-24 text-xs" />
+                    <Input value={maxPps} onChange={(event) => setMaxPps(event.target.value)} inputMode="numeric" placeholder={t("sessions.maxPps")} className="h-8 w-24 text-xs" />
                     <select value={ipv6Filter} onChange={(event) => setIpv6Filter(event.target.value as "all" | "yes" | "no")} className="h-8 rounded-md border bg-background px-2 text-xs">
-                      <option value="all">IPv6: All</option>
-                      <option value="yes">IPv6: Present</option>
-                      <option value="no">IPv6: Absent</option>
+                      <option value="all">{t("sessions.ipv6All")}</option>
+                      <option value="yes">{t("sessions.ipv6Present")}</option>
+                      <option value="no">{t("sessions.ipv6Absent")}</option>
                     </select>
                     <Input value={mtuFilter} onChange={(event) => setMtuFilter(event.target.value)} inputMode="numeric" placeholder="MTU" className="h-8 w-20 text-xs" />
-                    <Input value={minRxBytes} onChange={(event) => setMinRxBytes(event.target.value)} inputMode="numeric" placeholder="Min RX upload bytes" className="h-8 w-32 text-xs" />
-                    <Input value={maxRxBytes} onChange={(event) => setMaxRxBytes(event.target.value)} inputMode="numeric" placeholder="Max RX upload bytes" className="h-8 w-32 text-xs" />
-                    <Input value={minTxBytes} onChange={(event) => setMinTxBytes(event.target.value)} inputMode="numeric" placeholder="Min TX download bytes" className="h-8 w-32 text-xs" />
-                    <Input value={maxTxBytes} onChange={(event) => setMaxTxBytes(event.target.value)} inputMode="numeric" placeholder="Max TX download bytes" className="h-8 w-32 text-xs" />
+                    <Input value={minRxBytes} onChange={(event) => setMinRxBytes(event.target.value)} inputMode="numeric" placeholder={t("sessions.minRxBytes")} className="h-8 w-32 text-xs" />
+                    <Input value={maxRxBytes} onChange={(event) => setMaxRxBytes(event.target.value)} inputMode="numeric" placeholder={t("sessions.maxRxBytes")} className="h-8 w-32 text-xs" />
+                    <Input value={minTxBytes} onChange={(event) => setMinTxBytes(event.target.value)} inputMode="numeric" placeholder={t("sessions.minTxBytes")} className="h-8 w-32 text-xs" />
+                    <Input value={maxTxBytes} onChange={(event) => setMaxTxBytes(event.target.value)} inputMode="numeric" placeholder={t("sessions.maxTxBytes")} className="h-8 w-32 text-xs" />
                     <select value={sessionLabelFilter} onChange={(event) => setSessionLabelFilter(event.target.value)} className="h-8 rounded-md border bg-background px-2 text-xs">
-                      <option value="">Labels: All</option>
+                      <option value="">{t("sessions.labelsAll")}</option>
                       {sessionLabels.map((label) => <option key={label.code} value={label.name}>{label.name}</option>)}
                     </select>
-                    <ColumnToggleButton columns={orderedColumns} visibleColumns={visibleColumns} onToggle={toggleColumn} onReorder={reorderColumns} onReset={resetToDefault} />
+                    <ColumnToggleButton columns={translatedColumns} visibleColumns={visibleColumns} onToggle={toggleColumn} onReorder={reorderColumns} onReset={resetToDefault} />
                     {(sessionSearch || minPps || maxPps || ipv6Filter !== "all" || mtuFilter || minRxBytes || maxRxBytes || minTxBytes || maxTxBytes || sessionLabelFilter) && (
                       <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => { setSessionSearch(""); setMinPps(""); setMaxPps(""); setIpv6Filter("all"); setMtuFilter(""); setMinRxBytes(""); setMaxRxBytes(""); setMinTxBytes(""); setMaxTxBytes(""); setSessionLabelFilter(""); }}>
-                        <X className="h-3.5 w-3.5 mr-1" /> Clear
+                        <X className="h-3.5 w-3.5 mr-1" /> {t("sessions.clear")}
                       </Button>
                     )}
-                    <span className="ml-auto text-xs text-muted-foreground">{filteredSessions.length} matching</span>
+                    <span className="ml-auto text-xs text-muted-foreground">{t("sessions.matching", { count: String(filteredSessions.length) })}</span>
                   </div>
                   {sessionError ? (
                     <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
                       {sessionError}
                     </div>
                   ) : sessions.length === 0 ? (
-                    <EmptyState icon={Activity} label={sessionLoading ? "Loading active sessions..." : "No active PPPoE sessions"} />
+                    <EmptyState icon={Activity} label={sessionLoading ? t("sessions.loading") : t("sessions.empty")} />
                   ) : filteredSessions.length === 0 ? (
-                    <EmptyState icon={Search} label="No sessions match the current filters" />
+                    <EmptyState icon={Search} label={t("sessions.noMatch")} />
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          {orderedColumns.filter((column) => visibleColumns.has(column.id)).map((column) => (
+                          {translatedColumns.filter((column) => visibleColumns.has(column.id)).map((column) => (
                             <TableHead key={column.id} className={column.id.includes("bytes") ? "text-right" : undefined}>
                               {column.id === "labels" ? column.label : <button className="font-medium" onClick={() => handleSessionSort(column.id as SessionSortField)}>{column.label} {sessionSortLabel(column.id as SessionSortField)}</button>}
                             </TableHead>
                           ))}
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead className="text-right">{tc("actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -780,7 +799,7 @@ function PPPoEPageInner() {
                                   variant="ghost"
                                   size="icon"
                                   className="h-8 w-8"
-                                  title={`Graph statistics for ${session.username}`}
+                                  title={t("sessions.graphTitle", { username: session.username })}
                                   onClick={() => setSelectedStatsKey(sessionKey(session))}
                                 >
                                   <Activity className="h-4 w-4" />
@@ -790,14 +809,15 @@ function PPPoEPageInner() {
                                     variant="ghost"
                                     size="icon"
                                     className="h-8 w-8 hover:bg-destructive/10"
-                                    title={`Reset sessions for ${session.username}`}
+                                    title={t("sessions.resetTitle", { username: session.username })}
                                     onClick={() => setDeleteTarget({
-                                      type: "PPPoE session",
+                                      type: t("deleteTypes.pppoeSession"),
                                       name: session.username,
                                       onDelete: () => pppoeServerService.resetSession(session.username),
-                                      actionLabel: "Reset",
-                                      actionVerb: "reset",
-                                      warning: "This will terminate all active PPPoE sessions for this username and force the client to reconnect.",
+                                      actionLabel: t("sessions.resetLabel"),
+                                      actionVerb: t("sessions.resetVerb"),
+                                      warning: t("sessions.resetWarning"),
+                                      isReset: true,
                                     })}
                                   >
                                     <RotateCcw className="h-4 w-4 text-destructive" />
@@ -813,7 +833,7 @@ function PPPoEPageInner() {
                   {filteredSessions.length > sessionPageSize && (
                     <div className="flex items-center justify-between border-t mt-3 pt-3">
                       <span className="text-xs text-muted-foreground">
-                        Page {sessionPage} of {Math.max(1, Math.ceil(filteredSessions.length / sessionPageSize))}
+                        {t("sessions.pageOf", { page: String(sessionPage), total: String(Math.max(1, Math.ceil(filteredSessions.length / sessionPageSize))) })}
                       </span>
                       <div className="flex items-center gap-1">
                         <Button
@@ -822,7 +842,7 @@ function PPPoEPageInner() {
                           className="h-8 w-8"
                           onClick={() => setSessionPage((page) => Math.max(1, page - 1))}
                           disabled={sessionPage === 1}
-                          title="Previous page"
+                          title={t("sessions.previousPage")}
                         >
                           <ChevronLeft className="h-4 w-4" />
                         </Button>
@@ -832,7 +852,7 @@ function PPPoEPageInner() {
                           className="h-8 w-8"
                           onClick={() => setSessionPage((page) => Math.min(filteredPageCount, page + 1))}
                           disabled={sessionPage === filteredPageCount}
-                          title="Next page"
+                          title={t("sessions.nextPage")}
                         >
                           <ChevronRight className="h-4 w-4" />
                         </Button>
@@ -844,25 +864,25 @@ function PPPoEPageInner() {
                 {/* Interfaces Tab */}
                 <TabsContent value="interfaces" className="mt-0">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">Server Interfaces</h3>
+                    <h3 className="font-semibold">{t("interfaces.title")}</h3>
                     {hasWrite && (
                       <Button size="sm" onClick={() => { setEditingInterface(null); setShowInterfaceModal(true); }}>
-                        <Plus className="h-4 w-4 mr-1" /> Add Interface
+                        <Plus className="h-4 w-4 mr-1" /> {t("interfaces.add")}
                       </Button>
                     )}
                   </div>
                   {(config?.interfaces.length ?? 0) === 0 ? (
-                    <EmptyState icon={Network} label="No interfaces configured" />
+                    <EmptyState icon={Network} label={t("interfaces.empty")} />
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Interface</TableHead>
+                          <TableHead>{t("interfaces.interface")}</TableHead>
                           <TableHead>VLANs</TableHead>
-                          <TableHead>VLAN Mon</TableHead>
+                          <TableHead>{t("interfaces.vlanMon")}</TableHead>
                           {(capabilities?.features.vpp_cp ?? false) && <TableHead>VPP-CP</TableHead>}
-                          <TableHead>Combined</TableHead>
-                          {hasWrite && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead>{t("interfaces.combined")}</TableHead>
+                          {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -882,13 +902,13 @@ function PPPoEPageInner() {
                             </TableCell>
                             <TableCell>
                               {iface.vlan_mon ? (
-                                <Badge variant="secondary" className="bg-green-500/10 text-green-600">Yes</Badge>
+                                <Badge variant="secondary" className="bg-green-500/10 text-green-600">{t("yes")}</Badge>
                               ) : "-"}
                             </TableCell>
                             {(capabilities?.features.vpp_cp ?? false) && (
                               <TableCell>
                                 {iface.vpp_cp ? (
-                                  <Badge variant="secondary" className="bg-green-500/10 text-green-600">Yes</Badge>
+                                  <Badge variant="secondary" className="bg-green-500/10 text-green-600">{t("yes")}</Badge>
                                 ) : "-"}
                               </TableCell>
                             )}
@@ -900,7 +920,7 @@ function PPPoEPageInner() {
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
-                                    type: "Interface",
+                                    type: t("deleteTypes.interface"),
                                     name: iface.interface,
                                     onDelete: () => pppoeServerService.deleteInterface(iface.interface),
                                   })}>
@@ -921,17 +941,17 @@ function PPPoEPageInner() {
                   <div className="mb-6">
                     <Card className="p-4">
                       <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-sm font-medium">Authentication Mode</h4>
+                        <h4 className="text-sm font-medium">{t("auth.mode")}</h4>
                         {hasWrite && (
                           <Button variant="ghost" size="sm" onClick={() => setShowAuthModal(true)}>
-                            <Pencil className="h-3 w-3 mr-1" /> Edit
+                            <Pencil className="h-3 w-3 mr-1" /> {tc("edit")}
                           </Button>
                         )}
                       </div>
                       <div className="flex items-center gap-3">
                         <Key className="h-4 w-4 text-muted-foreground" />
                         <Badge variant="outline" className="text-sm">
-                          {config?.authentication.mode || "Not set"}
+                          {config?.authentication.mode || tc("notSet")}
                         </Badge>
                         {(config?.authentication.protocols || []).length > 0 && (
                           <div className="flex gap-1">
@@ -947,25 +967,25 @@ function PPPoEPageInner() {
                   {isLocalAuth ? (
                     <>
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold">Local Users</h3>
+                        <h3 className="font-semibold">{t("auth.localUsers")}</h3>
                         {hasWrite && (
                           <Button size="sm" onClick={() => { setEditingLocalUser(null); setShowLocalUserModal(true); }}>
-                            <Plus className="h-4 w-4 mr-1" /> Add User
+                            <Plus className="h-4 w-4 mr-1" /> {t("auth.addUser")}
                           </Button>
                         )}
                       </div>
                       {(config?.authentication.local_users.length ?? 0) === 0 ? (
-                        <EmptyState icon={User} label="No local users configured" />
+                        <EmptyState icon={User} label={t("auth.noLocalUsers")} />
                       ) : (
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Username</TableHead>
-                              <TableHead>Static IP</TableHead>
-                              <TableHead>Rate Down</TableHead>
-                              <TableHead>Rate Up</TableHead>
-                              <TableHead>Status</TableHead>
-                              {hasWrite && <TableHead className="text-right">Actions</TableHead>}
+                              <TableHead>{t("auth.username")}</TableHead>
+                              <TableHead>{t("auth.staticIp")}</TableHead>
+                              <TableHead>{t("auth.rateDown")}</TableHead>
+                              <TableHead>{t("auth.rateUp")}</TableHead>
+                              <TableHead>{tc("status")}</TableHead>
+                              {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -981,9 +1001,9 @@ function PPPoEPageInner() {
                                 <TableCell>{user.rate_limit?.upload || "-"}</TableCell>
                                 <TableCell>
                                   {user.disabled ? (
-                                    <Badge variant="secondary" className="bg-red-500/10 text-red-600">Disabled</Badge>
+                                    <Badge variant="secondary" className="bg-red-500/10 text-red-600">{tc("disabled")}</Badge>
                                   ) : (
-                                    <Badge variant="secondary" className="bg-green-500/10 text-green-600">Active</Badge>
+                                    <Badge variant="secondary" className="bg-green-500/10 text-green-600">{t("auth.active")}</Badge>
                                   )}
                                 </TableCell>
                                 {hasWrite && (
@@ -993,7 +1013,7 @@ function PPPoEPageInner() {
                                         <Pencil className="h-4 w-4" />
                                       </Button>
                                       <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
-                                        type: "Local User",
+                                        type: t("deleteTypes.localUser"),
                                         name: user.username,
                                         onDelete: () => pppoeServerService.deleteLocalUser(user.username),
                                       })}>
@@ -1012,65 +1032,65 @@ function PPPoEPageInner() {
                     <>
                       <div className="mb-6">
                         <div className="flex items-center justify-between mb-4">
-                          <h3 className="font-semibold">RADIUS Settings</h3>
+                          <h3 className="font-semibold">{t("radius.settingsTitle")}</h3>
                           {hasWrite && (
                             <Button variant="outline" size="sm" onClick={() => setShowRadiusSettingsModal(true)}>
-                              <Pencil className="h-3 w-3 mr-1" /> Edit Settings
+                              <Pencil className="h-3 w-3 mr-1" /> {t("radius.editSettings")}
                             </Button>
                           )}
                         </div>
                         <div className="grid grid-cols-2 gap-6">
                           <Card className="p-4 space-y-2 text-sm">
-                            <h4 className="text-sm font-medium mb-2">General</h4>
-                            <InfoRow label="Source Address" value={config?.authentication.radius?.source_address} />
-                            <InfoRow label="Timeout" value={config?.authentication.radius?.timeout} />
-                            <InfoRow label="Max Try" value={config?.authentication.radius?.max_try} />
-                            <InfoRow label="NAS Identifier" value={config?.authentication.radius?.nas_identifier} />
+                            <h4 className="text-sm font-medium mb-2">{t("radius.general")}</h4>
+                            <InfoRow label={t("radius.sourceAddress")} value={config?.authentication.radius?.source_address} />
+                            <InfoRow label={t("radius.timeout")} value={config?.authentication.radius?.timeout} />
+                            <InfoRow label={t("radius.maxTry")} value={config?.authentication.radius?.max_try} />
+                            <InfoRow label={t("radius.nasIdentifier")} value={config?.authentication.radius?.nas_identifier} />
                             <InfoRow label="NAS IP" value={config?.authentication.radius?.nas_ip_address} />
-                            <InfoRow label="Called SID Format" value={config?.authentication.radius?.called_sid_format} />
+                            <InfoRow label={t("radius.calledSidFormat")} value={config?.authentication.radius?.called_sid_format} />
                             <div className="flex justify-between">
-                              <span className="text-muted-foreground">Preallocate VIF</span>
+                              <span className="text-muted-foreground">{t("radius.preallocateVif")}</span>
                               <Badge variant={config?.authentication.radius?.preallocate_vif ? "default" : "secondary"}>
-                                {config?.authentication.radius?.preallocate_vif ? "Yes" : "No"}
+                                {config?.authentication.radius?.preallocate_vif ? t("yes") : t("no")}
                               </Badge>
                             </div>
                           </Card>
                           <Card className="p-4 space-y-2 text-sm">
-                            <h4 className="text-sm font-medium mb-2">DAE & Rate Limit</h4>
-                            <InfoRow label="DAE Server" value={config?.authentication.radius?.dynamic_author?.server} />
-                            <InfoRow label="DAE Port" value={config?.authentication.radius?.dynamic_author?.port} />
+                            <h4 className="text-sm font-medium mb-2">{t("radius.daeRateLimit")}</h4>
+                            <InfoRow label={t("radius.daeServer")} value={config?.authentication.radius?.dynamic_author?.server} />
+                            <InfoRow label={t("radius.daePort")} value={config?.authentication.radius?.dynamic_author?.port} />
                             <div className="flex justify-between">
-                              <span className="text-muted-foreground">Rate Limit</span>
+                              <span className="text-muted-foreground">{t("radius.rateLimit")}</span>
                               <Badge variant={config?.authentication.radius?.rate_limit?.enable ? "default" : "secondary"}>
-                                {config?.authentication.radius?.rate_limit?.enable ? "Enabled" : "Disabled"}
+                                {config?.authentication.radius?.rate_limit?.enable ? tc("enabled") : tc("disabled")}
                               </Badge>
                             </div>
-                            <InfoRow label="Attribute" value={config?.authentication.radius?.rate_limit?.attribute} />
-                            <InfoRow label="Multiplier" value={config?.authentication.radius?.rate_limit?.multiplier} />
+                            <InfoRow label={t("radius.attribute")} value={config?.authentication.radius?.rate_limit?.attribute} />
+                            <InfoRow label={t("radius.multiplier")} value={config?.authentication.radius?.rate_limit?.multiplier} />
                           </Card>
                         </div>
                       </div>
 
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold">RADIUS Servers</h3>
+                        <h3 className="font-semibold">{t("radius.serversTitle")}</h3>
                         {hasWrite && (
                           <Button size="sm" onClick={() => { setEditingRadiusServer(null); setShowRadiusServerModal(true); }}>
-                            <Plus className="h-4 w-4 mr-1" /> Add Server
+                            <Plus className="h-4 w-4 mr-1" /> {t("radius.addServer")}
                           </Button>
                         )}
                       </div>
                       {(config?.authentication.radius?.servers?.length ?? 0) === 0 ? (
-                        <EmptyState icon={Server} label="No RADIUS servers configured" />
+                        <EmptyState icon={Server} label={t("radius.noServers")} />
                       ) : (
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Address</TableHead>
-                              <TableHead>Port</TableHead>
-                              <TableHead>Acct Port</TableHead>
-                              <TableHead>Priority</TableHead>
-                              <TableHead>Status</TableHead>
-                              {hasWrite && <TableHead className="text-right">Actions</TableHead>}
+                              <TableHead>{t("radius.address")}</TableHead>
+                              <TableHead>{t("radius.port")}</TableHead>
+                              <TableHead>{t("radius.acctPort")}</TableHead>
+                              <TableHead>{t("radius.priority")}</TableHead>
+                              <TableHead>{tc("status")}</TableHead>
+                              {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1085,11 +1105,11 @@ function PPPoEPageInner() {
                                 <TableCell>
                                   <div className="flex gap-1">
                                     {srv.disabled ? (
-                                      <Badge variant="secondary" className="bg-red-500/10 text-red-600">Disabled</Badge>
+                                      <Badge variant="secondary" className="bg-red-500/10 text-red-600">{tc("disabled")}</Badge>
                                     ) : (
-                                      <Badge variant="secondary" className="bg-green-500/10 text-green-600">Active</Badge>
+                                      <Badge variant="secondary" className="bg-green-500/10 text-green-600">{t("auth.active")}</Badge>
                                     )}
-                                    {srv.backup && <Badge variant="outline">Backup</Badge>}
+                                    {srv.backup && <Badge variant="outline">{t("radius.backup")}</Badge>}
                                   </div>
                                 </TableCell>
                                 {hasWrite && (
@@ -1099,7 +1119,7 @@ function PPPoEPageInner() {
                                         <Pencil className="h-4 w-4" />
                                       </Button>
                                       <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
-                                        type: "RADIUS Server",
+                                        type: t("deleteTypes.radiusServer"),
                                         name: srv.address,
                                         onDelete: () => pppoeServerService.deleteRadiusServer(srv.address),
                                       })}>
@@ -1120,23 +1140,23 @@ function PPPoEPageInner() {
                 {/* IP Pools Tab */}
                 <TabsContent value="pools" className="mt-0">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">IPv4 Client IP Pools</h3>
+                    <h3 className="font-semibold">{t("pools.ipv4Title")}</h3>
                     {hasWrite && (
                       <Button size="sm" onClick={() => { setEditingIPPool(null); setShowIPPoolModal(true); }}>
-                        <Plus className="h-4 w-4 mr-1" /> Add Pool
+                        <Plus className="h-4 w-4 mr-1" /> {t("pools.addPool")}
                       </Button>
                     )}
                   </div>
                   {(config?.client_ip_pools.length ?? 0) === 0 ? (
-                    <EmptyState icon={Network} label="No IPv4 pools configured" />
+                    <EmptyState icon={Network} label={t("pools.noIpv4Pools")} />
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Ranges</TableHead>
-                          <TableHead>Next Pool</TableHead>
-                          {hasWrite && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("pools.ranges")}</TableHead>
+                          <TableHead>{t("pools.nextPool")}</TableHead>
+                          {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1159,7 +1179,7 @@ function PPPoEPageInner() {
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
-                                    type: "IP Pool",
+                                    type: t("deleteTypes.ipPool"),
                                     name: pool.name,
                                     onDelete: () => pppoeServerService.deleteIPPool(pool.name),
                                   })}>
@@ -1178,23 +1198,23 @@ function PPPoEPageInner() {
                 {/* IPv6 Pools Tab */}
                 <TabsContent value="ipv6pools" className="mt-0">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">IPv6 Client Pools</h3>
+                    <h3 className="font-semibold">{t("pools.ipv6Title")}</h3>
                     {hasWrite && (
                       <Button size="sm" onClick={() => { setEditingIPv6Pool(null); setShowIPv6PoolModal(true); }}>
-                        <Plus className="h-4 w-4 mr-1" /> Add Pool
+                        <Plus className="h-4 w-4 mr-1" /> {t("pools.addPool")}
                       </Button>
                     )}
                   </div>
                   {(config?.client_ipv6_pools.length ?? 0) === 0 ? (
-                    <EmptyState icon={Network} label="No IPv6 pools configured" />
+                    <EmptyState icon={Network} label={t("pools.noIpv6Pools")} />
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Prefixes</TableHead>
-                          <TableHead>Delegates</TableHead>
-                          {hasWrite && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("pools.prefixes")}</TableHead>
+                          <TableHead>{t("pools.delegates")}</TableHead>
+                          {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1228,7 +1248,7 @@ function PPPoEPageInner() {
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
-                                    type: "IPv6 Pool",
+                                    type: t("deleteTypes.ipv6Pool"),
                                     name: pool.name,
                                     onDelete: () => pppoeServerService.deleteIPv6Pool(pool.name),
                                   })}>
@@ -1248,43 +1268,43 @@ function PPPoEPageInner() {
                 <TabsContent value="ppp-options" className="mt-0">
                   <Card className="p-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-medium">PPP Options</h4>
+                      <h4 className="text-sm font-medium">{t("pppOptions.title")}</h4>
                       {hasWrite && (
                         <Button variant="ghost" size="sm" onClick={() => setShowPPPOptionsModal(true)}>
-                          <Pencil className="h-3 w-3 mr-1" /> Edit
+                          <Pencil className="h-3 w-3 mr-1" /> {tc("edit")}
                         </Button>
                       )}
                     </div>
                     <div className="grid grid-cols-2 gap-6 text-sm">
                       <div className="space-y-2">
-                        <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">IP Negotiation</h5>
+                        <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("pppOptions.ipNegotiation")}</h5>
                         <InfoRow label="IPv4" value={config?.ppp_options.ipv4} />
                         <InfoRow label="IPv6" value={config?.ppp_options.ipv6} />
-                        <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-2">Encryption</h5>
+                        <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-2">{t("pppOptions.encryption")}</h5>
                         <InfoRow label="MPPE" value={config?.ppp_options.mppe} />
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Disable CCP</span>
+                          <span className="text-muted-foreground">{t("pppOptions.disableCcp")}</span>
                           <Badge variant={config?.ppp_options.disable_ccp ? "default" : "secondary"}>
-                            {config?.ppp_options.disable_ccp ? "Yes" : "No"}
+                            {config?.ppp_options.disable_ccp ? t("yes") : t("no")}
                           </Badge>
                         </div>
                         <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-2">MTU/MRU</h5>
-                        <InfoRow label="Min MTU" value={config?.ppp_options.min_mtu} />
+                        <InfoRow label={t("pppOptions.minMtu")} value={config?.ppp_options.min_mtu} />
                         <InfoRow label="MRU" value={config?.ppp_options.mru} />
-                        <InfoRow label="Interface Cache" value={config?.ppp_options.interface_cache} />
+                        <InfoRow label={t("pppOptions.interfaceCache")} value={config?.ppp_options.interface_cache} />
                       </div>
                       <div className="space-y-2">
-                        <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">LCP Echo</h5>
-                        <InfoRow label="Failure" value={config?.ppp_options.lcp_echo_failure} />
-                        <InfoRow label="Interval" value={config?.ppp_options.lcp_echo_interval} />
-                        <InfoRow label="Timeout" value={config?.ppp_options.lcp_echo_timeout} />
-                        <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-2">IPv6 Interface IDs</h5>
-                        <InfoRow label="Interface ID" value={config?.ppp_options.ipv6_interface_id} />
-                        <InfoRow label="Peer Interface ID" value={config?.ppp_options.ipv6_peer_interface_id} />
+                        <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("pppOptions.lcpEcho")}</h5>
+                        <InfoRow label={t("pppOptions.failure")} value={config?.ppp_options.lcp_echo_failure} />
+                        <InfoRow label={t("pppOptions.interval")} value={config?.ppp_options.lcp_echo_interval} />
+                        <InfoRow label={t("pppOptions.timeout")} value={config?.ppp_options.lcp_echo_timeout} />
+                        <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-2">{t("pppOptions.ipv6InterfaceIds")}</h5>
+                        <InfoRow label={t("pppOptions.interfaceId")} value={config?.ppp_options.ipv6_interface_id} />
+                        <InfoRow label={t("pppOptions.peerInterfaceId")} value={config?.ppp_options.ipv6_peer_interface_id} />
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Accept Peer ID</span>
+                          <span className="text-muted-foreground">{t("pppOptions.acceptPeerId")}</span>
                           <Badge variant={config?.ppp_options.ipv6_accept_peer_interface_id ? "default" : "secondary"}>
-                            {config?.ppp_options.ipv6_accept_peer_interface_id ? "Yes" : "No"}
+                            {config?.ppp_options.ipv6_accept_peer_interface_id ? t("yes") : t("no")}
                           </Badge>
                         </div>
                       </div>
@@ -1296,25 +1316,25 @@ function PPPoEPageInner() {
                 <TabsContent value="advanced" className="mt-0">
                   <Card className="p-4 space-y-4">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-medium">Advanced Settings</h4>
+                      <h4 className="text-sm font-medium">{t("advanced.title")}</h4>
                       {hasWrite && (
                         <Button variant="ghost" size="sm" onClick={() => setShowAdvancedModal(true)}>
-                          <Pencil className="h-3 w-3 mr-1" /> Edit
+                          <Pencil className="h-3 w-3 mr-1" /> {tc("edit")}
                         </Button>
                       )}
                     </div>
 
                     {/* PADO Delays */}
                     <div className="space-y-2">
-                      <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">PADO Delays</h5>
+                      <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("advanced.padoDelays")}</h5>
                       {(config?.pado_delays || []).length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No PADO delays configured</p>
+                        <p className="text-sm text-muted-foreground">{t("advanced.noPadoDelays")}</p>
                       ) : (
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Delay</TableHead>
-                              <TableHead>Sessions</TableHead>
+                              <TableHead>{t("advanced.delay")}</TableHead>
+                              <TableHead>{t("advanced.sessions")}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1331,26 +1351,26 @@ function PPPoEPageInner() {
 
                     <div className="grid grid-cols-2 gap-6 text-sm">
                       <div className="space-y-2">
-                        <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Limits</h5>
-                        <InfoRow label="Burst" value={config?.limits?.burst} />
-                        <InfoRow label="Conn. Limit" value={config?.limits?.connection_limit} />
-                        <InfoRow label="Timeout" value={config?.limits?.timeout} />
-                        <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-2">Log & Shaper</h5>
-                        <InfoRow label="Log Level" value={config?.log?.level} />
-                        <InfoRow label="Shaper FWMark" value={config?.shaper?.fwmark} />
+                        <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("advanced.limits")}</h5>
+                        <InfoRow label={t("advanced.burst")} value={config?.limits?.burst} />
+                        <InfoRow label={t("advanced.connLimit")} value={config?.limits?.connection_limit} />
+                        <InfoRow label={t("advanced.timeout")} value={config?.limits?.timeout} />
+                        <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-2">{t("advanced.logShaper")}</h5>
+                        <InfoRow label={t("advanced.logLevel")} value={config?.log?.level} />
+                        <InfoRow label={t("advanced.shaperFwmark")} value={config?.shaper?.fwmark} />
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">SNMP Master Agent</span>
+                          <span className="text-muted-foreground">{t("advanced.snmpMasterAgent")}</span>
                           <Badge variant={config?.snmp?.master_agent ? "default" : "secondary"}>
-                            {config?.snmp?.master_agent ? "Yes" : "No"}
+                            {config?.snmp?.master_agent ? t("yes") : t("no")}
                           </Badge>
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Extended Scripts</h5>
-                        <InfoRow label="On Change" value={config?.extended_scripts?.on_change} />
-                        <InfoRow label="On Down" value={config?.extended_scripts?.on_down} />
-                        <InfoRow label="On Pre-Up" value={config?.extended_scripts?.on_pre_up} />
-                        <InfoRow label="On Up" value={config?.extended_scripts?.on_up} />
+                        <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("advanced.extendedScripts")}</h5>
+                        <InfoRow label={t("advanced.onChange")} value={config?.extended_scripts?.on_change} />
+                        <InfoRow label={t("advanced.onDown")} value={config?.extended_scripts?.on_down} />
+                        <InfoRow label={t("advanced.onPreUp")} value={config?.extended_scripts?.on_pre_up} />
+                        <InfoRow label={t("advanced.onUp")} value={config?.extended_scripts?.on_up} />
                       </div>
                     </div>
                   </Card>
@@ -1365,9 +1385,9 @@ function PPPoEPageInner() {
       <Dialog open={!!selectedStatsKey && !!statsHistory[selectedStatsKey]} onOpenChange={(open) => { if (!open) setSelectedStatsKey(null); }}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Session traffic history</DialogTitle>
+            <DialogTitle>{t("statsDialog.title")}</DialogTitle>
             <DialogDescription>
-              Select rate, PPS, or total traffic from the graph.
+              {t("statsDialog.description")}
             </DialogDescription>
           </DialogHeader>
           {selectedStatsKey && statsHistory[selectedStatsKey] && (
@@ -1399,9 +1419,9 @@ function PPPoEPageInner() {
           <div className="rounded-xl border border-border/60 bg-background shadow-2xl">
             <DialogHeader className="flex items-center justify-between border-b px-6 py-4">
               <div className="space-y-1">
-                <DialogTitle className="text-2xl font-semibold tracking-tight">Session label registry</DialogTitle>
+                <DialogTitle className="text-2xl font-semibold tracking-tight">{t("labelRegistry.title")}</DialogTitle>
                 <DialogDescription className="text-sm text-muted-foreground">
-                  Store the PPPoE label catalog in Postgres. Rules drive the session badge labels shown in the table.
+                  {t("legacyLabelEditor.description")}
                 </DialogDescription>
               </div>
               <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setShowLabelEditor(false)}>
@@ -1419,39 +1439,39 @@ function PPPoEPageInner() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                  <span>Definitions</span>
+                  <span>{t("legacyLabelEditor.definitions")}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" className="h-9 px-4" onClick={addLabelDraft}>
-                    <Plus className="h-4 w-4 mr-2" /> New
+                    <Plus className="h-4 w-4 mr-2" /> {t("legacyLabelEditor.new")}
                   </Button>
                   <Button variant="outline" size="sm" className="h-9 px-4" onClick={() => setShowLabelEditor(false)}>
-                    Cancel
+                    {tc("cancel")}
                   </Button>
                   <Button size="sm" className="h-9 px-5" onClick={() => void saveLabelEditor()} disabled={labelSaving}>
                     {labelSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                    {labelSaving ? "Saving..." : "Save registry"}
+                    {labelSaving ? tc("saving") : t("labelRegistry.saveRegistry")}
                   </Button>
                 </div>
               </div>
 
               <div className="overflow-hidden rounded-lg border border-border/50 bg-muted/10">
                 <div className="grid grid-cols-[minmax(110px,0.9fr)_minmax(140px,1.2fr)_minmax(180px,1.8fr)_minmax(75px,0.7fr)_minmax(110px,1fr)_minmax(80px,0.8fr)_minmax(105px,1fr)_minmax(105px,1fr)_minmax(82px,1fr)_minmax(62px,0.7fr)_52px] gap-2 border-b bg-muted/30 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  <span>Code</span>
-                  <span>Name</span>
-                  <span>Description</span>
-                  <span>Priority</span>
-                  <span>Severity</span>
-                  <span>Enabled</span>
-                  <span>Numerator</span>
-                  <span>Denominator</span>
-                  <span>Operator</span>
-                  <span>Factor</span>
-                  <span className="text-right">Actions</span>
+                  <span>{t("labelRegistry.code")}</span>
+                  <span>{tc("name")}</span>
+                  <span>{tc("description")}</span>
+                  <span>{t("labelRegistry.priority")}</span>
+                  <span>{t("labelRegistry.severity")}</span>
+                  <span>{tc("enabled")}</span>
+                  <span>{t("labelRegistry.numerator")}</span>
+                  <span>{t("labelRegistry.denominator")}</span>
+                  <span>{t("labelRegistry.operator")}</span>
+                  <span>{t("labelRegistry.factor")}</span>
+                  <span className="text-right">{tc("actions")}</span>
                 </div>
 
                 {labelDraft.length === 0 ? (
-                  <div className="px-4 py-8 text-sm text-muted-foreground">No labels defined.</div>
+                  <div className="px-4 py-8 text-sm text-muted-foreground">{t("legacyLabelEditor.noLabels")}</div>
                 ) : (
                   <div className="max-h-[55vh] overflow-auto">
                     {labelDraft.map((label, index) => (
@@ -1477,24 +1497,24 @@ function PPPoEPageInner() {
                         </div>
                         <div className="min-w-0">
                           <select value={label.enabled === false ? "false" : "true"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, enabled: event.target.value === "true" } : item))} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
-                            <option value="true">Yes</option>
-                            <option value="false">No</option>
+                            <option value="true">{t("yes")}</option>
+                            <option value="false">{t("no")}</option>
                           </select>
                         </div>
                         <div className="min-w-0">
                           <select value={label.rules?.numerator ?? "rx_bytes"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, rules: { ...(item.rules ?? {}), type: "ratio", numerator: event.target.value as PPPoESessionLabelRule["numerator"] } } : item))} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
-                            <option value="rx_bytes">RX bytes</option>
-                            <option value="tx_bytes">TX bytes</option>
-                            <option value="rxRate">RX Rate</option>
-                            <option value="txRate">TX Rate</option>
+                            <option value="rx_bytes">{t("legacyLabelEditor.rxBytes")}</option>
+                            <option value="tx_bytes">{t("legacyLabelEditor.txBytes")}</option>
+                            <option value="rxRate">{t("legacyLabelEditor.rxRate")}</option>
+                            <option value="txRate">{t("legacyLabelEditor.txRate")}</option>
                           </select>
                         </div>
                         <div className="min-w-0">
                           <select value={label.rules?.denominator ?? "tx_bytes"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, rules: { ...(item.rules ?? {}), type: "ratio", denominator: event.target.value as PPPoESessionLabelRule["denominator"] } } : item))} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
-                            <option value="rx_bytes">RX bytes</option>
-                            <option value="tx_bytes">TX bytes</option>
-                            <option value="rxRate">RX Rate</option>
-                            <option value="txRate">TX Rate</option>
+                            <option value="rx_bytes">{t("legacyLabelEditor.rxBytes")}</option>
+                            <option value="tx_bytes">{t("legacyLabelEditor.txBytes")}</option>
+                            <option value="rxRate">{t("legacyLabelEditor.rxRate")}</option>
+                            <option value="txRate">{t("legacyLabelEditor.txRate")}</option>
                           </select>
                         </div>
                         <div className="min-w-0">
@@ -1595,7 +1615,7 @@ function PPPoEPageInner() {
         <DeleteConfirmModal
           open={!!deleteTarget}
           onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
-          onSuccess={deleteTarget.actionLabel === "Reset" ? onSessionReset : onSuccess}
+          onSuccess={deleteTarget.isReset ? onSessionReset : onSuccess}
           itemType={deleteTarget.type}
           itemName={deleteTarget.name}
           onDelete={deleteTarget.onDelete}

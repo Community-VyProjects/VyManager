@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,8 @@ function Dash() {
 }
 
 export function SSHContent() {
+  const t = useTranslations("ssh");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWrite = canWrite(FeatureGroup.SSH);
 
@@ -52,7 +55,7 @@ export function SSHContent() {
       setConfig(cfg);
       setCapabilities(caps);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load SSH configuration");
+      setError(err instanceof Error ? err.message : t("content.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -77,7 +80,7 @@ export function SSHContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -104,16 +107,16 @@ export function SSHContent() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-2xl font-bold text-foreground">SSH</h1>
-                  {!hasWrite && <Badge variant="secondary">Read Only</Badge>}
+                  {!hasWrite && <Badge variant="secondary">{t("content.readOnly")}</Badge>}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Secure Shell — remote management access to this device
+                  {t("content.subtitle")}
                 </p>
               </div>
             </div>
             <Button variant="outline" size="sm" onClick={refresh}>
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              {tc("refresh")}
             </Button>
           </div>
 
@@ -130,22 +133,22 @@ export function SSHContent() {
           {/* Connection */}
           <SectionCard
             icon={<Plug className="h-4 w-4" />}
-            title="Connection"
+            title={t("content.connection")}
             hasWrite={hasWrite}
             onEdit={() => setOpenModal("connection")}
           >
             <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
-              <BadgeField label="Ports" values={config.ports} empty={`Default (${capabilities.features.port.default})`} />
-              <BadgeField label="Listen Addresses" values={config.listen_addresses} empty="All addresses" />
-              <BadgeField label="VRFs" values={config.vrfs} empty="Default VRF" />
-              <Field label="Log Level" value={config.loglevel ?? `Default (${capabilities.features.loglevel.default})`} />
+              <BadgeField label={t("content.ports")} values={config.ports} empty={t("content.defaultValue", { value: String(capabilities.features.port.default) })} />
+              <BadgeField label={t("content.listenAddresses")} values={config.listen_addresses} empty={t("content.allAddresses")} />
+              <BadgeField label="VRFs" values={config.vrfs} empty={t("content.defaultVrf")} />
+              <Field label={t("content.logLevel")} value={config.loglevel ?? t("content.defaultValue", { value: String(capabilities.features.loglevel.default) })} />
               <Field
-                label="Client Keepalive"
-                value={config.client_keepalive_interval ? `${config.client_keepalive_interval}s` : null}
+                label={t("content.clientKeepalive")}
+                value={config.client_keepalive_interval ? t("content.seconds", { value: String(config.client_keepalive_interval) }) : null}
               />
               <Field
-                label="Rekey Limit"
-                value={formatRekey(config)}
+                label={t("content.rekeyLimit")}
+                value={formatRekey(config, (v) => t("content.minutes", { value: v }))}
               />
             </dl>
           </SectionCard>
@@ -153,30 +156,30 @@ export function SSHContent() {
           {/* Authentication & Access */}
           <SectionCard
             icon={<KeyRound className="h-4 w-4" />}
-            title="Authentication & Access"
+            title={t("content.authAccess")}
             hasWrite={hasWrite}
             onEdit={() => setOpenModal("authentication")}
           >
             <div className="space-y-4">
               <BoolRow
-                label="Password authentication"
+                label={t("content.passwordAuth")}
                 enabled={!config.disable_password_authentication}
-                onText="Allowed"
-                offText="Disabled"
+                onText={t("content.allowed")}
+                offText={tc("disabled")}
               />
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
-                <BadgeField label="Allow Users" values={ac.allow_users} empty="Any" />
-                <BadgeField label="Allow Groups" values={ac.allow_groups} empty="Any" />
-                <BadgeField label="Deny Users" values={ac.deny_users} empty="None" />
-                <BadgeField label="Deny Groups" values={ac.deny_groups} empty="None" />
+                <BadgeField label={t("content.allowUsers")} values={ac.allow_users} empty={t("content.any")} />
+                <BadgeField label={t("content.allowGroups")} values={ac.allow_groups} empty={t("content.any")} />
+                <BadgeField label={t("content.denyUsers")} values={ac.deny_users} empty={tc("none")} />
+                <BadgeField label={t("content.denyGroups")} values={ac.deny_groups} empty={tc("none")} />
                 {caSupported && (
-                  <Field label="Trusted User CA" value={config.trusted_user_ca} mono />
+                  <Field label={t("content.trustedUserCa")} value={config.trusted_user_ca} mono />
                 )}
               </dl>
               {fidoSupported && (
                 <div className="flex flex-wrap gap-6 pt-1">
-                  <BoolInline label="FIDO2 PIN required" enabled={config.fido.pin_required} />
-                  <BoolInline label="FIDO2 touch required" enabled={config.fido.touch_required} />
+                  <BoolInline label={t("content.fidoPinRequired")} enabled={config.fido.pin_required} />
+                  <BoolInline label={t("content.fidoTouchRequired")} enabled={config.fido.touch_required} />
                 </div>
               )}
             </div>
@@ -185,45 +188,45 @@ export function SSHContent() {
           {/* Algorithms */}
           <SectionCard
             icon={<Lock className="h-4 w-4" />}
-            title="Cryptographic Algorithms"
+            title={t("content.cryptoAlgorithms")}
             hasWrite={hasWrite}
             onEdit={() => setOpenModal("algorithms")}
           >
             <div className="space-y-3">
-              <BadgeRow label="Ciphers" values={config.ciphers} />
+              <BadgeRow label={t("content.ciphers")} values={config.ciphers} />
               <BadgeRow label="MACs" values={config.macs} />
-              <BadgeRow label="Key Exchange" values={config.key_exchanges} />
-              <BadgeRow label="Host Key Algorithms" values={config.hostkey_algorithms} />
-              <BadgeRow label="Public Key Algorithms" values={config.pubkey_accepted_algorithms} />
+              <BadgeRow label={t("content.keyExchange")} values={config.key_exchanges} />
+              <BadgeRow label={t("content.hostKeyAlgorithms")} values={config.hostkey_algorithms} />
+              <BadgeRow label={t("content.pubkeyAlgorithms")} values={config.pubkey_accepted_algorithms} />
             </div>
           </SectionCard>
 
           {/* Protection */}
           <SectionCard
             icon={<ShieldAlert className="h-4 w-4" />}
-            title="Protection & Hardening"
+            title={t("content.protection")}
             hasWrite={hasWrite}
             onEdit={() => setOpenModal("protection")}
           >
             <div className="space-y-4">
               <BoolRow
-                label="Host validation (reverse DNS)"
+                label={t("content.hostValidation")}
                 enabled={!config.disable_host_validation}
-                onText="Enabled"
-                offText="Disabled"
+                onText={tc("enabled")}
+                offText={tc("disabled")}
               />
               <BoolRow
-                label="Dynamic protection (brute-force)"
+                label={t("content.dynamicProtection")}
                 enabled={dp.enabled}
-                onText="Enabled"
-                offText="Disabled"
+                onText={tc("enabled")}
+                offText={tc("disabled")}
               />
               {dp.enabled && (
                 <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm pl-1">
-                  <Field label="Threshold" value={dp.threshold ?? `Default (${capabilities.features.dynamic_protection.defaults.threshold})`} />
-                  <Field label="Block Time" value={dp.block_time ? `${dp.block_time}s` : `Default (${capabilities.features.dynamic_protection.defaults.block_time}s)`} />
-                  <Field label="Detect Time" value={dp.detect_time ? `${dp.detect_time}s` : `Default (${capabilities.features.dynamic_protection.defaults.detect_time}s)`} />
-                  <BadgeField label="Allow From" values={dp.allow_from} empty="None" />
+                  <Field label={t("content.threshold")} value={dp.threshold ?? t("content.defaultValue", { value: String(capabilities.features.dynamic_protection.defaults.threshold) })} />
+                  <Field label={t("content.blockTime")} value={dp.block_time ? t("content.seconds", { value: String(dp.block_time) }) : t("content.defaultValue", { value: t("content.seconds", { value: String(capabilities.features.dynamic_protection.defaults.block_time) }) })} />
+                  <Field label={t("content.detectTime")} value={dp.detect_time ? t("content.seconds", { value: String(dp.detect_time) }) : t("content.defaultValue", { value: t("content.seconds", { value: String(capabilities.features.dynamic_protection.defaults.detect_time) }) })} />
+                  <BadgeField label={t("content.allowFrom")} values={dp.allow_from} empty={tc("none")} />
                 </dl>
               )}
             </div>
@@ -274,10 +277,10 @@ export function SSHContent() {
 
 // ---------------------------------------------------------------- helpers
 
-function formatRekey(config: SSHConfig): string | null {
+function formatRekey(config: SSHConfig, minutes: (value: string) => string): string | null {
   const parts: string[] = [];
   if (config.rekey.data) parts.push(`${config.rekey.data} MB`);
-  if (config.rekey.time) parts.push(`${config.rekey.time} min`);
+  if (config.rekey.time) parts.push(minutes(String(config.rekey.time)));
   return parts.length > 0 ? parts.join(" / ") : null;
 }
 
@@ -310,6 +313,7 @@ function BadgeField({ label, values, empty }: { label: string; values: string[];
 }
 
 function BadgeRow({ label, values }: { label: string; values: string[] }) {
+  const t = useTranslations("ssh");
   return (
     <div>
       <p className="text-xs font-medium text-muted-foreground mb-1.5">{label}</p>
@@ -320,7 +324,7 @@ function BadgeRow({ label, values }: { label: string; values: string[] }) {
           ))}
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">VyOS defaults</p>
+        <p className="text-sm text-muted-foreground">{t("content.vyosDefaults")}</p>
       )}
     </div>
   );
@@ -366,6 +370,7 @@ interface SectionCardProps {
 }
 
 function SectionCard({ icon, title, hasWrite, onEdit, children }: SectionCardProps) {
+  const tc = useTranslations("common");
   return (
     <Card>
       <CardHeader className="pb-2 pt-4 px-4">
@@ -377,7 +382,7 @@ function SectionCard({ icon, title, hasWrite, onEdit, children }: SectionCardPro
           {hasWrite && (
             <Button size="sm" variant="outline" onClick={onEdit}>
               <Pencil className="h-4 w-4 mr-1" />
-              Edit
+              {tc("edit")}
             </Button>
           )}
         </div>

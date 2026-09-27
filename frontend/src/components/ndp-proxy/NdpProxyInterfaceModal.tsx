@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -70,12 +71,14 @@ function isValidIPv6Prefix(value: string): boolean {
   return IPV6_PREFIX_RE.test(value.trim());
 }
 
-function validatePrefixForm(form: PrefixForm, existingPrefixes: string[], selfPrefix?: string): string | null {
+type PrefixValidationKey = "prefixRequired" | "prefixInvalid" | "prefixDuplicate" | "fwdInterfaceRequired";
+
+function validatePrefixForm(form: PrefixForm, existingPrefixes: string[], selfPrefix?: string): PrefixValidationKey | null {
   const trimmed = form.prefix.trim();
-  if (!trimmed) return "Prefix is required";
-  if (!isValidIPv6Prefix(trimmed)) return "Enter a valid IPv6 prefix or address (e.g. 2001:db8::/64)";
-  if (trimmed !== selfPrefix && existingPrefixes.includes(trimmed)) return "This prefix is already in the list";
-  if (form.mode === "interface" && !form.interface.trim()) return "Forwarding interface is required for interface mode";
+  if (!trimmed) return "prefixRequired";
+  if (!isValidIPv6Prefix(trimmed)) return "prefixInvalid";
+  if (trimmed !== selfPrefix && existingPrefixes.includes(trimmed)) return "prefixDuplicate";
+  if (form.mode === "interface" && !form.interface.trim()) return "fwdInterfaceRequired";
   return null;
 }
 
@@ -86,6 +89,8 @@ export function NdpProxyInterfaceModal({
   existingNames,
   onSuccess,
 }: NdpProxyInterfaceModalProps) {
+  const t = useTranslations("ndpProxy");
+  const tc = useTranslations("common");
   const isEdit = existing !== null;
 
   const [interfaceName, setInterfaceName] = useState(existing?.name ?? "");
@@ -139,7 +144,7 @@ export function NdpProxyInterfaceModal({
       existingPrefixStrings,
       prefixes[editingPrefixIdx].prefix
     );
-    if (err) { setPrefixError(err); return; }
+    if (err) { setPrefixError(t(`validation.${err}`)); return; }
     setPrefixes((prev) => {
       const next = [...prev];
       next[editingPrefixIdx] = {
@@ -171,7 +176,7 @@ export function NdpProxyInterfaceModal({
 
   const confirmAddPrefix = () => {
     const err = validatePrefixForm(newPrefix, existingPrefixStrings);
-    if (err) { setPrefixError(err); return; }
+    if (err) { setPrefixError(t(`validation.${err}`)); return; }
     setPrefixes((prev) => [
       ...prev,
       { ...newPrefix, prefix: newPrefix.prefix.trim() },
@@ -182,22 +187,22 @@ export function NdpProxyInterfaceModal({
   };
 
   const validate = (): string | null => {
-    if (!interfaceName.trim()) return "Interface name is required";
+    if (!interfaceName.trim()) return t("validation.interfaceRequired");
     if (!isEdit && existingNames.includes(interfaceName.trim())) {
-      return `Interface "${interfaceName.trim()}" is already configured`;
+      return t("validation.interfaceExists", { name: interfaceName.trim() });
     }
     const timeoutTrimmed = timeout.trim();
     if (timeoutTrimmed !== "") {
       const val = parseInt(timeoutTrimmed, 10);
       if (isNaN(val) || val < 500 || val > 120000) {
-        return "Timeout must be between 500 and 120000 ms";
+        return t("validation.timeoutRange");
       }
     }
     const ttlTrimmed = ttl.trim();
     if (ttlTrimmed !== "") {
       const val = parseInt(ttlTrimmed, 10);
       if (isNaN(val) || val < 10000 || val > 120000) {
-        return "TTL must be between 10000 and 120000 ms";
+        return t("validation.ttlRange");
       }
     }
     return null;
@@ -205,7 +210,7 @@ export function NdpProxyInterfaceModal({
 
   const handleSubmit = async () => {
     if (editingPrefixIdx !== null || addingPrefix) {
-      setError("Save or cancel the open prefix form before submitting");
+      setError(t("validation.prefixFormOpen"));
       return;
     }
     const validationError = validate();
@@ -238,7 +243,7 @@ export function NdpProxyInterfaceModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -249,10 +254,10 @@ export function NdpProxyInterfaceModal({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? "Edit Interface" : "Add Interface"}
+            {isEdit ? t("modal.editTitle") : t("modal.addTitle")}
           </DialogTitle>
           <DialogDescription>
-            Configure an NDP proxy listener interface and its prefixes
+            {t("modal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -260,7 +265,7 @@ export function NdpProxyInterfaceModal({
           <div className="space-y-5 py-1">
             {/* Interface name */}
             <div className="space-y-1.5">
-              <Label htmlFor="iface-name">Interface Name</Label>
+              <Label htmlFor="iface-name">{t("modal.interfaceName")}</Label>
               {isEdit ? (
                 <Input id="iface-name" value={interfaceName} disabled />
               ) : (
@@ -269,7 +274,7 @@ export function NdpProxyInterfaceModal({
                   onValueChange={setInterfaceName}
                   id="iface-name"
                   interfaces={availableInterfaces.filter((i) => !existingNames.includes(i.name))}
-                  placeholder="Select interface"
+                  placeholder={t("modal.selectInterface")}
                 />
               )}
             </div>
@@ -282,7 +287,7 @@ export function NdpProxyInterfaceModal({
                 onCheckedChange={(checked) => setDisabled(!!checked)}
               />
               <Label htmlFor="iface-disable" className="cursor-pointer">
-                Disable this interface
+                {t("modal.disableInterface")}
               </Label>
             </div>
 
@@ -294,21 +299,21 @@ export function NdpProxyInterfaceModal({
                 onCheckedChange={(checked) => setEnableRouterBit(!!checked)}
               />
               <Label htmlFor="router-bit" className="cursor-pointer">
-                Enable router bit in Neighbor Advertisement
+                {t("modal.routerBit")}
               </Label>
             </div>
 
             {/* Timeout */}
             <div className="space-y-1.5">
-              <Label htmlFor="iface-timeout">Timeout (ms)</Label>
+              <Label htmlFor="iface-timeout">{t("modal.timeout")}</Label>
               <Input
                 id="iface-timeout"
-                placeholder="500 (default)"
+                placeholder={t("modal.timeoutPlaceholder")}
                 value={timeout}
                 onChange={(e) => setTimeout_(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                NA response timeout. Valid range: 500–120000 ms. Leave empty for default.
+                {t("modal.timeoutHint")}
               </p>
             </div>
 
@@ -317,12 +322,12 @@ export function NdpProxyInterfaceModal({
               <Label htmlFor="iface-ttl">TTL (ms)</Label>
               <Input
                 id="iface-ttl"
-                placeholder="30000 (default)"
+                placeholder={t("modal.ttlPlaceholder")}
                 value={ttl}
                 onChange={(e) => setTtl(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                Proxy entry cache TTL. Valid range: 10000–120000 ms. Leave empty for default.
+                {t("modal.ttlHint")}
               </p>
             </div>
 
@@ -331,7 +336,7 @@ export function NdpProxyInterfaceModal({
             {/* Prefixes */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">Prefixes</Label>
+                <Label className="text-sm font-medium">{t("modal.prefixes")}</Label>
                 {!addingPrefix && editingPrefixIdx === null && (
                   <Button
                     type="button"
@@ -340,14 +345,14 @@ export function NdpProxyInterfaceModal({
                     onClick={startAddPrefix}
                   >
                     <Plus className="h-3.5 w-3.5 mr-1" />
-                    Add Prefix
+                    {t("modal.addPrefix")}
                   </Button>
                 )}
               </div>
 
               {prefixes.length === 0 && !addingPrefix && (
                 <p className="text-sm text-muted-foreground">
-                  No prefixes configured. Add at least one prefix for this interface to proxy.
+                  {t("modal.noPrefixes")}
                 </p>
               )}
 
@@ -368,7 +373,7 @@ export function NdpProxyInterfaceModal({
                         <span className="font-mono font-medium flex-1 truncate">{p.prefix}</span>
                         {p.disabled && (
                           <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">
-                            Disabled
+                            {tc("disabled")}
                           </Badge>
                         )}
                         <Badge variant="secondary" className="shrink-0">
@@ -429,11 +434,11 @@ export function NdpProxyInterfaceModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isEdit ? "Save" : "Add"}
+            {isEdit ? tc("save") : tc("add")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -458,12 +463,14 @@ function PrefixInlineForm({
   error,
   isNew = false,
 }: PrefixInlineFormProps) {
+  const t = useTranslations("ndpProxy");
+  const tc = useTranslations("common");
   return (
     <div className="rounded-md border bg-muted/30 p-3 space-y-3">
       <div className="space-y-1.5">
-        <Label className="text-xs">IPv6 Prefix</Label>
+        <Label className="text-xs">{t("modal.ipv6Prefix")}</Label>
         <Input
-          placeholder="e.g. 2001:db8::/64"
+          placeholder={t("modal.ipv6PrefixPlaceholder")}
           value={form.prefix}
           onChange={(e) => onChange({ ...form, prefix: e.target.value })}
           disabled={!isNew}
@@ -481,12 +488,12 @@ function PrefixInlineForm({
           htmlFor={`prefix-disable-${isNew ? "new" : form.prefix}`}
           className="text-xs cursor-pointer"
         >
-          Disable this prefix
+          {t("modal.disablePrefix")}
         </Label>
       </div>
 
       <div className="space-y-1.5">
-        <Label className="text-xs">Mode</Label>
+        <Label className="text-xs">{t("modal.mode")}</Label>
         <Select
           value={form.mode}
           onValueChange={(v) =>
@@ -506,9 +513,9 @@ function PrefixInlineForm({
 
       {form.mode === "interface" && (
         <div className="space-y-1.5">
-          <Label className="text-xs">Forwarding Interface</Label>
+          <Label className="text-xs">{t("modal.fwdInterface")}</Label>
           <Input
-            placeholder="e.g. eth1"
+            placeholder={t("modal.fwdInterfacePlaceholder")}
             value={form.interface}
             onChange={(e) => onChange({ ...form, interface: e.target.value })}
           />
@@ -524,11 +531,11 @@ function PrefixInlineForm({
 
       <div className="flex items-center gap-2 pt-1">
         <Button type="button" size="sm" onClick={onSave}>
-          {isNew ? "Add" : "Save"}
+          {isNew ? tc("add") : tc("save")}
         </Button>
         <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
           <X className="h-3.5 w-3.5 mr-1" />
-          Cancel
+          {tc("cancel")}
         </Button>
       </div>
     </div>

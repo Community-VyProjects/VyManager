@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
 export function RouterAdvertContent() {
+  const t = useTranslations("routerAdvert");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWrite = canWrite(FeatureGroup.ROUTER_ADVERT);
 
@@ -60,12 +63,12 @@ export function RouterAdvertContent() {
       if (capabilities === null) setCapabilities(caps as RouterAdvertCapabilities);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to load router advertisement configuration"
+        err instanceof Error ? err.message : t("content.loadFailed")
       );
     } finally {
       setLoading(false);
     }
-  }, [capabilities]);
+  }, [capabilities, t]);
 
   useEffect(() => {
     loadData();
@@ -85,7 +88,7 @@ export function RouterAdvertContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -107,11 +110,11 @@ export function RouterAdvertContent() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold text-foreground">Router Advertisement</h1>
-                  {!hasWrite && <Badge variant="secondary">Read Only</Badge>}
+                  <h1 className="text-2xl font-bold text-foreground">{t("content.title")}</h1>
+                  {!hasWrite && <Badge variant="secondary">{t("content.readOnly")}</Badge>}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  IPv6 Router Advertisement (radvd) — advertise prefixes, routes, and DNS to hosts
+                  {t("content.subtitle")}
                 </p>
               </div>
             </div>
@@ -126,12 +129,12 @@ export function RouterAdvertContent() {
                   }}
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Interface
+                  {t("content.addInterface")}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={() => loadData(true)}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -151,19 +154,19 @@ export function RouterAdvertContent() {
             <StatCard
               icon={<Radio className="h-4 w-4 text-primary" />}
               iconBg="bg-primary/10"
-              label="Total Interfaces"
+              label={t("content.totalInterfaces")}
               value={String(config?.interfaces.length ?? 0)}
             />
             <StatCard
               icon={<Radio className="h-4 w-4 text-primary" />}
               iconBg="bg-primary/10"
-              label="Total Prefixes"
+              label={t("content.totalPrefixes")}
               value={String(totalPrefixes)}
             />
             <StatCard
               icon={<Radio className="h-4 w-4 text-primary" />}
               iconBg="bg-primary/10"
-              label="Total Routes"
+              label={t("content.totalRoutes")}
               value={String(totalRoutes)}
             />
           </div>
@@ -174,7 +177,7 @@ export function RouterAdvertContent() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
                   <Radio className="h-4 w-4" />
-                  Interfaces
+                  {t("content.interfaces")}
                 </CardTitle>
                 {hasWrite && (
                   <Button
@@ -186,7 +189,7 @@ export function RouterAdvertContent() {
                     }}
                   >
                     <Plus className="h-4 w-4 mr-1" />
-                    Add Interface
+                    {t("content.addInterface")}
                   </Button>
                 )}
               </div>
@@ -197,12 +200,12 @@ export function RouterAdvertContent() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-8" />
-                      <TableHead>Interface</TableHead>
-                      <TableHead>Managed</TableHead>
-                      <TableHead>Other Config</TableHead>
-                      <TableHead>Preference</TableHead>
-                      <TableHead>Prefixes</TableHead>
-                      <TableHead>Routes</TableHead>
+                      <TableHead>{t("content.colInterface")}</TableHead>
+                      <TableHead>{t("content.colManaged")}</TableHead>
+                      <TableHead>{t("content.colOtherConfig")}</TableHead>
+                      <TableHead>{t("content.colPreference")}</TableHead>
+                      <TableHead>{t("content.colPrefixes")}</TableHead>
+                      <TableHead>{t("content.colRoutes")}</TableHead>
                       {hasWrite && <TableHead className="w-[80px]" />}
                     </TableRow>
                   </TableHeader>
@@ -235,7 +238,7 @@ export function RouterAdvertContent() {
                                   : "text-muted-foreground"
                               }
                             >
-                              {iface.managed_flag ? "Yes" : "No"}
+                              {iface.managed_flag ? t("content.yes") : t("content.no")}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -247,7 +250,7 @@ export function RouterAdvertContent() {
                                   : "text-muted-foreground"
                               }
                             >
-                              {iface.other_config_flag ? "Yes" : "No"}
+                              {iface.other_config_flag ? t("content.yes") : t("content.no")}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
@@ -306,9 +309,9 @@ export function RouterAdvertContent() {
                   <div className="rounded-full p-3 bg-muted mb-3">
                     <Radio className="h-6 w-6 text-muted-foreground/50" />
                   </div>
-                  <p className="text-sm font-medium mb-1">No interfaces configured</p>
+                  <p className="text-sm font-medium mb-1">{t("content.emptyTitle")}</p>
                   <p className="text-xs text-muted-foreground">
-                    Add a listener interface to start sending router advertisements
+                    {t("content.emptyHint")}
                   </p>
                   {hasWrite && (
                     <Button
@@ -321,7 +324,7 @@ export function RouterAdvertContent() {
                       }}
                     >
                       <Plus className="h-4 w-4 mr-1" />
-                      Add Interface
+                      {t("content.addInterface")}
                     </Button>
                   )}
                 </div>
@@ -360,21 +363,22 @@ export function RouterAdvertContent() {
 // ---- Expanded detail panel ----
 
 function ExpandedDetail({ iface }: { iface: RouterAdvertInterface }) {
+  const t = useTranslations("routerAdvert");
   return (
     <div className="space-y-4">
       {/* Prefixes */}
       {iface.prefixes.length > 0 && (
         <div>
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
-            Prefixes
+            {t("detail.prefixes")}
           </p>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-xs h-7">Prefix</TableHead>
-                <TableHead className="text-xs h-7">Valid LT</TableHead>
-                <TableHead className="text-xs h-7">Preferred LT</TableHead>
-                <TableHead className="text-xs h-7">Flags</TableHead>
+                <TableHead className="text-xs h-7">{t("detail.prefix")}</TableHead>
+                <TableHead className="text-xs h-7">{t("detail.validLt")}</TableHead>
+                <TableHead className="text-xs h-7">{t("detail.preferredLt")}</TableHead>
+                <TableHead className="text-xs h-7">{t("detail.flags")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -405,14 +409,14 @@ function ExpandedDetail({ iface }: { iface: RouterAdvertInterface }) {
       {iface.routes.length > 0 && (
         <div>
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
-            Routes
+            {t("detail.routes")}
           </p>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-xs h-7">Route</TableHead>
-                <TableHead className="text-xs h-7">Preference</TableHead>
-                <TableHead className="text-xs h-7">Valid LT</TableHead>
+                <TableHead className="text-xs h-7">{t("detail.route")}</TableHead>
+                <TableHead className="text-xs h-7">{t("detail.preference")}</TableHead>
+                <TableHead className="text-xs h-7">{t("detail.validLt")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -439,13 +443,13 @@ function ExpandedDetail({ iface }: { iface: RouterAdvertInterface }) {
       {iface.nat64_prefixes.length > 0 && (
         <div>
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
-            NAT64 Prefixes
+            {t("detail.nat64Prefixes")}
           </p>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-xs h-7">NAT64 Prefix</TableHead>
-                <TableHead className="text-xs h-7">Valid LT</TableHead>
+                <TableHead className="text-xs h-7">{t("detail.nat64Prefix")}</TableHead>
+                <TableHead className="text-xs h-7">{t("detail.validLt")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -469,13 +473,13 @@ function ExpandedDetail({ iface }: { iface: RouterAdvertInterface }) {
           <div className="space-y-1.5 text-sm">
             {iface.name_server.length > 0 && (
               <div className="flex gap-2">
-                <span className="text-muted-foreground w-28 shrink-0">Name Servers</span>
+                <span className="text-muted-foreground w-28 shrink-0">{t("detail.nameServers")}</span>
                 <span className="font-mono">{iface.name_server.join(", ")}</span>
               </div>
             )}
             {iface.dnssl.length > 0 && (
               <div className="flex gap-2">
-                <span className="text-muted-foreground w-28 shrink-0">Search List</span>
+                <span className="text-muted-foreground w-28 shrink-0">{t("detail.searchList")}</span>
                 <span>{iface.dnssl.join(", ")}</span>
               </div>
             )}
@@ -485,7 +489,7 @@ function ExpandedDetail({ iface }: { iface: RouterAdvertInterface }) {
 
       {iface.prefixes.length === 0 && iface.routes.length === 0 && iface.nat64_prefixes.length === 0 && iface.name_server.length === 0 && iface.dnssl.length === 0 && (
         <p className="text-sm text-muted-foreground text-center py-2">
-          No additional configuration for this interface
+          {t("detail.noAdditional")}
         </p>
       )}
     </div>

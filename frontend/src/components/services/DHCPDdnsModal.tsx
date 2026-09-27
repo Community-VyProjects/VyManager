@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -66,6 +67,8 @@ export function DHCPDdnsModal({
   ddns,
   capabilities,
 }: DHCPDdnsModalProps) {
+  const t = useTranslations("dhcpServer");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<DHCPDdnsConfig>(emptyDdns());
@@ -154,14 +157,14 @@ export function DHCPDdnsModal({
     try {
       const result = await dhcpService.saveDdns(ddns, form, leaf, kea);
       if (!result.success) {
-        setError(result.error ?? "Failed to save dynamic DNS");
+        setError(result.error ?? t("ddns.saveFailed"));
         setLoading(false);
         return;
       }
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save dynamic DNS");
+      setError(err instanceof Error ? err.message : t("ddns.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -173,7 +176,7 @@ export function DHCPDdnsModal({
         <Label>{title}</Label>
         <Button type="button" variant="outline" size="sm" onClick={() => addDomain(kind)}>
           <Plus className="h-3 w-3 mr-1" />
-          Add
+          {tc("add")}
         </Button>
       </div>
       {form[kind].map((domain, index) => (
@@ -200,7 +203,7 @@ export function DHCPDdnsModal({
             </Button>
           </div>
           <Input
-            placeholder="TSIG key name"
+            placeholder={t("ddns.tsigKeyName")}
             value={domain.key_name ?? ""}
             onChange={(e) => updateDomain(kind, index, { key_name: e.target.value })}
           />
@@ -241,7 +244,7 @@ export function DHCPDdnsModal({
             </div>
           ))}
           <Button type="button" variant="ghost" size="sm" onClick={() => addServer(kind, index)}>
-            Add DNS server
+            {t("ddns.addDnsServer")}
           </Button>
         </div>
       ))}
@@ -252,8 +255,8 @@ export function DHCPDdnsModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[560px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>DHCP dynamic DNS</DialogTitle>
-          <DialogDescription>Update DNS from DHCP leases</DialogDescription>
+          <DialogTitle>{t("ddns.title")}</DialogTitle>
+          <DialogDescription>{t("ddns.description")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           {leaf && (
@@ -264,7 +267,7 @@ export function DHCPDdnsModal({
                 onCheckedChange={(v) => setForm((prev) => ({ ...prev, present: Boolean(v) }))}
               />
               <Label htmlFor="ddns-leaf" className="cursor-pointer">
-                Enable dynamic DNS updates
+                {t("ddns.enableUpdates")}
               </Label>
             </div>
           )}
@@ -277,13 +280,13 @@ export function DHCPDdnsModal({
                   onCheckedChange={(v) => setForm((prev) => ({ ...prev, present: Boolean(v) }))}
                 />
                 <Label htmlFor="ddns-present" className="cursor-pointer">
-                  Configure dynamic DNS
+                  {t("ddns.configure")}
                 </Label>
               </div>
               {form.present && (
                 <>
                   <div className="space-y-1">
-                    <Label>Send updates</Label>
+                    <Label>{t("ddns.sendUpdates")}</Label>
                     <Select
                       value={form.send_updates || "__none__"}
                       onValueChange={(v) =>
@@ -294,10 +297,10 @@ export function DHCPDdnsModal({
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Unset" />
+                        <SelectValue placeholder={t("unset")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__none__">Unset</SelectItem>
+                        <SelectItem value="__none__">{t("unset")}</SelectItem>
                         <SelectItem value="enable">enable</SelectItem>
                         <SelectItem value="disable">disable</SelectItem>
                       </SelectContent>
@@ -306,11 +309,11 @@ export function DHCPDdnsModal({
                   <div className="grid grid-cols-2 gap-3">
                     {(
                       [
-                        ["conflict_resolution", "Conflict resolution", ENABLE_DISABLE],
-                        ["override_client_update", "Override client update", ENABLE_DISABLE],
-                        ["override_no_update", "Override no-update", ENABLE_DISABLE],
-                        ["update_on_renew", "Update on renew", ENABLE_DISABLE],
-                        ["replace_client_name", "Replace client name", REPLACE_CLIENT_NAME],
+                        ["conflict_resolution", t("ddns.conflictResolution"), ENABLE_DISABLE],
+                        ["override_client_update", t("ddns.overrideClientUpdate"), ENABLE_DISABLE],
+                        ["override_no_update", t("ddns.overrideNoUpdate"), ENABLE_DISABLE],
+                        ["update_on_renew", t("ddns.updateOnRenew"), ENABLE_DISABLE],
+                        ["replace_client_name", t("ddns.replaceClientName"), REPLACE_CLIENT_NAME],
                       ] as Array<["conflict_resolution" | "override_client_update" | "override_no_update" | "update_on_renew" | "replace_client_name", string, string[]]>
                     ).map(([field, label, options]) => (
                       <div className="space-y-1" key={field}>
@@ -325,10 +328,10 @@ export function DHCPDdnsModal({
                           }
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Unset" />
+                            <SelectValue placeholder={t("unset")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="__none__">Unset</SelectItem>
+                            <SelectItem value="__none__">{t("unset")}</SelectItem>
                             {options.map((o) => (
                               <SelectItem key={o} value={o}>
                                 {o}
@@ -339,12 +342,12 @@ export function DHCPDdnsModal({
                       </div>
                     ))}
                     <div className="space-y-1">
-                      <Label>TTL percent (1-100)</Label>
+                      <Label>{t("ddns.ttlPercent")}</Label>
                       <Input
                         type="number"
                         min={1}
                         max={100}
-                        placeholder="Unset"
+                        placeholder={t("unset")}
                         value={form.ttl_percent ?? ""}
                         onChange={(e) =>
                           setForm((prev) => ({ ...prev, ttl_percent: e.target.value }))
@@ -355,10 +358,10 @@ export function DHCPDdnsModal({
                   <div className="grid grid-cols-2 gap-3">
                     {(
                       [
-                        ["generated_prefix", "Generated prefix", "myhost"],
-                        ["qualifying_suffix", "Qualifying suffix", "example.com"],
-                        ["hostname_char_set", "Hostname char set", "[^A-Za-z0-9.-]"],
-                        ["hostname_char_replacement", "Hostname char replacement", "-"],
+                        ["generated_prefix", t("ddns.generatedPrefix"), "myhost"],
+                        ["qualifying_suffix", t("ddns.qualifyingSuffix"), "example.com"],
+                        ["hostname_char_set", t("ddns.hostnameCharSet"), "[^A-Za-z0-9.-]"],
+                        ["hostname_char_replacement", t("ddns.hostnameCharReplacement"), "-"],
                       ] as Array<["generated_prefix" | "qualifying_suffix" | "hostname_char_set" | "hostname_char_replacement", string, string]>
                     ).map(([field, label, ph]) => (
                       <div className="space-y-1" key={field}>
@@ -376,17 +379,17 @@ export function DHCPDdnsModal({
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label>TSIG keys</Label>
+                      <Label>{t("ddns.tsigKeys")}</Label>
                       <Button type="button" variant="outline" size="sm" onClick={addKey}>
                         <Plus className="h-3 w-3 mr-1" />
-                        Add
+                        {tc("add")}
                       </Button>
                     </div>
                     {form.tsig_keys.map((key, index) => (
                       <div key={index} className="border rounded-md p-3 space-y-2">
                         <div className="flex gap-2">
                           <Input
-                            placeholder="key name"
+                            placeholder={t("ddns.keyName")}
                             value={key.name}
                             onChange={(e) => updateKey(index, { name: e.target.value })}
                           />
@@ -421,15 +424,15 @@ export function DHCPDdnsModal({
                         </Select>
                         <Input
                           className="font-mono"
-                          placeholder="base64 secret"
+                          placeholder={t("ddns.base64Secret")}
                           value={key.secret ?? ""}
                           onChange={(e) => updateKey(index, { secret: e.target.value })}
                         />
                       </div>
                     ))}
                   </div>
-                  {domainEditor("Forward domains", "forward_domains")}
-                  {domainEditor("Reverse domains", "reverse_domains")}
+                  {domainEditor(t("ddns.forwardDomains"), "forward_domains")}
+                  {domainEditor(t("ddns.reverseDomains"), "reverse_domains")}
                 </>
               )}
             </>
@@ -443,10 +446,10 @@ export function DHCPDdnsModal({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

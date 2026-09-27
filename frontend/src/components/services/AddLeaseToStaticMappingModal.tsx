@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,8 @@ export function AddLeaseToStaticMappingModal({
   lease,
   network,
 }: AddLeaseToStaticMappingModalProps) {
+  const t = useTranslations("dhcpServer");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -106,46 +109,46 @@ export function AddLeaseToStaticMappingModal({
   const validateForm = (): boolean => {
     // Validate mapping name
     if (!mappingName.trim()) {
-      setError("Mapping name is required");
+      setError(t("validation.mappingNameRequired"));
       return false;
     }
 
     // Check for invalid characters in mapping name (VyOS node names)
     if (!/^[a-zA-Z0-9_-]+$/.test(mappingName.trim())) {
-      setError("Mapping name can only contain letters, numbers, hyphens, and underscores");
+      setError(t("validation.mappingNameInvalid"));
       return false;
     }
 
     // Validate IP address format
     if (!ipAddress.trim()) {
-      setError("IP address is required");
+      setError(t("validation.ipRequired"));
       return false;
     }
     const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
     if (!ipPattern.test(ipAddress.trim())) {
-      setError("Invalid IP address format");
+      setError(t("validation.ipInvalid"));
       return false;
     }
     const parts = ipAddress.trim().split(".").map(Number);
     if (parts.some((p) => p < 0 || p > 255)) {
-      setError("IP address octets must be between 0 and 255");
+      setError(t("validation.ipOctets"));
       return false;
     }
 
     // Validate MAC address format
     if (!macAddress.trim()) {
-      setError("MAC address is required");
+      setError(t("validation.macRequired"));
       return false;
     }
     const macPattern = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
     if (!macPattern.test(macAddress.trim())) {
-      setError("Invalid MAC address format (use XX:XX:XX:XX:XX:XX)");
+      setError(t("validation.macInvalidUse"));
       return false;
     }
 
     // Validate subnet selection
     if (!selectedSubnet) {
-      setError("Please select a subnet");
+      setError(t("validation.selectSubnet"));
       return false;
     }
 
@@ -171,7 +174,7 @@ export function AddLeaseToStaticMappingModal({
       onSuccess();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to create static mapping"
+        err instanceof Error ? err.message : t("mapping.createFailed")
       );
     } finally {
       setLoading(false);
@@ -184,10 +187,10 @@ export function AddLeaseToStaticMappingModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Plus className="h-5 w-5" />
-            Add Lease to Static Mapping
+            {t("leaseMapping.title")}
           </DialogTitle>
           <DialogDescription>
-            Convert this DHCP lease into a static mapping to reserve the IP address
+            {t("leaseMapping.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -195,12 +198,12 @@ export function AddLeaseToStaticMappingModal({
           {/* Context Info */}
           <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg p-3">
             <Network className="h-4 w-4" />
-            <span>Network: <span className="font-medium text-foreground">{network.name}</span></span>
+            <span>{t("networkLabel")}{" "}<span className="font-medium text-foreground">{network.name}</span></span>
           </div>
 
           {/* Original Lease Info */}
           <div className="rounded-lg border bg-muted/30 p-3 space-y-1">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Original Lease</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("leaseMapping.originalLease")}</p>
             <div className="flex flex-wrap gap-2">
               <Badge variant="outline" className="font-mono">{lease.ip_address}</Badge>
               <Badge variant="outline" className="font-mono text-xs">{lease.mac_address}</Badge>
@@ -212,10 +215,10 @@ export function AddLeaseToStaticMappingModal({
 
           {/* Subnet Selection */}
           <div className="space-y-2">
-            <Label htmlFor="subnet">Subnet</Label>
+            <Label htmlFor="subnet">{t("subnet")}</Label>
             <Select value={selectedSubnet} onValueChange={setSelectedSubnet}>
               <SelectTrigger>
-                <SelectValue placeholder="Select a subnet" />
+                <SelectValue placeholder={t("selectSubnet")} />
               </SelectTrigger>
               <SelectContent>
                 {network.subnets.map((subnet) => (
@@ -226,50 +229,50 @@ export function AddLeaseToStaticMappingModal({
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Select the subnet where this static mapping will be created
+              {t("leaseMapping.subnetHelp")}
             </p>
           </div>
 
           {/* Mapping Name */}
           <div className="space-y-2">
-            <Label htmlFor="mapping-name">Mapping Name</Label>
+            <Label htmlFor="mapping-name">{t("mapping.name")}</Label>
             <Input
               id="mapping-name"
-              placeholder="e.g., desktop-pc"
+              placeholder={t("examplePlaceholder", { example: "desktop-pc" })}
               value={mappingName}
               onChange={(e) => setMappingName(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              A unique identifier for this mapping (letters, numbers, hyphens, underscores)
+              {t("mapping.nameHelp")}
             </p>
           </div>
 
           {/* IP Address */}
           <div className="space-y-2">
-            <Label htmlFor="ip-address">IP Address</Label>
+            <Label htmlFor="ip-address">{t("mapping.ipAddress")}</Label>
             <Input
               id="ip-address"
-              placeholder="e.g., 192.168.1.100"
+              placeholder={t("examplePlaceholder", { example: "192.168.1.100" })}
               value={ipAddress}
               onChange={(e) => setIpAddress(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              The IP address to reserve for this device
+              {t("leaseMapping.ipHelp")}
             </p>
           </div>
 
           {/* MAC Address */}
           <div className="space-y-2">
-            <Label htmlFor="mac-address">MAC Address</Label>
+            <Label htmlFor="mac-address">{t("mapping.macAddress")}</Label>
             <Input
               id="mac-address"
-              placeholder="e.g., aa:bb:cc:dd:ee:ff"
+              placeholder={t("examplePlaceholder", { example: "aa:bb:cc:dd:ee:ff" })}
               value={macAddress}
               onChange={(e) => setMacAddress(e.target.value)}
               className="font-mono"
             />
             <p className="text-xs text-muted-foreground">
-              The MAC address of the device (format: XX:XX:XX:XX:XX:XX)
+              {t("leaseMapping.macHelp")}
             </p>
           </div>
 
@@ -284,10 +287,10 @@ export function AddLeaseToStaticMappingModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Creating..." : "Create Static Mapping"}
+            {loading ? t("creating") : t("leaseMapping.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,8 @@ interface Props {
 }
 
 export function DNSForwardingNameServerModal({ open, onOpenChange, onSubmit }: Props) {
+  const t = useTranslations("dnsForwarding");
+  const tc = useTranslations("common");
   const [ip, setIp] = useState("");
   const [port, setPort] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,12 +39,12 @@ export function DNSForwardingNameServerModal({ open, onOpenChange, onSubmit }: P
 
   const handleSubmit = async () => {
     if (!ip.trim()) {
-      setError("IP address is required");
+      setError(t("nameServer.ipRequired"));
       return;
     }
     const portNum = port ? parseInt(port, 10) : null;
     if (port && (isNaN(portNum!) || portNum! < 1 || portNum! > 65535)) {
-      setError("Port must be between 1 and 65535");
+      setError(t("nameServer.portRange"));
       return;
     }
     setLoading(true);
@@ -50,7 +53,7 @@ export function DNSForwardingNameServerModal({ open, onOpenChange, onSubmit }: P
       await onSubmit(ip.trim(), portNum);
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -60,29 +63,29 @@ export function DNSForwardingNameServerModal({ open, onOpenChange, onSubmit }: P
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Add Name Server</DialogTitle>
-          <DialogDescription>Add an upstream DNS name server.</DialogDescription>
+          <DialogTitle>{t("content.addNameServer")}</DialogTitle>
+          <DialogDescription>{t("nameServer.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="ns-ip">IP Address</Label>
+            <Label htmlFor="ns-ip">{t("content.ipAddress")}</Label>
             <Input
               id="ns-ip"
               value={ip}
               onChange={(e) => setIp(e.target.value)}
-              placeholder="e.g. 8.8.8.8 or 2001:4860:4860::8888"
+              placeholder={t("nameServer.ipPlaceholder")}
               className="font-mono"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="ns-port">Port (optional)</Label>
+            <Label htmlFor="ns-port">{t("nameServer.portOptional")}</Label>
             <Input
               id="ns-port"
               type="number"
               value={port}
               onChange={(e) => setPort(e.target.value)}
-              placeholder="53 (default)"
+              placeholder={t("defaultValue", { value: "53" })}
               min={1}
               max={65535}
               className="font-mono"
@@ -99,10 +102,10 @@ export function DNSForwardingNameServerModal({ open, onOpenChange, onSubmit }: P
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Adding...</> : "Add"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("adding")}</> : tc("add")}
           </Button>
         </DialogFooter>
       </DialogContent>

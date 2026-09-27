@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,8 @@ function Dash() {
 }
 
 export function TFTPServerContent() {
+  const t = useTranslations("tftpServer");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWrite = canWrite(FeatureGroup.TFTP_SERVER);
 
@@ -65,7 +68,7 @@ export function TFTPServerContent() {
       setConfig(cfg);
       setCapabilities(caps);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load TFTP server configuration");
+      setError(err instanceof Error ? err.message : t("content.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -90,7 +93,7 @@ export function TFTPServerContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -112,11 +115,11 @@ export function TFTPServerContent() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold text-foreground">TFTP Server</h1>
-                  {!hasWrite && <Badge variant="secondary">Read Only</Badge>}
+                  <h1 className="text-2xl font-bold text-foreground">{t("content.title")}</h1>
+                  {!hasWrite && <Badge variant="secondary">{t("content.readOnly")}</Badge>}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Trivial File Transfer Protocol — serve files to network devices
+                  {t("content.subtitle")}
                 </p>
               </div>
             </div>
@@ -124,12 +127,12 @@ export function TFTPServerContent() {
               {hasWrite && (
                 <Button size="sm" onClick={() => setGeneralOpen(true)}>
                   <Pencil className="h-4 w-4 mr-2" />
-                  Edit Settings
+                  {t("content.editSettings")}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={refresh}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -149,36 +152,36 @@ export function TFTPServerContent() {
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
                 <Settings2 className="h-4 w-4" />
-                Settings
+                {t("content.settings")}
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
                 <div className="flex flex-col sm:col-span-2">
-                  <dt className="text-xs text-muted-foreground">Directory</dt>
+                  <dt className="text-xs text-muted-foreground">{t("content.directory")}</dt>
                   <dd className="text-sm font-mono">
                     {config.directory ? config.directory : <Dash />}
                   </dd>
                 </div>
                 <div className="flex flex-col">
-                  <dt className="text-xs text-muted-foreground">Port</dt>
+                  <dt className="text-xs text-muted-foreground">{t("content.port")}</dt>
                   <dd className="text-sm">
-                    {config.port ?? `Default (${capabilities.features.port.default})`}
+                    {config.port ?? t("content.defaultPort", { value: String(capabilities.features.port.default) })}
                   </dd>
                 </div>
                 <div className="flex flex-col">
-                  <dt className="text-xs text-muted-foreground">Uploads</dt>
+                  <dt className="text-xs text-muted-foreground">{t("content.uploads")}</dt>
                   <dd className="text-sm">
                     <span className="flex items-center gap-1.5">
                       {config.allow_upload ? (
                         <>
                           <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
-                          Allowed
+                          {t("content.allowed")}
                         </>
                       ) : (
                         <>
                           <X className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-muted-foreground">Read-only</span>
+                          <span className="text-muted-foreground">{t("content.readOnlyUploads")}</span>
                         </>
                       )}
                     </span>
@@ -189,7 +192,7 @@ export function TFTPServerContent() {
                 <div className="mt-4 flex items-start gap-2 rounded-md border border-amber-500/20 bg-amber-500/10 p-3 text-sm text-amber-600 dark:text-amber-400">
                   <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
                   <span>
-                    A directory must be set for the TFTP server to start serving files.
+                    {t("content.directoryWarning")}
                   </span>
                 </div>
               )}
@@ -202,7 +205,7 @@ export function TFTPServerContent() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
                   <Radio className="h-4 w-4" />
-                  Listen Addresses
+                  {t("content.listenAddresses")}
                   {config.listen_addresses.length > 0 && (
                     <Badge variant="secondary">{config.listen_addresses.length}</Badge>
                   )}
@@ -214,7 +217,7 @@ export function TFTPServerContent() {
                     onClick={() => setListenModal({ open: true, edit: null })}
                   >
                     <Plus className="h-4 w-4 mr-1" />
-                    Add
+                    {tc("add")}
                   </Button>
                 )}
               </div>
@@ -222,13 +225,13 @@ export function TFTPServerContent() {
             <CardContent className="px-4 pb-4">
               {config.listen_addresses.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4 text-center">
-                  Listening on all addresses. Add one to restrict binding.
+                  {t("content.listenAll")}
                 </p>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Address</TableHead>
+                      <TableHead>{t("content.colAddress")}</TableHead>
                       <TableHead>VRF</TableHead>
                       {hasWrite && <TableHead className="w-[80px]" />}
                     </TableRow>

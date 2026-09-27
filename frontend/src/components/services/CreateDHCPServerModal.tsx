@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -81,6 +82,8 @@ export function CreateDHCPServerModal({
   capabilities,
   existingNetwork,
 }: CreateDHCPServerModalProps) {
+  const t = useTranslations("dhcpServer");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -212,93 +215,93 @@ export function CreateDHCPServerModal({
     // Network name validation
     if (mode === "new") {
       if (!networkName.trim()) {
-        setError("Network name is required");
+        setError(t("subnetForm.errors.networkNameRequired"));
         return false;
       }
     } else {
       if (!selectedNetwork) {
-        setError("Please select an existing network");
+        setError(t("subnetForm.errors.selectExistingNetwork"));
         return false;
       }
     }
 
     // Subnet validation
     if (!subnet.trim()) {
-      setError("Subnet is required");
+      setError(t("subnetForm.errors.subnetRequired"));
       return false;
     }
     if (!isValidCIDR(subnet.trim())) {
-      setError("Invalid subnet CIDR format. Use format like 192.168.1.0/24");
+      setError(t("subnetForm.errors.subnetInvalid"));
       return false;
     }
 
     // Default router validation
     if (!defaultRouter.trim()) {
-      setError("Default router (gateway) is required");
+      setError(t("subnetForm.errors.defaultRouterRequired"));
       return false;
     }
     if (!isValidIPv4(defaultRouter.trim())) {
-      setError("Invalid default router IP address");
+      setError(t("subnetForm.errors.defaultRouterInvalid"));
       return false;
     }
     if (!isIPInSubnet(defaultRouter.trim(), subnet.trim())) {
-      setError("Default router must be within the subnet");
+      setError(t("subnetForm.errors.defaultRouterOutside"));
       return false;
     }
 
     // Name servers validation
     const validNameServers = nameServers.filter((ns) => ns.trim());
     if (validNameServers.length === 0) {
-      setError("At least one name server is required");
+      setError(t("subnetForm.errors.nameServerRequired"));
       return false;
     }
     for (const ns of validNameServers) {
       if (!isValidIPv4(ns.trim())) {
-        setError(`Invalid name server IP address: ${ns}`);
+        setError(t("subnetForm.errors.nameServerInvalid", { value: ns }));
         return false;
       }
     }
 
     // Domain name validation
     if (!domainName.trim()) {
-      setError("Domain name is required");
+      setError(t("subnetForm.errors.domainNameRequired"));
       return false;
     }
     if (!isValidDomain(domainName.trim())) {
-      setError("Invalid domain name format");
+      setError(t("subnetForm.errors.domainNameInvalid"));
       return false;
     }
 
     // Domain search validation
     for (const ds of domainSearch.filter(d => d.trim())) {
       if (!isValidDomain(ds.trim())) {
-        setError(`Invalid domain search format: ${ds}`);
+        setError(t("subnetForm.errors.domainSearchInvalid", { value: ds }));
         return false;
       }
     }
 
     // Lease validation
     if (!lease.trim()) {
-      setError("Lease time is required");
+      setError(t("subnetForm.errors.leaseRequired"));
       return false;
     }
     const leaseNum = parseInt(lease);
     if (isNaN(leaseNum) || leaseNum <= 0) {
-      setError("Lease time must be a positive number");
+      setError(t("subnetForm.errors.leasePositive"));
       return false;
     }
 
     // DHCP ranges validation
     const validRanges = ranges.filter((r) => (r.start ?? "").trim() && (r.stop ?? "").trim());
     if (validRanges.length === 0) {
-      setError("At least one DHCP range with start and stop addresses is required");
+      setError(t("subnetForm.errors.rangeRequired"));
       return false;
     }
     for (const range of validRanges) {
       const start = (range.start ?? "").trim();
       const stop = (range.stop ?? "").trim();
       if (!isValidIPRange(start, stop, subnet.trim())) {
-        setError(`Invalid DHCP range: ${start} - ${stop}. Both IPs must be valid, within subnet, and start must be <= stop`);
+        setError(t("subnetForm.errors.rangeInvalid", { start, stop }));
         return false;
       }
     }
@@ -306,11 +309,11 @@ export function CreateDHCPServerModal({
     // Exclude addresses validation
     for (const exclude of excludes.filter(e => e.trim())) {
       if (!isValidIPv4(exclude.trim())) {
-        setError(`Invalid exclude IP address: ${exclude}`);
+        setError(t("subnetForm.errors.excludeInvalid", { value: exclude }));
         return false;
       }
       if (!isIPInSubnet(exclude.trim(), subnet.trim())) {
-        setError(`Exclude address ${exclude} must be within the subnet`);
+        setError(t("subnetForm.errors.excludeOutside", { value: exclude }));
         return false;
       }
     }
@@ -318,7 +321,7 @@ export function CreateDHCPServerModal({
     // Time servers validation
     for (const ts of timeServers.filter(t => t.trim())) {
       if (!isValidIPv4(ts.trim())) {
-        setError(`Invalid time server IP address: ${ts}`);
+        setError(t("subnetForm.errors.timeServerInvalid", { value: ts }));
         return false;
       }
     }
@@ -326,7 +329,7 @@ export function CreateDHCPServerModal({
     // NTP servers validation (must be IP addresses, not FQDNs)
     for (const ntp of ntpServers.filter(n => n.trim())) {
       if (!isValidIPv4(ntp.trim())) {
-        setError(`Invalid NTP server IP address: ${ntp}. NTP servers must be IP addresses, not hostnames`);
+        setError(t("subnetForm.errors.ntpServerInvalid", { value: ntp }));
         return false;
       }
     }
@@ -334,7 +337,7 @@ export function CreateDHCPServerModal({
     // WINS servers validation
     for (const wins of winsServers.filter(w => w.trim())) {
       if (!isValidIPv4(wins.trim())) {
-        setError(`Invalid WINS server IP address: ${wins}`);
+        setError(t("subnetForm.errors.winsServerInvalid", { value: wins }));
         return false;
       }
     }
@@ -399,7 +402,7 @@ export function CreateDHCPServerModal({
       handleClose();
       onSuccess();
     } catch (err) {
-      setError((err as ApiError).message || "Failed to create DHCP server");
+      setError((err as ApiError).message || t("create.failed"));
     } finally {
       setLoading(false);
     }
@@ -484,12 +487,12 @@ export function CreateDHCPServerModal({
       <DialogContent className="max-w-3xl h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>
-            {mode === "new" ? "Create DHCP Server" : "Add DHCP Subnet"}
+            {mode === "new" ? t("create.titleNew") : t("create.titleExisting")}
           </DialogTitle>
           <DialogDescription>
             {mode === "new"
-              ? "Configure a new DHCP server with subnet and options"
-              : "Add a new subnet to an existing DHCP shared network"
+              ? t("create.descriptionNew")
+              : t("create.descriptionExisting")
             }
           </DialogDescription>
         </DialogHeader>
@@ -498,7 +501,7 @@ export function CreateDHCPServerModal({
         {!existingNetwork && (
           <div className="space-y-4">
             <div>
-              <Label className="text-sm font-medium">Mode</Label>
+              <Label className="text-sm font-medium">{t("create.mode")}</Label>
               <div className="flex gap-4 mt-2">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -509,7 +512,7 @@ export function CreateDHCPServerModal({
                     onChange={(e) => setMode(e.target.value as "new")}
                     className="text-primary"
                   />
-                  <span className="text-sm">Create new shared network</span>
+                  <span className="text-sm">{t("create.modeNew")}</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -520,7 +523,7 @@ export function CreateDHCPServerModal({
                     onChange={(e) => setMode(e.target.value as "existing")}
                     className="text-primary"
                   />
-                  <span className="text-sm">Add subnet to existing network</span>
+                  <span className="text-sm">{t("create.modeExisting")}</span>
                 </label>
               </div>
             </div>
@@ -529,11 +532,11 @@ export function CreateDHCPServerModal({
 
         <Tabs defaultValue="basic" className="flex-1 overflow-hidden flex flex-col min-h-0">
           <TabsList className="grid w-full grid-cols-5 flex-shrink-0">
-            <TabsTrigger value="basic">Basic</TabsTrigger>
+            <TabsTrigger value="basic">{t("subnetForm.tabs.basic")}</TabsTrigger>
             <TabsTrigger value="dns">DNS</TabsTrigger>
-            <TabsTrigger value="pool">DHCP Pool</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced</TabsTrigger>
-            <TabsTrigger value="options">Options</TabsTrigger>
+            <TabsTrigger value="pool">{t("subnetForm.tabs.pool")}</TabsTrigger>
+            <TabsTrigger value="advanced">{t("subnetForm.tabs.advanced")}</TabsTrigger>
+            <TabsTrigger value="options">{t("subnetForm.tabs.options")}</TabsTrigger>
           </TabsList>
 
           <ScrollArea className="flex-1 pr-4 min-h-0">
@@ -542,13 +545,13 @@ export function CreateDHCPServerModal({
               <div className="grid gap-4">
                 <div>
                   <Label className="required">
-                    Shared Network Name
+                    {t("subnetForm.sharedNetworkName")}
                   </Label>
                   {mode === "new" ? (
                     <Input
                       value={networkName}
                       onChange={(e) => setNetworkName(e.target.value)}
-                      placeholder="e.g., LAN"
+                      placeholder={t("examplePlaceholder", { example: "LAN" })}
                     />
                   ) : (
                     <select
@@ -556,7 +559,7 @@ export function CreateDHCPServerModal({
                       onChange={(e) => setSelectedNetwork(e.target.value)}
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <option value="">Select existing network...</option>
+                      <option value="">{t("create.selectExistingNetwork")}</option>
                       {existingNetworks.map((network) => (
                         <option key={network} value={network}>
                           {network}
@@ -566,17 +569,17 @@ export function CreateDHCPServerModal({
                   )}
                   <p className="text-xs text-muted-foreground mt-1">
                     {mode === "new"
-                      ? "Logical group name for this DHCP configuration"
-                      : "Select an existing shared network to add this subnet to"
+                      ? t("create.networkNameHelp")
+                      : t("create.existingNetworkHelp")
                     }
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="createDescription">Description</Label>
+                  <Label htmlFor="createDescription">{tc("description")}</Label>
                   <Input
                     id="createDescription"
-                    placeholder="Optional description"
+                    placeholder={t("optionalDescription")}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                   />
@@ -584,46 +587,46 @@ export function CreateDHCPServerModal({
 
                 <div>
                   <Label htmlFor="subnet" className="required">
-                    Subnet (CIDR)
+                    {t("subnetForm.subnetCidr")}
                   </Label>
                   <Input
                     id="subnet"
                     value={subnet}
                     onChange={(e) => setSubnet(e.target.value)}
-                    placeholder="e.g., 192.168.1.0/24"
+                    placeholder={t("examplePlaceholder", { example: "192.168.1.0/24" })}
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Enter subnet in CIDR notation (e.g., 192.168.1.0/24)
+                    {t("subnetForm.subnetCidrHelp")}
                   </p>
                 </div>
 
                 <div>
                   <Label htmlFor="defaultRouter" className="required">
-                    Default Router (Gateway)
+                    {t("subnetForm.defaultRouter")}
                   </Label>
                   <Input
                     id="defaultRouter"
                     value={defaultRouter}
                     onChange={(e) => setDefaultRouter(e.target.value)}
-                    placeholder="e.g., 192.168.1.1"
+                    placeholder={t("examplePlaceholder", { example: "192.168.1.1" })}
                   />
                 </div>
 
                 <div>
                   <Label htmlFor="domainName" className="required">
-                    Domain Name
+                    {t("subnetForm.domainName")}
                   </Label>
                   <Input
                     id="domainName"
                     value={domainName}
                     onChange={(e) => setDomainName(e.target.value)}
-                    placeholder="e.g., local.lan"
+                    placeholder={t("examplePlaceholder", { example: "local.lan" })}
                   />
                 </div>
 
                 <div>
                   <Label htmlFor="lease" className="required">
-                    Lease Time (seconds)
+                    {t("subnetForm.leaseTime")}
                   </Label>
                   <Input
                     id="lease"
@@ -633,7 +636,7 @@ export function CreateDHCPServerModal({
                     placeholder="86400"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Default: 86400 (24 hours)
+                    {t("subnetForm.leaseTimeHelp")}
                   </p>
                 </div>
               </div>
@@ -642,14 +645,14 @@ export function CreateDHCPServerModal({
             {/* DNS Tab */}
             <TabsContent value="dns" className="space-y-4 mt-4">
               <div>
-                <Label className="required">Name Servers (DNS)</Label>
+                <Label className="required">{t("subnetForm.nameServers")}</Label>
                 <div className="space-y-2 mt-2">
                   {nameServers.map((ns, index) => (
                     <div key={index} className="flex gap-2">
                       <Input
                         value={ns}
                         onChange={(e) => updateNameServer(index, e.target.value)}
-                        placeholder="e.g., 8.8.8.8"
+                        placeholder={t("examplePlaceholder", { example: "8.8.8.8" })}
                       />
                       {nameServers.length > 1 && (
                         <Button
@@ -670,20 +673,20 @@ export function CreateDHCPServerModal({
                     onClick={addNameServer}
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Name Server
+                    {t("subnetForm.addNameServer")}
                   </Button>
                 </div>
               </div>
 
               <div>
-                <Label>Domain Search List</Label>
+                <Label>{t("subnetForm.domainSearchList")}</Label>
                 <div className="space-y-2 mt-2">
                   {domainSearch.map((ds, index) => (
                     <div key={index} className="flex gap-2">
                       <Input
                         value={ds}
                         onChange={(e) => updateDomainSearch(index, e.target.value)}
-                        placeholder="e.g., example.com"
+                        placeholder={t("examplePlaceholder", { example: "example.com" })}
                       />
                       <Button
                         type="button"
@@ -702,7 +705,7 @@ export function CreateDHCPServerModal({
                     onClick={addDomainSearch}
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Domain Search
+                    {t("subnetForm.addDomainSearch")}
                   </Button>
                 </div>
               </div>
@@ -711,7 +714,7 @@ export function CreateDHCPServerModal({
             {/* DHCP Pool Tab */}
             <TabsContent value="pool" className="space-y-4 mt-4">
               <div>
-                <Label className="required">IP Address Ranges</Label>
+                <Label className="required">{t("subnetForm.ipRanges")}</Label>
                 <div className="space-y-3 mt-2">
                   {ranges.map((range, index) => (
                     <div key={index} className="flex gap-2 items-start">
@@ -720,14 +723,14 @@ export function CreateDHCPServerModal({
                           <Input
                             value={range.start}
                             onChange={(e) => updateRange(index, "start", e.target.value)}
-                            placeholder="Start IP"
+                            placeholder={t("subnetForm.startIp")}
                           />
                         </div>
                         <div>
                           <Input
                             value={range.stop}
                             onChange={(e) => updateRange(index, "stop", e.target.value)}
-                            placeholder="Stop IP"
+                            placeholder={t("subnetForm.stopIp")}
                           />
                         </div>
                       </div>
@@ -745,15 +748,15 @@ export function CreateDHCPServerModal({
                   ))}
                   <Button type="button" variant="outline" size="sm" onClick={addRange}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Range
+                    {t("subnetForm.addRange")}
                   </Button>
                 </div>
               </div>
 
               <div>
-                <Label>Excluded Addresses</Label>
+                <Label>{t("subnetForm.excludedAddresses")}</Label>
                 <p className="text-xs text-muted-foreground mb-2">
-                  IP addresses to exclude from the DHCP pool
+                  {t("subnetForm.excludedAddressesHelp")}
                 </p>
                 <div className="space-y-2">
                   {excludes.map((exclude, index) => (
@@ -761,7 +764,7 @@ export function CreateDHCPServerModal({
                       <Input
                         value={exclude}
                         onChange={(e) => updateExclude(index, e.target.value)}
-                        placeholder="e.g., 192.168.1.50"
+                        placeholder={t("examplePlaceholder", { example: "192.168.1.50" })}
                       />
                       <Button
                         type="button"
@@ -775,7 +778,7 @@ export function CreateDHCPServerModal({
                   ))}
                   <Button type="button" variant="outline" size="sm" onClick={addExclude}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Exclude
+                    {t("subnetForm.addExclude")}
                   </Button>
                 </div>
               </div>
@@ -786,50 +789,50 @@ export function CreateDHCPServerModal({
               <div className="grid gap-4">
                 {capabilities?.fields.bootfile_name.supported && (
                   <div>
-                    <Label htmlFor="bootfileName">Bootfile Name</Label>
+                    <Label htmlFor="bootfileName">{t("subnetForm.bootfileName")}</Label>
                     <Input
                       id="bootfileName"
                       value={bootfileName}
                       onChange={(e) => setBootfileName(e.target.value)}
-                      placeholder="e.g., pxelinux.0"
+                      placeholder={t("examplePlaceholder", { example: "pxelinux.0" })}
                     />
                   </div>
                 )}
 
                 {capabilities?.fields.bootfile_server.supported && (
                   <div>
-                    <Label htmlFor="bootfileServer">Bootfile Server</Label>
+                    <Label htmlFor="bootfileServer">{t("subnetForm.bootfileServer")}</Label>
                     <Input
                       id="bootfileServer"
                       value={bootfileServer}
                       onChange={(e) => setBootfileServer(e.target.value)}
-                      placeholder="e.g., 192.168.1.10"
+                      placeholder={t("examplePlaceholder", { example: "192.168.1.10" })}
                     />
                   </div>
                 )}
 
                 {capabilities?.fields.tftp_server_name.supported && (
                   <div>
-                    <Label htmlFor="tftpServerName">TFTP Server Name</Label>
+                    <Label htmlFor="tftpServerName">{t("subnetForm.tftpServerName")}</Label>
                     <Input
                       id="tftpServerName"
                       value={tftpServerName}
                       onChange={(e) => setTftpServerName(e.target.value)}
-                      placeholder="e.g., tftp.local.lan"
+                      placeholder={t("examplePlaceholder", { example: "tftp.local.lan" })}
                     />
                   </div>
                 )}
 
                 {capabilities?.fields.time_servers.supported && (
                   <div>
-                    <Label>Time Servers</Label>
+                    <Label>{t("subnetForm.timeServers")}</Label>
                   <div className="space-y-2 mt-2">
                     {timeServers.map((ts, index) => (
                       <div key={index} className="flex gap-2">
                         <Input
                           value={ts}
                           onChange={(e) => updateTimeServer(index, e.target.value)}
-                          placeholder="e.g., 192.168.1.1"
+                          placeholder={t("examplePlaceholder", { example: "192.168.1.1" })}
                         />
                         <Button
                           type="button"
@@ -848,7 +851,7 @@ export function CreateDHCPServerModal({
                       onClick={addTimeServer}
                     >
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Time Server
+                      {t("subnetForm.addTimeServer")}
                     </Button>
                   </div>
                   </div>
@@ -856,14 +859,14 @@ export function CreateDHCPServerModal({
 
                 {capabilities?.fields.ntp_servers.supported && (
                   <div>
-                    <Label>NTP Servers (IP Address Only)</Label>
+                    <Label>{t("subnetForm.ntpServers")}</Label>
                     <div className="space-y-2 mt-2">
                     {ntpServers.map((ntp, index) => (
                       <div key={index} className="flex gap-2">
                         <Input
                           value={ntp}
                           onChange={(e) => updateNtpServer(index, e.target.value)}
-                          placeholder="e.g., 192.168.1.1"
+                          placeholder={t("examplePlaceholder", { example: "192.168.1.1" })}
                         />
                         <Button
                           type="button"
@@ -882,7 +885,7 @@ export function CreateDHCPServerModal({
                       onClick={addNtpServer}
                     >
                       <Plus className="h-4 w-4 mr-2" />
-                      Add NTP Server
+                      {t("subnetForm.addNtpServer")}
                     </Button>
                   </div>
                   </div>
@@ -890,14 +893,14 @@ export function CreateDHCPServerModal({
 
                 {capabilities?.fields.wins_servers.supported && (
                   <div>
-                    <Label>WINS Servers</Label>
+                    <Label>{t("subnetForm.winsServers")}</Label>
                     <div className="space-y-2 mt-2">
                     {winsServers.map((wins, index) => (
                       <div key={index} className="flex gap-2">
                         <Input
                           value={wins}
                           onChange={(e) => updateWinsServer(index, e.target.value)}
-                          placeholder="e.g., 192.168.1.2"
+                          placeholder={t("examplePlaceholder", { example: "192.168.1.2" })}
                         />
                         <Button
                           type="button"
@@ -916,7 +919,7 @@ export function CreateDHCPServerModal({
                       onClick={addWinsServer}
                     >
                       <Plus className="h-4 w-4 mr-2" />
-                      Add WINS Server
+                      {t("subnetForm.addWinsServer")}
                     </Button>
                   </div>
                   </div>
@@ -924,24 +927,24 @@ export function CreateDHCPServerModal({
 
                 {capabilities?.fields.time_offset.supported && (
                   <div>
-                    <Label htmlFor="timeOffset">Time Offset (seconds)</Label>
+                    <Label htmlFor="timeOffset">{t("subnetForm.timeOffset")}</Label>
                     <Input
                       id="timeOffset"
                       value={timeOffset}
                       onChange={(e) => setTimeOffset(e.target.value)}
-                      placeholder="e.g., -18000 for EST"
+                      placeholder={t("subnetForm.timeOffsetPlaceholder")}
                     />
                   </div>
                 )}
 
                 {capabilities?.fields.client_prefix_length.supported && (
                   <div>
-                    <Label htmlFor="clientPrefixLength">Client Prefix Length</Label>
+                    <Label htmlFor="clientPrefixLength">{t("subnetForm.clientPrefixLength")}</Label>
                     <Input
                       id="clientPrefixLength"
                       value={clientPrefixLength}
                       onChange={(e) => setClientPrefixLength(e.target.value)}
-                      placeholder="e.g., 24"
+                      placeholder={t("examplePlaceholder", { example: "24" })}
                     />
                   </div>
                 )}
@@ -953,7 +956,7 @@ export function CreateDHCPServerModal({
                       id="wpadUrl"
                       value={wpadUrl}
                       onChange={(e) => setWpadUrl(e.target.value)}
-                      placeholder="e.g., http://wpad.local.lan/wpad.dat"
+                      placeholder={t("examplePlaceholder", { example: "http://wpad.local.lan/wpad.dat" })}
                     />
                   </div>
                 )}
@@ -972,10 +975,10 @@ export function CreateDHCPServerModal({
                     />
                     <div className="space-y-1">
                       <Label htmlFor="pingCheck" className="cursor-pointer">
-                        Ping Check
+                        {t("subnetForm.pingCheck")}
                       </Label>
                       <p className="text-xs text-muted-foreground">
-                        Test IP addresses with ICMP ping before lease assignment
+                        {t("subnetForm.pingCheckHelp")}
                       </p>
                     </div>
                   </div>
@@ -990,10 +993,10 @@ export function CreateDHCPServerModal({
                     />
                     <div className="space-y-1">
                       <Label htmlFor="enableFailover" className="cursor-pointer">
-                        Enable Failover
+                        {t("subnetForm.enableFailover")}
                       </Label>
                       <p className="text-xs text-muted-foreground">
-                        Enable high availability for this subnet
+                        {t("subnetForm.enableFailoverHelp")}
                       </p>
                     </div>
                   </div>
@@ -1012,10 +1015,10 @@ export function CreateDHCPServerModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Creating..." : "Create DHCP Server"}
+            {loading ? t("creating") : t("create.submit")}
           </Button>
         </DialogFooter>
       </DialogContent>

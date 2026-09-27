@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,23 +27,27 @@ import { DeleteLLDPInterfaceModal } from "./DeleteLLDPInterfaceModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
-function modeLabel(mode: string): string {
+type ModeKey = "rxTx" | "rx" | "tx" | "disable";
+
+function modeLabel(mode: string, tr: (key: ModeKey) => string): string {
   switch (mode) {
-    case "rx-tx": return "Send & Receive";
-    case "rx": return "Receive Only";
-    case "tx": return "Transmit Only";
-    case "disable": return "Disabled";
+    case "rx-tx": return tr("rxTx");
+    case "rx": return tr("rx");
+    case "tx": return tr("tx");
+    case "disable": return tr("disable");
     default: return mode;
   }
 }
 
-function locationSummary(iface: LLDPInterface): string {
+type LocationKey = "elin" | "coord" | "coordinate";
+
+function locationSummary(iface: LLDPInterface, tr: (key: LocationKey, value: string) => string): string {
   if (!iface.location) return "—";
-  if (iface.location.elin) return `ELIN: ${iface.location.elin}`;
+  if (iface.location.elin) return tr("elin", iface.location.elin);
   const c = iface.location.coordinate_based;
   if (c) {
     const parts = [c.latitude, c.longitude].filter(Boolean);
-    return parts.length > 0 ? `Coord: ${parts.join(", ")}` : "Coordinate";
+    return parts.length > 0 ? tr("coord", parts.join(", ")) : tr("coordinate", "");
   }
   return "—";
 }
@@ -60,6 +65,8 @@ function legacyProtocolBadges(config: LLDPConfig) {
 }
 
 export function LLDPContent() {
+  const t = useTranslations("lldp");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWrite = canWrite(FeatureGroup.LLDP);
 
@@ -85,12 +92,12 @@ export function LLDPContent() {
       setCapabilities(caps);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to load LLDP configuration"
+        err instanceof Error ? err.message : t("content.loadFailed")
       );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -109,7 +116,7 @@ export function LLDPContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -133,11 +140,11 @@ export function LLDPContent() {
                 <div className="flex items-center gap-2">
                   <h1 className="text-2xl font-bold text-foreground">LLDP</h1>
                   {!hasWrite && (
-                    <Badge variant="secondary">Read Only</Badge>
+                    <Badge variant="secondary">{t("content.readOnly")}</Badge>
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Link Layer Discovery Protocol — advertise and discover network neighbours
+                  {t("content.subtitle")}
                 </p>
               </div>
             </div>
@@ -146,12 +153,12 @@ export function LLDPContent() {
               {hasWrite && (
                 <Button size="sm" onClick={() => setSettingsOpen(true)}>
                   <Pencil className="h-4 w-4 mr-2" />
-                  Edit Settings
+                  {t("content.editSettings")}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={() => loadData(true)}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -171,25 +178,25 @@ export function LLDPContent() {
             <StatCard
               icon={<MapPin className="h-4 w-4 text-primary" />}
               iconBg="bg-primary/10"
-              label="Management Addresses"
+              label={t("content.managementAddresses")}
               value={String(config?.management_addresses.length ?? 0)}
             />
             <StatCard
               icon={<Network className="h-4 w-4 text-primary" />}
               iconBg="bg-primary/10"
-              label="Configured Interfaces"
+              label={t("content.configuredInterfaces")}
               value={String(config?.interfaces.length ?? 0)}
             />
             <StatCard
               icon={<ShieldCheck className="h-4 w-4 text-primary" />}
               iconBg="bg-primary/10"
               label="SNMP"
-              value={config?.snmp_enabled ? "Enabled" : "Disabled"}
+              value={config?.snmp_enabled ? tc("enabled") : tc("disabled")}
             />
             <StatCard
               icon={<Radio className="h-4 w-4 text-primary" />}
               iconBg="bg-primary/10"
-              label="Legacy Protocols"
+              label={t("content.legacyProtocols")}
               value={`${activeProtocolCount} / 4`}
             />
           </div>
@@ -199,13 +206,13 @@ export function LLDPContent() {
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
                 <Network className="h-4 w-4" />
-                Global Settings
+                {t("content.globalSettings")}
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4 space-y-4">
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-2">
-                  Management Addresses
+                  {t("content.managementAddresses")}
                 </p>
                 {config && config.management_addresses.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
@@ -216,7 +223,7 @@ export function LLDPContent() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">None configured</p>
+                  <p className="text-sm text-muted-foreground">{t("content.noneConfigured")}</p>
                 )}
               </div>
 
@@ -227,18 +234,18 @@ export function LLDPContent() {
                     variant="secondary"
                     className="bg-green-500/10 text-green-600 dark:text-green-500"
                   >
-                    Enabled
+                    {tc("enabled")}
                   </Badge>
                 ) : (
                   <Badge variant="secondary" className="bg-muted text-muted-foreground">
-                    Disabled
+                    {tc("disabled")}
                   </Badge>
                 )}
               </div>
 
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-2">
-                  Legacy Discovery Protocols
+                  {t("content.legacyDiscoveryProtocols")}
                 </p>
                 {protocols.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
@@ -253,7 +260,7 @@ export function LLDPContent() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">None active</p>
+                  <p className="text-sm text-muted-foreground">{t("content.noneActive")}</p>
                 )}
               </div>
             </CardContent>
@@ -265,7 +272,7 @@ export function LLDPContent() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
                   <Network className="h-4 w-4" />
-                  Interface Overrides
+                  {t("content.interfaceOverrides")}
                 </CardTitle>
                 {hasWrite && (
                   <Button
@@ -277,7 +284,7 @@ export function LLDPContent() {
                     }}
                   >
                     <Plus className="h-4 w-4 mr-1" />
-                    Add Interface Override
+                    {t("content.addOverride")}
                   </Button>
                 )}
               </div>
@@ -287,9 +294,9 @@ export function LLDPContent() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Interface</TableHead>
-                      <TableHead>Mode</TableHead>
-                      <TableHead>Location</TableHead>
+                      <TableHead>{t("content.colInterface")}</TableHead>
+                      <TableHead>{t("content.colMode")}</TableHead>
+                      <TableHead>{t("content.colLocation")}</TableHead>
                       {hasWrite && <TableHead className="w-[80px]" />}
                     </TableRow>
                   </TableHeader>
@@ -308,11 +315,13 @@ export function LLDPContent() {
                                 : "bg-green-500/10 text-green-600 dark:text-green-500"
                             }
                           >
-                            {modeLabel(iface.mode)}
+                            {modeLabel(iface.mode, (k) => t(`mode.${k}`))}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {locationSummary(iface)}
+                          {locationSummary(iface, (k, value) =>
+                            k === "coordinate" ? t("location.coordinate") : t(`location.${k}`, { value })
+                          )}
                         </TableCell>
                         {hasWrite && (
                           <TableCell>
@@ -348,9 +357,9 @@ export function LLDPContent() {
                   <div className="rounded-full p-3 bg-muted mb-3">
                     <Network className="h-6 w-6 text-muted-foreground/50" />
                   </div>
-                  <p className="text-sm font-medium mb-1">No interface overrides</p>
+                  <p className="text-sm font-medium mb-1">{t("content.emptyTitle")}</p>
                   <p className="text-xs text-muted-foreground">
-                    All interfaces use default LLDP behaviour
+                    {t("content.emptyHint")}
                   </p>
                   {hasWrite && (
                     <Button
@@ -363,7 +372,7 @@ export function LLDPContent() {
                       }}
                     >
                       <Plus className="h-4 w-4 mr-1" />
-                      Add Interface Override
+                      {t("content.addOverride")}
                     </Button>
                   )}
                 </div>

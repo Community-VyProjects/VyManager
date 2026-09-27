@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, KeyboardEvent } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +49,8 @@ export function PrometheusExporterModal({
   caps,
   onSuccess,
 }: PrometheusExporterModalProps) {
+  const t = useTranslations("serviceMonitoring");
+  const tc = useTranslations("common");
   const [port, setPort] = useState(original?.port ? String(original.port) : "");
   const [vrf, setVrf] = useState(original?.vrf ?? "");
   const [listenAddresses, setListenAddresses] = useState<string[]>(
@@ -97,7 +100,7 @@ export function PrometheusExporterModal({
       }
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -113,12 +116,12 @@ export function PrometheusExporterModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{original ? "Edit" : "Configure"} {TITLES[type]}</DialogTitle>
+          <DialogTitle>{original ? t("common.editTitle", { name: TITLES[type] }) : t("common.configureTitle", { name: TITLES[type] })}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-1">
           <div className="space-y-2">
-            <Label htmlFor="exp-port">Port</Label>
+            <Label htmlFor="exp-port">{t("common.port")}</Label>
             <Input
               id="exp-port"
               type="number"
@@ -129,11 +132,11 @@ export function PrometheusExporterModal({
           </div>
 
           <div className="space-y-2">
-            <Label>Listen Addresses</Label>
+            <Label>{t("common.listenAddresses")}</Label>
             <div className="flex gap-2">
               <Input
                 ref={inputRef}
-                placeholder="e.g. 0.0.0.0"
+                placeholder={t("exporter.listenPlaceholder")}
                 value={listenInput}
                 onChange={(e) => setListenInput(e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -166,7 +169,7 @@ export function PrometheusExporterModal({
               id="exp-vrf"
               value={vrf}
               onValueChange={setVrf}
-              extraOptions={[{ label: "Default", value: "default" }]}
+              extraOptions={[{ label: tc("default"), value: "default" }]}
             />
           </div>
 
@@ -178,7 +181,7 @@ export function PrometheusExporterModal({
                 onCheckedChange={(c) => setTextfileCollector(!!c)}
               />
               <Label htmlFor="textfile" className="cursor-pointer">
-                Enable textfile collector
+                {t("exporter.enableTextfileCollector")}
               </Label>
             </div>
           )}
@@ -193,11 +196,11 @@ export function PrometheusExporterModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

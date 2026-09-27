@@ -1,1 +1,66 @@
-{}
+{
+  "content": {
+    "loadFailed": "Failed to load DHCP relay configuration",
+    "statusFailed": "Failed to update service status",
+    "unconfigured": "Unconfigured",
+    "active": "Active",
+    "title": "DHCP Relay",
+    "readOnly": "Read Only",
+    "subtitle": "Forward DHCP requests from clients to a centralized DHCP server",
+    "enableService": "Enable Service",
+    "disableService": "Disable Service",
+    "editConfiguration": "Edit Configuration",
+    "configure": "Configure",
+    "disabledBanner": "DHCP relay is disabled. Client requests will not be forwarded.",
+    "reenable": "Re-enable",
+    "emptyTitle": "DHCP Relay is not configured",
+    "emptyDescription": "Configure the DHCP relay agent to forward client broadcast requests to a centralized DHCP server on a different subnet.",
+    "configureRelay": "Configure DHCP Relay",
+    "serviceStatus": "Service Status",
+    "dhcpServers": "DHCP Servers",
+    "listenInterfaces": "Listen Interfaces",
+    "upstreamInterfaces": "Upstream Interfaces",
+    "broadcastInterfaces": "Broadcast Interfaces",
+    "noServers": "No servers configured",
+    "relayOptions": "Relay Options",
+    "hopCount": "Hop Count",
+    "maxPacketSize": "Max Packet Size",
+    "bytes": "{value} bytes",
+    "relayAgentsPolicy": "Relay Agents Policy",
+    "usingDefaults": "Using VyOS defaults"
+  },
+  "modal": {
+    "errors": {
+      "serverInvalid": "Server address must be a valid IPv4 address (e.g. 10.0.0.1)",
+      "serverDuplicate": "That server address is already in the list",
+      "serverRequired": "At least one DHCP server address is required",
+      "hopCountRange": "Hop count must be an integer between 1 and 255",
+      "maxSizeRange": "Max packet size must be an integer between 64 and 1400",
+      "configFailed": "Configuration failed"
+    },
+    "editTitle": "Edit DHCP Relay Configuration",
+    "editDescription": "Modify the DHCP relay service settings.",
+    "createDescription": "Set up the DHCP relay agent to forward client requests to a centralized server.",
+    "disableService": "Disable DHCP Relay service",
+    "serversHelp": "IPv4 addresses of the DHCP servers to relay requests to. At least one is required.",
+    "examplePlaceholder": "e.g. {example}",
+    "listenHelp": "Interfaces the relay agent listens on for client DHCP requests.",
+    "upstreamHelp": "Interfaces used to forward DHCP requests to the server.",
+    "broadcastHelp": "Optional — combined listen/upstream interface for broadcast environments.",
+    "relayOptionsHelp": "Advanced tuning — leave blank to use VyOS defaults.",
+    "defaultValue": "{value} (default)",
+    "hopCountHelp": "Discard packets that have reached this hop count (1–255).",
+    "maxSizeHelp": "Maximum packet size sent to the DHCP server in bytes (64–1400).",
+    "policies": {
+      "append": "Append own relay options to packet",
+      "replace": "Replace existing agent option field",
+      "forward": "Forward packet unchanged",
+      "discard": "Discard packet"
+    },
+    "relayAgentsPolicyHelp": "How to handle incoming packets that already contain relay agent options.",
+    "saveConfiguration": "Save Configuration",
+    "optionalSuffix": "(optional)",
+    "selectInterface": "Select interface to add",
+    "noInterfaces": "No additional interfaces available"
+  }
+}

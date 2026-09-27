@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -82,6 +83,8 @@ interface Props {
 type Tab = "network" | "subnet" | "ranges" | "net-options";
 
 export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSuccess }: Props) {
+  const t = useTranslations("dhcpv6Server");
+  const tc = useTranslations("common");
   const isEditing = network !== null;
   const namedRanges = caps.features.address_ranges_named?.supported ?? false;
   const classicRanges = caps.features.address_ranges_classic?.supported ?? false;
@@ -192,8 +195,8 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
   }
 
   async function handleSubmit() {
-    if (!name.trim()) { setError("Network name is required"); setActiveTab("network"); return; }
-    if (!isEditing && !subnetCidr.trim()) { setError("Subnet CIDR is required"); setActiveTab("subnet"); return; }
+    if (!name.trim()) { setError(t("networkModal.errors.nameRequired")); setActiveTab("network"); return; }
+    if (!isEditing && !subnetCidr.trim()) { setError(t("subnetModal.errors.cidrRequired")); setActiveTab("subnet"); return; }
 
     setLoading(true);
     setError(null);
@@ -214,7 +217,7 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
     if (isEditing) {
       const result = await dhcpv6ServerService.saveSharedNetwork(network, updatedNetwork);
       setLoading(false);
-      if (!result.success) { setError(result.error ?? "Failed to save network"); return; }
+      if (!result.success) { setError(result.error ?? t("networkModal.errors.saveFailed")); return; }
     } else {
       const subIrt = subInfoRefreshTime.trim() !== "" ? parseInt(subInfoRefreshTime.trim(), 10) : null;
       const subnet = {
@@ -260,7 +263,7 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
 
       const result = await dhcpv6ServerService.createSharedNetworkWithSubnet(updatedNetwork, subnet, rangeObj, namedRanges);
       setLoading(false);
-      if (!result.success) { setError(result.error ?? "Failed to create network"); return; }
+      if (!result.success) { setError(result.error ?? t("networkModal.errors.createFailed")); return; }
     }
 
     onSuccess(updatedNetwork.name);
@@ -268,14 +271,14 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
   }
 
   const tabs: { id: Tab; label: string }[] = isEditing
-    ? [{ id: "network", label: "Network" }, { id: "net-options", label: "Options" }]
-    : [{ id: "network", label: "Network" }, { id: "subnet", label: "DHCP Options" }, { id: "ranges", label: "Ranges" }];
+    ? [{ id: "network", label: t("networkModal.tabs.network") }, { id: "net-options", label: t("subnetModal.tabs.options") }]
+    : [{ id: "network", label: t("networkModal.tabs.network") }, { id: "subnet", label: t("networkModal.tabs.dhcpOptions") }, { id: "ranges", label: t("networkModal.tabs.ranges") }];
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit Shared Network" : "Add Shared Network"}</DialogTitle>
+          <DialogTitle>{isEditing ? t("networkModal.editTitle") : t("networkModal.addTitle")}</DialogTitle>
         </DialogHeader>
 
         <div className="flex border-b border-border -mx-1 px-1">
@@ -302,7 +305,7 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
             {activeTab === "network" && (
               <>
                 <div className="space-y-1.5">
-                  <Label htmlFor="net-name">Network Name</Label>
+                  <Label htmlFor="net-name">{t("networkModal.name")}</Label>
                   <Input
                     id="net-name"
                     placeholder="my-network"
@@ -313,10 +316,10 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="net-desc">Description</Label>
+                  <Label htmlFor="net-desc">{tc("description")}</Label>
                   <Input
                     id="net-desc"
-                    placeholder="Optional description"
+                    placeholder={t("optionalDescription")}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                   />
@@ -328,12 +331,12 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                     checked={netDisabled}
                     onCheckedChange={(v) => setNetDisabled(Boolean(v))}
                   />
-                  <Label htmlFor="net-disabled" className="cursor-pointer">Disable this network</Label>
+                  <Label htmlFor="net-disabled" className="cursor-pointer">{t("networkModal.disable")}</Label>
                 </div>
 
                 {caps.features.shared_network_interface.supported && (
                   <ListField
-                    label="Interfaces"
+                    label={t("subnetModal.interfaces")}
                     placeholder="eth0"
                     list={netInterfaces}
                     input={netIfaceInput}
@@ -345,10 +348,10 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
 
                 {!isEditing && caps.features.capwap_controller.supported && (
                   <div className="space-y-1.5">
-                    <Label htmlFor="net-capwap-create">CAPWAP Controller</Label>
+                    <Label htmlFor="net-capwap-create">{t("subnetModal.capwapController")}</Label>
                     <Input
                       id="net-capwap-create"
-                      placeholder="Optional"
+                      placeholder={tc("optional")}
                       value={netCapwap}
                       onChange={(e) => setNetCapwap(e.target.value)}
                     />
@@ -358,11 +361,11 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                 {!isEditing && (
                   <>
                     <div className="border-t border-border pt-3">
-                      <p className="text-xs text-muted-foreground mb-3 font-medium uppercase tracking-wide">First Subnet</p>
+                      <p className="text-xs text-muted-foreground mb-3 font-medium uppercase tracking-wide">{t("networkModal.firstSubnet")}</p>
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label htmlFor="sub-cidr">Subnet CIDR</Label>
+                      <Label htmlFor="sub-cidr">{t("subnetModal.subnetCidr")}</Label>
                       <Input
                         id="sub-cidr"
                         placeholder="2001:db8::/64"
@@ -373,7 +376,7 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
 
                     {caps.features.subnet_interface.supported && (
                       <ListField
-                        label="Subnet Interfaces"
+                        label={t("networkModal.subnetInterfaces")}
                         placeholder="eth0"
                         list={subInterfaces}
                         input={subIfaceInput}
@@ -385,34 +388,34 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
 
                     <div className="grid grid-cols-3 gap-2">
                       <div className="space-y-1.5">
-                        <Label htmlFor="lease-def">Default Lease (s)</Label>
+                        <Label htmlFor="lease-def">{t("subnetModal.leaseDefault")}</Label>
                         <Input
                           id="lease-def"
                           type="number"
                           min={0}
-                          placeholder="Optional"
+                          placeholder={tc("optional")}
                           value={leaseDefault}
                           onChange={(e) => setLeaseDefault(e.target.value)}
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label htmlFor="lease-min">Min Lease (s)</Label>
+                        <Label htmlFor="lease-min">{t("subnetModal.leaseMin")}</Label>
                         <Input
                           id="lease-min"
                           type="number"
                           min={0}
-                          placeholder="Optional"
+                          placeholder={tc("optional")}
                           value={leaseMinimum}
                           onChange={(e) => setLeaseMinimum(e.target.value)}
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label htmlFor="lease-max">Max Lease (s)</Label>
+                        <Label htmlFor="lease-max">{t("subnetModal.leaseMax")}</Label>
                         <Input
                           id="lease-max"
                           type="number"
                           min={0}
-                          placeholder="Optional"
+                          placeholder={tc("optional")}
                           value={leaseMaximum}
                           onChange={(e) => setLeaseMaximum(e.target.value)}
                         />
@@ -427,7 +430,7 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
             {activeTab === "net-options" && isEditing && (
               <>
                 <ListField
-                  label="Name Servers"
+                  label={t("subnetModal.nameServers")}
                   placeholder="2001:db8::1"
                   list={netNameServers}
                   input={netNsInput}
@@ -436,7 +439,7 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                   onRemove={(item) => removeFromList(netNameServers, setNetNameServers, item)}
                 />
                 <ListField
-                  label="Domain Search"
+                  label={t("subnetModal.domainSearch")}
                   placeholder="example.com"
                   list={netDomainSearch}
                   input={netDsInput}
@@ -445,22 +448,22 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                   onRemove={(item) => removeFromList(netDomainSearch, setNetDomainSearch, item)}
                 />
                 <div className="space-y-1.5">
-                  <Label htmlFor="net-irt">Info Refresh Time (seconds)</Label>
+                  <Label htmlFor="net-irt">{t("subnetModal.infoRefreshTime")}</Label>
                   <Input
                     id="net-irt"
                     type="number"
                     min={0}
-                    placeholder="Optional"
+                    placeholder={tc("optional")}
                     value={netInfoRefreshTime}
                     onChange={(e) => setNetInfoRefreshTime(e.target.value)}
                   />
                 </div>
                 {caps.features.capwap_controller.supported && (
                   <div className="space-y-1.5">
-                    <Label htmlFor="net-capwap">CAPWAP Controller</Label>
+                    <Label htmlFor="net-capwap">{t("subnetModal.capwapController")}</Label>
                     <Input
                       id="net-capwap"
-                      placeholder="Optional"
+                      placeholder={tc("optional")}
                       value={netCapwap}
                       onChange={(e) => setNetCapwap(e.target.value)}
                     />
@@ -473,7 +476,7 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
             {activeTab === "subnet" && !isEditing && (
               <>
                 <ListField
-                  label="Name Servers"
+                  label={t("subnetModal.nameServers")}
                   placeholder="2001:db8::1"
                   list={subNsServers}
                   input={subNsInput}
@@ -482,7 +485,7 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                   onRemove={(item) => removeFromList(subNsServers, setSubNsServers, item)}
                 />
                 <ListField
-                  label="Domain Search"
+                  label={t("subnetModal.domainSearch")}
                   placeholder="example.com"
                   list={subDomainSearch}
                   input={subDsInput}
@@ -491,47 +494,47 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                   onRemove={(item) => removeFromList(subDomainSearch, setSubDomainSearch, item)}
                 />
                 <div className="space-y-1.5">
-                  <Label htmlFor="sub-irt">Info Refresh Time (seconds)</Label>
+                  <Label htmlFor="sub-irt">{t("subnetModal.infoRefreshTime")}</Label>
                   <Input
                     id="sub-irt"
                     type="number"
                     min={0}
-                    placeholder="Optional"
+                    placeholder={tc("optional")}
                     value={subInfoRefreshTime}
                     onChange={(e) => setSubInfoRefreshTime(e.target.value)}
                   />
                 </div>
                 {caps.features.capwap_controller.supported && (
                   <div className="space-y-1.5">
-                    <Label htmlFor="sub-capwap">CAPWAP Controller</Label>
+                    <Label htmlFor="sub-capwap">{t("subnetModal.capwapController")}</Label>
                     <Input
                       id="sub-capwap"
-                      placeholder="Optional"
+                      placeholder={tc("optional")}
                       value={subCapwap}
                       onChange={(e) => setSubCapwap(e.target.value)}
                     />
                   </div>
                 )}
                 <div className="space-y-1.5">
-                  <Label htmlFor="nis-domain">NIS Domain</Label>
+                  <Label htmlFor="nis-domain">{t("subnetModal.nisDomain")}</Label>
                   <Input
                     id="nis-domain"
-                    placeholder="Optional"
+                    placeholder={tc("optional")}
                     value={nisDomain}
                     onChange={(e) => setNisDomain(e.target.value)}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="nisplus-domain">NIS+ Domain</Label>
+                  <Label htmlFor="nisplus-domain">{t("subnetModal.nisplusDomain")}</Label>
                   <Input
                     id="nisplus-domain"
-                    placeholder="Optional"
+                    placeholder={tc("optional")}
                     value={nisplusDomain}
                     onChange={(e) => setNisplusDomain(e.target.value)}
                   />
                 </div>
                 <ListField
-                  label="NIS Servers"
+                  label={t("subnetModal.nisServers")}
                   placeholder="2001:db8::1"
                   list={nisServers}
                   input={nisInput}
@@ -540,7 +543,7 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                   onRemove={(item) => removeFromList(nisServers, setNisServers, item)}
                 />
                 <ListField
-                  label="NIS+ Servers"
+                  label={t("subnetModal.nisplusServers")}
                   placeholder="2001:db8::1"
                   list={nisplusServers}
                   input={nisplusInput}
@@ -549,8 +552,8 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                   onRemove={(item) => removeFromList(nisplusServers, setNisplusServers, item)}
                 />
                 <ListField
-                  label="SIP Servers"
-                  placeholder="2001:db8::1 or hostname"
+                  label={t("subnetModal.sipServers")}
+                  placeholder={t("networkModal.sipPlaceholder")}
                   list={sipServers}
                   input={sipInput}
                   setInput={setSipInput}
@@ -558,7 +561,7 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                   onRemove={(item) => removeFromList(sipServers, setSipServers, item)}
                 />
                 <ListField
-                  label="SNTP Servers"
+                  label={t("subnetModal.sntpServers")}
                   placeholder="2001:db8::1"
                   list={sntpServers}
                   input={sntpInput}
@@ -567,7 +570,7 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                   onRemove={(item) => removeFromList(sntpServers, setSntpServers, item)}
                 />
                 <ListField
-                  label="Cisco TFTP Servers"
+                  label={t("subnetModal.ciscoTftpServers")}
                   placeholder="2001:db8::1"
                   list={ciscoTftpServers}
                   input={ciscoTftpInput}
@@ -582,34 +585,34 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
             {activeTab === "ranges" && !isEditing && (
               <>
                 <p className="text-xs text-muted-foreground">
-                  Optional — you can add address ranges after creating the network.
+                  {t("networkModal.rangesHint")}
                 </p>
 
                 {namedRanges ? (
                   <>
                     <div className="space-y-1.5">
-                      <Label htmlFor="range-start">Start Address</Label>
+                      <Label htmlFor="range-start">{t("range.startAddress")}</Label>
                       <Input
                         id="range-start"
-                        placeholder="2001:db8::1 (optional)"
+                        placeholder={t("optionalExample", { example: "2001:db8::1" })}
                         value={rangeStart}
                         onChange={(e) => setRangeStart(e.target.value)}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="range-stop">Stop Address</Label>
+                      <Label htmlFor="range-stop">{t("range.stopAddress")}</Label>
                       <Input
                         id="range-stop"
-                        placeholder="2001:db8::ff (optional)"
+                        placeholder={t("optionalExample", { example: "2001:db8::ff" })}
                         value={rangeStop}
                         onChange={(e) => setRangeStop(e.target.value)}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="range-prefix">Prefix</Label>
+                      <Label htmlFor="range-prefix">{t("range.prefix")}</Label>
                       <Input
                         id="range-prefix"
-                        placeholder="2001:db8::/64 (optional)"
+                        placeholder={t("optionalExample", { example: "2001:db8::/64" })}
                         value={rangePrefix}
                         onChange={(e) => setRangePrefix(e.target.value)}
                       />
@@ -627,7 +630,7 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                         }`}
                         onClick={() => setRange14Mode("start-stop")}
                       >
-                        Start / Stop
+                        {t("range.modeStartStop")}
                       </button>
                       <button
                         type="button"
@@ -638,14 +641,14 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                         }`}
                         onClick={() => setRange14Mode("prefix")}
                       >
-                        Prefix
+                        {t("range.prefix")}
                       </button>
                     </div>
 
                     {range14Mode === "start-stop" ? (
                       <>
                         <div className="space-y-1.5">
-                          <Label htmlFor="r14-start">Start Address</Label>
+                          <Label htmlFor="r14-start">{t("range.startAddress")}</Label>
                           <Input
                             id="r14-start"
                             placeholder="2001:db8::1"
@@ -654,7 +657,7 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label htmlFor="r14-stop">Stop Address</Label>
+                          <Label htmlFor="r14-stop">{t("range.stopAddress")}</Label>
                           <Input
                             id="r14-stop"
                             placeholder="2001:db8::ff"
@@ -666,7 +669,7 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                     ) : (
                       <>
                         <div className="space-y-1.5">
-                          <Label htmlFor="r14-prefix">Prefix</Label>
+                          <Label htmlFor="r14-prefix">{t("range.prefix")}</Label>
                           <Input
                             id="r14-prefix"
                             placeholder="2001:db8::/64"
@@ -680,7 +683,7 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                             checked={range14Temporary}
                             onCheckedChange={(v) => setRange14Temporary(Boolean(v))}
                           />
-                          <Label htmlFor="r14-temp" className="cursor-pointer">Temporary addresses</Label>
+                          <Label htmlFor="r14-temp" className="cursor-pointer">{t("range.temporary")}</Label>
                         </div>
                       </>
                     )}
@@ -699,10 +702,10 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
         </ScrollArea>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isEditing ? "Save" : "Create Network"}
+            {isEditing ? tc("save") : t("networkModal.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

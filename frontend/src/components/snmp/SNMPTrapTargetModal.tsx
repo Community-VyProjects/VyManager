@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,8 @@ export function SNMPTrapTargetModal({
   defaultPort,
   onSuccess,
 }: SNMPTrapTargetModalProps) {
+  const t = useTranslations("snmp");
+  const tc = useTranslations("common");
   const isEdit = existing !== null;
   const [address, setAddress] = useState(existing?.address ?? "");
   const [community, setCommunity] = useState(existing?.community ?? "");
@@ -44,15 +47,15 @@ export function SNMPTrapTargetModal({
   const handleSubmit = async () => {
     const addr = address.trim();
     if (!addr) {
-      setError("A target IP address is required");
+      setError(t("trap.addressRequired"));
       return;
     }
     if (!isValidIP(addr)) {
-      setError("Enter a valid IPv4 or IPv6 address");
+      setError(t("validation.invalidIp"));
       return;
     }
     if (!isEdit && existingAddresses.includes(addr)) {
-      setError(`Trap target "${addr}" already exists`);
+      setError(t("trap.exists", { address: addr }));
       return;
     }
     setSubmitting(true);
@@ -62,7 +65,7 @@ export function SNMPTrapTargetModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -72,18 +75,18 @@ export function SNMPTrapTargetModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Trap Target" : "Add Trap Target"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("trap.editTitle") : t("trap.addTitle")}</DialogTitle>
           <DialogDescription>
-            SNMPv1/v2c destination for outgoing trap notifications
+            {t("trap.description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-1">
           <div className="space-y-1.5">
-            <Label htmlFor="trap-address">Target Address</Label>
+            <Label htmlFor="trap-address">{t("trap.targetAddress")}</Label>
             <Input
               id="trap-address"
-              placeholder="e.g. 192.0.2.50"
+              placeholder={t("trap.addressPlaceholder")}
               value={address}
               onChange={(e) => {
                 setAddress(e.target.value);
@@ -94,27 +97,27 @@ export function SNMPTrapTargetModal({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="trap-community">Community</Label>
+            <Label htmlFor="trap-community">{t("content.community")}</Label>
             <Input
               id="trap-community"
-              placeholder="Community string sent with traps"
+              placeholder={t("trap.communityPlaceholder")}
               value={community}
               onChange={(e) => setCommunity(e.target.value)}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="trap-port">Port</Label>
+            <Label htmlFor="trap-port">{t("content.port")}</Label>
             <Input
               id="trap-port"
               type="number"
               min={1}
               max={65535}
-              placeholder={`Default (${defaultPort})`}
+              placeholder={t("general.defaultValue", { value: defaultPort })}
               value={port}
               onChange={(e) => setPort(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Leave empty to use the default trap port ({defaultPort}).
+              {t("trap.portHelp", { port: defaultPort })}
             </p>
           </div>
         </div>
@@ -128,11 +131,11 @@ export function SNMPTrapTargetModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isEdit ? "Save" : "Add"}
+            {isEdit ? tc("save") : tc("add")}
           </Button>
         </DialogFooter>
       </DialogContent>

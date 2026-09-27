@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,17 +33,18 @@ import { DeleteNTPServerModal } from "./DeleteNTPServerModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
-function leapSecondLabel(value: string | null): string {
+function leapSecondLabel(value: string | null): "ignore" | "smear" | "system" | "timezone" | "default" {
   switch (value) {
-    case "ignore": return "Ignore";
-    case "smear": return "Smear";
-    case "system": return "System";
-    case "timezone": return "Timezone";
-    default: return "Default";
+    case "ignore": return "ignore";
+    case "smear": return "smear";
+    case "system": return "system";
+    case "timezone": return "timezone";
+    default: return "default";
   }
 }
 
 function ServerFlagBadges({ server }: { server: NTPServer }) {
+  const t = useTranslations("ntp");
   return (
     <div className="flex flex-wrap gap-1">
       {server.prefer && (
@@ -50,7 +52,7 @@ function ServerFlagBadges({ server }: { server: NTPServer }) {
           variant="secondary"
           className="text-xs bg-green-500/10 text-green-600 dark:text-green-400"
         >
-          Preferred
+          {t("content.preferred")}
         </Badge>
       )}
       {server.pool && (
@@ -58,7 +60,7 @@ function ServerFlagBadges({ server }: { server: NTPServer }) {
           variant="secondary"
           className="text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400"
         >
-          Pool
+          {t("content.pool")}
         </Badge>
       )}
       {server.nts && (
@@ -74,7 +76,7 @@ function ServerFlagBadges({ server }: { server: NTPServer }) {
           variant="secondary"
           className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400"
         >
-          No Select
+          {t("content.noSelect")}
         </Badge>
       )}
       {!server.prefer && !server.pool && !server.nts && !server.noselect && (
@@ -85,6 +87,8 @@ function ServerFlagBadges({ server }: { server: NTPServer }) {
 }
 
 export function NTPContent() {
+  const t = useTranslations("ntp");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWrite = canWrite(FeatureGroup.NTP);
 
@@ -110,12 +114,12 @@ export function NTPContent() {
       setCapabilities(caps);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to load NTP configuration"
+        err instanceof Error ? err.message : t("content.loadFailed")
       );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -134,7 +138,7 @@ export function NTPContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -157,10 +161,10 @@ export function NTPContent() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-2xl font-bold text-foreground">NTP</h1>
-                  {!hasWrite && <Badge variant="secondary">Read Only</Badge>}
+                  {!hasWrite && <Badge variant="secondary">{t("content.readOnly")}</Badge>}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Network Time Protocol — synchronise system time with upstream servers
+                  {t("content.subtitle")}
                 </p>
               </div>
             </div>
@@ -169,12 +173,12 @@ export function NTPContent() {
               {hasWrite && (
                 <Button size="sm" onClick={() => setSettingsOpen(true)}>
                   <Pencil className="h-4 w-4 mr-2" />
-                  Edit Settings
+                  {t("content.editSettings")}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={() => loadData(true)}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -194,30 +198,30 @@ export function NTPContent() {
             <StatCard
               icon={<Server className="h-4 w-4 text-primary" />}
               iconBg="bg-primary/10"
-              label="Servers"
+              label={t("content.servers")}
               value={String(config?.servers.length ?? 0)}
             />
             <StatCard
               icon={<Clock className="h-4 w-4 text-green-600 dark:text-green-400" />}
               iconBg="bg-green-500/10"
-              label="Preferred"
+              label={t("content.preferred")}
               value={preferredServer?.name ?? "—"}
               mono
             />
             <StatCard
               icon={<ShieldCheck className="h-4 w-4 text-purple-600 dark:text-purple-400" />}
               iconBg="bg-purple-500/10"
-              label="NTS Secured"
+              label={t("content.ntsSecured")}
               value={String(ntsCount)}
             />
             <StatCard
               icon={<Globe className="h-4 w-4 text-primary" />}
               iconBg="bg-primary/10"
-              label="Client Restrictions"
+              label={t("content.clientRestrictions")}
               value={
                 (config?.allow_clients.length ?? 0) > 0
                   ? String(config!.allow_clients.length)
-                  : "None"
+                  : tc("none")
               }
             />
           </div>
@@ -228,7 +232,7 @@ export function NTPContent() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
                   <Server className="h-4 w-4" />
-                  Servers
+                  {t("content.servers")}
                 </CardTitle>
                 {hasWrite && (
                   <Button
@@ -240,7 +244,7 @@ export function NTPContent() {
                     }}
                   >
                     <Plus className="h-4 w-4 mr-1" />
-                    Add Server
+                    {t("content.addServer")}
                   </Button>
                 )}
               </div>
@@ -250,8 +254,8 @@ export function NTPContent() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Server</TableHead>
-                      <TableHead>Flags</TableHead>
+                      <TableHead>{t("content.colServer")}</TableHead>
+                      <TableHead>{t("content.colFlags")}</TableHead>
                       {hasWrite && <TableHead className="w-[80px]" />}
                     </TableRow>
                   </TableHeader>
@@ -298,9 +302,9 @@ export function NTPContent() {
                   <div className="rounded-full p-3 bg-muted mb-3">
                     <Server className="h-6 w-6 text-muted-foreground/50" />
                   </div>
-                  <p className="text-sm font-medium mb-1">No servers configured</p>
+                  <p className="text-sm font-medium mb-1">{t("content.emptyTitle")}</p>
                   <p className="text-xs text-muted-foreground">
-                    Add at least one upstream NTP server to synchronise time
+                    {t("content.emptyHint")}
                   </p>
                   {hasWrite && (
                     <Button
@@ -313,7 +317,7 @@ export function NTPContent() {
                       }}
                     >
                       <Plus className="h-4 w-4 mr-1" />
-                      Add Server
+                      {t("content.addServer")}
                     </Button>
                   )}
                 </div>
@@ -326,14 +330,14 @@ export function NTPContent() {
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
                 <Globe className="h-4 w-4" />
-                Global Settings
+                {t("content.globalSettings")}
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4 space-y-4">
               {/* Listen Addresses */}
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-2">
-                  Listen Addresses
+                  {t("content.listenAddresses")}
                 </p>
                 {config && config.listen_addresses.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
@@ -344,14 +348,14 @@ export function NTPContent() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">All interfaces</p>
+                  <p className="text-sm text-muted-foreground">{t("content.allInterfaces")}</p>
                 )}
               </div>
 
               {/* Allow Clients */}
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-2">
-                  Allow Clients
+                  {t("content.allowClients")}
                 </p>
                 {config && config.allow_clients.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
@@ -362,14 +366,14 @@ export function NTPContent() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Unrestricted</p>
+                  <p className="text-sm text-muted-foreground">{t("content.unrestricted")}</p>
                 )}
               </div>
 
               {/* Interfaces */}
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-2">
-                  Interfaces
+                  {t("content.interfaces")}
                 </p>
                 {config && config.interfaces.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
@@ -380,16 +384,16 @@ export function NTPContent() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">All interfaces</p>
+                  <p className="text-sm text-muted-foreground">{t("content.allInterfaces")}</p>
                 )}
               </div>
 
               {/* Leap Second + VRF in a row */}
               <div className="flex flex-wrap gap-6 text-sm">
                 <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">Leap Second</span>
+                  <span className="text-muted-foreground">{t("content.leapSecond")}</span>
                   <Badge variant="secondary">
-                    {leapSecondLabel(config?.leap_second ?? null)}
+                    {t(`leapSecond.${leapSecondLabel(config?.leap_second ?? null)}`)}
                   </Badge>
                 </div>
                 <div className="flex items-center gap-2">
@@ -408,18 +412,18 @@ export function NTPContent() {
               {capabilities?.features.timestamp_receive_filter.supported && (
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">
-                    Interface Receive Filters
+                    {t("content.receiveFilters")}
                   </p>
                   {config && config.timestamp_interfaces.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
-                      {config.timestamp_interfaces.map((t) => (
-                        <Badge key={t.interface} variant="secondary" className="font-mono">
-                          {t.interface}: {t.receive_filter}
+                      {config.timestamp_interfaces.map((ts) => (
+                        <Badge key={ts.interface} variant="secondary" className="font-mono">
+                          {ts.interface}: {ts.receive_filter}
                         </Badge>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">None</p>
+                    <p className="text-sm text-muted-foreground">{tc("none")}</p>
                   )}
                 </div>
               )}

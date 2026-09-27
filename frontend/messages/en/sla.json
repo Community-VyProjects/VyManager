@@ -1,1 +1,28 @@
-{}
+{
+  "content": {
+    "portCustom": "{port} (custom)",
+    "portDefault": "{port} (default)",
+    "port": "Port",
+    "loadFailed": "Failed to load SLA configuration",
+    "readOnly": "Read Only",
+    "subtitle": "Service Level Agreement — OWAMP and TWAMP measurement servers",
+    "editSettings": "Edit Settings",
+    "enabledCount": "{count, plural, =0 {No measurement servers enabled} one {# measurement server enabled} other {# measurement servers enabled}}",
+    "owampServer": "OWAMP Server",
+    "owampDescription": "Measures one-way network delay, jitter, and packet loss between endpoints. Used for asymmetric path analysis and SLA verification.",
+    "twampServer": "TWAMP Server",
+    "twampDescription": "Measures round-trip network delay, jitter, and packet loss between endpoints. Extends OWAMP with bidirectional measurement capability."
+  },
+  "settings": {
+    "portRange": "Port must be a number between 1 and 65535",
+    "title": "SLA Settings",
+    "description": "Configure OWAMP and TWAMP measurement server settings",
+    "enableOwamp": "Enable OWAMP Server",
+    "owampHint": "One-Way Active Measurement Protocol — measures one-way delay and packet loss",
+    "port": "Port",
+    "portPlaceholder": "{port} (default)",
+    "portHint": "Leave blank to use the default port ({port})",
+    "enableTwamp": "Enable TWAMP Server",
+    "twampHint": "Two-Way Active Measurement Protocol — measures round-trip delay and packet loss"
+  }
+}

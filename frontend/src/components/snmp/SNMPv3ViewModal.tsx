@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +43,8 @@ export function SNMPv3ViewModal({
   existingNames,
   onSuccess,
 }: SNMPv3ViewModalProps) {
+  const t = useTranslations("snmp");
+  const tc = useTranslations("common");
   const isEdit = existing !== null;
   const [name, setName] = useState(existing?.name ?? "");
   const [oids, setOids] = useState<EditableOid[]>(
@@ -58,11 +61,11 @@ export function SNMPv3ViewModal({
   const handleSubmit = async () => {
     const n = name.trim();
     if (!n) {
-      setError("A view name is required");
+      setError(t("view.nameRequired"));
       return;
     }
     if (!isEdit && existingNames.includes(n)) {
-      setError(`View "${n}" already exists`);
+      setError(t("view.exists", { name: n }));
       return;
     }
     const cleaned = oids
@@ -70,7 +73,7 @@ export function SNMPv3ViewModal({
       .filter((o) => o.oid !== "");
     const keys = cleaned.map((o) => o.oid);
     if (new Set(keys).size !== keys.length) {
-      setError("Duplicate OID entries are not allowed");
+      setError(t("view.duplicateOid"));
       return;
     }
 
@@ -88,7 +91,7 @@ export function SNMPv3ViewModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -98,19 +101,19 @@ export function SNMPv3ViewModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit View" : "Add View"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("view.editTitle") : t("view.addTitle")}</DialogTitle>
           <DialogDescription>
-            An SNMPv3 view selects the OID subtrees a group may access
+            {t("view.description")}
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[65vh] pr-4">
           <div className="space-y-5 py-1">
             <div className="space-y-1.5">
-              <Label htmlFor="view-name">View Name</Label>
+              <Label htmlFor="view-name">{t("view.name")}</Label>
               <Input
                 id="view-name"
-                placeholder="e.g. default"
+                placeholder={t("view.namePlaceholder")}
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value);
@@ -123,7 +126,7 @@ export function SNMPv3ViewModal({
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">OID Subtrees</Label>
+                <Label className="text-sm font-medium">{t("content.oidSubtrees")}</Label>
                 <Button
                   type="button"
                   size="sm"
@@ -133,13 +136,13 @@ export function SNMPv3ViewModal({
                   }
                 >
                   <Plus className="h-4 w-4 mr-1" />
-                  Add OID
+                  {t("view.addOid")}
                 </Button>
               </div>
 
               {oids.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No OID subtrees yet. Add at least one for this view to be useful.
+                  {t("view.noOids")}
                 </p>
               ) : (
                 oids.map((oid, index) => (
@@ -151,7 +154,7 @@ export function SNMPv3ViewModal({
                       <div className="flex-1 space-y-1.5">
                         <Label className="text-xs font-medium">OID</Label>
                         <Input
-                          placeholder="e.g. 1.3.6.1.2.1"
+                          placeholder={t("view.oidPlaceholder")}
                           value={oid.oid}
                           onChange={(e) => updateOid(index, { oid: e.target.value })}
                           className="font-mono"
@@ -171,9 +174,9 @@ export function SNMPv3ViewModal({
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-medium">Mask</Label>
+                      <Label className="text-xs font-medium">{t("view.mask")}</Label>
                       <Input
-                        placeholder="Optional, e.g. ff.a0 or ff:a0"
+                        placeholder={t("view.maskPlaceholder")}
                         value={oid.mask}
                         onChange={(e) => updateOid(index, { mask: e.target.value })}
                         className="font-mono"
@@ -181,9 +184,9 @@ export function SNMPv3ViewModal({
                     </div>
 
                     <SNMPMultiValueField
-                      label="Excluded OIDs"
-                      description="Subtree OIDs to exclude from this entry"
-                      placeholder="e.g. 1.3.6.1.2.1.2"
+                      label={t("view.excludedOids")}
+                      description={t("view.excludedOidsHelp")}
+                      placeholder={t("view.excludedPlaceholder")}
                       values={oid.exclude}
                       onChange={(vals) => updateOid(index, { exclude: vals })}
                     />
@@ -203,11 +206,11 @@ export function SNMPv3ViewModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isEdit ? "Save" : "Add"}
+            {isEdit ? tc("save") : tc("add")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, Search, RefreshCw, AlertCircle, Server, Network, Clock, Pencil, Trash2, MapPin, Activity, Wifi, Monitor, Globe, Settings2, Loader2, Power, PowerOff } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -60,13 +61,16 @@ import { DHCPFailoverModal } from "@/components/services/DHCPFailoverModal";
 import { DHCPDdnsModal } from "@/components/services/DHCPDdnsModal";
 import { ChevronRight } from "lucide-react";
 
-function formatLease(seconds: string): string {
+function formatLease(
+  seconds: string,
+  format: (unit: "days" | "hours" | "minutes", count: number) => string,
+): string {
   const secs = parseInt(seconds);
   const hours = Math.floor(secs / 3600);
   const days = Math.floor(hours / 24);
-  if (days > 0) return `${days}d`;
-  if (hours > 0) return `${hours}h`;
-  return `${Math.floor(secs / 60)}m`;
+  if (days > 0) return format("days", days);
+  if (hours > 0) return format("hours", hours);
+  return format("minutes", Math.floor(secs / 60));
 }
 
 // Helper function to check if an IP address is within a CIDR subnet
@@ -89,6 +93,8 @@ function isIpInSubnet(ip: string, cidr: string): boolean {
 }
 
 function DHCPPageInner() {
+  const t = useTranslations("dhcpServer");
+  const tc = useTranslations("common");
   const searchParams = useSearchParams();
   const [config, setConfig] = useState<DHCPConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<DHCPCapabilitiesResponse | null>(null);
@@ -170,7 +176,7 @@ function DHCPPageInner() {
       const enabledCount = config?.shared_networks.filter(n => !n.disable).length ?? 0;
       if (enabledCount <= 1) {
         setDisableConfirm({ kind: "network", networkName, currentlyDisabled });
-        setDisableConfirmError("At least one shared network must remain enabled.");
+        setDisableConfirmError(t("page.errors.lastNetwork"));
         return;
       }
     }
@@ -205,7 +211,7 @@ function DHCPPageInner() {
       setDisableConfirm(null);
       fetchConfig(true);
     } catch (err) {
-      setDisableConfirmError(err instanceof Error ? err.message : "Operation failed");
+      setDisableConfirmError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setDisableConfirmLoading(false);
     }
@@ -220,7 +226,7 @@ function DHCPPageInner() {
       setClearLeaseTarget(null);
       fetchLeases();
     } catch (err) {
-      setClearLeaseError(err instanceof Error ? err.message : "Failed to clear lease");
+      setClearLeaseError(err instanceof Error ? err.message : t("page.errors.clearLeaseFailed"));
     } finally {
       setClearLeaseLoading(false);
     }
@@ -267,13 +273,13 @@ function DHCPPageInner() {
       }
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to load DHCP configuration"
+        err instanceof Error ? err.message : t("page.errors.loadFailed")
       );
       console.error("Error fetching DHCP config:", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchConfig();
@@ -383,7 +389,7 @@ function DHCPPageInner() {
         <div className="flex items-center justify-center h-full">
           <div className="text-center space-y-4">
             <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-            <p className="text-muted-foreground">Loading DHCP configuration...</p>
+            <p className="text-muted-foreground">{t("page.loading")}</p>
           </div>
         </div>
       </AppLayout>
@@ -396,11 +402,11 @@ function DHCPPageInner() {
         <div className="flex items-center justify-center h-full">
           <div className="text-center space-y-4">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-            <h2 className="text-xl font-semibold text-foreground">Error Loading DHCP</h2>
+            <h2 className="text-xl font-semibold text-foreground">{t("page.errorTitle")}</h2>
             <p className="text-muted-foreground max-w-md">{error}</p>
             <Button onClick={() => fetchConfig(true)} variant="outline">
               <RefreshCw className="h-4 w-4 mr-2" />
-              Retry
+              {tc("retry")}
             </Button>
           </div>
         </div>
@@ -416,7 +422,7 @@ function DHCPPageInner() {
           {/* Sidebar Header */}
           <div className="p-4 border-b border-border">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold text-foreground">DHCP Servers</h2>
+              <h2 className="text-lg font-semibold text-foreground">{t("page.sidebarTitle")}</h2>
               <Button
                 variant="ghost"
                 size="icon"
@@ -434,7 +440,7 @@ function DHCPPageInner() {
               onClick={() => setCreateModalOpen(true)}
             >
               <Plus className="h-4 w-4 mr-2" />
-              New Server
+              {t("page.newServer")}
             </Button>
             <Button
               className="w-full mt-2"
@@ -444,7 +450,7 @@ function DHCPPageInner() {
               disabled={!config}
             >
               <Settings2 className="h-4 w-4 mr-2" />
-              Server settings
+              {t("page.serverSettings")}
             </Button>
             <Button
               className="w-full mt-2"
@@ -453,7 +459,7 @@ function DHCPPageInner() {
               onClick={() => setFailoverModalOpen(true)}
               disabled={!config}
             >
-              High availability
+              {t("page.highAvailability")}
             </Button>
             {(capabilities?.fields.dynamic_dns_update_leaf?.supported ||
               capabilities?.fields.dynamic_dns_update_kea?.supported) && (
@@ -464,7 +470,7 @@ function DHCPPageInner() {
                 onClick={() => setDdnsModalOpen(true)}
                 disabled={!config}
               >
-                Dynamic DNS
+                {t("page.dynamicDns")}
               </Button>
             )}
           </div>
@@ -475,9 +481,9 @@ function DHCPPageInner() {
               {config?.shared_networks.length === 0 ? (
                 <div className="px-3 py-8 text-center">
                   <Server className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">No DHCP servers</p>
+                  <p className="text-sm text-muted-foreground">{t("page.noServersShort")}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Click &quot;New Server&quot; to create one
+                    {t("page.noServersHint")}
                   </p>
                 </div>
               ) : (
@@ -510,7 +516,7 @@ function DHCPPageInner() {
                             e.stopPropagation();
                             requestToggleNetworkDisable(network.name, isDisabled);
                           }}
-                          title={isDisabled ? "Enable network" : "Disable network"}
+                          title={isDisabled ? t("page.enableNetwork") : t("page.disableNetwork")}
                         >
                           {isDisabled
                               ? <Power className="h-4 w-4 text-green-500" />
@@ -523,7 +529,7 @@ function DHCPPageInner() {
                             e.stopPropagation();
                             setDeletingNetwork(network.name);
                           }}
-                          title="Delete network"
+                          title={t("page.deleteNetwork")}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </button>
@@ -540,22 +546,22 @@ function DHCPPageInner() {
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="flex items-center gap-2">
                 <Server className="h-4 w-4 text-blue-500" />
-                <span className="text-muted-foreground">Networks:</span>
+                <span className="text-muted-foreground">{t("page.stats.networks")}</span>
                 <span className="font-medium">{totalNetworks}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Network className="h-4 w-4 text-green-500" />
-                <span className="text-muted-foreground">Subnets:</span>
+                <span className="text-muted-foreground">{t("page.stats.subnets")}</span>
                 <span className="font-medium">{totalSubnets}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Activity className="h-4 w-4 text-emerald-500" />
-                <span className="text-muted-foreground">Leases:</span>
+                <span className="text-muted-foreground">{t("page.stats.leases")}</span>
                 <span className="font-medium">{totalActiveLeases}</span>
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-purple-500" />
-                <span className="text-muted-foreground">Static:</span>
+                <span className="text-muted-foreground">{t("page.stats.static")}</span>
                 <span className="font-medium">{totalStatic}</span>
               </div>
             </div>
@@ -570,7 +576,7 @@ function DHCPPageInner() {
               {config?.global_config.disable && (
                 <div className="border-b border-amber-500/30 bg-amber-500/10 px-6 py-3 flex items-center gap-2 text-amber-600 dark:text-amber-400">
                   <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                  <span className="text-sm font-medium">DHCP server is globally disabled — no networks are serving requests.</span>
+                  <span className="text-sm font-medium">{t("page.globallyDisabled")}</span>
                 </div>
               )}
 
@@ -584,12 +590,12 @@ function DHCPPageInner() {
                       <span className="text-foreground font-medium">{currentNetwork.name}</span>
                       {currentNetwork.authoritative && (
                         <Badge variant="outline" className="ml-2 bg-blue-500/5 border-blue-500/20 text-blue-500">
-                          Authoritative
+                          {t("page.authoritative")}
                         </Badge>
                       )}
                       {currentNetwork.disable && (
                         <Badge variant="outline" className="ml-2 bg-red-500/10 text-red-500 border-red-500/20">
-                          Disabled
+                          {tc("disabled")}
                         </Badge>
                       )}
                     </div>
@@ -618,8 +624,8 @@ function DHCPPageInner() {
                       )}
                     >
                       {config?.global_config.disable
-                        ? <><Power className="h-4 w-4 mr-1.5" />Enable DHCP</>
-                        : <><PowerOff className="h-4 w-4 mr-1.5" />Disable DHCP</>
+                        ? <><Power className="h-4 w-4 mr-1.5" />{t("page.enableDhcp")}</>
+                        : <><PowerOff className="h-4 w-4 mr-1.5" />{t("page.disableDhcp")}</>
                       }
                     </Button>
                   </div>
@@ -632,28 +638,28 @@ function DHCPPageInner() {
                   <TabsList className="bg-transparent h-12">
                     <TabsTrigger value="subnets" className="data-[state=active]:bg-accent">
                       <Network className="h-4 w-4 mr-2" />
-                      Subnets
+                      {t("page.tabs.subnets")}
                       <Badge variant="secondary" className="ml-2">
                         {currentNetwork.subnets.length}
                       </Badge>
                     </TabsTrigger>
                     <TabsTrigger value="ranges" className="data-[state=active]:bg-accent">
                       <Settings2 className="h-4 w-4 mr-2" />
-                      Ranges
+                      {t("page.tabs.ranges")}
                       <Badge variant="secondary" className="ml-2">
                         {getAllRanges().length}
                       </Badge>
                     </TabsTrigger>
                     <TabsTrigger value="static" className="data-[state=active]:bg-accent">
                       <MapPin className="h-4 w-4 mr-2" />
-                      Static Mappings
+                      {t("page.tabs.static")}
                       <Badge variant="secondary" className="ml-2">
                         {getAllStaticMappings().length}
                       </Badge>
                     </TabsTrigger>
                     <TabsTrigger value="leases" className="data-[state=active]:bg-accent">
                       <Activity className="h-4 w-4 mr-2" />
-                      Leases
+                      {t("page.tabs.leases")}
                       {networkLeases.filter(l => l.state === "active").length > 0 && (
                         <Badge variant="secondary" className="ml-2 bg-emerald-500/10 text-emerald-500">
                           {networkLeases.filter(l => l.state === "active").length}
@@ -671,7 +677,7 @@ function DHCPPageInner() {
                       <div className="relative flex-1 max-w-md">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
-                          placeholder="Search subnets..."
+                          placeholder={t("page.searchSubnets")}
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                           className="pl-10"
@@ -682,10 +688,10 @@ function DHCPPageInner() {
                         onClick={() => setAddingSubnetToNetwork(currentNetwork.name)}
                       >
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Subnet
+                        {t("page.addSubnet")}
                       </Button>
                       <div className="text-sm text-muted-foreground ml-auto">
-                        {filteredSubnets.length} subnet{filteredSubnets.length !== 1 ? "s" : ""}
+                        {t("page.subnetCount", { count: filteredSubnets.length })}
                       </div>
                     </div>
 
@@ -696,15 +702,15 @@ function DHCPPageInner() {
                           <div className="flex flex-col items-center justify-center py-12">
                             <Network className="h-12 w-12 text-muted-foreground mb-4" />
                             <h3 className="text-lg font-semibold text-foreground mb-2">
-                              No Subnets
+                              {t("page.noSubnets")}
                             </h3>
                             <p className="text-sm text-muted-foreground mb-4">
-                              {searchQuery ? "No subnets match your search" : "Add a subnet to this network"}
+                              {searchQuery ? t("page.noSubnetsMatch") : t("page.noSubnetsHint")}
                             </p>
                             {!searchQuery && (
                               <Button onClick={() => setAddingSubnetToNetwork(currentNetwork.name)}>
                                 <Plus className="h-4 w-4 mr-2" />
-                                Add Subnet
+                                {t("page.addSubnet")}
                               </Button>
                             )}
                           </div>
@@ -712,15 +718,15 @@ function DHCPPageInner() {
                           <Table>
                             <TableHeader>
                               <TableRow className="hover:bg-transparent">
-                                <TableHead>Subnet</TableHead>
-                                <TableHead>Gateway</TableHead>
-                                <TableHead>DNS Servers</TableHead>
-                                <TableHead>Lease Time</TableHead>
-                                <TableHead>Ranges</TableHead>
-                                <TableHead>Active</TableHead>
-                                <TableHead>Static</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                <TableHead>{t("subnet")}</TableHead>
+                                <TableHead>{t("page.columns.gateway")}</TableHead>
+                                <TableHead>{t("page.columns.dnsServers")}</TableHead>
+                                <TableHead>{t("page.columns.leaseTime")}</TableHead>
+                                <TableHead>{t("page.tabs.ranges")}</TableHead>
+                                <TableHead>{t("page.active")}</TableHead>
+                                <TableHead>{t("page.columns.static")}</TableHead>
+                                <TableHead>{tc("status")}</TableHead>
+                                <TableHead className="text-right">{tc("actions")}</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -773,7 +779,7 @@ function DHCPPageInner() {
                                       )}
                                     </TableCell>
                                     <TableCell>
-                                      {subnet.lease ? formatLease(subnet.lease) : (
+                                      {subnet.lease ? formatLease(subnet.lease, (unit, count) => t(`page.leaseDuration.${unit}`, { count })) : (
                                         <span className="text-muted-foreground">—</span>
                                       )}
                                     </TableCell>
@@ -804,7 +810,7 @@ function DHCPPageInner() {
                                             : "bg-green-500/10 text-green-500 border-green-500/20"
                                         )}
                                       >
-                                        {subnet.disable ? "Disabled" : "Active"}
+                                        {subnet.disable ? tc("disabled") : t("page.active")}
                                       </Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
@@ -850,13 +856,13 @@ function DHCPPageInner() {
                     {/* Filters and Add Button */}
                     <div className="flex items-center gap-4 mb-4">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">Subnet:</span>
+                        <span className="text-sm text-muted-foreground">{t("subnetLabel")}</span>
                         <Select value={rangeSubnetFilter} onValueChange={setRangeSubnetFilter}>
                           <SelectTrigger className="w-[200px]">
-                            <SelectValue placeholder="All Subnets" />
+                            <SelectValue placeholder={t("page.allSubnets")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="all">All Subnets</SelectItem>
+                            <SelectItem value="all">{t("page.allSubnets")}</SelectItem>
                             {currentNetwork.subnets.map((subnet) => (
                               <SelectItem key={subnet.subnet} value={subnet.subnet}>
                                 {subnet.subnet}
@@ -870,10 +876,10 @@ function DHCPPageInner() {
                         onClick={() => setAddingRange(true)}
                       >
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Range
+                        {t("subnetForm.addRange")}
                       </Button>
                       <div className="text-sm text-muted-foreground ml-auto">
-                        {filteredRanges.length} range{filteredRanges.length !== 1 ? "s" : ""}
+                        {t("page.rangeCount", { count: filteredRanges.length })}
                       </div>
                     </div>
 
@@ -884,22 +890,22 @@ function DHCPPageInner() {
                           <div className="flex flex-col items-center justify-center py-12">
                             <Settings2 className="h-12 w-12 text-muted-foreground mb-4" />
                             <h3 className="text-lg font-semibold text-foreground mb-2">
-                              No Ranges
+                              {t("page.noRanges")}
                             </h3>
                             <p className="text-sm text-muted-foreground">
-                              No DHCP ranges configured for this network
+                              {t("page.noRangesHint")}
                             </p>
                           </div>
                         ) : (
                           <Table>
                             <TableHeader>
                               <TableRow className="hover:bg-transparent">
-                                <TableHead>Subnet</TableHead>
-                                <TableHead>Range ID</TableHead>
-                                <TableHead>Start IP</TableHead>
-                                <TableHead>Stop IP</TableHead>
-                                <TableHead>Pool Size</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                <TableHead>{t("subnet")}</TableHead>
+                                <TableHead>{t("range.rangeId")}</TableHead>
+                                <TableHead>{t("subnetForm.startIp")}</TableHead>
+                                <TableHead>{t("subnetForm.stopIp")}</TableHead>
+                                <TableHead>{t("page.columns.poolSize")}</TableHead>
+                                <TableHead className="text-right">{tc("actions")}</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -923,7 +929,7 @@ function DHCPPageInner() {
                                     <TableCell className="font-mono">{range.start || "—"}</TableCell>
                                     <TableCell className="font-mono">{range.stop || "—"}</TableCell>
                                     <TableCell>
-                                      <Badge variant="secondary">{poolSize} IPs</Badge>
+                                      <Badge variant="secondary">{t("page.poolSizeIps", { count: poolSize })}</Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
                                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -964,7 +970,7 @@ function DHCPPageInner() {
                     {/* Excluded Addresses Section */}
                     {currentNetwork.subnets.some(s => s.excludes.length > 0) && (
                       <div className="mt-4">
-                        <h4 className="text-sm font-medium text-foreground mb-2">Excluded Addresses</h4>
+                        <h4 className="text-sm font-medium text-foreground mb-2">{t("subnetForm.excludedAddresses")}</h4>
                         <div className="flex flex-wrap gap-2">
                           {currentNetwork.subnets.flatMap(subnet =>
                             subnet.excludes.map(ip => (
@@ -988,20 +994,20 @@ function DHCPPageInner() {
                       <div className="relative flex-1 max-w-md">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
-                          placeholder="Search by name, IP, or MAC..."
+                          placeholder={t("page.searchMappings")}
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                           className="pl-10"
                         />
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">Subnet:</span>
+                        <span className="text-sm text-muted-foreground">{t("subnetLabel")}</span>
                         <Select value={staticSubnetFilter} onValueChange={setStaticSubnetFilter}>
                           <SelectTrigger className="w-[200px]">
-                            <SelectValue placeholder="All Subnets" />
+                            <SelectValue placeholder={t("page.allSubnets")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="all">All Subnets</SelectItem>
+                            <SelectItem value="all">{t("page.allSubnets")}</SelectItem>
                             {currentNetwork.subnets.map((subnet) => (
                               <SelectItem key={subnet.subnet} value={subnet.subnet}>
                                 {subnet.subnet}
@@ -1015,10 +1021,10 @@ function DHCPPageInner() {
                         onClick={() => setAddingStaticMapping(true)}
                       >
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Static Mapping
+                        {t("mapping.addTitle")}
                       </Button>
                       <div className="text-sm text-muted-foreground ml-auto">
-                        {filteredStaticMappings.length} mapping{filteredStaticMappings.length !== 1 ? "s" : ""}
+                        {t("page.mappingCount", { count: filteredStaticMappings.length })}
                       </div>
                     </div>
 
@@ -1029,22 +1035,22 @@ function DHCPPageInner() {
                           <div className="flex flex-col items-center justify-center py-12">
                             <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
                             <h3 className="text-lg font-semibold text-foreground mb-2">
-                              No Static Mappings
+                              {t("page.noMappings")}
                             </h3>
                             <p className="text-sm text-muted-foreground">
-                              {searchQuery ? "No mappings match your search" : "No static MAC to IP mappings configured"}
+                              {searchQuery ? t("page.noMappingsMatch") : t("page.noMappingsHint")}
                             </p>
                           </div>
                         ) : (
                           <Table>
                             <TableHeader>
                               <TableRow className="hover:bg-transparent">
-                                <TableHead>Name</TableHead>
-                                <TableHead>MAC Address</TableHead>
-                                <TableHead>IP Address</TableHead>
-                                <TableHead>Subnet</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                <TableHead>{tc("name")}</TableHead>
+                                <TableHead>{t("mapping.macAddress")}</TableHead>
+                                <TableHead>{t("mapping.ipAddress")}</TableHead>
+                                <TableHead>{t("subnet")}</TableHead>
+                                <TableHead>{tc("status")}</TableHead>
+                                <TableHead className="text-right">{tc("actions")}</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1074,7 +1080,7 @@ function DHCPPageInner() {
                                           : "bg-green-500/10 text-green-500 border-green-500/20"
                                       )}
                                     >
-                                      {mapping.disable ? "Disabled" : "Enabled"}
+                                      {mapping.disable ? tc("disabled") : tc("enabled")}
                                     </Badge>
                                   </TableCell>
                                   <TableCell className="text-right">
@@ -1137,33 +1143,33 @@ function DHCPPageInner() {
                       <div className="relative flex-1 max-w-md">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
-                          placeholder="Search by IP, MAC, or hostname..."
+                          placeholder={t("page.searchLeases")}
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                           className="pl-10"
                         />
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">State:</span>
+                        <span className="text-sm text-muted-foreground">{t("page.stateLabel")}</span>
                         <Select value={leaseStateFilter} onValueChange={setLeaseStateFilter}>
                           <SelectTrigger className="w-[120px]">
-                            <SelectValue placeholder="All" />
+                            <SelectValue placeholder={t("page.all")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="all">All</SelectItem>
-                            <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="expired">Expired</SelectItem>
+                            <SelectItem value="all">{t("page.all")}</SelectItem>
+                            <SelectItem value="active">{t("page.active")}</SelectItem>
+                            <SelectItem value="expired">{t("page.expired")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">Subnet:</span>
+                        <span className="text-sm text-muted-foreground">{t("subnetLabel")}</span>
                         <Select value={leaseSubnetFilter} onValueChange={setLeaseSubnetFilter}>
                           <SelectTrigger className="w-[200px]">
-                            <SelectValue placeholder="All Subnets" />
+                            <SelectValue placeholder={t("page.allSubnets")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="all">All Subnets</SelectItem>
+                            <SelectItem value="all">{t("page.allSubnets")}</SelectItem>
                             {currentNetwork.subnets.map((subnet) => (
                               <SelectItem key={subnet.subnet} value={subnet.subnet}>
                                 {subnet.subnet}
@@ -1179,10 +1185,10 @@ function DHCPPageInner() {
                         disabled={leasesLoading}
                       >
                         <RefreshCw className={cn("h-4 w-4 mr-2", leasesLoading && "animate-spin")} />
-                        Refresh
+                        {tc("refresh")}
                       </Button>
                       <div className="text-sm text-muted-foreground ml-auto">
-                        {filteredLeases.length} lease{filteredLeases.length !== 1 ? "s" : ""}
+                        {t("page.leaseCount", { count: filteredLeases.length })}
                       </div>
                     </div>
 
@@ -1193,30 +1199,30 @@ function DHCPPageInner() {
                           <div className="flex items-center justify-center py-12">
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               <Loader2 className="h-4 w-4 animate-spin" />
-                              Loading leases...
+                              {t("page.loadingLeases")}
                             </div>
                           </div>
                         ) : filteredLeases.length === 0 ? (
                           <div className="flex flex-col items-center justify-center py-12">
                             <Wifi className="h-12 w-12 text-muted-foreground mb-4" />
                             <h3 className="text-lg font-semibold text-foreground mb-2">
-                              No Leases
+                              {t("page.noLeases")}
                             </h3>
                             <p className="text-sm text-muted-foreground">
-                              {searchQuery ? "No leases match your search" : "No DHCP leases for this network"}
+                              {searchQuery ? t("page.noLeasesMatch") : t("page.noLeasesHint")}
                             </p>
                           </div>
                         ) : (
                           <Table>
                             <TableHeader>
                               <TableRow className="hover:bg-transparent">
-                                <TableHead>IP Address</TableHead>
-                                <TableHead>MAC Address</TableHead>
-                                <TableHead>Hostname</TableHead>
-                                <TableHead>Subnet</TableHead>
-                                <TableHead>State</TableHead>
-                                <TableHead>Expires</TableHead>
-                                <TableHead className="w-[100px]">Actions</TableHead>
+                                <TableHead>{t("mapping.ipAddress")}</TableHead>
+                                <TableHead>{t("mapping.macAddress")}</TableHead>
+                                <TableHead>{t("page.columns.hostname")}</TableHead>
+                                <TableHead>{t("subnet")}</TableHead>
+                                <TableHead>{t("page.columns.state")}</TableHead>
+                                <TableHead>{t("page.columns.expires")}</TableHead>
+                                <TableHead className="w-[100px]">{tc("actions")}</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1227,7 +1233,7 @@ function DHCPPageInner() {
                                   <TableCell>
                                     <div className="flex items-center gap-2">
                                       <Monitor className="h-4 w-4 text-muted-foreground" />
-                                      {lease.hostname || <span className="text-muted-foreground">Unknown</span>}
+                                      {lease.hostname || <span className="text-muted-foreground">{t("page.unknown")}</span>}
                                     </div>
                                   </TableCell>
                                   <TableCell>
@@ -1257,17 +1263,17 @@ function DHCPPageInner() {
                                           variant="outline"
                                           className="bg-green-500/10 text-green-500 border-green-500/20"
                                         >
-                                          Static Assigned
+                                          {t("page.staticAssigned")}
                                         </Badge>
                                       ) : (
                                         <Button
                                           variant="ghost"
                                           size="sm"
                                           onClick={() => setAddingLeaseToStatic(lease)}
-                                          title="Add to Static Mapping"
+                                          title={t("page.addToStaticMapping")}
                                         >
                                           <Plus className="h-4 w-4 mr-1" />
-                                          Add Static
+                                          {t("page.addStatic")}
                                         </Button>
                                       )}
                                       {(lease.state === "active" || capabilities?.fields.clear_inactive_lease?.supported) && (
@@ -1276,7 +1282,7 @@ function DHCPPageInner() {
                                           size="icon"
                                           className="h-8 w-8"
                                           onClick={() => { setClearLeaseError(null); setClearLeaseTarget(lease); }}
-                                          title="Release lease"
+                                          title={t("page.releaseLease")}
                                         >
                                           <Trash2 className="h-4 w-4 text-destructive" />
                                         </Button>
@@ -1299,13 +1305,13 @@ function DHCPPageInner() {
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center space-y-4">
                 <Server className="h-16 w-16 text-muted-foreground mx-auto" />
-                <h2 className="text-xl font-semibold text-foreground">No DHCP Servers</h2>
+                <h2 className="text-xl font-semibold text-foreground">{t("page.noServers")}</h2>
                 <p className="text-muted-foreground max-w-md">
-                  Get started by creating your first DHCP server to manage IP address allocation.
+                  {t("page.noServersDescription")}
                 </p>
                 <Button onClick={() => setCreateModalOpen(true)}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Create DHCP Server
+                  {t("create.submit")}
                 </Button>
               </div>
             </div>
@@ -1488,20 +1494,23 @@ function DHCPPageInner() {
           <DialogContent className="sm:max-w-[400px]">
             <DialogHeader>
               <DialogTitle>
-                {disableConfirm?.currentlyDisabled ? "Enable" : "Disable"}{" "}
                 {disableConfirm?.kind === "global"
-                  ? "DHCP Server"
-                  : `Network "${disableConfirm?.kind === "network" ? disableConfirm.networkName : ""}"`
+                  ? disableConfirm.currentlyDisabled
+                    ? t("toggle.enableGlobalTitle")
+                    : t("toggle.disableGlobalTitle")
+                  : disableConfirm?.currentlyDisabled
+                    ? t("toggle.enableNetworkTitle", { name: disableConfirm.networkName })
+                    : t("toggle.disableNetworkTitle", { name: disableConfirm?.kind === "network" ? disableConfirm.networkName : "" })
                 }
               </DialogTitle>
               <DialogDescription>
                 {disableConfirm?.kind === "global"
                   ? disableConfirm.currentlyDisabled
-                    ? "This will enable the DHCP server globally. All configured networks will resume serving requests."
-                    : "This will disable the DHCP server globally. No networks will serve DHCP requests until re-enabled."
+                    ? t("toggle.enableGlobalDescription")
+                    : t("toggle.disableGlobalDescription")
                   : disableConfirm?.currentlyDisabled
-                    ? `Enable shared network "${disableConfirm.networkName}"? It will resume serving DHCP requests.`
-                    : `Disable shared network "${disableConfirm?.kind === "network" ? disableConfirm.networkName : ""}"? It will stop serving DHCP requests.`
+                    ? t("toggle.enableNetworkDescription", { name: disableConfirm.networkName })
+                    : t("toggle.disableNetworkDescription", { name: disableConfirm?.kind === "network" ? disableConfirm.networkName : "" })
                 }
               </DialogDescription>
             </DialogHeader>
@@ -1519,7 +1528,7 @@ function DHCPPageInner() {
                 onClick={() => { setDisableConfirm(null); setDisableConfirmError(null); }}
                 disabled={disableConfirmLoading}
               >
-                Cancel
+                {tc("cancel")}
               </Button>
               <Button
                 variant={disableConfirm?.currentlyDisabled ? "default" : "destructive"}
@@ -1527,8 +1536,8 @@ function DHCPPageInner() {
                 disabled={disableConfirmLoading || !!disableConfirmError}
               >
                 {disableConfirmLoading
-                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processing...</>
-                  : disableConfirm?.currentlyDisabled ? "Enable" : "Disable"
+                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{t("toggle.processing")}</>
+                  : disableConfirm?.currentlyDisabled ? t("toggle.enable") : t("toggle.disable")
                 }
               </Button>
             </DialogFooter>
@@ -1547,13 +1556,13 @@ function DHCPPageInner() {
         >
           <DialogContent className="sm:max-w-[420px]">
             <DialogHeader>
-              <DialogTitle>Release DHCP Lease</DialogTitle>
+              <DialogTitle>{t("releaseLease.title")}</DialogTitle>
               <DialogDescription>
-                Release the lease for{" "}
-                <span className="font-mono">{clearLeaseTarget?.ip_address}</span>
-                {clearLeaseTarget?.hostname ? ` (${clearLeaseTarget.hostname})` : ""}? The
-                address will be returned to the pool and the client may receive a different
-                address on its next request.
+                {t.rich("releaseLease.description", {
+                  ip: clearLeaseTarget?.ip_address ?? "",
+                  host: clearLeaseTarget?.hostname ? ` (${clearLeaseTarget.hostname})` : "",
+                  mono: (chunks) => <span className="font-mono">{chunks}</span>,
+                })}
               </DialogDescription>
             </DialogHeader>
 
@@ -1570,7 +1579,7 @@ function DHCPPageInner() {
                 onClick={() => { setClearLeaseTarget(null); setClearLeaseError(null); }}
                 disabled={clearLeaseLoading}
               >
-                Cancel
+                {tc("cancel")}
               </Button>
               <Button
                 variant="destructive"
@@ -1578,8 +1587,8 @@ function DHCPPageInner() {
                 disabled={clearLeaseLoading}
               >
                 {clearLeaseLoading
-                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Releasing...</>
-                  : "Release Lease"
+                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{t("releaseLease.releasing")}</>
+                  : t("releaseLease.confirm")
                 }
               </Button>
             </DialogFooter>

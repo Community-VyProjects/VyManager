@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,8 @@ interface Props {
 }
 
 export function DNSForwardingZoneCacheModal({ open, onOpenChange, zoneCache, onSubmit }: Props) {
+  const t = useTranslations("dnsForwarding");
+  const tc = useTranslations("common");
   const isEdit = !!zoneCache;
 
   const [zone, setZone] = useState("");
@@ -92,7 +95,7 @@ export function DNSForwardingZoneCacheModal({ open, onOpenChange, zoneCache, onS
 
   const handleSubmit = async () => {
     if (!isEdit && !zone.trim()) {
-      setError("Zone name is required");
+      setError(t("zoneNameRequired"));
       return;
     }
     setLoading(true);
@@ -114,7 +117,7 @@ export function DNSForwardingZoneCacheModal({ open, onOpenChange, zoneCache, onS
       );
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -124,26 +127,26 @@ export function DNSForwardingZoneCacheModal({ open, onOpenChange, zoneCache, onS
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Zone Cache" : "Add Zone Cache"}</DialogTitle>
-          <DialogDescription>Cache a remote DNS zone via URL or AXFR.</DialogDescription>
+          <DialogTitle>{isEdit ? t("zoneCache.editTitle") : t("content.addZoneCache")}</DialogTitle>
+          <DialogDescription>{t("zoneCache.description")}</DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[65vh] pr-4">
           <div className="space-y-5 pb-2">
             <div className="space-y-2">
-              <Label htmlFor="zc-zone">Zone Name</Label>
+              <Label htmlFor="zc-zone">{t("zoneName")}</Label>
               <Input
                 id="zc-zone"
                 value={zone}
                 onChange={(e) => setZone(e.target.value)}
-                placeholder="e.g. example.com"
+                placeholder={t("domainPlaceholder")}
                 disabled={isEdit}
                 className={isEdit ? "bg-muted font-mono" : "font-mono"}
               />
             </div>
 
             <div className="space-y-2">
-              <Label>Source Type</Label>
+              <Label>{t("content.sourceType")}</Label>
               <Select value={sourceType} onValueChange={(v) => setSourceType(v as "url" | "axfr")}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -166,12 +169,12 @@ export function DNSForwardingZoneCacheModal({ open, onOpenChange, zoneCache, onS
               </div>
             ) : (
               <div className="space-y-2">
-                <Label htmlFor="zc-axfr">AXFR Server IP</Label>
+                <Label htmlFor="zc-axfr">{t("zoneCache.axfrServerIp")}</Label>
                 <Input
                   id="zc-axfr"
                   value={sourceAxfr}
                   onChange={(e) => setSourceAxfr(e.target.value)}
-                  placeholder="e.g. 192.168.1.1"
+                  placeholder={t("example", { value: "192.168.1.1" })}
                   className="font-mono"
                 />
               </div>
@@ -180,19 +183,19 @@ export function DNSForwardingZoneCacheModal({ open, onOpenChange, zoneCache, onS
             <div className="space-y-2">
               <Label>DNSSEC</Label>
               <Select value={dnssec || "none"} onValueChange={(v) => setDnssec(v === "none" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("selectPlaceholder")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Not set</SelectItem>
-                  <SelectItem value="ignore">Ignore</SelectItem>
-                  <SelectItem value="validate">Validate</SelectItem>
-                  <SelectItem value="require">Require</SelectItem>
+                  <SelectItem value="none">{tc("notSet")}</SelectItem>
+                  <SelectItem value="ignore">{t("zoneCache.ignore")}</SelectItem>
+                  <SelectItem value="validate">{t("validate")}</SelectItem>
+                  <SelectItem value="require">{t("zoneCache.require")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="zc-maxsize">Max Zone Size (MB)</Label>
+                <Label htmlFor="zc-maxsize">{t("zoneCache.maxZoneSize")}</Label>
                 <Input
                   id="zc-maxsize"
                   type="number"
@@ -204,33 +207,33 @@ export function DNSForwardingZoneCacheModal({ open, onOpenChange, zoneCache, onS
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="zc-refresh">Refresh Interval (s)</Label>
+                <Label htmlFor="zc-refresh">{t("zoneCache.refreshInterval")}</Label>
                 <Input
                   id="zc-refresh"
                   type="number"
                   value={refreshInterval}
                   onChange={(e) => setRefreshInterval(e.target.value)}
-                  placeholder="seconds"
+                  placeholder={t("zoneCache.seconds")}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="zc-retry">Retry Interval (s)</Label>
+                <Label htmlFor="zc-retry">{t("zoneCache.retryInterval")}</Label>
                 <Input
                   id="zc-retry"
                   type="number"
                   value={retryInterval}
                   onChange={(e) => setRetryInterval(e.target.value)}
-                  placeholder="seconds"
+                  placeholder={t("zoneCache.seconds")}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="zc-timeout">Timeout (s)</Label>
+                <Label htmlFor="zc-timeout">{t("zoneCache.timeout")}</Label>
                 <Input
                   id="zc-timeout"
                   type="number"
                   value={timeout}
                   onChange={(e) => setTimeout(e.target.value)}
-                  placeholder="seconds"
+                  placeholder={t("zoneCache.seconds")}
                 />
               </div>
             </div>
@@ -238,12 +241,12 @@ export function DNSForwardingZoneCacheModal({ open, onOpenChange, zoneCache, onS
             <div className="space-y-2">
               <Label>ZONEMD</Label>
               <Select value={zonemd || "none"} onValueChange={(v) => setZonemd(v === "none" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("selectPlaceholder")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Not set</SelectItem>
-                  <SelectItem value="ignore">Ignore</SelectItem>
-                  <SelectItem value="validate">Validate</SelectItem>
-                  <SelectItem value="require">Require</SelectItem>
+                  <SelectItem value="none">{tc("notSet")}</SelectItem>
+                  <SelectItem value="ignore">{t("zoneCache.ignore")}</SelectItem>
+                  <SelectItem value="validate">{t("validate")}</SelectItem>
+                  <SelectItem value="require">{t("zoneCache.require")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -254,7 +257,7 @@ export function DNSForwardingZoneCacheModal({ open, onOpenChange, zoneCache, onS
                 checked={refreshOnReload}
                 onCheckedChange={(c) => setRefreshOnReload(c === true)}
               />
-              <Label htmlFor="zc-reload" className="cursor-pointer">Refresh on Reload</Label>
+              <Label htmlFor="zc-reload" className="cursor-pointer">{t("zoneCache.refreshOnReload")}</Label>
             </div>
           </div>
         </ScrollArea>
@@ -267,9 +270,9 @@ export function DNSForwardingZoneCacheModal({ open, onOpenChange, zoneCache, onS
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? "Saving..." : "Adding..."}</> : isEdit ? "Save Changes" : "Add Zone Cache"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("adding")}</> : isEdit ? t("saveChanges") : t("content.addZoneCache")}
           </Button>
         </DialogFooter>
       </DialogContent>

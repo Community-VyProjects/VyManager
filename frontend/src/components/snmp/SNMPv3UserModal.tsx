@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -51,6 +52,8 @@ export function SNMPv3UserModal({
   capabilities,
   onSuccess,
 }: SNMPv3UserModalProps) {
+  const t = useTranslations("snmp");
+  const tc = useTranslations("common");
   const isEdit = existing !== null;
   const v3 = capabilities.features.v3;
 
@@ -80,15 +83,15 @@ export function SNMPv3UserModal({
   const handleSubmit = async () => {
     const n = name.trim();
     if (!n) {
-      setError("A username is required");
+      setError(t("user.nameRequired"));
       return;
     }
     if (!isEdit && existingNames.includes(n)) {
-      setError(`User "${n}" already exists`);
+      setError(t("user.exists", { name: n }));
       return;
     }
     if (privacyEnabled && !authEnabled) {
-      setError("Privacy requires authentication to be enabled");
+      setError(t("validation.privacyRequiresAuth"));
       return;
     }
     setSubmitting(true);
@@ -106,7 +109,7 @@ export function SNMPv3UserModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -116,19 +119,19 @@ export function SNMPv3UserModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit User" : "Add User"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("user.editTitle") : t("user.addTitle")}</DialogTitle>
           <DialogDescription>
-            An SNMPv3 user with authentication and privacy credentials
+            {t("user.description")}
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[65vh] pr-4">
           <div className="space-y-5 py-1">
             <div className="space-y-1.5">
-              <Label htmlFor="user-name">Username</Label>
+              <Label htmlFor="user-name">{t("content.username")}</Label>
               <Input
                 id="user-name"
-                placeholder="e.g. monitor"
+                placeholder={t("user.namePlaceholder")}
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value);
@@ -141,17 +144,17 @@ export function SNMPv3UserModal({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium">Group</Label>
+                <Label className="text-sm font-medium">{t("content.group")}</Label>
                 {groupNames.length > 0 ? (
                   <Select
                     value={group === "" ? DEFAULT : group}
                     onValueChange={(v) => setGroup(v === DEFAULT ? "" : v)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select a group" />
+                      <SelectValue placeholder={t("user.selectGroup")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={DEFAULT}>None</SelectItem>
+                      <SelectItem value={DEFAULT}>{tc("none")}</SelectItem>
                       {groupNames.map((g) => (
                         <SelectItem key={g} value={g}>
                           {g}
@@ -161,7 +164,7 @@ export function SNMPv3UserModal({
                   </Select>
                 ) : (
                   <Input
-                    placeholder="Group name"
+                    placeholder={t("user.groupNamePlaceholder")}
                     value={group}
                     onChange={(e) => setGroup(e.target.value)}
                     className="font-mono"
@@ -170,16 +173,16 @@ export function SNMPv3UserModal({
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium">Access Mode</Label>
+                <Label className="text-sm font-medium">{t("group.accessMode")}</Label>
                 <Select value={mode} onValueChange={setMode}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={DEFAULT}>Default (Read-Only)</SelectItem>
+                    <SelectItem value={DEFAULT}>{t("group.defaultReadOnly")}</SelectItem>
                     {v3.mode_values.map((m) => (
                       <SelectItem key={m} value={m}>
-                        {m === "ro" ? "Read-Only (ro)" : "Read-Write (rw)"}
+                        {m === "ro" ? t("community.readOnlyRo") : t("community.readWriteRw")}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -190,8 +193,8 @@ export function SNMPv3UserModal({
             <Separator />
 
             <SNMPv3CredentialFields
-              title="Authentication"
-              description="Verify message integrity and origin"
+              title={t("credential.authTitle")}
+              description={t("credential.authDescription")}
               typeOptions={v3.auth_types}
               enabled={authEnabled}
               onEnabledChange={setAuthEnabled}
@@ -202,8 +205,8 @@ export function SNMPv3UserModal({
             />
 
             <SNMPv3CredentialFields
-              title="Privacy (Encryption)"
-              description="Encrypt message contents (requires authentication)"
+              title={t("credential.privacyTitle")}
+              description={t("credential.privacyDescription")}
               typeOptions={v3.privacy_types}
               enabled={privacyEnabled}
               onEnabledChange={setPrivacyEnabled}
@@ -224,11 +227,11 @@ export function SNMPv3UserModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isEdit ? "Save" : "Add"}
+            {isEdit ? tc("save") : tc("add")}
           </Button>
         </DialogFooter>
       </DialogContent>

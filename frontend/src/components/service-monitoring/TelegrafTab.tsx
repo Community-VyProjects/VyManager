@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,8 @@ interface TelegrafTabProps {
 }
 
 export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabProps) {
+  const t = useTranslations("serviceMonitoring");
+  const tc = useTranslations("common");
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [influxdbOpen, setInfluxdbOpen] = useState(false);
   const [lokiOpen, setLokiOpen] = useState(false);
@@ -68,11 +71,11 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
   };
 
   const sourceLabels: Record<string, string> = {
-    all: "All",
-    "hardware-utilization": "Hardware",
-    logs: "Logs",
-    network: "Network",
-    system: "System",
+    all: t("telegraf.sources.all"),
+    "hardware-utilization": t("telegraf.sources.hardware"),
+    logs: t("telegraf.sources.logs"),
+    network: t("telegraf.sources.network"),
+    system: t("telegraf.sources.system"),
     telegraf: "Telegraf",
   };
 
@@ -84,19 +87,19 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
               <Settings className="h-4 w-4" />
-              General Settings
+              {t("telegraf.generalSettings")}
             </CardTitle>
             {hasWrite && (
               <Button size="sm" variant="outline" onClick={() => setSourcesOpen(true)}>
                 <Pencil className="h-4 w-4 mr-1" />
-                Edit
+                {tc("edit")}
               </Button>
             )}
           </div>
         </CardHeader>
         <CardContent className="px-4 pb-4 space-y-3">
           <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2">Sources</p>
+            <p className="text-xs font-medium text-muted-foreground mb-2">{t("telegraf.sourcesLabel")}</p>
             {config && config.sources.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {config.sources.map((s) => (
@@ -106,7 +109,7 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">None configured</p>
+              <p className="text-sm text-muted-foreground">{t("telegraf.noneConfigured")}</p>
             )}
           </div>
           {config?.vrf && (
@@ -120,7 +123,7 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
 
       {/* Output Plugins */}
       <div>
-        <p className="text-sm font-medium text-foreground mb-3">Output Plugins</p>
+        <p className="text-sm font-medium text-foreground mb-3">{t("telegraf.outputPlugins")}</p>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {/* InfluxDB */}
           <PluginCard
@@ -128,9 +131,9 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
             title="InfluxDB"
             configured={!!config?.influxdb}
             summary={config?.influxdb ? [
-              config.influxdb.url ? `URL: ${config.influxdb.url}` : null,
-              config.influxdb.port ? `Port: ${config.influxdb.port}` : null,
-              config.influxdb.bucket ? `Bucket: ${config.influxdb.bucket}` : null,
+              config.influxdb.url ? t("telegraf.summary.url", { value: config.influxdb.url }) : null,
+              config.influxdb.port ? t("telegraf.summary.port", { value: String(config.influxdb.port) }) : null,
+              config.influxdb.bucket ? t("telegraf.summary.bucket", { value: config.influxdb.bucket }) : null,
             ].filter(Boolean) as string[] : []}
             hasWrite={hasWrite}
             onEdit={() => setInfluxdbOpen(true)}
@@ -143,8 +146,8 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
             title="Loki"
             configured={!!config?.loki}
             summary={config?.loki ? [
-              config.loki.url ? `URL: ${config.loki.url}` : null,
-              config.loki.port ? `Port: ${config.loki.port}` : null,
+              config.loki.url ? t("telegraf.summary.url", { value: config.loki.url }) : null,
+              config.loki.port ? t("telegraf.summary.port", { value: String(config.loki.port) }) : null,
             ].filter(Boolean) as string[] : []}
             hasWrite={hasWrite}
             onEdit={() => setLokiOpen(true)}
@@ -157,8 +160,8 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
             title="Splunk"
             configured={!!config?.splunk}
             summary={config?.splunk ? [
-              config.splunk.url ? `URL: ${config.splunk.url}` : null,
-              config.splunk.authentication.insecure ? "Insecure: Yes" : null,
+              config.splunk.url ? t("telegraf.summary.url", { value: config.splunk.url }) : null,
+              config.splunk.authentication.insecure ? t("telegraf.summary.insecureYes") : null,
             ].filter(Boolean) as string[] : []}
             hasWrite={hasWrite}
             onEdit={() => setSplunkOpen(true)}
@@ -171,8 +174,8 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
             title="Azure Data Explorer"
             configured={!!config?.azure_data_explorer}
             summary={config?.azure_data_explorer ? [
-              config.azure_data_explorer.database ? `DB: ${config.azure_data_explorer.database}` : null,
-              config.azure_data_explorer.table ? `Table: ${config.azure_data_explorer.table}` : null,
+              config.azure_data_explorer.database ? t("telegraf.summary.db", { value: config.azure_data_explorer.database }) : null,
+              config.azure_data_explorer.table ? t("telegraf.summary.table", { value: config.azure_data_explorer.table }) : null,
             ].filter(Boolean) as string[] : []}
             hasWrite={hasWrite}
             onEdit={() => setAzureOpen(true)}
@@ -185,8 +188,8 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
             title="Prometheus Client"
             configured={!!config?.prometheus_client}
             summary={config?.prometheus_client ? [
-              config.prometheus_client.port ? `Port: ${config.prometheus_client.port}` : null,
-              config.prometheus_client.listen_address ? `Listen: ${config.prometheus_client.listen_address}` : null,
+              config.prometheus_client.port ? t("telegraf.summary.port", { value: String(config.prometheus_client.port) }) : null,
+              config.prometheus_client.listen_address ? t("telegraf.summary.listen", { value: config.prometheus_client.listen_address }) : null,
             ].filter(Boolean) as string[] : []}
             hasWrite={hasWrite}
             onEdit={() => setPromClientOpen(true)}
@@ -251,15 +254,15 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove output plugin?</AlertDialogTitle>
+            <AlertDialogTitle>{t("telegraf.removeTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete the output plugin configuration. This action cannot be undone.
+              {t("telegraf.removeDescription")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Remove
+              {t("common.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -279,6 +282,8 @@ interface PluginCardProps {
 }
 
 function PluginCard({ icon, title, configured, summary, hasWrite, onEdit, onRemove }: PluginCardProps) {
+  const t = useTranslations("serviceMonitoring");
+  const tc = useTranslations("common");
   return (
     <Card className={configured ? "" : "opacity-60"}>
       <CardContent className="p-4">
@@ -289,11 +294,11 @@ function PluginCard({ icon, title, configured, summary, hasWrite, onEdit, onRemo
           </div>
           {configured ? (
             <Badge variant="secondary" className="bg-green-500/10 text-green-600 dark:text-green-500 shrink-0 text-xs">
-              Active
+              {t("common.active")}
             </Badge>
           ) : (
             <Badge variant="secondary" className="text-xs shrink-0">
-              Not configured
+              {t("common.notConfigured")}
             </Badge>
           )}
         </div>
@@ -310,9 +315,9 @@ function PluginCard({ icon, title, configured, summary, hasWrite, onEdit, onRemo
           <div className="mt-3 flex gap-2">
             <Button size="sm" variant="outline" className="flex-1" onClick={onEdit}>
               {configured ? (
-                <><Pencil className="h-3.5 w-3.5 mr-1" />Edit</>
+                <><Pencil className="h-3.5 w-3.5 mr-1" />{tc("edit")}</>
               ) : (
-                <><Plus className="h-3.5 w-3.5 mr-1" />Configure</>
+                <><Plus className="h-3.5 w-3.5 mr-1" />{t("common.configure")}</>
               )}
             </Button>
             {configured && (

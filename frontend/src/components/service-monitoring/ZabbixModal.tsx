@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, KeyboardEvent } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -39,6 +40,8 @@ interface ZabbixModalProps {
 }
 
 export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: ZabbixModalProps) {
+  const t = useTranslations("serviceMonitoring");
+  const tc = useTranslations("common");
   const [hostName, setHostName] = useState(original?.host_name ?? "");
   const [port, setPort] = useState(original?.port ? String(original.port) : "");
   const [directory, setDirectory] = useState(original?.directory ?? "");
@@ -137,7 +140,7 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
       });
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -151,26 +154,26 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{original ? "Edit Zabbix Agent" : "Configure Zabbix Agent"}</DialogTitle>
+          <DialogTitle>{original ? t("zabbix.editTitle") : t("zabbix.configureTitle")}</DialogTitle>
         </DialogHeader>
 
         <ScrollArea className="max-h-[70vh] pr-4">
           <div className="space-y-6 py-1">
             {/* Identity */}
             <div className="space-y-3">
-              <p className="text-sm font-semibold">Identity</p>
+              <p className="text-sm font-semibold">{t("zabbix.identity")}</p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label htmlFor="z-hostname">Host Name</Label>
+                  <Label htmlFor="z-hostname">{t("zabbix.hostName")}</Label>
                   <Input id="z-hostname" value={hostName} onChange={(e) => setHostName(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="z-port">Port</Label>
+                  <Label htmlFor="z-port">{t("common.port")}</Label>
                   <Input id="z-port" type="number" placeholder="10050" value={port} onChange={(e) => setPort(e.target.value)} />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="z-dir">Directory</Label>
+                <Label htmlFor="z-dir">{t("zabbix.directory")}</Label>
                 <Input id="z-dir" placeholder="/etc/zabbix" value={directory} onChange={(e) => setDirectory(e.target.value)} />
               </div>
             </div>
@@ -179,7 +182,7 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
 
             {/* Timeout */}
             <div className="space-y-2">
-              <p className="text-sm font-semibold">Timeout</p>
+              <p className="text-sm font-semibold">{t("prometheus.timeout")}</p>
               <div className="flex items-center gap-3">
                 <Input
                   type="number"
@@ -190,7 +193,7 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
                   onChange={(e) => setTimeout(e.target.value)}
                   className="max-w-[120px]"
                 />
-                <span className="text-sm text-muted-foreground">seconds (1–30)</span>
+                <span className="text-sm text-muted-foreground">{t("zabbix.secondsRange")}</span>
               </div>
             </div>
 
@@ -198,10 +201,10 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
 
             {/* Listen Addresses */}
             <div className="space-y-3">
-              <p className="text-sm font-semibold">Listen Addresses</p>
+              <p className="text-sm font-semibold">{t("common.listenAddresses")}</p>
               <div className="flex gap-2">
                 <Input
-                  placeholder="e.g. 0.0.0.0"
+                  placeholder={t("exporter.listenPlaceholder")}
                   value={listenInput}
                   onChange={(e) => setListenInput(e.target.value)}
                   onKeyDown={kd(addListenAddress)}
@@ -228,10 +231,10 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
 
             {/* Passive Servers */}
             <div className="space-y-3">
-              <p className="text-sm font-semibold">Passive Servers</p>
+              <p className="text-sm font-semibold">{t("zabbix.passiveServers")}</p>
               <div className="flex gap-2">
                 <Input
-                  placeholder="e.g. 192.168.1.10"
+                  placeholder={t("zabbix.serverPlaceholder")}
                   value={serverInput}
                   onChange={(e) => setServerInput(e.target.value)}
                   onKeyDown={kd(addServer)}
@@ -258,16 +261,16 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
 
             {/* Active Servers */}
             <div className="space-y-3">
-              <p className="text-sm font-semibold">Active Servers</p>
+              <p className="text-sm font-semibold">{t("zabbix.activeServers")}</p>
               <div className="flex gap-2">
                 <Input
-                  placeholder="Address"
+                  placeholder={t("zabbix.address")}
                   value={activeAddrInput}
                   onChange={(e) => setActiveAddrInput(e.target.value)}
                   className="flex-1"
                 />
                 <Input
-                  placeholder="Port (optional)"
+                  placeholder={t("zabbix.portOptional")}
                   type="number"
                   value={activePortInput}
                   onChange={(e) => setActivePortInput(e.target.value)}
@@ -295,12 +298,12 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
 
             {/* Authentication */}
             <div className="space-y-3">
-              <p className="text-sm font-semibold">Authentication</p>
+              <p className="text-sm font-semibold">{t("zabbix.authentication")}</p>
               <div className="space-y-2">
-                <Label>Mode</Label>
+                <Label>{t("zabbix.mode")}</Label>
                 <Select value={authMode} onValueChange={setAuthMode}>
                   <SelectTrigger>
-                    <SelectValue placeholder="None" />
+                    <SelectValue placeholder={tc("none")} />
                   </SelectTrigger>
                   <SelectContent>
                     {authModes.map((m) => (
@@ -312,11 +315,11 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
               {authMode === "pre-shared-secret" && (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <Label htmlFor="z-psk-id">PSK ID</Label>
+                    <Label htmlFor="z-psk-id">{t("zabbix.pskId")}</Label>
                     <Input id="z-psk-id" value={pskId} onChange={(e) => setPskId(e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="z-psk-secret">PSK Secret</Label>
+                    <Label htmlFor="z-psk-secret">{t("zabbix.pskSecret")}</Label>
                     <Input id="z-psk-secret" type="password" value={pskSecret} onChange={(e) => setPskSecret(e.target.value)} />
                   </div>
                 </div>
@@ -327,10 +330,10 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
 
             {/* Buffer Limits */}
             <div className="space-y-3">
-              <p className="text-sm font-semibold">Buffer Limits</p>
+              <p className="text-sm font-semibold">{t("zabbix.bufferLimits")}</p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label htmlFor="z-flush">Flush Interval (s)</Label>
+                  <Label htmlFor="z-flush">{t("zabbix.flushInterval")}</Label>
                   <Input
                     id="z-flush"
                     type="number"
@@ -340,7 +343,7 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="z-buf-size">Buffer Size</Label>
+                  <Label htmlFor="z-buf-size">{t("zabbix.bufferSize")}</Label>
                   <Input
                     id="z-buf-size"
                     type="number"
@@ -356,13 +359,13 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
 
             {/* Logging */}
             <div className="space-y-3">
-              <p className="text-sm font-semibold">Logging</p>
+              <p className="text-sm font-semibold">{t("zabbix.logging")}</p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label>Debug Level</Label>
+                  <Label>{t("zabbix.debugLevel")}</Label>
                   <Select value={debugLevel} onValueChange={setDebugLevel}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Default" />
+                      <SelectValue placeholder={tc("default")} />
                     </SelectTrigger>
                     <SelectContent>
                       {debugLevels.map((l) => (
@@ -372,7 +375,7 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="z-log-size">Log Size (MB)</Label>
+                  <Label htmlFor="z-log-size">{t("zabbix.logSizeMb")}</Label>
                   <Input
                     id="z-log-size"
                     type="number"
@@ -388,7 +391,7 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
                   onCheckedChange={(c) => setRemoteCommands(!!c)}
                 />
                 <Label htmlFor="z-remote-commands" className="cursor-pointer">
-                  Allow remote commands from Zabbix server
+                  {t("zabbix.allowRemoteCommands")}
                 </Label>
               </div>
             </div>
@@ -404,11 +407,11 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

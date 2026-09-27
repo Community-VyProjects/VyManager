@@ -1,1 +1,182 @@
-{}
+{
+  "content": {
+    "loadFailed": "加载监控服务配置失败",
+    "title": "监控服务",
+    "readOnly": "只读",
+    "subtitle": "Telegraf、Zabbix、Prometheus 导出器以及网络事件日志",
+    "tabs": {
+      "zabbixAgent": "Zabbix 代理",
+      "networkEvents": "网络事件"
+    }
+  },
+  "common": {
+    "active": "已启用",
+    "notConfigured": "未配置",
+    "configure": "配置",
+    "port": "端口",
+    "remove": "移除",
+    "listenAddresses": "监听地址",
+    "editTitle": "编辑 {name}",
+    "configureTitle": "配置 {name}",
+    "secondsValue": "{value} 秒"
+  },
+  "prometheus": {
+    "nodeExporterDescription": "硬件和操作系统指标",
+    "textfileCollector": "Textfile 采集器",
+    "frrExporterDescription": "FRR 路由守护进程指标",
+    "blackboxDescription": "ICMP 和 DNS 探测结果",
+    "icmpModules": "ICMP 模块",
+    "dnsModules": "DNS 模块",
+    "ipProtocol": "IP 协议",
+    "timeout": "超时",
+    "queryName": "查询名称",
+    "type": "类型",
+    "noIcmpModules": "无 ICMP 模块",
+    "noDnsModules": "无 DNS 模块",
+    "removeExporterTitle": "移除导出器？",
+    "removeExporterDescription": "这将删除该导出器的配置。此操作无法撤销。",
+    "removeModuleTitle": "移除模块？",
+    "removeModuleDescription": "这将删除 {type} 模块“{name}”。"
+  },
+  "exporter": {
+    "listenPlaceholder": "例如 0.0.0.0",
+    "enableTextfileCollector": "启用 textfile 采集器"
+  },
+  "blackbox": {
+    "nameRequired": "模块名称不能为空",
+    "nameExists": "已存在同名模块",
+    "editTitle": "编辑 {type} 模块",
+    "addTitle": "添加 {type} 模块",
+    "moduleName": "模块名称",
+    "namePlaceholder": "例如 ping-ipv4",
+    "preferredIpProtocol": "首选 IP 协议",
+    "ipProtocolFallback": "允许 IP 协议回退",
+    "timeoutSeconds": "超时（秒）",
+    "queryNameFqdn": "查询名称 (FQDN)",
+    "queryNamePlaceholder": "例如 example.com",
+    "queryType": "查询类型"
+  },
+  "networkEvent": {
+    "events": {
+      "addr": "地址",
+      "link": "链路",
+      "neigh": "邻居",
+      "route": "路由",
+      "rule": "策略规则"
+    },
+    "editTitle": "编辑网络事件日志",
+    "configureTitle": "配置网络事件日志",
+    "logLevel": "日志级别",
+    "queueSize": "队列大小",
+    "minimum": "最小值 {min}",
+    "eventTypes": "事件类型",
+    "notConfigured": "未配置网络事件日志",
+    "emptyDescription": "记录网络变化的内核 netlink 事件",
+    "configureButton": "配置网络事件",
+    "cardTitle": "网络事件配置",
+    "removeTitle": "移除网络事件日志？",
+    "removeDescription": "这将删除网络事件配置。此操作无法撤销。"
+  },
+  "telegraf": {
+    "sources": {
+      "all": "全部",
+      "hardware": "硬件",
+      "hardwareUtilization": "硬件利用率",
+      "logs": "日志",
+      "network": "网络",
+      "system": "系统",
+      "telegraf": "Telegraf"
+    },
+    "generalSettings": "常规设置",
+    "generalSettingsTitle": "Telegraf 常规设置",
+    "sourcesLabel": "数据源",
+    "noneConfigured": "未配置",
+    "outputPlugins": "输出插件",
+    "summary": {
+      "url": "URL：{value}",
+      "port": "端口：{value}",
+      "bucket": "存储桶：{value}",
+      "insecureYes": "不安全：是",
+      "db": "数据库：{value}",
+      "table": "表：{value}",
+      "listen": "监听：{value}"
+    },
+    "removeTitle": "移除输出插件？",
+    "removeDescription": "这将删除该输出插件的配置。此操作无法撤销。",
+    "configureOutput": "配置 {name} 输出",
+    "token": "令牌",
+    "username": "用户名",
+    "password": "密码",
+    "azure": {
+      "endpointUrl": "端点 URL",
+      "endpointPlaceholder": "例如 https://cluster.region.kusto.windows.net",
+      "database": "数据库",
+      "table": "表",
+      "groupMetrics": "指标分组",
+      "groupMetricsPlaceholder": "选择分组策略",
+      "clientId": "客户端 ID",
+      "clientSecret": "客户端密钥",
+      "tenantId": "租户 ID"
+    },
+    "influxdb": {
+      "urlPlaceholder": "例如 https://influxdb.example.com",
+      "bucket": "存储桶",
+      "bucketPlaceholder": "例如 vyos",
+      "tokenPlaceholder": "API 令牌",
+      "organization": "组织",
+      "organizationPlaceholder": "例如 my-org"
+    },
+    "loki": {
+      "urlPlaceholder": "例如 https://loki.example.com",
+      "metricNameLabel": "指标名称标签",
+      "metricNameLabelPlaceholder": "例如 __name__"
+    },
+    "splunk": {
+      "urlPlaceholder": "例如 https://splunk.example.com:8088",
+      "tokenPlaceholder": "HEC 令牌",
+      "skipTlsVerify": "跳过 TLS 验证（不安全）"
+    },
+    "promClient": {
+      "listenAddress": "监听地址",
+      "metricVersion": "指标版本",
+      "selectVersion": "选择版本",
+      "version": "版本 {version}",
+      "allowFrom": "允许来源",
+      "allowFromPlaceholder": "例如 192.168.0.0/24"
+    }
+  },
+  "zabbix": {
+    "editTitle": "编辑 Zabbix 代理",
+    "configureTitle": "配置 Zabbix 代理",
+    "identity": "标识",
+    "hostName": "主机名",
+    "directory": "目录",
+    "secondsRange": "秒（1–30）",
+    "passiveServers": "被动服务器",
+    "serverPlaceholder": "例如 192.168.1.10",
+    "activeServers": "主动服务器",
+    "address": "地址",
+    "portOptional": "端口（可选）",
+    "authentication": "认证",
+    "mode": "模式",
+    "pskId": "PSK ID",
+    "pskSecret": "PSK 密钥",
+    "bufferLimits": "缓冲区限制",
+    "flushInterval": "刷新间隔（秒）",
+    "bufferSize": "缓冲区大小",
+    "logging": "日志",
+    "debugLevel": "调试级别",
+    "logSizeMb": "日志大小 (MB)",
+    "allowRemoteCommands": "允许来自 Zabbix 服务器的远程命令",
+    "notConfigured": "未配置 Zabbix 代理",
+    "emptyDescription": "为此路由器配置 Zabbix 监控代理",
+    "cardTitle": "Zabbix 代理配置",
+    "editConfiguration": "编辑配置",
+    "authMode": "认证模式",
+    "bufferFlush": "缓冲区刷新",
+    "logSize": "日志大小",
+    "remoteCommands": "远程命令",
+    "removeTitle": "移除 Zabbix 代理？",
+    "removeDescription": "这将删除整个 Zabbix 代理配置。此操作无法撤销。"
+  }
+}

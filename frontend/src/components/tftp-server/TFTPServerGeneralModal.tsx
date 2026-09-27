@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,8 @@ export function TFTPServerGeneralModal({
   capabilities,
   onSuccess,
 }: TFTPServerGeneralModalProps) {
+  const t = useTranslations("tftpServer");
+  const tc = useTranslations("common");
   const [directory, setDirectory] = useState(config.directory ?? "");
   const [allowUpload, setAllowUpload] = useState(config.allow_upload);
   const [port, setPort] = useState(config.port ?? "");
@@ -46,7 +49,7 @@ export function TFTPServerGeneralModal({
 
   const handleSubmit = async () => {
     if (!directory.trim()) {
-      setError("A directory is required for the TFTP server to start");
+      setError(t("general.directoryRequired"));
       return;
     }
     setSubmitting(true);
@@ -62,7 +65,7 @@ export function TFTPServerGeneralModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -72,21 +75,21 @@ export function TFTPServerGeneralModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>TFTP Server Settings</DialogTitle>
+          <DialogTitle>{t("general.title")}</DialogTitle>
           <DialogDescription>
-            Configure the served directory, listening port, and upload behaviour
+            {t("general.description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 py-1">
           <div className="space-y-1.5">
-            <Label htmlFor="tftp-directory">Directory</Label>
+            <Label htmlFor="tftp-directory">{t("general.directory")}</Label>
             <p className="text-xs text-muted-foreground">
-              Folder containing files served by TFTP. Required for the service to run.
+              {t("general.directoryHint")}
             </p>
             <Input
               id="tftp-directory"
-              placeholder="e.g. /config/tftpboot"
+              placeholder={t("general.directoryPlaceholder")}
               value={directory}
               onChange={(e) => {
                 setDirectory(e.target.value);
@@ -97,16 +100,16 @@ export function TFTPServerGeneralModal({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="tftp-port">Port</Label>
+            <Label htmlFor="tftp-port">{t("general.port")}</Label>
             <p className="text-xs text-muted-foreground">
-              UDP port to listen on. Leave empty for the default ({capabilities.features.port.default}).
+              {t("general.portHint", { value: String(capabilities.features.port.default) })}
             </p>
             <Input
               id="tftp-port"
               type="number"
               min={1}
               max={65535}
-              placeholder={`Default (${capabilities.features.port.default})`}
+              placeholder={t("content.defaultPort", { value: String(capabilities.features.port.default) })}
               value={port}
               onChange={(e) => setPort(e.target.value)}
             />
@@ -121,9 +124,9 @@ export function TFTPServerGeneralModal({
               onCheckedChange={(c) => setAllowUpload(!!c)}
             />
             <Label htmlFor="tftp-allow-upload" className="cursor-pointer leading-tight">
-              <span className="font-medium">Allow uploads</span>
+              <span className="font-medium">{t("general.allowUploads")}</span>
               <span className="block text-xs text-muted-foreground mt-0.5">
-                Permit clients to write files to the server (otherwise read-only)
+                {t("general.allowUploadsHint")}
               </span>
             </Label>
           </div>
@@ -138,11 +141,11 @@ export function TFTPServerGeneralModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

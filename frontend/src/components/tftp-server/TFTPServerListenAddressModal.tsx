@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,8 @@ export function TFTPServerListenAddressModal({
   existingAddresses,
   onSuccess,
 }: TFTPServerListenAddressModalProps) {
+  const t = useTranslations("tftpServer");
+  const tc = useTranslations("common");
   const isEdit = existing !== null;
   const [address, setAddress] = useState(existing?.address ?? "");
   const [vrf, setVrf] = useState(existing?.vrf ?? "");
@@ -47,15 +50,15 @@ export function TFTPServerListenAddressModal({
   const handleSubmit = async () => {
     const addr = address.trim();
     if (!addr) {
-      setError("An IP address is required");
+      setError(t("listen.addressRequired"));
       return;
     }
     if (!isValidIP(addr)) {
-      setError("Enter a valid IPv4 or IPv6 address");
+      setError(t("listen.addressInvalid"));
       return;
     }
     if (!isEdit && existingAddresses.includes(addr)) {
-      setError(`Listen address "${addr}" already exists`);
+      setError(t("listen.addressExists", { address: addr }));
       return;
     }
     setSubmitting(true);
@@ -65,7 +68,7 @@ export function TFTPServerListenAddressModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -75,18 +78,18 @@ export function TFTPServerListenAddressModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Listen Address" : "Add Listen Address"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("listen.editTitle") : t("listen.addTitle")}</DialogTitle>
           <DialogDescription>
-            Bind the TFTP server to a specific local IP address, optionally within a VRF
+            {t("listen.description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-1">
           <div className="space-y-1.5">
-            <Label htmlFor="tftp-listen-address">IP Address</Label>
+            <Label htmlFor="tftp-listen-address">{t("listen.ipAddress")}</Label>
             <Input
               id="tftp-listen-address"
-              placeholder="e.g. 192.0.2.1 or 2001:db8::1"
+              placeholder={t("listen.ipAddressPlaceholder")}
               value={address}
               onChange={(e) => {
                 setAddress(e.target.value);
@@ -105,7 +108,7 @@ export function TFTPServerListenAddressModal({
               className="font-mono"
             />
             <p className="text-xs text-muted-foreground">
-              Leave empty to use the default routing table.
+              {t("listen.vrfHint")}
             </p>
           </div>
         </div>
@@ -119,11 +122,11 @@ export function TFTPServerListenAddressModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isEdit ? "Save" : "Add"}
+            {isEdit ? tc("save") : tc("add")}
           </Button>
         </DialogFooter>
       </DialogContent>

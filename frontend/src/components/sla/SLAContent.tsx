@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,10 +34,12 @@ function ServerCard({
   config,
   description,
 }: ServerCardProps) {
+  const t = useTranslations("sla");
+  const tc = useTranslations("common");
   const portLabel = config.enabled
     ? config.port !== null
-      ? `${config.port} (custom)`
-      : `${defaultPort} (default)`
+      ? t("content.portCustom", { port: String(config.port) })
+      : t("content.portDefault", { port: String(defaultPort) })
     : "—";
 
   return (
@@ -47,12 +50,12 @@ function ServerCard({
           {config.enabled ? (
             <Badge className="bg-green-500/10 text-green-600 dark:text-green-400 border-0 text-xs font-medium">
               <CheckCircle2 className="h-3 w-3 mr-1" />
-              Enabled
+              {tc("enabled")}
             </Badge>
           ) : (
             <Badge variant="secondary" className="text-xs font-medium">
               <XCircle className="h-3 w-3 mr-1" />
-              Disabled
+              {tc("disabled")}
             </Badge>
           )}
         </div>
@@ -61,7 +64,7 @@ function ServerCard({
       <CardContent className="px-4 pb-4 space-y-3">
         <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
         <div className="flex items-center gap-2 text-sm">
-          <span className="text-muted-foreground">Port</span>
+          <span className="text-muted-foreground">{t("content.port")}</span>
           <span className={`font-mono font-medium ${!config.enabled ? "text-muted-foreground" : ""}`}>
             {portLabel}
           </span>
@@ -72,6 +75,8 @@ function ServerCard({
 }
 
 export function SLAContent() {
+  const t = useTranslations("sla");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWrite = canWrite(FeatureGroup.SLA);
 
@@ -88,12 +93,12 @@ export function SLAContent() {
       setConfig(cfg);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to load SLA configuration"
+        err instanceof Error ? err.message : t("content.loadFailed")
       );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -112,7 +117,7 @@ export function SLAContent() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={() => loadData()}>
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -136,10 +141,10 @@ export function SLAContent() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-2xl font-bold text-foreground">SLA</h1>
-                  {!hasWrite && <Badge variant="secondary">Read Only</Badge>}
+                  {!hasWrite && <Badge variant="secondary">{t("content.readOnly")}</Badge>}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Service Level Agreement — OWAMP and TWAMP measurement servers
+                  {t("content.subtitle")}
                 </p>
               </div>
             </div>
@@ -148,7 +153,7 @@ export function SLAContent() {
               {hasWrite && (
                 <Button size="sm" onClick={() => setSettingsOpen(true)}>
                   <Pencil className="h-4 w-4 mr-2" />
-                  Edit Settings
+                  {t("content.editSettings")}
                 </Button>
               )}
               <Button
@@ -157,7 +162,7 @@ export function SLAContent() {
                 onClick={() => loadData(true)}
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -176,29 +181,25 @@ export function SLAContent() {
           <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
             <Gauge className="h-4 w-4 text-muted-foreground shrink-0" />
             <span className="text-sm text-muted-foreground">
-              {enabledCount === 0
-                ? "No measurement servers enabled"
-                : enabledCount === 1
-                ? "1 measurement server enabled"
-                : "2 measurement servers enabled"}
+              {t("content.enabledCount", { count: enabledCount })}
             </span>
           </div>
 
           {/* Server cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <ServerCard
-              title="OWAMP Server"
+              title={t("content.owampServer")}
               fullName="One-Way Active Measurement Protocol"
               defaultPort={861}
               config={config!.owamp_server}
-              description="Measures one-way network delay, jitter, and packet loss between endpoints. Used for asymmetric path analysis and SLA verification."
+              description={t("content.owampDescription")}
             />
             <ServerCard
-              title="TWAMP Server"
+              title={t("content.twampServer")}
               fullName="Two-Way Active Measurement Protocol"
               defaultPort={862}
               config={config!.twamp_server}
-              description="Measures round-trip network delay, jitter, and packet loss between endpoints. Extends OWAMP with bidirectional measurement capability."
+              description={t("content.twampDescription")}
             />
           </div>
         </div>

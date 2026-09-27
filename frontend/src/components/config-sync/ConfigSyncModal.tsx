@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,8 @@ interface Props {
 }
 
 export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmit }: Props) {
+  const t = useTranslations("configSync");
+  const tc = useTranslations("common");
   const [activeTab, setActiveTab] = useState<"connection" | "sections">("connection");
 
   const [mode, setMode] = useState<"load" | "set" | "">("");
@@ -91,7 +94,7 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -101,22 +104,22 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>{config ? "Edit Config Sync" : "Configure Config Sync"}</DialogTitle>
+          <DialogTitle>{config ? t("modal.editTitle") : t("modal.configureTitle")}</DialogTitle>
           <DialogDescription>
-            Synchronize configuration sections from this router to a secondary router.
+            {t("modal.description")}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "connection" | "sections")} className="flex-1 flex flex-col min-h-0">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="connection">Connection</TabsTrigger>
-            <TabsTrigger value="sections">Sync Sections</TabsTrigger>
+            <TabsTrigger value="connection">{t("modal.tabConnection")}</TabsTrigger>
+            <TabsTrigger value="sections">{t("modal.tabSections")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="connection" className="flex-1 overflow-auto mt-4 space-y-5">
             {/* Sync Mode */}
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Sync Mode</Label>
+              <Label className="text-sm font-medium">{t("modal.syncMode")}</Label>
               <RadioGroup
                 value={mode}
                 onValueChange={(v) => setMode(v as "load" | "set")}
@@ -125,13 +128,13 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="load" id="mode-load" />
                   <Label htmlFor="mode-load" className="font-normal cursor-pointer">
-                    Load — replace the section entirely on secondary
+                    {t("modal.modeLoad")}
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="set" id="mode-set" />
                   <Label htmlFor="mode-set" className="font-normal cursor-pointer">
-                    Set — merge into the existing section on secondary
+                    {t("modal.modeSet")}
                   </Label>
                 </div>
               </RadioGroup>
@@ -141,11 +144,11 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
 
             {/* Secondary Router */}
             <div className="space-y-4">
-              <Label className="text-sm font-medium">Secondary Router</Label>
+              <Label className="text-sm font-medium">{t("modal.secondaryRouter")}</Label>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5 col-span-2">
-                  <Label htmlFor="address" className="text-xs text-muted-foreground">Address</Label>
+                  <Label htmlFor="address" className="text-xs text-muted-foreground">{t("modal.address")}</Label>
                   <Input
                     id="address"
                     value={address}
@@ -155,14 +158,14 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
                 </div>
 
                 <div className="space-y-1.5 col-span-2">
-                  <Label htmlFor="apiKey" className="text-xs text-muted-foreground">API Key</Label>
+                  <Label htmlFor="apiKey" className="text-xs text-muted-foreground">{t("modal.apiKey")}</Label>
                   <div className="relative">
                     <Input
                       id="apiKey"
                       type={showKey ? "text" : "password"}
                       value={apiKey}
                       onChange={(e) => setApiKey(e.target.value)}
-                      placeholder="API key for secondary router"
+                      placeholder={t("modal.apiKeyPlaceholder")}
                       className="pr-10"
                     />
                     <Button
@@ -178,26 +181,26 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="port" className="text-xs text-muted-foreground">Port</Label>
+                  <Label htmlFor="port" className="text-xs text-muted-foreground">{t("modal.port")}</Label>
                   <Input
                     id="port"
                     type="number"
                     value={port}
                     onChange={(e) => setPort(e.target.value)}
-                    placeholder="443 (default)"
+                    placeholder={t("modal.defaultValue", { value: "443" })}
                     min={1}
                     max={65535}
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="timeout" className="text-xs text-muted-foreground">Timeout (seconds)</Label>
+                  <Label htmlFor="timeout" className="text-xs text-muted-foreground">{t("modal.timeout")}</Label>
                   <Input
                     id="timeout"
                     type="number"
                     value={timeout}
                     onChange={(e) => setTimeout(e.target.value)}
-                    placeholder="60 (default)"
+                    placeholder={t("modal.defaultValue", { value: "60" })}
                     min={1}
                     max={3600}
                   />
@@ -211,7 +214,7 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
               <div className="space-y-5">
                 {/* Simple Sections */}
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Simple Sections</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("modal.simpleSections")}</p>
                   <div className="grid grid-cols-4 gap-2">
                     {(["firewall", "nat", "nat66", "pki", "policy", "vpn", "vrf"] as const).map((name) => (
                       <div key={name} className="flex items-center space-x-2">
@@ -230,7 +233,7 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
 
                 {/* Interfaces */}
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Interfaces</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("sections.interfaces")}</p>
                   <div className="grid grid-cols-4 gap-2">
                     <div className="flex items-center space-x-2 col-span-4">
                       <Checkbox
@@ -238,37 +241,37 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
                         checked={sections.interfaces}
                         onCheckedChange={(v) => setSection("interfaces", !!v)}
                       />
-                      <Label htmlFor="sec-interfaces" className="font-normal cursor-pointer text-sm">All Interfaces</Label>
+                      <Label htmlFor="sec-interfaces" className="font-normal cursor-pointer text-sm">{t("modal.allInterfaces")}</Label>
                     </div>
                     {([
-                      ["interfaces_bonding", "Bonding"],
-                      ["interfaces_bridge", "Bridge"],
-                      ["interfaces_dummy", "Dummy"],
-                      ["interfaces_ethernet", "Ethernet"],
-                      ["interfaces_geneve", "GENEVE"],
-                      ["interfaces_input", "Input"],
-                      ["interfaces_l2tpv3", "L2TPv3"],
-                      ["interfaces_loopback", "Loopback"],
-                      ["interfaces_macsec", "MACsec"],
-                      ["interfaces_openvpn", "OpenVPN"],
-                      ["interfaces_pppoe", "PPPoE"],
-                      ["interfaces_pseudo_ethernet", "Pseudo-Ethernet"],
-                      ["interfaces_sstpc", "SSTPC"],
-                      ["interfaces_tunnel", "Tunnel"],
-                      ["interfaces_virtual_ethernet", "Virtual Ethernet"],
-                      ["interfaces_vti", "VTI"],
-                      ["interfaces_vxlan", "VXLAN"],
-                      ["interfaces_wireguard", "WireGuard"],
-                      ["interfaces_wireless", "Wireless"],
-                      ["interfaces_wwan", "WWAN"],
-                    ] as [keyof ConfigSyncSections, string][]).map(([key, label]) => (
+                      "interfaces_bonding",
+                      "interfaces_bridge",
+                      "interfaces_dummy",
+                      "interfaces_ethernet",
+                      "interfaces_geneve",
+                      "interfaces_input",
+                      "interfaces_l2tpv3",
+                      "interfaces_loopback",
+                      "interfaces_macsec",
+                      "interfaces_openvpn",
+                      "interfaces_pppoe",
+                      "interfaces_pseudo_ethernet",
+                      "interfaces_sstpc",
+                      "interfaces_tunnel",
+                      "interfaces_virtual_ethernet",
+                      "interfaces_vti",
+                      "interfaces_vxlan",
+                      "interfaces_wireguard",
+                      "interfaces_wireless",
+                      "interfaces_wwan",
+                    ] as (keyof ConfigSyncSections)[]).map((key) => (
                       <div key={key} className="flex items-center space-x-2">
                         <Checkbox
                           id={`sec-${key}`}
                           checked={sections[key] as boolean}
                           onCheckedChange={(v) => setSection(key, !!v)}
                         />
-                        <Label htmlFor={`sec-${key}`} className="font-normal cursor-pointer text-sm">{label}</Label>
+                        <Label htmlFor={`sec-${key}`} className="font-normal cursor-pointer text-sm">{t(`sections.${key}`)}</Label>
                       </div>
                     ))}
                   </div>
@@ -278,7 +281,7 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
 
                 {/* Protocols */}
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Protocols</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("sections.protocols")}</p>
                   <div className="grid grid-cols-4 gap-2">
                     <div className="flex items-center space-x-2 col-span-4">
                       <Checkbox
@@ -286,34 +289,34 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
                         checked={sections.protocols}
                         onCheckedChange={(v) => setSection("protocols", !!v)}
                       />
-                      <Label htmlFor="sec-protocols" className="font-normal cursor-pointer text-sm">All Protocols</Label>
+                      <Label htmlFor="sec-protocols" className="font-normal cursor-pointer text-sm">{t("modal.allProtocols")}</Label>
                     </div>
                     {([
-                      ["protocols_babel", "Babel"],
-                      ["protocols_bfd", "BFD"],
-                      ["protocols_bgp", "BGP"],
-                      ["protocols_failover", "Failover"],
-                      ["protocols_igmp_proxy", "IGMP Proxy"],
-                      ["protocols_isis", "IS-IS"],
-                      ["protocols_mpls", "MPLS"],
-                      ["protocols_nhrp", "NHRP"],
-                      ["protocols_ospf", "OSPF"],
-                      ["protocols_ospfv3", "OSPFv3"],
-                      ["protocols_pim", "PIM"],
-                      ["protocols_pim6", "PIMv6"],
-                      ["protocols_rip", "RIP"],
-                      ["protocols_ripng", "RIPng"],
-                      ["protocols_rpki", "RPKI"],
-                      ["protocols_segment_routing", "Segment Routing"],
-                      ["protocols_static", "Static Routes"],
-                    ] as [keyof ConfigSyncSections, string][]).map(([key, label]) => (
+                      "protocols_babel",
+                      "protocols_bfd",
+                      "protocols_bgp",
+                      "protocols_failover",
+                      "protocols_igmp_proxy",
+                      "protocols_isis",
+                      "protocols_mpls",
+                      "protocols_nhrp",
+                      "protocols_ospf",
+                      "protocols_ospfv3",
+                      "protocols_pim",
+                      "protocols_pim6",
+                      "protocols_rip",
+                      "protocols_ripng",
+                      "protocols_rpki",
+                      "protocols_segment_routing",
+                      "protocols_static",
+                    ] as (keyof ConfigSyncSections)[]).map((key) => (
                       <div key={key} className="flex items-center space-x-2">
                         <Checkbox
                           id={`sec-${key}`}
                           checked={sections[key] as boolean}
                           onCheckedChange={(v) => setSection(key, !!v)}
                         />
-                        <Label htmlFor={`sec-${key}`} className="font-normal cursor-pointer text-sm">{label}</Label>
+                        <Label htmlFor={`sec-${key}`} className="font-normal cursor-pointer text-sm">{t(`sections.${key}`)}</Label>
                       </div>
                     ))}
                   </div>
@@ -323,7 +326,7 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
 
                 {/* QoS */}
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">QoS</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("sections.qos")}</p>
                   <div className="grid grid-cols-4 gap-2">
                     <div className="flex items-center space-x-2 col-span-4">
                       <Checkbox
@@ -331,19 +334,19 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
                         checked={sections.qos}
                         onCheckedChange={(v) => setSection("qos", !!v)}
                       />
-                      <Label htmlFor="sec-qos" className="font-normal cursor-pointer text-sm">All QoS</Label>
+                      <Label htmlFor="sec-qos" className="font-normal cursor-pointer text-sm">{t("modal.allQos")}</Label>
                     </div>
                     {([
-                      ["qos_interface", "Interface"],
-                      ["qos_policy", "Policy"],
-                    ] as [keyof ConfigSyncSections, string][]).map(([key, label]) => (
+                      "qos_interface",
+                      "qos_policy",
+                    ] as (keyof ConfigSyncSections)[]).map((key) => (
                       <div key={key} className="flex items-center space-x-2">
                         <Checkbox
                           id={`sec-${key}`}
                           checked={sections[key] as boolean}
                           onCheckedChange={(v) => setSection(key, !!v)}
                         />
-                        <Label htmlFor={`sec-${key}`} className="font-normal cursor-pointer text-sm">{label}</Label>
+                        <Label htmlFor={`sec-${key}`} className="font-normal cursor-pointer text-sm">{t(`sections.${key}`)}</Label>
                       </div>
                     ))}
                   </div>
@@ -353,7 +356,7 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
 
                 {/* Service */}
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Service</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("sections.service")}</p>
                   <div className="grid grid-cols-4 gap-2">
                     <div className="flex items-center space-x-2 col-span-4">
                       <Checkbox
@@ -361,31 +364,31 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
                         checked={sections.service}
                         onCheckedChange={(v) => setSection("service", !!v)}
                       />
-                      <Label htmlFor="sec-service" className="font-normal cursor-pointer text-sm">All Services</Label>
+                      <Label htmlFor="sec-service" className="font-normal cursor-pointer text-sm">{t("modal.allServices")}</Label>
                     </div>
                     {([
-                      ["service_console_server", "Console Server"],
-                      ["service_dhcp_relay", "DHCP Relay"],
-                      ["service_dhcp_server", "DHCP Server"],
-                      ["service_dhcpv6_relay", "DHCPv6 Relay"],
-                      ["service_dhcpv6_server", "DHCPv6 Server"],
-                      ["service_dns", "DNS"],
-                      ["service_lldp", "LLDP"],
-                      ["service_mdns", "mDNS"],
-                      ["service_monitoring", "Monitoring"],
-                      ["service_ndp_proxy", "NDP Proxy"],
-                      ["service_ntp", "NTP"],
-                      ["service_snmp", "SNMP"],
-                      ["service_tftp_server", "TFTP Server"],
-                      ["service_webproxy", "Web Proxy"],
-                    ] as [keyof ConfigSyncSections, string][]).map(([key, label]) => (
+                      "service_console_server",
+                      "service_dhcp_relay",
+                      "service_dhcp_server",
+                      "service_dhcpv6_relay",
+                      "service_dhcpv6_server",
+                      "service_dns",
+                      "service_lldp",
+                      "service_mdns",
+                      "service_monitoring",
+                      "service_ndp_proxy",
+                      "service_ntp",
+                      "service_snmp",
+                      "service_tftp_server",
+                      "service_webproxy",
+                    ] as (keyof ConfigSyncSections)[]).map((key) => (
                       <div key={key} className="flex items-center space-x-2">
                         <Checkbox
                           id={`sec-${key}`}
                           checked={sections[key] as boolean}
                           onCheckedChange={(v) => setSection(key, !!v)}
                         />
-                        <Label htmlFor={`sec-${key}`} className="font-normal cursor-pointer text-sm">{label}</Label>
+                        <Label htmlFor={`sec-${key}`} className="font-normal cursor-pointer text-sm">{t(`sections.${key}`)}</Label>
                       </div>
                     ))}
                   </div>
@@ -395,7 +398,7 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
 
                 {/* System */}
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">System</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("sections.system")}</p>
                   <div className="grid grid-cols-4 gap-2">
                     <div className="flex items-center space-x-2 col-span-4">
                       <Checkbox
@@ -403,24 +406,24 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
                         checked={sections.system}
                         onCheckedChange={(v) => setSection("system", !!v)}
                       />
-                      <Label htmlFor="sec-system" className="font-normal cursor-pointer text-sm">All System</Label>
+                      <Label htmlFor="sec-system" className="font-normal cursor-pointer text-sm">{t("modal.allSystem")}</Label>
                     </div>
                     {([
-                      ["system_conntrack", "Conntrack"],
-                      ["system_flow_accounting", "Flow Accounting"],
-                      ["system_option", "Options"],
-                      ["system_sflow", "sFlow"],
-                      ["system_static_host_mapping", "Static Host Mapping"],
-                      ["system_sysctl", "Sysctl"],
-                      ["system_time_zone", "Time Zone"],
-                    ] as [keyof ConfigSyncSections, string][]).map(([key, label]) => (
+                      "system_conntrack",
+                      "system_flow_accounting",
+                      "system_option",
+                      "system_sflow",
+                      "system_static_host_mapping",
+                      "system_sysctl",
+                      "system_time_zone",
+                    ] as (keyof ConfigSyncSections)[]).map((key) => (
                       <div key={key} className="flex items-center space-x-2">
                         <Checkbox
                           id={`sec-${key}`}
                           checked={sections[key] as boolean}
                           onCheckedChange={(v) => setSection(key, !!v)}
                         />
-                        <Label htmlFor={`sec-${key}`} className="font-normal cursor-pointer text-sm">{label}</Label>
+                        <Label htmlFor={`sec-${key}`} className="font-normal cursor-pointer text-sm">{t(`sections.${key}`)}</Label>
                       </div>
                     ))}
                   </div>
@@ -434,7 +437,7 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
           <div className="mt-2 p-3 rounded-md bg-destructive/10 border border-destructive/20 flex items-start gap-2">
             <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-destructive">Operation Failed</p>
+              <p className="text-sm font-semibold text-destructive">{t("modal.operationFailed")}</p>
               <p className="text-xs text-destructive whitespace-pre-wrap font-mono mt-1">{error}</p>
             </div>
           </div>
@@ -442,11 +445,11 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
 
         <DialogFooter className="mt-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save Changes
+            {t("modal.saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

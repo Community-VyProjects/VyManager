@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,8 @@ interface Props {
 }
 
 export function DNSForwardingDomainModal({ open, onOpenChange, domain, onSubmit }: Props) {
+  const t = useTranslations("dnsForwarding");
+  const tc = useTranslations("common");
   const isEdit = !!domain;
 
   const [domainName, setDomainName] = useState("");
@@ -75,7 +78,7 @@ export function DNSForwardingDomainModal({ open, onOpenChange, domain, onSubmit 
 
   const handleSubmit = async () => {
     if (!isEdit && !domainName.trim()) {
-      setError("Domain name is required");
+      setError(t("domain.nameRequired"));
       return;
     }
     setLoading(true);
@@ -89,7 +92,7 @@ export function DNSForwardingDomainModal({ open, onOpenChange, domain, onSubmit 
       );
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -99,27 +102,27 @@ export function DNSForwardingDomainModal({ open, onOpenChange, domain, onSubmit 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Domain Forwarder" : "Add Domain Forwarder"}</DialogTitle>
-          <DialogDescription>Forward queries for a specific domain to upstream servers.</DialogDescription>
+          <DialogTitle>{isEdit ? t("domain.editTitle") : t("domain.addTitle")}</DialogTitle>
+          <DialogDescription>{t("domain.description")}</DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[60vh] pr-4">
           <div className="space-y-5 pb-2">
             <div className="space-y-2">
-              <Label htmlFor="df-domain">Domain</Label>
+              <Label htmlFor="df-domain">{t("content.domain")}</Label>
               <Input
                 id="df-domain"
                 value={domainName}
                 onChange={(e) => setDomainName(e.target.value)}
-                placeholder="e.g. example.com"
+                placeholder={t("domainPlaceholder")}
                 disabled={isEdit}
                 className={isEdit ? "bg-muted font-mono" : "font-mono"}
               />
-              {isEdit && <p className="text-xs text-muted-foreground">Domain cannot be changed after creation.</p>}
+              {isEdit && <p className="text-xs text-muted-foreground">{t("domain.cannotChange")}</p>}
             </div>
 
             <div className="space-y-3">
-              <Label>Name Servers</Label>
+              <Label>{t("content.nameServers")}</Label>
               {nameServers.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {nameServers.map((ns, idx) => (
@@ -136,14 +139,14 @@ export function DNSForwardingDomainModal({ open, onOpenChange, domain, onSubmit 
                 <Input
                   value={nsIp}
                   onChange={(e) => setNsIp(e.target.value)}
-                  placeholder="IP address"
+                  placeholder={t("domain.ipPlaceholder")}
                   className="flex-1 font-mono"
                   onKeyDown={(e) => e.key === "Enter" && handleAddNs()}
                 />
                 <Input
                   value={nsPort}
                   onChange={(e) => setNsPort(e.target.value)}
-                  placeholder="Port"
+                  placeholder={t("content.port")}
                   type="number"
                   className="w-24 font-mono"
                   min={1}
@@ -163,7 +166,7 @@ export function DNSForwardingDomainModal({ open, onOpenChange, domain, onSubmit 
                   checked={addnta}
                   onCheckedChange={(c) => setAddnta(c === true)}
                 />
-                <Label htmlFor="df-addnta" className="cursor-pointer">Add NTA (Negative Trust Anchor)</Label>
+                <Label htmlFor="df-addnta" className="cursor-pointer">{t("domain.addNta")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox
@@ -171,7 +174,7 @@ export function DNSForwardingDomainModal({ open, onOpenChange, domain, onSubmit 
                   checked={recursionDesired}
                   onCheckedChange={(c) => setRecursionDesired(c === true)}
                 />
-                <Label htmlFor="df-rd" className="cursor-pointer">Recursion Desired</Label>
+                <Label htmlFor="df-rd" className="cursor-pointer">{t("domain.recursionDesired")}</Label>
               </div>
             </div>
           </div>
@@ -185,9 +188,9 @@ export function DNSForwardingDomainModal({ open, onOpenChange, domain, onSubmit 
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? "Saving..." : "Adding..."}</> : isEdit ? "Save Changes" : "Add Domain"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("adding")}</> : isEdit ? t("saveChanges") : t("content.addDomain")}
           </Button>
         </DialogFooter>
       </DialogContent>

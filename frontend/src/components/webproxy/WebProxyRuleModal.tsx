@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -62,6 +63,8 @@ export function WebProxyRuleModal({
   existingNumbers,
   onSubmit,
 }: Props) {
+  const t = useTranslations("webproxy");
+  const tc = useTranslations("common");
   const isEdit = !!rule;
   const [form, setForm] = useState<SquidGuardRule>(emptyRule());
   const [loading, setLoading] = useState(false);
@@ -79,11 +82,11 @@ export function WebProxyRuleModal({
   const handleSubmit = async () => {
     const num = form.number.trim();
     if (!num) {
-      setError("Rule number is required");
+      setError(t("rule.numberRequired"));
       return;
     }
     if (!isEdit && existingNumbers.includes(num)) {
-      setError(`Rule ${num} already exists`);
+      setError(t("rule.exists", { number: num }));
       return;
     }
     setLoading(true);
@@ -92,7 +95,7 @@ export function WebProxyRuleModal({
       await onSubmit({ ...form, number: num }, isEdit);
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -102,19 +105,19 @@ export function WebProxyRuleModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{isEdit ? `Edit Rule ${rule?.number}` : "Add Filter Rule"}</DialogTitle>
-          <DialogDescription>Apply a filtering policy to a source-group, optionally limited to a time-period.</DialogDescription>
+          <DialogTitle>{isEdit ? t("rule.editTitle", { number: rule?.number ?? "" }) : t("rule.addTitle")}</DialogTitle>
+          <DialogDescription>{t("rule.description")}</DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[65vh] pr-4">
           <div className="space-y-5 pb-2">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="rule-number">Rule Number</Label>
+                <Label htmlFor="rule-number">{t("rule.number")}</Label>
                 <Input id="rule-number" type="number" min={1} max={1024} value={form.number} onChange={(e) => update({ number: e.target.value })} placeholder="10" disabled={isEdit} className={isEdit ? "bg-muted font-mono" : "font-mono"} />
               </div>
               <div className="space-y-2">
-                <Label>Default Action</Label>
+                <Label>{t("content.defaultAction")}</Label>
                 <Select value={form.default_action ?? ""} onValueChange={(v) => update({ default_action: v })}>
                   <SelectTrigger><SelectValue placeholder="allow" /></SelectTrigger>
                   <SelectContent>
@@ -125,11 +128,11 @@ export function WebProxyRuleModal({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Source Group</Label>
+                <Label>{t("content.sourceGroup")}</Label>
                 <Select value={form.source_group ?? NONE} onValueChange={(v) => update({ source_group: v === NONE ? null : v })}>
-                  <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("rule.any")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>Any (no source-group)</SelectItem>
+                    <SelectItem value={NONE}>{t("rule.anySourceGroup")}</SelectItem>
                     {sourceGroups.map((g) => (
                       <SelectItem key={g} value={g}>{g}</SelectItem>
                     ))}
@@ -137,19 +140,19 @@ export function WebProxyRuleModal({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Time Period</Label>
+                <Label>{t("content.timePeriod")}</Label>
                 <Select value={form.time_period ?? NONE} onValueChange={(v) => update({ time_period: v === NONE ? null : v })}>
-                  <SelectTrigger><SelectValue placeholder="Always" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("rule.always")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>Always (no time-period)</SelectItem>
-                    {timePeriods.map((t) => (
-                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    <SelectItem value={NONE}>{t("rule.alwaysTimePeriod")}</SelectItem>
+                    {timePeriods.map((tp) => (
+                      <SelectItem key={tp} value={tp}>{tp}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2 col-span-2">
-                <Label htmlFor="rule-redirect">Redirect URL</Label>
+                <Label htmlFor="rule-redirect">{t("content.redirectUrl")}</Label>
                 <Input id="rule-redirect" value={form.redirect_url ?? ""} onChange={(e) => update({ redirect_url: e.target.value })} placeholder="block.vyos.net" className="font-mono" />
               </div>
             </div>
@@ -157,22 +160,22 @@ export function WebProxyRuleModal({
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
                 <Checkbox id="rule-ipaddr" checked={form.allow_ipaddr_url} onCheckedChange={(c) => update({ allow_ipaddr_url: c === true })} />
-                <Label htmlFor="rule-ipaddr" className="cursor-pointer">Allow IP-address URLs</Label>
+                <Label htmlFor="rule-ipaddr" className="cursor-pointer">{t("content.allowIpaddrUrl")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="rule-safe" checked={form.enable_safe_search} onCheckedChange={(c) => update({ enable_safe_search: c === true })} />
-                <Label htmlFor="rule-safe" className="cursor-pointer">Enable safe search</Label>
+                <Label htmlFor="rule-safe" className="cursor-pointer">{t("filter.enableSafeSearch")}</Label>
               </div>
             </div>
 
-            <MultiValueInput label="Allow Categories" values={form.allow_categories} onChange={(v) => update({ allow_categories: v })} placeholder="e.g. news" />
-            <MultiValueInput label="Block Categories" values={form.block_categories} onChange={(v) => update({ block_categories: v })} placeholder="e.g. ads" />
-            <MultiValueInput label="Log Categories" values={form.log} onChange={(v) => update({ log: v })} placeholder="all or a category" />
-            <MultiValueInput label="Local Block (sites)" values={form.local_block} onChange={(v) => update({ local_block: v })} placeholder="IP or FQDN" />
-            <MultiValueInput label="Local Block Keywords" values={form.local_block_keyword} onChange={(v) => update({ local_block_keyword: v })} placeholder="keyword or regex" />
-            <MultiValueInput label="Local Block URLs" values={form.local_block_url} onChange={(v) => update({ local_block_url: v })} placeholder="example.com/path" />
-            <MultiValueInput label="Local Allow (sites)" values={form.local_ok} onChange={(v) => update({ local_ok: v })} placeholder="IP or FQDN" />
-            <MultiValueInput label="Local Allow URLs" values={form.local_ok_url} onChange={(v) => update({ local_ok_url: v })} placeholder="example.com/path" />
+            <MultiValueInput label={t("content.allowCategories")} values={form.allow_categories} onChange={(v) => update({ allow_categories: v })} placeholder={t("filter.allowCategoriesPlaceholder")} />
+            <MultiValueInput label={t("content.blockCategories")} values={form.block_categories} onChange={(v) => update({ block_categories: v })} placeholder={t("filter.blockCategoriesPlaceholder")} />
+            <MultiValueInput label={t("filter.logCategories")} values={form.log} onChange={(v) => update({ log: v })} placeholder={t("filter.logCategoriesPlaceholder")} />
+            <MultiValueInput label={t("filter.localBlockSites")} values={form.local_block} onChange={(v) => update({ local_block: v })} placeholder={t("filter.ipOrFqdn")} />
+            <MultiValueInput label={t("filter.localBlockKeywords")} values={form.local_block_keyword} onChange={(v) => update({ local_block_keyword: v })} placeholder={t("filter.keywordPlaceholder")} />
+            <MultiValueInput label={t("filter.localBlockUrls")} values={form.local_block_url} onChange={(v) => update({ local_block_url: v })} placeholder="example.com/path" />
+            <MultiValueInput label={t("filter.localAllowSites")} values={form.local_ok} onChange={(v) => update({ local_ok: v })} placeholder={t("filter.ipOrFqdn")} />
+            <MultiValueInput label={t("filter.localAllowUrls")} values={form.local_ok_url} onChange={(v) => update({ local_ok_url: v })} placeholder="example.com/path" />
           </div>
         </ScrollArea>
 
@@ -184,9 +187,9 @@ export function WebProxyRuleModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : isEdit ? "Save Changes" : "Add Rule"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : isEdit ? t("common.saveChanges") : t("content.addRule")}
           </Button>
         </DialogFooter>
       </DialogContent>

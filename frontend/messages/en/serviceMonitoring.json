@@ -1,1 +1,182 @@
-{}
+{
+  "content": {
+    "loadFailed": "Failed to load service monitoring configuration",
+    "title": "Service Monitoring",
+    "readOnly": "Read Only",
+    "subtitle": "Telegraf, Zabbix, Prometheus exporters, and network event logging",
+    "tabs": {
+      "zabbixAgent": "Zabbix Agent",
+      "networkEvents": "Network Events"
+    }
+  },
+  "common": {
+    "active": "Active",
+    "notConfigured": "Not configured",
+    "configure": "Configure",
+    "port": "Port",
+    "remove": "Remove",
+    "listenAddresses": "Listen Addresses",
+    "editTitle": "Edit {name}",
+    "configureTitle": "Configure {name}",
+    "secondsValue": "{value}s"
+  },
+  "prometheus": {
+    "nodeExporterDescription": "Hardware and OS metrics",
+    "textfileCollector": "Textfile Collector",
+    "frrExporterDescription": "FRR routing daemon metrics",
+    "blackboxDescription": "ICMP and DNS probe results",
+    "icmpModules": "ICMP Modules",
+    "dnsModules": "DNS Modules",
+    "ipProtocol": "IP Protocol",
+    "timeout": "Timeout",
+    "queryName": "Query Name",
+    "type": "Type",
+    "noIcmpModules": "No ICMP modules",
+    "noDnsModules": "No DNS modules",
+    "removeExporterTitle": "Remove exporter?",
+    "removeExporterDescription": "This will delete the exporter configuration. This action cannot be undone.",
+    "removeModuleTitle": "Remove module?",
+    "removeModuleDescription": "This will delete the {type} module \"{name}\"."
+  },
+  "exporter": {
+    "listenPlaceholder": "e.g. 0.0.0.0",
+    "enableTextfileCollector": "Enable textfile collector"
+  },
+  "blackbox": {
+    "nameRequired": "Module name is required",
+    "nameExists": "A module with this name already exists",
+    "editTitle": "Edit {type} Module",
+    "addTitle": "Add {type} Module",
+    "moduleName": "Module Name",
+    "namePlaceholder": "e.g. ping-ipv4",
+    "preferredIpProtocol": "Preferred IP Protocol",
+    "ipProtocolFallback": "Allow IP protocol fallback",
+    "timeoutSeconds": "Timeout (seconds)",
+    "queryNameFqdn": "Query Name (FQDN)",
+    "queryNamePlaceholder": "e.g. example.com",
+    "queryType": "Query Type"
+  },
+  "networkEvent": {
+    "events": {
+      "addr": "Address",
+      "link": "Link",
+      "neigh": "Neighbor",
+      "route": "Route",
+      "rule": "Policy Rule"
+    },
+    "editTitle": "Edit Network Event Logging",
+    "configureTitle": "Configure Network Event Logging",
+    "logLevel": "Log Level",
+    "queueSize": "Queue Size",
+    "minimum": "Minimum {min}",
+    "eventTypes": "Event Types",
+    "notConfigured": "Network Event logging not configured",
+    "emptyDescription": "Log kernel netlink events for network changes",
+    "configureButton": "Configure Network Events",
+    "cardTitle": "Network Event Configuration",
+    "removeTitle": "Remove Network Event logging?",
+    "removeDescription": "This will delete the network event configuration. This action cannot be undone."
+  },
+  "telegraf": {
+    "sources": {
+      "all": "All",
+      "hardware": "Hardware",
+      "hardwareUtilization": "Hardware Utilization",
+      "logs": "Logs",
+      "network": "Network",
+      "system": "System",
+      "telegraf": "Telegraf"
+    },
+    "generalSettings": "General Settings",
+    "generalSettingsTitle": "Telegraf General Settings",
+    "sourcesLabel": "Sources",
+    "noneConfigured": "None configured",
+    "outputPlugins": "Output Plugins",
+    "summary": {
+      "url": "URL: {value}",
+      "port": "Port: {value}",
+      "bucket": "Bucket: {value}",
+      "insecureYes": "Insecure: Yes",
+      "db": "DB: {value}",
+      "table": "Table: {value}",
+      "listen": "Listen: {value}"
+    },
+    "removeTitle": "Remove output plugin?",
+    "removeDescription": "This will delete the output plugin configuration. This action cannot be undone.",
+    "configureOutput": "Configure {name} Output",
+    "token": "Token",
+    "username": "Username",
+    "password": "Password",
+    "azure": {
+      "endpointUrl": "Endpoint URL",
+      "endpointPlaceholder": "e.g. https://cluster.region.kusto.windows.net",
+      "database": "Database",
+      "table": "Table",
+      "groupMetrics": "Group Metrics",
+      "groupMetricsPlaceholder": "Select grouping strategy",
+      "clientId": "Client ID",
+      "clientSecret": "Client Secret",
+      "tenantId": "Tenant ID"
+    },
+    "influxdb": {
+      "urlPlaceholder": "e.g. https://influxdb.example.com",
+      "bucket": "Bucket",
+      "bucketPlaceholder": "e.g. vyos",
+      "tokenPlaceholder": "API token",
+      "organization": "Organization",
+      "organizationPlaceholder": "e.g. my-org"
+    },
+    "loki": {
+      "urlPlaceholder": "e.g. https://loki.example.com",
+      "metricNameLabel": "Metric Name Label",
+      "metricNameLabelPlaceholder": "e.g. __name__"
+    },
+    "splunk": {
+      "urlPlaceholder": "e.g. https://splunk.example.com:8088",
+      "tokenPlaceholder": "HEC token",
+      "skipTlsVerify": "Skip TLS verification (insecure)"
+    },
+    "promClient": {
+      "listenAddress": "Listen Address",
+      "metricVersion": "Metric Version",
+      "selectVersion": "Select version",
+      "version": "Version {version}",
+      "allowFrom": "Allow From",
+      "allowFromPlaceholder": "e.g. 192.168.0.0/24"
+    }
+  },
+  "zabbix": {
+    "editTitle": "Edit Zabbix Agent",
+    "configureTitle": "Configure Zabbix Agent",
+    "identity": "Identity",
+    "hostName": "Host Name",
+    "directory": "Directory",
+    "secondsRange": "seconds (1–30)",
+    "passiveServers": "Passive Servers",
+    "serverPlaceholder": "e.g. 192.168.1.10",
+    "activeServers": "Active Servers",
+    "address": "Address",
+    "portOptional": "Port (optional)",
+    "authentication": "Authentication",
+    "mode": "Mode",
+    "pskId": "PSK ID",
+    "pskSecret": "PSK Secret",
+    "bufferLimits": "Buffer Limits",
+    "flushInterval": "Flush Interval (s)",
+    "bufferSize": "Buffer Size",
+    "logging": "Logging",
+    "debugLevel": "Debug Level",
+    "logSizeMb": "Log Size (MB)",
+    "allowRemoteCommands": "Allow remote commands from Zabbix server",
+    "notConfigured": "Zabbix Agent not configured",
+    "emptyDescription": "Configure the Zabbix monitoring agent for this router",
+    "cardTitle": "Zabbix Agent Configuration",
+    "editConfiguration": "Edit Configuration",
+    "authMode": "Auth Mode",
+    "bufferFlush": "Buffer Flush",
+    "logSize": "Log Size",
+    "remoteCommands": "Remote Commands",
+    "removeTitle": "Remove Zabbix Agent?",
+    "removeDescription": "This will delete the entire Zabbix agent configuration. This action cannot be undone."
+  }
+}

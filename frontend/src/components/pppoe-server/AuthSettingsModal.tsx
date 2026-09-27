@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,8 @@ interface AuthSettingsModalProps {
 }
 
 export function AuthSettingsModal({ open, onOpenChange, onSuccess, currentAuth, capabilities }: AuthSettingsModalProps) {
+  const t = useTranslations("pppoeServerSettings");
+  const tc = useTranslations("common");
   const [mode, setMode] = useState("local");
   const [protocols, setProtocols] = useState<string[]>([]);
   const [anyLogin, setAnyLogin] = useState(false);
@@ -68,10 +71,10 @@ export function AuthSettingsModal({ open, onOpenChange, onSuccess, currentAuth, 
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to update authentication settings");
+        setError(result.error || t("auth.updateFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to update authentication settings");
+      setError((err as ApiError).message || t("auth.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -83,27 +86,27 @@ export function AuthSettingsModal({ open, onOpenChange, onSuccess, currentAuth, 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Key className="h-5 w-5 text-primary" />
-            Authentication Settings
+            {t("auth.title")}
           </DialogTitle>
-          <DialogDescription>Configure the PPPoE authentication mode.</DialogDescription>
+          <DialogDescription>{t("auth.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Authentication Mode</Label>
+            <Label>{t("auth.mode")}</Label>
             <Select value={mode} onValueChange={setMode}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="local">Local</SelectItem>
+                <SelectItem value="local">{t("auth.modeLocal")}</SelectItem>
                 <SelectItem value="radius">RADIUS</SelectItem>
-                <SelectItem value="noauth">No Authentication</SelectItem>
+                <SelectItem value="noauth">{t("auth.modeNoauth")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           {mode === "local" && (
             <div className="space-y-2">
-              <Label>Protocols</Label>
+              <Label>{t("auth.protocols")}</Label>
               <div className="space-y-1">
                 {ALL_PROTOCOLS.map((p) => (
                   <div key={p} className="flex items-center gap-2">
@@ -127,7 +130,7 @@ export function AuthSettingsModal({ open, onOpenChange, onSuccess, currentAuth, 
                 onCheckedChange={(checked) => setAnyLogin(checked === true)}
               />
               <Label htmlFor="pppoe-auth-any-login" className="cursor-pointer text-sm">
-                Any login
+                {t("auth.anyLogin")}
               </Label>
             </div>
           )}
@@ -141,9 +144,9 @@ export function AuthSettingsModal({ open, onOpenChange, onSuccess, currentAuth, 
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save Changes"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : t("saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -95,6 +96,8 @@ export function DNSForwardingSettingsModal({
   onSubmit,
   initialTab = "listener",
 }: Props) {
+  const t = useTranslations("dnsForwarding");
+  const tc = useTranslations("common");
   const [form, setForm] = useState<DNSForwardingConfig>(() => getDefault());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -153,7 +156,7 @@ export function DNSForwardingSettingsModal({
       await onSubmit(form);
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -165,15 +168,15 @@ export function DNSForwardingSettingsModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>DNS Forwarding Settings</DialogTitle>
-          <DialogDescription>Configure global DNS forwarding service settings.</DialogDescription>
+          <DialogTitle>{t("settings.title")}</DialogTitle>
+          <DialogDescription>{t("settings.description")}</DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue={initialTab} className="flex-1">
           <TabsList className="w-full">
-            <TabsTrigger value="listener" className="flex-1">Listener</TabsTrigger>
-            <TabsTrigger value="resolver" className="flex-1">Resolver</TabsTrigger>
-            <TabsTrigger value="routing" className="flex-1">Routing</TabsTrigger>
+            <TabsTrigger value="listener" className="flex-1">{t("settings.tabListener")}</TabsTrigger>
+            <TabsTrigger value="resolver" className="flex-1">{t("settings.tabResolver")}</TabsTrigger>
+            <TabsTrigger value="routing" className="flex-1">{t("content.routing")}</TabsTrigger>
             {ecsSupported && <TabsTrigger value="ecs" className="flex-1">ECS</TabsTrigger>}
           </TabsList>
 
@@ -182,27 +185,27 @@ export function DNSForwardingSettingsModal({
             <ScrollArea className="h-72 pr-4">
               <div className="space-y-5 py-2">
                 <BadgeListInput
-                  label="Listen Addresses"
+                  label={t("content.listenAddresses")}
                   items={form.listen_addresses}
                   onAdd={(v) => addToList("listen_addresses", v)}
                   onRemove={(v) => removeFromList("listen_addresses", v)}
-                  placeholder="e.g. 0.0.0.0 or ::"
+                  placeholder={t("settings.listenPlaceholder")}
                 />
                 <BadgeListInput
-                  label="Allow From"
+                  label={t("settings.allowFrom")}
                   items={form.allow_from}
                   onAdd={(v) => addToList("allow_from", v)}
                   onRemove={(v) => removeFromList("allow_from", v)}
-                  placeholder="e.g. 192.168.0.0/16"
+                  placeholder={t("example", { value: "192.168.0.0/16" })}
                 />
                 <div className="space-y-2">
-                  <Label htmlFor="set-port">Port</Label>
+                  <Label htmlFor="set-port">{t("content.port")}</Label>
                   <Input
                     id="set-port"
                     type="number"
                     value={form.port ?? ""}
                     onChange={(e) => set({ port: e.target.value ? parseInt(e.target.value) : null })}
-                    placeholder="53 (default)"
+                    placeholder={t("defaultValue", { value: "53" })}
                     min={1}
                     max={65535}
                     className="font-mono"
@@ -217,13 +220,13 @@ export function DNSForwardingSettingsModal({
             <ScrollArea className="h-72 pr-4">
               <div className="space-y-5 py-2">
                 <div className="space-y-2">
-                  <Label htmlFor="set-cache">Cache Size</Label>
+                  <Label htmlFor="set-cache">{t("content.cacheSize")}</Label>
                   <Input
                     id="set-cache"
                     type="number"
                     value={form.cache_size ?? ""}
                     onChange={(e) => set({ cache_size: e.target.value ? parseInt(e.target.value) : null })}
-                    placeholder="10000 (default)"
+                    placeholder={t("defaultValue", { value: "10000" })}
                     min={0}
                     max={2147483647}
                   />
@@ -234,51 +237,51 @@ export function DNSForwardingSettingsModal({
                     value={form.dnssec ?? "none"}
                     onValueChange={(v) => set({ dnssec: v === "none" ? null : v })}
                   >
-                    <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={t("selectPlaceholder")} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Not set</SelectItem>
-                      <SelectItem value="off">Off</SelectItem>
-                      <SelectItem value="process-no-validate">Process (no validate)</SelectItem>
-                      <SelectItem value="process">Process</SelectItem>
-                      <SelectItem value="log-fail">Log Fail</SelectItem>
-                      <SelectItem value="validate">Validate</SelectItem>
+                      <SelectItem value="none">{tc("notSet")}</SelectItem>
+                      <SelectItem value="off">{t("settings.dnssecOff")}</SelectItem>
+                      <SelectItem value="process-no-validate">{t("settings.dnssecProcessNoValidate")}</SelectItem>
+                      <SelectItem value="process">{t("settings.dnssecProcess")}</SelectItem>
+                      <SelectItem value="log-fail">{t("settings.dnssecLogFail")}</SelectItem>
+                      <SelectItem value="validate">{t("validate")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="set-negttl">Negative TTL (s)</Label>
+                    <Label htmlFor="set-negttl">{t("settings.negativeTtl")}</Label>
                     <Input
                       id="set-negttl"
                       type="number"
                       value={form.negative_ttl ?? ""}
                       onChange={(e) => set({ negative_ttl: e.target.value ? parseInt(e.target.value) : null })}
-                      placeholder="3600 (default)"
+                      placeholder={t("defaultValue", { value: "3600" })}
                       min={0}
                       max={7200}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="set-timeout">Timeout (ms)</Label>
+                    <Label htmlFor="set-timeout">{t("settings.timeoutMs")}</Label>
                     <Input
                       id="set-timeout"
                       type="number"
                       value={form.timeout ?? ""}
                       onChange={(e) => set({ timeout: e.target.value ? parseInt(e.target.value) : null })}
-                      placeholder="1500 (default)"
+                      placeholder={t("defaultValue", { value: "1500" })}
                       min={10}
                       max={60000}
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="set-stale">Serve Stale Extension</Label>
+                  <Label htmlFor="set-stale">{t("content.serveStaleExtension")}</Label>
                   <Input
                     id="set-stale"
                     type="number"
                     value={form.serve_stale_extension ?? ""}
                     onChange={(e) => set({ serve_stale_extension: e.target.value ? parseInt(e.target.value) : null })}
-                    placeholder="0 (default)"
+                    placeholder={t("defaultValue", { value: "0" })}
                     min={0}
                     max={65535}
                   />
@@ -290,7 +293,7 @@ export function DNSForwardingSettingsModal({
                       checked={form.system}
                       onCheckedChange={(c) => set({ system: c === true })}
                     />
-                    <Label htmlFor="set-system" className="cursor-pointer">Use System Nameservers</Label>
+                    <Label htmlFor="set-system" className="cursor-pointer">{t("settings.useSystemNameservers")}</Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <Checkbox
@@ -298,7 +301,7 @@ export function DNSForwardingSettingsModal({
                       checked={form.ignore_hosts_file}
                       onCheckedChange={(c) => set({ ignore_hosts_file: c === true })}
                     />
-                    <Label htmlFor="set-ignorehosts" className="cursor-pointer">Ignore Hosts File</Label>
+                    <Label htmlFor="set-ignorehosts" className="cursor-pointer">{t("settings.ignoreHostsFile")}</Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <Checkbox
@@ -306,7 +309,7 @@ export function DNSForwardingSettingsModal({
                       checked={form.no_serve_rfc1918}
                       onCheckedChange={(c) => set({ no_serve_rfc1918: c === true })}
                     />
-                    <Label htmlFor="set-norfc1918" className="cursor-pointer">No Serve RFC1918</Label>
+                    <Label htmlFor="set-norfc1918" className="cursor-pointer">{t("settings.noServeRfc1918")}</Label>
                   </div>
                 </div>
               </div>
@@ -318,33 +321,33 @@ export function DNSForwardingSettingsModal({
             <ScrollArea className="h-72 pr-4">
               <div className="space-y-5 py-2">
                 <BadgeListInput
-                  label="Source Addresses"
+                  label={t("content.sourceAddresses")}
                   items={form.source_addresses}
                   onAdd={(v) => addToList("source_addresses", v)}
                   onRemove={(v) => removeFromList("source_addresses", v)}
-                  placeholder="e.g. 192.168.1.1"
+                  placeholder={t("example", { value: "192.168.1.1" })}
                 />
                 <BadgeListInput
-                  label="DHCP Interfaces"
+                  label={t("content.dhcpInterfaces")}
                   items={form.dhcp_interfaces}
                   onAdd={(v) => addToList("dhcp_interfaces", v)}
                   onRemove={(v) => removeFromList("dhcp_interfaces", v)}
-                  placeholder="e.g. eth0"
+                  placeholder={t("example", { value: "eth0" })}
                 />
                 <BadgeListInput
-                  label="Exclude Throttle Addresses"
+                  label={t("settings.excludeThrottleAddresses")}
                   items={form.exclude_throttle_addresses}
                   onAdd={(v) => addToList("exclude_throttle_addresses", v)}
                   onRemove={(v) => removeFromList("exclude_throttle_addresses", v)}
-                  placeholder="e.g. 8.8.8.8"
+                  placeholder={t("example", { value: "8.8.8.8" })}
                 />
                 <div className="space-y-2">
-                  <Label htmlFor="set-dns64">DNS64 Prefix</Label>
+                  <Label htmlFor="set-dns64">{t("content.dns64Prefix")}</Label>
                   <Input
                     id="set-dns64"
                     value={form.dns64_prefix ?? ""}
                     onChange={(e) => set({ dns64_prefix: e.target.value || null })}
-                    placeholder="e.g. 64:ff9b::/96"
+                    placeholder={t("example", { value: "64:ff9b::/96" })}
                     className="font-mono"
                   />
                 </div>
@@ -358,30 +361,30 @@ export function DNSForwardingSettingsModal({
               <ScrollArea className="h-72 pr-4">
                 <div className="space-y-5 py-2">
                   <BadgeListInput
-                    label="ECS Add For"
+                    label={t("content.ecsAddFor")}
                     items={form.ecs_options.ecs_add_for}
                     onAdd={(v) => setEcs({ ecs_add_for: [...form.ecs_options.ecs_add_for, v] })}
                     onRemove={(v) => setEcs({ ecs_add_for: form.ecs_options.ecs_add_for.filter((x) => x !== v) })}
-                    placeholder="e.g. 0.0.0.0/0"
+                    placeholder={t("example", { value: "0.0.0.0/0" })}
                   />
                   <div className="space-y-2">
-                    <Label htmlFor="set-ecsbits">ECS IPv4 Bits (0–32)</Label>
+                    <Label htmlFor="set-ecsbits">{t("settings.ecsIpv4Bits")}</Label>
                     <Input
                       id="set-ecsbits"
                       type="number"
                       value={form.ecs_options.ecs_ipv4_bits ?? ""}
                       onChange={(e) => setEcs({ ecs_ipv4_bits: e.target.value ? parseInt(e.target.value) : null })}
-                      placeholder="e.g. 24"
+                      placeholder={t("example", { value: "24" })}
                       min={0}
                       max={32}
                     />
                   </div>
                   <BadgeListInput
-                    label="EDNS Subnet Allow List"
+                    label={t("settings.ednsSubnetAllowList")}
                     items={form.ecs_options.edns_subnet_allow_list}
                     onAdd={(v) => setEcs({ edns_subnet_allow_list: [...form.ecs_options.edns_subnet_allow_list, v] })}
                     onRemove={(v) => setEcs({ edns_subnet_allow_list: form.ecs_options.edns_subnet_allow_list.filter((x) => x !== v) })}
-                    placeholder="e.g. 192.0.2.0/24"
+                    placeholder={t("example", { value: "192.0.2.0/24" })}
                   />
                 </div>
               </ScrollArea>
@@ -397,9 +400,9 @@ export function DNSForwardingSettingsModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save Changes"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : t("saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

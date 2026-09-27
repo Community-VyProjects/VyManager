@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +37,8 @@ function isValidIPv4(value: string): boolean {
 }
 
 export function BroadcastRelayInstanceModal({ open, onOpenChange, instance, onSuccess, onSubmit }: Props) {
+  const t = useTranslations("broadcastRelay");
+  const tc = useTranslations("common");
   const isEditMode = !!instance;
 
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
@@ -111,21 +114,21 @@ export function BroadcastRelayInstanceModal({ open, onOpenChange, instance, onSu
     if (!isEditMode) {
       const idNum = parseInt(instanceId, 10);
       if (!instanceId || isNaN(idNum) || idNum < 1 || idNum > 99) {
-        return "Instance ID must be an integer between 1 and 99";
+        return t("modal.idRange");
       }
     }
 
     const portNum = parseInt(port, 10);
     if (!port || isNaN(portNum) || portNum < 1 || portNum > 65535) {
-      return "UDP port must be an integer between 1 and 65535";
+      return t("modal.portRange");
     }
 
     if (interfaces.length === 0) {
-      return "At least one interface is required";
+      return t("modal.interfaceRequired");
     }
 
     if (address && !isValidIPv4(address)) {
-      return "Source address must be a valid IPv4 address (e.g. 192.168.1.1)";
+      return t("modal.addressInvalid");
     }
 
     return null;
@@ -152,7 +155,7 @@ export function BroadcastRelayInstanceModal({ open, onOpenChange, instance, onSu
       handleClose();
       onSuccess();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -164,11 +167,11 @@ export function BroadcastRelayInstanceModal({ open, onOpenChange, instance, onSu
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEditMode ? "Edit Relay Instance" : "Add Relay Instance"}</DialogTitle>
+          <DialogTitle>{isEditMode ? t("modal.editTitle") : t("modal.addTitle")}</DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? `Modify relay instance #${instance!.id}.`
-              : "Configure a new UDP broadcast relay instance."}
+              ? t("modal.editDescription", { id: instance!.id })
+              : t("modal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -176,7 +179,7 @@ export function BroadcastRelayInstanceModal({ open, onOpenChange, instance, onSu
           <div className="space-y-5 pb-2">
             {/* Instance ID */}
             <div className="space-y-2">
-              <Label htmlFor="br-instance-id">Instance ID</Label>
+              <Label htmlFor="br-instance-id">{t("modal.instanceId")}</Label>
               <Input
                 id="br-instance-id"
                 type="number"
@@ -189,13 +192,13 @@ export function BroadcastRelayInstanceModal({ open, onOpenChange, instance, onSu
                 placeholder="1–99"
               />
               {isEditMode && (
-                <p className="text-xs text-muted-foreground">Instance ID cannot be changed after creation.</p>
+                <p className="text-xs text-muted-foreground">{t("modal.instanceIdLocked")}</p>
               )}
             </div>
 
             {/* UDP Port */}
             <div className="space-y-2">
-              <Label htmlFor="br-port">UDP Port</Label>
+              <Label htmlFor="br-port">{t("modal.udpPort")}</Label>
               <Input
                 id="br-port"
                 type="number"
@@ -203,18 +206,18 @@ export function BroadcastRelayInstanceModal({ open, onOpenChange, instance, onSu
                 onChange={(e) => setPort(e.target.value)}
                 min={1}
                 max={65535}
-                placeholder="e.g. 67"
+                placeholder={t("modal.udpPortPlaceholder")}
                 className="font-mono"
               />
-              <p className="text-xs text-muted-foreground">UDP port to relay broadcasts on (1–65535).</p>
+              <p className="text-xs text-muted-foreground">{t("modal.udpPortHint")}</p>
             </div>
 
             {/* Interfaces */}
             <div className="space-y-3">
               <div>
-                <Label>Interfaces</Label>
+                <Label>{t("modal.interfaces")}</Label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  At least one interface required; two or more needed for relaying.
+                  {t("modal.interfacesHint")}
                 </p>
               </div>
 
@@ -240,8 +243,8 @@ export function BroadcastRelayInstanceModal({ open, onOpenChange, instance, onSu
                   onValueChange={setSelectedInterface}
                   interfaces={availableToAdd}
                   className="flex-1"
-                  placeholder="Select interface to add"
-                  emptyText="No more interfaces available"
+                  placeholder={t("modal.selectInterface")}
+                  emptyText={t("modal.noMoreInterfaces")}
                 />
                 <Button
                   variant="outline"
@@ -257,27 +260,27 @@ export function BroadcastRelayInstanceModal({ open, onOpenChange, instance, onSu
 
             {/* Source Address */}
             <div className="space-y-2">
-              <Label htmlFor="br-address">Source Address</Label>
+              <Label htmlFor="br-address">{t("modal.sourceAddress")}</Label>
               <Input
                 id="br-address"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                placeholder="e.g. 192.168.1.1"
+                placeholder={t("modal.sourceAddressPlaceholder")}
                 className="font-mono"
               />
               <p className="text-xs text-muted-foreground">
-                Optional. If unset, the original sender&apos;s address is used.
+                {t("modal.sourceAddressHint")}
               </p>
             </div>
 
             {/* Description */}
             <div className="space-y-2">
-              <Label htmlFor="br-description">Description</Label>
+              <Label htmlFor="br-description">{tc("description")}</Label>
               <Input
                 id="br-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional description"
+                placeholder={t("modal.descriptionPlaceholder")}
                 maxLength={255}
               />
             </div>
@@ -290,7 +293,7 @@ export function BroadcastRelayInstanceModal({ open, onOpenChange, instance, onSu
                 onCheckedChange={(checked) => setDisabled(checked === true)}
               />
               <Label htmlFor="br-disabled" className="cursor-pointer">
-                Disable this instance
+                {t("modal.disableInstance")}
               </Label>
             </div>
           </div>
@@ -305,18 +308,18 @@ export function BroadcastRelayInstanceModal({ open, onOpenChange, instance, onSu
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Saving..." : "Adding..."}
+                {isEditMode ? tc("saving") : t("modal.adding")}
               </>
             ) : isEditMode ? (
-              "Save Changes"
+              t("modal.saveChanges")
             ) : (
-              "Add Instance"
+              t("content.addInstance")
             )}
           </Button>
         </DialogFooter>

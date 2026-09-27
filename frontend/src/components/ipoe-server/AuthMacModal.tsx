@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,8 @@ interface AuthMacModalProps {
 }
 
 export function AuthMacModal({ open, onOpenChange, onSuccess, existingMac, preselectedInterface, authInterfaces }: AuthMacModalProps) {
+  const t = useTranslations("ipoeServer");
+  const tc = useTranslations("common");
   const isEdit = !!existingMac;
 
   const [selectedIface, setSelectedIface] = useState("");
@@ -59,8 +62,8 @@ export function AuthMacModal({ open, onOpenChange, onSuccess, existingMac, prese
   }, [open, existingMac, preselectedInterface, authInterfaces]);
 
   const handleSubmit = async () => {
-    if (!selectedIface.trim()) { setError("Interface is required"); return; }
-    if (!mac.trim()) { setError("MAC address is required"); return; }
+    if (!selectedIface.trim()) { setError(t("authMacModal.interfaceRequired")); return; }
+    if (!mac.trim()) { setError(t("authMacModal.macRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -84,10 +87,10 @@ export function AuthMacModal({ open, onOpenChange, onSuccess, existingMac, prese
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to save MAC entry");
+        setError(result.error || t("authMacModal.saveFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to save MAC entry");
+      setError((err as ApiError).message || t("authMacModal.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -99,14 +102,14 @@ export function AuthMacModal({ open, onOpenChange, onSuccess, existingMac, prese
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
-            {isEdit ? "Edit" : "Add"} MAC Auth Entry
+            {isEdit ? t("authMacModal.editTitle") : t("authMacModal.addTitle")}
           </DialogTitle>
-          <DialogDescription>Configure a local MAC-based authentication entry.</DialogDescription>
+          <DialogDescription>{t("authMacModal.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Interface</Label>
+            <Label>{t("authMacModal.interface")}</Label>
             {isEdit ? (
               <Input value={selectedIface} disabled />
             ) : (
@@ -125,27 +128,27 @@ export function AuthMacModal({ open, onOpenChange, onSuccess, existingMac, prese
           </div>
 
           <div className="space-y-2">
-            <Label>MAC Address</Label>
+            <Label>{t("authMacModal.macAddress")}</Label>
             <Input value={mac} onChange={(e) => setMac(e.target.value)} placeholder="00:11:22:33:44:55" disabled={isEdit} />
           </div>
 
           <div className="space-y-2">
-            <Label>Static IP Address (optional)</Label>
+            <Label>{t("authMacModal.staticIp")}</Label>
             <Input value={ipAddress} onChange={(e) => setIpAddress(e.target.value)} placeholder="192.168.1.100" />
           </div>
 
           <div className="space-y-2">
-            <Label>VLAN (optional)</Label>
+            <Label>{t("authMacModal.vlan")}</Label>
             <Input value={vlan} onChange={(e) => setVlan(e.target.value)} placeholder="100" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Rate Limit Download</Label>
+              <Label>{t("authMacModal.rateDownload")}</Label>
               <Input value={rateDown} onChange={(e) => setRateDown(e.target.value)} placeholder="kbits/sec" />
             </div>
             <div className="space-y-2">
-              <Label>Rate Limit Upload</Label>
+              <Label>{t("authMacModal.rateUpload")}</Label>
               <Input value={rateUp} onChange={(e) => setRateUp(e.target.value)} placeholder="kbits/sec" />
             </div>
           </div>
@@ -159,9 +162,9 @@ export function AuthMacModal({ open, onOpenChange, onSuccess, existingMac, prese
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? "Saving..." : "Adding..."}</> : isEdit ? "Save Changes" : "Add Entry"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("adding")}</> : isEdit ? t("saveChanges") : t("authMacModal.addEntry")}
           </Button>
         </DialogFooter>
       </DialogContent>

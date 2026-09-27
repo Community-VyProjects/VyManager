@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,8 @@ interface PrometheusTabProps {
 }
 
 export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusTabProps) {
+  const t = useTranslations("serviceMonitoring");
+  const tc = useTranslations("common");
   const [nodeOpen, setNodeOpen] = useState(false);
   const [frrOpen, setFrrOpen] = useState(false);
   const [blackboxOpen, setBlackboxOpen] = useState(false);
@@ -98,12 +101,12 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
       {/* Node Exporter */}
       <ExporterCard
         title="Node Exporter"
-        description="Hardware and OS metrics"
+        description={t("prometheus.nodeExporterDescription")}
         defaultPort={caps.features.prometheus.exporters.node_exporter.default_port}
         port={config?.node_exporter?.port}
         listenAddresses={config?.node_exporter?.listen_addresses ?? []}
         vrf={config?.node_exporter?.vrf}
-        extraBadges={config?.node_exporter?.textfile_collector ? ["Textfile Collector"] : []}
+        extraBadges={config?.node_exporter?.textfile_collector ? [t("prometheus.textfileCollector")] : []}
         hasWrite={hasWrite}
         onEdit={() => setNodeOpen(true)}
         onRemove={() => setDeleteTarget("node")}
@@ -113,7 +116,7 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
       {/* FRR Exporter */}
       <ExporterCard
         title="FRR Exporter"
-        description="FRR routing daemon metrics"
+        description={t("prometheus.frrExporterDescription")}
         defaultPort={caps.features.prometheus.exporters.frr_exporter.default_port}
         port={config?.frr_exporter?.port}
         listenAddresses={config?.frr_exporter?.listen_addresses ?? []}
@@ -131,17 +134,17 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
             <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
               <BarChart3 className="h-4 w-4" />
               Blackbox Exporter
-              <span className="text-xs font-normal">— ICMP and DNS probe results</span>
+              <span className="text-xs font-normal">— {t("prometheus.blackboxDescription")}</span>
               {config?.blackbox_exporter ? (
-                <Badge variant="secondary" className="bg-green-500/10 text-green-600 dark:text-green-500 text-xs">Active</Badge>
+                <Badge variant="secondary" className="bg-green-500/10 text-green-600 dark:text-green-500 text-xs">{t("common.active")}</Badge>
               ) : (
-                <Badge variant="secondary" className="text-xs">Not configured</Badge>
+                <Badge variant="secondary" className="text-xs">{t("common.notConfigured")}</Badge>
               )}
             </CardTitle>
             {hasWrite && (
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={() => setBlackboxOpen(true)}>
-                  {config?.blackbox_exporter ? <><Pencil className="h-3.5 w-3.5 mr-1" />Edit</> : <><Plus className="h-3.5 w-3.5 mr-1" />Configure</>}
+                  {config?.blackbox_exporter ? <><Pencil className="h-3.5 w-3.5 mr-1" />{tc("edit")}</> : <><Plus className="h-3.5 w-3.5 mr-1" />{t("common.configure")}</>}
                 </Button>
                 {config?.blackbox_exporter && (
                   <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget("blackbox")}>
@@ -157,7 +160,7 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
             <div className="flex gap-4 text-sm">
               {config.blackbox_exporter.port && (
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Port</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">{t("common.port")}</p>
                   <p className="font-mono">{config.blackbox_exporter.port}</p>
                 </div>
               )}
@@ -172,10 +175,10 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
             {/* ICMP Modules */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-muted-foreground">ICMP Modules</p>
+                <p className="text-xs font-medium text-muted-foreground">{t("prometheus.icmpModules")}</p>
                 {hasWrite && (
                   <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setModuleModal({ type: "icmp", original: null })}>
-                    <Plus className="h-3 w-3 mr-1" />Add
+                    <Plus className="h-3 w-3 mr-1" />{tc("add")}
                   </Button>
                 )}
               </div>
@@ -183,9 +186,9 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>IP Protocol</TableHead>
-                      <TableHead>Timeout</TableHead>
+                      <TableHead>{tc("name")}</TableHead>
+                      <TableHead>{t("prometheus.ipProtocol")}</TableHead>
+                      <TableHead>{t("prometheus.timeout")}</TableHead>
                       {hasWrite && <TableHead className="w-[60px]" />}
                     </TableRow>
                   </TableHeader>
@@ -194,7 +197,7 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
                       <TableRow key={m.name}>
                         <TableCell className="font-mono font-medium">{m.name}</TableCell>
                         <TableCell>{m.preferred_ip_protocol ?? "—"}</TableCell>
-                        <TableCell>{m.timeout ? `${m.timeout}s` : "—"}</TableCell>
+                        <TableCell>{m.timeout ? t("common.secondsValue", { value: String(m.timeout) }) : "—"}</TableCell>
                         {hasWrite && (
                           <TableCell>
                             <div className="flex gap-1">
@@ -212,17 +215,17 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
                   </TableBody>
                 </Table>
               ) : (
-                <p className="text-sm text-muted-foreground">No ICMP modules</p>
+                <p className="text-sm text-muted-foreground">{t("prometheus.noIcmpModules")}</p>
               )}
             </div>
 
             {/* DNS Modules */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-muted-foreground">DNS Modules</p>
+                <p className="text-xs font-medium text-muted-foreground">{t("prometheus.dnsModules")}</p>
                 {hasWrite && (
                   <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setModuleModal({ type: "dns", original: null })}>
-                    <Plus className="h-3 w-3 mr-1" />Add
+                    <Plus className="h-3 w-3 mr-1" />{tc("add")}
                   </Button>
                 )}
               </div>
@@ -230,9 +233,9 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Query Name</TableHead>
-                      <TableHead>Type</TableHead>
+                      <TableHead>{tc("name")}</TableHead>
+                      <TableHead>{t("prometheus.queryName")}</TableHead>
+                      <TableHead>{t("prometheus.type")}</TableHead>
                       {hasWrite && <TableHead className="w-[60px]" />}
                     </TableRow>
                   </TableHeader>
@@ -259,7 +262,7 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
                   </TableBody>
                 </Table>
               ) : (
-                <p className="text-sm text-muted-foreground">No DNS modules</p>
+                <p className="text-sm text-muted-foreground">{t("prometheus.noDnsModules")}</p>
               )}
             </div>
           </CardContent>
@@ -319,15 +322,15 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove exporter?</AlertDialogTitle>
+            <AlertDialogTitle>{t("prometheus.removeExporterTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete the exporter configuration. This action cannot be undone.
+              {t("prometheus.removeExporterDescription")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteExporter} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Remove
+              {t("common.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -337,15 +340,15 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
       <AlertDialog open={!!deleteModule} onOpenChange={(open) => { if (!open) setDeleteModule(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove module?</AlertDialogTitle>
+            <AlertDialogTitle>{t("prometheus.removeModuleTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete the {deleteModule?.type.toUpperCase()} module &quot;{deleteModule?.name}&quot;.
+              {t("prometheus.removeModuleDescription", { type: deleteModule?.type.toUpperCase() ?? "", name: deleteModule?.name ?? "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteModule} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Remove
+              {t("common.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -369,6 +372,8 @@ interface ExporterCardProps {
 }
 
 function ExporterCard({ title, description, port, listenAddresses, vrf, extraBadges = [], configured, hasWrite, onEdit, onRemove }: ExporterCardProps) {
+  const t = useTranslations("serviceMonitoring");
+  const tc = useTranslations("common");
   return (
     <Card>
       <CardHeader className="pb-2 pt-4 px-4">
@@ -378,15 +383,15 @@ function ExporterCard({ title, description, port, listenAddresses, vrf, extraBad
             {title}
             <span className="text-xs font-normal">— {description}</span>
             {configured ? (
-              <Badge variant="secondary" className="bg-green-500/10 text-green-600 dark:text-green-500 text-xs">Active</Badge>
+              <Badge variant="secondary" className="bg-green-500/10 text-green-600 dark:text-green-500 text-xs">{t("common.active")}</Badge>
             ) : (
-              <Badge variant="secondary" className="text-xs">Not configured</Badge>
+              <Badge variant="secondary" className="text-xs">{t("common.notConfigured")}</Badge>
             )}
           </CardTitle>
           {hasWrite && (
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={onEdit}>
-                {configured ? <><Pencil className="h-3.5 w-3.5 mr-1" />Edit</> : <><Plus className="h-3.5 w-3.5 mr-1" />Configure</>}
+                {configured ? <><Pencil className="h-3.5 w-3.5 mr-1" />{tc("edit")}</> : <><Plus className="h-3.5 w-3.5 mr-1" />{t("common.configure")}</>}
               </Button>
               {configured && (
                 <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={onRemove}>
@@ -402,7 +407,7 @@ function ExporterCard({ title, description, port, listenAddresses, vrf, extraBad
           <div className="flex flex-wrap gap-4 text-sm">
             {port && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Port</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1">{t("common.port")}</p>
                 <p className="font-mono">{port}</p>
               </div>
             )}
@@ -414,7 +419,7 @@ function ExporterCard({ title, description, port, listenAddresses, vrf, extraBad
             )}
             {listenAddresses.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Listen Addresses</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1">{t("common.listenAddresses")}</p>
                 <div className="flex flex-wrap gap-1">
                   {listenAddresses.map((a) => (
                     <Badge key={a} variant="secondary" className="font-mono text-xs">{a}</Badge>

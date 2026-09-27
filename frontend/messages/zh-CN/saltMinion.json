@@ -1,1 +1,55 @@
-{}
+{
+  "content": {
+    "loadFailed": "加载 Salt Minion 配置失败",
+    "readOnly": "只读",
+    "subtitle": "配置管理代理 — 连接到 Salt Master 服务器以自动执行状态管理",
+    "editSettings": "编辑设置",
+    "masters": "Master 服务器",
+    "minionId": "Minion ID",
+    "hostname": "主机名",
+    "interval": "间隔",
+    "intervalValue": "{value} 分钟",
+    "intervalDefault": "60 分钟（默认）",
+    "hash": "哈希",
+    "hashDefault": "sha256（默认）",
+    "masterServers": "Master 服务器",
+    "noMasters": "尚未配置 Master 服务器",
+    "noMastersHint": "Minion 至少需要一个 Master 服务器才能连接",
+    "configuration": "配置",
+    "masterKeyUrl": "Master 密钥 URL",
+    "notConfigured": "未配置",
+    "sourceInterface": "源接口",
+    "defaultRoute": "默认路由"
+  },
+  "hash": {
+    "defaultLabel": "默认 (SHA-256)",
+    "default": "使用 VyOS 默认值 — sha256",
+    "sha256": "推荐 — 显式指定 sha256",
+    "sha384": "安全性更高的 SHA-2 变体",
+    "sha512": "最强的 SHA-2 变体",
+    "sha224": "截断的 SHA-2 变体",
+    "sha1": "旧版 — 不建议用于新部署",
+    "md5": "旧版 — 不建议用于新部署"
+  },
+  "settings": {
+    "alreadyAdded": "已添加",
+    "title": "编辑 Salt Minion 设置",
+    "description": "配置 Master 服务器、Minion 标识和连接选项",
+    "masterServers": "Master 服务器",
+    "masterServersHint": "每个 Salt Master 的主机名或 IP 地址。Minion 至少需要一个才能连接。",
+    "masterServersPlaceholder": "例如 salt-master.example.com 或 10.0.0.1",
+    "minionId": "Minion ID",
+    "minionIdHint": "此 Minion 的唯一标识符。留空则使用系统主机名。",
+    "minionIdPlaceholder": "主机名（默认）",
+    "interval": "更新间隔",
+    "intervalHint": "Minion 向 Master 签到的频率（分钟）。范围：1–1440。留空则使用默认值（60 分钟）。",
+    "intervalPlaceholder": "60（默认）",
+    "minutes": "分钟",
+    "hash": "哈希算法",
+    "hashHint": "在 Master 服务器上查找文件时使用的哈希算法。",
+    "masterKeyUrl": "Master 密钥 URL",
+    "masterKeyUrlHint": "包含 Master 公钥签名的 URL，用于验证认证响应。留空则跳过验证。",
+    "sourceInterface": "源接口",
+    "sourceInterfaceHint": "用于与 Master 建立连接的网络接口。不设置则使用默认路由。"
+  }
+}

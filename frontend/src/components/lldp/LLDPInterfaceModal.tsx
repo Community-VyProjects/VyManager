@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -53,6 +54,8 @@ export function LLDPInterfaceModal({
   existingNames,
   onSuccess,
 }: LLDPInterfaceModalProps) {
+  const t = useTranslations("lldp");
+  const tc = useTranslations("common");
   const isEdit = existing !== null;
 
   const [interfaceName, setInterfaceName] = useState(existing?.name ?? "");
@@ -91,15 +94,15 @@ export function LLDPInterfaceModal({
   }, [open]);
 
   const validate = (): string | null => {
-    if (!interfaceName) return "Select an interface";
+    if (!interfaceName) return t("modal.selectInterfaceError");
     if (!isEdit && existingNames.includes(interfaceName)) {
-      return `Override for "${interfaceName}" already exists`;
+      return t("modal.overrideExists", { name: interfaceName });
     }
     if (locationType === "coordinate-based") {
-      if (!latitude || !longitude) return "Latitude and longitude are required";
+      if (!latitude || !longitude) return t("modal.latLongRequired");
     }
     if (locationType === "elin") {
-      if (!/^\d{10,25}$/.test(elin)) return "ELIN must be 10–25 digits";
+      if (!/^\d{10,25}$/.test(elin)) return t("modal.elinInvalid");
     }
     return null;
   };
@@ -131,7 +134,7 @@ export function LLDPInterfaceModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -141,7 +144,7 @@ export function LLDPInterfaceModal({
   const use14Disable = capabilities.features.interface_disable_flag.supported;
 
   const selectableInterfaces: InterfaceName[] = [
-    { name: "all", type: "", description: "Apply to all interfaces" },
+    { name: "all", type: "", description: t("modal.allInterfaces") },
     ...availableInterfaces,
   ].filter((i) => !existingNames.includes(i.name) || i.name === existing?.name);
 
@@ -150,10 +153,10 @@ export function LLDPInterfaceModal({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? "Edit Interface Override" : "Add Interface Override"}
+            {isEdit ? t("modal.editTitle") : t("modal.addTitle")}
           </DialogTitle>
           <DialogDescription>
-            Configure per-interface LLDP behaviour
+            {t("modal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -161,7 +164,7 @@ export function LLDPInterfaceModal({
           <div className="space-y-5 py-1">
             {/* Interface */}
             <div className="space-y-1.5">
-              <Label>Interface</Label>
+              <Label>{t("modal.interface")}</Label>
               {isEdit ? (
                 <Input value={interfaceName} disabled />
               ) : (
@@ -169,7 +172,7 @@ export function LLDPInterfaceModal({
                   value={interfaceName}
                   onValueChange={setInterfaceName}
                   interfaces={selectableInterfaces}
-                  placeholder="Select interface"
+                  placeholder={t("modal.selectInterface")}
                 />
               )}
             </div>
@@ -177,16 +180,16 @@ export function LLDPInterfaceModal({
             {/* Mode */}
             {use15Mode && (
               <div className="space-y-1.5">
-                <Label>Mode</Label>
+                <Label>{t("modal.mode")}</Label>
                 <Select value={mode} onValueChange={setMode}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="rx-tx">rx-tx — Send and receive (default)</SelectItem>
-                    <SelectItem value="rx">rx — Receive only</SelectItem>
-                    <SelectItem value="tx">tx — Transmit only</SelectItem>
-                    <SelectItem value="disable">disable — Disabled</SelectItem>
+                    <SelectItem value="rx-tx">rx-tx — {t("modal.modeRxTx")}</SelectItem>
+                    <SelectItem value="rx">rx — {t("modal.modeRx")}</SelectItem>
+                    <SelectItem value="tx">tx — {t("modal.modeTx")}</SelectItem>
+                    <SelectItem value="disable">disable — {tc("disabled")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -200,7 +203,7 @@ export function LLDPInterfaceModal({
                   onCheckedChange={(checked) => setDisableFlag(!!checked)}
                 />
                 <Label htmlFor="disable-flag" className="cursor-pointer">
-                  Disable LLDP on this interface
+                  {t("modal.disableFlag")}
                 </Label>
               </div>
             )}
@@ -212,7 +215,7 @@ export function LLDPInterfaceModal({
                 className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/50"
                 onClick={() => setLocationExpanded((v) => !v)}
               >
-                <span>LLDP-MED Location</span>
+                <span>{t("modal.location")}</span>
                 {locationExpanded ? (
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 ) : (
@@ -230,19 +233,19 @@ export function LLDPInterfaceModal({
                     <div className="flex items-center gap-2">
                       <RadioGroupItem value="none" id="loc-none" />
                       <Label htmlFor="loc-none" className="cursor-pointer">
-                        None
+                        {tc("none")}
                       </Label>
                     </div>
                     <div className="flex items-center gap-2">
                       <RadioGroupItem value="coordinate-based" id="loc-coord" />
                       <Label htmlFor="loc-coord" className="cursor-pointer">
-                        Coordinate-based
+                        {t("modal.coordinateBased")}
                       </Label>
                     </div>
                     <div className="flex items-center gap-2">
                       <RadioGroupItem value="elin" id="loc-elin" />
                       <Label htmlFor="loc-elin" className="cursor-pointer">
-                        ELIN (Emergency Location)
+                        {t("modal.elin")}
                       </Label>
                     </div>
                   </RadioGroup>
@@ -250,31 +253,31 @@ export function LLDPInterfaceModal({
                   {locationType === "coordinate-based" && (
                     <div className="grid grid-cols-2 gap-3 pt-1">
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Latitude</Label>
+                        <Label className="text-xs">{t("modal.latitude")}</Label>
                         <Input
-                          placeholder="e.g. 37.524449N"
+                          placeholder={t("modal.latitudePlaceholder")}
                           value={latitude}
                           onChange={(e) => setLatitude(e.target.value)}
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Longitude</Label>
+                        <Label className="text-xs">{t("modal.longitude")}</Label>
                         <Input
-                          placeholder="e.g. 122.267255W"
+                          placeholder={t("modal.longitudePlaceholder")}
                           value={longitude}
                           onChange={(e) => setLongitude(e.target.value)}
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Altitude</Label>
+                        <Label className="text-xs">{t("modal.altitude")}</Label>
                         <Input
-                          placeholder="e.g. 10 (meters, optional)"
+                          placeholder={t("modal.altitudePlaceholder")}
                           value={altitude}
                           onChange={(e) => setAltitude(e.target.value)}
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Datum</Label>
+                        <Label className="text-xs">{t("modal.datum")}</Label>
                         <Select value={datum} onValueChange={setDatum}>
                           <SelectTrigger>
                             <SelectValue />
@@ -291,9 +294,9 @@ export function LLDPInterfaceModal({
 
                   {locationType === "elin" && (
                     <div className="space-y-1.5 pt-1">
-                      <Label className="text-xs">Emergency Number</Label>
+                      <Label className="text-xs">{t("modal.emergencyNumber")}</Label>
                       <Input
-                        placeholder="10–25 digit emergency number"
+                        placeholder={t("modal.emergencyNumberPlaceholder")}
                         value={elin}
                         onChange={(e) => setElin(e.target.value)}
                       />
@@ -314,11 +317,11 @@ export function LLDPInterfaceModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isEdit ? "Save" : "Add"}
+            {isEdit ? tc("save") : tc("add")}
           </Button>
         </DialogFooter>
       </DialogContent>

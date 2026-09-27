@@ -1,1 +1,55 @@
-{}
+{
+  "content": {
+    "loadFailed": "加载广播中继配置失败",
+    "updateStatusFailed": "更新服务状态失败",
+    "title": "广播中继",
+    "readOnly": "只读",
+    "subtitle": "在接口之间中继 UDP 广播",
+    "enableService": "启用服务",
+    "disableService": "禁用服务",
+    "globallyDisabled": "广播中继服务已全局禁用。所有实例均处于非活动状态。",
+    "reEnable": "重新启用",
+    "totalInstances": "实例总数",
+    "activeInstances": "活动实例",
+    "disabledInstances": "已禁用实例",
+    "addInstance": "添加实例",
+    "empty": "尚未配置中继实例",
+    "colPort": "端口",
+    "colInterfaces": "接口",
+    "colSourceAddress": "源地址",
+    "active": "活动"
+  },
+  "delete": {
+    "failed": "删除实例失败",
+    "title": "删除中继实例",
+    "description": "确定要删除中继实例 <mono>#{id}</mono> 吗？此操作无法撤销。",
+    "descriptionWithPort": "确定要删除中继实例 <mono>#{id}</mono>（UDP 端口 <mono>{port}</mono>）吗？此操作无法撤销。",
+    "confirm": "删除实例"
+  },
+  "modal": {
+    "idRange": "实例 ID 必须是 1 到 99 之间的整数",
+    "portRange": "UDP 端口必须是 1 到 65535 之间的整数",
+    "interfaceRequired": "至少需要一个接口",
+    "addressInvalid": "源地址必须是有效的 IPv4 地址（例如 192.168.1.1）",
+    "editTitle": "编辑中继实例",
+    "addTitle": "添加中继实例",
+    "editDescription": "修改中继实例 #{id}。",
+    "addDescription": "配置新的 UDP 广播中继实例。",
+    "instanceId": "实例 ID",
+    "instanceIdLocked": "实例 ID 创建后无法更改。",
+    "udpPort": "UDP 端口",
+    "udpPortPlaceholder": "例如 67",
+    "udpPortHint": "要中继广播的 UDP 端口 (1–65535)。",
+    "interfaces": "接口",
+    "interfacesHint": "至少需要一个接口；中继需要两个或更多接口。",
+    "selectInterface": "选择要添加的接口",
+    "noMoreInterfaces": "没有更多可用接口",
+    "sourceAddress": "源地址",
+    "sourceAddressPlaceholder": "例如 192.168.1.1",
+    "sourceAddressHint": "可选。未设置时使用原始发送方的地址。",
+    "descriptionPlaceholder": "可选描述",
+    "disableInstance": "禁用此实例",
+    "adding": "正在添加...",
+    "saveChanges": "保存更改"
+  }
+}

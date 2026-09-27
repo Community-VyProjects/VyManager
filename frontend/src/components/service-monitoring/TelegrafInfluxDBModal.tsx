@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,8 @@ export function TelegrafInfluxDBModal({
   original,
   onSuccess,
 }: TelegrafInfluxDBModalProps) {
+  const t = useTranslations("serviceMonitoring");
+  const tc = useTranslations("common");
   const [url, setUrl] = useState(original?.url ?? "");
   const [port, setPort] = useState(original?.port ? String(original.port) : "");
   const [bucket, setBucket] = useState(original?.bucket ?? "");
@@ -54,7 +57,7 @@ export function TelegrafInfluxDBModal({
       });
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -64,7 +67,7 @@ export function TelegrafInfluxDBModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Configure InfluxDB Output</DialogTitle>
+          <DialogTitle>{t("telegraf.configureOutput", { name: "InfluxDB" })}</DialogTitle>
         </DialogHeader>
 
         <ScrollArea className="max-h-[60vh] pr-4">
@@ -73,13 +76,13 @@ export function TelegrafInfluxDBModal({
               <Label htmlFor="influxdb-url">URL</Label>
               <Input
                 id="influxdb-url"
-                placeholder="e.g. https://influxdb.example.com"
+                placeholder={t("telegraf.influxdb.urlPlaceholder")}
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="influxdb-port">Port</Label>
+              <Label htmlFor="influxdb-port">{t("common.port")}</Label>
               <Input
                 id="influxdb-port"
                 type="number"
@@ -89,29 +92,29 @@ export function TelegrafInfluxDBModal({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="influxdb-bucket">Bucket</Label>
+              <Label htmlFor="influxdb-bucket">{t("telegraf.influxdb.bucket")}</Label>
               <Input
                 id="influxdb-bucket"
-                placeholder="e.g. vyos"
+                placeholder={t("telegraf.influxdb.bucketPlaceholder")}
                 value={bucket}
                 onChange={(e) => setBucket(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="influxdb-token">Token</Label>
+              <Label htmlFor="influxdb-token">{t("telegraf.token")}</Label>
               <Input
                 id="influxdb-token"
                 type="password"
-                placeholder="API token"
+                placeholder={t("telegraf.influxdb.tokenPlaceholder")}
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="influxdb-org">Organization</Label>
+              <Label htmlFor="influxdb-org">{t("telegraf.influxdb.organization")}</Label>
               <Input
                 id="influxdb-org"
-                placeholder="e.g. my-org"
+                placeholder={t("telegraf.influxdb.organizationPlaceholder")}
                 value={organization}
                 onChange={(e) => setOrganization(e.target.value)}
               />
@@ -128,11 +131,11 @@ export function TelegrafInfluxDBModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

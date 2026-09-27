@@ -25,6 +25,24 @@ function isValidIpv4(value: string): boolean {
   return value.split(".").map(Number).every((octet) => octet >= 0 && octet <= 255);
 }
 
+/** Message key (in the dhcpServer namespace) for a validation error. */
+export type DhcpFormError =
+  | "validation.startIpRequired"
+  | "validation.startIpOctets"
+  | "validation.startIpInvalid"
+  | "validation.stopIpRequired"
+  | "validation.stopIpOctets"
+  | "validation.stopIpInvalid"
+  | "validation.selectSubnet"
+  | "validation.ipOctets"
+  | "validation.ipInvalid"
+  | "validation.macInvalid"
+  | "validation.mappingNameRequired"
+  | "validation.mappingNameInvalid"
+  | "validation.ipRequired"
+  | "validation.macOrDuidRequired"
+  | "validation.macRequired";
+
 export interface RangeDraft {
   subnet: string;
   startIp: string;
@@ -69,31 +87,31 @@ export function nextRangeId(network: DHCPSharedNetwork, subnetCidr: string): str
   return (Math.max(...existingIds) + 1).toString();
 }
 
-export function validateRangeShared(draft: RangeDraft): string | null {
+export function validateRangeShared(draft: RangeDraft): DhcpFormError | null {
   if (!draft.startIp.trim()) {
-    return "Start IP address is required";
+    return "validation.startIpRequired";
   }
   if (!isValidIpv4(draft.startIp.trim())) {
     return IP_PATTERN.test(draft.startIp.trim())
-      ? "Start IP address octets must be between 0 and 255"
-      : "Invalid start IP address format";
+      ? "validation.startIpOctets"
+      : "validation.startIpInvalid";
   }
 
   if (!draft.stopIp.trim()) {
-    return "Stop IP address is required";
+    return "validation.stopIpRequired";
   }
   if (!isValidIpv4(draft.stopIp.trim())) {
     return IP_PATTERN.test(draft.stopIp.trim())
-      ? "Stop IP address octets must be between 0 and 255"
-      : "Invalid stop IP address format";
+      ? "validation.stopIpOctets"
+      : "validation.stopIpInvalid";
   }
 
   return null;
 }
 
-export function validateRangeCreate(draft: RangeDraft): string | null {
+export function validateRangeCreate(draft: RangeDraft): DhcpFormError | null {
   if (!draft.subnet) {
-    return "Please select a subnet";
+    return "validation.selectSubnet";
   }
   return validateRangeShared(draft);
 }
@@ -172,15 +190,15 @@ export function mappingDraftFrom(
   };
 }
 
-export function validateMappingShared(draft: MappingDraft): string | null {
+export function validateMappingShared(draft: MappingDraft): DhcpFormError | null {
   if (draft.ipAddress.trim() && !isValidIpv4(draft.ipAddress.trim())) {
     return IP_PATTERN.test(draft.ipAddress.trim())
-      ? "IP address octets must be between 0 and 255"
-      : "Invalid IP address format";
+      ? "validation.ipOctets"
+      : "validation.ipInvalid";
   }
 
   if (draft.macAddress.trim() && !MAC_PATTERN.test(draft.macAddress.trim())) {
-    return "Invalid MAC address format (expected: XX:XX:XX:XX:XX:XX)";
+    return "validation.macInvalid";
   }
 
   return null;
@@ -189,25 +207,25 @@ export function validateMappingShared(draft: MappingDraft): string | null {
 export function validateMappingCreate(
   draft: MappingDraft,
   canDuid: boolean,
-): string | null {
+): DhcpFormError | null {
   if (!draft.subnet) {
-    return "Please select a subnet";
+    return "validation.selectSubnet";
   }
   if (!draft.name.trim()) {
-    return "Mapping name is required";
+    return "validation.mappingNameRequired";
   }
   if (!MAPPING_NAME_PATTERN.test(draft.name.trim())) {
-    return "Mapping name can only contain letters, numbers, hyphens, and underscores";
+    return "validation.mappingNameInvalid";
   }
   if (!draft.ipAddress.trim()) {
-    return "IP address is required";
+    return "validation.ipRequired";
   }
 
   const shared = validateMappingShared(draft);
   if (shared) return shared;
 
   if (!draft.macAddress.trim() && !(canDuid && draft.duid.trim())) {
-    return canDuid ? "MAC address or DUID is required" : "MAC address is required";
+    return canDuid ? "validation.macOrDuidRequired" : "validation.macRequired";
   }
 
   return null;
