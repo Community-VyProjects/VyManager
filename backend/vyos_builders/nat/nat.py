@@ -805,6 +805,14 @@ class NATBatchBuilder(BatchBuilder):
         path = self.mappers[self.mapper_key].get_static_rule(rule_number)
         return self.add_delete(path)
 
+    def rename_rule(self, nat_type: str, old_number: int, new_number: int) -> "NATBatchBuilder":
+        """Rename a NAT rule while preserving its complete configuration."""
+        if nat_type not in {"source", "destination", "static", "cgnat"}:
+            raise ValueError(f"Unsupported NAT type: {nat_type}")
+        path = ["nat", nat_type, "rule", str(old_number)]
+        new_path = ["nat", nat_type, "rule", str(new_number)]
+        return self.add_rename(path, new_path)
+
     def set_static_rule_description(
         self, rule_number: int, description: str
     ) -> "NATBatchBuilder":

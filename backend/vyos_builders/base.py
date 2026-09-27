@@ -20,6 +20,11 @@ class BatchBuilder:
             self._operations.append({"op": "delete", "path": path})
         return self
 
+    def add_rename(self, path: List[str], new_path: List[str]) -> Self:
+        if path and new_path:
+            self._operations.append({"op": "rename", "path": path, "new_path": new_path})
+        return self
+
     def get_operations(self) -> List[Dict[str, Any]]:
         return self._operations.copy()
 

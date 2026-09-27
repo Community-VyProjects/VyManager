@@ -693,11 +693,11 @@ async def batch_configure_nat(http_request: Request, request: NATBatchRequest):
 @router.post("/reorder", response_model=VyOSResponse)
 async def reorder_nat_rules(http_request: Request, request: ReorderNATRequest):
     """
-    Reorder NAT rules by deleting and recreating them in a single commit.
+    Reorder NAT rules using temporary rule numbers in a single commit.
 
     This endpoint efficiently reorders multiple NAT rules by:
-    1. Deleting all specified rules
-    2. Recreating them with new rule numbers
+    1. Renaming changed rules to unused temporary numbers
+    2. Renaming them to their final numbers
     All operations are executed in a single VyOS commit.
 
     Args:
@@ -718,166 +718,56 @@ async def reorder_nat_rules(http_request: Request, request: ReorderNATRequest):
         # Create NAT batch builder
         batch = NATBatchBuilder(version=version)
 
-        # Step 1: Delete all old rules
+        if request.nat_type not in {"source", "destination", "static", "cgnat"}:
+            raise HTTPException(status_code=400, detail="Invalid NAT type")
+
+        old_numbers = {rule_item.old_number for rule_item in request.rules}
+        target_numbers = [
+            rule_item.new_number
+            for rule_item in request.rules
+            if rule_item.new_number is not None
+        ]
+        if len(old_numbers) != len(request.rules) or len(set(target_numbers)) != len(target_numbers):
+            raise HTTPException(status_code=400, detail="Rule numbers must be unique")
+
+        # VyOS cannot swap occupied rule nodes directly. Move changed rules out
+        # of the way first, then move them into their final numbers.
+        moving_rules = [
+            rule_item
+            for rule_item in request.rules
+            if rule_item.new_number is not None and rule_item.old_number != rule_item.new_number
+        ]
+        next_temporary_number = max(
+            [*old_numbers, *target_numbers, 0]
+        ) + 1000
+        temporary_numbers = {}
+        for rule_item in moving_rules:
+            while next_temporary_number in old_numbers or next_temporary_number in target_numbers:
+                next_temporary_number += 1
+            temporary_numbers[rule_item.old_number] = next_temporary_number
+            next_temporary_number += 1
+            batch.rename_rule(request.nat_type, rule_item.old_number, temporary_numbers[rule_item.old_number])
+
+        # Delete rules explicitly removed from the reordered list after all
+        # moving sources have been freed.
         for rule_item in request.rules:
-            if request.nat_type == "source":
-                batch.delete_source_rule(rule_item.old_number)
-            elif request.nat_type == "destination":
-                batch.delete_destination_rule(rule_item.old_number)
-            elif request.nat_type == "static":
-                batch.delete_static_rule(rule_item.old_number)
-            elif request.nat_type == "cgnat":
-                batch.delete_cgnat_rule(rule_item.old_number)
+            if rule_item.new_number is None:
+                if request.nat_type == "source":
+                    batch.delete_source_rule(rule_item.old_number)
+                elif request.nat_type == "destination":
+                    batch.delete_destination_rule(rule_item.old_number)
+                elif request.nat_type == "static":
+                    batch.delete_static_rule(rule_item.old_number)
+                else:
+                    batch.delete_cgnat_rule(rule_item.old_number)
 
-        # Step 2: Create all rules with new numbers
-        for rule_item in request.rules:
-            new_num = rule_item.new_number
-            if new_num is None:
-                continue  # delete-only item: removed above, not recreated
-            rule_data = rule_item.rule_data
-
-            if request.nat_type == "source":
-                # Create source rule
-                batch.set_source_rule(new_num)
-
-                # Add all rule properties
-                if rule_data.get("description"):
-                    batch.set_source_rule_description(new_num, rule_data["description"])
-                if rule_data.get("source_address"):
-                    batch.set_source_rule_source_address(new_num, rule_data["source_address"])
-                if rule_data.get("source_fqdn"):
-                    batch.set_source_rule_source_fqdn(new_num, rule_data["source_fqdn"])
-                if rule_data.get("source_port"):
-                    batch.set_source_rule_source_port(new_num, rule_data["source_port"])
-                if rule_data.get("destination_address"):
-                    batch.set_source_rule_destination_address(new_num, rule_data["destination_address"])
-                if rule_data.get("destination_fqdn"):
-                    batch.set_source_rule_destination_fqdn(new_num, rule_data["destination_fqdn"])
-                if rule_data.get("destination_port"):
-                    batch.set_source_rule_destination_port(new_num, rule_data["destination_port"])
-                if rule_data.get("outbound_interface_name"):
-                    batch.set_source_rule_outbound_interface_name(new_num, rule_data["outbound_interface_name"])
-                if rule_data.get("outbound_interface_group"):
-                    batch.set_source_rule_outbound_interface_group(new_num, rule_data["outbound_interface_group"])
-                if rule_data.get("protocol"):
-                    batch.set_source_rule_protocol(new_num, rule_data["protocol"])
-                if rule_data.get("packet_type"):
-                    batch.set_source_rule_packet_type(new_num, rule_data["packet_type"])
-                if rule_data.get("translation_address"):
-                    batch.set_source_rule_translation_address(new_num, rule_data["translation_address"])
-                if rule_data.get("translation_port"):
-                    batch.set_source_rule_translation_port(new_num, rule_data["translation_port"])
-                if rule_data.get("translation_options_address_mapping"):
-                    batch.set_source_rule_translation_options_address_mapping(new_num, rule_data["translation_options_address_mapping"])
-                if rule_data.get("translation_options_port_mapping"):
-                    batch.set_source_rule_translation_options_port_mapping(new_num, rule_data["translation_options_port_mapping"])
-                # Source groups
-                if rule_data.get("source_group"):
-                    for gtype, gname in rule_data["source_group"].items():
-                        batch.set_source_rule_source_group(new_num, gtype, gname)
-                # Destination groups
-                if rule_data.get("destination_group"):
-                    for gtype, gname in rule_data["destination_group"].items():
-                        batch.set_source_rule_destination_group(new_num, gtype, gname)
-                # Load balance
-                if rule_data.get("load_balance_hash"):
-                    batch.set_source_rule_load_balance_hash(new_num, rule_data["load_balance_hash"])
-                if rule_data.get("load_balance_backends"):
-                    for backend in rule_data["load_balance_backends"]:
-                        batch.set_source_rule_load_balance_backend(new_num, backend["name"])
-                        if backend.get("weight"):
-                            batch.set_source_rule_load_balance_backend_weight(new_num, backend["name"], backend["weight"])
-                if rule_data.get("disable"):
-                    batch.set_source_rule_disable(new_num)
-                if rule_data.get("exclude"):
-                    batch.set_source_rule_exclude(new_num)
-                if rule_data.get("log"):
-                    batch.set_source_rule_log(new_num)
-
-            elif request.nat_type == "destination":
-                # Create destination rule
-                batch.set_destination_rule(new_num)
-
-                # Add all rule properties
-                if rule_data.get("description"):
-                    batch.set_destination_rule_description(new_num, rule_data["description"])
-                if rule_data.get("source_address"):
-                    batch.set_destination_rule_source_address(new_num, rule_data["source_address"])
-                if rule_data.get("source_fqdn"):
-                    batch.set_destination_rule_source_fqdn(new_num, rule_data["source_fqdn"])
-                if rule_data.get("source_port"):
-                    batch.set_destination_rule_source_port(new_num, rule_data["source_port"])
-                if rule_data.get("destination_address"):
-                    batch.set_destination_rule_destination_address(new_num, rule_data["destination_address"])
-                if rule_data.get("destination_fqdn"):
-                    batch.set_destination_rule_destination_fqdn(new_num, rule_data["destination_fqdn"])
-                if rule_data.get("destination_port"):
-                    batch.set_destination_rule_destination_port(new_num, rule_data["destination_port"])
-                if rule_data.get("inbound_interface_name"):
-                    batch.set_destination_rule_inbound_interface_name(new_num, rule_data["inbound_interface_name"])
-                if rule_data.get("inbound_interface_group"):
-                    batch.set_destination_rule_inbound_interface_group(new_num, rule_data["inbound_interface_group"])
-                if rule_data.get("protocol"):
-                    batch.set_destination_rule_protocol(new_num, rule_data["protocol"])
-                if rule_data.get("packet_type"):
-                    batch.set_destination_rule_packet_type(new_num, rule_data["packet_type"])
-                if rule_data.get("translation_address"):
-                    batch.set_destination_rule_translation_address(new_num, rule_data["translation_address"])
-                if rule_data.get("translation_port"):
-                    batch.set_destination_rule_translation_port(new_num, rule_data["translation_port"])
-                if rule_data.get("translation_options_address_mapping"):
-                    batch.set_destination_rule_translation_options_address_mapping(new_num, rule_data["translation_options_address_mapping"])
-                if rule_data.get("translation_options_port_mapping"):
-                    batch.set_destination_rule_translation_options_port_mapping(new_num, rule_data["translation_options_port_mapping"])
-                if rule_data.get("translation_redirect_port"):
-                    batch.set_destination_rule_translation_redirect_port(new_num, rule_data["translation_redirect_port"])
-                # Source groups
-                if rule_data.get("source_group"):
-                    for gtype, gname in rule_data["source_group"].items():
-                        batch.set_destination_rule_source_group(new_num, gtype, gname)
-                # Destination groups
-                if rule_data.get("destination_group"):
-                    for gtype, gname in rule_data["destination_group"].items():
-                        batch.set_destination_rule_destination_group(new_num, gtype, gname)
-                # Load balance
-                if rule_data.get("load_balance_hash"):
-                    batch.set_destination_rule_load_balance_hash(new_num, rule_data["load_balance_hash"])
-                if rule_data.get("load_balance_backends"):
-                    for backend in rule_data["load_balance_backends"]:
-                        batch.set_destination_rule_load_balance_backend(new_num, backend["name"])
-                        if backend.get("weight"):
-                            batch.set_destination_rule_load_balance_backend_weight(new_num, backend["name"], backend["weight"])
-                if rule_data.get("disable"):
-                    batch.set_destination_rule_disable(new_num)
-                if rule_data.get("exclude"):
-                    batch.set_destination_rule_exclude(new_num)
-                if rule_data.get("log"):
-                    batch.set_destination_rule_log(new_num)
-
-            elif request.nat_type == "static":
-                # Create static rule
-                batch.set_static_rule(new_num)
-
-                # Add all rule properties
-                if rule_data.get("description"):
-                    batch.set_static_rule_description(new_num, rule_data["description"])
-                if rule_data.get("destination_address"):
-                    batch.set_static_rule_destination_address(new_num, rule_data["destination_address"])
-                if rule_data.get("inbound_interface"):
-                    batch.set_static_rule_inbound_interface(new_num, rule_data["inbound_interface"])
-                if rule_data.get("translation_address"):
-                    batch.set_static_rule_translation_address(new_num, rule_data["translation_address"])
-                if rule_data.get("log"):
-                    batch.set_static_rule_log(new_num)
-
-            elif request.nat_type == "cgnat":
-                # Create CGNAT rule
-                batch.set_cgnat_rule(new_num)
-
-                if rule_data.get("source_pool"):
-                    batch.set_cgnat_rule_source_pool(new_num, rule_data["source_pool"])
-                if rule_data.get("translation_pool"):
-                    batch.set_cgnat_rule_translation_pool(new_num, rule_data["translation_pool"])
+        # Complete the move from the temporary numbers to the requested order.
+        for rule_item in moving_rules:
+            batch.rename_rule(
+                request.nat_type,
+                temporary_numbers[rule_item.old_number],
+                rule_item.new_number,
+            )
 
         if batch.is_empty():
             return VyOSResponse(
