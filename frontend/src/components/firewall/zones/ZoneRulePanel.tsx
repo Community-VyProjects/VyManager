@@ -40,11 +40,7 @@ import { firewallSeparatorsService } from "@/lib/api/firewall-separators";
 import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
 import { flowtablesService, type Flowtable } from "@/lib/api/firewall-flowtables";
 import { CountryMultiSelect } from "../CountryMultiSelect";
-import {
-  getIPAddressError,
-  getMACAddressError,
-  getPortError,
-} from "@/lib/validators/firewall";
+import { useFirewallValidation } from "@/lib/validators/use-firewall-validation";
 import type { FirewallZone } from "@/lib/api/types/firewall-zones";
 import { resolveChainName } from "@/lib/api/firewall-zones";
 import { cn } from "@/lib/utils";
@@ -137,6 +133,7 @@ export function ZoneRulePanel({
 }: ZoneRulePanelProps) {
   const t = useTranslations("firewallZones");
   const tc = useTranslations("common");
+  const { getIPAddressError, getMACAddressError, getPortError } = useFirewallValidation();
   // Zone pair selection (only used in create mode when no pair pre-selected)
   const [selectedSrc, setSelectedSrc] = useState(sourceZone ?? "");
   const [selectedDst, setSelectedDst] = useState(destZone ?? "");

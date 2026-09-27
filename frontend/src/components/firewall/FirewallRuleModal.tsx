@@ -39,11 +39,7 @@ import { showService } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import type { NetworkInterface } from "@/lib/api/interfaces";
 import { CountryMultiSelect } from "./CountryMultiSelect";
-import {
-  getIPAddressError,
-  getMACAddressError,
-  getPortError,
-} from "@/lib/validators/firewall";
+import { useFirewallValidation } from "@/lib/validators/use-firewall-validation";
 
 interface FirewallRuleModalProps {
   open: boolean;
@@ -72,6 +68,7 @@ export function FirewallRuleModal({
 }: FirewallRuleModalProps) {
   const t = useTranslations("firewallRuleModal");
   const tc = useTranslations("common");
+  const { getIPAddressError, getMACAddressError, getPortError } = useFirewallValidation();
   const isEdit = !!existing;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
