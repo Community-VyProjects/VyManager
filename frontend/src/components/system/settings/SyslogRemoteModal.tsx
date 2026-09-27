@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +37,8 @@ interface Props {
 }
 
 export function SyslogRemoteModal({ open, onOpenChange, facilities, levels, supportsFormat, onSuccess }: Props) {
+  const t = useTranslations("systemSyslog");
+  const tc = useTranslations("common");
   const [host, setHost] = useState("");
   const [port, setPort] = useState("");
   const [facList, setFacList] = useState<SyslogFacility[]>([]);
@@ -80,11 +83,11 @@ export function SyslogRemoteModal({ open, onOpenChange, facilities, levels, supp
     setError(null);
 
     if (!host.trim()) {
-      setError("Host/IP is required.");
+      setError(t("remoteModal.hostRequired"));
       return;
     }
     if (facList.length === 0) {
-      setError("At least one facility is required.");
+      setError(t("remoteModal.facilityRequired"));
       return;
     }
 
@@ -99,14 +102,14 @@ export function SyslogRemoteModal({ open, onOpenChange, facilities, levels, supp
       );
 
       if (!result.success) {
-        setError(result.error ?? "Operation failed");
+        setError(result.error ?? tc("operationFailed"));
         return;
       }
 
       handleClose();
       onSuccess();
     } catch {
-      setError("An unexpected error occurred");
+      setError(t("unexpectedError"));
     } finally {
       setLoading(false);
     }
@@ -118,10 +121,10 @@ export function SyslogRemoteModal({ open, onOpenChange, facilities, levels, supp
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Server className="h-5 w-5" />
-            Add Remote Syslog Host
+            {t("remoteModal.title")}
           </DialogTitle>
           <DialogDescription>
-            Forward log messages to a remote syslog server.
+            {t("remoteModal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -139,7 +142,7 @@ export function SyslogRemoteModal({ open, onOpenChange, facilities, levels, supp
 
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2 space-y-2">
-              <Label htmlFor="host">Host / IP</Label>
+              <Label htmlFor="host">{t("remoteModal.hostIp")}</Label>
               <Input
                 id="host"
                 value={host}
@@ -148,7 +151,7 @@ export function SyslogRemoteModal({ open, onOpenChange, facilities, levels, supp
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="port">Port (optional)</Label>
+              <Label htmlFor="port">{t("remoteModal.portOptional")}</Label>
               <Input
                 id="port"
                 type="number"
@@ -163,7 +166,7 @@ export function SyslogRemoteModal({ open, onOpenChange, facilities, levels, supp
 
           {/* Facilities */}
           <div className="space-y-2">
-            <Label>Facilities</Label>
+            <Label>{t("syslog.facilities")}</Label>
             <div className="flex flex-wrap gap-2 min-h-[2rem] p-2 rounded-md border bg-muted/30">
               {facList.map((f) => (
                 <Badge key={f.facility} variant="secondary" className="flex items-center gap-1">
@@ -174,13 +177,13 @@ export function SyslogRemoteModal({ open, onOpenChange, facilities, levels, supp
                 </Badge>
               ))}
               {facList.length === 0 && (
-                <span className="text-xs text-muted-foreground">No facilities added</span>
+                <span className="text-xs text-muted-foreground">{t("remoteModal.noFacilities")}</span>
               )}
             </div>
 
             <div className="flex gap-2 items-end">
               <div className="flex-1 space-y-1">
-                <Label className="text-xs text-muted-foreground">Facility</Label>
+                <Label className="text-xs text-muted-foreground">{t("facility")}</Label>
                 <Select value={facInput} onValueChange={setFacInput}>
                   <SelectTrigger>
                     <SelectValue />
@@ -193,7 +196,7 @@ export function SyslogRemoteModal({ open, onOpenChange, facilities, levels, supp
                 </Select>
               </div>
               <div className="flex-1 space-y-1">
-                <Label className="text-xs text-muted-foreground">Level</Label>
+                <Label className="text-xs text-muted-foreground">{t("level")}</Label>
                 <Select value={levelInput} onValueChange={setLevelInput}>
                   <SelectTrigger>
                     <SelectValue />
@@ -213,7 +216,7 @@ export function SyslogRemoteModal({ open, onOpenChange, facilities, levels, supp
 
           {supportsFormat && (
             <div className="space-y-2">
-              <Label>Message Format (RFC 5424)</Label>
+              <Label>{t("remoteModal.messageFormat")}</Label>
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="fmt-tz"
@@ -221,7 +224,7 @@ export function SyslogRemoteModal({ open, onOpenChange, facilities, levels, supp
                   onCheckedChange={(v) => setIncludeTimezone(!!v)}
                 />
                 <Label htmlFor="fmt-tz" className="text-sm font-normal">
-                  Include timezone (RFC 5424 with RFC 3339 timestamp)
+                  {t("includeTimezone")}
                 </Label>
               </div>
               <div className="flex items-center gap-2">
@@ -231,7 +234,7 @@ export function SyslogRemoteModal({ open, onOpenChange, facilities, levels, supp
                   onCheckedChange={(v) => setOctetCounted(!!v)}
                 />
                 <Label htmlFor="fmt-octet" className="text-sm font-normal">
-                  Octet-counted framing (multi-line messages, TCP only)
+                  {t("octetCounted")}
                 </Label>
               </div>
             </div>
@@ -239,10 +242,10 @@ export function SyslogRemoteModal({ open, onOpenChange, facilities, levels, supp
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Adding…" : "Add Host"}
+              {loading ? t("remoteModal.adding") : t("syslog.addHost")}
             </Button>
           </div>
         </form>

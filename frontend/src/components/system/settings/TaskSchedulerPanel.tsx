@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Card,
   CardContent,
@@ -54,6 +55,8 @@ interface Props {
 }
 
 export function TaskSchedulerPanel({ config, isReadOnly, onRefresh }: Props) {
+  const t = useTranslations("systemSyslog");
+  const tc = useTranslations("common");
   const { toast } = useToast();
 
   const [taskModalOpen, setTaskModalOpen] = useState(false);
@@ -95,7 +98,7 @@ export function TaskSchedulerPanel({ config, isReadOnly, onRefresh }: Props) {
   };
 
   const handleSave = async () => {
-    if (!formName.trim()) { setFormError("Task name is required"); return; }
+    if (!formName.trim()) { setFormError(t("scheduler.nameRequired")); return; }
     setFormSaving(true);
     setFormError(null);
     try {
@@ -110,8 +113,8 @@ export function TaskSchedulerPanel({ config, isReadOnly, onRefresh }: Props) {
           execArgs: formExecArgs || null,
           clearExecArgs: !formExecArgs,
         });
-        if (!result.success) { setFormError(result.error ?? "Failed to update task"); return; }
-        toast.success("Task updated");
+        if (!result.success) { setFormError(result.error ?? t("scheduler.updateFailed")); return; }
+        toast.success(t("scheduler.updated"));
       } else {
         const result = await systemSettingsService.createTask(
           formName.trim(),
@@ -120,12 +123,12 @@ export function TaskSchedulerPanel({ config, isReadOnly, onRefresh }: Props) {
           formExecPath || null,
           formExecArgs || null,
         );
-        if (!result.success) { setFormError(result.error ?? "Failed to create task"); return; }
-        toast.success("Task created");
+        if (!result.success) { setFormError(result.error ?? t("scheduler.createFailed")); return; }
+        toast.success(t("scheduler.created"));
       }
       setTaskModalOpen(false);
       onRefresh();
-    } catch { setFormError("An unexpected error occurred"); }
+    } catch { setFormError(t("unexpectedError")); }
     finally { setFormSaving(false); }
   };
 
@@ -134,9 +137,9 @@ export function TaskSchedulerPanel({ config, isReadOnly, onRefresh }: Props) {
     setDeleting(true);
     try {
       const result = await systemSettingsService.deleteTask(deleteTarget);
-      if (!result.success) toast.error("Delete failed", result.error ?? "Could not delete task");
-      else { toast.success("Task deleted"); onRefresh(); }
-    } catch { toast.error("Error", "An unexpected error occurred"); }
+      if (!result.success) toast.error(t("deleteFailed"), result.error ?? t("scheduler.deleteFailed"));
+      else { toast.success(t("scheduler.deleted")); onRefresh(); }
+    } catch { toast.error(t("error"), t("unexpectedError")); }
     finally { setDeleting(false); setDeleteTarget(null); }
   };
 
@@ -150,15 +153,15 @@ export function TaskSchedulerPanel({ config, isReadOnly, onRefresh }: Props) {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5" />
-                Task Scheduler
+                {t("scheduler.title")}
               </CardTitle>
               <CardDescription>
-                Schedule recurring tasks using cron expressions or intervals.
+                {t("scheduler.description")}
               </CardDescription>
             </div>
             {!isReadOnly && (
               <Button size="sm" onClick={openCreate}>
-                <Plus className="h-4 w-4 mr-2" />Add Task
+                <Plus className="h-4 w-4 mr-2" />{t("scheduler.addTask")}
               </Button>
             )}
           </div>
@@ -167,18 +170,18 @@ export function TaskSchedulerPanel({ config, isReadOnly, onRefresh }: Props) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Schedule</TableHead>
-                <TableHead>Executable</TableHead>
-                <TableHead>Arguments</TableHead>
-                {!isReadOnly && <TableHead className="text-right">Actions</TableHead>}
+                <TableHead>{tc("name")}</TableHead>
+                <TableHead>{t("scheduler.schedule")}</TableHead>
+                <TableHead>{t("scheduler.executable")}</TableHead>
+                <TableHead>{t("scheduler.arguments")}</TableHead>
+                {!isReadOnly && <TableHead className="text-right">{tc("actions")}</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {tasks.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={isReadOnly ? 4 : 5} className="text-center text-muted-foreground py-8">
-                    No scheduled tasks configured
+                    {t("scheduler.empty")}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -187,9 +190,9 @@ export function TaskSchedulerPanel({ config, isReadOnly, onRefresh }: Props) {
                     <TableCell className="font-medium">{task.name}</TableCell>
                     <TableCell className="font-mono text-xs">
                       {task.crontab_spec ? (
-                        <span title="Cron expression">{task.crontab_spec}</span>
+                        <span title={t("scheduler.cronExpressionTitle")}>{task.crontab_spec}</span>
                       ) : task.interval ? (
-                        <span title="Interval">{task.interval}</span>
+                        <span title={t("scheduler.interval")}>{task.interval}</span>
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
@@ -224,9 +227,9 @@ export function TaskSchedulerPanel({ config, isReadOnly, onRefresh }: Props) {
       <Dialog open={taskModalOpen} onOpenChange={(o) => { if (!o) setTaskModalOpen(false); }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editingTask ? "Edit Task" : "Add Task"}</DialogTitle>
+            <DialogTitle>{editingTask ? t("scheduler.editTask") : t("scheduler.addTask")}</DialogTitle>
             <DialogDescription>
-              {editingTask ? `Editing task "${editingTask.name}".` : "Create a new scheduled task. Use either a cron expression or an interval, not both."}
+              {editingTask ? t("scheduler.editingDescription", { name: editingTask.name }) : t("scheduler.createDescription")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -239,7 +242,7 @@ export function TaskSchedulerPanel({ config, isReadOnly, onRefresh }: Props) {
               </div>
             )}
             <div className="space-y-2">
-              <Label>Task Name <span className="text-destructive">*</span></Label>
+              <Label>{t("scheduler.taskName")} <span className="text-destructive">*</span></Label>
               <Input
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
@@ -249,28 +252,28 @@ export function TaskSchedulerPanel({ config, isReadOnly, onRefresh }: Props) {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>Cron Expression</Label>
+                <Label>{t("scheduler.cronExpression")}</Label>
                 <Input
                   value={formCron}
                   onChange={(e) => { setFormCron(e.target.value); if (e.target.value) setFormInterval(""); }}
                   placeholder="0 2 * * *"
                   className="font-mono text-sm"
                 />
-                <p className="text-xs text-muted-foreground">min hour day month weekday</p>
+                <p className="text-xs text-muted-foreground">{t("scheduler.cronHint")}</p>
               </div>
               <div className="space-y-2">
-                <Label>Interval</Label>
+                <Label>{t("scheduler.interval")}</Label>
                 <Input
                   value={formInterval}
                   onChange={(e) => { setFormInterval(e.target.value); if (e.target.value) setFormCron(""); }}
                   placeholder="1d, 4h, 30m"
                   className="font-mono text-sm"
                 />
-                <p className="text-xs text-muted-foreground">e.g. 1d, 6h, 30m</p>
+                <p className="text-xs text-muted-foreground">{t("scheduler.intervalHint")}</p>
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Executable Path</Label>
+              <Label>{t("scheduler.executablePath")}</Label>
               <Input
                 value={formExecPath}
                 onChange={(e) => setFormExecPath(e.target.value)}
@@ -279,7 +282,7 @@ export function TaskSchedulerPanel({ config, isReadOnly, onRefresh }: Props) {
               />
             </div>
             <div className="space-y-2">
-              <Label>Arguments</Label>
+              <Label>{t("scheduler.arguments")}</Label>
               <Input
                 value={formExecArgs}
                 onChange={(e) => setFormExecArgs(e.target.value)}
@@ -289,9 +292,9 @@ export function TaskSchedulerPanel({ config, isReadOnly, onRefresh }: Props) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setTaskModalOpen(false)} disabled={formSaving}>Cancel</Button>
+            <Button variant="outline" onClick={() => setTaskModalOpen(false)} disabled={formSaving}>{tc("cancel")}</Button>
             <Button onClick={handleSave} disabled={formSaving}>
-              {formSaving ? "Saving…" : editingTask ? "Save Changes" : "Create Task"}
+              {formSaving ? t("saving") : editingTask ? t("scheduler.saveChanges") : t("scheduler.createTask")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -301,15 +304,15 @@ export function TaskSchedulerPanel({ config, isReadOnly, onRefresh }: Props) {
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Task</AlertDialogTitle>
+            <AlertDialogTitle>{t("scheduler.deleteTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Permanently delete the task <strong>{deleteTarget}</strong>?
+              {t.rich("scheduler.deleteConfirm", { name: deleteTarget ?? "", strong: (chunks) => <strong>{chunks}</strong> })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deleting ? "Deleting…" : "Delete"}
+              {deleting ? t("scheduler.deleting") : tc("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
