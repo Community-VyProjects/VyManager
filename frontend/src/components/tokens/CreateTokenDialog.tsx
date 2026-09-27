@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -35,13 +36,15 @@ interface CreateTokenDialogProps {
 type AccessMode = "all" | "sites" | "instances";
 
 const EXPIRY_OPTIONS = [
-  { label: "Never", value: "0" },
-  { label: "30 days", value: "30" },
-  { label: "90 days", value: "90" },
-  { label: "1 year", value: "365" },
-];
+  { label: "createToken.expiryNever", value: "0" },
+  { label: "createToken.expiry30", value: "30" },
+  { label: "createToken.expiry90", value: "90" },
+  { label: "createToken.expiry365", value: "365" },
+] as const;
 
 export function CreateTokenDialog({ open, onOpenChange, onCreated }: CreateTokenDialogProps) {
+  const t = useTranslations("admin");
+  const tc = useTranslations("common");
   const [name, setName] = useState("");
   const [expiry, setExpiry] = useState("0");
   const [readOnly, setReadOnly] = useState(true);
@@ -92,7 +95,7 @@ export function CreateTokenDialog({ open, onOpenChange, onCreated }: CreateToken
         setSites(loadedSites);
         setInstancesBySite(map);
       } catch {
-        if (!cancelled) setError("Could not load sites and instances.");
+        if (!cancelled) setError(t("createToken.loadScopeFailed"));
       } finally {
         if (!cancelled) setLoadingScope(false);
       }
@@ -100,7 +103,7 @@ export function CreateTokenDialog({ open, onOpenChange, onCreated }: CreateToken
     return () => {
       cancelled = true;
     };
-  }, [open, accessMode, sites.length]);
+  }, [open, accessMode, sites.length, t]);
 
   const toggle = (set: Set<string>, id: string): Set<string> => {
     const next = new Set(set);
@@ -114,11 +117,11 @@ export function CreateTokenDialog({ open, onOpenChange, onCreated }: CreateToken
     setError(null);
 
     if (accessMode === "sites" && selectedSites.size === 0) {
-      setError("Select at least one site, or choose a different access option.");
+      setError(t("createToken.selectSite"));
       return;
     }
     if (accessMode === "instances" && selectedInstances.size === 0) {
-      setError("Select at least one instance, or choose a different access option.");
+      setError(t("createToken.selectInstance"));
       return;
     }
 
@@ -136,7 +139,7 @@ export function CreateTokenDialog({ open, onOpenChange, onCreated }: CreateToken
       setCreatedToken(result.token);
       onCreated();
     } catch (err) {
-      setError((err as ApiError).message || "Failed to create token.");
+      setError((err as ApiError).message || t("createToken.createFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -157,10 +160,10 @@ export function CreateTokenDialog({ open, onOpenChange, onCreated }: CreateToken
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <KeyRound className="h-5 w-5" />
-                Token created
+                {t("createToken.createdTitle")}
               </DialogTitle>
               <DialogDescription>
-                Copy it now — for security it will not be shown again.
+                {t("createToken.createdDescription")}
               </DialogDescription>
             </DialogHeader>
             <div className="flex items-center gap-2">
@@ -172,7 +175,7 @@ export function CreateTokenDialog({ open, onOpenChange, onCreated }: CreateToken
               </Button>
             </div>
             <DialogFooter>
-              <Button onClick={() => onOpenChange(false)}>Done</Button>
+              <Button onClick={() => onOpenChange(false)}>{t("createToken.done")}</Button>
             </DialogFooter>
           </>
         ) : (
@@ -180,19 +183,19 @@ export function CreateTokenDialog({ open, onOpenChange, onCreated }: CreateToken
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <KeyRound className="h-5 w-5" />
-                Create API token
+                {t("createToken.title")}
               </DialogTitle>
               <DialogDescription>
-                A personal token that acts as you. It can never exceed your own permissions.
+                {t("createToken.description")}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="token-name">Name</Label>
+                <Label htmlFor="token-name">{tc("name")}</Label>
                 <Input
                   id="token-name"
-                  placeholder="e.g. mcp-server"
+                  placeholder={t("createToken.namePlaceholder")}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   maxLength={100}
@@ -201,7 +204,7 @@ export function CreateTokenDialog({ open, onOpenChange, onCreated }: CreateToken
               </div>
 
               <div className="space-y-2">
-                <Label>Expiry</Label>
+                <Label>{t("createToken.expiry")}</Label>
                 <Select value={expiry} onValueChange={setExpiry}>
                   <SelectTrigger>
                     <SelectValue />
@@ -209,7 +212,7 @@ export function CreateTokenDialog({ open, onOpenChange, onCreated }: CreateToken
                   <SelectContent>
                     {EXPIRY_OPTIONS.map((o) => (
                       <SelectItem key={o.value} value={o.value}>
-                        {o.label}
+                        {t(o.label)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -223,32 +226,32 @@ export function CreateTokenDialog({ open, onOpenChange, onCreated }: CreateToken
                   onCheckedChange={(c) => setReadOnly(c === true)}
                 />
                 <div className="grid gap-1 leading-none">
-                  <Label htmlFor="token-readonly">Read-only</Label>
+                  <Label htmlFor="token-readonly">{t("tokens.scopeReadOnly")}</Label>
                   <p className="text-xs text-muted-foreground">
-                    Cannot make configuration changes (recommended).
+                    {t("createToken.readOnlyHint")}
                   </p>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label>Access</Label>
+                <Label>{t("tokens.colAccess")}</Label>
                 <RadioGroup value={accessMode} onValueChange={(v) => setAccessMode(v as AccessMode)}>
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="all" id="access-all" />
                     <Label htmlFor="access-all" className="font-normal">
-                      All instances I can access
+                      {t("createToken.accessAll")}
                     </Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="sites" id="access-sites" />
                     <Label htmlFor="access-sites" className="font-normal">
-                      Specific sites
+                      {t("createToken.accessSites")}
                     </Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="instances" id="access-instances" />
                     <Label htmlFor="access-instances" className="font-normal">
-                      Specific instances
+                      {t("createToken.accessInstances")}
                     </Label>
                   </div>
                 </RadioGroup>
@@ -257,7 +260,7 @@ export function CreateTokenDialog({ open, onOpenChange, onCreated }: CreateToken
               {accessMode !== "all" && (
                 <div className="rounded-md border p-3">
                   {loadingScope ? (
-                    <p className="text-sm text-muted-foreground">Loading…</p>
+                    <p className="text-sm text-muted-foreground">{t("tokens.loading")}</p>
                   ) : accessMode === "sites" ? (
                     <div className="space-y-2">
                       {sites.map((s) => (
@@ -270,7 +273,7 @@ export function CreateTokenDialog({ open, onOpenChange, onCreated }: CreateToken
                         </label>
                       ))}
                       {sites.length === 0 && (
-                        <p className="text-sm text-muted-foreground">No sites available.</p>
+                        <p className="text-sm text-muted-foreground">{t("createToken.noSites")}</p>
                       )}
                     </div>
                   ) : (
@@ -290,12 +293,12 @@ export function CreateTokenDialog({ open, onOpenChange, onCreated }: CreateToken
                             </label>
                           ))}
                           {(instancesBySite[s.id] ?? []).length === 0 && (
-                            <p className="pl-2 text-xs text-muted-foreground">No instances.</p>
+                            <p className="pl-2 text-xs text-muted-foreground">{t("createToken.noInstancesInSite")}</p>
                           )}
                         </div>
                       ))}
                       {sites.length === 0 && (
-                        <p className="text-sm text-muted-foreground">No instances available.</p>
+                        <p className="text-sm text-muted-foreground">{t("createToken.noInstances")}</p>
                       )}
                     </div>
                   )}
@@ -312,10 +315,10 @@ export function CreateTokenDialog({ open, onOpenChange, onCreated }: CreateToken
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
+                {tc("cancel")}
               </Button>
               <Button type="submit" disabled={submitting || !name.trim()}>
-                {submitting ? "Creating…" : "Create token"}
+                {submitting ? t("createToken.creating") : t("createToken.submit")}
               </Button>
             </DialogFooter>
           </form>

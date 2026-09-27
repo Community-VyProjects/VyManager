@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -14,6 +15,7 @@ import { sessionService, type TwoFactorPolicy } from "@/lib/api/session";
 import { useOrgStore } from "@/store/org-store";
 
 export function TwoFactorPolicyCard() {
+  const t = useTranslations("twoFactor");
   const [policy, setPolicy] = useState<TwoFactorPolicy | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -29,11 +31,11 @@ export function TwoFactorPolicyCard() {
       setPolicy(await sessionService.getTwoFactorPolicy());
     } catch (err) {
       setPolicy(null);
-      setError(err instanceof Error ? err.message : "Could not load 2FA policy");
+      setError(err instanceof Error ? err.message : t("policy.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [loadOrganizations]);
+  }, [loadOrganizations, t]);
 
   useEffect(() => {
     void load();
@@ -43,7 +45,7 @@ export function TwoFactorPolicyCard() {
     return (
       <p className="text-sm text-muted-foreground flex items-center gap-2">
         <Loader2 className="h-4 w-4 animate-spin" />
-        Loading organization 2FA policy...
+        {t("policy.loading")}
       </p>
     );
   }
@@ -62,7 +64,7 @@ export function TwoFactorPolicyCard() {
     try {
       setPolicy(await sessionService.setTwoFactorPolicy(!required));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not update 2FA policy");
+      setError(err instanceof Error ? err.message : t("policy.updateFailed"));
     } finally {
       setBusy(false);
     }
@@ -73,22 +75,19 @@ export function TwoFactorPolicyCard() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Shield className="h-5 w-5" />
-          Require two-factor
+          {t("policy.title")}
         </CardTitle>
         <CardDescription>
-          When this is on, anyone who signs in with email and password in this
-          organization must set up an authenticator before they can use VyManager.
-          Users can still enroll on their own when it is off. Single sign-on and
-          API tokens are not affected.
+          {t("policy.description")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          Password logins: {required ? "2FA required" : "2FA optional"}
+          {t("policy.passwordLogins", { status: required ? t("policy.statusRequired") : t("policy.statusOptional") })}
         </p>
         {error && <p className="text-sm text-destructive">{error}</p>}
         <Button type="button" variant={required ? "destructive" : "default"} disabled={busy} onClick={() => void toggle()}>
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : required ? "Stop requiring 2FA" : "Require 2FA for password logins"}
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : required ? t("policy.stopRequiring") : t("policy.require")}
         </Button>
       </CardContent>
     </Card>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -64,6 +65,8 @@ export function UserGrantDialog({
   instances,
   onSaved,
 }: UserGrantDialogProps) {
+  const t = useTranslations("userManagement");
+  const tc = useTranslations("common");
   const [targetType, setTargetType] = useState<TargetType>("instance");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [role, setRole] = useState<InstanceRole>(InstanceRole.VIEWER);
@@ -102,7 +105,7 @@ export function UserGrantDialog({
 
   const save = async () => {
     if (!isBulk && selectedIds.length === 0) {
-      setError(`Select at least one ${targetType}`);
+      setError(targetType === "site" ? t("grant.selectSite") : t("grant.selectInstance"));
       return;
     }
     const feature_permissions = usesPerms ? permsToList(perms) : undefined;
@@ -138,7 +141,7 @@ export function UserGrantDialog({
       onSaved();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save grant");
+      setError(err instanceof Error ? err.message : t("grant.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -147,21 +150,21 @@ export function UserGrantDialog({
   const roleAndFeatures = (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <Label>Role</Label>
+        <Label>{t("grant.role")}</Label>
         <Select value={role} onValueChange={(v) => setRole(v as InstanceRole)}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={InstanceRole.ADMIN}>Admin (full access)</SelectItem>
-            <SelectItem value={InstanceRole.OPERATOR}>Operator (edit selected)</SelectItem>
-            <SelectItem value={InstanceRole.VIEWER}>Viewer (view selected)</SelectItem>
+            <SelectItem value={InstanceRole.ADMIN}>{t("grant.roleAdmin")}</SelectItem>
+            <SelectItem value={InstanceRole.OPERATOR}>{t("grant.roleOperator")}</SelectItem>
+            <SelectItem value={InstanceRole.VIEWER}>{t("grant.roleViewer")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
       {usesPerms && (
         <div className="space-y-1.5">
-          <Label>Feature permissions</Label>
+          <Label>{t("grant.featurePermissions")}</Label>
           <FeaturePermissionTree value={perms} onChange={setPerms} />
         </div>
       )}
@@ -173,12 +176,12 @@ export function UserGrantDialog({
       <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isBulk ? `Edit ${bulkEdit!.length} grants` : isEditing ? "Edit grant" : "Add grant"}
+            {isBulk ? t("grant.editBulkTitle", { count: bulkEdit!.length }) : isEditing ? t("grant.editTitle") : t("grant.addTitle")}
           </DialogTitle>
           <DialogDescription>
             {isBulk
-              ? "Apply one role and feature set to the selected grants."
-              : "Grant access to specific instances or whole sites."}
+              ? t("grant.bulkDescription")
+              : t("grant.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -212,18 +215,18 @@ export function UserGrantDialog({
 
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button onClick={save} disabled={saving}>
               {saving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving…
+                  {t("grant.saving")}
                 </>
               ) : isBulk || isEditing ? (
-                "Save grant"
+                t("grant.save")
               ) : (
-                "Add grant"
+                t("grant.addTitle")
               )}
             </Button>
           </div>

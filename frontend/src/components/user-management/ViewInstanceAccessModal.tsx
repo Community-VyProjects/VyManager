@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,6 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { type LucideIcon, Loader2, AlertCircle, RefreshCw, Shield, Eye, Edit3, User, ChevronDown, ChevronRight, Server, Building2, Search, X, Network, Wifi, Router, Lock, Activity, Box, Waypoints, Globe, FileText, List, MapPin, Workflow, Radio, UserCircle, Power, ShieldCheck, GitBranch, Package, Terminal, ArrowLeftRight, MonitorSpeaker, Zap, Clock, Bot, Gauge, FolderUp } from "lucide-react";
 import { userManagementService, FeatureGroup, InstanceUserListItem } from "@/lib/api/user-management";
 import { ApiError } from "@/lib/types/api";
+import { roleValueKey } from "./user-form";
 
 interface ViewInstanceAccessModalProps {
   open: boolean;
@@ -145,123 +147,17 @@ const FEATURE_ICONS: Record<FeatureGroup, LucideIcon> = {
   [FeatureGroup.WWAN]: Wifi,
 };
 
-// Feature display names
-const FEATURE_NAMES: Record<FeatureGroup, string> = {
-  [FeatureGroup.FIREWALL]: "Firewall",
-  [FeatureGroup.NAT]: "NAT",
-  [FeatureGroup.NAT64]: "NAT64",
-  [FeatureGroup.NAT66]: "NAT66",
-  [FeatureGroup.SERVICE]: "Service",
-  [FeatureGroup.BROADCAST_RELAY]: "Broadcast Relay",
-  [FeatureGroup.CONFIG_SYNC]: "Config Sync",
-  [FeatureGroup.CONNTRACK_SYNC]: "Conntrack Sync",
-  [FeatureGroup.CONSOLE_SERVER]: "Console Server",
-  [FeatureGroup.DHCP_RELAY]: "DHCP Relay",
-  [FeatureGroup.DHCPV6_RELAY]: "DHCPv6 Relay",
-  [FeatureGroup.DHCPV6_SERVER]: "DHCPv6 Server",
-  [FeatureGroup.DNS_FORWARDING]: "DNS Forwarding",
-  [FeatureGroup.DNS_DYNAMIC]: "DNS Dynamic",
-  [FeatureGroup.WEBPROXY]: "Web Proxy",
-  [FeatureGroup.EVENT_HANDLER]: "Event Handler",
-  [FeatureGroup.HTTPS]: "HTTPS",
-  [FeatureGroup.IPOE_SERVER]: "IPoE Server",
-  [FeatureGroup.LLDP]: "LLDP",
-  [FeatureGroup.NDP_PROXY]: "NDP Proxy",
-  [FeatureGroup.NTP]: "NTP",
-  [FeatureGroup.ROUTER_ADVERT]: "Router Advertisement",
-  [FeatureGroup.SALT_MINION]: "Salt Minion",
-  [FeatureGroup.SERVICE_MONITORING]: "Service Monitoring",
-  [FeatureGroup.SLA]: "SLA",
-  [FeatureGroup.SNMP]: "SNMP",
-  [FeatureGroup.SSH]: "SSH",
-  [FeatureGroup.TFTP_SERVER]: "TFTP Server",
-  [FeatureGroup.QOS]: "QoS",
-  [FeatureGroup.CONTAINER]: "Containers",
-  [FeatureGroup.DHCP]: "DHCP",
-  [FeatureGroup.INTERFACES]: "Interfaces",
-  [FeatureGroup.FIREWALL_GROUPS]: "Firewall Groups",
-  [FeatureGroup.FIREWALL_POLICIES]: "Firewall Policies",
-  [FeatureGroup.FIREWALL_ZONES]: "Firewall Zones",
-  [FeatureGroup.FIREWALL_GLOBAL_OPTIONS]: "Firewall Global Options",
-  [FeatureGroup.FIREWALL_BRIDGE]: "Bridge Firewall",
-  [FeatureGroup.FIREWALL_FLOWTABLES]: "Flowtables",
-  [FeatureGroup.NETWORK]: "Network",
-  [FeatureGroup.VRF]: "VRF",
-  [FeatureGroup.LOAD_BALANCING]: "Load Balancing",
-  [FeatureGroup.VPN]: "VPN",
-  [FeatureGroup.IPSEC]: "IPsec",
-  [FeatureGroup.WIREGUARD]: "WireGuard",
-  [FeatureGroup.L2TP]: "L2TP",
-  [FeatureGroup.OPENVPN]: "OpenVPN",
-  [FeatureGroup.PPPOE]: "PPPoE",
-  [FeatureGroup.SSTPC]: "SSTP Client",
-  [FeatureGroup.PKI]: "PKI",
-  [FeatureGroup.ROUTING]: "Routing",
-  [FeatureGroup.UNICAST_PROTOCOLS]: "Unicast Protocols",
-  [FeatureGroup.BGP]: "BGP",
-  [FeatureGroup.OSPF]: "OSPF",
-  [FeatureGroup.OSPFV3]: "OSPFv3",
-  [FeatureGroup.ISIS]: "IS-IS",
-  [FeatureGroup.OPENFABRIC]: "OpenFabric",
-  [FeatureGroup.RIP]: "RIP",
-  [FeatureGroup.RIPNG]: "RIPng",
-  [FeatureGroup.BABEL]: "Babel",
-  [FeatureGroup.STATIC_ROUTES]: "Static Routes",
-  [FeatureGroup.FAILOVER]: "Failover",
-  [FeatureGroup.ROUTING_INFRASTRUCTURE]: "Routing Infrastructure",
-  [FeatureGroup.BFD]: "BFD",
-  [FeatureGroup.MPLS]: "MPLS",
-  [FeatureGroup.SEGMENT_ROUTING]: "Segment Routing",
-  [FeatureGroup.NHRP]: "NHRP",
-  [FeatureGroup.RPKI]: "RPKI",
-  [FeatureGroup.TRAFFIC_ENGINEERING]: "Traffic Engineering",
-  [FeatureGroup.ROUTING_POLICIES]: "Routing Policies",
-  [FeatureGroup.ACCESS_LIST]: "Access List",
-  [FeatureGroup.PREFIX_LIST]: "Prefix List",
-  [FeatureGroup.ROUTE_POLICY]: "Route",
-  [FeatureGroup.ROUTE_MAP]: "Route Map",
-  [FeatureGroup.LOCAL_ROUTE]: "Local Route",
-  [FeatureGroup.BGP_AS_PATH]: "BGP AS Path",
-  [FeatureGroup.BGP_COMMUNITY]: "BGP Community",
-  [FeatureGroup.BGP_EXTENDED_COMMUNITY]: "BGP Extended Community",
-  [FeatureGroup.BGP_LARGE_COMMUNITY]: "BGP Large Community",
-  [FeatureGroup.MULTICAST]: "Multicast",
-  [FeatureGroup.IGMP_PROXY]: "IGMP Proxy",
-  [FeatureGroup.PIM]: "PIM",
-  [FeatureGroup.PIM6]: "PIM6",
-  [FeatureGroup.SYSTEM]: "System",
-  [FeatureGroup.CONFIGURATION]: "Configuration",
-  [FeatureGroup.MONITORING]: "Monitoring",
-  [FeatureGroup.SSH_CONSOLE]: "SSH Console",
-  [FeatureGroup.DASHBOARD]: "Dashboard",
-  [FeatureGroup.SITES_INSTANCES]: "Sites & Instances",
-  [FeatureGroup.USER_MANAGEMENT]: "User Management",
-  [FeatureGroup.POWER]: "Power",
-  [FeatureGroup.HIGH_AVAILABILITY]: "High Availability",
-  [FeatureGroup.VXLAN]: "VXLAN",
-  [FeatureGroup.TUNNEL]: "Tunnels",
-  [FeatureGroup.BONDING]: "Bonding",
-  [FeatureGroup.BRIDGE]: "Bridge",
-  [FeatureGroup.DUMMY]: "Dummy",
-  [FeatureGroup.ETHERNET]: "Ethernet",
-  [FeatureGroup.VLAN]: "VLAN",
-  [FeatureGroup.GENEVE]: "GENEVE",
-  [FeatureGroup.INPUT_IFACE]: "Input",
-  [FeatureGroup.LOOPBACK]: "Loopback",
-  [FeatureGroup.MACSEC]: "MACsec",
-  [FeatureGroup.PSEUDO_ETHERNET]: "Pseudo-Ethernet",
-  [FeatureGroup.VIRTUAL_ETHERNET]: "Virtual Ethernet",
-  [FeatureGroup.VPP]: "VPP",
-  [FeatureGroup.VTI]: "VTI",
-  [FeatureGroup.WIRELESS]: "Wireless",
-  [FeatureGroup.WWAN]: "WWAN",
-};
-
 export function ViewInstanceAccessModal({
   open,
   onOpenChange,
   instance,
 }: ViewInstanceAccessModalProps) {
+  const t = useTranslations("userManagement");
+  const tc = useTranslations("common");
+  const roleLabel = (role: string) => {
+    const key = roleValueKey(role);
+    return key ? t(key) : role;
+  };
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [users, setUsers] = useState<InstanceUserListItem[]>([]);
@@ -278,11 +174,11 @@ export function ViewInstanceAccessModal({
       setUsers(data);
       setFilteredUsers(data);
     } catch (err) {
-      setError((err as ApiError).message || "Failed to load instance users");
+      setError((err as ApiError).message || t("viewAccess.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [instance.id]);
+  }, [instance.id, t]);
 
   useEffect(() => {
     if (open) {
@@ -339,7 +235,7 @@ export function ViewInstanceAccessModal({
           <div className="relative mt-4">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search users..."
+              placeholder={t("viewAccess.searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
@@ -350,12 +246,13 @@ export function ViewInstanceAccessModal({
           {!loading && !error && (
             <div className="mt-3 flex items-center justify-between text-sm">
               <span className="text-muted-foreground">
-                {filteredUsers.length} {filteredUsers.length === 1 ? "user" : "users"}
-                {searchQuery && ` found`}
+                {searchQuery
+                  ? t("viewAccess.usersFound", { count: filteredUsers.length })
+                  : t("viewAccess.userCount", { count: filteredUsers.length })}
               </span>
               <Button onClick={loadInstanceUsers} variant="ghost" size="sm">
                 <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           )}
@@ -372,7 +269,7 @@ export function ViewInstanceAccessModal({
                   <p className="text-sm text-destructive mb-2">{error}</p>
                   <Button onClick={loadInstanceUsers} variant="outline" size="sm">
                     <RefreshCw className="h-4 w-4 mr-2" />
-                    Retry
+                    {tc("retry")}
                   </Button>
                 </div>
               </div>
@@ -392,7 +289,7 @@ export function ViewInstanceAccessModal({
                   <div className="text-center py-12 border border-dashed border-border rounded-lg">
                     <User className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
                     <p className="text-sm text-muted-foreground">
-                      {searchQuery ? "No users found matching your search" : "No users have access to this instance"}
+                      {searchQuery ? t("users.noMatches") : t("viewAccess.empty")}
                     </p>
                   </div>
                 ) : (
@@ -431,7 +328,7 @@ export function ViewInstanceAccessModal({
                             {/* User info */}
                             <div className="flex-1 min-w-0">
                               <div className="font-medium text-sm text-foreground truncate">
-                                {user.user_name || "Unnamed User"}
+                                {user.user_name || t("unnamedUser")}
                               </div>
                               <div className="text-xs text-muted-foreground truncate">
                                 {user.user_email}
@@ -444,7 +341,7 @@ export function ViewInstanceAccessModal({
                               className={`${roleStyle.bg} ${roleStyle.text} border-0 flex-shrink-0`}
                             >
                               <RoleIcon className="h-3 w-3 mr-1" />
-                              {user.role}
+                              {roleLabel(user.role)}
                             </Badge>
                           </button>
 
@@ -458,23 +355,25 @@ export function ViewInstanceAccessModal({
                                   </div>
                                   <div>
                                     <div className="font-medium text-sm text-foreground mb-1">
-                                      Full Administrator Access
+                                      {t("viewAccess.fullAdminTitle")}
                                     </div>
                                     <p className="text-xs text-muted-foreground">
-                                      This user has complete access to all features and settings on this instance.
+                                      {t("viewAccess.fullAdminDescription")}
                                     </p>
                                   </div>
                                 </div>
                               ) : (
                                 <div className="space-y-3">
                                   <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                                    Feature Permissions
+                                    {t("viewAccess.featurePermissions")}
                                   </div>
                                   {user.feature_permissions && user.feature_permissions.length > 0 ? (
                                     <div className="space-y-2">
                                       {user.feature_permissions.map((perm) => {
                                         const FeatureIcon = FEATURE_ICONS[perm.feature];
-                                        const featureName = FEATURE_NAMES[perm.feature];
+                                        // Ids from the API that this frontend does not know yet show as-is.
+                                        const featureKey = `features.${perm.feature}` as const;
+                                        const featureName = t.has(featureKey) ? t(featureKey) : perm.feature;
 
                                         return (
                                           <div
@@ -489,17 +388,17 @@ export function ViewInstanceAccessModal({
                                               {perm.can_edit ? (
                                                 <Badge variant="outline" className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800">
                                                   <Edit3 className="h-3 w-3 mr-1" />
-                                                  Edit
+                                                  {tc("edit")}
                                                 </Badge>
                                               ) : perm.can_view ? (
                                                 <Badge variant="outline" className="bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-400 border-gray-200 dark:border-gray-700">
                                                   <Eye className="h-3 w-3 mr-1" />
-                                                  View
+                                                  {t("viewAccess.view")}
                                                 </Badge>
                                               ) : (
                                                 <Badge variant="outline" className="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800">
                                                   <X className="h-3 w-3 mr-1" />
-                                                  No Access
+                                                  {t("viewAccess.noAccess")}
                                                 </Badge>
                                               )}
                                             </div>
@@ -509,7 +408,7 @@ export function ViewInstanceAccessModal({
                                     </div>
                                   ) : (
                                     <p className="text-sm text-muted-foreground italic">
-                                      No specific feature permissions configured
+                                      {t("viewAccess.noFeaturePermissions")}
                                     </p>
                                   )}
                                 </div>

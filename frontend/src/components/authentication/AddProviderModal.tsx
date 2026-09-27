@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +23,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { oauthConfigService, WELL_KNOWN_PROVIDERS, WellKnownProvider } from "@/lib/api/oauth";
-import { ProviderIcon } from "./ProviderIcon";
+import { ProviderIcon, useProviderDescription } from "./ProviderIcon";
 import { CallbackUrlBox } from "./CallbackUrlBox";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +40,9 @@ export function AddProviderModal({
   existingProviderIds,
   onSaved,
 }: AddProviderModalProps) {
+  const t = useTranslations("authentication");
+  const tc = useTranslations("common");
+  const describe = useProviderDescription();
   const [step, setStep] = useState<"pick" | "configure">("pick");
   const [selected, setSelected] = useState<WellKnownProvider | null>(null);
 
@@ -105,10 +109,10 @@ export function AddProviderModal({
     if (!selected) return;
     setError(null);
 
-    if (!clientId.trim()) { setError("Client ID is required"); return; }
-    if (!clientSecret.trim()) { setError("Client Secret is required"); return; }
+    if (!clientId.trim()) { setError(t("form.clientIdRequired")); return; }
+    if (!clientSecret.trim()) { setError(t("form.clientSecretRequired")); return; }
     if (isCustomOrSelfHosted && !discoveryUrl.trim()) {
-      setError("Discovery URL is required for this provider");
+      setError(t("form.discoveryRequired"));
       return;
     }
 
@@ -132,7 +136,7 @@ export function AddProviderModal({
         onOpenChange(false);
       }, 700);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save provider");
+      setError(err instanceof Error ? err.message : t("form.saveProviderFailed"));
     } finally {
       setSaving(false);
     }
@@ -145,15 +149,15 @@ export function AddProviderModal({
         {step === "pick" && (
           <>
             <DialogHeader>
-              <DialogTitle>Add Authentication Provider</DialogTitle>
+              <DialogTitle>{t("form.addTitle")}</DialogTitle>
               <DialogDescription>
-                Choose a provider to configure single sign-on for your users.
+                {t("form.addDescription")}
               </DialogDescription>
             </DialogHeader>
 
             {availableProviders.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">
-                All available providers are already configured.
+                {t("form.allConfigured")}
               </p>
             ) : (
               <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -172,7 +176,7 @@ export function AddProviderModal({
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-foreground">{provider.displayName}</p>
-                      <p className="text-xs text-muted-foreground truncate">{provider.description}</p>
+                      <p className="text-xs text-muted-foreground truncate">{describe(provider)}</p>
                     </div>
                   </button>
                 ))}
@@ -196,8 +200,8 @@ export function AddProviderModal({
                   <ProviderIcon iconKey={selected.iconKey} className="h-6 w-6" />
                 </div>
                 <div>
-                  <DialogTitle>Configure {selected.displayName}</DialogTitle>
-                  <DialogDescription className="mt-0.5">{selected.description}</DialogDescription>
+                  <DialogTitle>{t("form.configureTitle", { name: selected.displayName })}</DialogTitle>
+                  <DialogDescription className="mt-0.5">{describe(selected)}</DialogDescription>
                 </div>
               </div>
             </DialogHeader>
@@ -209,7 +213,7 @@ export function AddProviderModal({
               {success && (
                 <div className="flex items-center gap-2 rounded-lg bg-green-500/10 border border-green-500/30 px-3 py-2 text-sm text-green-600 dark:text-green-400">
                   <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  Provider saved — enable it to show on the login page.
+                  {t("form.savedEnable")}
                 </div>
               )}
               {error && (
@@ -223,8 +227,8 @@ export function AddProviderModal({
               {isCustomOrSelfHosted && (
                 <div className="space-y-1.5">
                   <Label htmlFor="discoveryUrl">
-                    Discovery URL{" "}
-                    <span className="text-muted-foreground font-normal">(OIDC well-known endpoint)</span>
+                    {t("form.discoveryUrl")}{" "}
+                    <span className="text-muted-foreground font-normal">{t("form.discoveryHint")}</span>
                   </Label>
                   <Input
                     id="discoveryUrl"
@@ -233,38 +237,38 @@ export function AddProviderModal({
                     placeholder="https://your-provider/.well-known/openid-configuration"
                   />
                   <p className="text-xs text-muted-foreground">
-                    {selected.providerId === "auth0" && "Example: https://YOUR_DOMAIN.auth0.com/.well-known/openid-configuration"}
-                    {selected.providerId === "okta" && "Example: https://YOUR_DOMAIN.okta.com/.well-known/openid-configuration"}
-                    {selected.providerId === "keycloak" && "Example: https://keycloak.example.com/realms/REALM/.well-known/openid-configuration"}
-                    {selected.providerId === "authentik" && "Example: https://authentik.example.com/application/o/APP_SLUG/.well-known/openid-configuration"}
-                    {selected.providerId === "authelia" && "Example: https://auth.example.com/.well-known/openid-configuration"}
-                    {selected.providerId === "custom-oidc" && "The full URL to your provider's OpenID Connect discovery document"}
+                    {selected.providerId === "auth0" && t("form.example", { url: "https://YOUR_DOMAIN.auth0.com/.well-known/openid-configuration" })}
+                    {selected.providerId === "okta" && t("form.example", { url: "https://YOUR_DOMAIN.okta.com/.well-known/openid-configuration" })}
+                    {selected.providerId === "keycloak" && t("form.example", { url: "https://keycloak.example.com/realms/REALM/.well-known/openid-configuration" })}
+                    {selected.providerId === "authentik" && t("form.example", { url: "https://authentik.example.com/application/o/APP_SLUG/.well-known/openid-configuration" })}
+                    {selected.providerId === "authelia" && t("form.example", { url: "https://auth.example.com/.well-known/openid-configuration" })}
+                    {selected.providerId === "custom-oidc" && t("form.customOidcHint")}
                   </p>
                 </div>
               )}
 
               {/* Client ID */}
               <div className="space-y-1.5">
-                <Label htmlFor="clientId">Client ID</Label>
+                <Label htmlFor="clientId">{t("form.clientId")}</Label>
                 <Input
                   id="clientId"
                   value={clientId}
                   onChange={(e) => setClientId(e.target.value)}
-                  placeholder="Paste your client ID here"
+                  placeholder={t("form.clientIdPlaceholder")}
                   autoComplete="off"
                 />
               </div>
 
               {/* Client Secret */}
               <div className="space-y-1.5">
-                <Label htmlFor="clientSecret">Client Secret</Label>
+                <Label htmlFor="clientSecret">{t("form.clientSecret")}</Label>
                 <div className="relative">
                   <Input
                     id="clientSecret"
                     type={showSecret ? "text" : "password"}
                     value={clientSecret}
                     onChange={(e) => setClientSecret(e.target.value)}
-                    placeholder="Paste your client secret here"
+                    placeholder={t("form.clientSecretPlaceholder")}
                     autoComplete="off"
                     className="pr-10"
                   />
@@ -280,14 +284,14 @@ export function AddProviderModal({
 
               {/* Scopes */}
               <div className="space-y-1.5">
-                <Label htmlFor="scopes">Scopes</Label>
+                <Label htmlFor="scopes">{t("form.scopes")}</Label>
                 <Input
                   id="scopes"
                   value={scopes}
                   onChange={(e) => setScopes(e.target.value)}
                   placeholder="openid email profile"
                 />
-                <p className="text-xs text-muted-foreground">Space-separated list of OAuth scopes</p>
+                <p className="text-xs text-muted-foreground">{t("form.scopesHint")}</p>
               </div>
 
               {/* Advanced */}
@@ -298,34 +302,34 @@ export function AddProviderModal({
                     onClick={() => setShowAdvanced((v) => !v)}
                     className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    <span>Advanced — override endpoints</span>
+                    <span>{t("form.advanced")}</span>
                     {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   </button>
                   {showAdvanced && (
                     <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
                       {!requiresManualEndpoints && (
                         <div className="space-y-1.5">
-                          <Label htmlFor="advDiscoveryUrl">Discovery URL (OIDC)</Label>
+                          <Label htmlFor="advDiscoveryUrl">{t("form.advDiscoveryUrl")}</Label>
                           <Input
                             id="advDiscoveryUrl"
                             value={discoveryUrl}
                             onChange={(e) => setDiscoveryUrl(e.target.value)}
-                            placeholder={selected.discoveryUrl ?? "Auto-configured"}
+                            placeholder={selected.discoveryUrl ?? t("form.autoConfigured")}
                           />
                         </div>
                       )}
                       {requiresManualEndpoints && (
                         <>
                           <div className="space-y-1.5">
-                            <Label>Authorization URL</Label>
+                            <Label>{t("form.authorizationUrl")}</Label>
                             <Input value={authorizationUrl} onChange={(e) => setAuthorizationUrl(e.target.value)} />
                           </div>
                           <div className="space-y-1.5">
-                            <Label>Token URL</Label>
+                            <Label>{t("form.tokenUrl")}</Label>
                             <Input value={tokenUrl} onChange={(e) => setTokenUrl(e.target.value)} />
                           </div>
                           <div className="space-y-1.5">
-                            <Label>User Info URL</Label>
+                            <Label>{t("form.userInfoUrl")}</Label>
                             <Input value={userInfoUrl} onChange={(e) => setUserInfoUrl(e.target.value)} />
                           </div>
                         </>
@@ -337,13 +341,13 @@ export function AddProviderModal({
 
               <div className="flex justify-end gap-3 pt-2">
                 <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-                  Cancel
+                  {tc("cancel")}
                 </Button>
                 <Button onClick={handleSave} disabled={saving || success}>
                   {saving ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving…</>
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("form.saving")}</>
                   ) : (
-                    "Save Provider"
+                    t("form.saveProvider")
                   )}
                 </Button>
               </div>

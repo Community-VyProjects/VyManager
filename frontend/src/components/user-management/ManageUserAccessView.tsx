@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -35,6 +36,7 @@ import {
   SiteOption,
 } from "@/components/authentication/GrantEditorDialog";
 import { UserGrantDialog } from "./UserGrantDialog";
+import { roleValueKey } from "./user-form";
 
 interface ManageUserAccessViewProps {
   user: UserListItem;
@@ -44,6 +46,11 @@ interface ManageUserAccessViewProps {
 }
 
 export function ManageUserAccessView({ user, onBack, onChanged }: ManageUserAccessViewProps) {
+  const t = useTranslations("userManagement");
+  const roleLabel = (role: string) => {
+    const key = roleValueKey(role);
+    return key ? t(key) : role;
+  };
   const [siteRole, setSiteRole] = useState<SiteRole>(user.site_role);
   const [savingSiteRole, setSavingSiteRole] = useState(false);
 
@@ -82,11 +89,11 @@ export function ManageUserAccessView({ user, onBack, onChanged }: ManageUserAcce
       setInstances(all);
       setSelectedIds([]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load access");
+      setError(err instanceof Error ? err.message : t("access.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [user.id]);
+  }, [user.id, t]);
 
   useEffect(() => {
     load();
@@ -101,7 +108,7 @@ export function ManageUserAccessView({ user, onBack, onChanged }: ManageUserAcce
       await userManagementService.updateUser(user.id, { site_role: next });
       onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update site role");
+      setError(err instanceof Error ? err.message : t("access.siteRoleFailed"));
       setSiteRole(user.site_role);
     } finally {
       setSavingSiteRole(false);
@@ -133,7 +140,7 @@ export function ManageUserAccessView({ user, onBack, onChanged }: ManageUserAcce
       await userManagementService.removeAssignment(id);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete grant");
+      setError(err instanceof Error ? err.message : t("access.deleteGrantFailed"));
     }
   };
 
@@ -143,7 +150,7 @@ export function ManageUserAccessView({ user, onBack, onChanged }: ManageUserAcce
       for (const id of selectedIds) await userManagementService.removeAssignment(id);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete grants");
+      setError(err instanceof Error ? err.message : t("access.deleteGrantsFailed"));
     }
   };
 
@@ -176,14 +183,14 @@ export function ManageUserAccessView({ user, onBack, onChanged }: ManageUserAcce
       {/* Site role */}
       <div className="rounded-lg border border-border p-4 flex flex-wrap items-end gap-4">
         <div className="space-y-1.5">
-          <Label>Site role</Label>
+          <Label>{t("access.siteRole")}</Label>
           <Select value={siteRole} onValueChange={changeSiteRole} disabled={!!user.sso_role_managed}>
             <SelectTrigger className="w-48">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={SiteRole.VIEWER}>Viewer</SelectItem>
-              <SelectItem value={SiteRole.ADMIN}>Admin</SelectItem>
+              <SelectItem value={SiteRole.VIEWER}>{t("roles.viewer")}</SelectItem>
+              <SelectItem value={SiteRole.ADMIN}>{t("roles.admin")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -192,10 +199,10 @@ export function ManageUserAccessView({ user, onBack, onChanged }: ManageUserAcce
           {user.sso_role_managed ? (
             <span className="inline-flex items-center gap-1.5">
               <Lock className="h-3 w-3" />
-              Set by SSO group mapping — change it in Role Mapping.
+              {t("access.siteRoleSso")}
             </span>
           ) : (
-            "Admins have full access to every site and instance."
+            t("access.siteRoleAdminHint")
           )}
         </p>
       </div>
@@ -206,13 +213,12 @@ export function ManageUserAccessView({ user, onBack, onChanged }: ManageUserAcce
         </div>
       ) : isAdmin ? (
         <p className="text-sm text-muted-foreground rounded-lg bg-muted/50 px-4 py-3">
-          This user is a site admin and automatically has full access to all instances and
-          features — no per-instance configuration needed.
+          {t("access.adminNotice")}
         </p>
       ) : (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Instance &amp; site access</h3>
+            <h3 className="text-sm font-semibold">{t("access.grantsTitle")}</h3>
             <Button
               size="sm"
               variant="outline"
@@ -220,13 +226,13 @@ export function ManageUserAccessView({ user, onBack, onChanged }: ManageUserAcce
               onClick={() => setGrantEditor({ existing: null })}
             >
               <Plus className="h-3.5 w-3.5" />
-              Add grant
+              {t("access.addGrant")}
             </Button>
           </div>
 
           {selectedIds.length > 0 && (
             <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm">
-              <span className="font-medium">{selectedIds.length} selected</span>
+              <span className="font-medium">{t("access.selectedCount", { count: selectedIds.length })}</span>
               <div className="ml-auto flex items-center gap-2">
                 <Button
                   size="sm"
@@ -238,7 +244,7 @@ export function ManageUserAccessView({ user, onBack, onChanged }: ManageUserAcce
                     })
                   }
                 >
-                  Edit selected
+                  {t("access.editSelected")}
                 </Button>
                 <Button
                   size="sm"
@@ -246,17 +252,17 @@ export function ManageUserAccessView({ user, onBack, onChanged }: ManageUserAcce
                   className="text-destructive hover:text-destructive"
                   onClick={deleteSelected}
                 >
-                  Delete selected
+                  {t("access.deleteSelected")}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setSelectedIds([])}>
-                  Clear
+                  {t("access.clear")}
                 </Button>
               </div>
             </div>
           )}
 
           {rows.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-1">No access granted yet.</p>
+            <p className="text-sm text-muted-foreground py-1">{t("access.empty")}</p>
           ) : (
             <div className="rounded-lg border border-border divide-y divide-border">
               {manualRows.length > 0 && (
@@ -267,7 +273,7 @@ export function ManageUserAccessView({ user, onBack, onChanged }: ManageUserAcce
                       setSelectedIds(v === true ? manualRows.map((r) => r.id) : [])
                     }
                   />
-                  Select all
+                  {t("access.selectAll")}
                 </label>
               )}
               {rows.map((a) => {
@@ -289,7 +295,7 @@ export function ManageUserAccessView({ user, onBack, onChanged }: ManageUserAcce
                       {a.is_site_grant ? (
                         <span className="inline-flex items-center gap-1.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-0.5 font-medium">
                           <Building2 className="h-3.5 w-3.5" />
-                          {a.site_name} (whole site)
+                          {t("access.wholeSite", { site: a.site_name })}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-0.5 font-medium">
@@ -298,21 +304,21 @@ export function ManageUserAccessView({ user, onBack, onChanged }: ManageUserAcce
                         </span>
                       )}
                       <span className="text-muted-foreground">→</span>
-                      <span className="text-xs font-medium">{a.role}</span>
+                      <span className="text-xs font-medium">{roleLabel(a.role)}</span>
                       {a.feature_permissions?.length ? (
                         <span className="text-xs text-muted-foreground">
-                          · {a.feature_permissions.length} features
+                          · {t("access.featureCount", { count: a.feature_permissions.length })}
                         </span>
                       ) : null}
                       {sso && (
                         <span className="rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 py-0.5 text-xs font-medium">
-                          via SSO
+                          {t("access.viaSso")}
                         </span>
                       )}
                     </div>
                     {sso ? (
                       <span className="text-xs text-muted-foreground shrink-0">
-                        Managed in Role Mapping
+                        {t("access.managedInRoleMapping")}
                       </span>
                     ) : (
                       <div className="flex items-center gap-1 shrink-0">

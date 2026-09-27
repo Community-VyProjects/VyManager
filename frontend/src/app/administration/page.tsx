@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import { BackupRestoreModal } from "@/components/session/BackupRestoreModal";
 import { InstanceModal } from "@/components/sites/InstanceModal";
 
 function AdministrationPageInner() {
+  const t = useTranslations("admin");
   const router = useRouter();
   const searchParams = useSearchParams();
   const { appliance, loadSession } = useSessionStore();
@@ -59,7 +61,7 @@ function AdministrationPageInner() {
       const instances = await sessionService.listInstances(site.id);
       setInstance(instances[0] ?? null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load instance");
+      setError(err instanceof Error ? err.message : t("page.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -68,6 +70,7 @@ function AdministrationPageInner() {
   useEffect(() => {
     if (!modeReady || !hideSiteInventory(appliance)) return;
     void loadInstance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once the mode is known; a language switch re-renders via router.refresh()
   }, [modeReady, appliance]);
 
   const setTab = (value: string) => {
@@ -82,9 +85,9 @@ function AdministrationPageInner() {
     <AppLayout>
       <div className="p-8 space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Administration</h1>
+          <h1 className="text-3xl font-bold">{t("page.title")}</h1>
           <p className="text-muted-foreground mt-2">
-            Users, authentication, tokens, backup, and this router&apos;s instance settings.
+            {t("page.subtitle")}
           </p>
         </div>
 
@@ -92,23 +95,23 @@ function AdministrationPageInner() {
           <TabsList className="flex flex-wrap gap-1 h-auto">
             <TabsTrigger value="instance" className="flex items-center gap-2">
               <Server className="h-4 w-4" />
-              This router
+              {t("page.tabs.instance")}
             </TabsTrigger>
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
-              Users
+              {t("page.tabs.users")}
             </TabsTrigger>
             <TabsTrigger value="authentication" className="flex items-center gap-2">
               <KeyRound className="h-4 w-4" />
-              Authentication
+              {t("page.tabs.authentication")}
             </TabsTrigger>
             <TabsTrigger value="tokens" className="flex items-center gap-2">
               <Key className="h-4 w-4" />
-              API Tokens
+              {t("page.tabs.tokens")}
             </TabsTrigger>
             <TabsTrigger value="backup" className="flex items-center gap-2">
               <Download className="h-4 w-4" />
-              Backup
+              {t("page.tabs.backup")}
             </TabsTrigger>
           </TabsList>
 
@@ -116,29 +119,32 @@ function AdministrationPageInner() {
             {loading ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Loading instance...
+                {t("page.loadingInstance")}
               </div>
             ) : error ? (
               <p className="text-sm text-destructive">{error}</p>
             ) : !instance ? (
-              <p className="text-sm text-muted-foreground">No local instance is seeded.</p>
+              <p className="text-sm text-muted-foreground">{t("page.noInstance")}</p>
             ) : (
               <Card>
                 <CardHeader>
                   <CardTitle>{instance.name}</CardTitle>
                   <CardDescription>
-                    Edit API key, version, SSH, commit-confirm, and timeout. Inventory
-                    create/move/delete is not available on this device.
+                    {t("page.instanceDescription")}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    {instance.host}:{instance.port} · {instance.vyos_version} · timeout{" "}
-                    {instance.timeout}s
+                    {t("page.instanceSummary", {
+                      host: instance.host,
+                      port: String(instance.port),
+                      version: instance.vyos_version ?? "",
+                      timeout: String(instance.timeout),
+                    })}
                   </p>
                   <Button className="gap-2" onClick={() => setEditOpen(true)}>
                     <Pencil className="h-4 w-4" />
-                    Edit instance
+                    {t("page.editInstance")}
                   </Button>
                 </CardContent>
               </Card>
@@ -157,15 +163,15 @@ function AdministrationPageInner() {
           <TabsContent value="backup">
             <Card>
               <CardHeader>
-                <CardTitle>Backup and restore</CardTitle>
+                <CardTitle>{t("page.backupTitle")}</CardTitle>
                 <CardDescription>
-                  VyManager state (users, instance, grants, OIDC), not router config.
+                  {t("page.backupDescription")}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <Button className="gap-2" onClick={() => setBackupOpen(true)}>
                   <Download className="h-4 w-4" />
-                  Backup and restore
+                  {t("page.backupTitle")}
                 </Button>
               </CardContent>
             </Card>
