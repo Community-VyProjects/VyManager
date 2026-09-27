@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +64,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
 export function RipContent() {
+  const t = useTranslations("rip");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWritePermission = canWrite(FeatureGroup.RIP);
 
@@ -164,11 +167,11 @@ export function RipContent() {
       setPrefixListNames(prefixLists);
       setSystemInterfaces(interfaces);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load RIP configuration");
+      setError(err instanceof Error ? err.message : t("errors.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -222,7 +225,7 @@ export function RipContent() {
       await loadData(true);
       setOverviewEditing(false);
     } catch (err) {
-      setOverviewError(err instanceof Error ? err.message : "Failed to save settings");
+      setOverviewError(err instanceof Error ? err.message : t("errors.saveSettingsFailed"));
     } finally {
       setOverviewSaving(false);
     }
@@ -240,7 +243,7 @@ export function RipContent() {
       setNewNetwork("");
       await loadData(true);
     } catch (err) {
-      setNetworksError(err instanceof Error ? err.message : "Failed to add network");
+      setNetworksError(err instanceof Error ? err.message : t("errors.addNetworkFailed"));
     }
   };
 
@@ -250,7 +253,7 @@ export function RipContent() {
       await ripService.removeNetwork(network);
       await loadData(true);
     } catch (err) {
-      setNetworksError(err instanceof Error ? err.message : "Failed to remove network");
+      setNetworksError(err instanceof Error ? err.message : t("errors.removeNetworkFailed"));
     }
   };
 
@@ -262,7 +265,7 @@ export function RipContent() {
       setNewNeighbor("");
       await loadData(true);
     } catch (err) {
-      setNeighborsError(err instanceof Error ? err.message : "Failed to add neighbor");
+      setNeighborsError(err instanceof Error ? err.message : t("errors.addNeighborFailed"));
     }
   };
 
@@ -272,7 +275,7 @@ export function RipContent() {
       await ripService.removeNeighbor(address);
       await loadData(true);
     } catch (err) {
-      setNeighborsError(err instanceof Error ? err.message : "Failed to remove neighbor");
+      setNeighborsError(err instanceof Error ? err.message : t("errors.removeNeighborFailed"));
     }
   };
 
@@ -284,7 +287,7 @@ export function RipContent() {
       setNewRoute("");
       await loadData(true);
     } catch (err) {
-      setRoutesError(err instanceof Error ? err.message : "Failed to add route");
+      setRoutesError(err instanceof Error ? err.message : t("errors.addRouteFailed"));
     }
   };
 
@@ -294,7 +297,7 @@ export function RipContent() {
       await ripService.removeRoute(prefix);
       await loadData(true);
     } catch (err) {
-      setRoutesError(err instanceof Error ? err.message : "Failed to remove route");
+      setRoutesError(err instanceof Error ? err.message : t("errors.removeRouteFailed"));
     }
   };
 
@@ -306,7 +309,7 @@ export function RipContent() {
       setNewPassiveIface("");
       await loadData(true);
     } catch (err) {
-      setPassiveIfaceError(err instanceof Error ? err.message : "Failed to add passive interface");
+      setPassiveIfaceError(err instanceof Error ? err.message : t("errors.addPassiveIfaceFailed"));
     }
   };
 
@@ -316,7 +319,7 @@ export function RipContent() {
       await ripService.removePassiveInterface(iface);
       await loadData(true);
     } catch (err) {
-      setPassiveIfaceError(err instanceof Error ? err.message : "Failed to remove passive interface");
+      setPassiveIfaceError(err instanceof Error ? err.message : t("errors.removePassiveIfaceFailed"));
     }
   };
 
@@ -414,7 +417,7 @@ export function RipContent() {
       await loadData(true);
       setDlGlobalEditing(false);
     } catch (err) {
-      setDlGlobalError(err instanceof Error ? err.message : "Failed to save filters");
+      setDlGlobalError(err instanceof Error ? err.message : t("errors.saveFiltersFailed"));
     } finally {
       setDlGlobalSaving(false);
     }
@@ -503,7 +506,7 @@ export function RipContent() {
           <p className="text-sm text-destructive mb-2">{err}</p>
         )}
         {items.length === 0 ? (
-          <p className="text-xs text-muted-foreground">None configured</p>
+          <p className="text-xs text-muted-foreground">{t("networks.noneConfigured")}</p>
         ) : (
           <div className="space-y-1">
             {items.map((item) => (
@@ -543,7 +546,7 @@ export function RipContent() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => loadData()}>Retry</Button>
+        <Button variant="outline" onClick={() => loadData()}>{tc("retry")}</Button>
       </div>
     );
   }
@@ -560,21 +563,21 @@ export function RipContent() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold text-foreground">RIP Protocol</h1>
+                <h1 className="text-2xl font-bold text-foreground">{t("header.title")}</h1>
                 {!hasWritePermission && (
                   <Badge variant="secondary" className="flex items-center gap-1">
                     <Lock className="h-3 w-3" />
-                    Read Only
+                    {t("header.readOnly")}
                   </Badge>
                 )}
               </div>
               <p className="text-sm text-muted-foreground mt-1">
-                Routing Information Protocol — distance-vector routing
+                {t("header.subtitle")}
               </p>
             </div>
             <Button variant="outline" size="sm" onClick={() => loadData(true)}>
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              {tc("refresh")}
             </Button>
           </div>
 
@@ -594,7 +597,7 @@ export function RipContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{versionBadge}</p>
-                    <p className="text-xs text-muted-foreground">Version</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.version")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -607,7 +610,7 @@ export function RipContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{networkCount}</p>
-                    <p className="text-xs text-muted-foreground">Networks</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.networks")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -620,7 +623,7 @@ export function RipContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{ifaceCount}</p>
-                    <p className="text-xs text-muted-foreground">Interfaces</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.interfaces")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -633,7 +636,7 @@ export function RipContent() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{redistCount}</p>
-                    <p className="text-xs text-muted-foreground">Redistribute</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.redistribute")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -645,22 +648,22 @@ export function RipContent() {
         <div className="flex-1 p-6 pt-4 overflow-auto">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="overview">{t("tabs.overview")}</TabsTrigger>
               <TabsTrigger value="networks">
-                Networks
+                {t("tabs.networks")}
                 {(config?.networks.length ?? 0) > 0 && (
                   <Badge variant="secondary" className="ml-2">{config?.networks.length}</Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger value="interfaces">
-                Interfaces
+                {t("tabs.interfaces")}
                 {ifaceCount > 0 && <Badge variant="secondary" className="ml-2">{ifaceCount}</Badge>}
               </TabsTrigger>
               <TabsTrigger value="redistribute">
-                Redistribute
+                {t("tabs.redistribute")}
                 {redistCount > 0 && <Badge variant="secondary" className="ml-2">{redistCount}</Badge>}
               </TabsTrigger>
-              <TabsTrigger value="filters">Filters</TabsTrigger>
+              <TabsTrigger value="filters">{t("tabs.filters")}</TabsTrigger>
             </TabsList>
 
             {/* ============================================================ */}
@@ -668,19 +671,19 @@ export function RipContent() {
             {/* ============================================================ */}
             <TabsContent value="overview">
               <div className="flex items-center justify-between mb-4">
-                <p className="text-sm text-muted-foreground">Global RIP settings and timers</p>
+                <p className="text-sm text-muted-foreground">{t("overview.description")}</p>
                 {hasWritePermission && (
                   !overviewEditing ? (
                     <Button size="sm" variant="outline" onClick={startEditOverview}>
                       <Pencil className="h-4 w-4 mr-2" />
-                      Edit
+                      {tc("edit")}
                     </Button>
                   ) : (
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={cancelEditOverview}>Cancel</Button>
+                      <Button size="sm" variant="outline" onClick={cancelEditOverview}>{tc("cancel")}</Button>
                       <Button size="sm" onClick={saveOverview} disabled={overviewSaving}>
                         {overviewSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                        Save
+                        {tc("save")}
                       </Button>
                     </div>
                   )
@@ -696,21 +699,21 @@ export function RipContent() {
               <div className="grid grid-cols-2 gap-6">
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4">Global Settings</h3>
+                    <h3 className="font-semibold mb-4">{t("overview.globalSettings")}</h3>
                     <div className="space-y-4">
                       {/* Version */}
                       <div className="space-y-2">
-                        <Label>Version</Label>
+                        <Label>{t("overview.version")}</Label>
                         <Select
                           value={overviewEditing ? (ovVersion || "unset") : (config?.version || "unset")}
                           onValueChange={(v) => setOvVersion(v === "unset" ? "" : v)}
                           disabled={!overviewEditing}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Default" />
+                            <SelectValue placeholder={tc("default")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="unset">Default</SelectItem>
+                            <SelectItem value="unset">{tc("default")}</SelectItem>
                             <SelectItem value="1">v1</SelectItem>
                             <SelectItem value="2">v2</SelectItem>
                           </SelectContent>
@@ -719,8 +722,8 @@ export function RipContent() {
 
                       {/* Default Distance */}
                       <div className="space-y-2">
-                        <Label>Default Distance</Label>
-                        <p className="text-xs text-muted-foreground">Administrative distance (1-255)</p>
+                        <Label>{t("overview.defaultDistance")}</Label>
+                        <p className="text-xs text-muted-foreground">{t("overview.defaultDistanceHelp")}</p>
                         <Input
                           type="number"
                           min={1}
@@ -734,8 +737,8 @@ export function RipContent() {
 
                       {/* Default Metric */}
                       <div className="space-y-2">
-                        <Label>Default Metric</Label>
-                        <p className="text-xs text-muted-foreground">Metric for redistributed routes (1-16)</p>
+                        <Label>{t("overview.defaultMetric")}</Label>
+                        <p className="text-xs text-muted-foreground">{t("overview.defaultMetricHelp")}</p>
                         <Input
                           type="number"
                           min={1}
@@ -749,14 +752,14 @@ export function RipContent() {
 
                       {/* Route Map */}
                       <div className="space-y-2">
-                        <Label>Route Map</Label>
+                        <Label>{t("overview.routeMap")}</Label>
                         {overviewEditing ? (
                           <Select value={ovRouteMap || "none"} onValueChange={(v) => setOvRouteMap(v === "none" ? "" : v)}>
                             <SelectTrigger>
-                              <SelectValue placeholder="None" />
+                              <SelectValue placeholder={tc("none")} />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="none">None</SelectItem>
+                              <SelectItem value="none">{tc("none")}</SelectItem>
                               {routeMapNames.map((rm) => (
                                 <SelectItem key={rm} value={rm} className="font-mono">{rm}</SelectItem>
                               ))}
@@ -766,7 +769,7 @@ export function RipContent() {
                           <Input
                             value={config?.route_map ?? ""}
                             disabled
-                            placeholder="None"
+                            placeholder={tc("none")}
                             className="font-mono"
                           />
                         )}
@@ -781,7 +784,7 @@ export function RipContent() {
                           onCheckedChange={(checked) => setOvOriginate(!!checked)}
                         />
                         <Label htmlFor="rip-originate" className="cursor-pointer">
-                          Default Information Originate
+                          {t("overview.originate")}
                         </Label>
                       </div>
                     </div>
@@ -790,11 +793,11 @@ export function RipContent() {
 
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4">Timers</h3>
+                    <h3 className="font-semibold mb-4">{t("overview.timers")}</h3>
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label>Update Interval (seconds)</Label>
-                        <p className="text-xs text-muted-foreground">How often to send routing updates (default: 30)</p>
+                        <Label>{t("overview.updateInterval")}</Label>
+                        <p className="text-xs text-muted-foreground">{t("overview.updateHelp")}</p>
                         <Input
                           type="number"
                           min={5}
@@ -806,8 +809,8 @@ export function RipContent() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Timeout Interval (seconds)</Label>
-                        <p className="text-xs text-muted-foreground">Time before a route is marked invalid (default: 180)</p>
+                        <Label>{t("overview.timeoutInterval")}</Label>
+                        <p className="text-xs text-muted-foreground">{t("overview.timeoutHelp")}</p>
                         <Input
                           type="number"
                           min={5}
@@ -819,8 +822,8 @@ export function RipContent() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Garbage Collection (seconds)</Label>
-                        <p className="text-xs text-muted-foreground">Time before a stale route is removed (default: 120)</p>
+                        <Label>{t("overview.garbageCollection")}</Label>
+                        <p className="text-xs text-muted-foreground">{t("overview.gcHelp")}</p>
                         <Input
                           type="number"
                           min={5}
@@ -842,48 +845,48 @@ export function RipContent() {
             {/* ============================================================ */}
             <TabsContent value="networks">
               <p className="text-sm text-muted-foreground mb-4">
-                Configure RIP networks, neighbors, static routes, and passive interfaces
+                {t("networks.description")}
               </p>
               <div className="grid grid-cols-2 gap-4">
                 {renderListSection(
-                  "RIP Networks",
+                  t("networks.ripNetworks"),
                   config?.networks ?? [],
                   newNetwork,
                   setNewNetwork,
                   handleAddNetwork,
                   handleRemoveNetwork,
                   networksError,
-                  "e.g. 10.0.0.0/8"
+                  t("example", { value: "10.0.0.0/8" })
                 )}
                 {renderListSection(
-                  "Neighbors",
+                  t("networks.neighbors"),
                   config?.neighbors ?? [],
                   newNeighbor,
                   setNewNeighbor,
                   handleAddNeighbor,
                   handleRemoveNeighbor,
                   neighborsError,
-                  "e.g. 192.168.1.1"
+                  t("example", { value: "192.168.1.1" })
                 )}
                 {renderListSection(
-                  "Static Routes",
+                  t("networks.staticRoutes"),
                   config?.routes ?? [],
                   newRoute,
                   setNewRoute,
                   handleAddRoute,
                   handleRemoveRoute,
                   routesError,
-                  "e.g. 10.0.0.0/8"
+                  t("example", { value: "10.0.0.0/8" })
                 )}
                 {renderListSection(
-                  "Passive Interfaces",
+                  t("networks.passiveInterfaces"),
                   config?.passive_interfaces ?? [],
                   newPassiveIface,
                   setNewPassiveIface,
                   handleAddPassiveIface,
                   handleRemovePassiveIface,
                   passiveIfaceError,
-                  "Select or type interface",
+                  t("networks.selectOrTypeInterface"),
                   true,
                   systemInterfaces
                 )}
@@ -896,12 +899,12 @@ export function RipContent() {
             <TabsContent value="interfaces">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Per-interface authentication, version, and split-horizon settings
+                  {t("interfaces.description")}
                 </p>
                 {hasWritePermission && (
                   <Button size="sm" onClick={() => { setEditingIface(null); setIfaceModalOpen(true); }}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Interface
+                    {t("interfaces.addInterface")}
                   </Button>
                 )}
               </div>
@@ -910,14 +913,14 @@ export function RipContent() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <Network className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">No interface settings configured</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("interfaces.empty")}</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      Add one to configure authentication or split-horizon.
+                      {t("interfaces.emptyHint")}
                     </p>
                     {hasWritePermission && (
                       <Button size="sm" onClick={() => { setEditingIface(null); setIfaceModalOpen(true); }}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Interface
+                        {t("interfaces.addInterface")}
                       </Button>
                     )}
                   </CardContent>
@@ -928,12 +931,12 @@ export function RipContent() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Interface</TableHead>
-                          <TableHead>Auth Type</TableHead>
-                          <TableHead>Send Version</TableHead>
-                          <TableHead>Recv Version</TableHead>
-                          <TableHead>Split Horizon</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead>{t("interfaces.interface")}</TableHead>
+                          <TableHead>{t("interfaces.authType")}</TableHead>
+                          <TableHead>{t("interfaces.sendVersion")}</TableHead>
+                          <TableHead>{t("interfaces.recvVersion")}</TableHead>
+                          <TableHead>{t("interfaces.splitHorizon")}</TableHead>
+                          <TableHead className="text-right">{tc("actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -951,21 +954,21 @@ export function RipContent() {
                               {iface.send_version ? (
                                 <Badge variant="secondary">v{iface.send_version}</Badge>
                               ) : (
-                                <span className="text-muted-foreground">default</span>
+                                <span className="text-muted-foreground">{t("interfaces.default")}</span>
                               )}
                             </TableCell>
                             <TableCell>
                               {iface.receive_version ? (
                                 <Badge variant="secondary">v{iface.receive_version}</Badge>
                               ) : (
-                                <span className="text-muted-foreground">default</span>
+                                <span className="text-muted-foreground">{t("interfaces.default")}</span>
                               )}
                             </TableCell>
                             <TableCell>
                               {iface.split_horizon ? (
                                 <Badge variant="outline">{iface.split_horizon}</Badge>
                               ) : (
-                                <span className="text-muted-foreground">default</span>
+                                <span className="text-muted-foreground">{t("interfaces.default")}</span>
                               )}
                             </TableCell>
                             <TableCell className="text-right">
@@ -1001,12 +1004,12 @@ export function RipContent() {
             <TabsContent value="redistribute">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Redistribute routes from other protocols into RIP
+                  {t("redistribute.description")}
                 </p>
                 {hasWritePermission && (
                   <Button size="sm" onClick={() => { setEditingRedist(null); setRedistModalOpen(true); }}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add
+                    {tc("add")}
                   </Button>
                 )}
               </div>
@@ -1015,11 +1018,11 @@ export function RipContent() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <ArrowLeftRight className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">No redistribution configured</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("redistribute.empty")}</p>
                     {hasWritePermission && (
                       <Button size="sm" onClick={() => { setEditingRedist(null); setRedistModalOpen(true); }}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Add
+                        {tc("add")}
                       </Button>
                     )}
                   </CardContent>
@@ -1030,10 +1033,10 @@ export function RipContent() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Protocol</TableHead>
-                          <TableHead>Metric</TableHead>
-                          <TableHead>Route Map</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead>{t("redistribute.protocol")}</TableHead>
+                          <TableHead>{t("redistribute.metric")}</TableHead>
+                          <TableHead>{t("redistribute.routeMap")}</TableHead>
+                          <TableHead className="text-right">{tc("actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1084,24 +1087,24 @@ export function RipContent() {
               <div className="space-y-6">
                 {/* Distribute Lists Section */}
                 <div>
-                  <h2 className="text-base font-semibold mb-3">Distribute Lists</h2>
+                  <h2 className="text-base font-semibold mb-3">{t("filters.distributeLists")}</h2>
 
                   {/* Global Filters */}
                   <div className="mb-4">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-medium text-muted-foreground">Global Filters</h3>
+                      <h3 className="text-sm font-medium text-muted-foreground">{t("filters.globalFilters")}</h3>
                       {hasWritePermission && (
                         !dlGlobalEditing ? (
                           <Button size="sm" variant="outline" onClick={startEditDlGlobal}>
                             <Pencil className="h-4 w-4 mr-2" />
-                            Edit
+                            {tc("edit")}
                           </Button>
                         ) : (
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={cancelEditDlGlobal}>Cancel</Button>
+                            <Button size="sm" variant="outline" onClick={cancelEditDlGlobal}>{tc("cancel")}</Button>
                             <Button size="sm" onClick={saveDlGlobal} disabled={dlGlobalSaving}>
                               {dlGlobalSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                              Save
+                              {tc("save")}
                             </Button>
                           </div>
                         )
@@ -1118,10 +1121,10 @@ export function RipContent() {
                       <CardContent className="p-4">
                         <div className="grid grid-cols-2 gap-4">
                           {(["access_list_in", "access_list_out", "prefix_list_in", "prefix_list_out"] as const).map((field) => {
-                            const label = field === "access_list_in" ? "Access List In"
-                              : field === "access_list_out" ? "Access List Out"
-                              : field === "prefix_list_in" ? "Prefix List In"
-                              : "Prefix List Out";
+                            const label = field === "access_list_in" ? t("filters.accessListIn")
+                              : field === "access_list_out" ? t("filters.accessListOut")
+                              : field === "prefix_list_in" ? t("filters.prefixListIn")
+                              : t("filters.prefixListOut");
                             const isAcl = field.startsWith("access");
                             const names = isAcl ? accessListNames : prefixListNames;
                             const currentVal = dlGlobalEditing
@@ -1137,10 +1140,10 @@ export function RipContent() {
                                     onValueChange={(v) => setDlGlobalDraft({ ...dlGlobalDraft, [field]: v === "none" ? null : v })}
                                   >
                                     <SelectTrigger>
-                                      <SelectValue placeholder="None" />
+                                      <SelectValue placeholder={tc("none")} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      <SelectItem value="none">None</SelectItem>
+                                      <SelectItem value="none">{tc("none")}</SelectItem>
                                       {names.map((n) => (
                                         <SelectItem key={n} value={n} className="font-mono">{n}</SelectItem>
                                       ))}
@@ -1150,7 +1153,7 @@ export function RipContent() {
                                   <Input
                                     value={currentVal}
                                     disabled
-                                    placeholder="None"
+                                    placeholder={tc("none")}
                                     className="font-mono"
                                   />
                                 )}
@@ -1165,11 +1168,11 @@ export function RipContent() {
                   {/* Per-Interface Filters */}
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-medium text-muted-foreground">Per-Interface Filters</h3>
+                      <h3 className="text-sm font-medium text-muted-foreground">{t("filters.perInterfaceFilters")}</h3>
                       {hasWritePermission && (
                         <Button size="sm" onClick={() => { setEditingDlIface(null); setDlIfaceModalOpen(true); }}>
                           <Plus className="h-4 w-4 mr-2" />
-                          Add
+                          {tc("add")}
                         </Button>
                       )}
                     </div>
@@ -1177,7 +1180,7 @@ export function RipContent() {
                     {(config?.distribute_list.interface_filters.length ?? 0) === 0 ? (
                       <Card>
                         <CardContent className="flex flex-col items-center justify-center py-8">
-                          <p className="text-sm text-muted-foreground">No per-interface filters configured</p>
+                          <p className="text-sm text-muted-foreground">{t("filters.perInterfaceEmpty")}</p>
                         </CardContent>
                       </Card>
                     ) : (
@@ -1186,12 +1189,12 @@ export function RipContent() {
                           <Table>
                             <TableHeader>
                               <TableRow>
-                                <TableHead>Interface</TableHead>
-                                <TableHead>ACL In</TableHead>
-                                <TableHead>ACL Out</TableHead>
-                                <TableHead>PL In</TableHead>
-                                <TableHead>PL Out</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                <TableHead>{t("interfaces.interface")}</TableHead>
+                                <TableHead>{t("filters.aclIn")}</TableHead>
+                                <TableHead>{t("filters.aclOut")}</TableHead>
+                                <TableHead>{t("filters.plIn")}</TableHead>
+                                <TableHead>{t("filters.plOut")}</TableHead>
+                                <TableHead className="text-right">{tc("actions")}</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1233,11 +1236,11 @@ export function RipContent() {
                 {/* Network Distance Section */}
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-base font-semibold">Network Distance</h2>
+                    <h2 className="text-base font-semibold">{t("filters.networkDistance")}</h2>
                     {hasWritePermission && (
                       <Button size="sm" onClick={() => { setEditingNd(null); setNdModalOpen(true); }}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Add
+                        {tc("add")}
                       </Button>
                     )}
                   </div>
@@ -1245,11 +1248,11 @@ export function RipContent() {
                   {(config?.network_distances.length ?? 0) === 0 ? (
                     <Card>
                       <CardContent className="flex flex-col items-center justify-center py-8">
-                        <p className="text-sm text-muted-foreground">No network distance entries configured</p>
+                        <p className="text-sm text-muted-foreground">{t("filters.networkDistanceEmpty")}</p>
                         {hasWritePermission && (
                           <Button size="sm" className="mt-3" onClick={() => { setEditingNd(null); setNdModalOpen(true); }}>
                             <Plus className="h-4 w-4 mr-2" />
-                            Add
+                            {tc("add")}
                           </Button>
                         )}
                       </CardContent>
@@ -1260,10 +1263,10 @@ export function RipContent() {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Network Prefix</TableHead>
-                              <TableHead>Distance</TableHead>
-                              <TableHead>Access List</TableHead>
-                              <TableHead className="text-right">Actions</TableHead>
+                              <TableHead>{t("filters.networkPrefix")}</TableHead>
+                              <TableHead>{t("filters.distance")}</TableHead>
+                              <TableHead>{t("filters.accessList")}</TableHead>
+                              <TableHead className="text-right">{tc("actions")}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1324,7 +1327,7 @@ export function RipContent() {
       <DeleteRipModal
         open={!!deletingIface}
         onOpenChange={(open) => { if (!open) setDeletingIface(null); }}
-        itemType="Interface"
+        itemType="interface"
         itemName={deletingIface?.name ?? ""}
         onConfirm={handleDeleteIface}
       />
@@ -1344,7 +1347,7 @@ export function RipContent() {
       <DeleteRipModal
         open={!!deletingRedist}
         onOpenChange={(open) => { if (!open) setDeletingRedist(null); }}
-        itemType="Redistribution"
+        itemType="redistribution"
         itemName={deletingRedist?.protocol ?? ""}
         onConfirm={handleDeleteRedist}
       />
@@ -1364,7 +1367,7 @@ export function RipContent() {
       <DeleteRipModal
         open={!!deletingNd}
         onOpenChange={(open) => { if (!open) setDeletingNd(null); }}
-        itemType="Network Distance"
+        itemType="networkDistance"
         itemName={deletingNd?.prefix ?? ""}
         onConfirm={handleDeleteNd}
       />
@@ -1386,7 +1389,7 @@ export function RipContent() {
       <DeleteRipModal
         open={!!deletingDlIface}
         onOpenChange={(open) => { if (!open) setDeletingDlIface(null); }}
-        itemType="Interface Filter"
+        itemType="interfaceFilter"
         itemName={deletingDlIface?.interface ?? ""}
         onConfirm={handleDeleteDlIface}
       />
