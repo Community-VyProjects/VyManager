@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -46,6 +47,8 @@ export function CertificateModal({
   availableCAs,
   x509Defaults,
 }: CertificateModalProps) {
+  const t = useTranslations("pkiCerts");
+  const tc = useTranslations("common");
   const isEdit = !!existingCert;
   const isAcme = !!existingCert?.acme;
 
@@ -151,7 +154,7 @@ export function CertificateModal({
   }, [keyType]);
 
   const handleManualSubmit = async () => {
-    if (!name.trim()) { setError("Name is required"); return; }
+    if (!name.trim()) { setError(t("shared.nameRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -191,17 +194,17 @@ export function CertificateModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Operation failed");
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   const handleAcmeSubmit = async () => {
-    if (!name.trim()) { setError("Name is required"); return; }
+    if (!name.trim()) { setError(t("shared.nameRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -220,20 +223,20 @@ export function CertificateModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Operation failed");
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   const handleGenerateSubmit = async () => {
-    if (!genName.trim()) { setError("Name is required"); return; }
-    if (!caName) { setError("Please select a CA to sign with"); return; }
-    if (!commonName.trim()) { setError("Common Name is required"); return; }
-    if (encryptKey && !passphrase) { setError("Passphrase is required when encrypting the key"); return; }
+    if (!genName.trim()) { setError(t("shared.nameRequired")); return; }
+    if (!caName) { setError(t("cert.selectCARequired")); return; }
+    if (!commonName.trim()) { setError(t("shared.commonNameRequired")); return; }
+    if (encryptKey && !passphrase) { setError(t("shared.passphraseRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -261,10 +264,10 @@ export function CertificateModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Generation failed");
+        setError(result.error || t("shared.generationFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Generation failed");
+      setError((err as ApiError).message || t("shared.generationFailed"));
     } finally {
       setLoading(false);
     }
@@ -287,29 +290,29 @@ export function CertificateModal({
   const renderManualFields = () => (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="cert-pem">Certificate (PEM)</Label>
+        <Label htmlFor="cert-pem">{t("shared.certificatePem")}</Label>
         <Textarea
           id="cert-pem"
           value={certificate}
           onChange={(e) => setCertificate(e.target.value)}
-          placeholder={isEdit ? "Leave empty to keep current" : "-----BEGIN CERTIFICATE-----"}
+          placeholder={isEdit ? t("shared.leaveEmpty") : "-----BEGIN CERTIFICATE-----"}
           className="font-mono text-xs"
           rows={4}
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="cert-desc">Description</Label>
-        <Input id="cert-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description" />
+        <Label htmlFor="cert-desc">{tc("description")}</Label>
+        <Input id="cert-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("shared.descriptionPlaceholder")} />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="cert-key">Private Key (PEM)</Label>
+        <Label htmlFor="cert-key">{t("shared.privateKeyPem")}</Label>
         <Textarea
           id="cert-key"
           value={privateKey}
           onChange={(e) => setPrivateKey(e.target.value)}
-          placeholder={isEdit ? "Leave empty to keep current" : "-----BEGIN PRIVATE KEY-----"}
+          placeholder={isEdit ? t("shared.leaveEmpty") : "-----BEGIN PRIVATE KEY-----"}
           className="font-mono text-xs"
           rows={4}
         />
@@ -317,12 +320,12 @@ export function CertificateModal({
 
       <div className="flex items-center space-x-2">
         <Checkbox id="cert-pwd" checked={passwordProtected} onCheckedChange={(v) => setPasswordProtected(!!v)} />
-        <Label htmlFor="cert-pwd">Password Protected</Label>
+        <Label htmlFor="cert-pwd">{t("shared.passwordProtected")}</Label>
       </div>
 
       <div className="flex items-center space-x-2">
         <Checkbox id="cert-revoke" checked={revoke} onCheckedChange={(v) => setRevoke(!!v)} />
-        <Label htmlFor="cert-revoke">Revoke</Label>
+        <Label htmlFor="cert-revoke">{t("shared.revoke")}</Label>
       </div>
     </div>
   );
@@ -330,7 +333,7 @@ export function CertificateModal({
   const renderAcmeFields = () => (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="acme-domains">Domain Names (comma-separated)</Label>
+        <Label htmlFor="acme-domains">{t("cert.domainNames")}</Label>
         <Input
           id="acme-domains"
           value={domainNames}
@@ -340,7 +343,7 @@ export function CertificateModal({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="acme-email">Email</Label>
+        <Label htmlFor="acme-email">{t("cert.email")}</Label>
         <Input
           id="acme-email"
           type="email"
@@ -351,20 +354,20 @@ export function CertificateModal({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="acme-listen">Listen Address</Label>
+        <Label htmlFor="acme-listen">{t("cert.listenAddress")}</Label>
         <Input
           id="acme-listen"
           value={listenAddress}
           onChange={(e) => setListenAddress(e.target.value)}
-          placeholder={supportsIpv6 ? "IPv4 or IPv6 address" : "IPv4 address"}
+          placeholder={supportsIpv6 ? t("cert.listenIpv4or6") : t("cert.listenIpv4")}
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="acme-rsa">RSA Key Size</Label>
+        <Label htmlFor="acme-rsa">{t("cert.rsaKeySize")}</Label>
         <Select value={rsaKeySize} onValueChange={setRsaKeySize}>
           <SelectTrigger id="acme-rsa">
-            <SelectValue placeholder="Select key size" />
+            <SelectValue placeholder={t("cert.selectKeySize")} />
           </SelectTrigger>
           <SelectContent>
             {rsaKeySizesAcme.map((size) => (
@@ -375,7 +378,7 @@ export function CertificateModal({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="acme-url">ACME URL</Label>
+        <Label htmlFor="acme-url">{t("cert.acmeUrl")}</Label>
         <Input
           id="acme-url"
           value={url}
@@ -389,16 +392,16 @@ export function CertificateModal({
   const renderGenerateFields = () => (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="gen-cert-name">Name</Label>
+        <Label htmlFor="gen-cert-name">{tc("name")}</Label>
         <Input id="gen-cert-name" value={genName} onChange={(e) => setGenName(e.target.value)} placeholder="my-cert" />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="gen-cert-ca">Signing CA</Label>
+        <Label htmlFor="gen-cert-ca">{t("cert.signingCA")}</Label>
         {signableCAs.length > 0 ? (
           <Select value={caName} onValueChange={setCaName}>
             <SelectTrigger id="gen-cert-ca">
-              <SelectValue placeholder="Select a CA" />
+              <SelectValue placeholder={t("cert.selectCA")} />
             </SelectTrigger>
             <SelectContent>
               {signableCAs.map((ca) => (
@@ -410,44 +413,44 @@ export function CertificateModal({
           <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 p-3">
             <Info className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
             <p className="text-xs text-amber-600">
-              No CAs available for signing. Create a CA with a certificate and unencrypted private key first.
+              {t("cert.noSignableCAs")}
             </p>
           </div>
         )}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="gen-cert-cn">Common Name (CN)</Label>
+        <Label htmlFor="gen-cert-cn">{t("shared.commonName")}</Label>
         <Input id="gen-cert-cn" value={commonName} onChange={(e) => setCommonName(e.target.value)} placeholder="server.example.com" />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="gen-cert-sans">Subject Alternative Names (comma-separated)</Label>
+        <Label htmlFor="gen-cert-sans">{t("cert.sans")}</Label>
         <Input
           id="gen-cert-sans"
           value={sans}
           onChange={(e) => setSans(e.target.value)}
           placeholder="server.example.com, 10.0.0.1, *.example.com"
         />
-        <p className="text-xs text-muted-foreground">DNS names and IP addresses. IP addresses are detected automatically.</p>
+        <p className="text-xs text-muted-foreground">{t("cert.sansHelp")}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
-          <Label htmlFor="gen-cert-keytype">Key Type</Label>
+          <Label htmlFor="gen-cert-keytype">{t("shared.keyType")}</Label>
           <Select value={keyType} onValueChange={(v) => setKeyType(v as "rsa" | "ec")}>
             <SelectTrigger id="gen-cert-keytype">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="rsa">RSA</SelectItem>
-              <SelectItem value="ec">EC (Elliptic Curve)</SelectItem>
+              <SelectItem value="ec">{t("shared.ecLabel")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="gen-cert-keysize">Key Size</Label>
+          <Label htmlFor="gen-cert-keysize">{t("shared.keySize")}</Label>
           <Select value={keySize} onValueChange={setKeySize}>
             <SelectTrigger id="gen-cert-keysize">
               <SelectValue />
@@ -455,7 +458,7 @@ export function CertificateModal({
             <SelectContent>
               {(keyType === "rsa" ? rsaKeySizes : ecKeySizes).map((size) => (
                 <SelectItem key={size} value={size}>
-                  {size}{keyType === "rsa" ? " bits" : ` (P-${size})`}
+                  {keyType === "rsa" ? t("shared.bits", { size }) : `${size} (P-${size})`}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -464,54 +467,54 @@ export function CertificateModal({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="gen-cert-days">Validity (days)</Label>
+        <Label htmlFor="gen-cert-days">{t("shared.validityDays")}</Label>
         <Input id="gen-cert-days" type="number" value={days} onChange={(e) => setDays(e.target.value)} placeholder="365" />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
-          <Label htmlFor="gen-cert-country">Country</Label>
+          <Label htmlFor="gen-cert-country">{t("shared.country")}</Label>
           <Input id="gen-cert-country" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="US" maxLength={2} />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="gen-cert-state">State</Label>
+          <Label htmlFor="gen-cert-state">{t("shared.state")}</Label>
           <Input id="gen-cert-state" value={state} onChange={(e) => setState(e.target.value)} placeholder="California" />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
-          <Label htmlFor="gen-cert-locality">Locality</Label>
+          <Label htmlFor="gen-cert-locality">{t("shared.locality")}</Label>
           <Input id="gen-cert-locality" value={locality} onChange={(e) => setLocality(e.target.value)} placeholder="San Francisco" />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="gen-cert-org">Organization</Label>
-          <Input id="gen-cert-org" value={organization} onChange={(e) => setOrganization(e.target.value)} placeholder="My Org" />
+          <Label htmlFor="gen-cert-org">{t("shared.organization")}</Label>
+          <Input id="gen-cert-org" value={organization} onChange={(e) => setOrganization(e.target.value)} placeholder={t("cert.orgPlaceholder")} />
         </div>
       </div>
 
       <div className="space-y-3">
         <div className="flex items-center space-x-2">
           <Checkbox id="gen-cert-encrypt" checked={encryptKey} onCheckedChange={(v) => setEncryptKey(!!v)} />
-          <Label htmlFor="gen-cert-encrypt">Encrypt Private Key</Label>
+          <Label htmlFor="gen-cert-encrypt">{t("shared.encryptPrivateKey")}</Label>
         </div>
 
         <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 p-3">
           <Info className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
           <p className="text-xs text-amber-600">
-            If you plan to use the generated certificate on this router, do not encrypt the private key.
+            {t("cert.encryptWarning")}
           </p>
         </div>
 
         {encryptKey && (
           <div className="space-y-2">
-            <Label htmlFor="gen-cert-passphrase">Passphrase</Label>
+            <Label htmlFor="gen-cert-passphrase">{t("shared.passphrase")}</Label>
             <Input
               id="gen-cert-passphrase"
               type="password"
               value={passphrase}
               onChange={(e) => setPassphrase(e.target.value)}
-              placeholder="Enter passphrase"
+              placeholder={t("shared.enterPassphrase")}
             />
           </div>
         )}
@@ -521,13 +524,13 @@ export function CertificateModal({
 
   const getButtonLabel = () => {
     if (loading) {
-      const loadingText = effectiveMode === "generate" ? "Generating..." : "Saving...";
+      const loadingText = effectiveMode === "generate" ? t("shared.generating") : tc("saving");
       return <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{loadingText}</>;
     }
-    if (isEdit) return "Save Changes";
-    if (mode === "generate") return "Generate Certificate";
-    if (mode === "acme") return "Create ACME Certificate";
-    return "Import Certificate";
+    if (isEdit) return t("shared.saveChanges");
+    if (mode === "generate") return t("cert.titleGenerate");
+    if (mode === "acme") return t("cert.createAcmeButton");
+    return t("cert.importButton");
   };
 
   return (
@@ -536,14 +539,14 @@ export function CertificateModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            {isEdit ? "Edit" : mode === "generate" ? "Generate" : "Create"} Certificate
+            {isEdit ? t("cert.titleEdit") : mode === "generate" ? t("cert.titleGenerate") : t("cert.titleCreate")}
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? `Editing certificate: ${existingCert?.name}`
+              ? t("cert.editing", { name: existingCert?.name ?? "" })
               : mode === "generate"
-                ? "Generate a certificate signed by an existing CA"
-                : "Add a new certificate"}
+                ? t("cert.generateDescription")
+                : t("cert.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -552,15 +555,15 @@ export function CertificateModal({
             {!isEdit ? (
               <Tabs value={mode} onValueChange={(v) => { setMode(v as "manual" | "acme" | "generate"); setError(null); }}>
                 <TabsList className="w-full">
-                  <TabsTrigger value="manual" className="flex-1">Import</TabsTrigger>
+                  <TabsTrigger value="manual" className="flex-1">{t("shared.import")}</TabsTrigger>
                   <TabsTrigger value="acme" className="flex-1">ACME</TabsTrigger>
-                  <TabsTrigger value="generate" className="flex-1">Generate</TabsTrigger>
+                  <TabsTrigger value="generate" className="flex-1">{t("shared.generate")}</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="manual" className="mt-4">
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="cert-name">Name</Label>
+                      <Label htmlFor="cert-name">{tc("name")}</Label>
                       <Input id="cert-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="my-cert" />
                     </div>
                     {renderManualFields()}
@@ -570,7 +573,7 @@ export function CertificateModal({
                 <TabsContent value="acme" className="mt-4">
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="cert-name-acme">Name</Label>
+                      <Label htmlFor="cert-name-acme">{tc("name")}</Label>
                       <Input id="cert-name-acme" value={name} onChange={(e) => setName(e.target.value)} placeholder="my-cert" />
                     </div>
                     {renderAcmeFields()}
@@ -595,7 +598,7 @@ export function CertificateModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading || (mode === "generate" && !isEdit && signableCAs.length === 0)}>
             {getButtonLabel()}
           </Button>

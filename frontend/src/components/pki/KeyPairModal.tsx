@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,6 +36,8 @@ interface KeyPairModalProps {
 }
 
 export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }: KeyPairModalProps) {
+  const t = useTranslations("pkiCerts");
+  const tc = useTranslations("common");
   const isEdit = !!existingKeyPair;
 
   const [mode, setMode] = useState<"import" | "generate">("import");
@@ -92,7 +95,7 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
   }, [keyType]);
 
   const handleImportSubmit = async () => {
-    if (!name.trim()) { setError("Name is required"); return; }
+    if (!name.trim()) { setError(t("shared.nameRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -117,18 +120,18 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Operation failed");
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   const handleGenerateSubmit = async () => {
-    if (!genName.trim()) { setError("Name is required"); return; }
-    if (encryptKey && !passphrase) { setError("Passphrase is required when encrypting the key"); return; }
+    if (!genName.trim()) { setError(t("shared.nameRequired")); return; }
+    if (encryptKey && !passphrase) { setError(t("shared.passphraseRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -146,10 +149,10 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Generation failed");
+        setError(result.error || t("shared.generationFailed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Generation failed");
+      setError((err as ApiError).message || t("shared.generationFailed"));
     } finally {
       setLoading(false);
     }
@@ -163,10 +166,10 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Key className="h-5 w-5" />
-            {isEdit ? "Edit" : "Add"} Key Pair
+            {isEdit ? t("keyPair.titleEdit") : t("keyPair.titleAdd")}
           </DialogTitle>
           <DialogDescription>
-            {isEdit ? `Editing key pair: ${existingKeyPair?.name}` : "Import an existing key pair or generate a new one"}
+            {isEdit ? t("keyPair.editing", { name: existingKeyPair?.name ?? "" }) : t("keyPair.importOrGenerate")}
           </DialogDescription>
         </DialogHeader>
 
@@ -175,18 +178,18 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
             {!isEdit ? (
               <Tabs value={mode} onValueChange={(v) => { setMode(v as "import" | "generate"); setError(null); }}>
                 <TabsList className="w-full">
-                  <TabsTrigger value="import" className="flex-1">Import</TabsTrigger>
-                  <TabsTrigger value="generate" className="flex-1">Generate</TabsTrigger>
+                  <TabsTrigger value="import" className="flex-1">{t("shared.import")}</TabsTrigger>
+                  <TabsTrigger value="generate" className="flex-1">{t("shared.generate")}</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="import" className="space-y-4 mt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="kp-name">Name</Label>
+                    <Label htmlFor="kp-name">{tc("name")}</Label>
                     <Input id="kp-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="my-keypair" />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="kp-privkey">Private Key (PEM)</Label>
+                    <Label htmlFor="kp-privkey">{t("shared.privateKeyPem")}</Label>
                     <Textarea
                       id="kp-privkey"
                       value={privateKey}
@@ -198,7 +201,7 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="kp-pubkey">Public Key (PEM)</Label>
+                    <Label htmlFor="kp-pubkey">{t("shared.publicKeyPem")}</Label>
                     <Textarea
                       id="kp-pubkey"
                       value={publicKey}
@@ -211,32 +214,32 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
 
                   <div className="flex items-center space-x-2">
                     <Checkbox id="kp-pwd" checked={passwordProtected} onCheckedChange={(v) => setPasswordProtected(!!v)} />
-                    <Label htmlFor="kp-pwd">Password Protected</Label>
+                    <Label htmlFor="kp-pwd">{t("shared.passwordProtected")}</Label>
                   </div>
                 </TabsContent>
 
                 <TabsContent value="generate" className="space-y-4 mt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="gen-kp-name">Name</Label>
+                    <Label htmlFor="gen-kp-name">{tc("name")}</Label>
                     <Input id="gen-kp-name" value={genName} onChange={(e) => setGenName(e.target.value)} placeholder="my-keypair" />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label htmlFor="gen-kp-keytype">Key Type</Label>
+                      <Label htmlFor="gen-kp-keytype">{t("shared.keyType")}</Label>
                       <Select value={keyType} onValueChange={(v) => setKeyType(v as "rsa" | "ec")}>
                         <SelectTrigger id="gen-kp-keytype">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="rsa">RSA</SelectItem>
-                          <SelectItem value="ec">EC (Elliptic Curve)</SelectItem>
+                          <SelectItem value="ec">{t("shared.ecLabel")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="gen-kp-keysize">Key Size</Label>
+                      <Label htmlFor="gen-kp-keysize">{t("shared.keySize")}</Label>
                       <Select value={keySize} onValueChange={setKeySize}>
                         <SelectTrigger id="gen-kp-keysize">
                           <SelectValue />
@@ -244,7 +247,7 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
                         <SelectContent>
                           {(keyType === "rsa" ? rsaKeySizes : ecKeySizes).map((size) => (
                             <SelectItem key={size} value={size}>
-                              {size}{keyType === "rsa" ? " bits" : ` (P-${size})`}
+                              {keyType === "rsa" ? t("shared.bits", { size }) : `${size} (P-${size})`}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -255,25 +258,25 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
                   <div className="space-y-3">
                     <div className="flex items-center space-x-2">
                       <Checkbox id="gen-kp-encrypt" checked={encryptKey} onCheckedChange={(v) => setEncryptKey(!!v)} />
-                      <Label htmlFor="gen-kp-encrypt">Encrypt Private Key</Label>
+                      <Label htmlFor="gen-kp-encrypt">{t("shared.encryptPrivateKey")}</Label>
                     </div>
 
                     <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 p-3">
                       <Info className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                       <p className="text-xs text-amber-600">
-                        If you plan to use the generated key on this router, do not encrypt the private key.
+                        {t("shared.encryptKeyWarning")}
                       </p>
                     </div>
 
                     {encryptKey && (
                       <div className="space-y-2">
-                        <Label htmlFor="gen-kp-passphrase">Passphrase</Label>
+                        <Label htmlFor="gen-kp-passphrase">{t("shared.passphrase")}</Label>
                         <Input
                           id="gen-kp-passphrase"
                           type="password"
                           value={passphrase}
                           onChange={(e) => setPassphrase(e.target.value)}
-                          placeholder="Enter passphrase"
+                          placeholder={t("shared.enterPassphrase")}
                         />
                       </div>
                     )}
@@ -283,24 +286,24 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
             ) : (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="kp-privkey-edit">Private Key (PEM)</Label>
+                  <Label htmlFor="kp-privkey-edit">{t("shared.privateKeyPem")}</Label>
                   <Textarea
                     id="kp-privkey-edit"
                     value={privateKey}
                     onChange={(e) => setPrivateKey(e.target.value)}
-                    placeholder="Leave empty to keep current"
+                    placeholder={t("shared.leaveEmpty")}
                     className="font-mono text-xs"
                     rows={4}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="kp-pubkey-edit">Public Key (PEM)</Label>
+                  <Label htmlFor="kp-pubkey-edit">{t("shared.publicKeyPem")}</Label>
                   <Textarea
                     id="kp-pubkey-edit"
                     value={publicKey}
                     onChange={(e) => setPublicKey(e.target.value)}
-                    placeholder="Leave empty to keep current"
+                    placeholder={t("shared.leaveEmpty")}
                     className="font-mono text-xs"
                     rows={4}
                   />
@@ -308,7 +311,7 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
 
                 <div className="flex items-center space-x-2">
                   <Checkbox id="kp-pwd-edit" checked={passwordProtected} onCheckedChange={(v) => setPasswordProtected(!!v)} />
-                  <Label htmlFor="kp-pwd-edit">Password Protected</Label>
+                  <Label htmlFor="kp-pwd-edit">{t("shared.passwordProtected")}</Label>
                 </div>
               </>
             )}
@@ -323,11 +326,11 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{mode === "generate" && !isEdit ? "Generating..." : "Saving..."}</>
-            ) : isEdit ? "Save Changes" : mode === "generate" ? "Generate Key Pair" : "Import Key Pair"}
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{mode === "generate" && !isEdit ? t("shared.generating") : tc("saving")}</>
+            ) : isEdit ? t("shared.saveChanges") : mode === "generate" ? t("keyPair.generateButton") : t("keyPair.importButton")}
           </Button>
         </DialogFooter>
       </DialogContent>
