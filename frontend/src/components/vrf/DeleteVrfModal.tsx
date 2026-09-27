@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +29,8 @@ export function DeleteVrfModal({
   vrfName,
   onDeleted,
 }: DeleteVrfModalProps) {
+  const t = useTranslations("vrf");
+  const tc = useTranslations("common");
   const [confirmation, setConfirmation] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,12 +52,12 @@ export function DeleteVrfModal({
     try {
       const result = await vrfService.deleteVrf(vrfName);
       if (!result.success) {
-        throw new Error(result.error || "Failed to delete VRF");
+        throw new Error(result.error || t("delete.deleteFailed"));
       }
       setConfirmation("");
       onDeleted();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete VRF");
+      setError(err instanceof Error ? err.message : t("delete.deleteFailed"));
     } finally {
       setDeleting(false);
     }
@@ -66,11 +69,13 @@ export function DeleteVrfModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-destructive">
             <Trash2 className="h-5 w-5" />
-            Delete VRF
+            {t("deleteVrf")}
           </DialogTitle>
           <DialogDescription>
-            This will permanently delete VRF <strong>{vrfName}</strong> and all
-            its associated configuration including protocols, routes, and services.
+            {t.rich("delete.description", {
+              name: vrfName,
+              strong: (chunks) => <strong>{chunks}</strong>,
+            })}
           </DialogDescription>
         </DialogHeader>
 
@@ -84,12 +89,15 @@ export function DeleteVrfModal({
 
           <div className="p-3 bg-destructive/5 border border-destructive/20 rounded-lg">
             <p className="text-sm text-muted-foreground">
-              Type <strong>{vrfName}</strong> to confirm deletion.
+              {t.rich("delete.typeToConfirm", {
+                name: vrfName,
+                strong: (chunks) => <strong>{chunks}</strong>,
+              })}
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="confirm-name">VRF Name</Label>
+            <Label htmlFor="confirm-name">{t("delete.vrfName")}</Label>
             <Input
               id="confirm-name"
               placeholder={vrfName}
@@ -101,7 +109,7 @@ export function DeleteVrfModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => handleClose(false)} disabled={deleting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button
             variant="destructive"
@@ -109,7 +117,7 @@ export function DeleteVrfModal({
             disabled={deleting || confirmation !== vrfName}
           >
             {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Delete VRF
+            {t("deleteVrf")}
           </Button>
         </DialogFooter>
       </DialogContent>

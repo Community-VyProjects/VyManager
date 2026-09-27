@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,8 @@ export function CreateVrfModal({
   onCreated,
   existingNames,
 }: CreateVrfModalProps) {
+  const t = useTranslations("vrf");
+  const tc = useTranslations("common");
   const [name, setName] = useState("");
   const [table, setTable] = useState("");
   const [description, setDescription] = useState("");
@@ -52,22 +55,22 @@ export function CreateVrfModal({
   };
 
   const validate = (): string | null => {
-    if (!name.trim()) return "VRF name is required";
+    if (!name.trim()) return t("create.nameRequired");
     if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(name.trim())) {
-      return "Name must start with a letter and contain only letters, numbers, hyphens, and underscores";
+      return t("create.nameInvalid");
     }
     if (existingNames.includes(name.trim())) {
-      return `VRF "${name.trim()}" already exists`;
+      return t("create.nameExists", { name: name.trim() });
     }
-    if (!table.trim()) return "Table ID is required";
+    if (!table.trim()) return t("create.tableRequired");
     const tableNum = parseInt(table.trim());
     if (isNaN(tableNum) || tableNum < 1 || tableNum > 4294967295) {
-      return "Table ID must be a number between 1 and 4294967295";
+      return t("create.tableInvalid");
     }
     if (vni.trim()) {
       const vniNum = parseInt(vni.trim());
       if (isNaN(vniNum) || vniNum < 0 || vniNum > 16777215) {
-        return "VNI must be a number between 0 and 16777215";
+        return t("create.vniInvalid");
       }
     }
     return null;
@@ -91,12 +94,12 @@ export function CreateVrfModal({
         disabled,
       });
       if (!result.success) {
-        throw new Error(result.error || "Failed to create VRF");
+        throw new Error(result.error || t("create.createFailed"));
       }
       resetForm();
       onCreated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create VRF");
+      setError(err instanceof Error ? err.message : t("create.createFailed"));
     } finally {
       setSaving(false);
     }
@@ -106,9 +109,9 @@ export function CreateVrfModal({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Create VRF Instance</DialogTitle>
+          <DialogTitle>{t("create.title")}</DialogTitle>
           <DialogDescription>
-            Create a new Virtual Routing and Forwarding instance.
+            {t("create.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -121,35 +124,35 @@ export function CreateVrfModal({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="vrf-name">Name *</Label>
+            <Label htmlFor="vrf-name">{t("create.nameLabel")}</Label>
             <Input
               id="vrf-name"
-              placeholder="e.g., MGMT, CUSTOMER"
+              placeholder={t("example", { value: "MGMT, CUSTOMER" })}
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="vrf-table">Table ID *</Label>
+            <Label htmlFor="vrf-table">{t("create.tableLabel")}</Label>
             <Input
               id="vrf-table"
-              placeholder="e.g., 100"
+              placeholder={t("example", { value: "100" })}
               type="number"
               min={1}
               value={table}
               onChange={(e) => setTable(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Unique routing table ID for this VRF (1-4294967295)
+              {t("create.tableHint")}
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="vrf-desc">Description</Label>
+            <Label htmlFor="vrf-desc">{tc("description")}</Label>
             <Input
               id="vrf-desc"
-              placeholder="Optional description"
+              placeholder={t("optionalDescription")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
@@ -159,7 +162,7 @@ export function CreateVrfModal({
             <Label htmlFor="vrf-vni">VNI</Label>
             <Input
               id="vrf-vni"
-              placeholder="VXLAN Network Identifier"
+              placeholder={t("vxlanNetworkId")}
               type="number"
               min={0}
               value={vni}
@@ -174,18 +177,18 @@ export function CreateVrfModal({
               onCheckedChange={(checked) => setDisabled(checked === true)}
             />
             <Label htmlFor="vrf-disabled" className="text-sm font-normal">
-              Create in disabled state
+              {t("create.createDisabled")}
             </Label>
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => handleClose(false)} disabled={saving}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleCreate} disabled={saving}>
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Create VRF
+            {t("createVrf")}
           </Button>
         </DialogFooter>
       </DialogContent>

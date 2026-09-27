@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { VrfSelect } from "@/components/ui/vrf-select";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +59,8 @@ export function VrfStaticRoutesTab({
   canWrite,
   onRefresh,
 }: VrfStaticRoutesTabProps) {
+  const t = useTranslations("vrf");
+  const tc = useTranslations("common");
   const [family, setFamily] = useState<"ipv4" | "ipv6">("ipv4");
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
@@ -91,11 +94,11 @@ export function VrfStaticRoutesTab({
 
   const getRouteTypeDisplay = (route: VrfStaticRoute): string => {
     const types: string[] = [];
-    if (route.next_hops.length > 0) types.push(`${route.next_hops.length} next-hop(s)`);
-    if (route.interfaces.length > 0) types.push(`${route.interfaces.length} interface(s)`);
-    if (route.blackhole) types.push("blackhole");
-    if (route.reject) types.push("reject");
-    return types.join(", ") || "empty";
+    if (route.next_hops.length > 0) types.push(t("staticRoutes.nextHopCount", { count: route.next_hops.length }));
+    if (route.interfaces.length > 0) types.push(t("staticRoutes.interfaceCount", { count: route.interfaces.length }));
+    if (route.blackhole) types.push(t("staticRoutes.typeBlackhole"));
+    if (route.reject) types.push(t("staticRoutes.typeReject"));
+    return types.join(", ") || t("staticRoutes.typeEmpty");
   };
 
   const getRouteTargets = (route: VrfStaticRoute): string => {
@@ -129,7 +132,7 @@ export function VrfStaticRoutesTab({
 
   const handleCreate = async () => {
     if (!newDest.trim()) {
-      setCreateError("Destination is required");
+      setCreateError(t("staticRoutes.destinationRequired"));
       return;
     }
 
@@ -170,13 +173,13 @@ export function VrfStaticRoutesTab({
       }
 
       const result = await vrfService.createStaticRoute(vrf.name, config);
-      if (!result.success) throw new Error(result.error || "Failed to create route");
+      if (!result.success) throw new Error(result.error || t("staticRoutes.createFailed"));
 
       resetCreateForm();
       setCreateOpen(false);
       onRefresh();
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "Failed to create route");
+      setCreateError(err instanceof Error ? err.message : t("staticRoutes.createFailed"));
     } finally {
       setCreating(false);
     }
@@ -193,11 +196,11 @@ export function VrfStaticRoutesTab({
         deleteRoute.dest,
         deleteRoute.family
       );
-      if (!result.success) throw new Error(result.error || "Failed to delete route");
+      if (!result.success) throw new Error(result.error || t("staticRoutes.deleteFailed"));
       setDeleteRoute(null);
       onRefresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete route");
+      setError(err instanceof Error ? err.message : t("staticRoutes.deleteFailed"));
     } finally {
       setDeleting(false);
     }
@@ -238,7 +241,7 @@ export function VrfStaticRoutesTab({
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search routes..."
+              placeholder={t("staticRoutes.searchPlaceholder")}
               className="pl-9 w-64"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -248,7 +251,7 @@ export function VrfStaticRoutesTab({
         {canWrite && (
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="h-4 w-4 mr-1.5" />
-            Add Route
+            {t("addRoute")}
           </Button>
         )}
       </div>
@@ -261,19 +264,19 @@ export function VrfStaticRoutesTab({
               <Route className="h-10 w-10 text-muted-foreground mb-3" />
               <p className="text-sm text-muted-foreground">
                 {search
-                  ? "No routes match your search"
-                  : `No ${family === "ipv4" ? "IPv4" : "IPv6"} static routes configured`}
+                  ? t("staticRoutes.noMatch")
+                  : t("staticRoutes.noRoutes", { family: family === "ipv4" ? "IPv4" : "IPv6" })}
               </p>
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead>Destination</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Target(s)</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t("destination")}</TableHead>
+                  <TableHead>{t("staticRoutes.type")}</TableHead>
+                  <TableHead>{t("staticRoutes.targets")}</TableHead>
+                  <TableHead>{tc("description")}</TableHead>
+                  <TableHead>{tc("status")}</TableHead>
                   {canWrite && <TableHead className="w-[60px]" />}
                 </TableRow>
               </TableHeader>
@@ -298,11 +301,11 @@ export function VrfStaticRoutesTab({
                       <TableCell>
                         {hasDisabled ? (
                           <Badge variant="outline" className="text-[10px]">
-                            partial
+                            {t("staticRoutes.partial")}
                           </Badge>
                         ) : (
                           <Badge variant="secondary" className="text-[10px]">
-                            active
+                            {t("staticRoutes.active")}
                           </Badge>
                         )}
                       </TableCell>
@@ -335,9 +338,9 @@ export function VrfStaticRoutesTab({
       <Dialog open={createOpen} onOpenChange={(o) => { if (!o) resetCreateForm(); setCreateOpen(o); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Add Static Route</DialogTitle>
+            <DialogTitle>{t("staticRoutes.addTitle")}</DialogTitle>
             <DialogDescription>
-              Add a new {family === "ipv4" ? "IPv4" : "IPv6"} static route to VRF {vrf.name}.
+              {t("staticRoutes.addDescription", { family: family === "ipv4" ? "IPv4" : "IPv6", name: vrf.name })}
             </DialogDescription>
           </DialogHeader>
 
@@ -350,44 +353,44 @@ export function VrfStaticRoutesTab({
             )}
 
             <div className="space-y-2">
-              <Label>Destination *</Label>
+              <Label>{t("staticRoutes.destinationLabel")}</Label>
               <Input
-                placeholder={family === "ipv4" ? "e.g., 10.0.0.0/8" : "e.g., 2001:db8::/32"}
+                placeholder={t("example", { value: family === "ipv4" ? "10.0.0.0/8" : "2001:db8::/32" })}
                 value={newDest}
                 onChange={(e) => setNewDest(e.target.value)}
               />
             </div>
 
             <div className="space-y-2">
-              <Label>Description</Label>
+              <Label>{tc("description")}</Label>
               <Input
-                placeholder="Optional"
+                placeholder={tc("optional")}
                 value={newDesc}
                 onChange={(e) => setNewDesc(e.target.value)}
               />
             </div>
 
             <div className="space-y-2">
-              <Label>Route Type</Label>
+              <Label>{t("staticRoutes.routeType")}</Label>
               <Select value={newType} onValueChange={(v) => setNewType(v as typeof newType)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="empty">Empty (destination only)</SelectItem>
-                  <SelectItem value="next-hop">Next-hop</SelectItem>
-                  <SelectItem value="interface">Interface</SelectItem>
-                  <SelectItem value="blackhole">Blackhole</SelectItem>
-                  <SelectItem value="reject">Reject</SelectItem>
+                  <SelectItem value="empty">{t("staticRoutes.optionEmpty")}</SelectItem>
+                  <SelectItem value="next-hop">{t("staticRoutes.optionNextHop")}</SelectItem>
+                  <SelectItem value="interface">{t("interface")}</SelectItem>
+                  <SelectItem value="blackhole">{t("staticRoutes.optionBlackhole")}</SelectItem>
+                  <SelectItem value="reject">{t("staticRoutes.optionReject")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {newType === "next-hop" && (
               <div className="space-y-2">
-                <Label>Next-hop Address *</Label>
+                <Label>{t("staticRoutes.nextHopAddressLabel")}</Label>
                 <Input
-                  placeholder={family === "ipv4" ? "e.g., 192.168.1.1" : "e.g., 2001:db8::1"}
+                  placeholder={t("example", { value: family === "ipv4" ? "192.168.1.1" : "2001:db8::1" })}
                   value={newNextHop}
                   onChange={(e) => setNewNextHop(e.target.value)}
                 />
@@ -396,9 +399,9 @@ export function VrfStaticRoutesTab({
 
             {(newType === "next-hop" || newType === "interface") && (
               <div className="space-y-2">
-                <Label>{newType === "interface" ? "Interface Name *" : "Interface (optional)"}</Label>
+                <Label>{newType === "interface" ? t("staticRoutes.interfaceNameLabel") : t("staticRoutes.interfaceOptionalLabel")}</Label>
                 <Input
-                  placeholder="e.g., eth0"
+                  placeholder={t("example", { value: "eth0" })}
                   value={newInterface}
                   onChange={(e) => setNewInterface(e.target.value)}
                 />
@@ -408,7 +411,7 @@ export function VrfStaticRoutesTab({
             {newType !== "empty" && (
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Distance</Label>
+                  <Label>{t("staticRoutes.distance")}</Label>
                   <Input
                     type="number"
                     min={1}
@@ -420,12 +423,12 @@ export function VrfStaticRoutesTab({
                 </div>
                 {(newType === "next-hop" || newType === "interface") && (
                   <div className="space-y-2">
-                    <Label>VRF (route leaking)</Label>
+                    <Label>{t("staticRoutes.vrfRouteLeaking")}</Label>
                     <VrfSelect
-                      placeholder="Target VRF"
+                      placeholder={t("staticRoutes.targetVrf")}
                       value={newNhVrf}
                       onValueChange={setNewNhVrf}
-                      extraOptions={[{ label: "Default", value: "default" }]}
+                      extraOptions={[{ label: tc("default"), value: "default" }]}
                     />
                   </div>
                 )}
@@ -435,11 +438,11 @@ export function VrfStaticRoutesTab({
 
           <DialogFooter>
             <Button variant="outline" onClick={() => { resetCreateForm(); setCreateOpen(false); }} disabled={creating}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button onClick={handleCreate} disabled={creating}>
               {creating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Add Route
+              {t("addRoute")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -449,20 +452,21 @@ export function VrfStaticRoutesTab({
       <Dialog open={!!deleteRoute} onOpenChange={(o) => { if (!o) setDeleteRoute(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-destructive">Delete Static Route</DialogTitle>
+            <DialogTitle className="text-destructive">{t("staticRoutes.deleteTitle")}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete the route to{" "}
-              <strong className="font-mono">{deleteRoute?.dest}</strong>?
-              This action cannot be undone.
+              {t.rich("staticRoutes.deleteConfirm", {
+                dest: deleteRoute?.dest ?? "",
+                strong: (chunks) => <strong className="font-mono">{chunks}</strong>,
+              })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteRoute(null)} disabled={deleting}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
               {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Delete
+              {tc("delete")}
             </Button>
           </DialogFooter>
         </DialogContent>
