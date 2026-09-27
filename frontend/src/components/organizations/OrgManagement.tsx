@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Building2, Plus, Trash2, Users, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,8 @@ import { cn } from "@/lib/utils";
 const ORG_ROLES: OrgRole[] = ["OWNER", "ADMIN", "MEMBER"];
 
 export function OrgManagement() {
+  const t = useTranslations("admin");
+  const tc = useTranslations("common");
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [users, setUsers] = useState<UserListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,11 +61,11 @@ export function OrgManagement() {
       setOrgs(o);
       setUsers(u);
     } catch (e) {
-      setError((e as Error).message || "Failed to load organizations");
+      setError((e as Error).message || t("orgs.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -73,11 +76,11 @@ export function OrgManagement() {
     try {
       setMembers(await orgManagementService.listMembers(id));
     } catch (e) {
-      setError((e as Error).message || "Failed to load members");
+      setError((e as Error).message || t("orgs.loadMembersFailed"));
     } finally {
       setMembersLoading(false);
     }
-  }, []);
+  }, [t]);
 
   function toggleExpand(id: string) {
     if (expandedId === id) {
@@ -101,21 +104,21 @@ export function OrgManagement() {
       setNewDesc("");
       await load();
     } catch (e) {
-      setError((e as Error).message || "Failed to create organization");
+      setError((e as Error).message || t("orgs.createFailed"));
     } finally {
       setBusy(false);
     }
   }
 
   async function handleDelete(org: Organization) {
-    if (!confirm(`Delete organization "${org.name}"? This cannot be undone.`)) return;
+    if (!confirm(t("orgs.deleteConfirm", { name: org.name }))) return;
     setError("");
     try {
       await orgManagementService.remove(org.id);
       if (expandedId === org.id) setExpandedId(null);
       await load();
     } catch (e) {
-      setError((e as Error).message || "Failed to delete organization");
+      setError((e as Error).message || t("orgs.deleteFailed"));
     }
   }
 
@@ -128,7 +131,7 @@ export function OrgManagement() {
       setAddRole("MEMBER");
       await Promise.all([loadMembers(orgId), load()]);
     } catch (e) {
-      setError((e as Error).message || "Failed to add member");
+      setError((e as Error).message || t("orgs.addMemberFailed"));
     }
   }
 
@@ -138,7 +141,7 @@ export function OrgManagement() {
       await orgManagementService.setMemberRole(orgId, userId, role);
       await loadMembers(orgId);
     } catch (e) {
-      setError((e as Error).message || "Failed to change role");
+      setError((e as Error).message || t("orgs.changeRoleFailed"));
     }
   }
 
@@ -148,7 +151,7 @@ export function OrgManagement() {
       await orgManagementService.removeMember(orgId, userId);
       await Promise.all([loadMembers(orgId), load()]);
     } catch (e) {
-      setError((e as Error).message || "Failed to remove member");
+      setError((e as Error).message || t("orgs.removeMemberFailed"));
     }
   }
 
@@ -159,13 +162,13 @@ export function OrgManagement() {
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-foreground">Organizations</h2>
+          <h2 className="text-2xl font-bold text-foreground">{t("orgs.title")}</h2>
           <p className="text-sm text-muted-foreground">
-            Tenant boundaries for sites, instances and access. System Administrators only.
+            {t("orgs.subtitle")}
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4 mr-1" /> New Organization
+          <Plus className="h-4 w-4 mr-1" /> {t("orgs.new")}
         </Button>
       </div>
 
@@ -176,7 +179,7 @@ export function OrgManagement() {
       )}
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-sm text-muted-foreground">{t("orgs.loading")}</p>
       ) : (
         <div className="space-y-3">
           {orgs.map((org) => (
@@ -213,7 +216,7 @@ export function OrgManagement() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    aria-label="Delete organization"
+                    aria-label={t("orgs.delete")}
                     onClick={() => handleDelete(org)}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -224,11 +227,11 @@ export function OrgManagement() {
               {expandedId === org.id && (
                 <div className="border-t border-border p-4 space-y-3">
                   {membersLoading ? (
-                    <p className="text-sm text-muted-foreground">Loading members…</p>
+                    <p className="text-sm text-muted-foreground">{t("orgs.loadingMembers")}</p>
                   ) : (
                     <>
                       {members.length === 0 && (
-                        <p className="text-sm text-muted-foreground">No members yet.</p>
+                        <p className="text-sm text-muted-foreground">{t("orgs.noMembers")}</p>
                       )}
                       {members.map((m) => (
                         <div key={m.userId} className="flex items-center gap-2">
@@ -252,7 +255,7 @@ export function OrgManagement() {
                             <SelectContent>
                               {ORG_ROLES.map((r) => (
                                 <SelectItem key={r} value={r}>
-                                  {r}
+                                  {t(`orgRoles.${r}` as const)}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -260,7 +263,7 @@ export function OrgManagement() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            aria-label="Remove member"
+                            aria-label={t("orgs.removeMember")}
                             onClick={() => handleRemoveMember(org.id, m.userId)}
                           >
                             <X className="h-4 w-4 text-muted-foreground" />
@@ -271,12 +274,12 @@ export function OrgManagement() {
                       <div className="flex items-center gap-2 pt-2 border-t border-border">
                         <Select value={addUserId} onValueChange={setAddUserId}>
                           <SelectTrigger className="flex-1">
-                            <SelectValue placeholder="Add a user…" />
+                            <SelectValue placeholder={t("orgs.addUserPlaceholder")} />
                           </SelectTrigger>
                           <SelectContent>
                             {addable.length === 0 ? (
                               <SelectItem value="__none" disabled>
-                                All users are members
+                                {t("orgs.allMembers")}
                               </SelectItem>
                             ) : (
                               addable.map((u) => (
@@ -294,13 +297,13 @@ export function OrgManagement() {
                           <SelectContent>
                             {ORG_ROLES.map((r) => (
                               <SelectItem key={r} value={r}>
-                                {r}
+                                {t(`orgRoles.${r}` as const)}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                         <Button onClick={() => handleAddMember(org.id)} disabled={!addUserId}>
-                          Add
+                          {tc("add")}
                         </Button>
                       </div>
                     </>
@@ -315,27 +318,27 @@ export function OrgManagement() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>New Organization</DialogTitle>
+            <DialogTitle>{t("orgs.new")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <Input
-              placeholder="Organization name"
+              placeholder={t("orgs.namePlaceholder")}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               autoFocus
             />
             <Input
-              placeholder="Description (optional)"
+              placeholder={t("orgs.descriptionPlaceholder")}
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}
             />
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button onClick={handleCreate} disabled={busy || !newName.trim()}>
-              Create
+              {t("orgs.create")}
             </Button>
           </DialogFooter>
         </DialogContent>

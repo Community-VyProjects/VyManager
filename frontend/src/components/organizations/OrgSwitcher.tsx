@@ -1,6 +1,7 @@
 "use client";
 
 import { Building, ChevronsUpDown, Check } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +19,7 @@ import { cn } from "@/lib/utils";
  * Picking an org sets the acting org for the admin surface.
  */
 export function OrgSwitcher({ onChange }: { onChange?: () => void }) {
+  const t = useTranslations("admin");
   const { organizations, orgUiVisible, activeOrgId, setActiveOrg } =
     useOrgStore();
 
@@ -31,20 +33,20 @@ export function OrgSwitcher({ onChange }: { onChange?: () => void }) {
       <DropdownMenuTrigger asChild>
         <button
           className="flex w-full items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-left text-sm hover:bg-accent transition-colors"
-          aria-label="Switch organization"
+          aria-label={t("switcher.switch")}
         >
           <Building className="h-4 w-4 text-muted-foreground shrink-0" />
           <div className="min-w-0 flex-1">
             <div className="truncate font-medium text-foreground">
               {active?.name}
             </div>
-            <div className="text-xs text-muted-foreground">Organization</div>
+            <div className="text-xs text-muted-foreground">{t("switcher.organization")}</div>
           </div>
           <ChevronsUpDown className="h-4 w-4 text-muted-foreground shrink-0" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="start">
-        <DropdownMenuLabel>Organizations</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("orgs.title")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {organizations.map((org) => (
           <DropdownMenuItem
@@ -63,7 +65,7 @@ export function OrgSwitcher({ onChange }: { onChange?: () => void }) {
             />
             <span className="flex-1 truncate">{org.name}</span>
             <span className="text-xs text-muted-foreground">
-              {org.org_role}
+              {t(`orgRoles.${org.org_role}` as const)}
             </span>
           </DropdownMenuItem>
         ))}
