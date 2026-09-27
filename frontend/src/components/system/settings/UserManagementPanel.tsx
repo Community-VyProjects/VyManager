@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Card,
   CardContent,
@@ -45,6 +46,8 @@ interface Props {
 }
 
 export function UserManagementPanel({ config, capabilities, isReadOnly, onRefresh }: Props) {
+  const t = useTranslations("systemLogin");
+  const tc = useTranslations("common");
   const { toast } = useToast();
 
   // User CRUD modals
@@ -90,13 +93,13 @@ export function UserManagementPanel({ config, capabilities, isReadOnly, onRefres
     try {
       const result = await systemSettingsService.deleteUser(deleteUserTarget);
       if (!result.success) {
-        toast.error("Delete failed", result.error ?? "Failed to delete user");
+        toast.error(t("deleteFailed"), result.error ?? t("users.deleteUserFailed"));
       } else {
-        toast.success("User deleted", `${deleteUserTarget} has been removed`);
+        toast.success(t("users.userDeleted"), t("users.userDeletedDetail", { name: deleteUserTarget }));
         onRefresh();
       }
     } catch {
-      toast.error("Delete failed", "An unexpected error occurred");
+      toast.error(t("deleteFailed"), t("unexpectedError"));
     } finally {
       setDeleting(false);
       setDeleteUserTarget(null);
@@ -112,13 +115,13 @@ export function UserManagementPanel({ config, capabilities, isReadOnly, onRefres
         deleteSshTarget.keyName
       );
       if (!result.success) {
-        toast.error("Delete failed", result.error ?? "Failed to delete SSH key");
+        toast.error(t("deleteFailed"), result.error ?? t("users.deleteKeyFailed"));
       } else {
-        toast.success("SSH key removed");
+        toast.success(t("users.keyRemoved"));
         onRefresh();
       }
     } catch {
-      toast.error("Delete failed", "An unexpected error occurred");
+      toast.error(t("deleteFailed"), t("unexpectedError"));
     } finally {
       setDeletingSsh(false);
       setDeleteSshTarget(null);
@@ -149,15 +152,15 @@ export function UserManagementPanel({ config, capabilities, isReadOnly, onRefres
       });
 
       if (!result.success) {
-        setLoginError(result.error ?? "Failed to save login settings");
+        setLoginError(result.error ?? t("users.saveLoginFailed"));
         return;
       }
 
-      toast.success("Login settings saved");
+      toast.success(t("users.loginSaved"));
       setEditingLogin(false);
       onRefresh();
     } catch {
-      setLoginError("An unexpected error occurred");
+      setLoginError(t("unexpectedError"));
     } finally {
       setLoginSaving(false);
     }
@@ -170,13 +173,13 @@ export function UserManagementPanel({ config, capabilities, isReadOnly, onRefres
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>System Users</CardTitle>
-              <CardDescription>VyOS login accounts and SSH key access.</CardDescription>
+              <CardTitle>{t("users.title")}</CardTitle>
+              <CardDescription>{t("users.description")}</CardDescription>
             </div>
             {!isReadOnly && (
               <Button size="sm" onClick={openCreateUser}>
                 <UserPlus className="h-4 w-4 mr-2" />
-                Add User
+                {t("users.addUser")}
               </Button>
             )}
           </div>
@@ -185,18 +188,18 @@ export function UserManagementPanel({ config, capabilities, isReadOnly, onRefres
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Username</TableHead>
-                <TableHead>Full Name</TableHead>
-                <TableHead>Password</TableHead>
-                <TableHead>SSH Keys</TableHead>
-                {!isReadOnly && <TableHead className="text-right">Actions</TableHead>}
+                <TableHead>{t("users.username")}</TableHead>
+                <TableHead>{t("users.fullName")}</TableHead>
+                <TableHead>{t("users.password")}</TableHead>
+                <TableHead>{t("users.sshKeys")}</TableHead>
+                {!isReadOnly && <TableHead className="text-right">{tc("actions")}</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {config.login.users.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={isReadOnly ? 4 : 5} className="text-center text-muted-foreground py-6">
-                    No users configured
+                    {t("users.empty")}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -206,9 +209,9 @@ export function UserManagementPanel({ config, capabilities, isReadOnly, onRefres
                     <TableCell>{user.full_name || <span className="text-muted-foreground">—</span>}</TableCell>
                     <TableCell>
                       {user.has_password ? (
-                        <Badge variant="secondary">Set</Badge>
+                        <Badge variant="secondary">{t("users.set")}</Badge>
                       ) : (
-                        <Badge variant="outline">None</Badge>
+                        <Badge variant="outline">{tc("none")}</Badge>
                       )}
                     </TableCell>
                     <TableCell>
@@ -223,7 +226,7 @@ export function UserManagementPanel({ config, capabilities, isReadOnly, onRefres
                               <button
                                 className="text-muted-foreground hover:text-destructive"
                                 onClick={() => setDeleteSshTarget({ username: user.username, keyName: k.key_name })}
-                                title="Remove key"
+                                title={t("users.removeKey")}
                               >
                                 <Trash2 className="h-3 w-3" />
                               </button>
@@ -231,13 +234,13 @@ export function UserManagementPanel({ config, capabilities, isReadOnly, onRefres
                           </div>
                         ))}
                         {user.ssh_keys.length === 0 && (
-                          <span className="text-muted-foreground text-xs">None</span>
+                          <span className="text-muted-foreground text-xs">{tc("none")}</span>
                         )}
                         {!isReadOnly && (
                           <button
                             className="text-muted-foreground hover:text-primary ml-1"
                             onClick={() => setSshModalUser(user.username)}
-                            title="Add SSH key"
+                            title={t("users.addSshKey")}
                           >
                             <Plus className="h-3 w-3" />
                           </button>
@@ -278,8 +281,8 @@ export function UserManagementPanel({ config, capabilities, isReadOnly, onRefres
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Login Settings</CardTitle>
-              <CardDescription>Session timeout and login/logout banners.</CardDescription>
+              <CardTitle>{t("users.loginTitle")}</CardTitle>
+              <CardDescription>{t("users.loginDescription")}</CardDescription>
             </div>
             {!isReadOnly && !editingLogin && (
               <Button variant="outline" size="sm" onClick={() => {
@@ -290,16 +293,16 @@ export function UserManagementPanel({ config, capabilities, isReadOnly, onRefres
                 setEditingLogin(true);
               }}>
                 <Edit2 className="h-4 w-4 mr-2" />
-                Edit
+                {tc("edit")}
               </Button>
             )}
             {editingLogin && (
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => { setEditingLogin(false); setLoginError(null); }} disabled={loginSaving}>
-                  Cancel
+                  {tc("cancel")}
                 </Button>
                 <Button size="sm" onClick={handleSaveLoginSettings} disabled={loginSaving}>
-                  {loginSaving ? "Saving…" : "Save"}
+                  {loginSaving ? t("saving") : tc("save")}
                 </Button>
               </div>
             )}
@@ -316,20 +319,20 @@ export function UserManagementPanel({ config, capabilities, isReadOnly, onRefres
           )}
           <div className="grid sm:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Session Timeout (seconds)</Label>
+              <Label>{t("users.sessionTimeout")}</Label>
               {editingLogin ? (
                 <Input
                   type="number"
                   min="0"
                   value={loginTimeout}
                   onChange={(e) => setLoginTimeout(e.target.value)}
-                  placeholder="Not set"
+                  placeholder={tc("notSet")}
                 />
               ) : (
                 <p className="text-sm font-medium">
                   {config.login.timeout
                     ? `${config.login.timeout}s`
-                    : <span className="text-muted-foreground">Not set</span>}
+                    : <span className="text-muted-foreground">{tc("notSet")}</span>}
                 </p>
               )}
             </div>
@@ -337,32 +340,32 @@ export function UserManagementPanel({ config, capabilities, isReadOnly, onRefres
 
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Pre-Login Banner</Label>
+              <Label>{t("users.preLoginBanner")}</Label>
               {editingLogin ? (
                 <Textarea
                   value={preBanner}
                   onChange={(e) => setPreBanner(e.target.value)}
-                  placeholder="Shown before login prompt"
+                  placeholder={t("users.preLoginPlaceholder")}
                   rows={3}
                 />
               ) : (
                 <p className="text-sm whitespace-pre-wrap font-mono text-xs bg-muted rounded p-2 min-h-[3rem]">
-                  {config.login.banners.pre_login || <span className="text-muted-foreground font-sans">Not set</span>}
+                  {config.login.banners.pre_login || <span className="text-muted-foreground font-sans">{tc("notSet")}</span>}
                 </p>
               )}
             </div>
             <div className="space-y-2">
-              <Label>Post-Login Banner</Label>
+              <Label>{t("users.postLoginBanner")}</Label>
               {editingLogin ? (
                 <Textarea
                   value={postBanner}
                   onChange={(e) => setPostBanner(e.target.value)}
-                  placeholder="Shown after successful login"
+                  placeholder={t("users.postLoginPlaceholder")}
                   rows={3}
                 />
               ) : (
                 <p className="text-sm whitespace-pre-wrap font-mono text-xs bg-muted rounded p-2 min-h-[3rem]">
-                  {config.login.banners.post_login || <span className="text-muted-foreground font-sans">Not set</span>}
+                  {config.login.banners.post_login || <span className="text-muted-foreground font-sans">{tc("notSet")}</span>}
                 </p>
               )}
             </div>
@@ -371,7 +374,7 @@ export function UserManagementPanel({ config, capabilities, isReadOnly, onRefres
           {/* Operator Groups (1.5 only) */}
           {capabilities.login.supports_operator_group && config.login.operator_groups.length > 0 && (
             <div className="space-y-2">
-              <Label>Operator Groups</Label>
+              <Label>{t("users.operatorGroups")}</Label>
               <div className="flex flex-wrap gap-2">
                 {config.login.operator_groups.map((g) => (
                   <Badge key={g} variant="secondary">{g}</Badge>
@@ -402,19 +405,19 @@ export function UserManagementPanel({ config, capabilities, isReadOnly, onRefres
       <AlertDialog open={!!deleteUserTarget} onOpenChange={(o: boolean) => { if (!o) setDeleteUserTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogTitle>{t("users.deleteUserTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete user <strong>{deleteUserTarget}</strong>? This cannot be undone.
+              {t.rich("users.deleteUserConfirm", { name: deleteUserTarget ?? "", strong: (chunks) => <strong>{chunks}</strong> })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteUser}
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting ? "Deleting…" : "Delete"}
+              {deleting ? t("users.deleting") : tc("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -423,19 +426,19 @@ export function UserManagementPanel({ config, capabilities, isReadOnly, onRefres
       <AlertDialog open={!!deleteSshTarget} onOpenChange={(o: boolean) => { if (!o) setDeleteSshTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove SSH Key</AlertDialogTitle>
+            <AlertDialogTitle>{t("users.removeKeyTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Remove key <strong>{deleteSshTarget?.keyName}</strong> from <strong>{deleteSshTarget?.username}</strong>?
+              {t.rich("users.removeKeyConfirm", { key: deleteSshTarget?.keyName ?? "", user: deleteSshTarget?.username ?? "", strong: (chunks) => <strong>{chunks}</strong> })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingSsh}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deletingSsh}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteSshKey}
               disabled={deletingSsh}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deletingSsh ? "Removing…" : "Remove"}
+              {deletingSsh ? t("users.removing") : t("users.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
