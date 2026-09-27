@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +36,8 @@ interface Props {
 }
 
 export function NetworkModal({ open, onOpenChange, network, capabilities, onSubmit }: Props) {
+  const t = useTranslations("containerResources");
+  const tc = useTranslations("common");
   const isEditMode = !!network;
   const caps = capabilities?.features;
 
@@ -95,8 +98,8 @@ export function NetworkModal({ open, onOpenChange, network, capabilities, onSubm
   };
 
   const validate = (): string | null => {
-    if (!isEditMode && !name.trim()) return "Network name is required.";
-    if (!isEditMode && !/^[a-zA-Z0-9][-a-zA-Z0-9]{0,62}$/.test(name.trim())) return "Network name must start with a letter or digit, may contain hyphens, and be at most 63 characters.";
+    if (!isEditMode && !name.trim()) return t("networkModal.nameRequired");
+    if (!isEditMode && !/^[a-zA-Z0-9][-a-zA-Z0-9]{0,62}$/.test(name.trim())) return t("networkModal.nameInvalid");
     return null;
   };
 
@@ -120,14 +123,14 @@ export function NetworkModal({ open, onOpenChange, network, capabilities, onSubm
       });
       handleClose();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   const typeOptions: { value: string; label: string }[] = [
-    ...(caps?.network_type_bridge?.supported !== false ? [{ value: "bridge", label: "Bridge" }] : []),
+    ...(caps?.network_type_bridge?.supported !== false ? [{ value: "bridge", label: t("networkModal.typeBridge") }] : []),
     ...(caps?.network_type_macvlan?.supported !== false ? [{ value: "macvlan", label: "MACVLAN" }] : []),
   ];
 
@@ -135,39 +138,39 @@ export function NetworkModal({ open, onOpenChange, network, capabilities, onSubm
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEditMode ? `Edit Network — ${network?.name}` : "Add Network"}</DialogTitle>
+          <DialogTitle>{isEditMode ? t("networkModal.editTitle", { name: network?.name ?? "" }) : t("networks.addNetwork")}</DialogTitle>
           <DialogDescription>
-            {isEditMode ? "Modify this container network." : "Configure a new container network."}
+            {isEditMode ? t("networkModal.editDescription") : t("networkModal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[60vh] pr-4">
           <div className="space-y-4 pb-2">
             <div className="space-y-2">
-              <Label htmlFor="net-name">Network Name</Label>
+              <Label htmlFor="net-name">{t("networkModal.networkName")}</Label>
               <Input
                 id="net-name"
                 value={name}
                 onChange={e => setName(e.target.value)}
                 disabled={isEditMode}
                 className={isEditMode ? "bg-muted font-mono" : "font-mono"}
-                placeholder="e.g. my-net"
+                placeholder={t("networkModal.namePlaceholder")}
               />
-              {isEditMode && <p className="text-xs text-muted-foreground">Network name cannot be changed after creation.</p>}
+              {isEditMode && <p className="text-xs text-muted-foreground">{t("networkModal.nameImmutable")}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="net-desc">Description</Label>
-              <Input id="net-desc" value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional description" />
+              <Label htmlFor="net-desc">{tc("description")}</Label>
+              <Input id="net-desc" value={description} onChange={e => setDescription(e.target.value)} placeholder={t("networkModal.descriptionPlaceholder")} />
             </div>
 
             {showType && typeOptions.length > 0 && (
               <div className="space-y-2">
-                <Label>Network Type</Label>
+                <Label>{t("networkModal.networkType")}</Label>
                 <Select value={networkType} onValueChange={setNetworkType}>
-                  <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("networkModal.selectType")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="_none">— None —</SelectItem>
+                    <SelectItem value="_none">{t("networkModal.noneOption")}</SelectItem>
                     {typeOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -177,17 +180,17 @@ export function NetworkModal({ open, onOpenChange, network, capabilities, onSubm
             {networkType === "macvlan" && (
               <>
                 <div className="space-y-2">
-                  <Label>MACVLAN Mode</Label>
+                  <Label>{t("networkModal.macvlanMode")}</Label>
                   <Select value={macvlanMode} onValueChange={setMacvlanMode}>
-                    <SelectTrigger><SelectValue placeholder="Select mode" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={t("networkModal.selectMode")} /></SelectTrigger>
                     <SelectContent>
                       {macvlanModes.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="net-parent">Parent Interface</Label>
-                  <Input id="net-parent" value={macvlanParent} onChange={e => setMacvlanParent(e.target.value)} placeholder="e.g. eth0" className="font-mono" />
+                  <Label htmlFor="net-parent">{t("networkModal.parentInterface")}</Label>
+                  <Input id="net-parent" value={macvlanParent} onChange={e => setMacvlanParent(e.target.value)} placeholder={t("networkModal.parentPlaceholder")} className="font-mono" />
                 </div>
               </>
             )}
@@ -195,7 +198,7 @@ export function NetworkModal({ open, onOpenChange, network, capabilities, onSubm
             {showMtu && (
               <div className="space-y-2">
                 <Label htmlFor="net-mtu">MTU</Label>
-                <Input id="net-mtu" type="number" value={mtu} onChange={e => setMtu(e.target.value)} placeholder="e.g. 1500" className="font-mono" />
+                <Input id="net-mtu" type="number" value={mtu} onChange={e => setMtu(e.target.value)} placeholder={t("networkModal.mtuPlaceholder")} className="font-mono" />
               </div>
             )}
 
@@ -206,12 +209,12 @@ export function NetworkModal({ open, onOpenChange, network, capabilities, onSubm
 
             <div className="flex items-center gap-2">
               <Checkbox id="net-nns" checked={noNameServer} onCheckedChange={v => setNoNameServer(v === true)} />
-              <Label htmlFor="net-nns" className="cursor-pointer">Disable name server (no-name-server)</Label>
+              <Label htmlFor="net-nns" className="cursor-pointer">{t("networkModal.noNameServer")}</Label>
             </div>
 
             {/* Prefixes */}
             <div className="space-y-3">
-              <Label className="text-sm font-semibold">Prefixes</Label>
+              <Label className="text-sm font-semibold">{t("networks.prefixes")}</Label>
               {prefixes.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {prefixes.map(p => (
@@ -223,7 +226,7 @@ export function NetworkModal({ open, onOpenChange, network, capabilities, onSubm
                 </div>
               )}
               <div className="flex gap-2">
-                <Input value={prefixInput} onChange={e => setPrefixInput(e.target.value)} placeholder="e.g. 10.0.0.0/24" className="font-mono flex-1" onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addPrefix(); } }} />
+                <Input value={prefixInput} onChange={e => setPrefixInput(e.target.value)} placeholder={t("networkModal.prefixPlaceholder")} className="font-mono flex-1" onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addPrefix(); } }} />
                 <Button variant="outline" size="icon" onClick={addPrefix} disabled={!prefixInput}><Plus className="h-4 w-4" /></Button>
               </div>
             </div>
@@ -231,7 +234,7 @@ export function NetworkModal({ open, onOpenChange, network, capabilities, onSubm
             {/* Gateways */}
             {showGateways && (
               <div className="space-y-3">
-                <Label className="text-sm font-semibold">Gateways</Label>
+                <Label className="text-sm font-semibold">{t("networks.gateways")}</Label>
                 {gateways.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {gateways.map(g => (
@@ -243,7 +246,7 @@ export function NetworkModal({ open, onOpenChange, network, capabilities, onSubm
                   </div>
                 )}
                 <div className="flex gap-2">
-                  <Input value={gatewayInput} onChange={e => setGatewayInput(e.target.value)} placeholder="e.g. 10.0.0.1" className="font-mono flex-1" onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addGateway(); } }} />
+                  <Input value={gatewayInput} onChange={e => setGatewayInput(e.target.value)} placeholder={t("networkModal.gatewayPlaceholder")} className="font-mono flex-1" onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addGateway(); } }} />
                   <Button variant="outline" size="icon" onClick={addGateway} disabled={!gatewayInput}><Plus className="h-4 w-4" /></Button>
                 </div>
               </div>
@@ -259,11 +262,11 @@ export function NetworkModal({ open, onOpenChange, network, capabilities, onSubm
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={handleClose} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEditMode ? "Saving…" : "Adding…"}</>
-            ) : isEditMode ? "Save Changes" : "Add Network"}
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEditMode ? t("networkModal.saving") : t("networkModal.adding")}</>
+            ) : isEditMode ? t("networkModal.saveChanges") : t("networks.addNetwork")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -71,6 +72,8 @@ function TaskRow({ task }: { task: DeployTask }) {
 }
 
 export function GenericAppWizard({ open, onOpenChange, config, capabilities, onComplete, app }: WizardProps) {
+  const t = useTranslations("containerResources");
+  const tc = useTranslations("common");
   const ic = app.installConfig ?? {};
   const netCfg = ic.network;
   const hasNetwork = !!netCfg;
@@ -84,7 +87,9 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
     return modes;
   }, [netCfg]);
 
-  const steps = hasNetwork ? ["Basic", "Network", "Deploy"] : ["Basic", "Deploy"];
+  const steps = hasNetwork
+    ? [t("wizard.steps.basic"), t("wizard.steps.network"), t("wizard.steps.deploy")]
+    : [t("wizard.steps.basic"), t("wizard.steps.deploy")];
 
   // ── State ──────────────────────────────────────────────────────────────────
 
@@ -150,24 +155,24 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
 
   const step1Error = (): string | null => {
     const n = containerName.trim();
-    if (!n) return "Container name is required.";
-    if (!/^[a-zA-Z0-9][-a-zA-Z0-9]{0,62}$/.test(n)) return "Name must start with a letter or digit, may contain hyphens, and be at most 63 characters.";
-    if (existingContainerNames.includes(n)) return `Container "${n}" already exists.`;
+    if (!n) return t("wizard.containerNameRequired");
+    if (!/^[a-zA-Z0-9][-a-zA-Z0-9]{0,62}$/.test(n)) return t("wizard.nameInvalid");
+    if (existingContainerNames.includes(n)) return t("wizard.containerExists", { name: n });
     for (const f of ic.fields ?? []) {
-      if (f.required && !fieldValues[f.name]?.trim()) return `${f.label} is required.`;
+      if (f.required && !fieldValues[f.name]?.trim()) return t("wizard.fieldRequired", { label: f.label });
       if (f.type === "number" && fieldValues[f.name] && isNaN(Number(fieldValues[f.name])))
-        return `${f.label} must be a number.`;
+        return t("wizard.fieldNumber", { label: f.label });
     }
     return null;
   };
 
   const step2Error = (): string | null => {
-    if (networkMode === "existing" && !existingNetwork) return "Select a network.";
+    if (networkMode === "existing" && !existingNetwork) return t("wizard.selectNetwork");
     if (networkMode === "new") {
-      if (!newNetName.trim()) return "Network name is required.";
-      if (!/^[a-zA-Z0-9][-a-zA-Z0-9]{0,62}$/.test(newNetName.trim())) return "Network name must start with a letter or digit, may contain hyphens, and be at most 63 characters.";
-      if (existingNetNames.includes(newNetName.trim())) return `Network "${newNetName.trim()}" already exists.`;
-      if (!newNetPrefix.trim()) return "Subnet prefix is required.";
+      if (!newNetName.trim()) return t("wizard.networkNameRequired");
+      if (!/^[a-zA-Z0-9][-a-zA-Z0-9]{0,62}$/.test(newNetName.trim())) return t("wizard.networkNameInvalid");
+      if (existingNetNames.includes(newNetName.trim())) return t("wizard.networkExists", { name: newNetName.trim() });
+      if (!newNetPrefix.trim()) return t("wizard.subnetRequired");
     }
     return null;
   };
@@ -184,12 +189,12 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
   const resolvedValues: Record<string, string> = { ...fieldValues, containerName: name };
 
   const buildTasks = (): DeployTask[] => {
-    const t: DeployTask[] = [];
-    if (hasNetwork && networkMode === "new") t.push({ label: `Create network "${newNetName}"`, status: "pending" });
-    t.push({ label: `Create directories for "${name}"`, status: "pending" });
-    t.push({ label: `Pull image ${app.dockerImage}`, status: "pending" });
-    t.push({ label: "Commit container configuration", status: "pending" });
-    return t;
+    const list: DeployTask[] = [];
+    if (hasNetwork && networkMode === "new") list.push({ label: t("wizard.taskCreateNetwork", { name: newNetName }), status: "pending" });
+    list.push({ label: t("wizard.taskCreateDirs", { name }), status: "pending" });
+    list.push({ label: t("wizard.taskPullImage", { image: app.dockerImage }), status: "pending" });
+    list.push({ label: t("wizard.taskCommit"), status: "pending" });
+    return list;
   };
 
   const deploy = async () => {
@@ -234,15 +239,15 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
       ])];
       const mkResult = await containerService.createContainerDirs(allDirs);
       if (!mkResult.success) {
-        fail(idx, mkResult.error || "Failed to create directories.");
-        setDeployError("Directory creation failed — see above.");
+        fail(idx, mkResult.error || t("wizard.createDirsFailed"));
+        setDeployError(t("wizard.dirCreationFailed"));
         return;
       }
       if (resolvedInitFiles.length > 0) {
         const touchResult = await containerService.touchContainerFiles(resolvedInitFiles);
         if (!touchResult.success) {
-          fail(idx, touchResult.error || "Failed to create init files.");
-          setDeployError("File initialisation failed — see above.");
+          fail(idx, touchResult.error || t("wizard.initFilesFailed"));
+          setDeployError(t("wizard.fileInitFailed"));
           return;
         }
       }
@@ -251,8 +256,8 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
       running(idx);
       const pullResult = await containerService.pullImage(app.dockerImage);
       if (!pullResult.success) {
-        fail(idx, pullResult.error || "Image pull failed.");
-        setDeployError("Image pull failed — see above.");
+        fail(idx, pullResult.error || t("wizard.pullFailed"));
+        setDeployError(t("wizard.pullFailedSeeAbove"));
         return;
       }
       done(idx++);
@@ -334,7 +339,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
       done(idx++);
       setDeployed(true);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unexpected error";
+      const msg = err instanceof Error ? err.message : t("wizard.unexpectedError");
       if (idx < cur.length) fail(idx, msg);
       setDeployError(msg);
     } finally {
@@ -376,7 +381,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
                 {app.name[0].toUpperCase()}
               </span>
             )}
-            Install {app.name}
+            {t("wizard.title", { name: app.name })}
           </DialogTitle>
         </DialogHeader>
 
@@ -388,7 +393,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
         {step === 0 && (
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label>Container Name</Label>
+              <Label>{t("wizard.containerName")}</Label>
               <Input
                 value={containerName}
                 onChange={e => setContainerName(e.target.value)}
@@ -397,7 +402,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
               />
               {containerName && existingContainerNames.includes(containerName.trim()) && (
                 <p className="text-xs text-destructive flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />Name already in use.
+                  <AlertCircle className="h-3 w-3" />{t("wizard.nameInUse")}
                 </p>
               )}
             </div>
@@ -415,7 +420,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
                     onChange={e => setFieldValues(prev => ({ ...prev, [f.name]: e.target.value }))}
                     className="w-full rounded-md border bg-background px-3 py-2 text-sm"
                   >
-                    <option value="">— Select —</option>
+                    <option value="">{t("wizard.selectOption")}</option>
                     {(f.options ?? []).map(opt => (
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
@@ -452,9 +457,9 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
             ))}
 
             <div className="rounded-lg border bg-muted/40 p-3 space-y-1">
-              <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide">Fixed configuration</p>
-              <p className="text-xs font-mono text-muted-foreground">Image: {app.dockerImage}</p>
-              {ic.restart && <p className="text-xs font-mono text-muted-foreground">Restart: {ic.restart}</p>}
+              <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide">{t("wizard.fixedConfig")}</p>
+              <p className="text-xs font-mono text-muted-foreground">{t("wizard.fixedImage", { image: app.dockerImage })}</p>
+              {ic.restart && <p className="text-xs font-mono text-muted-foreground">{t("wizard.fixedRestart", { restart: ic.restart })}</p>}
               {(ic.volumes ?? []).map(v => (
                 <p key={v.name} className="text-xs font-mono text-muted-foreground">
                   /config/containers/{containerName || "…"}/{v.name} → {v.destination}
@@ -487,18 +492,18 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
                     {networkMode === mode && <div className="h-2 w-2 rounded-full bg-primary" />}
                   </div>
                   <span className="font-medium text-sm">
-                    {mode === "host"     && "Host Networking"}
-                    {mode === "existing" && "Use Existing Network"}
-                    {mode === "new"      && "Create New Network"}
+                    {mode === "host"     && t("wizard.modeHost")}
+                    {mode === "existing" && t("wizard.modeExisting")}
+                    {mode === "new"      && t("wizard.modeNew")}
                   </span>
                   {mode === netCfg?.defaultMode && (
-                    <Badge variant="secondary" className="text-xs ml-auto">Recommended</Badge>
+                    <Badge variant="secondary" className="text-xs ml-auto">{t("wizard.recommended")}</Badge>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground ml-6">
-                  {mode === "host"     && "Container shares the host network directly."}
-                  {mode === "existing" && "Attach to a VyOS container network already configured."}
-                  {mode === "new"      && "Create a new VyOS container network as part of this installation."}
+                  {mode === "host"     && t("wizard.modeHostHelp")}
+                  {mode === "existing" && t("wizard.modeExistingHelp")}
+                  {mode === "new"      && t("wizard.modeNewHelp")}
                 </p>
               </button>
             ))}
@@ -506,17 +511,17 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
             {networkMode === "existing" && (
               <div className="space-y-3 pt-1">
                 <div className="space-y-1.5">
-                  <Label>Network</Label>
+                  <Label>{t("wizard.network")}</Label>
                   <select
                     value={existingNetwork}
                     onChange={e => setExistingNetwork(e.target.value)}
                     className="w-full rounded-md border bg-background px-3 py-2 text-sm font-mono"
                   >
-                    <option value="">— Choose a network —</option>
+                    <option value="">{t("wizard.chooseNetwork")}</option>
                     {config.networks.map(n => <option key={n.name} value={n.name}>{n.name}</option>)}
                   </select>
                   {config.networks.length === 0 && (
-                    <p className="text-xs text-muted-foreground">No networks configured yet.</p>
+                    <p className="text-xs text-muted-foreground">{t("wizard.noNetworksYet")}</p>
                   )}
                 </div>
                 {netCfg?.allowStaticIp && (
@@ -532,7 +537,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
             {networkMode === "new" && (
               <div className="space-y-3 pt-1">
                 <div className="space-y-1.5">
-                  <Label>Network Name</Label>
+                  <Label>{t("wizard.networkName")}</Label>
                   <Input
                     value={newNetName}
                     onChange={e => setNewNetName(e.target.value)}
@@ -541,12 +546,12 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
                   />
                   {newNetName && existingNetNames.includes(newNetName.trim()) && (
                     <p className="text-xs text-destructive flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />Name already in use.
+                      <AlertCircle className="h-3 w-3" />{t("wizard.nameInUse")}
                     </p>
                   )}
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Subnet Prefix</Label>
+                  <Label>{t("wizard.subnetPrefix")}</Label>
                   <Input
                     value={newNetPrefix}
                     onChange={e => setNewNetPrefix(e.target.value)}
@@ -571,14 +576,14 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
           <div className="space-y-4">
             {!deploying && !deployed && tasks.length === 0 && (
               <div className="rounded-lg border bg-muted/40 p-4 space-y-2 text-sm">
-                <p className="font-semibold">Review</p>
+                <p className="font-semibold">{t("wizard.review")}</p>
                 <div className="space-y-1 text-muted-foreground">
                   <div className="flex justify-between">
-                    <span>Container</span>
+                    <span>{t("wizard.container")}</span>
                     <span className="font-mono text-foreground">{name}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Image</span>
+                    <span>{t("wizard.image")}</span>
                     <span className="font-mono text-foreground text-xs truncate max-w-[55%]">{app.dockerImage}</span>
                   </div>
                   {(ic.fields ?? []).map(f => (
@@ -589,13 +594,13 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
                   ))}
                   {hasNetwork && (
                     <div className="flex justify-between">
-                      <span>Network</span>
+                      <span>{t("wizard.network")}</span>
                       <span className="font-mono text-foreground">
                         {networkMode === "host"
-                          ? "Host"
+                          ? t("wizard.host")
                           : networkMode === "existing"
                           ? existingNetwork || "—"
-                          : `New — ${newNetName}`}
+                          : t("wizard.newNetwork", { name: newNetName })}
                       </span>
                     </div>
                   )}
@@ -615,7 +620,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
               <div className="flex items-center gap-2 rounded-lg bg-green-500/10 border border-green-500/20 p-3">
                 <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
                 <p className="text-sm text-green-700 dark:text-green-400 font-medium">
-                  {app.name} deployed successfully!
+                  {t("wizard.deployed", { name: app.name })}
                 </p>
               </div>
             )}
@@ -642,19 +647,19 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
             }}
             disabled={deploying}
           >
-            {deployed ? "Close" : step === 0 ? "Cancel" : "Back"}
+            {deployed ? tc("close") : step === 0 ? tc("cancel") : t("wizard.back")}
           </Button>
 
           {!deployed && (
             !isLastStep ? (
               <Button onClick={() => setStep(s => s + 1)} disabled={!!err}>
-                Next
+                {t("wizard.next")}
               </Button>
             ) : (
               <Button onClick={deploy} disabled={deploying}>
                 {deploying
-                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deploying…</>
-                  : "Deploy"}
+                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{t("wizard.deploying")}</>
+                  : t("wizard.deploy")}
               </Button>
             )
           )}
@@ -672,6 +677,7 @@ interface IpMacFieldsProps {
 
 // Extracted to avoid repeating the IP/MAC grid in both "existing" and "new" branches
 function IpMacFields({ allowStaticIp, netAddress, setNetAddress }: IpMacFieldsProps) {
+  const t = useTranslations("containerResources");
   const showIp  = allowStaticIp;
 
   if (!showIp) return null;
@@ -680,7 +686,7 @@ function IpMacFields({ allowStaticIp, netAddress, setNetAddress }: IpMacFieldsPr
     <div className="grid gap-3 grid-cols-1">
       {showIp && (
         <div className="space-y-1.5">
-          <Label>IP Address <span className="text-muted-foreground font-normal">(optional)</span></Label>
+          <Label>{t("wizard.ipAddress")} <span className="text-muted-foreground font-normal">{t("wizard.optionalSuffix")}</span></Label>
           <Input
             value={netAddress}
             onChange={e => setNetAddress(e.target.value)}

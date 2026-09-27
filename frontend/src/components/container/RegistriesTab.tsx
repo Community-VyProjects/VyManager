@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,8 @@ interface Props {
 }
 
 export function RegistriesTab({ config, capabilities, hasWritePermission, onReload }: Props) {
+  const t = useTranslations("containerResources");
+  const tc = useTranslations("common");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRegistry, setEditingRegistry] = useState<ContainerRegistry | null>(null);
   const [deletingRegistry, setDeletingRegistry] = useState<ContainerRegistry | null>(null);
@@ -58,7 +61,7 @@ export function RegistriesTab({ config, capabilities, hasWritePermission, onRelo
       {registries.length > 0 && hasWritePermission && (
         <div className="flex justify-end mb-4">
           <Button size="sm" onClick={() => { setEditingRegistry(null); setModalOpen(true); }}>
-            <Plus className="h-4 w-4 mr-2" />Add Registry
+            <Plus className="h-4 w-4 mr-2" />{t("registries.addRegistry")}
           </Button>
         </div>
       )}
@@ -67,10 +70,10 @@ export function RegistriesTab({ config, capabilities, hasWritePermission, onRelo
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Database className="h-12 w-12 text-muted-foreground/30 mb-4" />
-            <p className="text-sm text-muted-foreground mb-4">No registries configured</p>
+            <p className="text-sm text-muted-foreground mb-4">{t("registries.noRegistries")}</p>
             {hasWritePermission && (
               <Button size="sm" onClick={() => { setEditingRegistry(null); setModalOpen(true); }}>
-                <Plus className="h-4 w-4 mr-2" />Add Registry
+                <Plus className="h-4 w-4 mr-2" />{t("registries.addRegistry")}
               </Button>
             )}
           </CardContent>
@@ -81,12 +84,12 @@ export function RegistriesTab({ config, capabilities, hasWritePermission, onRelo
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Registry</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Insecure</TableHead>
-                  <TableHead>Auth</TableHead>
-                  <TableHead>Mirror</TableHead>
-                  {hasWritePermission && <TableHead className="text-right">Actions</TableHead>}
+                  <TableHead>{t("registries.registry")}</TableHead>
+                  <TableHead>{tc("status")}</TableHead>
+                  <TableHead>{t("registries.insecure")}</TableHead>
+                  <TableHead>{t("registries.auth")}</TableHead>
+                  <TableHead>{t("registries.mirror")}</TableHead>
+                  {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -97,12 +100,12 @@ export function RegistriesTab({ config, capabilities, hasWritePermission, onRelo
                     </TableCell>
                     <TableCell>
                       {reg.disabled
-                        ? <Badge variant="secondary" className="bg-muted text-muted-foreground">Disabled</Badge>
-                        : <Badge variant="secondary" className="bg-green-500/10 text-green-600">Enabled</Badge>}
+                        ? <Badge variant="secondary" className="bg-muted text-muted-foreground">{tc("disabled")}</Badge>
+                        : <Badge variant="secondary" className="bg-green-500/10 text-green-600">{tc("enabled")}</Badge>}
                     </TableCell>
                     <TableCell>
                       {reg.insecure
-                        ? <Badge variant="secondary" className="bg-amber-500/10 text-amber-600">Insecure</Badge>
+                        ? <Badge variant="secondary" className="bg-amber-500/10 text-amber-600">{t("registries.insecure")}</Badge>
                         : <span className="text-muted-foreground">—</span>}
                     </TableCell>
                     <TableCell>
