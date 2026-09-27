@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -45,6 +46,8 @@ export function QoSTrafficMatchGroupModal({
   availableMatchGroups,
   onSuccess,
 }: QoSTrafficMatchGroupModalProps) {
+  const t = useTranslations("qos");
+  const tc = useTranslations("common");
   const isEdit = existing !== null;
   const [draft, setDraft] = useState<TmgDraft>(
     existing ? tmgToDraft(existing) : { name: "", description: "", matchGroups: [], matches: [] }
@@ -57,11 +60,11 @@ export function QoSTrafficMatchGroupModal({
   const handleSubmit = async () => {
     const name = draft.name.trim();
     if (!name) {
-      setError("A group name is required");
+      setError(t("tmgModal.nameRequired"));
       return;
     }
     if (!isEdit && existingNames.includes(name)) {
-      setError(`Traffic match group "${name}" already exists`);
+      setError(t("tmgModal.exists", { name }));
       return;
     }
     setSubmitting(true);
@@ -71,7 +74,7 @@ export function QoSTrafficMatchGroupModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -81,18 +84,18 @@ export function QoSTrafficMatchGroupModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Traffic Match Group" : "Add Traffic Match Group"}</DialogTitle>
-          <DialogDescription>Reusable filter group referenced by QoS classes</DialogDescription>
+          <DialogTitle>{isEdit ? t("tmgModal.editTitle") : t("tmgModal.addTitle")}</DialogTitle>
+          <DialogDescription>{t("tmgModal.description")}</DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[68vh] pr-4">
           <div className="space-y-5 py-1">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="tmg-name" className="text-sm font-medium">Name</Label>
+                <Label htmlFor="tmg-name" className="text-sm font-medium">{tc("name")}</Label>
                 <Input
                   id="tmg-name"
-                  placeholder="e.g. voip"
+                  placeholder={t("example", { value: "voip" })}
                   value={draft.name}
                   onChange={(e) => {
                     setDraft((d) => ({ ...d, name: e.target.value }));
@@ -103,7 +106,7 @@ export function QoSTrafficMatchGroupModal({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="tmg-desc" className="text-sm font-medium">Description</Label>
+                <Label htmlFor="tmg-desc" className="text-sm font-medium">{tc("description")}</Label>
                 <Input
                   id="tmg-desc"
                   value={draft.description}
@@ -115,7 +118,7 @@ export function QoSTrafficMatchGroupModal({
             <Separator />
 
             <MatchGroupSelect
-              label="Nested Match Groups"
+              label={t("tmgModal.nestedMatchGroups")}
               available={availableMatchGroups}
               selected={draft.matchGroups}
               onChange={(matchGroups) => setDraft((d) => ({ ...d, matchGroups }))}
@@ -125,7 +128,7 @@ export function QoSTrafficMatchGroupModal({
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">Match Rules</Label>
+                <Label className="text-sm font-medium">{t("matchRules")}</Label>
                 <Button
                   type="button"
                   size="sm"
@@ -133,7 +136,7 @@ export function QoSTrafficMatchGroupModal({
                   onClick={() => setDraft((d) => ({ ...d, matches: [...d.matches, emptyMatchDraft("")] }))}
                 >
                   <Plus className="h-4 w-4 mr-1" />
-                  Add Match
+                  {t("addMatch")}
                 </Button>
               </div>
               {draft.matches.map((m, i) => (
@@ -159,11 +162,11 @@ export function QoSTrafficMatchGroupModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isEdit ? "Save" : "Create"}
+            {isEdit ? tc("save") : t("create")}
           </Button>
         </DialogFooter>
       </DialogContent>
