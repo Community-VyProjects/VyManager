@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -167,7 +168,7 @@ function InterfaceSelect({
   value,
   onChange,
   interfaces,
-  placeholder = "Select interface",
+  placeholder,
   className,
 }: {
   value: string;
@@ -176,13 +177,15 @@ function InterfaceSelect({
   placeholder?: string;
   className?: string;
 }) {
+  const t = useTranslations("highAvailability");
+  const ph = placeholder ?? t("vrrpModal.selectInterface");
   // If we have no interfaces loaded yet, fall back to a plain input
   if (interfaces.length === 0) {
     return (
       <Input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
+        placeholder={ph}
         className={className}
       />
     );
@@ -194,11 +197,11 @@ function InterfaceSelect({
       onValueChange={(v) => onChange(v === "__none__" ? "" : v)}
     >
       <SelectTrigger className={className}>
-        <SelectValue placeholder={placeholder} />
+        <SelectValue placeholder={ph} />
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="__none__">
-          <span className="text-muted-foreground">{placeholder}</span>
+          <span className="text-muted-foreground">{ph}</span>
         </SelectItem>
         {interfaces.map((iface) => (
           <SelectItem key={iface.name} value={iface.name}>
@@ -232,6 +235,8 @@ export function VrrpGroupModal({
   capabilities,
   onSubmit,
 }: VrrpGroupModalProps) {
+  const t = useTranslations("highAvailability");
+  const tc = useTranslations("common");
   const isEdit = !!existingGroup;
   const timeoutSupported = capabilities?.features.health_check_timeout?.supported ?? false;
   const [form, setForm] = useState<FormState>(emptyForm());
@@ -306,18 +311,18 @@ export function VrrpGroupModal({
   const handleSubmit = async () => {
     setError(null);
 
-    if (!form.name.trim()) { setError("Group name is required"); return; }
-    if (!form.vrid.trim()) { setError("VRID is required"); return; }
-    if (!form.interface.trim()) { setError("Interface is required"); return; }
+    if (!form.name.trim()) { setError(t("vrrpModal.nameRequired")); return; }
+    if (!form.vrid.trim()) { setError(t("vrrpModal.vridRequired")); return; }
+    if (!form.interface.trim()) { setError(t("vrrpModal.interfaceRequired")); return; }
     const validAddrs = form.addresses.filter((a) => a.address.trim());
-    if (validAddrs.length === 0) { setError("At least one virtual IP address is required"); return; }
+    if (validAddrs.length === 0) { setError(t("vrrpModal.addressRequired")); return; }
 
     setLoading(true);
     try {
       await onSubmit(formToGroup(form, timeoutSupported, existingGroup ?? undefined));
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -327,11 +332,11 @@ export function VrrpGroupModal({
     <Dialog open={open} onOpenChange={(o) => { if (!loading) onOpenChange(o); }}>
       <DialogContent className="max-w-2xl max-h-[88vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle>{isEdit ? "Edit VRRP Group" : "Add VRRP Group"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("vrrpModal.editTitle") : t("vrrp.add")}</DialogTitle>
           <DialogDescription>
             {isEdit
-              ? `Editing VRRP group "${existingGroup!.name}"`
-              : "Configure a new VRRP group for router redundancy"}
+              ? t("vrrpModal.editingDescription", { name: existingGroup!.name })
+              : t("vrrpModal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -347,15 +352,15 @@ export function VrrpGroupModal({
             {/* Basic Settings */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Group Name <span className="text-destructive">*</span></Label>
+                <Label>{t("vrrpModal.groupName")} <span className="text-destructive">*</span></Label>
                 <Input
                   value={form.name}
                   onChange={(e) => set("name")(e.target.value)}
                   disabled={isEdit}
-                  placeholder="e.g. WAN-GROUP"
+                  placeholder={t("example", { value: "WAN-GROUP" })}
                   className={isEdit ? "opacity-60" : ""}
                 />
-                {isEdit && <p className="text-xs text-muted-foreground">Name cannot be changed</p>}
+                {isEdit && <p className="text-xs text-muted-foreground">{t("nameCannotChange")}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label>VRID <span className="text-destructive">*</span></Label>
@@ -372,44 +377,44 @@ export function VrrpGroupModal({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Interface <span className="text-destructive">*</span></Label>
+                <Label>{t("interface")} <span className="text-destructive">*</span></Label>
                 <InterfaceSelect
                   value={form.interface}
                   onChange={(v) => set("interface")(v)}
                   interfaces={interfaces}
-                  placeholder="Select interface"
+                  placeholder={t("vrrpModal.selectInterface")}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Priority</Label>
+                <Label>{t("priority")}</Label>
                 <Input
                   type="number"
                   min={1}
                   max={255}
                   value={form.priority}
                   onChange={(e) => set("priority")(e.target.value)}
-                  placeholder="100 (default)"
+                  placeholder={t("vrrpModal.defaultValue", { value: "100" })}
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Advertise Interval (s)</Label>
+                <Label>{t("vrrpModal.advertiseInterval")}</Label>
                 <Input
                   type="number"
                   min={1}
                   value={form.advertise_interval}
                   onChange={(e) => set("advertise_interval")(e.target.value)}
-                  placeholder="1 (default)"
+                  placeholder={t("vrrpModal.defaultValue", { value: "1" })}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Description</Label>
+                <Label>{tc("description")}</Label>
                 <Input
                   value={form.description}
                   onChange={(e) => set("description")(e.target.value)}
-                  placeholder="Optional description"
+                  placeholder={t("optionalDescription")}
                 />
               </div>
             </div>
@@ -419,11 +424,11 @@ export function VrrpGroupModal({
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label>Virtual IP Addresses <span className="text-destructive">*</span></Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">IP/prefix assigned to the virtual router</p>
+                  <Label>{t("vrrpModal.virtualAddresses")} <span className="text-destructive">*</span></Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t("vrrpModal.virtualAddressesHelp")}</p>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={addAddress}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Add IP
+                  <Plus className="h-3.5 w-3.5 mr-1" /> {t("vrrpModal.addIp")}
                 </Button>
               </div>
               <div className="space-y-2">
@@ -440,7 +445,7 @@ export function VrrpGroupModal({
                         value={addr.interface}
                         onChange={(v) => setAddress(idx, "interface", v)}
                         interfaces={interfaces}
-                        placeholder="Interface (opt.)"
+                        placeholder={t("vrrpModal.interfaceOptional")}
                       />
                     </div>
                     {form.addresses.length > 1 && (
@@ -464,36 +469,36 @@ export function VrrpGroupModal({
             <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
               <CollapsibleTrigger asChild>
                 <Button type="button" variant="ghost" className="w-full justify-between px-0 font-medium">
-                  Advanced Settings
+                  {t("vrrpModal.advancedSettings")}
                   <ChevronDown className={cn("h-4 w-4 transition-transform", advancedOpen && "rotate-180")} />
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-5 pt-3">
                 {/* Authentication */}
                 <div className="space-y-3">
-                  <Label className="text-sm font-medium">Authentication</Label>
+                  <Label className="text-sm font-medium">{t("vrrpModal.authentication")}</Label>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Type</Label>
+                      <Label className="text-xs text-muted-foreground">{t("vrrpModal.type")}</Label>
                       <Select value={form.auth_type} onValueChange={(v) => set("auth_type")(v === "none" ? "" : v)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="None" />
+                          <SelectValue placeholder={tc("none")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
-                          <SelectItem value="plaintext-password">Plaintext Password</SelectItem>
+                          <SelectItem value="none">{tc("none")}</SelectItem>
+                          <SelectItem value="plaintext-password">{t("vrrpModal.plaintextPassword")}</SelectItem>
                           <SelectItem value="ah">AH (IPAuth)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     {form.auth_type && (
                       <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Password</Label>
+                        <Label className="text-xs text-muted-foreground">{t("vrrpModal.password")}</Label>
                         <Input
                           type="password"
                           value={form.auth_password}
                           onChange={(e) => set("auth_password")(e.target.value)}
-                          placeholder="Password"
+                          placeholder={t("vrrpModal.password")}
                         />
                       </div>
                     )}
@@ -502,7 +507,7 @@ export function VrrpGroupModal({
 
                 {/* Preempt */}
                 <div className="space-y-3">
-                  <Label className="text-sm font-medium">Preemption</Label>
+                  <Label className="text-sm font-medium">{t("vrrpModal.preemption")}</Label>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex items-center gap-3 rounded-lg border p-3">
                       <Checkbox
@@ -511,12 +516,12 @@ export function VrrpGroupModal({
                         onCheckedChange={(v) => set("no_preempt")(v === true)}
                       />
                       <div>
-                        <label htmlFor="no_preempt" className="text-sm font-medium cursor-pointer">Disable Preemption</label>
-                        <p className="text-xs text-muted-foreground">Prevent higher-priority router from preempting</p>
+                        <label htmlFor="no_preempt" className="text-sm font-medium cursor-pointer">{t("vrrpModal.disablePreemption")}</label>
+                        <p className="text-xs text-muted-foreground">{t("vrrpModal.disablePreemptionHelp")}</p>
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Preempt Delay (s)</Label>
+                      <Label className="text-xs text-muted-foreground">{t("vrrpModal.preemptDelay")}</Label>
                       <Input
                         type="number"
                         min={0}
@@ -531,8 +536,8 @@ export function VrrpGroupModal({
 
                 {/* Peer Addresses */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Peer Addresses</Label>
-                  <p className="text-xs text-muted-foreground">Unicast peer addresses for VRRP communication</p>
+                  <Label className="text-sm font-medium">{t("vrrpModal.peerAddresses")}</Label>
+                  <p className="text-xs text-muted-foreground">{t("vrrpModal.peerAddressesHelp")}</p>
                   <div className="flex gap-2">
                     <Input
                       value={newPeer}
@@ -561,8 +566,8 @@ export function VrrpGroupModal({
 
                 {/* Track Interfaces */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Track Interfaces</Label>
-                  <p className="text-xs text-muted-foreground">Decrease priority if these interfaces go down</p>
+                  <Label className="text-sm font-medium">{t("vrrpModal.trackInterfaces")}</Label>
+                  <p className="text-xs text-muted-foreground">{t("vrrpModal.trackInterfacesHelp")}</p>
                   <div className="flex gap-2">
                     <InterfaceSelect
                       value={trackIfaceSelection}
@@ -571,7 +576,7 @@ export function VrrpGroupModal({
                         if (v) addTrackIface(v);
                       }}
                       interfaces={availableTrackInterfaces}
-                      placeholder="Select interface to track"
+                      placeholder={t("vrrpModal.selectTrackInterface")}
                       className="flex-1"
                     />
                   </div>
@@ -591,19 +596,19 @@ export function VrrpGroupModal({
 
                 {/* Health Check */}
                 <div className="space-y-3">
-                  <Label className="text-sm font-medium">Health Check</Label>
+                  <Label className="text-sm font-medium">{t("healthCheck")}</Label>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Ping Target</Label>
+                      <Label className="text-xs text-muted-foreground">{t("pingTarget")}</Label>
                       <Input
                         value={form.hc_ping}
                         onChange={(e) => set("hc_ping")(e.target.value)}
-                        placeholder="IP to ping"
+                        placeholder={t("pingPlaceholder")}
                         className="font-mono"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Interval (s)</Label>
+                      <Label className="text-xs text-muted-foreground">{t("intervalSeconds")}</Label>
                       <Input
                         type="number"
                         min={1}
@@ -613,7 +618,7 @@ export function VrrpGroupModal({
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Failure Count</Label>
+                      <Label className="text-xs text-muted-foreground">{t("failureCount")}</Label>
                       <Input
                         type="number"
                         min={1}
@@ -623,7 +628,7 @@ export function VrrpGroupModal({
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Script Path</Label>
+                      <Label className="text-xs text-muted-foreground">{t("scriptPath")}</Label>
                       <Input
                         value={form.hc_script}
                         onChange={(e) => set("hc_script")(e.target.value)}
@@ -633,7 +638,7 @@ export function VrrpGroupModal({
                     </div>
                     {timeoutSupported && (
                       <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Script Timeout (s)</Label>
+                        <Label className="text-xs text-muted-foreground">{t("scriptTimeout")}</Label>
                         <Input
                           type="number"
                           min={1}
@@ -648,14 +653,14 @@ export function VrrpGroupModal({
 
                 {/* Misc */}
                 <div className="space-y-3">
-                  <Label className="text-sm font-medium">Other Options</Label>
+                  <Label className="text-sm font-medium">{t("vrrpModal.otherOptions")}</Label>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Hello Source Address</Label>
+                      <Label className="text-xs text-muted-foreground">{t("vrrpModal.helloSourceAddress")}</Label>
                       <Input
                         value={form.hello_source_address}
                         onChange={(e) => set("hello_source_address")(e.target.value)}
-                        placeholder="Source IP for hellos"
+                        placeholder={t("vrrpModal.helloSourcePlaceholder")}
                         className="font-mono"
                       />
                     </div>
@@ -666,8 +671,8 @@ export function VrrpGroupModal({
                         onCheckedChange={(v) => set("rfc3768_compatibility")(v === true)}
                       />
                       <div>
-                        <label htmlFor="rfc3768" className="text-sm font-medium cursor-pointer">RFC 3768 Compatibility</label>
-                        <p className="text-xs text-muted-foreground">Use virtual MAC addresses</p>
+                        <label htmlFor="rfc3768" className="text-sm font-medium cursor-pointer">{t("vrrpModal.rfc3768")}</label>
+                        <p className="text-xs text-muted-foreground">{t("vrrpModal.rfc3768Help")}</p>
                       </div>
                     </div>
                   </div>
@@ -679,11 +684,11 @@ export function VrrpGroupModal({
 
         <DialogFooter className="shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? "Save Changes" : "Create Group"}
+            {isEdit ? t("saveChanges") : t("vrrpModal.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

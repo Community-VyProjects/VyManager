@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -67,6 +68,8 @@ export function SyncGroupModal({
   capabilities,
   onSubmit,
 }: SyncGroupModalProps) {
+  const t = useTranslations("highAvailability");
+  const tc = useTranslations("common");
   const isEdit = !!existingGroup;
   const timeoutSupported = capabilities?.features.health_check_timeout?.supported ?? false;
   const [form, setForm] = useState<FormState>(emptyForm());
@@ -92,8 +95,8 @@ export function SyncGroupModal({
   const handleSubmit = async () => {
     setError(null);
 
-    if (!form.name.trim()) { setError("Sync group name is required"); return; }
-    if (form.members.length === 0) { setError("At least one VRRP group member is required"); return; }
+    if (!form.name.trim()) { setError(t("syncModal.nameRequired")); return; }
+    if (form.members.length === 0) { setError(t("syncModal.membersRequired")); return; }
 
     setLoading(true);
     try {
@@ -113,7 +116,7 @@ export function SyncGroupModal({
       });
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -123,11 +126,11 @@ export function SyncGroupModal({
     <Dialog open={open} onOpenChange={(o) => { if (!loading) onOpenChange(o); }}>
       <DialogContent className="max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle>{isEdit ? "Edit Sync Group" : "Add Sync Group"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("syncModal.editTitle") : t("sync.add")}</DialogTitle>
           <DialogDescription>
             {isEdit
-              ? `Editing sync group "${existingGroup!.name}"`
-              : "Synchronize VRRP state across multiple groups"}
+              ? t("syncModal.editingDescription", { name: existingGroup!.name })
+              : t("syncModal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -141,15 +144,15 @@ export function SyncGroupModal({
             )}
 
             <div className="space-y-1.5">
-              <Label>Sync Group Name <span className="text-destructive">*</span></Label>
+              <Label>{t("syncModal.name")} <span className="text-destructive">*</span></Label>
               <Input
                 value={form.name}
                 onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
                 disabled={isEdit}
-                placeholder="e.g. SYNC-GROUP-1"
+                placeholder={t("syncModal.namePlaceholder")}
                 className={isEdit ? "opacity-60" : ""}
               />
-              {isEdit && <p className="text-xs text-muted-foreground">Name cannot be changed</p>}
+              {isEdit && <p className="text-xs text-muted-foreground">{t("nameCannotChange")}</p>}
             </div>
 
             <Separator />
@@ -157,15 +160,15 @@ export function SyncGroupModal({
             {/* Members */}
             <div className="space-y-3">
               <div>
-                <Label>VRRP Group Members <span className="text-destructive">*</span></Label>
+                <Label>{t("syncModal.members")} <span className="text-destructive">*</span></Label>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Select which VRRP groups to synchronize together
+                  {t("syncModal.membersHelp")}
                 </p>
               </div>
 
               {vrrpGroups.length === 0 ? (
                 <div className="border border-dashed rounded-lg p-4 text-center text-sm text-muted-foreground">
-                  No VRRP groups configured. Create VRRP groups first.
+                  {t("syncModal.noVrrpGroups")}
                 </div>
               ) : (
                 <div className="border rounded-lg divide-y">
@@ -183,10 +186,10 @@ export function SyncGroupModal({
                       <div className="flex-1">
                         <p className="text-sm font-medium">{g.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          VRID {g.vrid ?? "?"} — {g.interface ?? "?"} — {g.addresses.length} IP(s)
+                          {t("syncModal.memberSummary", { vrid: g.vrid ?? "?", iface: g.interface ?? "?", count: g.addresses.length })}
                         </p>
                       </div>
-                      {g.disabled && <Badge variant="secondary" className="text-xs">Disabled</Badge>}
+                      {g.disabled && <Badge variant="secondary" className="text-xs">{tc("disabled")}</Badge>}
                     </div>
                   ))}
                 </div>
@@ -194,7 +197,7 @@ export function SyncGroupModal({
 
               {form.members.length > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  {form.members.length} member{form.members.length !== 1 ? "s" : ""} selected
+                  {t("syncModal.membersSelected", { count: form.members.length })}
                 </p>
               )}
             </div>
@@ -203,19 +206,19 @@ export function SyncGroupModal({
 
             {/* Health Check */}
             <div className="space-y-3">
-              <Label className="text-sm font-medium">Health Check (optional)</Label>
+              <Label className="text-sm font-medium">{t("healthCheckOptional")}</Label>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Ping Target</Label>
+                  <Label className="text-xs text-muted-foreground">{t("pingTarget")}</Label>
                   <Input
                     value={form.hc_ping}
                     onChange={(e) => setForm((p) => ({ ...p, hc_ping: e.target.value }))}
-                    placeholder="IP to ping"
+                    placeholder={t("pingPlaceholder")}
                     className="font-mono"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Interval (s)</Label>
+                  <Label className="text-xs text-muted-foreground">{t("intervalSeconds")}</Label>
                   <Input
                     type="number"
                     min={1}
@@ -225,7 +228,7 @@ export function SyncGroupModal({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Failure Count</Label>
+                  <Label className="text-xs text-muted-foreground">{t("failureCount")}</Label>
                   <Input
                     type="number"
                     min={1}
@@ -235,7 +238,7 @@ export function SyncGroupModal({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Script Path</Label>
+                  <Label className="text-xs text-muted-foreground">{t("scriptPath")}</Label>
                   <Input
                     value={form.hc_script}
                     onChange={(e) => setForm((p) => ({ ...p, hc_script: e.target.value }))}
@@ -245,7 +248,7 @@ export function SyncGroupModal({
                 </div>
                 {timeoutSupported && (
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Script Timeout (s)</Label>
+                    <Label className="text-xs text-muted-foreground">{t("scriptTimeout")}</Label>
                     <Input
                       type="number"
                       min={1}
@@ -262,11 +265,11 @@ export function SyncGroupModal({
 
         <DialogFooter className="shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? "Save Changes" : "Create Sync Group"}
+            {isEdit ? t("saveChanges") : t("syncModal.create")}
           </Button>
         </DialogFooter>
       </DialogContent>
