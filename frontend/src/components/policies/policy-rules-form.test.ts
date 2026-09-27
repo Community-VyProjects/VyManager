@@ -359,7 +359,7 @@ describe("access-list rule", () => {
     draft.sourceType = "host";
     assert.equal(
       validateAccessListRule(draft, "ipv4"),
-      "Please enter a source address for host type",
+      "sourceHostAddress",
     );
   });
 

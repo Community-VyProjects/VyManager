@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Check, X, AlertCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface AccessListReorderBannerProps {
   onSave: () => void;
@@ -16,6 +17,8 @@ export function AccessListReorderBanner({
   saving,
   count,
 }: AccessListReorderBannerProps) {
+  const t = useTranslations("accessList");
+  const tc = useTranslations("common");
   return (
     <div className="bg-blue-500/10 border-y border-blue-500/20 px-6 py-3">
       <div className="flex items-center justify-between">
@@ -23,10 +26,10 @@ export function AccessListReorderBanner({
           <AlertCircle className="h-5 w-5 text-blue-500" />
           <div>
             <p className="text-sm font-medium text-foreground">
-              Reorder in Progress
+              {t("banner.title")}
             </p>
             <p className="text-xs text-muted-foreground">
-              {count} rule{count !== 1 ? "s" : ""} will be renumbered
+              {t("banner.renumbered", { count })}
             </p>
           </div>
         </div>
@@ -38,7 +41,7 @@ export function AccessListReorderBanner({
             disabled={saving}
           >
             <X className="h-4 w-4 mr-2" />
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button
             size="sm"
@@ -47,7 +50,7 @@ export function AccessListReorderBanner({
             className="bg-blue-500 hover:bg-blue-600"
           >
             <Check className="h-4 w-4 mr-2" />
-            {saving ? "Saving..." : "Save Order"}
+            {saving ? tc("saving") : t("banner.saveOrder")}
           </Button>
         </div>
       </div>
