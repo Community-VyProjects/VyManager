@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,8 @@ interface Props {
 }
 
 export function AddImageModal({ open, onOpenChange, onSubmit }: Props) {
+  const t = useTranslations("containerResources");
+  const tc = useTranslations("common");
   const [imageRef, setImageRef] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -44,19 +47,19 @@ export function AddImageModal({ open, onOpenChange, onSubmit }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Image</DialogTitle>
+          <DialogTitle>{t("images.addImage")}</DialogTitle>
           <DialogDescription>
-            Enter the image reference to pull onto the device.
+            {t("addImage.description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2 py-2">
-          <Label htmlFor="image-ref">Image</Label>
+          <Label htmlFor="image-ref">{t("images.image")}</Label>
           <Input
             id="image-ref"
             value={imageRef}
             onChange={e => setImageRef(e.target.value)}
-            placeholder="e.g. adguard/adguardhome:latest"
+            placeholder={t("addImage.placeholder")}
             className="font-mono"
             autoFocus
             onKeyDown={e => { if (e.key === "Enter") handleSubmit(); }}
@@ -65,11 +68,11 @@ export function AddImageModal({ open, onOpenChange, onSubmit }: Props) {
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={!imageRef.trim() || loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Add Image
+            {t("images.addImage")}
           </Button>
         </DialogFooter>
       </DialogContent>

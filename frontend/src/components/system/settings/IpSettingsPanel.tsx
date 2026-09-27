@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Card,
   CardContent,
@@ -28,6 +29,8 @@ interface Props {
 }
 
 export function IpSettingsPanel({ config, isReadOnly, onRefresh }: Props) {
+  const t = useTranslations("systemGeneral");
+  const tc = useTranslations("common");
   const { toast } = useToast();
 
   const ip = config.ip;
@@ -75,11 +78,11 @@ export function IpSettingsPanel({ config, isReadOnly, onRefresh }: Props) {
         multipathLayer4Hashing: ipMultipathL4,
         nhtNoResolveViaDefault: ipNht,
       });
-      if (!result.success) { setIpError(result.error ?? "Failed to save IP settings"); return; }
-      toast.success("IP settings saved");
+      if (!result.success) { setIpError(result.error ?? t("ip.saveIpFailed")); return; }
+      toast.success(t("ip.ipSaved"));
       setEditingIp(false);
       onRefresh();
-    } catch { setIpError("An unexpected error occurred"); }
+    } catch { setIpError(t("unexpectedError")); }
     finally { setIpSaving(false); }
   };
 
@@ -105,11 +108,11 @@ export function IpSettingsPanel({ config, isReadOnly, onRefresh }: Props) {
         nhtNoResolveViaDefault: ipv6Nht,
         strictDad: ipv6StrictDad,
       });
-      if (!result.success) { setIpv6Error(result.error ?? "Failed to save IPv6 settings"); return; }
-      toast.success("IPv6 settings saved");
+      if (!result.success) { setIpv6Error(result.error ?? t("ip.saveIpv6Failed")); return; }
+      toast.success(t("ip.ipv6Saved"));
       setEditingIpv6(false);
       onRefresh();
-    } catch { setIpv6Error("An unexpected error occurred"); }
+    } catch { setIpv6Error(t("unexpectedError")); }
     finally { setIpv6Saving(false); }
   };
 
@@ -120,18 +123,18 @@ export function IpSettingsPanel({ config, isReadOnly, onRefresh }: Props) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>IPv4 Settings</CardTitle>
-              <CardDescription>Kernel IPv4 forwarding and multipath options.</CardDescription>
+              <CardTitle>{t("ip.ipv4Title")}</CardTitle>
+              <CardDescription>{t("ip.ipv4Description")}</CardDescription>
             </div>
             {!isReadOnly && (
               editingIp ? (
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => { setEditingIp(false); setIpError(null); }} disabled={ipSaving}>Cancel</Button>
-                  <Button size="sm" onClick={handleSaveIp} disabled={ipSaving}>{ipSaving ? "Saving…" : "Save"}</Button>
+                  <Button variant="outline" size="sm" onClick={() => { setEditingIp(false); setIpError(null); }} disabled={ipSaving}>{tc("cancel")}</Button>
+                  <Button size="sm" onClick={handleSaveIp} disabled={ipSaving}>{ipSaving ? t("general.saving") : tc("save")}</Button>
                 </div>
               ) : (
                 <Button variant="outline" size="sm" onClick={startEditIp}>
-                  <Edit2 className="h-4 w-4 mr-2" />Edit
+                  <Edit2 className="h-4 w-4 mr-2" />{tc("edit")}
                 </Button>
               )
             )}
@@ -148,28 +151,28 @@ export function IpSettingsPanel({ config, isReadOnly, onRefresh }: Props) {
           )}
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>ARP/NDP Table Size</Label>
+              <Label>{t("ip.arpNdpTableSize")}</Label>
               {editingIp ? (
                 <Input
                   type="number"
                   min="0"
                   value={ipArpSize}
                   onChange={(e) => setIpArpSize(e.target.value)}
-                  placeholder="Default"
+                  placeholder={tc("default")}
                   className="max-w-xs"
                 />
               ) : (
                 <p className="text-sm font-medium">
-                  {ip?.arp_ndp_table_size?.toLocaleString() ?? <span className="text-muted-foreground">Default</span>}
+                  {ip?.arp_ndp_table_size?.toLocaleString() ?? <span className="text-muted-foreground">{tc("default")}</span>}
                 </p>
               )}
             </div>
 
             {[
-              { label: "Disable Forwarding", key: "disableForwarding" as const, val: editingIp ? ipDisableForwarding : (ip?.disable_forwarding ?? false), set: setIpDisableForwarding },
-              { label: "Multipath Ignore Unreachable", key: "multipathIgnoreUnreachable" as const, val: editingIp ? ipMultipathIgnore : (ip?.multipath_ignore_unreachable ?? false), set: setIpMultipathIgnore },
-              { label: "Multipath Layer4 Hashing", key: "multipathLayer4Hashing" as const, val: editingIp ? ipMultipathL4 : (ip?.multipath_layer4_hashing ?? false), set: setIpMultipathL4 },
-              { label: "NHT No Resolve via Default", key: "nhtNoResolveViaDefault" as const, val: editingIp ? ipNht : (ip?.nht_no_resolve_via_default ?? false), set: setIpNht },
+              { label: t("ip.disableForwarding"), key: "disableForwarding" as const, val: editingIp ? ipDisableForwarding : (ip?.disable_forwarding ?? false), set: setIpDisableForwarding },
+              { label: t("ip.multipathIgnoreUnreachable"), key: "multipathIgnoreUnreachable" as const, val: editingIp ? ipMultipathIgnore : (ip?.multipath_ignore_unreachable ?? false), set: setIpMultipathIgnore },
+              { label: t("ip.multipathLayer4Hashing"), key: "multipathLayer4Hashing" as const, val: editingIp ? ipMultipathL4 : (ip?.multipath_layer4_hashing ?? false), set: setIpMultipathL4 },
+              { label: t("ip.nhtNoResolveViaDefault"), key: "nhtNoResolveViaDefault" as const, val: editingIp ? ipNht : (ip?.nht_no_resolve_via_default ?? false), set: setIpNht },
             ].map(({ label, val, set }) => (
               <div key={label} className="flex items-center justify-between py-1">
                 <Label className="text-sm">{label}</Label>
@@ -177,7 +180,7 @@ export function IpSettingsPanel({ config, isReadOnly, onRefresh }: Props) {
                   <Checkbox checked={val} onCheckedChange={(v) => set(!!v)} />
                 ) : (
                   <span className={`text-sm font-medium ${val ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}>
-                    {val ? "Enabled" : "Disabled"}
+                    {val ? tc("enabled") : tc("disabled")}
                   </span>
                 )}
               </div>
@@ -191,18 +194,18 @@ export function IpSettingsPanel({ config, isReadOnly, onRefresh }: Props) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>IPv6 Settings</CardTitle>
-              <CardDescription>Kernel IPv6 forwarding and neighbor discovery options.</CardDescription>
+              <CardTitle>{t("ip.ipv6Title")}</CardTitle>
+              <CardDescription>{t("ip.ipv6Description")}</CardDescription>
             </div>
             {!isReadOnly && (
               editingIpv6 ? (
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => { setEditingIpv6(false); setIpv6Error(null); }} disabled={ipv6Saving}>Cancel</Button>
-                  <Button size="sm" onClick={handleSaveIpv6} disabled={ipv6Saving}>{ipv6Saving ? "Saving…" : "Save"}</Button>
+                  <Button variant="outline" size="sm" onClick={() => { setEditingIpv6(false); setIpv6Error(null); }} disabled={ipv6Saving}>{tc("cancel")}</Button>
+                  <Button size="sm" onClick={handleSaveIpv6} disabled={ipv6Saving}>{ipv6Saving ? t("general.saving") : tc("save")}</Button>
                 </div>
               ) : (
                 <Button variant="outline" size="sm" onClick={startEditIpv6}>
-                  <Edit2 className="h-4 w-4 mr-2" />Edit
+                  <Edit2 className="h-4 w-4 mr-2" />{tc("edit")}
                 </Button>
               )
             )}
@@ -219,28 +222,28 @@ export function IpSettingsPanel({ config, isReadOnly, onRefresh }: Props) {
           )}
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Neighbor Table Size</Label>
+              <Label>{t("ip.neighborTableSize")}</Label>
               {editingIpv6 ? (
                 <Input
                   type="number"
                   min="0"
                   value={ipv6NeighborSize}
                   onChange={(e) => setIpv6NeighborSize(e.target.value)}
-                  placeholder="Default"
+                  placeholder={tc("default")}
                   className="max-w-xs"
                 />
               ) : (
                 <p className="text-sm font-medium">
-                  {ipv6?.neighbor_table_size?.toLocaleString() ?? <span className="text-muted-foreground">Default</span>}
+                  {ipv6?.neighbor_table_size?.toLocaleString() ?? <span className="text-muted-foreground">{tc("default")}</span>}
                 </p>
               )}
             </div>
 
             {[
-              { label: "Disable Forwarding", val: editingIpv6 ? ipv6DisableForwarding : (ipv6?.disable_forwarding ?? false), set: setIpv6DisableForwarding },
-              { label: "Multipath Layer4 Hashing", val: editingIpv6 ? ipv6MultipathL4 : (ipv6?.multipath_layer4_hashing ?? false), set: setIpv6MultipathL4 },
-              { label: "NHT No Resolve via Default", val: editingIpv6 ? ipv6Nht : (ipv6?.nht_no_resolve_via_default ?? false), set: setIpv6Nht },
-              { label: "Strict DAD", val: editingIpv6 ? ipv6StrictDad : (ipv6?.strict_dad ?? false), set: setIpv6StrictDad },
+              { label: t("ip.disableForwarding"), val: editingIpv6 ? ipv6DisableForwarding : (ipv6?.disable_forwarding ?? false), set: setIpv6DisableForwarding },
+              { label: t("ip.multipathLayer4Hashing"), val: editingIpv6 ? ipv6MultipathL4 : (ipv6?.multipath_layer4_hashing ?? false), set: setIpv6MultipathL4 },
+              { label: t("ip.nhtNoResolveViaDefault"), val: editingIpv6 ? ipv6Nht : (ipv6?.nht_no_resolve_via_default ?? false), set: setIpv6Nht },
+              { label: t("ip.strictDad"), val: editingIpv6 ? ipv6StrictDad : (ipv6?.strict_dad ?? false), set: setIpv6StrictDad },
             ].map(({ label, val, set }) => (
               <div key={label} className="flex items-center justify-between py-1">
                 <Label className="text-sm">{label}</Label>
@@ -248,7 +251,7 @@ export function IpSettingsPanel({ config, isReadOnly, onRefresh }: Props) {
                   <Checkbox checked={val} onCheckedChange={(v) => set(!!v)} />
                 ) : (
                   <span className={`text-sm font-medium ${val ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}>
-                    {val ? "Enabled" : "Disabled"}
+                    {val ? tc("enabled") : tc("disabled")}
                   </span>
                 )}
               </div>

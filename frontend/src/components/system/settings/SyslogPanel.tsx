@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Card,
   CardContent,
@@ -55,6 +56,8 @@ interface Props {
 }
 
 export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Props) {
+  const t = useTranslations("systemSyslog");
+  const tc = useTranslations("common");
   const { toast } = useToast();
   const { syslog: { facilities, levels, supports_console, supports_file, supports_user, supports_marker_disable, supports_remote_format } } =
     capabilities;
@@ -96,14 +99,14 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
         formatOctet,
       );
       if (!result.success) {
-        toast.error("Save failed", result.error ?? "Failed to update format");
+        toast.error(t("saveFailed"), result.error ?? t("syslog.updateFormatFailed"));
       } else {
-        toast.success("Remote format updated");
+        toast.success(t("syslog.formatUpdated"));
         setFormatEditHost(null);
         onRefresh();
       }
     } catch {
-      toast.error("Save failed", "An unexpected error occurred");
+      toast.error(t("saveFailed"), t("unexpectedError"));
     } finally {
       setFormatSaving(false);
     }
@@ -124,14 +127,14 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
     try {
       const result = await systemSettingsService.setSyslogLocalFacility(localFac, localLevel);
       if (!result.success) {
-        setLocalError(result.error ?? "Failed to set facility");
+        setLocalError(result.error ?? t("syslog.setFacilityFailed"));
       } else {
-        toast.success("Local facility set");
+        toast.success(t("syslog.localFacilitySet"));
         setAddingLocal(false);
         onRefresh();
       }
     } catch {
-      setLocalError("An unexpected error occurred");
+      setLocalError(t("unexpectedError"));
     } finally {
       setLocalSaving(false);
     }
@@ -143,14 +146,14 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
     try {
       const result = await systemSettingsService.setSyslogConsoleFacility(consoleFac, consoleLevel);
       if (!result.success) {
-        setConsoleError(result.error ?? "Failed to set facility");
+        setConsoleError(result.error ?? t("syslog.setFacilityFailed"));
       } else {
-        toast.success("Console facility set");
+        toast.success(t("syslog.consoleFacilitySet"));
         setAddingConsole(false);
         onRefresh();
       }
     } catch {
-      setConsoleError("An unexpected error occurred");
+      setConsoleError(t("unexpectedError"));
     } finally {
       setConsoleSaving(false);
     }
@@ -170,10 +173,10 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
         ops.push(systemSettingsService.setSyslogMarkerDisable(markerDisabled));
       }
       await Promise.all(ops);
-      toast.success("Syslog marker saved");
+      toast.success(t("syslog.markerSaved"));
       setEditingMarker(false);
       onRefresh();
-    } catch { setMarkerError("An unexpected error occurred"); }
+    } catch { setMarkerError(t("unexpectedError")); }
     finally { setMarkerSaving(false); }
   };
 
@@ -183,13 +186,13 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
     try {
       const result = await systemSettingsService.deleteSyslogRemoteHost(deleteRemoteTarget);
       if (!result.success) {
-        toast.error("Delete failed", result.error ?? "Failed to remove remote host");
+        toast.error(t("deleteFailed"), result.error ?? t("syslog.removeHostFailed"));
       } else {
-        toast.success("Remote host removed");
+        toast.success(t("syslog.hostRemoved"));
         onRefresh();
       }
     } catch {
-      toast.error("Delete failed", "An unexpected error occurred");
+      toast.error(t("deleteFailed"), t("unexpectedError"));
     } finally {
       setDeletingRemote(false);
       setDeleteRemoteTarget(null);
@@ -203,15 +206,15 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Local Logging</CardTitle>
+              <CardTitle>{t("syslog.localTitle")}</CardTitle>
               <CardDescription>
-                Facilities logged to the local syslog ({capabilities.syslog.local_target}).
+                {t("syslog.localDescription", { target: capabilities.syslog.local_target })}
               </CardDescription>
             </div>
             {!isReadOnly && !addingLocal && (
               <Button size="sm" variant="outline" onClick={() => setAddingLocal(true)}>
                 <Plus className="h-4 w-4 mr-2" />
-                Add Facility
+                {t("syslog.addFacility")}
               </Button>
             )}
           </div>
@@ -230,7 +233,7 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
               )}
               <div className="flex gap-3 items-end">
                 <div className="flex-1 space-y-1">
-                  <span className="text-xs text-muted-foreground">Facility</span>
+                  <span className="text-xs text-muted-foreground">{t("facility")}</span>
                   <Select value={localFac} onValueChange={setLocalFac}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -239,7 +242,7 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
                   </Select>
                 </div>
                 <div className="flex-1 space-y-1">
-                  <span className="text-xs text-muted-foreground">Level</span>
+                  <span className="text-xs text-muted-foreground">{t("level")}</span>
                   <Select value={localLevel} onValueChange={setLocalLevel}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -248,17 +251,17 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
                   </Select>
                 </div>
                 <Button size="sm" onClick={handleAddLocalFacility} disabled={localSaving}>
-                  {localSaving ? "Saving…" : "Apply"}
+                  {localSaving ? t("saving") : t("syslog.apply")}
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => { setAddingLocal(false); setLocalError(null); }}>
-                  Cancel
+                  {tc("cancel")}
                 </Button>
               </div>
             </div>
           )}
 
           {config.syslog.local_facilities.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No local facilities configured.</p>
+            <p className="text-sm text-muted-foreground">{t("syslog.noLocal")}</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {config.syslog.local_facilities.map((f) => (
@@ -276,13 +279,13 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Remote Syslog Hosts</CardTitle>
-              <CardDescription>Forward logs to remote syslog servers ({capabilities.syslog.remote_target}).</CardDescription>
+              <CardTitle>{t("syslog.remoteTitle")}</CardTitle>
+              <CardDescription>{t("syslog.remoteDescription", { target: capabilities.syslog.remote_target })}</CardDescription>
             </div>
             {!isReadOnly && (
               <Button size="sm" onClick={() => setRemoteModalOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
-                Add Host
+                {t("syslog.addHost")}
               </Button>
             )}
           </div>
@@ -291,18 +294,18 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Host</TableHead>
-                <TableHead>Port</TableHead>
-                <TableHead>Facilities</TableHead>
-                {supports_remote_format && <TableHead>Format</TableHead>}
-                {!isReadOnly && <TableHead className="text-right">Actions</TableHead>}
+                <TableHead>{t("syslog.host")}</TableHead>
+                <TableHead>{t("port")}</TableHead>
+                <TableHead>{t("syslog.facilities")}</TableHead>
+                {supports_remote_format && <TableHead>{t("syslog.format")}</TableHead>}
+                {!isReadOnly && <TableHead className="text-right">{tc("actions")}</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {config.syslog.remote_hosts.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={isReadOnly ? (supports_remote_format ? 4 : 3) : (supports_remote_format ? 5 : 4)} className="text-center text-muted-foreground py-6">
-                    No remote hosts configured
+                    {t("syslog.noRemote")}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -329,7 +332,7 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
                             <Badge variant="outline" className="text-xs">octet-counted</Badge>
                           )}
                           {!rh.format_include_timezone && !rh.format_octet_counted && (
-                            <span className="text-xs text-muted-foreground">Default</span>
+                            <span className="text-xs text-muted-foreground">{tc("default")}</span>
                           )}
                         </div>
                       </TableCell>
@@ -373,13 +376,13 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Console Logging</CardTitle>
-                <CardDescription>Facilities logged to the system console.</CardDescription>
+                <CardTitle>{t("syslog.consoleTitle")}</CardTitle>
+                <CardDescription>{t("syslog.consoleDescription")}</CardDescription>
               </div>
               {!isReadOnly && !addingConsole && (
                 <Button size="sm" variant="outline" onClick={() => setAddingConsole(true)}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Facility
+                  {t("syslog.addFacility")}
                 </Button>
               )}
             </div>
@@ -397,7 +400,7 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
                 )}
                 <div className="flex gap-3 items-end">
                   <div className="flex-1 space-y-1">
-                    <span className="text-xs text-muted-foreground">Facility</span>
+                    <span className="text-xs text-muted-foreground">{t("facility")}</span>
                     <Select value={consoleFac} onValueChange={setConsoleFac}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -406,7 +409,7 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
                     </Select>
                   </div>
                   <div className="flex-1 space-y-1">
-                    <span className="text-xs text-muted-foreground">Level</span>
+                    <span className="text-xs text-muted-foreground">{t("level")}</span>
                     <Select value={consoleLevel} onValueChange={setConsoleLevel}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -415,16 +418,16 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
                     </Select>
                   </div>
                   <Button size="sm" onClick={handleAddConsoleFacility} disabled={consoleSaving}>
-                    {consoleSaving ? "Saving…" : "Apply"}
+                    {consoleSaving ? t("saving") : t("syslog.apply")}
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => { setAddingConsole(false); setConsoleError(null); }}>
-                    Cancel
+                    {tc("cancel")}
                   </Button>
                 </div>
               </div>
             )}
             {config.syslog.console_facilities.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No console facilities configured.</p>
+              <p className="text-sm text-muted-foreground">{t("syslog.noConsole")}</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {config.syslog.console_facilities.map((f) => (
@@ -442,15 +445,15 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
       {supports_file && config.syslog.files.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>File Targets</CardTitle>
-            <CardDescription>Log to named files.</CardDescription>
+            <CardTitle>{t("syslog.fileTitle")}</CardTitle>
+            <CardDescription>{t("syslog.fileDescription")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Filename</TableHead>
-                  <TableHead>Facilities</TableHead>
+                  <TableHead>{t("syslog.filename")}</TableHead>
+                  <TableHead>{t("syslog.facilities")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -478,15 +481,15 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
       {supports_user && config.syslog.users.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>User Targets</CardTitle>
-            <CardDescription>Log messages to system users.</CardDescription>
+            <CardTitle>{t("syslog.userTitle")}</CardTitle>
+            <CardDescription>{t("syslog.userDescription")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Username</TableHead>
-                  <TableHead>Facilities</TableHead>
+                  <TableHead>{t("syslog.username")}</TableHead>
+                  <TableHead>{t("syslog.facilities")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -515,16 +518,16 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Syslog Marker</CardTitle>
+              <CardTitle>{t("syslog.markerTitle")}</CardTitle>
               <CardDescription>
-                Periodically emit a mark message to syslog. Helps confirm the syslog daemon is alive.
+                {t("syslog.markerDescription")}
               </CardDescription>
             </div>
             {!isReadOnly && (
               editingMarker ? (
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => { setEditingMarker(false); setMarkerError(null); }} disabled={markerSaving}>Cancel</Button>
-                  <Button size="sm" onClick={handleSaveMarker} disabled={markerSaving}>{markerSaving ? "Saving…" : "Save"}</Button>
+                  <Button variant="outline" size="sm" onClick={() => { setEditingMarker(false); setMarkerError(null); }} disabled={markerSaving}>{tc("cancel")}</Button>
+                  <Button size="sm" onClick={handleSaveMarker} disabled={markerSaving}>{markerSaving ? t("saving") : tc("save")}</Button>
                 </div>
               ) : (
                 <Button variant="outline" size="sm" onClick={() => {
@@ -533,7 +536,7 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
                   setMarkerError(null);
                   setEditingMarker(true);
                 }}>
-                  <Edit2 className="h-4 w-4 mr-2" />Edit
+                  <Edit2 className="h-4 w-4 mr-2" />{tc("edit")}
                 </Button>
               )
             )}
@@ -550,32 +553,32 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Interval (minutes)</Label>
+              <Label>{t("syslog.intervalMinutes")}</Label>
               {editingMarker ? (
                 <Input
                   type="number"
                   min="1"
                   value={markerInterval}
                   onChange={(e) => setMarkerInterval(e.target.value)}
-                  placeholder="Leave blank to disable"
+                  placeholder={t("syslog.leaveBlankToDisable")}
                   className="max-w-xs"
                 />
               ) : (
                 <p className="text-sm font-medium">
                   {config.syslog_marker?.interval != null
-                    ? `${config.syslog_marker.interval} min`
-                    : <span className="text-muted-foreground">Not configured</span>}
+                    ? t("syslog.minutesValue", { value: config.syslog_marker.interval })
+                    : <span className="text-muted-foreground">{t("notConfigured")}</span>}
                 </p>
               )}
             </div>
             {supports_marker_disable && (
               <div className="flex items-center justify-between">
-                <Label>Disable Marker</Label>
+                <Label>{t("syslog.disableMarker")}</Label>
                 {editingMarker ? (
                   <Checkbox checked={markerDisabled} onCheckedChange={(v) => setMarkerDisabled(!!v)} />
                 ) : (
                   <span className={`text-sm font-medium ${config.syslog_marker?.disabled ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
-                    {config.syslog_marker?.disabled ? "Disabled" : "Active"}
+                    {config.syslog_marker?.disabled ? tc("disabled") : t("syslog.active")}
                   </span>
                 )}
               </div>
@@ -597,19 +600,19 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
       <AlertDialog open={!!deleteRemoteTarget} onOpenChange={(o: boolean) => { if (!o) setDeleteRemoteTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Remote Host</AlertDialogTitle>
+            <AlertDialogTitle>{t("syslog.removeHostTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Remove syslog forwarding to <strong>{deleteRemoteTarget}</strong>?
+              {t.rich("syslog.removeHostConfirm", { host: deleteRemoteTarget ?? "", strong: (chunks) => <strong>{chunks}</strong> })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingRemote}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deletingRemote}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteRemoteHost}
               disabled={deletingRemote}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deletingRemote ? "Removing…" : "Remove"}
+              {deletingRemote ? t("syslog.removing") : t("syslog.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -618,9 +621,9 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
       <AlertDialog open={!!formatEditHost} onOpenChange={(o: boolean) => { if (!o) setFormatEditHost(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Edit Message Format</AlertDialogTitle>
+            <AlertDialogTitle>{t("syslog.editFormatTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              RFC 5424 framing for syslog forwarding to <strong>{formatEditHost}</strong>.
+              {t.rich("syslog.editFormatDescription", { host: formatEditHost ?? "", strong: (chunks) => <strong>{chunks}</strong> })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-3 py-2">
@@ -631,7 +634,7 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
                 onCheckedChange={(v) => setFormatTz(!!v)}
               />
               <Label htmlFor="edit-fmt-tz" className="text-sm font-normal">
-                Include timezone (RFC 5424 with RFC 3339 timestamp)
+                {t("includeTimezone")}
               </Label>
             </div>
             <div className="flex items-center gap-2">
@@ -641,14 +644,14 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
                 onCheckedChange={(v) => setFormatOctet(!!v)}
               />
               <Label htmlFor="edit-fmt-octet" className="text-sm font-normal">
-                Octet-counted framing (multi-line messages, TCP only)
+                {t("octetCounted")}
               </Label>
             </div>
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={formatSaving}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={formatSaving}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleSaveRemoteFormat} disabled={formatSaving}>
-              {formatSaving ? "Saving…" : "Save"}
+              {formatSaving ? t("saving") : tc("save")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

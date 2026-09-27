@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Card,
   CardContent,
@@ -56,6 +57,8 @@ interface Props {
 const NETFLOW_VERSIONS = ["5", "9", "10"];
 
 export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefresh }: Props) {
+  const t = useTranslations("systemFlowArchive");
+  const tc = useTranslations("common");
   const { toast } = useToast();
   const supportsStandaloneSflow = capabilities.features.standalone_sflow.supported;
 
@@ -79,14 +82,14 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
   const [deletingIface, setDeletingIface] = useState(false);
 
   const handleAddIface = async () => {
-    if (!ifaceValue || ifaceValue === "_none") { setIfaceError("Select an interface"); return; }
+    if (!ifaceValue || ifaceValue === "_none") { setIfaceError(t("flow.selectInterfaceRequired")); return; }
     setIfaceSaving(true); setIfaceError(null);
     try {
       const result = await systemSettingsService.addFlowAccountingInterface(ifaceValue);
-      if (!result.success) { setIfaceError(result.error ?? "Failed to add interface"); return; }
-      toast.success("Interface added to flow accounting");
+      if (!result.success) { setIfaceError(result.error ?? t("flow.addInterfaceFailed")); return; }
+      toast.success(t("flow.interfaceAdded"));
       setAddingIface(false); setIfaceValue("_none"); onRefresh();
-    } catch { setIfaceError("An unexpected error occurred"); }
+    } catch { setIfaceError(t("unexpectedError")); }
     finally { setIfaceSaving(false); }
   };
 
@@ -95,9 +98,9 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
     setDeletingIface(true);
     try {
       const result = await systemSettingsService.deleteFlowAccountingInterface(deleteIface);
-      if (!result.success) toast.error("Delete failed", result.error ?? "Could not remove interface");
-      else { toast.success("Interface removed"); onRefresh(); }
-    } catch { toast.error("Error", "An unexpected error occurred"); }
+      if (!result.success) toast.error(t("deleteFailed"), result.error ?? t("flow.removeInterfaceFailed"));
+      else { toast.success(t("flow.interfaceRemoved")); onRefresh(); }
+    } catch { toast.error(t("error"), t("unexpectedError")); }
     finally { setDeletingIface(false); setDeleteIface(null); }
   };
 
@@ -138,10 +141,10 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
         sourceAddress: nfSourceAddr || null,
         clearSourceAddress: !nfSourceAddr && !!nf?.source_address,
       });
-      if (!result.success) { setNfError(result.error ?? "Failed to save NetFlow config"); return; }
-      toast.success("NetFlow config saved");
+      if (!result.success) { setNfError(result.error ?? t("flow.saveNetflowFailed")); return; }
+      toast.success(t("flow.netflowSaved"));
       setEditingNf(false); onRefresh();
-    } catch { setNfError("An unexpected error occurred"); }
+    } catch { setNfError(t("unexpectedError")); }
     finally { setNfSaving(false); }
   };
 
@@ -157,17 +160,17 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
   const [deletingNfSrv, setDeletingNfSrv] = useState(false);
 
   const handleAddNfServer = async () => {
-    if (!nfSrvIp.trim()) { setNfSrvError("Server IP is required"); return; }
+    if (!nfSrvIp.trim()) { setNfSrvError(t("flow.serverIpRequired")); return; }
     setNfSrvSaving(true); setNfSrvError(null);
     try {
       const result = await systemSettingsService.addNetflowServer(
         nfSrvIp.trim(),
         nfSrvPort ? parseInt(nfSrvPort, 10) : null,
       );
-      if (!result.success) { setNfSrvError(result.error ?? "Failed to add server"); return; }
-      toast.success("NetFlow server added");
+      if (!result.success) { setNfSrvError(result.error ?? t("flow.addServerFailed")); return; }
+      toast.success(t("flow.netflowServerAdded"));
       setAddingNfServer(false); setNfSrvIp(""); setNfSrvPort(""); onRefresh();
-    } catch { setNfSrvError("An unexpected error occurred"); }
+    } catch { setNfSrvError(t("unexpectedError")); }
     finally { setNfSrvSaving(false); }
   };
 
@@ -176,9 +179,9 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
     setDeletingNfSrv(true);
     try {
       const result = await systemSettingsService.deleteNetflowServer(deleteNfSrv);
-      if (!result.success) toast.error("Delete failed", result.error ?? "Could not remove server");
-      else { toast.success("NetFlow server removed"); onRefresh(); }
-    } catch { toast.error("Error", "An unexpected error occurred"); }
+      if (!result.success) toast.error(t("deleteFailed"), result.error ?? t("flow.removeServerFailed"));
+      else { toast.success(t("flow.netflowServerRemoved")); onRefresh(); }
+    } catch { toast.error(t("error"), t("unexpectedError")); }
     finally { setDeletingNfSrv(false); setDeleteNfSrv(null); }
   };
 
@@ -207,10 +210,10 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
         samplingRate: sfSamplingRate ? parseInt(sfSamplingRate, 10) : null,
         clearSamplingRate: !sfSamplingRate && sfConfig?.sampling_rate != null,
       });
-      if (!result.success) { setSfError(result.error ?? "Failed to save sFlow config"); return; }
-      toast.success("sFlow config saved");
+      if (!result.success) { setSfError(result.error ?? t("flow.saveSflowFailed")); return; }
+      toast.success(t("flow.sflowSaved"));
       setEditingSf(false); onRefresh();
-    } catch { setSfError("An unexpected error occurred"); }
+    } catch { setSfError(t("unexpectedError")); }
     finally { setSfSaving(false); }
   };
 
@@ -226,17 +229,17 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
   const [deletingSfSrv, setDeletingSfSrv] = useState(false);
 
   const handleAddSfServer = async () => {
-    if (!sfSrvIp.trim()) { setSfSrvError("Server IP is required"); return; }
+    if (!sfSrvIp.trim()) { setSfSrvError(t("flow.serverIpRequired")); return; }
     setSfSrvSaving(true); setSfSrvError(null);
     try {
       const result = await systemSettingsService.addSflowServer(
         sfSrvIp.trim(),
         sfSrvPort ? parseInt(sfSrvPort, 10) : null,
       );
-      if (!result.success) { setSfSrvError(result.error ?? "Failed to add server"); return; }
-      toast.success("sFlow server added");
+      if (!result.success) { setSfSrvError(result.error ?? t("flow.addServerFailed")); return; }
+      toast.success(t("flow.sflowServerAdded"));
       setAddingSfServer(false); setSfSrvIp(""); setSfSrvPort(""); onRefresh();
-    } catch { setSfSrvError("An unexpected error occurred"); }
+    } catch { setSfSrvError(t("unexpectedError")); }
     finally { setSfSrvSaving(false); }
   };
 
@@ -245,9 +248,9 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
     setDeletingSfSrv(true);
     try {
       const result = await systemSettingsService.deleteSflowServer(deleteSfSrv);
-      if (!result.success) toast.error("Delete failed", result.error ?? "Could not remove server");
-      else { toast.success("sFlow server removed"); onRefresh(); }
-    } catch { toast.error("Error", "An unexpected error occurred"); }
+      if (!result.success) toast.error(t("deleteFailed"), result.error ?? t("flow.removeServerFailed"));
+      else { toast.success(t("flow.sflowServerRemoved")); onRefresh(); }
+    } catch { toast.error(t("error"), t("unexpectedError")); }
     finally { setDeletingSfSrv(false); setDeleteSfSrv(null); }
   };
 
@@ -260,12 +263,12 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Flow Accounting Interfaces</CardTitle>
-              <CardDescription>Interfaces monitored for NetFlow/sFlow flow export.</CardDescription>
+              <CardTitle>{t("flow.interfacesTitle")}</CardTitle>
+              <CardDescription>{t("flow.interfacesDescription")}</CardDescription>
             </div>
             {!isReadOnly && !addingIface && (
               <Button size="sm" variant="outline" onClick={() => setAddingIface(true)}>
-                <Plus className="h-4 w-4 mr-2" />Add Interface
+                <Plus className="h-4 w-4 mr-2" />{t("flow.addInterface")}
               </Button>
             )}
           </div>
@@ -281,26 +284,26 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
               )}
               <div className="flex gap-2 items-end">
                 <div className="space-y-1">
-                  <Label className="text-xs">Interface</Label>
+                  <Label className="text-xs">{t("flow.interface")}</Label>
                   <Select value={ifaceValue} onValueChange={setIfaceValue}>
                     <SelectTrigger className="w-48 font-mono text-sm">
-                      <SelectValue placeholder="Select interface" />
+                      <SelectValue placeholder={t("flow.selectInterface")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="_none">Select interface…</SelectItem>
+                      <SelectItem value="_none">{t("flow.selectInterfaceEllipsis")}</SelectItem>
                       {availableInterfaces.map((i) => (
                         <SelectItem key={i} value={i}>{i}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <Button size="sm" onClick={handleAddIface} disabled={ifaceSaving}>{ifaceSaving ? "Adding…" : "Add"}</Button>
-                <Button size="sm" variant="outline" onClick={() => { setAddingIface(false); setIfaceError(null); }}>Cancel</Button>
+                <Button size="sm" onClick={handleAddIface} disabled={ifaceSaving}>{ifaceSaving ? t("adding") : tc("add")}</Button>
+                <Button size="sm" variant="outline" onClick={() => { setAddingIface(false); setIfaceError(null); }}>{tc("cancel")}</Button>
               </div>
             </div>
           )}
           {flowIfaces.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No interfaces configured for flow accounting.</p>
+            <p className="text-sm text-muted-foreground">{t("flow.noInterfaces")}</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {flowIfaces.map((iface) => (
@@ -323,18 +326,18 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>NetFlow Configuration</CardTitle>
-              <CardDescription>NetFlow/IPFIX export parameters.</CardDescription>
+              <CardTitle>{t("flow.netflowTitle")}</CardTitle>
+              <CardDescription>{t("flow.netflowDescription")}</CardDescription>
             </div>
             {!isReadOnly && (
               editingNf ? (
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => { setEditingNf(false); setNfError(null); }} disabled={nfSaving}>Cancel</Button>
-                  <Button size="sm" onClick={handleSaveNf} disabled={nfSaving}>{nfSaving ? "Saving…" : "Save"}</Button>
+                  <Button variant="outline" size="sm" onClick={() => { setEditingNf(false); setNfError(null); }} disabled={nfSaving}>{tc("cancel")}</Button>
+                  <Button size="sm" onClick={handleSaveNf} disabled={nfSaving}>{nfSaving ? t("saving") : tc("save")}</Button>
                 </div>
               ) : (
                 <Button variant="outline" size="sm" onClick={startEditNf}>
-                  <Edit2 className="h-4 w-4 mr-2" />Edit
+                  <Edit2 className="h-4 w-4 mr-2" />{tc("edit")}
                 </Button>
               )
             )}
@@ -349,49 +352,49 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label className="text-xs">Version</Label>
+              <Label className="text-xs">{t("flow.version")}</Label>
               {editingNf ? (
                 <Select value={nfVersion || "_none"} onValueChange={(v) => setNfVersion(v === "_none" ? "" : v)}>
-                  <SelectTrigger><SelectValue placeholder="Not set" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={tc("notSet")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="_none">Not set</SelectItem>
+                    <SelectItem value="_none">{tc("notSet")}</SelectItem>
                     {NETFLOW_VERSIONS.map((v) => <SelectItem key={v} value={v}>v{v}</SelectItem>)}
                   </SelectContent>
                 </Select>
               ) : (
-                <p className="text-sm font-medium">{nf?.version ? `v${nf.version}` : <span className="text-muted-foreground">Not set</span>}</p>
+                <p className="text-sm font-medium">{nf?.version ? `v${nf.version}` : <span className="text-muted-foreground">{tc("notSet")}</span>}</p>
               )}
             </div>
             <div className="space-y-2">
-              <Label className="text-xs">Engine ID</Label>
+              <Label className="text-xs">{t("flow.engineId")}</Label>
               {editingNf ? (
                 <Input type="number" min="0" value={nfEngineId} onChange={(e) => setNfEngineId(e.target.value)} placeholder="0" />
               ) : (
-                <p className="text-sm font-medium">{nf?.engine_id != null ? nf.engine_id : <span className="text-muted-foreground">Not set</span>}</p>
+                <p className="text-sm font-medium">{nf?.engine_id != null ? nf.engine_id : <span className="text-muted-foreground">{tc("notSet")}</span>}</p>
               )}
             </div>
             <div className="space-y-2">
-              <Label className="text-xs">Max Flows</Label>
+              <Label className="text-xs">{t("flow.maxFlows")}</Label>
               {editingNf ? (
                 <Input type="number" min="0" value={nfMaxFlows} onChange={(e) => setNfMaxFlows(e.target.value)} placeholder="8192" />
               ) : (
-                <p className="text-sm font-medium">{nf?.max_flows != null ? nf.max_flows.toLocaleString() : <span className="text-muted-foreground">Default</span>}</p>
+                <p className="text-sm font-medium">{nf?.max_flows != null ? nf.max_flows.toLocaleString() : <span className="text-muted-foreground">{tc("default")}</span>}</p>
               )}
             </div>
             <div className="space-y-2">
-              <Label className="text-xs">Sampling Rate</Label>
+              <Label className="text-xs">{t("flow.samplingRate")}</Label>
               {editingNf ? (
                 <Input type="number" min="0" value={nfSamplingRate} onChange={(e) => setNfSamplingRate(e.target.value)} placeholder="1000" />
               ) : (
-                <p className="text-sm font-medium">{nf?.sampling_rate != null ? `1:${nf.sampling_rate}` : <span className="text-muted-foreground">Not set</span>}</p>
+                <p className="text-sm font-medium">{nf?.sampling_rate != null ? `1:${nf.sampling_rate}` : <span className="text-muted-foreground">{tc("notSet")}</span>}</p>
               )}
             </div>
             <div className="space-y-2 sm:col-span-2">
-              <Label className="text-xs">Source Address</Label>
+              <Label className="text-xs">{t("flow.sourceAddress")}</Label>
               {editingNf ? (
                 <Input value={nfSourceAddr} onChange={(e) => setNfSourceAddr(e.target.value)} placeholder="192.0.2.1" className="font-mono text-sm" />
               ) : (
-                <p className="text-sm font-medium font-mono">{nf?.source_address ?? <span className="text-muted-foreground">Not set</span>}</p>
+                <p className="text-sm font-medium font-mono">{nf?.source_address ?? <span className="text-muted-foreground">{tc("notSet")}</span>}</p>
               )}
             </div>
           </div>
@@ -403,12 +406,12 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>NetFlow Collectors</CardTitle>
-              <CardDescription>Servers that receive exported flow data.</CardDescription>
+              <CardTitle>{t("flow.netflowCollectors")}</CardTitle>
+              <CardDescription>{t("flow.netflowCollectorsDescription")}</CardDescription>
             </div>
             {!isReadOnly && !addingNfServer && (
               <Button size="sm" variant="outline" onClick={() => setAddingNfServer(true)}>
-                <Plus className="h-4 w-4 mr-2" />Add Server
+                <Plus className="h-4 w-4 mr-2" />{t("flow.addServer")}
               </Button>
             )}
           </div>
@@ -424,34 +427,34 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
               )}
               <div className="flex gap-2 items-end flex-wrap">
                 <div className="space-y-1">
-                  <Label className="text-xs">Server IP</Label>
+                  <Label className="text-xs">{t("flow.serverIp")}</Label>
                   <Input value={nfSrvIp} onChange={(e) => setNfSrvIp(e.target.value)} placeholder="203.0.113.1" className="w-44 font-mono text-sm" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Port</Label>
+                  <Label className="text-xs">{t("port")}</Label>
                   <Input type="number" value={nfSrvPort} onChange={(e) => setNfSrvPort(e.target.value)} placeholder="2055" className="w-24" />
                 </div>
-                <Button size="sm" onClick={handleAddNfServer} disabled={nfSrvSaving}>{nfSrvSaving ? "Adding…" : "Add"}</Button>
-                <Button size="sm" variant="outline" onClick={() => { setAddingNfServer(false); setNfSrvError(null); }}>Cancel</Button>
+                <Button size="sm" onClick={handleAddNfServer} disabled={nfSrvSaving}>{nfSrvSaving ? t("adding") : tc("add")}</Button>
+                <Button size="sm" variant="outline" onClick={() => { setAddingNfServer(false); setNfSrvError(null); }}>{tc("cancel")}</Button>
               </div>
             </div>
           )}
           {nfServers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No NetFlow collectors configured.</p>
+            <p className="text-sm text-muted-foreground">{t("flow.noNetflowCollectors")}</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Server</TableHead>
-                  <TableHead>Port</TableHead>
-                  {!isReadOnly && <TableHead className="text-right">Actions</TableHead>}
+                  <TableHead>{t("flow.server")}</TableHead>
+                  <TableHead>{t("port")}</TableHead>
+                  {!isReadOnly && <TableHead className="text-right">{tc("actions")}</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {nfServers.map((srv) => (
                   <TableRow key={srv.server}>
                     <TableCell className="font-mono">{srv.server}</TableCell>
-                    <TableCell>{srv.port ?? <span className="text-muted-foreground">Default</span>}</TableCell>
+                    <TableCell>{srv.port ?? <span className="text-muted-foreground">{tc("default")}</span>}</TableCell>
                     {!isReadOnly && (
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteNfSrv(srv.server)}>
@@ -474,18 +477,18 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>sFlow Configuration</CardTitle>
-                  <CardDescription>Standalone sFlow agent settings.</CardDescription>
+                  <CardTitle>{t("flow.sflowTitle")}</CardTitle>
+                  <CardDescription>{t("flow.sflowDescription")}</CardDescription>
                 </div>
                 {!isReadOnly && (
                   editingSf ? (
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => { setEditingSf(false); setSfError(null); }} disabled={sfSaving}>Cancel</Button>
-                      <Button size="sm" onClick={handleSaveSf} disabled={sfSaving}>{sfSaving ? "Saving…" : "Save"}</Button>
+                      <Button variant="outline" size="sm" onClick={() => { setEditingSf(false); setSfError(null); }} disabled={sfSaving}>{tc("cancel")}</Button>
+                      <Button size="sm" onClick={handleSaveSf} disabled={sfSaving}>{sfSaving ? t("saving") : tc("save")}</Button>
                     </div>
                   ) : (
                     <Button variant="outline" size="sm" onClick={startEditSf}>
-                      <Edit2 className="h-4 w-4 mr-2" />Edit
+                      <Edit2 className="h-4 w-4 mr-2" />{tc("edit")}
                     </Button>
                   )
                 )}
@@ -500,19 +503,19 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-xs">Agent Address</Label>
+                  <Label className="text-xs">{t("flow.agentAddress")}</Label>
                   {editingSf ? (
                     <Input value={sfAgentAddr} onChange={(e) => setSfAgentAddr(e.target.value)} placeholder="192.0.2.1" className="font-mono text-sm" />
                   ) : (
-                    <p className="text-sm font-medium font-mono">{sfConfig?.agent_address ?? <span className="text-muted-foreground">Not set</span>}</p>
+                    <p className="text-sm font-medium font-mono">{sfConfig?.agent_address ?? <span className="text-muted-foreground">{tc("notSet")}</span>}</p>
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs">Sampling Rate</Label>
+                  <Label className="text-xs">{t("flow.samplingRate")}</Label>
                   {editingSf ? (
                     <Input type="number" min="0" value={sfSamplingRate} onChange={(e) => setSfSamplingRate(e.target.value)} placeholder="1000" />
                   ) : (
-                    <p className="text-sm font-medium">{sfConfig?.sampling_rate != null ? `1:${sfConfig.sampling_rate}` : <span className="text-muted-foreground">Not set</span>}</p>
+                    <p className="text-sm font-medium">{sfConfig?.sampling_rate != null ? `1:${sfConfig.sampling_rate}` : <span className="text-muted-foreground">{tc("notSet")}</span>}</p>
                   )}
                 </div>
               </div>
@@ -523,12 +526,12 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>sFlow Collectors</CardTitle>
-                  <CardDescription>Servers that receive sFlow samples.</CardDescription>
+                  <CardTitle>{t("flow.sflowCollectors")}</CardTitle>
+                  <CardDescription>{t("flow.sflowCollectorsDescription")}</CardDescription>
                 </div>
                 {!isReadOnly && !addingSfServer && (
                   <Button size="sm" variant="outline" onClick={() => setAddingSfServer(true)}>
-                    <Plus className="h-4 w-4 mr-2" />Add Server
+                    <Plus className="h-4 w-4 mr-2" />{t("flow.addServer")}
                   </Button>
                 )}
               </div>
@@ -544,34 +547,34 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
                   )}
                   <div className="flex gap-2 items-end flex-wrap">
                     <div className="space-y-1">
-                      <Label className="text-xs">Server IP</Label>
+                      <Label className="text-xs">{t("flow.serverIp")}</Label>
                       <Input value={sfSrvIp} onChange={(e) => setSfSrvIp(e.target.value)} placeholder="203.0.113.1" className="w-44 font-mono text-sm" />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Port</Label>
+                      <Label className="text-xs">{t("port")}</Label>
                       <Input type="number" value={sfSrvPort} onChange={(e) => setSfSrvPort(e.target.value)} placeholder="6343" className="w-24" />
                     </div>
-                    <Button size="sm" onClick={handleAddSfServer} disabled={sfSrvSaving}>{sfSrvSaving ? "Adding…" : "Add"}</Button>
-                    <Button size="sm" variant="outline" onClick={() => { setAddingSfServer(false); setSfSrvError(null); }}>Cancel</Button>
+                    <Button size="sm" onClick={handleAddSfServer} disabled={sfSrvSaving}>{sfSrvSaving ? t("adding") : tc("add")}</Button>
+                    <Button size="sm" variant="outline" onClick={() => { setAddingSfServer(false); setSfSrvError(null); }}>{tc("cancel")}</Button>
                   </div>
                 </div>
               )}
               {sfServers.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No sFlow collectors configured.</p>
+                <p className="text-sm text-muted-foreground">{t("flow.noSflowCollectors")}</p>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Server</TableHead>
-                      <TableHead>Port</TableHead>
-                      {!isReadOnly && <TableHead className="text-right">Actions</TableHead>}
+                      <TableHead>{t("flow.server")}</TableHead>
+                      <TableHead>{t("port")}</TableHead>
+                      {!isReadOnly && <TableHead className="text-right">{tc("actions")}</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {sfServers.map((srv) => (
                       <TableRow key={srv.server}>
                         <TableCell className="font-mono">{srv.server}</TableCell>
-                        <TableCell>{srv.port ?? <span className="text-muted-foreground">Default</span>}</TableCell>
+                        <TableCell>{srv.port ?? <span className="text-muted-foreground">{tc("default")}</span>}</TableCell>
                         {!isReadOnly && (
                           <TableCell className="text-right">
                             <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteSfSrv(srv.server)}>
@@ -593,13 +596,13 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
       <AlertDialog open={!!deleteIface} onOpenChange={(o) => { if (!o) setDeleteIface(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Interface</AlertDialogTitle>
-            <AlertDialogDescription>Remove <strong>{deleteIface}</strong> from flow accounting?</AlertDialogDescription>
+            <AlertDialogTitle>{t("flow.removeInterfaceTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t.rich("flow.removeInterfaceConfirm", { name: deleteIface ?? "", strong: (chunks) => <strong>{chunks}</strong> })}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingIface}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deletingIface}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteIface} disabled={deletingIface} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deletingIface ? "Removing…" : "Remove"}
+              {deletingIface ? t("removing") : t("remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -608,13 +611,13 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
       <AlertDialog open={!!deleteNfSrv} onOpenChange={(o) => { if (!o) setDeleteNfSrv(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove NetFlow Collector</AlertDialogTitle>
-            <AlertDialogDescription>Remove <strong>{deleteNfSrv}</strong> from NetFlow collectors?</AlertDialogDescription>
+            <AlertDialogTitle>{t("flow.removeNetflowTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t.rich("flow.removeNetflowConfirm", { name: deleteNfSrv ?? "", strong: (chunks) => <strong>{chunks}</strong> })}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingNfSrv}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deletingNfSrv}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteNfServer} disabled={deletingNfSrv} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deletingNfSrv ? "Removing…" : "Remove"}
+              {deletingNfSrv ? t("removing") : t("remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -623,13 +626,13 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
       <AlertDialog open={!!deleteSfSrv} onOpenChange={(o) => { if (!o) setDeleteSfSrv(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove sFlow Collector</AlertDialogTitle>
-            <AlertDialogDescription>Remove <strong>{deleteSfSrv}</strong> from sFlow collectors?</AlertDialogDescription>
+            <AlertDialogTitle>{t("flow.removeSflowTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t.rich("flow.removeSflowConfirm", { name: deleteSfSrv ?? "", strong: (chunks) => <strong>{chunks}</strong> })}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingSfSrv}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deletingSfSrv}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteSfServer} disabled={deletingSfSrv} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deletingSfSrv ? "Removing…" : "Remove"}
+              {deletingSfSrv ? t("removing") : t("remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

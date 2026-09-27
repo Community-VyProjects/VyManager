@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -58,6 +59,7 @@ function getTableView(command: string): TableView | null {
 }
 
 function MonitoringPageInner() {
+  const t = useTranslations("monitoring");
   const searchParams = useSearchParams();
   const appliance = useSessionStore((s) => s.appliance);
   const [session, setSession] = useState<ActiveSession | null>(null);
@@ -109,13 +111,14 @@ function MonitoringPageInner() {
         }
       } catch (err: unknown) {
         const message =
-          err instanceof Error ? err.message : "Failed to load monitoring data";
+          err instanceof Error ? err.message : t("page.loadFailed");
         setLoadError(message);
       } finally {
         setLoading(false);
       }
     };
     load();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount; a language switch re-renders via router.refresh()
   }, []);
 
   const startSession = (command: string, params: Record<string, string>) => {
@@ -176,13 +179,13 @@ function MonitoringPageInner() {
   // Status label
   const statusLabel =
     status === "connecting"
-      ? "Connecting…"
+      ? t("page.statusConnecting")
       : status === "ready"
-      ? "Starting command…"
+      ? t("page.statusStarting")
       : status === "running"
-      ? "Live"
+      ? t("page.statusLive")
       : status === "stopping"
-      ? "Stopping…"
+      ? t("page.statusStopping")
       : null;
 
   const startDisabled =
@@ -198,9 +201,9 @@ function MonitoringPageInner() {
             <Activity className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Monitoring</h1>
+            <h1 className="text-2xl font-bold">{t("page.title")}</h1>
             <p className="text-sm text-muted-foreground">
-              Real-time monitoring via SSH
+              {t("page.subtitle")}
             </p>
           </div>
           {session && (
@@ -220,7 +223,7 @@ function MonitoringPageInner() {
             <div className="flex items-start gap-2">
               <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-destructive">Error</p>
+                <p className="text-sm font-medium text-destructive">{t("page.error")}</p>
                 <p className="text-sm text-destructive/80">{loadError}</p>
               </div>
             </div>
@@ -229,9 +232,9 @@ function MonitoringPageInner() {
           <Card>
             <CardContent className="py-12 text-center space-y-2">
               <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto" />
-              <p className="text-sm font-medium">No Active Instance</p>
+              <p className="text-sm font-medium">{t("page.noInstance")}</p>
               <p className="text-sm text-muted-foreground">
-                Connect to a VyOS instance to start monitoring.
+                {t("page.noInstanceHelp")}
               </p>
             </CardContent>
           </Card>
@@ -239,18 +242,23 @@ function MonitoringPageInner() {
           <Card>
             <CardContent className="py-12 text-center space-y-2">
               <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto" />
-              <p className="text-sm font-medium">SSH Not Configured</p>
+              <p className="text-sm font-medium">{t("page.sshNotConfigured")}</p>
               <p className="text-sm text-muted-foreground">
-                SSH key monitoring is not set up for{" "}
-                <span className="font-medium">{session.instance_name}</span>.
+                {t.rich("page.sshNotConfiguredHelp", {
+                  name: session.instance_name,
+                  strong: (chunks) => <span className="font-medium">{chunks}</span>,
+                })}
               </p>
               <p className="text-sm text-muted-foreground pt-1">
                 {!appliance && (
                   <>
-                    <Link href="/sites" className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
-                      Open Site Manager
-                    </Link>{" "}
-                    to configure SSH.
+                    {t.rich("page.openSiteManager", {
+                      link: (chunks) => (
+                        <Link href="/sites" className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
+                          {chunks}
+                        </Link>
+                      ),
+                    })}
                   </>
                 )}
               </p>
@@ -274,7 +282,7 @@ function MonitoringPageInner() {
                       disabled={isRunning}
                     >
                       <SelectTrigger className="w-[320px]">
-                        <SelectValue placeholder="Select command…" />
+                        <SelectValue placeholder={t("page.selectCommand")} />
                       </SelectTrigger>
                       <SelectContent>
                         {commands.map((cmd) => (
@@ -289,7 +297,7 @@ function MonitoringPageInner() {
                     {selectedCommand === "show_log_tail" && !isRunning && (
                       <div className="flex items-center gap-2">
                         <Label className="text-sm text-muted-foreground whitespace-nowrap">
-                          Lines:
+                          {t("page.lines")}
                         </Label>
                         <Input
                           type="number"
@@ -320,7 +328,7 @@ function MonitoringPageInner() {
                       className="gap-2"
                     >
                       <Play className="h-4 w-4" />
-                      Start
+                      {t("page.start")}
                     </Button>
                   ) : (
                     <Button
@@ -330,7 +338,7 @@ function MonitoringPageInner() {
                       className="gap-2"
                     >
                       <Square className="h-4 w-4" />
-                      Stop
+                      {t("page.stop")}
                     </Button>
                   )}
 
@@ -366,7 +374,7 @@ function MonitoringPageInner() {
                     {/* Interface */}
                     <div className="space-y-1.5">
                       <Label className="text-xs text-muted-foreground">
-                        Interface{" "}
+                        {t("page.interface")}{" "}
                         <span className="text-destructive">*</span>
                       </Label>
                       <InterfaceSelect
@@ -376,7 +384,7 @@ function MonitoringPageInner() {
                           setIfaceError(false);
                         }}
                         disabled={isRunning}
-                        placeholder="Select…"
+                        placeholder={t("page.selectPlaceholder")}
                         className={cn(
                           "w-36 h-8 text-sm",
                           ifaceError && "border-destructive ring-destructive/20"
@@ -384,16 +392,16 @@ function MonitoringPageInner() {
                         noneOption={{ label: "any", value: "any" }}
                       />
                       {ifaceError && (
-                        <p className="text-[10px] text-destructive">Required</p>
+                        <p className="text-[10px] text-destructive">{t("page.required")}</p>
                       )}
                     </div>
 
                     {/* Filter bar */}
                     <div className="flex-1 min-w-[200px] space-y-1.5">
                       <Label className="text-xs text-muted-foreground">
-                        Filter Expression
+                        {t("page.filterExpression")}
                         <span className="ml-1 text-muted-foreground/60 font-normal">
-                          (BPF syntax, optional)
+                          {t("page.filterHint")}
                         </span>
                       </Label>
                       <div className="flex items-center gap-1.5">
@@ -422,7 +430,7 @@ function MonitoringPageInner() {
                             onClick={() => setFilterBuilderOpen(true)}
                           >
                             <SlidersHorizontal className="h-3.5 w-3.5" />
-                            Build Filter
+                            {t("page.buildFilter")}
                           </Button>
                         )}
                       </div>
@@ -472,7 +480,7 @@ function MonitoringPageInner() {
                 <CardContent className="py-16 text-center space-y-2">
                   <Activity className="h-10 w-10 text-muted-foreground mx-auto" />
                   <p className="text-sm font-medium text-muted-foreground">
-                    Select a command and click Start to begin monitoring
+                    {t("page.emptyState")}
                   </p>
                 </CardContent>
               </Card>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export function SetupDirectoryModal({ open, onCreated }: Props) {
+  const t = useTranslations("containers");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,10 +32,10 @@ export function SetupDirectoryModal({ open, onCreated }: Props) {
       if (result.success) {
         onCreated();
       } else {
-        setError(result.error || "Failed to create directory.");
+        setError(result.error || t("setupDir.failed"));
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to create directory.");
+      setError(err instanceof Error ? err.message : t("setupDir.failed"));
     } finally {
       setLoading(false);
     }
@@ -45,11 +47,13 @@ export function SetupDirectoryModal({ open, onCreated }: Props) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FolderOpen className="h-5 w-5 text-primary" />
-            Container Storage Setup
+            {t("setupDir.title")}
           </DialogTitle>
           <DialogDescription>
-            The base directory <span className="font-mono font-semibold">/config/containers</span> does
-            not exist on this device. It must be created before containers can be deployed.
+            {t.rich("setupDir.description", {
+              path: "/config/containers",
+              mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+            })}
           </DialogDescription>
         </DialogHeader>
 
@@ -69,10 +73,10 @@ export function SetupDirectoryModal({ open, onCreated }: Props) {
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Creating…
+                {t("setupDir.creating")}
               </>
             ) : (
-              "Create Directory"
+              t("setupDir.create")
             )}
           </Button>
         </DialogFooter>

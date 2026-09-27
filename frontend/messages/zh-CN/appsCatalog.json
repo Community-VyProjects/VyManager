@@ -1,1 +1,223 @@
-{}
+{
+  "categories": {
+    "networkMonitoring": "网络监控",
+    "proxy": "代理"
+  },
+  "apps": {
+    "adguard-home": {
+      "tagline": "全网广告与跟踪器拦截",
+      "description": "为网络中的每台设备拦截广告和跟踪。AdGuard Home 作为内置内容过滤的 DNS 服务器运行，无需安装任何客户端软件。",
+      "fields": {
+        "memory": {
+          "label": "内存 (MB)"
+        },
+        "timezone": {
+          "label": "时区",
+          "description": "例如 America/New_York、Europe/London、UTC"
+        }
+      }
+    },
+    "adguard-dnsproxy-doq": {
+      "tagline": "为 VyOS PowerDNS 提供的本地 DNS-over-QUIC 上游代理",
+      "description": "在 VyOS 本地运行 AdGuard dnsproxy，使内置的 PowerDNS Recursor 能将查询转发到加密的 DNS-over-QUIC 上游，适用于仍由 PowerDNS 担任 LAN DNS 服务器的部署。",
+      "fields": {
+        "memory": {
+          "label": "内存 (MB)",
+          "description": "dnsproxy 很轻量，仅在查询量异常高时才需要增加。"
+        },
+        "listenAddress": {
+          "label": "本地监听地址",
+          "description": "如果 VyOS 上的 PowerDNS 将在本地转发到此容器，请使用 127.0.0.1。"
+        },
+        "listenPort": {
+          "label": "本地监听端口",
+          "description": "dnsproxy 在本地监听的端口。请避免使用 53，因为 VyOS PowerDNS 通常占用 LAN DNS。"
+        },
+        "upstream": {
+          "label": "DoQ 上游",
+          "description": "加密的上游 DNS 解析器。"
+        },
+        "bootstrap1": {
+          "label": "引导 DNS 1",
+          "description": "在建立加密 DNS 之前，用于解析上游主机名的引导解析器。"
+        },
+        "bootstrap2": {
+          "label": "引导 DNS 2",
+          "description": "第二个引导解析器。由于通用向导无法按条件省略参数，此项保持必填。"
+        },
+        "upstreamMode": {
+          "label": "上游模式",
+          "description": "dnsproxy 的上游选择模式。",
+          "options": {
+            "load_balance": "负载均衡 (load_balance)",
+            "parallel": "并行 (parallel)",
+            "fastest_addr": "最快地址 (fastest_addr)"
+          }
+        },
+        "timeout": {
+          "label": "上游超时",
+          "description": "出站 DNS 查询的超时时间。"
+        }
+      }
+    },
+    "nprobe": {
+      "tagline": "内置 IPS 的 NetFlow/IPFIX 采集器",
+      "description": "ntop nProbe 是一款高性能的 NetFlow v5/v9/IPFIX 探针和采集器，内置 IPS 功能。",
+      "fields": {
+        "memory": {
+          "label": "内存 (MB)",
+          "description": "内存上限。高流量环境下请调大。"
+        },
+        "nfqueue": {
+          "description": "设置防火墙规则中使用的 NF 队列"
+        }
+      },
+      "files": {
+        "ipsRules": "IPS 规则"
+      }
+    },
+    "ntopng": {
+      "tagline": "高性能的 Web 网络流量监控",
+      "description": "ntop ntopng 是一款网络流量探针，可展示网络使用情况，支持 NetFlow/sFlow 和数据包分析，并提供现代化的 Web 界面。非常适合深入检查 VyOS 路由器的流量。",
+      "fields": {
+        "memory": {
+          "label": "内存 (MB)",
+          "description": "跟踪大量流时，ntopng 可能占用较多内存。"
+        },
+        "interface": {
+          "label": "网络接口",
+          "description": "要监控的接口（例如 eth0、bond0、eth1）。"
+        },
+        "webPort": {
+          "label": "Web 界面端口",
+          "description": "ntopng Web 界面的端口。"
+        }
+      },
+      "files": {
+        "licenseFile": "许可证文件"
+      }
+    },
+    "pihole": {
+      "tagline": "全网广告拦截",
+      "description": "通过基于 DNS 的过滤，为网络中的所有设备拦截广告和跟踪器。Pi‑hole 自带 Web 界面。",
+      "fields": {
+        "password": {
+          "label": "管理密码",
+          "description": "Web 管理界面的密码。",
+          "placeholder": "设置一个安全的密码"
+        },
+        "timezone": {
+          "label": "时区",
+          "description": "例如 America/Chicago、Europe/London"
+        },
+        "memory": {
+          "label": "内存 (MB)"
+        },
+        "webPort": {
+          "label": "Web 界面端口",
+          "description": "Pi‑hole Web 界面的端口。"
+        }
+      }
+    },
+    "nginx-proxy-manager": {
+      "tagline": "界面美观的反向代理",
+      "description": "借助 Let's Encrypt 提供的免费 SSL 发布网络中的 Web 服务。通过简洁的 Web 界面管理代理主机、重定向和流。"
+    },
+    "technitium-dns": {
+      "tagline": "带 Web 控制台、功能丰富的自托管 DNS 服务器",
+      "description": "功能完备的开源 DNS 服务器，在端口 5380 上提供 Web 控制台。支持 DNS-over-HTTPS、DNS-over-TLS、DNSSEC、区域管理、广告拦截和查询日志。",
+      "fields": {
+        "serverDomain": {
+          "label": "服务器域名",
+          "description": "此 DNS 服务器用于标识自身的主域名。"
+        }
+      }
+    },
+    "netbird-cloud": {
+      "name": "NetBird（云端）",
+      "tagline": "零配置 WireGuard 网状 VPN，由 NetBird Cloud 托管",
+      "description": "将此路由器作为 WireGuard 对等体加入你的 NetBird Cloud 网状网络。粘贴设置密钥后，NetBird 会为你运行控制平面，无需自行托管任何服务。",
+      "fields": {
+        "setupKey": {
+          "label": "设置密钥",
+          "description": "在 NetBird 控制台的 Setup Keys 中生成。代理无人值守注册时必需。"
+        },
+        "hostname": {
+          "label": "对等体名称",
+          "description": "此对等体在你的 NetBird 网络中显示的名称。"
+        }
+      }
+    },
+    "netbird-selfhosted": {
+      "name": "NetBird（自托管）",
+      "tagline": "连接你自己的 NetBird 控制平面的 WireGuard 网状 VPN",
+      "description": "将此路由器作为 WireGuard 对等体加入 NetBird 网状网络，并指向你自行托管的 NetBird 服务器。填写你的管理 URL 和设置密钥即可。",
+      "fields": {
+        "managementUrl": {
+          "label": "管理 URL",
+          "description": "你自托管的 NetBird Management 服务器的 URL（需包含协议和端口）。"
+        },
+        "setupKey": {
+          "label": "设置密钥",
+          "description": "在你自托管的 NetBird 控制台的 Setup Keys 中生成。代理无人值守注册时必需。"
+        },
+        "hostname": {
+          "label": "对等体名称",
+          "description": "此对等体在你的 NetBird 网络中显示的名称。"
+        }
+      }
+    },
+    "tailscale-cloud": {
+      "name": "Tailscale（云端）",
+      "tagline": "零配置 WireGuard 网状 VPN，由 Tailscale 托管",
+      "description": "将此路由器作为 WireGuard 对等体加入你的 Tailscale tailnet。粘贴认证密钥后，Tailscale 会为你运行控制平面，无需自行托管任何服务。",
+      "fields": {
+        "authKey": {
+          "label": "认证密钥",
+          "description": "在 Tailscale 管理控制台的 Settings → Keys 中生成。节点无人值守注册时必需。"
+        },
+        "hostname": {
+          "label": "设备名称",
+          "description": "此设备在你的 tailnet 中显示的名称。"
+        },
+        "advertiseRoutes": {
+          "label": "通告路由",
+          "description": "可选。此路由器向 tailnet 通告的子网，以逗号分隔（子网路由器）。留空表示不通告。路由仍需在管理控制台中批准。"
+        }
+      }
+    },
+    "tailscale-headscale": {
+      "tagline": "指向自托管 Headscale 服务器的 Tailscale 客户端",
+      "description": "将此路由器作为 WireGuard 对等体加入由 Headscale 管理的网状网络。使用同一个 Tailscale 客户端，通过 login-server URL 指向你自行托管的 Headscale 服务器。",
+      "fields": {
+        "loginServer": {
+          "label": "登录服务器 URL",
+          "description": "你自托管的 Headscale 服务器的 URL（需包含协议）。"
+        },
+        "authKey": {
+          "label": "认证密钥",
+          "description": "Headscale 预授权密钥（headscale preauthkeys create --user <user>）。节点无人值守注册时必需。",
+          "placeholder": "生成方式：headscale preauthkeys create"
+        },
+        "hostname": {
+          "label": "设备名称",
+          "description": "此设备在你的 Headscale 网络中显示的名称。"
+        },
+        "advertiseRoutes": {
+          "label": "通告路由",
+          "description": "可选。此路由器通告的子网，以逗号分隔（子网路由器）。留空表示不通告。路由仍需在 Headscale 中批准。"
+        }
+      }
+    },
+    "speedtest": {
+      "tagline": "自托管的网速测试",
+      "description": "在你自己的网络中运行基于浏览器的网速测试。OpenSpeedTest 可测量下载、上传速度、延迟和抖动，无需安装应用或浏览器插件。",
+      "fields": {
+        "webPort": {
+          "label": "Web 界面端口",
+          "description": "OpenSpeedTest Web 界面的端口。"
+        }
+      }
+    }
+  }
+}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { conntrackSectionFromSearch } from "@/lib/query-tabs";
 import {
   Card,
@@ -92,6 +93,7 @@ function ConntrackIgnoreSortableRow({
   isReadOnly: boolean;
   onDelete: (r: ConntrackIgnoreRule) => void;
 }) {
+  const t = useTranslations("systemConntrack");
   const id = `${rule.ip_version}-${rule.rule_id}`;
   const { attributes, listeners, setNodeRef, transform, transition, isOver } = useSortable({ id });
   const style = { transform: CSS.Transform.toString(transform), transition };
@@ -104,12 +106,12 @@ function ConntrackIgnoreSortableRow({
       )}
       <TableCell className="font-mono">{rule.rule_id}</TableCell>
       <TableCell><Badge variant="outline" className="text-xs">{rule.ip_version}</Badge></TableCell>
-      <TableCell>{rule.protocol ?? <span className="text-muted-foreground">any</span>}</TableCell>
+      <TableCell>{rule.protocol ?? <span className="text-muted-foreground">{t("any")}</span>}</TableCell>
       <TableCell className="font-mono text-xs">
-        {[rule.source_address, rule.source_port ? `:${rule.source_port}` : ""].filter(Boolean).join("") || <span className="text-muted-foreground">any</span>}
+        {[rule.source_address, rule.source_port ? `:${rule.source_port}` : ""].filter(Boolean).join("") || <span className="text-muted-foreground">{t("any")}</span>}
       </TableCell>
       <TableCell className="font-mono text-xs">
-        {[rule.destination_address, rule.destination_port ? `:${rule.destination_port}` : ""].filter(Boolean).join("") || <span className="text-muted-foreground">any</span>}
+        {[rule.destination_address, rule.destination_port ? `:${rule.destination_port}` : ""].filter(Boolean).join("") || <span className="text-muted-foreground">{t("any")}</span>}
       </TableCell>
       <TableCell className="font-mono text-xs">{rule.inbound_interface ?? <span className="text-muted-foreground">—</span>}</TableCell>
       {!isReadOnly && (
@@ -132,6 +134,7 @@ function ConntrackTimeoutSortableRow({
   isReadOnly: boolean;
   onDelete: (r: ConntrackTimeoutCustomRule) => void;
 }) {
+  const t = useTranslations("systemConntrack");
   const id = `${rule.ip_version}-${rule.rule_id}`;
   const { attributes, listeners, setNodeRef, transform, transition, isOver } = useSortable({ id });
   const style = { transform: CSS.Transform.toString(transform), transition };
@@ -145,8 +148,8 @@ function ConntrackTimeoutSortableRow({
       <TableCell className="font-mono">{rule.rule_id}</TableCell>
       <TableCell><Badge variant="outline" className="text-xs">{rule.ip_version}</Badge></TableCell>
       <TableCell>{rule.protocol ?? <span className="text-muted-foreground">—</span>}</TableCell>
-      <TableCell className="font-mono text-xs">{rule.source_address ?? <span className="text-muted-foreground">any</span>}</TableCell>
-      <TableCell className="font-mono text-xs">{rule.destination_address ?? <span className="text-muted-foreground">any</span>}</TableCell>
+      <TableCell className="font-mono text-xs">{rule.source_address ?? <span className="text-muted-foreground">{t("any")}</span>}</TableCell>
+      <TableCell className="font-mono text-xs">{rule.destination_address ?? <span className="text-muted-foreground">{t("any")}</span>}</TableCell>
       <TableCell className="text-xs">
         {rule.tcp ? (
           <span>{Object.entries(rule.tcp).filter(([, v]) => v != null).map(([k, v]) => `${k}:${v}s`).join(", ") || "—"}</span>
@@ -169,6 +172,8 @@ function ConntrackTimeoutSortableRow({
 }
 
 export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: Props) {
+  const t = useTranslations("systemConntrack");
+  const tc = useTranslations("common");
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const availableModules = capabilities.conntrack.available_modules;
@@ -326,11 +331,11 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
           inboundInterface: ignInboundIface || undefined,
         },
       );
-      if (!result.success) { setIgnError(result.error ?? "Failed to create rule"); return; }
-      toast.success("Ignore rule created");
+      if (!result.success) { setIgnError(result.error ?? t("createRuleFailed")); return; }
+      toast.success(t("ignore.created"));
       setIgnoreModalOpen(false);
       onRefresh();
-    } catch { setIgnError("An unexpected error occurred"); }
+    } catch { setIgnError(t("unexpectedError")); }
     finally { setIgnSaving(false); }
   };
 
@@ -343,9 +348,9 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
         deleteIgnoreTarget.rule_id,
         config.conntrack_ignore ?? [],
       );
-      if (!result.success) toast.error("Delete failed", result.error ?? "Could not delete rule");
-      else { toast.success("Ignore rule deleted"); onRefresh(); }
-    } catch { toast.error("Error", "An unexpected error occurred"); }
+      if (!result.success) toast.error(t("deleteFailed"), result.error ?? t("deleteRuleFailed"));
+      else { toast.success(t("ignore.deleted")); onRefresh(); }
+    } catch { toast.error(t("error"), t("unexpectedError")); }
     finally { setDeletingIgnore(false); setDeleteIgnoreTarget(null); }
   };
 
@@ -386,11 +391,11 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
           udpStates: Object.keys(udpStates).length ? udpStates : undefined,
         },
       );
-      if (!result.success) { setCtError(result.error ?? "Failed to create rule"); return; }
-      toast.success("Timeout rule created");
+      if (!result.success) { setCtError(result.error ?? t("createRuleFailed")); return; }
+      toast.success(t("custom.created"));
       setCtModalOpen(false);
       onRefresh();
-    } catch { setCtError("An unexpected error occurred"); }
+    } catch { setCtError(t("unexpectedError")); }
     finally { setCtSaving(false); }
   };
 
@@ -403,9 +408,9 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
         deleteCtTarget.rule_id,
         config.conntrack_timeout_custom ?? [],
       );
-      if (!result.success) toast.error("Delete failed", result.error ?? "Could not delete rule");
-      else { toast.success("Timeout rule deleted"); onRefresh(); }
-    } catch { toast.error("Error", "An unexpected error occurred"); }
+      if (!result.success) toast.error(t("deleteFailed"), result.error ?? t("deleteRuleFailed"));
+      else { toast.success(t("custom.deleted")); onRefresh(); }
+    } catch { toast.error(t("error"), t("unexpectedError")); }
     finally { setDeletingCt(false); setDeleteCtTarget(null); }
   };
 
@@ -414,11 +419,11 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
     setLogEventError(null);
     try {
       const result = await systemSettingsService.addConntrackLogEvent(logEvent, logProtocol);
-      if (!result.success) { setLogEventError(result.error ?? "Failed to add log event"); return; }
-      toast.success("Log event added");
+      if (!result.success) { setLogEventError(result.error ?? t("log.addFailed")); return; }
+      toast.success(t("log.added"));
       setAddingLogEvent(false);
       onRefresh();
-    } catch { setLogEventError("An unexpected error occurred"); }
+    } catch { setLogEventError(t("unexpectedError")); }
     finally { setLogEventSaving(false); }
   };
 
@@ -427,9 +432,9 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
     setDeletingLogEntry(true);
     try {
       const result = await systemSettingsService.deleteConntrackLogEvent(deleteLogEntry.event, deleteLogEntry.protocol);
-      if (!result.success) toast.error("Delete failed", result.error ?? "Could not remove log event");
-      else { toast.success("Log event removed"); onRefresh(); }
-    } catch { toast.error("Error", "An unexpected error occurred"); }
+      if (!result.success) toast.error(t("deleteFailed"), result.error ?? t("log.removeFailed"));
+      else { toast.success(t("log.removed")); onRefresh(); }
+    } catch { toast.error(t("error"), t("unexpectedError")); }
     finally { setDeletingLogEntry(false); setDeleteLogEntry(null); }
   };
 
@@ -466,10 +471,10 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
       if (gtUdpOther) ops.push(systemSettingsService.setConntrackGlobalUdpTimeout("other", parseInt(gtUdpOther, 10)));
       if (gtUdpStream) ops.push(systemSettingsService.setConntrackGlobalUdpTimeout("stream", parseInt(gtUdpStream, 10)));
       await Promise.all(ops);
-      toast.success("Global timeouts saved");
+      toast.success(t("global.saved"));
       setEditingGlobalTimeouts(false);
       onRefresh();
-    } catch { setGtError("An unexpected error occurred"); }
+    } catch { setGtError(t("unexpectedError")); }
     finally { setGtSaving(false); }
   };
 
@@ -481,13 +486,13 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
         ? await systemSettingsService.addConntrackModule(module)
         : await systemSettingsService.deleteConntrackModule(module);
       if (!result.success) {
-        toast.error("Failed", result.error ?? "Could not update module");
+        toast.error(t("modules.failed"), result.error ?? t("modules.updateFailed"));
       } else {
-        toast.success(enabled ? `${module} enabled` : `${module} disabled`);
+        toast.success(enabled ? t("modules.enabledToast", { module }) : t("modules.disabledToast", { module }));
         onRefresh();
       }
     } catch {
-      toast.error("Error", "An unexpected error occurred");
+      toast.error(t("error"), t("unexpectedError"));
     } finally {
       setTogglingModule(null);
     }
@@ -503,14 +508,14 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
         expectSize ? parseInt(expectSize, 10) : null,
       );
       if (!result.success) {
-        setSizesError(result.error ?? "Failed to save sizes");
+        setSizesError(result.error ?? t("sizes.saveFailed"));
       } else {
-        toast.success("Table sizes saved");
+        toast.success(t("sizes.saved"));
         setEditingSizes(false);
         onRefresh();
       }
     } catch {
-      setSizesError("An unexpected error occurred");
+      setSizesError(t("unexpectedError"));
     } finally {
       setSizesSaving(false);
     }
@@ -526,14 +531,14 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
         tcpMaxRetrans ? parseInt(tcpMaxRetrans, 10) : null,
       );
       if (!result.success) {
-        setTcpError(result.error ?? "Failed to save TCP settings");
+        setTcpError(result.error ?? t("tcp.saveFailed"));
       } else {
-        toast.success("TCP settings saved");
+        toast.success(t("tcp.saved"));
         setEditingTcp(false);
         onRefresh();
       }
     } catch {
-      setTcpError("An unexpected error occurred");
+      setTcpError(t("unexpectedError"));
     } finally {
       setTcpSaving(false);
     }
@@ -574,11 +579,11 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
           systemSettingsService.reorderIgnoreRules(ver, rules),
         ),
       );
-      toast.success("Rule order saved");
+      toast.success(t("orderSaved"));
       setHasIgnoreReorderChanges(false);
       onRefresh();
     } catch {
-      toast.error("Error", "Failed to save rule order");
+      toast.error(t("error"), t("orderSaveFailed"));
     } finally {
       setSavingIgnoreReorder(false);
     }
@@ -597,11 +602,11 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
           systemSettingsService.reorderTimeoutCustomRules(ver, rules),
         ),
       );
-      toast.success("Rule order saved");
+      toast.success(t("orderSaved"));
       setHasCtReorderChanges(false);
       onRefresh();
     } catch {
-      toast.error("Error", "Failed to save rule order");
+      toast.error(t("error"), t("orderSaveFailed"));
     } finally {
       setSavingCtReorder(false);
     }
@@ -617,9 +622,9 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
       {/* Conntrack Modules */}
       <Card>
         <CardHeader>
-          <CardTitle>Connection Tracking Modules</CardTitle>
+          <CardTitle>{t("modules.title")}</CardTitle>
           <CardDescription>
-            Enable or disable protocol-specific connection tracking helpers.
+            {t("modules.description")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -654,9 +659,9 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Table Sizes</CardTitle>
+              <CardTitle>{t("sizes.title")}</CardTitle>
               <CardDescription>
-                Configure conntrack table and hash sizes. Higher values require more memory.
+                {t("sizes.description")}
               </CardDescription>
             </div>
             {!isReadOnly && !editingSizes && (
@@ -668,16 +673,16 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
                 setEditingSizes(true);
               }}>
                 <Edit2 className="h-4 w-4 mr-2" />
-                Edit
+                {tc("edit")}
               </Button>
             )}
             {editingSizes && (
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => { setEditingSizes(false); setSizesError(null); }} disabled={sizesSaving}>
-                  Cancel
+                  {tc("cancel")}
                 </Button>
                 <Button size="sm" onClick={handleSaveSizes} disabled={sizesSaving}>
-                  {sizesSaving ? "Saving…" : "Save"}
+                  {sizesSaving ? t("saving") : tc("save")}
                 </Button>
               </div>
             )}
@@ -694,32 +699,32 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
           )}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Table Size</Label>
+              <Label>{t("sizes.tableSize")}</Label>
               {editingSizes ? (
                 <Input type="number" min="0" value={tableSize} onChange={(e) => setTableSize(e.target.value)} placeholder="262144" />
               ) : (
                 <p className="text-sm font-medium">
-                  {config.conntrack.table_size?.toLocaleString() ?? <span className="text-muted-foreground">Default</span>}
+                  {config.conntrack.table_size?.toLocaleString() ?? <span className="text-muted-foreground">{tc("default")}</span>}
                 </p>
               )}
             </div>
             <div className="space-y-2">
-              <Label>Hash Size</Label>
+              <Label>{t("sizes.hashSize")}</Label>
               {editingSizes ? (
                 <Input type="number" min="0" value={hashSize} onChange={(e) => setHashSize(e.target.value)} placeholder="32768" />
               ) : (
                 <p className="text-sm font-medium">
-                  {config.conntrack.hash_size?.toLocaleString() ?? <span className="text-muted-foreground">Default</span>}
+                  {config.conntrack.hash_size?.toLocaleString() ?? <span className="text-muted-foreground">{tc("default")}</span>}
                 </p>
               )}
             </div>
             <div className="space-y-2">
-              <Label>Expect Table Size</Label>
+              <Label>{t("sizes.expectTableSize")}</Label>
               {editingSizes ? (
                 <Input type="number" min="0" value={expectSize} onChange={(e) => setExpectSize(e.target.value)} placeholder="2048" />
               ) : (
                 <p className="text-sm font-medium">
-                  {config.conntrack.expect_table_size?.toLocaleString() ?? <span className="text-muted-foreground">Default</span>}
+                  {config.conntrack.expect_table_size?.toLocaleString() ?? <span className="text-muted-foreground">{tc("default")}</span>}
                 </p>
               )}
             </div>
@@ -732,9 +737,9 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>TCP Settings</CardTitle>
+              <CardTitle>{t("tcp.title")}</CardTitle>
               <CardDescription>
-                Fine-tune TCP connection tracking behavior.
+                {t("tcp.description")}
               </CardDescription>
             </div>
             {!isReadOnly && !editingTcp && (
@@ -746,16 +751,16 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
                 setEditingTcp(true);
               }}>
                 <Edit2 className="h-4 w-4 mr-2" />
-                Edit
+                {tc("edit")}
               </Button>
             )}
             {editingTcp && (
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => { setEditingTcp(false); setTcpError(null); }} disabled={tcpSaving}>
-                  Cancel
+                  {tc("cancel")}
                 </Button>
                 <Button size="sm" onClick={handleSaveTcp} disabled={tcpSaving}>
-                  {tcpSaving ? "Saving…" : "Save"}
+                  {tcpSaving ? t("saving") : tc("save")}
                 </Button>
               </div>
             )}
@@ -772,39 +777,39 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
           )}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Loose Mode</Label>
+              <Label>{t("tcp.looseMode")}</Label>
               {editingTcp ? (
                 <Select value={tcpLoose || "unset"} onValueChange={(v) => setTcpLoose(v === "unset" ? "" : v)}>
-                  <SelectTrigger><SelectValue placeholder="Not set" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={tc("notSet")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="unset">Not set</SelectItem>
-                    <SelectItem value="enable">Enable</SelectItem>
-                    <SelectItem value="disable">Disable</SelectItem>
+                    <SelectItem value="unset">{tc("notSet")}</SelectItem>
+                    <SelectItem value="enable">{t("tcp.enable")}</SelectItem>
+                    <SelectItem value="disable">{t("tcp.disable")}</SelectItem>
                   </SelectContent>
                 </Select>
               ) : (
                 <p className="text-sm font-medium capitalize">
-                  {config.conntrack.tcp_loose ?? <span className="text-muted-foreground">Default</span>}
+                  {config.conntrack.tcp_loose ?? <span className="text-muted-foreground">{tc("default")}</span>}
                 </p>
               )}
             </div>
             <div className="space-y-2">
-              <Label>Half-Open Connections</Label>
+              <Label>{t("tcp.halfOpen")}</Label>
               {editingTcp ? (
                 <Input type="number" min="0" value={tcpHalfOpen} onChange={(e) => setTcpHalfOpen(e.target.value)} placeholder="512" />
               ) : (
                 <p className="text-sm font-medium">
-                  {config.conntrack.tcp_half_open_connections ?? <span className="text-muted-foreground">Default</span>}
+                  {config.conntrack.tcp_half_open_connections ?? <span className="text-muted-foreground">{tc("default")}</span>}
                 </p>
               )}
             </div>
             <div className="space-y-2">
-              <Label>Max Retransmits</Label>
+              <Label>{t("tcp.maxRetrans")}</Label>
               {editingTcp ? (
                 <Input type="number" min="0" value={tcpMaxRetrans} onChange={(e) => setTcpMaxRetrans(e.target.value)} placeholder="3" />
               ) : (
                 <p className="text-sm font-medium">
-                  {config.conntrack.tcp_max_retrans ?? <span className="text-muted-foreground">Default</span>}
+                  {config.conntrack.tcp_max_retrans ?? <span className="text-muted-foreground">{tc("default")}</span>}
                 </p>
               )}
             </div>
@@ -816,12 +821,12 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Connection Log Events</CardTitle>
-              <CardDescription>Log connection tracking events to syslog.</CardDescription>
+              <CardTitle>{t("log.title")}</CardTitle>
+              <CardDescription>{t("log.description")}</CardDescription>
             </div>
             {!isReadOnly && !addingLogEvent && (
               <Button size="sm" variant="outline" onClick={() => setAddingLogEvent(true)}>
-                <Plus className="h-4 w-4 mr-2" />Add Event
+                <Plus className="h-4 w-4 mr-2" />{t("log.addEvent")}
               </Button>
             )}
           </div>
@@ -839,7 +844,7 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
               )}
               <div className="flex gap-3 items-end">
                 <div className="space-y-1">
-                  <span className="text-xs text-muted-foreground">Event</span>
+                  <span className="text-xs text-muted-foreground">{t("log.event")}</span>
                   <Select value={logEvent} onValueChange={setLogEvent}>
                     <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -848,7 +853,7 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-xs text-muted-foreground">Protocol</span>
+                  <span className="text-xs text-muted-foreground">{t("protocol")}</span>
                   <Select value={logProtocol} onValueChange={setLogProtocol}>
                     <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -856,20 +861,20 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
                     </SelectContent>
                   </Select>
                 </div>
-                <Button size="sm" onClick={handleAddLogEvent} disabled={logEventSaving}>{logEventSaving ? "Adding…" : "Add"}</Button>
-                <Button size="sm" variant="outline" onClick={() => { setAddingLogEvent(false); setLogEventError(null); }}>Cancel</Button>
+                <Button size="sm" onClick={handleAddLogEvent} disabled={logEventSaving}>{logEventSaving ? t("log.adding") : tc("add")}</Button>
+                <Button size="sm" variant="outline" onClick={() => { setAddingLogEvent(false); setLogEventError(null); }}>{tc("cancel")}</Button>
               </div>
             </div>
           )}
           {logEntries.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No log events configured.</p>
+            <p className="text-sm text-muted-foreground">{t("log.empty")}</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Event</TableHead>
-                  <TableHead>Protocol</TableHead>
-                  {!isReadOnly && <TableHead className="text-right">Actions</TableHead>}
+                  <TableHead>{t("log.event")}</TableHead>
+                  <TableHead>{t("protocol")}</TableHead>
+                  {!isReadOnly && <TableHead className="text-right">{tc("actions")}</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -898,18 +903,18 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Global Timeouts</CardTitle>
-                <CardDescription>Default conntrack timeout values (seconds) for each protocol state.</CardDescription>
+                <CardTitle>{t("global.title")}</CardTitle>
+                <CardDescription>{t("global.description")}</CardDescription>
               </div>
               {!isReadOnly && (
                 editingGlobalTimeouts ? (
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => { setEditingGlobalTimeouts(false); setGtError(null); }} disabled={gtSaving}>Cancel</Button>
-                    <Button size="sm" onClick={handleSaveGlobalTimeouts} disabled={gtSaving}>{gtSaving ? "Saving…" : "Save"}</Button>
+                    <Button variant="outline" size="sm" onClick={() => { setEditingGlobalTimeouts(false); setGtError(null); }} disabled={gtSaving}>{tc("cancel")}</Button>
+                    <Button size="sm" onClick={handleSaveGlobalTimeouts} disabled={gtSaving}>{gtSaving ? t("saving") : tc("save")}</Button>
                   </div>
                 ) : (
                   <Button variant="outline" size="sm" onClick={startEditGlobalTimeouts}>
-                    <Edit2 className="h-4 w-4 mr-2" />Edit
+                    <Edit2 className="h-4 w-4 mr-2" />{tc("edit")}
                   </Button>
                 )
               )}
@@ -928,39 +933,39 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
               <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">TCP</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {[
-                  { label: "Close", val: editingGlobalTimeouts ? gtTcpClose : (gt?.tcp?.close ? String(gt.tcp.close) : ""), set: setGtTcpClose },
-                  { label: "Close Wait", val: editingGlobalTimeouts ? gtTcpCloseWait : (gt?.tcp?.close_wait ? String(gt.tcp.close_wait) : ""), set: setGtTcpCloseWait },
-                  { label: "Established", val: editingGlobalTimeouts ? gtTcpEstablished : (gt?.tcp?.established ? String(gt.tcp.established) : ""), set: setGtTcpEstablished },
-                  { label: "Fin Wait", val: editingGlobalTimeouts ? gtTcpFinWait : (gt?.tcp?.fin_wait ? String(gt.tcp.fin_wait) : ""), set: setGtTcpFinWait },
-                  { label: "Syn Sent", val: editingGlobalTimeouts ? gtTcpSynSent : (gt?.tcp?.syn_sent ? String(gt.tcp.syn_sent) : ""), set: setGtTcpSynSent },
-                  { label: "Time Wait", val: editingGlobalTimeouts ? gtTcpTimeWait : (gt?.tcp?.time_wait ? String(gt.tcp.time_wait) : ""), set: setGtTcpTimeWait },
+                  { label: t("states.close"), val: editingGlobalTimeouts ? gtTcpClose : (gt?.tcp?.close ? String(gt.tcp.close) : ""), set: setGtTcpClose },
+                  { label: t("states.closeWait"), val: editingGlobalTimeouts ? gtTcpCloseWait : (gt?.tcp?.close_wait ? String(gt.tcp.close_wait) : ""), set: setGtTcpCloseWait },
+                  { label: t("states.established"), val: editingGlobalTimeouts ? gtTcpEstablished : (gt?.tcp?.established ? String(gt.tcp.established) : ""), set: setGtTcpEstablished },
+                  { label: t("states.finWait"), val: editingGlobalTimeouts ? gtTcpFinWait : (gt?.tcp?.fin_wait ? String(gt.tcp.fin_wait) : ""), set: setGtTcpFinWait },
+                  { label: t("states.synSent"), val: editingGlobalTimeouts ? gtTcpSynSent : (gt?.tcp?.syn_sent ? String(gt.tcp.syn_sent) : ""), set: setGtTcpSynSent },
+                  { label: t("states.timeWait"), val: editingGlobalTimeouts ? gtTcpTimeWait : (gt?.tcp?.time_wait ? String(gt.tcp.time_wait) : ""), set: setGtTcpTimeWait },
                 ].map(({ label, val, set }) => (
                   <div key={label} className="space-y-1">
                     <Label className="text-xs">{label}</Label>
                     {editingGlobalTimeouts ? (
-                      <Input type="number" min="0" value={val} onChange={(e) => set(e.target.value)} placeholder="Default" />
+                      <Input type="number" min="0" value={val} onChange={(e) => set(e.target.value)} placeholder={tc("default")} />
                     ) : (
-                      <p className="text-sm font-medium">{val ? `${val}s` : <span className="text-muted-foreground">Default</span>}</p>
+                      <p className="text-sm font-medium">{val ? `${val}s` : <span className="text-muted-foreground">{tc("default")}</span>}</p>
                     )}
                   </div>
                 ))}
               </div>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">UDP / ICMP / Other</p>
+              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">{t("global.udpIcmpOther")}</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
-                  { label: "UDP Other", val: editingGlobalTimeouts ? gtUdpOther : (gt?.udp?.other ? String(gt.udp.other) : ""), set: setGtUdpOther },
-                  { label: "UDP Stream", val: editingGlobalTimeouts ? gtUdpStream : (gt?.udp?.stream ? String(gt.udp.stream) : ""), set: setGtUdpStream },
+                  { label: t("states.udpOther"), val: editingGlobalTimeouts ? gtUdpOther : (gt?.udp?.other ? String(gt.udp.other) : ""), set: setGtUdpOther },
+                  { label: t("states.udpStream"), val: editingGlobalTimeouts ? gtUdpStream : (gt?.udp?.stream ? String(gt.udp.stream) : ""), set: setGtUdpStream },
                   { label: "ICMP", val: editingGlobalTimeouts ? gtIcmp : (gt?.icmp ? String(gt.icmp) : ""), set: setGtIcmp },
-                  { label: "Other", val: editingGlobalTimeouts ? gtOther : (gt?.other ? String(gt.other) : ""), set: setGtOther },
+                  { label: t("states.other"), val: editingGlobalTimeouts ? gtOther : (gt?.other ? String(gt.other) : ""), set: setGtOther },
                 ].map(({ label, val, set }) => (
                   <div key={label} className="space-y-1">
                     <Label className="text-xs">{label}</Label>
                     {editingGlobalTimeouts ? (
-                      <Input type="number" min="0" value={val} onChange={(e) => set(e.target.value)} placeholder="Default" />
+                      <Input type="number" min="0" value={val} onChange={(e) => set(e.target.value)} placeholder={tc("default")} />
                     ) : (
-                      <p className="text-sm font-medium">{val ? `${val}s` : <span className="text-muted-foreground">Default</span>}</p>
+                      <p className="text-sm font-medium">{val ? `${val}s` : <span className="text-muted-foreground">{tc("default")}</span>}</p>
                     )}
                   </div>
                 ))}
@@ -975,14 +980,14 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Ignore Rules</CardTitle>
+              <CardTitle>{t("ignore.title")}</CardTitle>
               <CardDescription>
-                Bypass connection tracking for matching traffic. Rules apply per IP version.
+                {t("ignore.description")}
               </CardDescription>
             </div>
             {!isReadOnly && (
               <Button size="sm" variant="outline" onClick={openIgnoreModal}>
-                <Plus className="h-4 w-4 mr-2" />Add Rule
+                <Plus className="h-4 w-4 mr-2" />{t("addRule")}
               </Button>
             )}
           </div>
@@ -994,11 +999,11 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
                 {!isReadOnly && <TableHead className="w-8" />}
                 <TableHead className="w-16">ID</TableHead>
                 <TableHead className="w-16">IP</TableHead>
-                <TableHead>Protocol</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead>Destination</TableHead>
-                <TableHead>Inbound Iface</TableHead>
-                {!isReadOnly && <TableHead className="text-right">Actions</TableHead>}
+                <TableHead>{t("protocol")}</TableHead>
+                <TableHead>{t("source")}</TableHead>
+                <TableHead>{t("destination")}</TableHead>
+                <TableHead>{t("ignore.inboundIface")}</TableHead>
+                {!isReadOnly && <TableHead className="text-right">{tc("actions")}</TableHead>}
               </TableRow>
             </TableHeader>
             <DndContext sensors={ignoreSensors} collisionDetection={closestCenter} onDragEnd={handleIgnoreDragEnd}>
@@ -1007,7 +1012,7 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
                   {displayIgnoreRules.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={isReadOnly ? 6 : 8} className="text-center text-muted-foreground py-6">
-                        No ignore rules configured
+                        {t("ignore.empty")}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -1032,14 +1037,14 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Custom Timeout Rules</CardTitle>
+              <CardTitle>{t("custom.title")}</CardTitle>
               <CardDescription>
-                Override default conntrack timeouts for specific traffic patterns.
+                {t("custom.description")}
               </CardDescription>
             </div>
             {!isReadOnly && (
               <Button size="sm" variant="outline" onClick={openCtModal}>
-                <Plus className="h-4 w-4 mr-2" />Add Rule
+                <Plus className="h-4 w-4 mr-2" />{t("addRule")}
               </Button>
             )}
           </div>
@@ -1051,12 +1056,12 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
                 {!isReadOnly && <TableHead className="w-8" />}
                 <TableHead className="w-16">ID</TableHead>
                 <TableHead className="w-16">IP</TableHead>
-                <TableHead>Protocol</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead>Destination</TableHead>
-                <TableHead>TCP Timeouts</TableHead>
-                <TableHead>UDP Timeouts</TableHead>
-                {!isReadOnly && <TableHead className="text-right">Actions</TableHead>}
+                <TableHead>{t("protocol")}</TableHead>
+                <TableHead>{t("source")}</TableHead>
+                <TableHead>{t("destination")}</TableHead>
+                <TableHead>{t("custom.tcpTimeouts")}</TableHead>
+                <TableHead>{t("custom.udpTimeouts")}</TableHead>
+                {!isReadOnly && <TableHead className="text-right">{tc("actions")}</TableHead>}
               </TableRow>
             </TableHeader>
             <DndContext sensors={ctSensors} collisionDetection={closestCenter} onDragEnd={handleCtDragEnd}>
@@ -1065,7 +1070,7 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
                   {displayCtRules.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={isReadOnly ? 7 : 9} className="text-center text-muted-foreground py-6">
-                        No custom timeout rules configured
+                        {t("custom.empty")}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -1089,8 +1094,8 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
       <Dialog open={ignoreModalOpen} onOpenChange={(o) => { if (!o) setIgnoreModalOpen(false); }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Add Ignore Rule</DialogTitle>
-            <DialogDescription>Traffic matching this rule will bypass connection tracking.</DialogDescription>
+            <DialogTitle>{t("ignore.addTitle")}</DialogTitle>
+            <DialogDescription>{t("ignore.addDescription")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             {ignError && (
@@ -1103,11 +1108,11 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
             )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs">Rule ID <span className="text-muted-foreground">(auto-assigned)</span></Label>
+                <Label className="text-xs">{t("ruleId")} <span className="text-muted-foreground">{t("autoAssigned")}</span></Label>
                 <Input type="number" value={ignRuleId} disabled className="bg-muted text-muted-foreground" />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">IP Version</Label>
+                <Label className="text-xs">{t("ipVersion")}</Label>
                 <Select value={ignIpVersion} onValueChange={(v) => {
                   setIgnIpVersion(v);
                   setIgnRuleId(String(nextIgnoreRuleId(v)));
@@ -1121,11 +1126,11 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
               </div>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Protocol</Label>
+              <Label className="text-xs">{t("protocol")}</Label>
               <Select value={ignProtocol || "any"} onValueChange={(v) => setIgnProtocol(v === "any" ? "" : v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="any">Any</SelectItem>
+                  <SelectItem value="any">{t("anyOption")}</SelectItem>
                   <SelectItem value="tcp">TCP</SelectItem>
                   <SelectItem value="udp">UDP</SelectItem>
                   <SelectItem value="icmp">ICMP</SelectItem>
@@ -1134,37 +1139,37 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs">Source Address</Label>
+                <Label className="text-xs">{t("sourceAddress")}</Label>
                 <Input value={ignSrcAddr} onChange={(e) => setIgnSrcAddr(e.target.value)} placeholder="10.0.0.0/8" className="font-mono text-sm" />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Source Port</Label>
+                <Label className="text-xs">{t("sourcePort")}</Label>
                 <Input value={ignSrcPort} onChange={(e) => setIgnSrcPort(e.target.value)} placeholder="80" className="font-mono text-sm" />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Destination Address</Label>
+                <Label className="text-xs">{t("destinationAddress")}</Label>
                 <Input value={ignDstAddr} onChange={(e) => setIgnDstAddr(e.target.value)} placeholder="192.168.0.0/16" className="font-mono text-sm" />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Destination Port</Label>
+                <Label className="text-xs">{t("destinationPort")}</Label>
                 <Input value={ignDstPort} onChange={(e) => setIgnDstPort(e.target.value)} placeholder="443" className="font-mono text-sm" />
               </div>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Inbound Interface</Label>
+              <Label className="text-xs">{t("ignore.inboundInterface")}</Label>
               <InterfaceSelect
                 value={ignInboundIface || "_any"}
                 onValueChange={(v) => setIgnInboundIface(v === "_any" ? "" : v)}
                 disabled={loadingInterfaces}
                 interfaces={availableInterfaces}
-                noneOption={{ label: "Any", value: "_any" }}
+                noneOption={{ label: t("anyOption"), value: "_any" }}
                 className="font-mono text-sm"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIgnoreModalOpen(false)} disabled={ignSaving}>Cancel</Button>
-            <Button onClick={handleSaveIgnoreRule} disabled={ignSaving}>{ignSaving ? "Creating…" : "Create Rule"}</Button>
+            <Button variant="outline" onClick={() => setIgnoreModalOpen(false)} disabled={ignSaving}>{tc("cancel")}</Button>
+            <Button onClick={handleSaveIgnoreRule} disabled={ignSaving}>{ignSaving ? t("creating") : t("createRule")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1173,8 +1178,8 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
       <Dialog open={ctModalOpen} onOpenChange={(o) => { if (!o) setCtModalOpen(false); }}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>Add Custom Timeout Rule</DialogTitle>
-            <DialogDescription>Override conntrack timeouts for specific traffic. Set TCP or UDP timeouts (seconds).</DialogDescription>
+            <DialogTitle>{t("custom.addTitle")}</DialogTitle>
+            <DialogDescription>{t("custom.addDescription")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             {ctError && (
@@ -1187,11 +1192,11 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
             )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs">Rule ID <span className="text-muted-foreground">(auto-assigned)</span></Label>
+                <Label className="text-xs">{t("ruleId")} <span className="text-muted-foreground">{t("autoAssigned")}</span></Label>
                 <Input type="number" value={ctRuleId} disabled className="bg-muted text-muted-foreground" />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">IP Version</Label>
+                <Label className="text-xs">{t("ipVersion")}</Label>
                 <Select value={ctIpVersion} onValueChange={(v) => {
                   setCtIpVersion(v);
                   setCtRuleId(String(nextCtRuleId(v)));
@@ -1204,24 +1209,24 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Source Address</Label>
+                <Label className="text-xs">{t("sourceAddress")}</Label>
                 <Input value={ctSrcAddr} onChange={(e) => setCtSrcAddr(e.target.value)} placeholder="10.0.0.0/8" className="font-mono text-sm" />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Destination Address</Label>
+                <Label className="text-xs">{t("destinationAddress")}</Label>
                 <Input value={ctDstAddr} onChange={(e) => setCtDstAddr(e.target.value)} placeholder="192.168.0.0/16" className="font-mono text-sm" />
               </div>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">TCP Timeouts (seconds)</p>
+              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">{t("custom.tcpTimeoutsSeconds")}</p>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { label: "Established", val: ctTcpEstablished, set: setCtTcpEstablished },
-                  { label: "Close", val: ctTcpClose, set: setCtTcpClose },
-                  { label: "Fin Wait", val: ctTcpFinWait, set: setCtTcpFinWait },
-                  { label: "Close Wait", val: ctTcpCloseWait, set: setCtTcpCloseWait },
-                  { label: "Syn Sent", val: ctTcpSynSent, set: setCtTcpSynSent },
-                  { label: "Time Wait", val: ctTcpTimeWait, set: setCtTcpTimeWait },
+                  { label: t("states.established"), val: ctTcpEstablished, set: setCtTcpEstablished },
+                  { label: t("states.close"), val: ctTcpClose, set: setCtTcpClose },
+                  { label: t("states.finWait"), val: ctTcpFinWait, set: setCtTcpFinWait },
+                  { label: t("states.closeWait"), val: ctTcpCloseWait, set: setCtTcpCloseWait },
+                  { label: t("states.synSent"), val: ctTcpSynSent, set: setCtTcpSynSent },
+                  { label: t("states.timeWait"), val: ctTcpTimeWait, set: setCtTcpTimeWait },
                 ].map(({ label, val, set }) => (
                   <div key={label} className="space-y-1">
                     <Label className="text-xs">{label}</Label>
@@ -1231,11 +1236,11 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
               </div>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">UDP Timeouts (seconds)</p>
+              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">{t("custom.udpTimeoutsSeconds")}</p>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { label: "Other", val: ctUdpOther, set: setCtUdpOther },
-                  { label: "Stream", val: ctUdpStream, set: setCtUdpStream },
+                  { label: t("states.other"), val: ctUdpOther, set: setCtUdpOther },
+                  { label: t("states.stream"), val: ctUdpStream, set: setCtUdpStream },
                 ].map(({ label, val, set }) => (
                   <div key={label} className="space-y-1">
                     <Label className="text-xs">{label}</Label>
@@ -1246,8 +1251,8 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCtModalOpen(false)} disabled={ctSaving}>Cancel</Button>
-            <Button onClick={handleSaveCtRule} disabled={ctSaving}>{ctSaving ? "Creating…" : "Create Rule"}</Button>
+            <Button variant="outline" onClick={() => setCtModalOpen(false)} disabled={ctSaving}>{tc("cancel")}</Button>
+            <Button onClick={handleSaveCtRule} disabled={ctSaving}>{ctSaving ? t("creating") : t("createRule")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1256,15 +1261,15 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
       <AlertDialog open={!!deleteIgnoreTarget} onOpenChange={(o) => { if (!o) setDeleteIgnoreTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Ignore Rule</AlertDialogTitle>
+            <AlertDialogTitle>{t("ignore.deleteTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Delete {deleteIgnoreTarget?.ip_version} ignore rule <strong>{deleteIgnoreTarget?.rule_id}</strong>?
+              {t.rich("ignore.deleteConfirm", { version: deleteIgnoreTarget?.ip_version ?? "", id: String(deleteIgnoreTarget?.rule_id ?? ""), strong: (chunks) => <strong>{chunks}</strong> })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingIgnore}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deletingIgnore}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteIgnoreRule} disabled={deletingIgnore} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deletingIgnore ? "Deleting…" : "Delete"}
+              {deletingIgnore ? t("deleting") : tc("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1274,15 +1279,15 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
       <AlertDialog open={!!deleteCtTarget} onOpenChange={(o) => { if (!o) setDeleteCtTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Timeout Rule</AlertDialogTitle>
+            <AlertDialogTitle>{t("custom.deleteTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Delete {deleteCtTarget?.ip_version} timeout rule <strong>{deleteCtTarget?.rule_id}</strong>?
+              {t.rich("custom.deleteConfirm", { version: deleteCtTarget?.ip_version ?? "", id: String(deleteCtTarget?.rule_id ?? ""), strong: (chunks) => <strong>{chunks}</strong> })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingCt}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deletingCt}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteCtRule} disabled={deletingCt} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deletingCt ? "Deleting…" : "Delete"}
+              {deletingCt ? t("deleting") : tc("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1291,13 +1296,13 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
       <AlertDialog open={!!deleteLogEntry} onOpenChange={(o) => { if (!o) setDeleteLogEntry(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Log Event</AlertDialogTitle>
-            <AlertDialogDescription>Remove {deleteLogEntry?.event}/{deleteLogEntry?.protocol} log event?</AlertDialogDescription>
+            <AlertDialogTitle>{t("log.removeTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("log.removeConfirm", { event: deleteLogEntry?.event ?? "", protocol: deleteLogEntry?.protocol ?? "" })}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingLogEntry}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deletingLogEntry}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteLogEntry} disabled={deletingLogEntry} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deletingLogEntry ? "Removing…" : "Remove"}
+              {deletingLogEntry ? t("log.removing") : t("log.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

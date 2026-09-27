@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +33,8 @@ interface Props {
 }
 
 export function SshKeyModal({ open, onOpenChange, username, onSuccess }: Props) {
+  const t = useTranslations("systemLogin");
+  const tc = useTranslations("common");
   const [keyName, setKeyName] = useState("");
   const [keyType, setKeyType] = useState("ssh-rsa");
   const [keyData, setKeyData] = useState("");
@@ -57,11 +60,11 @@ export function SshKeyModal({ open, onOpenChange, username, onSuccess }: Props) 
     setError(null);
 
     if (!keyName.trim()) {
-      setError("Key name is required.");
+      setError(t("sshModal.keyNameRequired"));
       return;
     }
     if (!keyData.trim()) {
-      setError("Key data is required.");
+      setError(t("sshModal.keyDataRequired"));
       return;
     }
 
@@ -75,14 +78,14 @@ export function SshKeyModal({ open, onOpenChange, username, onSuccess }: Props) 
       );
 
       if (!result.success) {
-        setError(result.error ?? "Failed to add SSH key");
+        setError(result.error ?? t("sshModal.addFailed"));
         return;
       }
 
       handleClose();
       onSuccess();
     } catch {
-      setError("An unexpected error occurred");
+      setError(t("unexpectedError"));
     } finally {
       setLoading(false);
     }
@@ -94,10 +97,10 @@ export function SshKeyModal({ open, onOpenChange, username, onSuccess }: Props) 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Key className="h-5 w-5" />
-            Add SSH Key for {username}
+            {t("sshModal.title", { name: username })}
           </DialogTitle>
           <DialogDescription>
-            Add a public SSH key for passwordless authentication.
+            {t("sshModal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -114,7 +117,7 @@ export function SshKeyModal({ open, onOpenChange, username, onSuccess }: Props) 
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="keyname">Key Name</Label>
+            <Label htmlFor="keyname">{t("sshModal.keyName")}</Label>
             <Input
               id="keyname"
               value={keyName}
@@ -124,15 +127,15 @@ export function SshKeyModal({ open, onOpenChange, username, onSuccess }: Props) 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="keytype">Key Type</Label>
+            <Label htmlFor="keytype">{t("sshModal.keyType")}</Label>
             <Select value={keyType} onValueChange={setKeyType}>
               <SelectTrigger id="keytype">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {KEY_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {t}
+                {KEY_TYPES.map((kt) => (
+                  <SelectItem key={kt} value={kt}>
+                    {kt}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -140,7 +143,7 @@ export function SshKeyModal({ open, onOpenChange, username, onSuccess }: Props) 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="keydata">Public Key Data</Label>
+            <Label htmlFor="keydata">{t("sshModal.keyData")}</Label>
             <Textarea
               id="keydata"
               value={keyData}
@@ -150,16 +153,16 @@ export function SshKeyModal({ open, onOpenChange, username, onSuccess }: Props) 
               className="font-mono text-xs"
             />
             <p className="text-xs text-muted-foreground">
-              Paste the key data only (without the key type prefix or comment).
+              {t("sshModal.keyDataHint")}
             </p>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Adding…" : "Add Key"}
+              {loading ? t("sshModal.adding") : t("sshModal.addKey")}
             </Button>
           </div>
         </form>

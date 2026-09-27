@@ -1,1 +1,169 @@
-{}
+{
+  "page": {
+    "loadFailed": "Failed to load monitoring data",
+    "statusConnecting": "Connecting…",
+    "statusStarting": "Starting command…",
+    "statusLive": "Live",
+    "statusStopping": "Stopping…",
+    "title": "Monitoring",
+    "subtitle": "Real-time monitoring via SSH",
+    "error": "Error",
+    "noInstance": "No Active Instance",
+    "noInstanceHelp": "Connect to a VyOS instance to start monitoring.",
+    "sshNotConfigured": "SSH Not Configured",
+    "sshNotConfiguredHelp": "SSH key monitoring is not set up for <strong>{name}</strong>.",
+    "openSiteManager": "<link>Open Site Manager</link> to configure SSH.",
+    "selectCommand": "Select command…",
+    "lines": "Lines:",
+    "start": "Start",
+    "stop": "Stop",
+    "interface": "Interface",
+    "selectPlaceholder": "Select…",
+    "required": "Required",
+    "filterExpression": "Filter Expression",
+    "filterHint": "(BPF syntax, optional)",
+    "buildFilter": "Build Filter",
+    "emptyState": "Select a command and click Start to begin monitoring"
+  },
+  "table": {
+    "timestamp": "Timestamp",
+    "rawLine": "Raw Line",
+    "value": "Value",
+    "addToFilter": "Add to filter",
+    "copyValue": "Copy value",
+    "clear": "Clear"
+  },
+  "traffic": {
+    "packets": "{count, number} pkts",
+    "buffered": "+{count} buffered",
+    "filterRows": "Filter rows…",
+    "resume": "Resume",
+    "pause": "Pause",
+    "exportPcap": "Export PCAP",
+    "time": "Time",
+    "protocol": "Protocol",
+    "srcIp": "Src IP",
+    "srcPort": "Src Port",
+    "dstIp": "Dst IP",
+    "dstPort": "Dst Port",
+    "flags": "Flags",
+    "bytes": "Bytes",
+    "waiting": "Waiting for packets…",
+    "noMatch": "No packets match the current filter",
+    "empty": "Start monitoring to capture traffic",
+    "packetDetails": "Packet Details",
+    "networkProtocol": "Network Protocol",
+    "transportProtocol": "Transport Protocol",
+    "sourceIp": "Source IP",
+    "sourcePort": "Source Port",
+    "destinationIp": "Destination IP",
+    "destinationPort": "Destination Port",
+    "tcpFlags": "TCP Flags",
+    "lengthBytes": "Length (bytes)",
+    "info": "Info"
+  },
+  "log": {
+    "entries": "{count, number} entries",
+    "errors": "{count, plural, one {# error} other {# errors}}",
+    "filterEntries": "Filter entries…",
+    "exportCsv": "Export CSV",
+    "severity": "Severity",
+    "process": "Process",
+    "message": "Message",
+    "hostname": "Hostname",
+    "waiting": "Waiting for log entries…",
+    "noMatch": "No entries match filter",
+    "empty": "Start monitoring to view logs",
+    "details": "Log Entry Details"
+  },
+  "conntrack": {
+    "events": "{count, number} events",
+    "filterEvents": "Filter events…",
+    "event": "Event",
+    "proto": "Proto",
+    "source": "Source",
+    "destination": "Destination",
+    "state": "State",
+    "waiting": "Waiting for connection events…",
+    "noMatch": "No events match filter",
+    "empty": "Start monitoring to view connections",
+    "details": "Connection Details",
+    "forwardFlow": "Forward Flow",
+    "replyFlow": "Reply Flow"
+  },
+  "filter": {
+    "title": "Build Filter",
+    "description": "Construct a BPF capture filter using conditions",
+    "quickTemplates": "Quick Templates",
+    "templates": {
+      "web": {
+        "label": "Web Traffic",
+        "description": "HTTP & HTTPS"
+      },
+      "dns": {
+        "label": "DNS",
+        "description": "UDP port 53"
+      },
+      "icmp": {
+        "label": "ICMP / Ping",
+        "description": "Ping & traceroute"
+      },
+      "excludeArp": {
+        "label": "Exclude ARP",
+        "description": "Suppress ARP noise"
+      }
+    },
+    "attributes": {
+      "protocol": "Protocol",
+      "src_host": "Source IP",
+      "dst_host": "Destination IP",
+      "host": "Any IP",
+      "src_port": "Source Port",
+      "dst_port": "Destination Port",
+      "port": "Any Port"
+    },
+    "operators": {
+      "is": "is",
+      "isNot": "is not",
+      "inNetwork": "in network",
+      "equals": "equals",
+      "doesNotEqual": "does not equal"
+    },
+    "ipPlaceholder": "{host} or {network}",
+    "conditions": "Conditions",
+    "addCondition": "Add Condition",
+    "where": "where",
+    "selectProtocol": "Select protocol…",
+    "removeCondition": "Remove condition",
+    "filterExpression": "Filter Expression",
+    "bpfSyntax": "tcpdump BPF syntax",
+    "noConditions": "No conditions — will capture all traffic on the interface",
+    "apply": "Apply Filter"
+  },
+  "sshKey": {
+    "loadFailed": "Failed to load SSH key status",
+    "installFailed": "Failed to install the key on this device",
+    "generateFailed": "Failed to generate SSH key",
+    "markFailed": "Failed to mark key as configured",
+    "deleteFailed": "Failed to delete SSH key",
+    "configured": "SSH Key Configured",
+    "awaitingSetup": "Key Generated — Awaiting VyOS Setup",
+    "noKey": "No SSH Key",
+    "configuredHelp": "This instance is ready for SSH access",
+    "awaitingSetupHelp": "Install the public key on this device",
+    "noKeyHelp": "Generate an SSH keypair to enable console, monitoring, and containers",
+    "generating": "Generating...",
+    "generate": "Generate SSH Keypair",
+    "publicKey": "Public Key",
+    "installOnVyos": "Install on VyOS",
+    "runCommands": "Run the following commands on your VyOS device:",
+    "confirming": "Confirming...",
+    "markConfigured": "I've Configured the Key",
+    "regenerating": "Regenerating...",
+    "regenerate": "Regenerate Key"
+  },
+  "terminal": {
+    "lines": "{count, plural, one {# line} other {# lines}}",
+    "waiting": "Waiting for output..."
+  }
+}

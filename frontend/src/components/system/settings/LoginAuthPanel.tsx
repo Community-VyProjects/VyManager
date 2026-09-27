@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Card,
   CardContent,
@@ -45,6 +46,8 @@ interface Props {
 }
 
 export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
+  const t = useTranslations("systemLogin");
+  const tc = useTranslations("common");
   const { toast } = useToast();
 
   // --- RADIUS ---
@@ -87,7 +90,7 @@ export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
   const [tacacsGlobalError, setTacacsGlobalError] = useState<string | null>(null);
 
   const handleAddRadius = async () => {
-    if (!radiusServer.trim()) { setRadiusError("Server address is required"); return; }
+    if (!radiusServer.trim()) { setRadiusError(t("auth.serverRequired")); return; }
     setRadiusSaving(true);
     setRadiusError(null);
     try {
@@ -97,12 +100,12 @@ export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
         radiusTimeout ? parseInt(radiusTimeout, 10) : null,
         radiusKey || null,
       );
-      if (!result.success) { setRadiusError(result.error ?? "Failed to add server"); return; }
-      toast.success("RADIUS server added");
+      if (!result.success) { setRadiusError(result.error ?? t("auth.addServerFailed")); return; }
+      toast.success(t("auth.radiusAdded"));
       setAddingRadius(false);
       setRadiusServer(""); setRadiusPort(""); setRadiusTimeout(""); setRadiusKey("");
       onRefresh();
-    } catch { setRadiusError("An unexpected error occurred"); }
+    } catch { setRadiusError(t("unexpectedError")); }
     finally { setRadiusSaving(false); }
   };
 
@@ -111,9 +114,9 @@ export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
     setDeletingRadius(true);
     try {
       const result = await systemSettingsService.deleteRadiusServer(deleteRadiusTarget);
-      if (!result.success) { toast.error("Delete failed", result.error ?? "Could not delete server"); }
-      else { toast.success("RADIUS server removed"); onRefresh(); }
-    } catch { toast.error("Error", "An unexpected error occurred"); }
+      if (!result.success) { toast.error(t("deleteFailed"), result.error ?? t("auth.deleteServerFailed")); }
+      else { toast.success(t("auth.radiusRemoved")); onRefresh(); }
+    } catch { toast.error(t("auth.error"), t("unexpectedError")); }
     finally { setDeletingRadius(false); setDeleteRadiusTarget(null); }
   };
 
@@ -124,16 +127,16 @@ export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
       const result = radiusSrcAddr.trim()
         ? await systemSettingsService.setRadiusSourceAddress(radiusSrcAddr.trim())
         : await systemSettingsService.deleteRadiusSourceAddress();
-      if (!result.success) { setRadiusSrcError(result.error ?? "Failed to save"); return; }
-      toast.success("RADIUS source address saved");
+      if (!result.success) { setRadiusSrcError(result.error ?? t("auth.saveFailed")); return; }
+      toast.success(t("auth.radiusSrcSaved"));
       setEditingRadiusSrc(false);
       onRefresh();
-    } catch { setRadiusSrcError("An unexpected error occurred"); }
+    } catch { setRadiusSrcError(t("unexpectedError")); }
     finally { setRadiusSrcSaving(false); }
   };
 
   const handleAddTacacs = async () => {
-    if (!tacacsServer.trim()) { setTacacsError("Server address is required"); return; }
+    if (!tacacsServer.trim()) { setTacacsError(t("auth.serverRequired")); return; }
     setTacacsSaving(true);
     setTacacsError(null);
     try {
@@ -143,12 +146,12 @@ export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
         tacacsTimeout ? parseInt(tacacsTimeout, 10) : null,
         tacacsKey || null,
       );
-      if (!result.success) { setTacacsError(result.error ?? "Failed to add server"); return; }
-      toast.success("TACACS+ server added");
+      if (!result.success) { setTacacsError(result.error ?? t("auth.addServerFailed")); return; }
+      toast.success(t("auth.tacacsAdded"));
       setAddingTacacs(false);
       setTacacsServer(""); setTacacsPort(""); setTacacsTimeout(""); setTacacsKey("");
       onRefresh();
-    } catch { setTacacsError("An unexpected error occurred"); }
+    } catch { setTacacsError(t("unexpectedError")); }
     finally { setTacacsSaving(false); }
   };
 
@@ -157,9 +160,9 @@ export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
     setDeletingTacacs(true);
     try {
       const result = await systemSettingsService.deleteTacacsServer(deleteTacacsTarget);
-      if (!result.success) { toast.error("Delete failed", result.error ?? "Could not delete server"); }
-      else { toast.success("TACACS+ server removed"); onRefresh(); }
-    } catch { toast.error("Error", "An unexpected error occurred"); }
+      if (!result.success) { toast.error(t("deleteFailed"), result.error ?? t("auth.deleteServerFailed")); }
+      else { toast.success(t("auth.tacacsRemoved")); onRefresh(); }
+    } catch { toast.error(t("auth.error"), t("unexpectedError")); }
     finally { setDeletingTacacs(false); setDeleteTacacsTarget(null); }
   };
 
@@ -179,10 +182,10 @@ export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
         ops.push(systemSettingsService.deleteTacacsTimeout());
       }
       await Promise.all(ops);
-      toast.success("TACACS+ settings saved");
+      toast.success(t("auth.tacacsSaved"));
       setEditingTacacsGlobal(false);
       onRefresh();
-    } catch { setTacacsGlobalError("An unexpected error occurred"); }
+    } catch { setTacacsGlobalError(t("unexpectedError")); }
     finally { setTacacsGlobalSaving(false); }
   };
 
@@ -196,12 +199,12 @@ export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>RADIUS Authentication</CardTitle>
-              <CardDescription>Remote AAA via RADIUS servers.</CardDescription>
+              <CardTitle>{t("auth.radiusTitle")}</CardTitle>
+              <CardDescription>{t("auth.radiusDescription")}</CardDescription>
             </div>
             {!isReadOnly && !addingRadius && (
               <Button size="sm" variant="outline" onClick={() => setAddingRadius(true)}>
-                <Plus className="h-4 w-4 mr-2" />Add Server
+                <Plus className="h-4 w-4 mr-2" />{t("auth.addServer")}
               </Button>
             )}
           </div>
@@ -219,43 +222,43 @@ export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
               )}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="space-y-1 col-span-2 sm:col-span-1">
-                  <Label className="text-xs">Server IP/Host</Label>
+                  <Label className="text-xs">{t("auth.serverHost")}</Label>
                   <Input value={radiusServer} onChange={(e) => setRadiusServer(e.target.value)} placeholder="192.168.1.10" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Port</Label>
+                  <Label className="text-xs">{t("auth.port")}</Label>
                   <Input type="number" value={radiusPort} onChange={(e) => setRadiusPort(e.target.value)} placeholder="1812" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Timeout (s)</Label>
+                  <Label className="text-xs">{t("auth.timeoutSeconds")}</Label>
                   <Input type="number" value={radiusTimeout} onChange={(e) => setRadiusTimeout(e.target.value)} placeholder="2" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Shared Key</Label>
+                  <Label className="text-xs">{t("auth.sharedKey")}</Label>
                   <Input type="password" value={radiusKey} onChange={(e) => setRadiusKey(e.target.value)} placeholder="secret" />
                 </div>
               </div>
               <div className="flex gap-2">
                 <Button size="sm" onClick={handleAddRadius} disabled={radiusSaving}>
-                  {radiusSaving ? "Adding…" : "Add"}
+                  {radiusSaving ? t("auth.adding") : tc("add")}
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => { setAddingRadius(false); setRadiusError(null); }}>
-                  Cancel
+                  {tc("cancel")}
                 </Button>
               </div>
             </div>
           )}
 
           {radiusServers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No RADIUS servers configured.</p>
+            <p className="text-sm text-muted-foreground">{t("auth.noRadius")}</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Server</TableHead>
-                  <TableHead>Port</TableHead>
-                  <TableHead>Timeout</TableHead>
-                  {!isReadOnly && <TableHead className="text-right">Actions</TableHead>}
+                  <TableHead>{t("auth.server")}</TableHead>
+                  <TableHead>{t("auth.port")}</TableHead>
+                  <TableHead>{t("auth.timeout")}</TableHead>
+                  {!isReadOnly && <TableHead className="text-right">{tc("actions")}</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -263,7 +266,7 @@ export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
                   <TableRow key={s.server}>
                     <TableCell className="font-mono">{s.server}</TableCell>
                     <TableCell>{s.port ?? <span className="text-muted-foreground">1812</span>}</TableCell>
-                    <TableCell>{s.timeout != null ? `${s.timeout}s` : <span className="text-muted-foreground">Default</span>}</TableCell>
+                    <TableCell>{s.timeout != null ? `${s.timeout}s` : <span className="text-muted-foreground">{tc("default")}</span>}</TableCell>
                     {!isReadOnly && (
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteRadiusTarget(s.server)}>
@@ -280,10 +283,10 @@ export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
           {/* Source address */}
           <div className="pt-2 border-t">
             <div className="flex items-center justify-between mb-2">
-              <Label className="text-sm font-medium">Source Address</Label>
+              <Label className="text-sm font-medium">{t("auth.sourceAddress")}</Label>
               {!isReadOnly && !editingRadiusSrc && (
                 <Button variant="ghost" size="sm" onClick={() => { setRadiusSrcAddr(config.login_radius?.source_address ?? ""); setEditingRadiusSrc(true); }}>
-                  <Edit2 className="h-3 w-3 mr-1" />Edit
+                  <Edit2 className="h-3 w-3 mr-1" />{tc("edit")}
                 </Button>
               )}
             </div>
@@ -295,13 +298,13 @@ export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
                   </div>
                 )}
                 <div className="flex gap-2">
-                  <Input value={radiusSrcAddr} onChange={(e) => setRadiusSrcAddr(e.target.value)} placeholder="Leave blank to remove" className="max-w-xs" />
-                  <Button size="sm" onClick={handleSaveRadiusSrc} disabled={radiusSrcSaving}>{radiusSrcSaving ? "Saving…" : "Save"}</Button>
-                  <Button size="sm" variant="outline" onClick={() => { setEditingRadiusSrc(false); setRadiusSrcError(null); }}>Cancel</Button>
+                  <Input value={radiusSrcAddr} onChange={(e) => setRadiusSrcAddr(e.target.value)} placeholder={t("auth.leaveBlankToRemove")} className="max-w-xs" />
+                  <Button size="sm" onClick={handleSaveRadiusSrc} disabled={radiusSrcSaving}>{radiusSrcSaving ? t("saving") : tc("save")}</Button>
+                  <Button size="sm" variant="outline" onClick={() => { setEditingRadiusSrc(false); setRadiusSrcError(null); }}>{tc("cancel")}</Button>
                 </div>
               </div>
             ) : (
-              <p className="text-sm">{config.login_radius?.source_address ?? <span className="text-muted-foreground">Not configured</span>}</p>
+              <p className="text-sm">{config.login_radius?.source_address ?? <span className="text-muted-foreground">{t("auth.notConfigured")}</span>}</p>
             )}
           </div>
         </CardContent>
@@ -312,12 +315,12 @@ export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>TACACS+ Authentication</CardTitle>
-              <CardDescription>Remote AAA via TACACS+ servers.</CardDescription>
+              <CardTitle>{t("auth.tacacsTitle")}</CardTitle>
+              <CardDescription>{t("auth.tacacsDescription")}</CardDescription>
             </div>
             {!isReadOnly && !addingTacacs && (
               <Button size="sm" variant="outline" onClick={() => setAddingTacacs(true)}>
-                <Plus className="h-4 w-4 mr-2" />Add Server
+                <Plus className="h-4 w-4 mr-2" />{t("auth.addServer")}
               </Button>
             )}
           </div>
@@ -335,43 +338,43 @@ export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
               )}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="space-y-1 col-span-2 sm:col-span-1">
-                  <Label className="text-xs">Server IP/Host</Label>
+                  <Label className="text-xs">{t("auth.serverHost")}</Label>
                   <Input value={tacacsServer} onChange={(e) => setTacacsServer(e.target.value)} placeholder="192.168.1.20" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Port</Label>
+                  <Label className="text-xs">{t("auth.port")}</Label>
                   <Input type="number" value={tacacsPort} onChange={(e) => setTacacsPort(e.target.value)} placeholder="49" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Timeout (s)</Label>
+                  <Label className="text-xs">{t("auth.timeoutSeconds")}</Label>
                   <Input type="number" value={tacacsTimeout} onChange={(e) => setTacacsTimeout(e.target.value)} placeholder="3" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Shared Key</Label>
+                  <Label className="text-xs">{t("auth.sharedKey")}</Label>
                   <Input type="password" value={tacacsKey} onChange={(e) => setTacacsKey(e.target.value)} placeholder="secret" />
                 </div>
               </div>
               <div className="flex gap-2">
                 <Button size="sm" onClick={handleAddTacacs} disabled={tacacsSaving}>
-                  {tacacsSaving ? "Adding…" : "Add"}
+                  {tacacsSaving ? t("auth.adding") : tc("add")}
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => { setAddingTacacs(false); setTacacsError(null); }}>
-                  Cancel
+                  {tc("cancel")}
                 </Button>
               </div>
             </div>
           )}
 
           {tacacsServers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No TACACS+ servers configured.</p>
+            <p className="text-sm text-muted-foreground">{t("auth.noTacacs")}</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Server</TableHead>
-                  <TableHead>Port</TableHead>
-                  <TableHead>Timeout</TableHead>
-                  {!isReadOnly && <TableHead className="text-right">Actions</TableHead>}
+                  <TableHead>{t("auth.server")}</TableHead>
+                  <TableHead>{t("auth.port")}</TableHead>
+                  <TableHead>{t("auth.timeout")}</TableHead>
+                  {!isReadOnly && <TableHead className="text-right">{tc("actions")}</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -379,7 +382,7 @@ export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
                   <TableRow key={s.server}>
                     <TableCell className="font-mono">{s.server}</TableCell>
                     <TableCell>{s.port ?? <span className="text-muted-foreground">49</span>}</TableCell>
-                    <TableCell>{s.timeout != null ? `${s.timeout}s` : <span className="text-muted-foreground">Default</span>}</TableCell>
+                    <TableCell>{s.timeout != null ? `${s.timeout}s` : <span className="text-muted-foreground">{tc("default")}</span>}</TableCell>
                     {!isReadOnly && (
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteTacacsTarget(s.server)}>
@@ -396,14 +399,14 @@ export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
           {/* Global TACACS settings */}
           <div className="pt-2 border-t">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium">Global Settings</span>
+              <span className="text-sm font-medium">{t("auth.globalSettings")}</span>
               {!isReadOnly && !editingTacacsGlobal && (
                 <Button variant="ghost" size="sm" onClick={() => {
                   setTacacsSrcAddr(config.login_tacacs?.source_address ?? "");
                   setTacacsGlobalTimeout(config.login_tacacs?.timeout ? String(config.login_tacacs.timeout) : "");
                   setEditingTacacsGlobal(true);
                 }}>
-                  <Edit2 className="h-3 w-3 mr-1" />Edit
+                  <Edit2 className="h-3 w-3 mr-1" />{tc("edit")}
                 </Button>
               )}
             </div>
@@ -416,28 +419,28 @@ export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-sm">
                   <div className="space-y-1">
-                    <Label className="text-xs">Source Address</Label>
-                    <Input value={tacacsSrcAddr} onChange={(e) => setTacacsSrcAddr(e.target.value)} placeholder="Leave blank to remove" />
+                    <Label className="text-xs">{t("auth.sourceAddress")}</Label>
+                    <Input value={tacacsSrcAddr} onChange={(e) => setTacacsSrcAddr(e.target.value)} placeholder={t("auth.leaveBlankToRemove")} />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Timeout (s)</Label>
-                    <Input type="number" value={tacacsGlobalTimeout} onChange={(e) => setTacacsGlobalTimeout(e.target.value)} placeholder="Leave blank to remove" />
+                    <Label className="text-xs">{t("auth.timeoutSeconds")}</Label>
+                    <Input type="number" value={tacacsGlobalTimeout} onChange={(e) => setTacacsGlobalTimeout(e.target.value)} placeholder={t("auth.leaveBlankToRemove")} />
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={handleSaveTacacsGlobal} disabled={tacacsGlobalSaving}>{tacacsGlobalSaving ? "Saving…" : "Save"}</Button>
-                  <Button size="sm" variant="outline" onClick={() => { setEditingTacacsGlobal(false); setTacacsGlobalError(null); }}>Cancel</Button>
+                  <Button size="sm" onClick={handleSaveTacacsGlobal} disabled={tacacsGlobalSaving}>{tacacsGlobalSaving ? t("saving") : tc("save")}</Button>
+                  <Button size="sm" variant="outline" onClick={() => { setEditingTacacsGlobal(false); setTacacsGlobalError(null); }}>{tc("cancel")}</Button>
                 </div>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-muted-foreground">Source Address: </span>
-                  {config.login_tacacs?.source_address ?? <span className="text-muted-foreground">Not configured</span>}
+                  <span className="text-muted-foreground">{t("auth.sourceAddressLabel")}</span>
+                  {config.login_tacacs?.source_address ?? <span className="text-muted-foreground">{t("auth.notConfigured")}</span>}
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Timeout: </span>
-                  {config.login_tacacs?.timeout != null ? `${config.login_tacacs.timeout}s` : <span className="text-muted-foreground">Default</span>}
+                  <span className="text-muted-foreground">{t("auth.timeoutLabel")}</span>
+                  {config.login_tacacs?.timeout != null ? `${config.login_tacacs.timeout}s` : <span className="text-muted-foreground">{tc("default")}</span>}
                 </div>
               </div>
             )}
@@ -449,13 +452,13 @@ export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
       <AlertDialog open={!!deleteRadiusTarget} onOpenChange={(o) => { if (!o) setDeleteRadiusTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove RADIUS Server</AlertDialogTitle>
-            <AlertDialogDescription>Remove RADIUS server <strong>{deleteRadiusTarget}</strong>?</AlertDialogDescription>
+            <AlertDialogTitle>{t("auth.removeRadiusTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t.rich("auth.removeRadiusConfirm", { name: deleteRadiusTarget ?? "", strong: (chunks) => <strong>{chunks}</strong> })}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingRadius}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deletingRadius}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteRadius} disabled={deletingRadius} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deletingRadius ? "Removing…" : "Remove"}
+              {deletingRadius ? t("users.removing") : t("users.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -464,13 +467,13 @@ export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
       <AlertDialog open={!!deleteTacacsTarget} onOpenChange={(o) => { if (!o) setDeleteTacacsTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove TACACS+ Server</AlertDialogTitle>
-            <AlertDialogDescription>Remove TACACS+ server <strong>{deleteTacacsTarget}</strong>?</AlertDialogDescription>
+            <AlertDialogTitle>{t("auth.removeTacacsTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t.rich("auth.removeTacacsConfirm", { name: deleteTacacsTarget ?? "", strong: (chunks) => <strong>{chunks}</strong> })}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingTacacs}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deletingTacacs}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteTacacs} disabled={deletingTacacs} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deletingTacacs ? "Removing…" : "Remove"}
+              {deletingTacacs ? t("users.removing") : t("users.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

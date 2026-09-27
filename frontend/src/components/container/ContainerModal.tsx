@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -83,6 +84,8 @@ const EMPTY_CONTAINER: ContainerInstance = {
 };
 
 export function ContainerModal({ open, onOpenChange, container, capabilities, availableNetworks, availableImages, imagesLoading, onSubmit }: Props) {
+  const t = useTranslations("containers");
+  const tc = useTranslations("common");
   const isEditMode = !!container;
   const caps = capabilities?.features;
 
@@ -243,8 +246,8 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
   });
 
   const validate = (): string | null => {
-    if (!isEditMode && !name.trim()) return "Container name is required.";
-    if (!isEditMode && !/^[a-zA-Z0-9][-a-zA-Z0-9]{0,62}$/.test(name.trim())) return "Container name must start with a letter or digit, may contain hyphens, and be at most 63 characters.";
+    if (!isEditMode && !name.trim()) return t("modal.nameRequired");
+    if (!isEditMode && !/^[a-zA-Z0-9][-a-zA-Z0-9]{0,62}$/.test(name.trim())) return t("modal.nameInvalid");
     return null;
   };
 
@@ -269,7 +272,7 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
 
       const mkdirResult = await containerService.createContainerDirs([...dirsToCreate]);
       if (!mkdirResult.success) {
-        setError(mkdirResult.error || "Failed to create container directories.");
+        setError(mkdirResult.error || t("modal.createDirsFailed"));
         return;
       }
 
@@ -291,7 +294,7 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
 
       handleClose();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -393,23 +396,23 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
 
   const tabs = [
     "general", "runtime", "networking", "storage", "environment", "security",
-  ];
+  ] as const;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>{isEditMode ? `Edit Container — ${container?.name}` : "Add Container"}</DialogTitle>
+          <DialogTitle>{isEditMode ? t("modal.editTitle", { name: container?.name ?? "" }) : t("modal.addTitle")}</DialogTitle>
           <DialogDescription>
-            {isEditMode ? "Modify this container's configuration." : "Configure a new VyOS container."}
+            {isEditMode ? t("modal.editDescription") : t("modal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-1">
           <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
-            {tabs.map(t => (
-              <TabsTrigger key={t} value={t} className="text-xs shrink-0">
-                {t.charAt(0).toUpperCase() + t.slice(1)}
+            {tabs.map(tab => (
+              <TabsTrigger key={tab} value={tab} className="text-xs shrink-0">
+                {t(`modal.tabs.${tab}`)}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -419,20 +422,20 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
             <TabsContent value="general" className="m-0 px-1">
               <div className="space-y-4 pb-2">
                 <div className="space-y-2">
-                  <Label htmlFor="c-name">Container Name</Label>
+                  <Label htmlFor="c-name">{t("modal.containerName")}</Label>
                   <Input
                     id="c-name"
                     value={name}
                     onChange={e => setName(e.target.value)}
                     disabled={isEditMode}
-                    placeholder="e.g. my-app"
+                    placeholder={t("modal.namePlaceholder")}
                     className={isEditMode ? "bg-muted font-mono" : "font-mono"}
                   />
-                  {isEditMode && <p className="text-xs text-muted-foreground">Container name cannot be changed after creation.</p>}
+                  {isEditMode && <p className="text-xs text-muted-foreground">{t("modal.nameImmutable")}</p>}
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Image</Label>
+                  <Label>{t("modal.image")}</Label>
                   <Popover open={imagePopoverOpen} onOpenChange={open => { setImagePopoverOpen(open); if (!open) setImageSearch(""); }}>
                     <PopoverTrigger asChild>
                       <Button
@@ -442,7 +445,7 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                         className="w-full justify-between font-mono font-normal h-10"
                       >
                         <span className={image ? "truncate" : "text-muted-foreground font-sans text-sm"}>
-                          {image || "Select or type an image..."}
+                          {image || t("modal.selectImage")}
                         </span>
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
@@ -454,7 +457,7 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                     >
                       <div className="border-b p-2">
                         <Input
-                          placeholder="Search or type image..."
+                          placeholder={t("modal.searchImage")}
                           value={imageSearch}
                           onChange={e => setImageSearch(e.target.value)}
                           className="h-8 font-mono text-sm"
@@ -464,10 +467,10 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                       <div className="max-h-48 overflow-y-auto p-1">
                         {imagesLoading ? (
                           <div className="flex items-center gap-2 px-2 py-3 text-sm text-muted-foreground">
-                            <Loader2 className="h-3 w-3 animate-spin" />Loading images...
+                            <Loader2 className="h-3 w-3 animate-spin" />{t("modal.loadingImages")}
                           </div>
                         ) : filteredImages.length === 0 && !imageSearch ? (
-                          <p className="px-2 py-3 text-sm text-muted-foreground">No images found on device</p>
+                          <p className="px-2 py-3 text-sm text-muted-foreground">{t("modal.noImages")}</p>
                         ) : (
                           <>
                             {filteredImages.map(img => (
@@ -488,7 +491,7 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                                 onClick={() => { setImage(imageSearch); setImageSearch(""); setImagePopoverOpen(false); }}
                               >
                                 <Plus className="h-3 w-3 shrink-0" />
-                                Use &quot;{imageSearch}&quot;
+                                {t("modal.useImage", { image: imageSearch })}
                               </button>
                             )}
                           </>
@@ -499,16 +502,16 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="c-desc">Description</Label>
-                  <Input id="c-desc" value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional description" />
+                  <Label htmlFor="c-desc">{tc("description")}</Label>
+                  <Input id="c-desc" value={description} onChange={e => setDescription(e.target.value)} placeholder={t("modal.descriptionPlaceholder")} />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Restart Policy</Label>
+                  <Label>{t("modal.restartPolicy")}</Label>
                   <Select value={restart} onValueChange={setRestart}>
-                    <SelectTrigger><SelectValue placeholder="Select restart policy" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={t("modal.selectRestartPolicy")} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="_none">— None —</SelectItem>
+                      <SelectItem value="_none">{t("modal.noneOption")}</SelectItem>
                       {restartValues.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
                     </SelectContent>
                   </Select>
@@ -516,11 +519,11 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
 
                 {showLogDriver && (
                   <div className="space-y-2">
-                    <Label>Log Driver</Label>
+                    <Label>{t("modal.logDriver")}</Label>
                     <Select value={logDriver} onValueChange={setLogDriver}>
-                      <SelectTrigger><SelectValue placeholder="Select log driver" /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder={t("modal.selectLogDriver")} /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="_none">— None —</SelectItem>
+                        <SelectItem value="_none">{t("modal.noneOption")}</SelectItem>
                         {logDriverValues.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
                       </SelectContent>
                     </Select>
@@ -529,7 +532,7 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
 
                 <div className="flex items-center gap-2">
                   <Checkbox id="c-disabled" checked={disabled} onCheckedChange={v => setDisabled(v === true)} />
-                  <Label htmlFor="c-disabled" className="cursor-pointer">Disable this container</Label>
+                  <Label htmlFor="c-disabled" className="cursor-pointer">{t("modal.disableContainer")}</Label>
                 </div>
               </div>
             </TabsContent>
@@ -538,44 +541,44 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
             <TabsContent value="runtime" className="m-0 px-1">
               <div className="space-y-4 pb-2">
                 <div className="space-y-2">
-                  <Label htmlFor="c-cmd">Command</Label>
+                  <Label htmlFor="c-cmd">{t("modal.command")}</Label>
                   <Input id="c-cmd" value={command} onChange={e => setCommand(e.target.value)} placeholder="/usr/bin/my-app" className="font-mono" />
-                  <p className="text-xs text-muted-foreground">Override the default container command.</p>
+                  <p className="text-xs text-muted-foreground">{t("modal.commandHelp")}</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="c-ep">Entrypoint</Label>
+                  <Label htmlFor="c-ep">{t("modal.entrypoint")}</Label>
                   <Input id="c-ep" value={entrypoint} onChange={e => setEntrypoint(e.target.value)} placeholder="/entrypoint.sh" className="font-mono" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="c-args">Arguments</Label>
+                  <Label htmlFor="c-args">{t("modal.arguments")}</Label>
                   <Input id="c-args" value={args} onChange={e => setArgs(e.target.value)} placeholder="--flag value --other" className="font-mono" />
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-2">
-                    <Label htmlFor="c-cpu">CPU Quota</Label>
-                    <Input id="c-cpu" value={cpuQuota} onChange={e => setCpuQuota(e.target.value)} placeholder="e.g. 0.5" className="font-mono" />
-                    <p className="text-xs text-muted-foreground">Fraction of CPU (e.g. 0.5 = 50%)</p>
+                    <Label htmlFor="c-cpu">{t("modal.cpuQuota")}</Label>
+                    <Input id="c-cpu" value={cpuQuota} onChange={e => setCpuQuota(e.target.value)} placeholder={t("modal.cpuQuotaPlaceholder")} className="font-mono" />
+                    <p className="text-xs text-muted-foreground">{t("modal.cpuQuotaHelp")}</p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="c-mem">Memory (MB)</Label>
-                    <Input id="c-mem" type="number" value={memory} onChange={e => setMemory(e.target.value)} placeholder="e.g. 512" className="font-mono" />
+                    <Label htmlFor="c-mem">{t("modal.memory")}</Label>
+                    <Input id="c-mem" type="number" value={memory} onChange={e => setMemory(e.target.value)} placeholder={t("modal.memoryPlaceholder")} className="font-mono" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="c-shmem">Shared Mem (MB)</Label>
-                    <Input id="c-shmem" type="number" value={sharedMemory} onChange={e => setSharedMemory(e.target.value)} placeholder="e.g. 64" className="font-mono" />
+                    <Label htmlFor="c-shmem">{t("modal.sharedMemory")}</Label>
+                    <Input id="c-shmem" type="number" value={sharedMemory} onChange={e => setSharedMemory(e.target.value)} placeholder={t("modal.sharedMemoryPlaceholder")} className="font-mono" />
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-2">
                     <Label htmlFor="c-uid">UID</Label>
-                    <Input id="c-uid" type="number" value={uid} onChange={e => setUid(e.target.value)} placeholder="e.g. 1000" className="font-mono" />
+                    <Input id="c-uid" type="number" value={uid} onChange={e => setUid(e.target.value)} placeholder={t("modal.idPlaceholder")} className="font-mono" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="c-gid">GID</Label>
-                    <Input id="c-gid" type="number" value={gid} onChange={e => setGid(e.target.value)} placeholder="e.g. 1000" className="font-mono" />
+                    <Input id="c-gid" type="number" value={gid} onChange={e => setGid(e.target.value)} placeholder={t("modal.idPlaceholder")} className="font-mono" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="c-hn">Hostname</Label>
+                    <Label htmlFor="c-hn">{t("modal.hostname")}</Label>
                     <Input id="c-hn" value={hostName} onChange={e => setHostName(e.target.value)} placeholder="container-host" className="font-mono" />
                   </div>
                 </div>
@@ -587,11 +590,11 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
               <div className="space-y-5 pb-2">
                 {/* Networks */}
                 <div className="space-y-3">
-                  <Label className="text-sm font-semibold">Network Attachments</Label>
+                  <Label className="text-sm font-semibold">{t("modal.networkAttachments")}</Label>
                   {allowHostNetworks && (
                     <div className="flex items-start gap-2 rounded-md bg-blue-500/10 border border-blue-500/20 p-2">
                       <AlertTriangle className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
-                      <p className="text-xs text-blue-700 dark:text-blue-400">Host networks is enabled. Adding network attachments will disable this setting.</p>
+                      <p className="text-xs text-blue-700 dark:text-blue-400">{t("modal.hostNetworksEnabledWarning")}</p>
                     </div>
                   )}
                   {!allowHostNetworks && networks.length > 0 && (
@@ -613,15 +616,15 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                     <div className="grid gap-2">
                       <div className="flex gap-2">
                         <Select value={netName} onValueChange={setNetName}>
-                          <SelectTrigger className="flex-1"><SelectValue placeholder="Select network" /></SelectTrigger>
+                          <SelectTrigger className="flex-1"><SelectValue placeholder={t("modal.selectNetwork")} /></SelectTrigger>
                           <SelectContent>
                             {availableNetworks.filter(n => !networks.find(a => a.name === n.name)).map(n => (
                               <SelectItem key={n.name} value={n.name}><span className="font-mono">{n.name}</span></SelectItem>
                             ))}
-                            {availableNetworks.length === 0 && <SelectItem value="_none" disabled>No networks configured</SelectItem>}
+                            {availableNetworks.length === 0 && <SelectItem value="_none" disabled>{t("modal.noNetworks")}</SelectItem>}
                           </SelectContent>
                         </Select>
-                        <Input value={netAddr} onChange={e => setNetAddr(e.target.value)} placeholder="IP address (optional)" className="flex-1 font-mono" />
+                        <Input value={netAddr} onChange={e => setNetAddr(e.target.value)} placeholder={t("modal.ipAddressOptional")} className="flex-1 font-mono" />
                         <Button variant="outline" size="icon" onClick={addNetwork} disabled={!netName}><Plus className="h-4 w-4" /></Button>
                       </div>
                     </div>
@@ -630,7 +633,7 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
 
                 {/* Ports */}
                 <div className="space-y-3">
-                  <Label className="text-sm font-semibold">Port Mappings</Label>
+                  <Label className="text-sm font-semibold">{t("modal.portMappings")}</Label>
                   {ports.length > 0 && (
                     <div className="space-y-2">
                       {ports.map(p => (
@@ -647,27 +650,27 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                     </div>
                   )}
                   <div className="grid grid-cols-2 gap-2">
-                    <Input value={portName} onChange={e => setPortName(e.target.value)} placeholder="Port name (e.g. http)" className="font-mono" />
+                    <Input value={portName} onChange={e => setPortName(e.target.value)} placeholder={t("modal.portNamePlaceholder")} className="font-mono" />
                     <Select value={portProto} onValueChange={setPortProto}>
-                      <SelectTrigger><SelectValue placeholder="Protocol" /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder={t("modal.protocol")} /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="_none">— Any —</SelectItem>
+                        <SelectItem value="_none">{t("modal.anyOption")}</SelectItem>
                         <SelectItem value="tcp">TCP</SelectItem>
                         <SelectItem value="udp">UDP</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Input value={portSrc} onChange={e => setPortSrc(e.target.value)} placeholder="Host port (source)" className="font-mono" />
-                    <Input value={portDst} onChange={e => setPortDst(e.target.value)} placeholder="Container port (dest)" className="font-mono" />
-                    <Input value={portListenAddr} onChange={e => setPortListenAddr(e.target.value)} placeholder="Listen address (optional)" className="font-mono col-span-1" />
+                    <Input value={portSrc} onChange={e => setPortSrc(e.target.value)} placeholder={t("modal.hostPort")} className="font-mono" />
+                    <Input value={portDst} onChange={e => setPortDst(e.target.value)} placeholder={t("modal.containerPort")} className="font-mono" />
+                    <Input value={portListenAddr} onChange={e => setPortListenAddr(e.target.value)} placeholder={t("modal.listenAddress")} className="font-mono col-span-1" />
                     <Button variant="outline" onClick={addPort} disabled={!portName}>
-                      <Plus className="h-4 w-4 mr-1" /> Add Port
+                      <Plus className="h-4 w-4 mr-1" /> {t("modal.addPort")}
                     </Button>
                   </div>
                 </div>
 
                 {/* Name Servers */}
                 <div className="space-y-3">
-                  <Label className="text-sm font-semibold">Name Servers</Label>
+                  <Label className="text-sm font-semibold">{t("modal.nameServers")}</Label>
                   {nameServers.length > 0 && (
                     <div className="flex flex-wrap gap-2">
                       {nameServers.map(ns => (
@@ -681,7 +684,7 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                     </div>
                   )}
                   <div className="flex gap-2">
-                    <Input value={nsInput} onChange={e => setNsInput(e.target.value)} placeholder="DNS server IP" className="font-mono" onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); if (nsInput && !nameServers.includes(nsInput)) { setNameServers([...nameServers, nsInput]); setNsInput(""); } } }} />
+                    <Input value={nsInput} onChange={e => setNsInput(e.target.value)} placeholder={t("modal.dnsServerIp")} className="font-mono" onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); if (nsInput && !nameServers.includes(nsInput)) { setNameServers([...nameServers, nsInput]); setNsInput(""); } } }} />
                     <Button variant="outline" size="icon" onClick={() => { if (nsInput && !nameServers.includes(nsInput)) { setNameServers([...nameServers, nsInput]); setNsInput(""); } }} disabled={!nsInput}><Plus className="h-4 w-4" /></Button>
                   </div>
                 </div>
@@ -693,7 +696,7 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
               <div className="space-y-5 pb-2">
                 {/* Volumes */}
                 <div className="space-y-3">
-                  <Label className="text-sm font-semibold">Volume Mounts</Label>
+                  <Label className="text-sm font-semibold">{t("modal.volumeMounts")}</Label>
                   {volumes.length > 0 && (
                     <div className="space-y-2">
                       {volumes.map(v => (
@@ -719,7 +722,7 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                           setVolSrcSuffix(newName);
                         }
                       }}
-                      placeholder="Volume name (e.g. data)"
+                      placeholder={t("modal.volumeNamePlaceholder")}
                       className="font-mono"
                     />
                     {/* Split source input: read-only base path + editable suffix */}
@@ -734,24 +737,24 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                         className="flex-1 min-w-0 bg-transparent py-2 pr-3 text-xs font-mono outline-none placeholder:text-muted-foreground"
                       />
                     </div>
-                    <Input value={volDst} onChange={e => setVolDst(e.target.value)} placeholder="Container destination" className="font-mono" />
+                    <Input value={volDst} onChange={e => setVolDst(e.target.value)} placeholder={t("modal.containerDestination")} className="font-mono" />
                     <Select value={volMode} onValueChange={setVolMode}>
-                      <SelectTrigger><SelectValue placeholder="Mode (ro/rw)" /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder={t("modal.modePlaceholder")} /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="_none">— Default —</SelectItem>
-                        <SelectItem value="ro">ro (read-only)</SelectItem>
-                        <SelectItem value="rw">rw (read-write)</SelectItem>
+                        <SelectItem value="_none">{t("modal.defaultOption")}</SelectItem>
+                        <SelectItem value="ro">{t("modal.readOnlyMode")}</SelectItem>
+                        <SelectItem value="rw">{t("modal.readWriteMode")}</SelectItem>
                       </SelectContent>
                     </Select>
                     <Select value={volProp} onValueChange={setVolProp}>
-                      <SelectTrigger><SelectValue placeholder="Propagation" /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder={t("modal.propagation")} /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="_none">— Default —</SelectItem>
+                        <SelectItem value="_none">{t("modal.defaultOption")}</SelectItem>
                         {propagationValues.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <Button variant="outline" onClick={addVolume} disabled={!volName}>
-                      <Plus className="h-4 w-4 mr-1" /> Add Volume
+                      <Plus className="h-4 w-4 mr-1" /> {t("modal.addVolume")}
                     </Button>
                   </div>
                 </div>
@@ -759,7 +762,7 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                 {/* Tmpfs */}
                 {showTmpfs && (
                   <div className="space-y-3">
-                    <Label className="text-sm font-semibold">Tmpfs Mounts</Label>
+                    <Label className="text-sm font-semibold">{t("modal.tmpfsMounts")}</Label>
                     {tmpfsMounts.length > 0 && (
                       <div className="space-y-2">
                         {tmpfsMounts.map(t => (
@@ -775,17 +778,17 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                       </div>
                     )}
                     <div className="grid grid-cols-2 gap-2">
-                      <Input value={tmpfsName} onChange={e => setTmpfsName(e.target.value)} placeholder="Mount name" className="font-mono" />
-                      <Input value={tmpfsDst} onChange={e => setTmpfsDst(e.target.value)} placeholder="Mount path in container" className="font-mono" />
-                      <Input type="number" value={tmpfsSize} onChange={e => setTmpfsSize(e.target.value)} placeholder="Size (MB, optional)" className="font-mono" />
-                      <Button variant="outline" onClick={addTmpfs} disabled={!tmpfsName}><Plus className="h-4 w-4 mr-1" /> Add Tmpfs</Button>
+                      <Input value={tmpfsName} onChange={e => setTmpfsName(e.target.value)} placeholder={t("modal.mountName")} className="font-mono" />
+                      <Input value={tmpfsDst} onChange={e => setTmpfsDst(e.target.value)} placeholder={t("modal.mountPath")} className="font-mono" />
+                      <Input type="number" value={tmpfsSize} onChange={e => setTmpfsSize(e.target.value)} placeholder={t("modal.sizeOptional")} className="font-mono" />
+                      <Button variant="outline" onClick={addTmpfs} disabled={!tmpfsName}><Plus className="h-4 w-4 mr-1" /> {t("modal.addTmpfs")}</Button>
                     </div>
                   </div>
                 )}
 
                 {/* Devices */}
                 <div className="space-y-3">
-                  <Label className="text-sm font-semibold">Device Mappings</Label>
+                  <Label className="text-sm font-semibold">{t("modal.deviceMappings")}</Label>
                   {devices.length > 0 && (
                     <div className="space-y-2">
                       {devices.map(d => (
@@ -800,10 +803,10 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                     </div>
                   )}
                   <div className="grid grid-cols-2 gap-2">
-                    <Input value={devName} onChange={e => setDevName(e.target.value)} placeholder="Device name" className="font-mono" />
-                    <Input value={devSrc} onChange={e => setDevSrc(e.target.value)} placeholder="Host device path" className="font-mono" />
-                    <Input value={devDst} onChange={e => setDevDst(e.target.value)} placeholder="Container path" className="font-mono" />
-                    <Button variant="outline" onClick={addDevice} disabled={!devName}><Plus className="h-4 w-4 mr-1" /> Add Device</Button>
+                    <Input value={devName} onChange={e => setDevName(e.target.value)} placeholder={t("modal.deviceName")} className="font-mono" />
+                    <Input value={devSrc} onChange={e => setDevSrc(e.target.value)} placeholder={t("modal.hostDevicePath")} className="font-mono" />
+                    <Input value={devDst} onChange={e => setDevDst(e.target.value)} placeholder={t("modal.containerPath")} className="font-mono" />
+                    <Button variant="outline" onClick={addDevice} disabled={!devName}><Plus className="h-4 w-4 mr-1" /> {t("modal.addDevice")}</Button>
                   </div>
                 </div>
               </div>
@@ -813,7 +816,7 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
             <TabsContent value="environment" className="m-0 px-1">
               <div className="space-y-5 pb-2">
                 <div className="space-y-3">
-                  <Label className="text-sm font-semibold">Environment Variables</Label>
+                  <Label className="text-sm font-semibold">{t("modal.environmentVariables")}</Label>
                   {environments.length > 0 && (
                     <div className="space-y-2">
                       {environments.map(e => (
@@ -825,14 +828,14 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                     </div>
                   )}
                   <div className="flex gap-2">
-                    <Input value={envKey} onChange={e => setEnvKey(e.target.value)} placeholder="Variable name" className="font-mono flex-1" />
-                    <Input value={envVal} onChange={e => setEnvVal(e.target.value)} placeholder="Value (optional)" className="font-mono flex-1" />
+                    <Input value={envKey} onChange={e => setEnvKey(e.target.value)} placeholder={t("modal.variableName")} className="font-mono flex-1" />
+                    <Input value={envVal} onChange={e => setEnvVal(e.target.value)} placeholder={t("modal.valueOptional")} className="font-mono flex-1" />
                     <Button variant="outline" size="icon" onClick={addEnv} disabled={!envKey}><Plus className="h-4 w-4" /></Button>
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  <Label className="text-sm font-semibold">Labels</Label>
+                  <Label className="text-sm font-semibold">{t("modal.labels")}</Label>
                   {labels.length > 0 && (
                     <div className="space-y-2">
                       {labels.map(l => (
@@ -844,8 +847,8 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                     </div>
                   )}
                   <div className="flex gap-2">
-                    <Input value={lblKey} onChange={e => setLblKey(e.target.value)} placeholder="Label name" className="font-mono flex-1" />
-                    <Input value={lblVal} onChange={e => setLblVal(e.target.value)} placeholder="Value (optional)" className="font-mono flex-1" />
+                    <Input value={lblKey} onChange={e => setLblKey(e.target.value)} placeholder={t("modal.labelName")} className="font-mono flex-1" />
+                    <Input value={lblVal} onChange={e => setLblVal(e.target.value)} placeholder={t("modal.valueOptional")} className="font-mono flex-1" />
                     <Button variant="outline" size="icon" onClick={addLabel} disabled={!lblKey}><Plus className="h-4 w-4" /></Button>
                   </div>
                 </div>
@@ -856,17 +859,17 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
             <TabsContent value="security" className="m-0 px-1">
               <div className="space-y-5 pb-2">
                 <div className="space-y-3">
-                  <Label className="text-sm font-semibold">Host Access</Label>
+                  <Label className="text-sm font-semibold">{t("modal.hostAccess")}</Label>
                   {showAllowHostNetworks && (
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <Checkbox id="c-ahn" checked={allowHostNetworks} onCheckedChange={v => handleAllowHostNetworksChange(v === true)} />
-                        <Label htmlFor="c-ahn" className="cursor-pointer">Allow host networks</Label>
+                        <Label htmlFor="c-ahn" className="cursor-pointer">{t("modal.allowHostNetworks")}</Label>
                       </div>
                       {networks.length > 0 && !allowHostNetworks && (
                         <div className="flex items-start gap-2 rounded-md bg-blue-500/10 border border-blue-500/20 p-2">
                           <AlertTriangle className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
-                          <p className="text-xs text-blue-700 dark:text-blue-400">Enabling host networks will remove existing network attachments.</p>
+                          <p className="text-xs text-blue-700 dark:text-blue-400">{t("modal.hostNetworksRemoveWarning")}</p>
                         </div>
                       )}
                     </div>
@@ -874,19 +877,19 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                   {showAllowHostPid && (
                     <div className="flex items-center gap-2">
                       <Checkbox id="c-ahp" checked={allowHostPid} onCheckedChange={v => setAllowHostPid(v === true)} />
-                      <Label htmlFor="c-ahp" className="cursor-pointer">Allow host PID namespace</Label>
+                      <Label htmlFor="c-ahp" className="cursor-pointer">{t("modal.allowHostPid")}</Label>
                     </div>
                   )}
                   {showPrivileged && (
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <Checkbox id="c-priv" checked={privileged} onCheckedChange={v => setPrivileged(v === true)} />
-                        <Label htmlFor="c-priv" className="cursor-pointer">Privileged</Label>
+                        <Label htmlFor="c-priv" className="cursor-pointer">{t("modal.privileged")}</Label>
                       </div>
                       {privileged && (
                         <div className="flex items-start gap-2 rounded-md bg-amber-500/10 border border-amber-500/20 p-2">
                           <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                          <p className="text-xs text-amber-700 dark:text-amber-400">Privileged containers have root-level access to the host. Use only when required.</p>
+                          <p className="text-xs text-amber-700 dark:text-amber-400">{t("modal.privilegedWarning")}</p>
                         </div>
                       )}
                     </div>
@@ -895,7 +898,7 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
 
                 {caps?.capabilities?.supported !== false && (
                   <div className="space-y-3">
-                    <Label className="text-sm font-semibold">Linux Capabilities</Label>
+                    <Label className="text-sm font-semibold">{t("modal.linuxCapabilities")}</Label>
                     <div className="grid grid-cols-2 gap-2">
                       {capValues.map(cap => (
                         <div key={cap} className="flex items-center gap-2">
@@ -909,7 +912,7 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
 
                 {showSysctl && (
                   <div className="space-y-3">
-                    <Label className="text-sm font-semibold">Sysctl Parameters</Label>
+                    <Label className="text-sm font-semibold">{t("modal.sysctlParameters")}</Label>
                     {sysctlParams.length > 0 && (
                       <div className="space-y-2">
                         {sysctlParams.map(s => (
@@ -922,7 +925,7 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                     )}
                     <div className="flex gap-2">
                       <Input value={sysctlKey} onChange={e => setSysctlKey(e.target.value)} placeholder="net.ipv4.ip_forward" className="font-mono flex-1" />
-                      <Input value={sysctlVal} onChange={e => setSysctlVal(e.target.value)} placeholder="Value" className="font-mono flex-1" />
+                      <Input value={sysctlVal} onChange={e => setSysctlVal(e.target.value)} placeholder={t("modal.value")} className="font-mono flex-1" />
                       <Button variant="outline" size="icon" onClick={addSysctl} disabled={!sysctlKey}><Plus className="h-4 w-4" /></Button>
                     </div>
                   </div>
@@ -940,11 +943,11 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
         )}
 
         <DialogFooter className="mt-2">
-          <Button variant="outline" onClick={handleClose} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={handleClose} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEditMode ? "Saving…" : "Adding…"}</>
-            ) : isEditMode ? "Save Changes" : "Add Container"}
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEditMode ? t("modal.saving") : t("modal.adding")}</>
+            ) : isEditMode ? t("modal.saveChanges") : t("modal.addTitle")}
           </Button>
         </DialogFooter>
       </DialogContent>

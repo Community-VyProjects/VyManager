@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Check, Copy, Key, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { monitoringService, SSHKeyStatus } from "@/lib/api/monitoring";
@@ -14,6 +15,7 @@ interface SSHKeySetupProps {
 }
 
 export function SSHKeySetup({ instanceId, sshUsername, onConfigured }: SSHKeySetupProps) {
+  const t = useTranslations("monitoring");
   const [status, setStatus] = useState<SSHKeyStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -29,7 +31,7 @@ export function SSHKeySetup({ instanceId, sshUsername, onConfigured }: SSHKeySet
       const data = await monitoringService.getSSHKeyStatus(instanceId);
       setStatus(data);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to load SSH key status";
+      const message = err instanceof Error ? err.message : t("sshKey.loadFailed");
       setError(message);
     } finally {
       setLoading(false);
@@ -55,14 +57,14 @@ export function SSHKeySetup({ instanceId, sshUsername, onConfigured }: SSHKeySet
           parsed.data,
         );
         if (!result.success) {
-          throw new Error(result.error || "Failed to install the key on this device");
+          throw new Error(result.error || t("sshKey.installFailed"));
         }
         await monitoringService.markKeyConfigured(instanceId, true);
       }
       await loadStatus();
       onConfigured?.();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to generate SSH key";
+      const message = err instanceof Error ? err.message : t("sshKey.generateFailed");
       setError(message);
       try {
         await loadStatus();
@@ -101,7 +103,7 @@ export function SSHKeySetup({ instanceId, sshUsername, onConfigured }: SSHKeySet
       await loadStatus();
       onConfigured?.();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to mark key as configured";
+      const message = err instanceof Error ? err.message : t("sshKey.markFailed");
       setError(message);
     } finally {
       setMarking(false);
@@ -115,7 +117,7 @@ export function SSHKeySetup({ instanceId, sshUsername, onConfigured }: SSHKeySet
       await monitoringService.deleteSSHKey(instanceId);
       await loadStatus();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to delete SSH key";
+      const message = err instanceof Error ? err.message : t("sshKey.deleteFailed");
       setError(message);
     } finally {
       setDeleting(false);
@@ -152,14 +154,14 @@ export function SSHKeySetup({ instanceId, sshUsername, onConfigured }: SSHKeySet
         }`} />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium">
-            {status?.configured ? "SSH Key Configured" :
-             status?.has_key ? "Key Generated — Awaiting VyOS Setup" :
-             "No SSH Key"}
+            {status?.configured ? t("sshKey.configured") :
+             status?.has_key ? t("sshKey.awaitingSetup") :
+             t("sshKey.noKey")}
           </p>
           <p className="text-xs text-muted-foreground">
-            {status?.configured ? "This instance is ready for SSH access" :
-             status?.has_key ? "Install the public key on this device" :
-             "Generate an SSH keypair to enable console, monitoring, and containers"}
+            {status?.configured ? t("sshKey.configuredHelp") :
+             status?.has_key ? t("sshKey.awaitingSetupHelp") :
+             t("sshKey.noKeyHelp")}
           </p>
         </div>
       </div>
@@ -170,12 +172,12 @@ export function SSHKeySetup({ instanceId, sshUsername, onConfigured }: SSHKeySet
           {generating ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Generating...
+              {t("sshKey.generating")}
             </>
           ) : (
             <>
               <Key className="h-4 w-4 mr-2" />
-              Generate SSH Keypair
+              {t("sshKey.generate")}
             </>
           )}
         </Button>
@@ -185,7 +187,7 @@ export function SSHKeySetup({ instanceId, sshUsername, onConfigured }: SSHKeySet
       {status?.has_key && !status.configured && (
         <div className="space-y-3">
           <div className="space-y-2">
-            <p className="text-sm font-medium">Public Key</p>
+            <p className="text-sm font-medium">{t("sshKey.publicKey")}</p>
             <div className="relative">
               <pre className="rounded-lg bg-muted p-3 text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all pr-10">
                 {status.public_key}
@@ -202,9 +204,9 @@ export function SSHKeySetup({ instanceId, sshUsername, onConfigured }: SSHKeySet
           </div>
 
           <div className="rounded-lg bg-muted/50 border p-3 space-y-2">
-            <p className="text-sm font-medium">Install on VyOS</p>
+            <p className="text-sm font-medium">{t("sshKey.installOnVyos")}</p>
             <p className="text-xs text-muted-foreground">
-              Run the following commands on your VyOS device:
+              {t("sshKey.runCommands")}
             </p>
             <pre className="rounded bg-background p-2 text-xs font-mono overflow-x-auto">
 {`configure
@@ -220,12 +222,12 @@ save`}
               {marking ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Confirming...
+                  {t("sshKey.confirming")}
                 </>
               ) : (
                 <>
                   <Check className="h-4 w-4 mr-2" />
-                  I&apos;ve Configured the Key
+                  {t("sshKey.markConfigured")}
                 </>
               )}
             </Button>
@@ -243,12 +245,12 @@ save`}
             {generating ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Regenerating...
+                {t("sshKey.regenerating")}
               </>
             ) : (
               <>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Regenerate Key
+                {t("sshKey.regenerate")}
               </>
             )}
           </Button>

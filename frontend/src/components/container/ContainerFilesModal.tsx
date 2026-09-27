@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,8 @@ function resolvePath(template: string, containerName: string): string {
 }
 
 export function ContainerFilesModal({ open, onOpenChange, containerName, app }: Props) {
+  const t = useTranslations("containers");
+  const tc = useTranslations("common");
   const editableFiles = app.installConfig?.editableFiles ?? [];
 
   const [view, setView] = useState<View>("list");
@@ -51,12 +54,12 @@ export function ContainerFilesModal({ open, onOpenChange, containerName, app }: 
     try {
       const result = await containerService.readContainerFile(path);
       if (!result.success) {
-        setError(result.error || "Failed to read file.");
+        setError(result.error || t("filesModal.readFailed"));
       } else {
         setContent(result.content ?? "");
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to read file.");
+      setError(err instanceof Error ? err.message : t("filesModal.readFailed"));
     } finally {
       setLoading(false);
     }
@@ -70,12 +73,12 @@ export function ContainerFilesModal({ open, onOpenChange, containerName, app }: 
     try {
       const result = await containerService.writeContainerFile(resolvedPath, content);
       if (!result.success) {
-        setError(result.error || "Failed to save file.");
+        setError(result.error || t("filesModal.saveFailed"));
       } else {
         setSaveSuccess(true);
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to save file.");
+      setError(err instanceof Error ? err.message : t("filesModal.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -108,7 +111,7 @@ export function ContainerFilesModal({ open, onOpenChange, containerName, app }: 
               <button
                 onClick={backToList}
                 className="mr-1 rounded p-1 hover:bg-muted transition-colors"
-                aria-label="Back to file list"
+                aria-label={t("filesModal.backToList")}
               >
                 <ArrowLeft className="h-4 w-4" />
               </button>
@@ -119,8 +122,8 @@ export function ContainerFilesModal({ open, onOpenChange, containerName, app }: 
             ) : null}
             <span>
               {view === "list"
-                ? `Files — ${containerName}`
-                : (selectedFile?.label ?? "Edit File")}
+                ? t("filesModal.title", { name: containerName })
+                : (selectedFile?.label ?? t("filesModal.editFile"))}
             </span>
           </DialogTitle>
         </DialogHeader>
@@ -130,7 +133,7 @@ export function ContainerFilesModal({ open, onOpenChange, containerName, app }: 
           {view === "list" && (
             <div className="space-y-1">
               {editableFiles.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">No editable files defined for this app.</p>
+                <p className="text-sm text-muted-foreground py-4 text-center">{t("filesModal.noFiles")}</p>
               ) : (
                 editableFiles.map((f, i) => (
                   <button
@@ -179,7 +182,7 @@ export function ContainerFilesModal({ open, onOpenChange, containerName, app }: 
               {saveSuccess && (
                 <div className="flex items-center gap-2 rounded-lg bg-green-500/10 border border-green-500/20 px-3 py-2">
                   <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-                  <p className="text-sm text-green-700 dark:text-green-400">Saved. A backup was written to <span className="font-mono">{resolvedPath}.bak</span></p>
+                  <p className="text-sm text-green-700 dark:text-green-400">{t.rich("filesModal.saved", { path: `${resolvedPath}.bak`, mono: (chunks) => <span className="font-mono">{chunks}</span> })}</p>
                 </div>
               )}
             </div>
@@ -189,9 +192,9 @@ export function ContainerFilesModal({ open, onOpenChange, containerName, app }: 
         {/* ── Footer ── */}
         {view === "editor" && !loading && (
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button variant="outline" onClick={backToList} disabled={saving}>Back</Button>
+            <Button variant="outline" onClick={backToList} disabled={saving}>{t("filesModal.back")}</Button>
             <Button onClick={save} disabled={saving}>
-              {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</> : "Save"}
+              {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{t("filesModal.saving")}</> : tc("save")}
             </Button>
           </div>
         )}

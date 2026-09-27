@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,8 @@ interface Props {
 }
 
 export function UserModal({ open, onOpenChange, user, onSuccess }: Props) {
+  const t = useTranslations("systemLogin");
+  const tc = useTranslations("common");
   const isEdit = !!user;
   const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
@@ -50,11 +53,11 @@ export function UserModal({ open, onOpenChange, user, onSuccess }: Props) {
     setError(null);
 
     if (!isEdit && !username.trim()) {
-      setError("Username is required.");
+      setError(t("userModal.usernameRequired"));
       return;
     }
     if (password && password !== confirmPassword) {
-      setError("Passwords do not match.");
+      setError(t("userModal.passwordMismatch"));
       return;
     }
 
@@ -76,14 +79,14 @@ export function UserModal({ open, onOpenChange, user, onSuccess }: Props) {
       }
 
       if (!result.success) {
-        setError(result.error ?? "Operation failed");
+        setError(result.error ?? tc("operationFailed"));
         return;
       }
 
       handleClose();
       onSuccess();
     } catch {
-      setError("An unexpected error occurred");
+      setError(t("unexpectedError"));
     } finally {
       setLoading(false);
     }
@@ -97,19 +100,19 @@ export function UserModal({ open, onOpenChange, user, onSuccess }: Props) {
             {isEdit ? (
               <>
                 <Edit2 className="h-5 w-5" />
-                Edit User: {user?.username}
+                {t("userModal.editTitle", { name: user?.username ?? "" })}
               </>
             ) : (
               <>
                 <UserPlus className="h-5 w-5" />
-                Add User
+                {t("users.addUser")}
               </>
             )}
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Update the user's display name or password."
-              : "Create a new VyOS login user."}
+              ? t("userModal.editDescription")
+              : t("userModal.createDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -127,7 +130,7 @@ export function UserModal({ open, onOpenChange, user, onSuccess }: Props) {
 
           {/* Username — only editable when creating */}
           <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="username">{t("users.username")}</Label>
             <Input
               id="username"
               value={username}
@@ -140,7 +143,7 @@ export function UserModal({ open, onOpenChange, user, onSuccess }: Props) {
 
           {/* Full Name */}
           <div className="space-y-2">
-            <Label htmlFor="fullname">Full Name (optional)</Label>
+            <Label htmlFor="fullname">{t("userModal.fullNameOptional")}</Label>
             <Input
               id="fullname"
               value={fullName}
@@ -153,7 +156,7 @@ export function UserModal({ open, onOpenChange, user, onSuccess }: Props) {
           {/* Password */}
           <div className="space-y-2">
             <Label htmlFor="password">
-              {isEdit ? "New Password (leave blank to keep current)" : "Password (optional)"}
+              {isEdit ? t("userModal.newPassword") : t("userModal.passwordOptional")}
             </Label>
             <Input
               id="password"
@@ -167,7 +170,7 @@ export function UserModal({ open, onOpenChange, user, onSuccess }: Props) {
 
           {password && (
             <div className="space-y-2">
-              <Label htmlFor="confirm-password">Confirm Password</Label>
+              <Label htmlFor="confirm-password">{t("userModal.confirmPassword")}</Label>
               <Input
                 id="confirm-password"
                 type="password"
@@ -181,10 +184,10 @@ export function UserModal({ open, onOpenChange, user, onSuccess }: Props) {
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Saving…" : isEdit ? "Save Changes" : "Create User"}
+              {loading ? t("saving") : isEdit ? t("userModal.saveChanges") : t("userModal.createUser")}
             </Button>
           </div>
         </form>

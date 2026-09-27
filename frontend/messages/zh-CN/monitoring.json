@@ -1,1 +1,169 @@
-{}
+{
+  "page": {
+    "loadFailed": "加载监控数据失败",
+    "statusConnecting": "正在连接…",
+    "statusStarting": "正在启动命令…",
+    "statusLive": "实时",
+    "statusStopping": "正在停止…",
+    "title": "监控",
+    "subtitle": "通过 SSH 进行实时监控",
+    "error": "错误",
+    "noInstance": "无活动实例",
+    "noInstanceHelp": "连接到 VyOS 实例以开始监控。",
+    "sshNotConfigured": "SSH 未配置",
+    "sshNotConfiguredHelp": "尚未为 <strong>{name}</strong> 设置 SSH 密钥监控。",
+    "openSiteManager": "<link>打开站点管理</link>以配置 SSH。",
+    "selectCommand": "选择命令…",
+    "lines": "行数：",
+    "start": "开始",
+    "stop": "停止",
+    "interface": "接口",
+    "selectPlaceholder": "选择…",
+    "required": "必填",
+    "filterExpression": "过滤表达式",
+    "filterHint": "（BPF 语法，可选）",
+    "buildFilter": "构建过滤条件",
+    "emptyState": "选择一个命令并点击“开始”以开始监控"
+  },
+  "table": {
+    "timestamp": "时间戳",
+    "rawLine": "原始行",
+    "value": "值",
+    "addToFilter": "添加到过滤条件",
+    "copyValue": "复制值",
+    "clear": "清除"
+  },
+  "traffic": {
+    "packets": "{count, number} 个数据包",
+    "buffered": "+{count} 已缓冲",
+    "filterRows": "过滤行…",
+    "resume": "继续",
+    "pause": "暂停",
+    "exportPcap": "导出 PCAP",
+    "time": "时间",
+    "protocol": "协议",
+    "srcIp": "源 IP",
+    "srcPort": "源端口",
+    "dstIp": "目标 IP",
+    "dstPort": "目标端口",
+    "flags": "标志",
+    "bytes": "字节",
+    "waiting": "正在等待数据包…",
+    "noMatch": "没有与当前过滤条件匹配的数据包",
+    "empty": "开始监控以捕获流量",
+    "packetDetails": "数据包详情",
+    "networkProtocol": "网络层协议",
+    "transportProtocol": "传输层协议",
+    "sourceIp": "源 IP",
+    "sourcePort": "源端口",
+    "destinationIp": "目标 IP",
+    "destinationPort": "目标端口",
+    "tcpFlags": "TCP 标志",
+    "lengthBytes": "长度（字节）",
+    "info": "信息"
+  },
+  "log": {
+    "entries": "{count, number} 条记录",
+    "errors": "{count} 个错误",
+    "filterEntries": "过滤记录…",
+    "exportCsv": "导出 CSV",
+    "severity": "严重级别",
+    "process": "进程",
+    "message": "消息",
+    "hostname": "主机名",
+    "waiting": "正在等待日志记录…",
+    "noMatch": "没有与过滤条件匹配的记录",
+    "empty": "开始监控以查看日志",
+    "details": "日志记录详情"
+  },
+  "conntrack": {
+    "events": "{count, number} 个事件",
+    "filterEvents": "过滤事件…",
+    "event": "事件",
+    "proto": "协议",
+    "source": "源",
+    "destination": "目标",
+    "state": "状态",
+    "waiting": "正在等待连接事件…",
+    "noMatch": "没有与过滤条件匹配的事件",
+    "empty": "开始监控以查看连接",
+    "details": "连接详情",
+    "forwardFlow": "正向流",
+    "replyFlow": "回复流"
+  },
+  "filter": {
+    "title": "构建过滤条件",
+    "description": "使用条件构建 BPF 捕获过滤器",
+    "quickTemplates": "快速模板",
+    "templates": {
+      "web": {
+        "label": "Web 流量",
+        "description": "HTTP 和 HTTPS"
+      },
+      "dns": {
+        "label": "DNS",
+        "description": "UDP 端口 53"
+      },
+      "icmp": {
+        "label": "ICMP / Ping",
+        "description": "Ping 和 traceroute"
+      },
+      "excludeArp": {
+        "label": "排除 ARP",
+        "description": "屏蔽 ARP 噪声"
+      }
+    },
+    "attributes": {
+      "protocol": "协议",
+      "src_host": "源 IP",
+      "dst_host": "目标 IP",
+      "host": "任意 IP",
+      "src_port": "源端口",
+      "dst_port": "目标端口",
+      "port": "任意端口"
+    },
+    "operators": {
+      "is": "是",
+      "isNot": "不是",
+      "inNetwork": "属于网段",
+      "equals": "等于",
+      "doesNotEqual": "不等于"
+    },
+    "ipPlaceholder": "{host} 或 {network}",
+    "conditions": "条件",
+    "addCondition": "添加条件",
+    "where": "当",
+    "selectProtocol": "选择协议…",
+    "removeCondition": "移除条件",
+    "filterExpression": "过滤表达式",
+    "bpfSyntax": "tcpdump BPF 语法",
+    "noConditions": "无条件 — 将捕获该接口上的所有流量",
+    "apply": "应用过滤条件"
+  },
+  "sshKey": {
+    "loadFailed": "加载 SSH 密钥状态失败",
+    "installFailed": "在此设备上安装密钥失败",
+    "generateFailed": "生成 SSH 密钥失败",
+    "markFailed": "将密钥标记为已配置失败",
+    "deleteFailed": "删除 SSH 密钥失败",
+    "configured": "SSH 密钥已配置",
+    "awaitingSetup": "密钥已生成 — 等待 VyOS 设置",
+    "noKey": "无 SSH 密钥",
+    "configuredHelp": "此实例已可通过 SSH 访问",
+    "awaitingSetupHelp": "在此设备上安装公钥",
+    "noKeyHelp": "生成 SSH 密钥对以启用控制台、监控和容器功能",
+    "generating": "正在生成...",
+    "generate": "生成 SSH 密钥对",
+    "publicKey": "公钥",
+    "installOnVyos": "在 VyOS 上安装",
+    "runCommands": "在你的 VyOS 设备上运行以下命令：",
+    "confirming": "正在确认...",
+    "markConfigured": "我已配置密钥",
+    "regenerating": "正在重新生成...",
+    "regenerate": "重新生成密钥"
+  },
+  "terminal": {
+    "lines": "{count} 行",
+    "waiting": "正在等待输出..."
+  }
+}

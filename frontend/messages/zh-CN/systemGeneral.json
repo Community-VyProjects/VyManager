@@ -1,1 +1,78 @@
-{}
+{
+  "unexpectedError": "发生意外错误",
+  "page": {
+    "loadFailed": "加载系统配置失败。",
+    "title": "系统设置",
+    "subtitle": "管理 VyOS 系统配置——主机名、用户、Syslog、连接跟踪等。",
+    "readOnly": "你对系统设置只有只读权限。",
+    "loading": "正在加载系统配置…",
+    "tabs": {
+      "general": "常规",
+      "users": "用户与登录",
+      "syslog": "Syslog",
+      "conntrack": "连接跟踪",
+      "hostmap": "主机映射",
+      "ipSettings": "IP 设置",
+      "scheduler": "任务计划",
+      "flowAccounting": "流量统计",
+      "advanced": "高级"
+    }
+  },
+  "general": {
+    "saved": "常规设置已保存",
+    "saveFailed": "保存设置失败",
+    "title": "常规",
+    "description": "主机名、域名、名称服务器、时区和性能配置文件。",
+    "saving": "正在保存…",
+    "hostname": "主机名",
+    "domainName": "域名",
+    "timezone": "时区",
+    "selectTimezone": "选择时区",
+    "performanceProfile": "性能配置文件",
+    "defaultNotSet": "默认（未设置）",
+    "nameServers": "名称服务器",
+    "noneConfigured": "未配置"
+  },
+  "ip": {
+    "saveIpFailed": "保存 IP 设置失败",
+    "ipSaved": "IP 设置已保存",
+    "saveIpv6Failed": "保存 IPv6 设置失败",
+    "ipv6Saved": "IPv6 设置已保存",
+    "ipv4Title": "IPv4 设置",
+    "ipv4Description": "内核 IPv4 转发和多路径选项。",
+    "ipv6Title": "IPv6 设置",
+    "ipv6Description": "内核 IPv6 转发和邻居发现选项。",
+    "arpNdpTableSize": "ARP/NDP 表大小",
+    "neighborTableSize": "邻居表大小",
+    "disableForwarding": "禁用转发",
+    "multipathIgnoreUnreachable": "多路径忽略不可达",
+    "multipathLayer4Hashing": "多路径四层哈希",
+    "nhtNoResolveViaDefault": "NHT 不通过默认路由解析",
+    "strictDad": "严格 DAD"
+  },
+  "hostMap": {
+    "deleteFailed": "删除失败",
+    "deleteFailedDetail": "删除主机映射失败",
+    "removed": "主机映射已移除",
+    "title": "静态主机映射",
+    "description": "将主机名映射到静态 IP 地址，用于本地 DNS 解析。",
+    "addMapping": "添加映射",
+    "ipAddress": "IP 地址",
+    "aliases": "别名",
+    "empty": "未配置主机映射",
+    "removeTitle": "移除主机映射",
+    "removeConfirm": "移除 <strong>{name}</strong> 的静态映射？",
+    "removing": "正在移除…",
+    "remove": "移除"
+  },
+  "hostModal": {
+    "hostnameRequired": "主机名为必填项。",
+    "ipRequired": "至少需要一个 IP 地址。",
+    "createFailed": "创建主机映射失败",
+    "title": "添加静态主机映射",
+    "description": "将主机名映射到静态 IP 地址。",
+    "ipAddresses": "IP 地址",
+    "aliasesOptional": "别名（可选）",
+    "adding": "正在添加…"
+  }
+}
