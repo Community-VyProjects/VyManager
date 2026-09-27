@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,10 +10,13 @@ import { Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { challengeMethods, type TwoFactorMethod } from "@/lib/two-factor";
 
-const METHOD_LABEL: Record<TwoFactorMethod, string> = {
-  totp: "Authenticator app",
-  otp: "Email code",
-  backup: "Backup code",
+const METHOD_LABEL: Record<
+  TwoFactorMethod,
+  "challenge.methodTotp" | "challenge.methodOtp" | "challenge.methodBackup"
+> = {
+  totp: "challenge.methodTotp",
+  otp: "challenge.methodOtp",
+  backup: "challenge.methodBackup",
 };
 
 export function TwoFactorChallenge({
@@ -22,6 +26,7 @@ export function TwoFactorChallenge({
   methods: string[];
   onVerified: () => Promise<void> | void;
 }) {
+  const t = useTranslations("twoFactor");
   const available = challengeMethods(methods);
   const [method, setMethod] = useState<TwoFactorMethod>(available[0]);
   const [code, setCode] = useState("");
@@ -44,12 +49,12 @@ export function TwoFactorChallenge({
             ? await authClient.twoFactor.verifyOtp(body)
             : await authClient.twoFactor.verifyBackupCode(body);
       if (result.error) {
-        setError(result.error.message || "Verification failed");
+        setError(result.error.message || t("challenge.verificationFailed"));
         return;
       }
       await onVerified();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Verification failed");
+      setError(err instanceof Error ? err.message : t("challenge.verificationFailed"));
     } finally {
       setIsLoading(false);
     }
@@ -61,12 +66,12 @@ export function TwoFactorChallenge({
     try {
       const result = await authClient.twoFactor.sendOtp({});
       if (result.error) {
-        setError(result.error.message || "Could not send email code");
+        setError(result.error.message || t("challenge.sendFailed"));
         return;
       }
       setOtpSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not send email code");
+      setError(err instanceof Error ? err.message : t("challenge.sendFailed"));
     } finally {
       setSending(false);
     }
@@ -88,7 +93,7 @@ export function TwoFactorChallenge({
               setError("");
             }}
           >
-            {METHOD_LABEL[id]}
+            {t(METHOD_LABEL[id])}
           </Button>
         ))}
       </div>
@@ -105,23 +110,23 @@ export function TwoFactorChallenge({
             {sending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Sending...
+                {t("challenge.sending")}
               </>
             ) : otpSent ? (
-              "Resend email code"
+              t("challenge.resend")
             ) : (
-              "Send email code"
+              t("challenge.send")
             )}
           </Button>
           {otpSent && (
-            <p className="text-xs text-muted-foreground">Code sent if mail is configured.</p>
+            <p className="text-xs text-muted-foreground">{t("challenge.codeSent")}</p>
           )}
         </div>
       )}
 
       <div className="space-y-2">
         <Label htmlFor="two-factor-code" className="text-sm font-medium text-foreground">
-          {method === "backup" ? "Backup code" : "Verification code"}
+          {method === "backup" ? t("challenge.methodBackup") : t("challenge.verificationCode")}
         </Label>
         <Input
           id="two-factor-code"
@@ -142,7 +147,7 @@ export function TwoFactorChallenge({
           onCheckedChange={(v) => setTrustDevice(v === true)}
           disabled={isLoading}
         />
-        Trust this device for 30 days
+        {t("challenge.trustDevice")}
       </label>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -155,10 +160,10 @@ export function TwoFactorChallenge({
         {isLoading ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Verifying...
+            {t("challenge.verifying")}
           </>
         ) : (
-          "Verify"
+          t("challenge.verify")
         )}
       </Button>
     </form>
