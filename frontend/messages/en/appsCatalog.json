@@ -1,1 +1,223 @@
-{}
+{
+  "categories": {
+    "networkMonitoring": "Network Monitoring",
+    "proxy": "Proxy"
+  },
+  "apps": {
+    "adguard-home": {
+      "tagline": "Network-wide ad & tracker blocking",
+      "description": "Block ads and tracking on every device in your network. AdGuard Home acts as a DNS server with built-in content filtering — no client-side software needed.",
+      "fields": {
+        "memory": {
+          "label": "Memory (MB)"
+        },
+        "timezone": {
+          "label": "Timezone",
+          "description": "e.g. America/New_York, Europe/London, UTC"
+        }
+      }
+    },
+    "adguard-dnsproxy-doq": {
+      "tagline": "Local DNS-over-QUIC upstream proxy for VyOS PowerDNS",
+      "description": "Runs AdGuard dnsproxy locally on VyOS so the built-in PowerDNS Recursor can forward queries to an encrypted DNS-over-QUIC upstream for deployments where PowerDNS remains the LAN DNS server.",
+      "fields": {
+        "memory": {
+          "label": "Memory (MB)",
+          "description": "dnsproxy is lightweight; increase only for unusually high query volume."
+        },
+        "listenAddress": {
+          "label": "Local Listen Address",
+          "description": "Use 127.0.0.1 when PowerDNS on VyOS will forward to this container locally."
+        },
+        "listenPort": {
+          "label": "Local Listen Port",
+          "description": "Port dnsproxy listens on locally. Avoid 53 because VyOS PowerDNS normally owns LAN DNS."
+        },
+        "upstream": {
+          "label": "DoQ Upstream",
+          "description": "Encrypted upstream DNS resolver."
+        },
+        "bootstrap1": {
+          "label": "Bootstrap DNS 1",
+          "description": "Bootstrap resolver used to resolve the upstream hostname before encrypted DNS is established."
+        },
+        "bootstrap2": {
+          "label": "Bootstrap DNS 2",
+          "description": "Second bootstrap resolver. Kept required because the generic wizard cannot conditionally omit arguments."
+        },
+        "upstreamMode": {
+          "label": "Upstream Mode",
+          "description": "dnsproxy upstream selection mode.",
+          "options": {
+            "load_balance": "load_balance",
+            "parallel": "parallel",
+            "fastest_addr": "fastest_addr"
+          }
+        },
+        "timeout": {
+          "label": "Upstream Timeout",
+          "description": "Timeout for outbound DNS queries."
+        }
+      }
+    },
+    "nprobe": {
+      "tagline": "NetFlow/IPFIX collector with embedded IPS",
+      "description": "ntop nProbe is a high-performance NetFlow v5/v9/IPFIX probe and collector with embedded IPS capabilities.",
+      "fields": {
+        "memory": {
+          "label": "Memory (MB)",
+          "description": "Memory limit. Increase for high-traffic environments."
+        },
+        "nfqueue": {
+          "description": "Set the NF queue to use in your firewall rules"
+        }
+      },
+      "files": {
+        "ipsRules": "IPS Rules"
+      }
+    },
+    "ntopng": {
+      "tagline": "High‑performance web‑based network traffic monitoring",
+      "description": "ntop ntopng is a network traffic probe that shows network usage, supports NetFlow/sFlow, packet analysis, and provides a modern web interface. Ideal for deep inspection of your VyOS router traffic.",
+      "fields": {
+        "memory": {
+          "label": "Memory (MB)",
+          "description": "ntopng can use significant memory when tracking many flows."
+        },
+        "interface": {
+          "label": "Network Interface",
+          "description": "Interface to monitor (e.g., eth0, bond0, eth1)."
+        },
+        "webPort": {
+          "label": "Web Interface Port",
+          "description": "Port for the ntopng web UI."
+        }
+      },
+      "files": {
+        "licenseFile": "License File"
+      }
+    },
+    "pihole": {
+      "tagline": "Network‑wide ad blocking",
+      "description": "Block ads and trackers for all devices on your network using DNS‑based filtering. Pi‑hole includes a web interface.",
+      "fields": {
+        "password": {
+          "label": "Admin Password",
+          "description": "Password for the web admin interface.",
+          "placeholder": "set a secure password"
+        },
+        "timezone": {
+          "label": "Timezone",
+          "description": "e.g., America/Chicago, Europe/London"
+        },
+        "memory": {
+          "label": "Memory (MB)"
+        },
+        "webPort": {
+          "label": "Web Interface Port",
+          "description": "Port for the Pi‑hole web UI."
+        }
+      }
+    },
+    "nginx-proxy-manager": {
+      "tagline": "Reverse proxy with a beautiful UI",
+      "description": "Expose web services on your network with free SSL, powered by Let's Encrypt. Manage proxy hosts, redirections, and streams through a clean web interface."
+    },
+    "technitium-dns": {
+      "tagline": "Feature-rich self-hosted DNS server with web console",
+      "description": "A fully-featured open source DNS server with a web console on port 5380. Supports DNS-over-HTTPS, DNS-over-TLS, DNSSEC, zone management, ad blocking, and query logging.",
+      "fields": {
+        "serverDomain": {
+          "label": "Server Domain",
+          "description": "Primary domain name this DNS server uses to identify itself."
+        }
+      }
+    },
+    "netbird-cloud": {
+      "name": "NetBird (Cloud)",
+      "tagline": "Zero-config WireGuard mesh VPN — managed by NetBird Cloud",
+      "description": "Join this router to your NetBird Cloud mesh as a WireGuard peer. Paste a setup key and NetBird runs the control plane for you — nothing to host.",
+      "fields": {
+        "setupKey": {
+          "label": "Setup Key",
+          "description": "Generate one in the NetBird dashboard under Setup Keys. Required for the agent to register unattended."
+        },
+        "hostname": {
+          "label": "Peer Name",
+          "description": "Name this peer shows up as in your NetBird network."
+        }
+      }
+    },
+    "netbird-selfhosted": {
+      "name": "NetBird (Self-hosted)",
+      "tagline": "WireGuard mesh VPN against your own NetBird control plane",
+      "description": "Join this router to a NetBird mesh as a WireGuard peer, pointed at a NetBird server you host yourself. Add your management URL and a setup key.",
+      "fields": {
+        "managementUrl": {
+          "label": "Management URL",
+          "description": "URL of your self-hosted NetBird Management server (include the scheme and port)."
+        },
+        "setupKey": {
+          "label": "Setup Key",
+          "description": "Generate one in your self-hosted NetBird dashboard under Setup Keys. Required for the agent to register unattended."
+        },
+        "hostname": {
+          "label": "Peer Name",
+          "description": "Name this peer shows up as in your NetBird network."
+        }
+      }
+    },
+    "tailscale-cloud": {
+      "name": "Tailscale (Cloud)",
+      "tagline": "Zero-config WireGuard mesh VPN — managed by Tailscale",
+      "description": "Join this router to your Tailscale tailnet as a WireGuard peer. Paste an auth key and Tailscale runs the control plane for you — nothing to host.",
+      "fields": {
+        "authKey": {
+          "label": "Auth Key",
+          "description": "Generate one in the Tailscale admin console under Settings → Keys. Required for the node to register unattended."
+        },
+        "hostname": {
+          "label": "Machine Name",
+          "description": "Name this machine shows up as in your tailnet."
+        },
+        "advertiseRoutes": {
+          "label": "Advertise Routes",
+          "description": "Optional. Comma-separated subnets this router advertises to the tailnet (subnet router). Leave blank for none. Routes still need approval in the admin console."
+        }
+      }
+    },
+    "tailscale-headscale": {
+      "tagline": "Tailscale client pointed at a self-hosted Headscale server",
+      "description": "Join this router to a Headscale-managed mesh as a WireGuard peer. Same Tailscale client, pointed at a Headscale server you host yourself via a login-server URL.",
+      "fields": {
+        "loginServer": {
+          "label": "Login Server URL",
+          "description": "URL of your self-hosted Headscale server (include the scheme)."
+        },
+        "authKey": {
+          "label": "Auth Key",
+          "description": "A Headscale pre-auth key (headscale preauthkeys create --user <user>). Required for the node to register unattended.",
+          "placeholder": "generated by: headscale preauthkeys create"
+        },
+        "hostname": {
+          "label": "Machine Name",
+          "description": "Name this machine shows up as in your Headscale network."
+        },
+        "advertiseRoutes": {
+          "label": "Advertise Routes",
+          "description": "Optional. Comma-separated subnets this router advertises (subnet router). Leave blank for none. Routes still need approval in Headscale."
+        }
+      }
+    },
+    "speedtest": {
+      "tagline": "Self-hosted internet speed testing",
+      "description": "Run a browser-based internet speed test from your own network. OpenSpeedTest measures download, upload, latency, and jitter without requiring an app or browser plugin.",
+      "fields": {
+        "webPort": {
+          "label": "Web Interface Port",
+          "description": "Port for the OpenSpeedTest web interface."
+        }
+      }
+    }
+  }
+}

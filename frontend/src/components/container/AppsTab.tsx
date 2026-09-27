@@ -16,6 +16,7 @@ import {
 import { CheckCircle2, ChevronDown, Search } from "lucide-react";
 import { APP_CATALOG, type AppDef } from "@/lib/apps-catalog";
 import { WIZARD_REGISTRY } from "@/lib/apps-registry";
+import { useAppsCatalogText } from "@/lib/apps-catalog-i18n";
 import { GenericAppWizard } from "./GenericAppWizard";
 import type { ContainerConfig, ContainerCapabilities } from "@/lib/api/container";
 
@@ -54,12 +55,14 @@ export function AppsTab({ config, capabilities, hasWritePermission, onReload }: 
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [installingApp, setInstallingApp] = useState<AppDef | null>(null);
+  const catalogText = useAppsCatalogText();
 
   const q = search.toLowerCase();
   const filtered = APP_CATALOG.filter(app => {
     if (activeCategory && app.category !== activeCategory) return false;
     return (
       !q ||
+      catalogText.searchText(app).includes(q) ||
       app.name.toLowerCase().includes(q) ||
       app.description.toLowerCase().includes(q) ||
       app.category.toLowerCase().includes(q) ||
@@ -90,7 +93,7 @@ export function AppsTab({ config, capabilities, hasWritePermission, onReload }: 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="shrink-0 gap-1.5">
-                {activeCategory ?? t("apps.allCategories")}
+                {activeCategory ? catalogText.category(activeCategory) : t("apps.allCategories")}
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
@@ -101,7 +104,7 @@ export function AppsTab({ config, capabilities, hasWritePermission, onReload }: 
               <DropdownMenuSeparator />
               {ALL_CATEGORIES.map(cat => (
                 <DropdownMenuItem key={cat} onClick={() => setActiveCategory(cat)}>
-                  {cat}
+                  {catalogText.category(cat)}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -123,7 +126,7 @@ export function AppsTab({ config, capabilities, hasWritePermission, onReload }: 
               return (
                 <div key={category}>
                   <div className="pl-3 border-l-2 border-primary mb-4">
-                    <p className="font-semibold text-foreground">{category}</p>
+                    <p className="font-semibold text-foreground">{catalogText.category(category)}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {t("apps.appCount", { count: apps.length })}
                     </p>
@@ -138,12 +141,12 @@ export function AppsTab({ config, capabilities, hasWritePermission, onReload }: 
                             <div className="flex items-center gap-3">
                               <AppIcon app={app} />
                               <div className="min-w-0">
-                                <h3 className="font-semibold text-base leading-tight">{app.name}</h3>
-                                <Badge variant="outline" className="text-xs mt-1">{app.category}</Badge>
+                                <h3 className="font-semibold text-base leading-tight">{catalogText.appName(app)}</h3>
+                                <Badge variant="outline" className="text-xs mt-1">{catalogText.category(app.category)}</Badge>
                               </div>
                             </div>
                             <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
-                              {app.description}
+                              {catalogText.appDescription(app)}
                             </p>
                           </CardContent>
 

@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Check, CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { containerService, type ContainerNetworkConfig } from "@/lib/api/container";
 import type { WizardProps } from "@/lib/apps-catalog";
+import { useAppsCatalogText, useLocalizedInstallConfig } from "@/lib/apps-catalog-i18n";
 import { cn } from "@/lib/utils";
 
 type NetworkMode = "host" | "existing" | "new";
@@ -74,7 +75,8 @@ function TaskRow({ task }: { task: DeployTask }) {
 export function GenericAppWizard({ open, onOpenChange, config, capabilities, onComplete, app }: WizardProps) {
   const t = useTranslations("containerResources");
   const tc = useTranslations("common");
-  const ic = app.installConfig ?? {};
+  const ic = useLocalizedInstallConfig(app);
+  const appName = useAppsCatalogText().appName(app);
   const netCfg = ic.network;
   const hasNetwork = !!netCfg;
 
@@ -381,7 +383,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
                 {app.name[0].toUpperCase()}
               </span>
             )}
-            {t("wizard.title", { name: app.name })}
+            {t("wizard.title", { name: appName })}
           </DialogTitle>
         </DialogHeader>
 
@@ -422,7 +424,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
                   >
                     <option value="">{t("wizard.selectOption")}</option>
                     {(f.options ?? []).map(opt => (
-                      <option key={opt} value={opt}>{opt}</option>
+                      <option key={opt} value={opt}>{f.optionLabels?.[opt] ?? opt}</option>
                     ))}
                   </select>
                 )}
@@ -620,7 +622,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
               <div className="flex items-center gap-2 rounded-lg bg-green-500/10 border border-green-500/20 p-3">
                 <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
                 <p className="text-sm text-green-700 dark:text-green-400 font-medium">
-                  {t("wizard.deployed", { name: app.name })}
+                  {t("wizard.deployed", { name: appName })}
                 </p>
               </div>
             )}
