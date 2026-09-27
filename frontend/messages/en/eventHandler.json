@@ -1,1 +1,47 @@
-{}
+{
+  "content": {
+    "loadFailed": "Failed to load event handler configuration",
+    "title": "Event Handler",
+    "readOnly": "Read Only",
+    "configured": "Configured",
+    "unconfigured": "Unconfigured",
+    "subtitle": "systemd-journal event triggers",
+    "addEvent": "Add Event",
+    "emptyTitle": "No event handlers configured",
+    "emptyHint": "Add an event to trigger scripts on matching log entries.",
+    "colPattern": "Filter Pattern",
+    "colSyslogId": "Syslog ID",
+    "colScriptPath": "Script Path",
+    "colEnvVars": "Env Vars",
+    "varCount": "{count, plural, one {# var} other {# vars}}"
+  },
+  "delete": {
+    "title": "Delete Event Handler",
+    "description": "Remove event handler <mono>{name}</mono>? This action cannot be undone."
+  },
+  "modal": {
+    "envNameSpaces": "Environment variable name cannot contain spaces.",
+    "envExists": "Environment variable \"{name}\" already exists.",
+    "nameRequired": "Name is required.",
+    "nameSpaces": "Name cannot contain spaces.",
+    "editTitle": "Edit Event",
+    "namePlaceholder": "e.g. ssh-login-alert",
+    "nameLocked": "Name cannot be changed after creation.",
+    "tabFilter": "Filter",
+    "tabScript": "Script",
+    "tabEnvironment": "Environment",
+    "pattern": "Pattern",
+    "patternPlaceholder": "e.g. error.*",
+    "patternHint": "Regex pattern to match log lines",
+    "syslogId": "Syslog Identifier",
+    "syslogIdPlaceholder": "e.g. sshd",
+    "syslogIdHint": "Syslog process name to filter by",
+    "path": "Path",
+    "arguments": "Arguments",
+    "argumentsPlaceholder": "optional arguments passed to script",
+    "addVariable": "Add Variable",
+    "valuePlaceholder": "value",
+    "adding": "Adding...",
+    "saveChanges": "Save Changes"
+  }
+}

@@ -1,1 +1,47 @@
-{}
+{
+  "content": {
+    "loadFailed": "加载事件处理配置失败",
+    "title": "事件处理",
+    "readOnly": "只读",
+    "configured": "已配置",
+    "unconfigured": "未配置",
+    "subtitle": "基于 systemd-journal 的事件触发器",
+    "addEvent": "添加事件",
+    "emptyTitle": "尚未配置事件处理",
+    "emptyHint": "添加事件，在日志条目匹配时触发脚本。",
+    "colPattern": "匹配模式",
+    "colSyslogId": "Syslog ID",
+    "colScriptPath": "脚本路径",
+    "colEnvVars": "环境变量",
+    "varCount": "{count} 个变量"
+  },
+  "delete": {
+    "title": "删除事件处理",
+    "description": "要移除事件处理 <mono>{name}</mono> 吗？此操作无法撤销。"
+  },
+  "modal": {
+    "envNameSpaces": "环境变量名称不能包含空格。",
+    "envExists": "环境变量“{name}”已存在。",
+    "nameRequired": "名称为必填项。",
+    "nameSpaces": "名称不能包含空格。",
+    "editTitle": "编辑事件",
+    "namePlaceholder": "例如 ssh-login-alert",
+    "nameLocked": "名称创建后无法更改。",
+    "tabFilter": "过滤条件",
+    "tabScript": "脚本",
+    "tabEnvironment": "环境变量",
+    "pattern": "匹配模式 (pattern)",
+    "patternPlaceholder": "例如 error.*",
+    "patternHint": "用于匹配日志行的正则表达式",
+    "syslogId": "Syslog 标识符",
+    "syslogIdPlaceholder": "例如 sshd",
+    "syslogIdHint": "用于过滤的 Syslog 进程名称",
+    "path": "路径",
+    "arguments": "参数",
+    "argumentsPlaceholder": "传递给脚本的可选参数",
+    "addVariable": "添加变量",
+    "valuePlaceholder": "值",
+    "adding": "正在添加...",
+    "saveChanges": "保存更改"
+  }
+}

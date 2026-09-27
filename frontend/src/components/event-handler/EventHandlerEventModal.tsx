@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,8 @@ interface Props {
 }
 
 export function EventHandlerEventModal({ open, onOpenChange, event, onSubmit }: Props) {
+  const t = useTranslations("eventHandler");
+  const tc = useTranslations("common");
   const isEdit = !!event;
 
   const [name, setName] = useState("");
@@ -66,11 +69,11 @@ export function EventHandlerEventModal({ open, onOpenChange, event, onSubmit }: 
     const v = newEnvValue;
     if (!n) return;
     if (n.includes(" ")) {
-      setError("Environment variable name cannot contain spaces.");
+      setError(t("modal.envNameSpaces"));
       return;
     }
     if (envVars.some((e) => e.name === n)) {
-      setError(`Environment variable "${n}" already exists.`);
+      setError(t("modal.envExists", { name: n }));
       return;
     }
     setEnvVars([...envVars, { name: n, value: v }]);
@@ -86,11 +89,11 @@ export function EventHandlerEventModal({ open, onOpenChange, event, onSubmit }: 
   const handleSubmit = async () => {
     const trimmedName = name.trim();
     if (!isEdit && !trimmedName) {
-      setError("Name is required.");
+      setError(t("modal.nameRequired"));
       return;
     }
     if (!isEdit && trimmedName.includes(" ")) {
-      setError("Name cannot contain spaces.");
+      setError(t("modal.nameSpaces"));
       return;
     }
     setLoading(true);
@@ -109,7 +112,7 @@ export function EventHandlerEventModal({ open, onOpenChange, event, onSubmit }: 
       });
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -119,55 +122,55 @@ export function EventHandlerEventModal({ open, onOpenChange, event, onSubmit }: 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Event" : "Add Event"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("modal.editTitle") : t("content.addEvent")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-2">
-          <Label htmlFor="event-name">Name</Label>
+          <Label htmlFor="event-name">{tc("name")}</Label>
           <Input
             id="event-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. ssh-login-alert"
+            placeholder={t("modal.namePlaceholder")}
             disabled={isEdit}
             className={isEdit ? "bg-muted font-mono" : "font-mono"}
           />
           {isEdit && (
-            <p className="text-xs text-muted-foreground">Name cannot be changed after creation.</p>
+            <p className="text-xs text-muted-foreground">{t("modal.nameLocked")}</p>
           )}
         </div>
 
         <Tabs defaultValue="filter">
           <TabsList className="w-full">
-            <TabsTrigger value="filter" className="flex-1">Filter</TabsTrigger>
-            <TabsTrigger value="script" className="flex-1">Script</TabsTrigger>
-            <TabsTrigger value="environment" className="flex-1">Environment</TabsTrigger>
+            <TabsTrigger value="filter" className="flex-1">{t("modal.tabFilter")}</TabsTrigger>
+            <TabsTrigger value="script" className="flex-1">{t("modal.tabScript")}</TabsTrigger>
+            <TabsTrigger value="environment" className="flex-1">{t("modal.tabEnvironment")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="filter">
             <ScrollArea className="h-64 pr-4">
               <div className="space-y-4 py-2">
                 <div className="space-y-2">
-                  <Label htmlFor="filter-pattern">Pattern</Label>
+                  <Label htmlFor="filter-pattern">{t("modal.pattern")}</Label>
                   <Input
                     id="filter-pattern"
                     value={filterPattern}
                     onChange={(e) => setFilterPattern(e.target.value)}
-                    placeholder="e.g. error.*"
+                    placeholder={t("modal.patternPlaceholder")}
                     className="font-mono"
                   />
-                  <p className="text-xs text-muted-foreground">Regex pattern to match log lines</p>
+                  <p className="text-xs text-muted-foreground">{t("modal.patternHint")}</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="filter-syslog-id">Syslog Identifier</Label>
+                  <Label htmlFor="filter-syslog-id">{t("modal.syslogId")}</Label>
                   <Input
                     id="filter-syslog-id"
                     value={filterSyslogId}
                     onChange={(e) => setFilterSyslogId(e.target.value)}
-                    placeholder="e.g. sshd"
+                    placeholder={t("modal.syslogIdPlaceholder")}
                     className="font-mono"
                   />
-                  <p className="text-xs text-muted-foreground">Syslog process name to filter by</p>
+                  <p className="text-xs text-muted-foreground">{t("modal.syslogIdHint")}</p>
                 </div>
               </div>
             </ScrollArea>
@@ -177,7 +180,7 @@ export function EventHandlerEventModal({ open, onOpenChange, event, onSubmit }: 
             <ScrollArea className="h-64 pr-4">
               <div className="space-y-4 py-2">
                 <div className="space-y-2">
-                  <Label htmlFor="script-path">Path</Label>
+                  <Label htmlFor="script-path">{t("modal.path")}</Label>
                   <Input
                     id="script-path"
                     value={scriptPath}
@@ -187,12 +190,12 @@ export function EventHandlerEventModal({ open, onOpenChange, event, onSubmit }: 
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="script-args">Arguments</Label>
+                  <Label htmlFor="script-args">{t("modal.arguments")}</Label>
                   <Input
                     id="script-args"
                     value={scriptArguments}
                     onChange={(e) => setScriptArguments(e.target.value)}
-                    placeholder="optional arguments passed to script"
+                    placeholder={t("modal.argumentsPlaceholder")}
                     className="font-mono"
                   />
                 </div>
@@ -221,7 +224,7 @@ export function EventHandlerEventModal({ open, onOpenChange, event, onSubmit }: 
                   </div>
                 )}
                 <div className="space-y-2">
-                  <Label>Add Variable</Label>
+                  <Label>{t("modal.addVariable")}</Label>
                   <div className="flex gap-2">
                     <Input
                       value={newEnvName}
@@ -233,7 +236,7 @@ export function EventHandlerEventModal({ open, onOpenChange, event, onSubmit }: 
                     <Input
                       value={newEnvValue}
                       onChange={(e) => setNewEnvValue(e.target.value)}
-                      placeholder="value"
+                      placeholder={t("modal.valuePlaceholder")}
                       className="font-mono flex-1"
                       onKeyDown={(e) => e.key === "Enter" && addEnvVar()}
                     />
@@ -261,15 +264,15 @@ export function EventHandlerEventModal({ open, onOpenChange, event, onSubmit }: 
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? "Saving..." : "Adding..."}
+                {isEdit ? tc("saving") : t("modal.adding")}
               </>
-            ) : isEdit ? "Save Changes" : "Add Event"}
+            ) : isEdit ? t("modal.saveChanges") : t("content.addEvent")}
           </Button>
         </DialogFooter>
       </DialogContent>
