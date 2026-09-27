@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
@@ -169,6 +170,8 @@ interface Props {
 // ============================================================================
 
 export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, capabilities, onSuccess }: Props) {
+  const t = useTranslations("wanLoadBalancing");
+  const tc = useTranslations("common");
   const isEdit = !!rule;
   const groupsSupported = capabilities?.features.wan_rule_groups?.supported === true;
 
@@ -202,9 +205,9 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, capabi
     setForm((f) => ({ ...f, interfaces: f.interfaces.filter((_, i) => i !== idx) }));
 
   const handleSubmit = async () => {
-    if (!form.rule_id.trim()) { setError("Rule ID is required"); return; }
+    if (!form.rule_id.trim()) { setError(t("ruleModal.ruleIdRequired")); return; }
     if (form.interfaces.filter((i) => i.interface.trim()).length === 0 && !form.exclude) {
-      setError("At least one outbound interface is required"); return;
+      setError(t("ruleModal.interfaceRequired")); return;
     }
 
     setLoading(true);
@@ -219,7 +222,7 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, capabi
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -231,9 +234,9 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, capabi
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit WAN Rule" : "Add WAN Rule"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("ruleModal.editTitle") : t("ruleModal.addTitle")}</DialogTitle>
           <DialogDescription>
-            Define traffic matching criteria and outbound interface selection for WAN load balancing.
+            {t("ruleModal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -241,7 +244,7 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, capabi
           {/* Basic */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Rule ID <span className="text-destructive">*</span></Label>
+              <Label>{t("ruleModal.ruleId")} <span className="text-destructive">*</span></Label>
               <Input
                 value={form.rule_id}
                 onChange={(e) => set("rule_id", e.target.value)}
@@ -251,18 +254,18 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, capabi
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Description</Label>
+              <Label>{tc("description")}</Label>
               <Input
                 value={form.description}
                 onChange={(e) => set("description", e.target.value)}
-                placeholder="Optional description"
+                placeholder={t("ruleModal.optionalDescription")}
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Inbound Interface</Label>
+              <Label>{t("ruleModal.inboundInterface")}</Label>
               <Input
                 value={form.inbound_interface}
                 onChange={(e) => set("inbound_interface", e.target.value)}
@@ -270,14 +273,14 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, capabi
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Protocol</Label>
+              <Label>{t("ruleModal.protocol")}</Label>
               <Select
                 value={form.protocol || "_any"}
                 onValueChange={(v) => set("protocol", v === "_any" ? "" : v)}
               >
-                <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("ruleModal.any")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="_any">Any</SelectItem>
+                  <SelectItem value="_any">{t("ruleModal.any")}</SelectItem>
                   <SelectItem value="tcp">TCP</SelectItem>
                   <SelectItem value="udp">UDP</SelectItem>
                   <SelectItem value="tcp_udp">TCP + UDP</SelectItem>
@@ -291,18 +294,18 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, capabi
           <div className="flex flex-wrap gap-4">
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <Checkbox checked={form.failover} onCheckedChange={(c) => set("failover", !!c)} />
-              Failover mode
+              {t("ruleModal.failoverMode")}
             </label>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <Checkbox
                 checked={form.per_packet_balancing}
                 onCheckedChange={(c) => set("per_packet_balancing", !!c)}
               />
-              Per-packet balancing
+              {t("ruleModal.perPacketBalancing")}
             </label>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <Checkbox checked={form.exclude} onCheckedChange={(c) => set("exclude", !!c)} />
-              Exclude (bypass LB)
+              {t("ruleModal.exclude")}
             </label>
           </div>
 
@@ -311,28 +314,28 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, capabi
           {/* Outbound Interfaces */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-semibold">Outbound Interfaces</Label>
+              <Label className="text-sm font-semibold">{t("outboundInterfaces")}</Label>
               <Button type="button" variant="outline" size="sm" onClick={addIface}>
-                <Plus className="h-3.5 w-3.5 mr-1" /> Add
+                <Plus className="h-3.5 w-3.5 mr-1" /> {tc("add")}
               </Button>
             </div>
 
             {form.interfaces.map((iface, idx) => (
               <div key={idx} className="flex items-end gap-2">
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Interface</Label>
+                  <Label className="text-xs">{t("interface")}</Label>
                   <Select
                     value={iface.interface || "_custom"}
                     onValueChange={(v) => setIface(idx, "interface", v === "_custom" ? "" : v)}
                   >
                     <SelectTrigger className="h-8 text-sm">
-                      <SelectValue placeholder="Select or type" />
+                      <SelectValue placeholder={t("ruleModal.selectOrType")} />
                     </SelectTrigger>
                     <SelectContent>
                       {healthyInterfaces.map((hi) => (
                         <SelectItem key={hi} value={hi}>{hi}</SelectItem>
                       ))}
-                      <SelectItem value="_custom">Custom…</SelectItem>
+                      <SelectItem value="_custom">{t("ruleModal.custom")}</SelectItem>
                     </SelectContent>
                   </Select>
                   {(iface.interface === "" || !healthyInterfaces.includes(iface.interface)) && (
@@ -345,7 +348,7 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, capabi
                   )}
                 </div>
                 <div className="w-20 space-y-1">
-                  <Label className="text-xs">Weight</Label>
+                  <Label className="text-xs">{t("ruleModal.weight")}</Label>
                   <Input
                     className="h-8 text-sm"
                     value={iface.weight}
@@ -370,38 +373,38 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, capabi
           <Separator />
 
           <div className="space-y-3">
-            <Label className="text-sm font-semibold">Rate Limit</Label>
+            <Label className="text-sm font-semibold">{t("ruleModal.rateLimit")}</Label>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-sm">Burst</Label>
+                <Label className="text-sm">{t("ruleModal.burst")}</Label>
                 <Input
                   value={form.limit_burst}
                   onChange={(e) => set("limit_burst", e.target.value)}
-                  placeholder="Optional"
+                  placeholder={tc("optional")}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-sm">Period</Label>
+                <Label className="text-sm">{t("ruleModal.period")}</Label>
                 <Input
                   value={form.limit_period}
                   onChange={(e) => set("limit_period", e.target.value)}
-                  placeholder="Optional"
+                  placeholder={tc("optional")}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-sm">Rate</Label>
+                <Label className="text-sm">{t("ruleModal.rate")}</Label>
                 <Input
                   value={form.limit_rate}
                   onChange={(e) => set("limit_rate", e.target.value)}
-                  placeholder="Optional"
+                  placeholder={tc("optional")}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-sm">Threshold</Label>
+                <Label className="text-sm">{t("ruleModal.threshold")}</Label>
                 <Input
                   value={form.limit_threshold}
                   onChange={(e) => set("limit_threshold", e.target.value)}
-                  placeholder="Optional"
+                  placeholder={tc("optional")}
                 />
               </div>
             </div>
@@ -412,14 +415,14 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, capabi
           {/* Match criteria */}
           <Collapsible open={matchOpen} onOpenChange={setMatchOpen}>
             <CollapsibleTrigger className="flex w-full items-center justify-between py-1 text-sm font-semibold hover:text-foreground text-muted-foreground transition-colors">
-              Match Criteria (Source / Destination)
+              {t("ruleModal.matchCriteria")}
               <ChevronDown className={cn("h-4 w-4 transition-transform", matchOpen && "rotate-180")} />
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-3 pt-3">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Source</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("ruleModal.source")}</p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-sm">Address / Network</Label>
+                  <Label className="text-sm">{t("ruleModal.addressNetwork")}</Label>
                   <Input
                     value={form.source_address}
                     onChange={(e) => set("source_address", e.target.value)}
@@ -427,7 +430,7 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, capabi
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-sm">Port</Label>
+                  <Label className="text-sm">{t("ruleModal.port")}</Label>
                   <Input
                     value={form.source_port}
                     onChange={(e) => set("source_port", e.target.value)}
@@ -438,44 +441,44 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, capabi
               {groupsSupported && (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-sm">Address Group</Label>
+                    <Label className="text-sm">{t("ruleModal.addressGroup")}</Label>
                     <Input
                       value={form.source_address_group}
                       onChange={(e) => set("source_address_group", e.target.value)}
-                      placeholder="Group name"
+                      placeholder={t("ruleModal.groupName")}
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-sm">Network Group</Label>
+                    <Label className="text-sm">{t("ruleModal.networkGroup")}</Label>
                     <Input
                       value={form.source_network_group}
                       onChange={(e) => set("source_network_group", e.target.value)}
-                      placeholder="Group name"
+                      placeholder={t("ruleModal.groupName")}
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-sm">Domain Group</Label>
+                    <Label className="text-sm">{t("ruleModal.domainGroup")}</Label>
                     <Input
                       value={form.source_domain_group}
                       onChange={(e) => set("source_domain_group", e.target.value)}
-                      placeholder="Group name"
+                      placeholder={t("ruleModal.groupName")}
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-sm">Port Group</Label>
+                    <Label className="text-sm">{t("ruleModal.portGroup")}</Label>
                     <Input
                       value={form.source_port_group}
                       onChange={(e) => set("source_port_group", e.target.value)}
-                      placeholder="Group name"
+                      placeholder={t("ruleModal.groupName")}
                     />
                   </div>
                 </div>
               )}
 
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-1">Destination</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-1">{t("ruleModal.destination")}</p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-sm">Address / Network</Label>
+                  <Label className="text-sm">{t("ruleModal.addressNetwork")}</Label>
                   <Input
                     value={form.destination_address}
                     onChange={(e) => set("destination_address", e.target.value)}
@@ -483,7 +486,7 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, capabi
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-sm">Port</Label>
+                  <Label className="text-sm">{t("ruleModal.port")}</Label>
                   <Input
                     value={form.destination_port}
                     onChange={(e) => set("destination_port", e.target.value)}
@@ -494,35 +497,35 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, capabi
               {groupsSupported && (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-sm">Address Group</Label>
+                    <Label className="text-sm">{t("ruleModal.addressGroup")}</Label>
                     <Input
                       value={form.destination_address_group}
                       onChange={(e) => set("destination_address_group", e.target.value)}
-                      placeholder="Group name"
+                      placeholder={t("ruleModal.groupName")}
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-sm">Network Group</Label>
+                    <Label className="text-sm">{t("ruleModal.networkGroup")}</Label>
                     <Input
                       value={form.destination_network_group}
                       onChange={(e) => set("destination_network_group", e.target.value)}
-                      placeholder="Group name"
+                      placeholder={t("ruleModal.groupName")}
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-sm">Domain Group</Label>
+                    <Label className="text-sm">{t("ruleModal.domainGroup")}</Label>
                     <Input
                       value={form.destination_domain_group}
                       onChange={(e) => set("destination_domain_group", e.target.value)}
-                      placeholder="Group name"
+                      placeholder={t("ruleModal.groupName")}
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-sm">Port Group</Label>
+                    <Label className="text-sm">{t("ruleModal.portGroup")}</Label>
                     <Input
                       value={form.destination_port_group}
                       onChange={(e) => set("destination_port_group", e.target.value)}
-                      placeholder="Group name"
+                      placeholder={t("ruleModal.groupName")}
                     />
                   </div>
                 </div>
@@ -540,11 +543,11 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, capabi
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? "Save Changes" : "Create Rule"}
+            {isEdit ? t("saveChanges") : t("ruleModal.create")}
           </Button>
         </DialogFooter>
       </DialogContent>
