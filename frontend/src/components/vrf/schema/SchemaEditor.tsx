@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,7 @@ import {
   VrfCapabilities,
 } from "@/lib/api/vrf";
 import { FieldSpec, SectionSpec } from "./types";
+import { useSchemaText } from "./useSchemaText";
 
 type RawConfig = Record<string, unknown> | null | undefined;
 
@@ -41,6 +43,8 @@ interface SchemaEditorProps {
   capabilities: VrfCapabilities;
   canWrite: boolean;
   onSaved: () => void;
+  /** Message scope for field labels: the protocol (e.g. "bgp") or an entity group scope. */
+  scope?: string;
 }
 
 const NONE = "__none__";
@@ -91,7 +95,11 @@ export function SchemaEditor({
   capabilities,
   canWrite,
   onSaved,
+  scope,
 }: SchemaEditorProps) {
+  const t = useTranslations("vrfProtocols");
+  const tc = useTranslations("common");
+  const st = useSchemaText();
   const visibleSections = useMemo(
     () =>
       sections
@@ -195,13 +203,13 @@ export function SchemaEditor({
     try {
       const result = await vrfService.batchConfigure(ops);
       if (!result.success) {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
         return;
       }
       onSaved();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSaving(false);
     }
@@ -222,9 +230,9 @@ export function SchemaEditor({
             {visibleSections.map((section) => (
               <div key={section.title} className="space-y-3">
                 <div>
-                  <h4 className="text-sm font-semibold">{section.title}</h4>
+                  <h4 className="text-sm font-semibold">{st.section(section)}</h4>
                   {section.description && (
-                    <p className="text-xs text-muted-foreground">{section.description}</p>
+                    <p className="text-xs text-muted-foreground">{st.sectionDescription(section)}</p>
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -232,6 +240,7 @@ export function SchemaEditor({
                     <FieldControl
                       key={fieldKey(field)}
                       field={field}
+                      scope={scope}
                       value={values[fieldKey(field)]}
                       disabled={!canWrite || saving}
                       onChange={(v) => setField(fieldKey(field), v)}
@@ -252,11 +261,11 @@ export function SchemaEditor({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSave} disabled={!canWrite || saving}>
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Save Changes
+            {t("schemaEditor.saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -266,23 +275,30 @@ export function SchemaEditor({
 
 function FieldControl({
   field,
+  scope,
   value,
   disabled,
   onChange,
 }: {
   field: FieldSpec;
+  scope?: string;
   value: FieldValue;
   disabled: boolean;
   onChange: (v: FieldValue) => void;
 }) {
+  const t = useTranslations("vrfProtocols");
+  const st = useSchemaText();
+  const label = st.field(scope, field);
+  const help = st.fieldHelp(scope, field);
+
   if (field.type === "list") {
-    return <ListField field={field} value={(value as string[]) || []} disabled={disabled} onChange={onChange} />;
+    return <ListField field={field} label={label} value={(value as string[]) || []} disabled={disabled} onChange={onChange} />;
   }
 
   if (field.type === "toggle") {
     return (
       <label className="flex items-center justify-between gap-2 rounded-md border p-3 col-span-1">
-        <span className="text-sm">{field.label}</span>
+        <span className="text-sm">{label}</span>
         <input
           type="checkbox"
           className="h-4 w-4"
@@ -298,32 +314,32 @@ function FieldControl({
     const current = (value as string) || "";
     return (
       <div className="space-y-1.5">
-        <Label className="text-xs">{field.label}</Label>
+        <Label className="text-xs">{label}</Label>
         <Select
           value={current || NONE}
           disabled={disabled}
           onValueChange={(v) => onChange(v === NONE ? "" : v)}
         >
           <SelectTrigger>
-            <SelectValue placeholder={field.placeholder || "Select…"} />
+            <SelectValue placeholder={field.placeholder || t("schemaEditor.select")} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={NONE}>—</SelectItem>
             {field.options?.map((o) => (
               <SelectItem key={o.value} value={o.value}>
-                {o.label}
+                {st.option(o)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        {field.help && <p className="text-[11px] text-muted-foreground">{field.help}</p>}
+        {help && <p className="text-[11px] text-muted-foreground">{help}</p>}
       </div>
     );
   }
 
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs">{field.label}</Label>
+      <Label className="text-xs">{label}</Label>
       <Input
         type={field.type === "number" ? "number" : "text"}
         value={(value as string) || ""}
@@ -331,22 +347,27 @@ function FieldControl({
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
       />
-      {field.help && <p className="text-[11px] text-muted-foreground">{field.help}</p>}
+      {help && <p className="text-[11px] text-muted-foreground">{help}</p>}
     </div>
   );
 }
 
 function ListField({
   field,
+  label,
   value,
   disabled,
   onChange,
 }: {
   field: FieldSpec;
+  label: string;
   value: string[];
   disabled: boolean;
   onChange: (v: string[]) => void;
 }) {
+  const t = useTranslations("vrfProtocols");
+  const tc = useTranslations("common");
+  const locale = useLocale();
   const [draft, setDraft] = useState("");
   const add = () => {
     const v = draft.trim();
@@ -355,7 +376,7 @@ function ListField({
   };
   return (
     <div className="space-y-1.5 col-span-2">
-      <Label className="text-xs">{field.label}</Label>
+      <Label className="text-xs">{label}</Label>
       <div className="flex flex-wrap gap-1.5">
         {value.map((v) => (
           <span key={v} className="inline-flex items-center gap-1 rounded-md border bg-muted/50 px-2 py-0.5 text-xs font-mono">
@@ -367,13 +388,19 @@ function ListField({
             )}
           </span>
         ))}
-        {value.length === 0 && <span className="text-xs text-muted-foreground">None</span>}
+        {value.length === 0 && <span className="text-xs text-muted-foreground">{tc("none")}</span>}
       </div>
       <div className="flex gap-2">
         <Input
           className="h-8"
           value={draft}
-          placeholder={field.placeholder || `Add ${field.label.toLowerCase()}…`}
+          placeholder={
+            field.placeholder ||
+            t("schemaEditor.addListItem", {
+              // Lower-casing only suits English labels.
+              label: locale.startsWith("en") ? label.toLowerCase() : label,
+            })
+          }
           disabled={disabled}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
@@ -384,7 +411,7 @@ function ListField({
           }}
         />
         <Button type="button" size="sm" variant="outline" onClick={add} disabled={disabled || !draft.trim()}>
-          Add
+          {tc("add")}
         </Button>
       </div>
     </div>

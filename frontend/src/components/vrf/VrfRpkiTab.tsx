@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Code, Settings2, Shield } from "lucide-react";
@@ -25,6 +26,7 @@ interface VrfRpkiTabProps {
 }
 
 export function VrfRpkiTab({ vrf, canWrite, onRefresh }: VrfRpkiTabProps) {
+  const t = useTranslations("vrfProtocols");
   const [modalOpen, setModalOpen] = useState(false);
   const [rawOpen, setRawOpen] = useState(false);
   const rpki = vrf.rpki;
@@ -35,26 +37,26 @@ export function VrfRpkiTab({ vrf, canWrite, onRefresh }: VrfRpkiTabProps) {
       <div className="grid grid-cols-4 gap-4">
         <Card className="border-0 shadow-none bg-muted/50">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Caches</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("rpki.caches")}</p>
             <p className="text-lg font-semibold">{caches.length}</p>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-none bg-muted/50">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Expire Interval</p>
-            <p className="text-sm font-mono">{rpki?.expire_interval ?? "default"}</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("rpki.expireIntervalTitle")}</p>
+            <p className="text-sm font-mono">{rpki?.expire_interval ?? t("rpki.default")}</p>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-none bg-muted/50">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Polling Period</p>
-            <p className="text-sm font-mono">{rpki?.polling_period ?? "default"}</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("rpki.pollingPeriodTitle")}</p>
+            <p className="text-sm font-mono">{rpki?.polling_period ?? t("rpki.default")}</p>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-none bg-muted/50">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Retry Interval</p>
-            <p className="text-sm font-mono">{rpki?.retry_interval ?? "default"}</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("rpki.retryIntervalTitle")}</p>
+            <p className="text-sm font-mono">{rpki?.retry_interval ?? t("rpki.default")}</p>
           </CardContent>
         </Card>
       </div>
@@ -62,7 +64,7 @@ export function VrfRpkiTab({ vrf, canWrite, onRefresh }: VrfRpkiTabProps) {
       {caches.length === 0 && (
         <div className="flex flex-col items-center justify-center py-10 text-center">
           <Shield className="h-10 w-10 text-muted-foreground mb-3" />
-          <p className="text-sm text-muted-foreground mb-4">No RPKI caches configured.</p>
+          <p className="text-sm text-muted-foreground mb-4">{t("rpki.noCaches")}</p>
         </div>
       )}
 
@@ -86,13 +88,13 @@ export function VrfRpkiTab({ vrf, canWrite, onRefresh }: VrfRpkiTabProps) {
         {canWrite && (
           <Button variant="outline" size="sm" onClick={() => setModalOpen(true)}>
             <Settings2 className="h-3.5 w-3.5 mr-1.5" />
-            Configure RPKI
+            {t("rpki.configure")}
           </Button>
         )}
         {rpki?.raw_config && (
           <Button variant="outline" size="sm" onClick={() => setRawOpen(true)}>
             <Code className="h-3.5 w-3.5 mr-1.5" />
-            View Raw Config
+            {t("tabs.viewRawConfig")}
           </Button>
         )}
       </div>
@@ -109,7 +111,7 @@ export function VrfRpkiTab({ vrf, canWrite, onRefresh }: VrfRpkiTabProps) {
       <Dialog open={rawOpen} onOpenChange={setRawOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle>RPKI Raw Configuration — {vrf.name}</DialogTitle>
+            <DialogTitle>{t("rpki.rawTitle", { vrf: vrf.name })}</DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[60vh]">
             <pre className="text-xs font-mono bg-muted p-4 rounded-lg overflow-x-auto">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +38,7 @@ interface VrfIsisTabProps {
 }
 
 export function VrfIsisTab({ vrf, capabilities, canWrite, onRefresh }: VrfIsisTabProps) {
+  const t = useTranslations("vrfProtocols");
   const [rawConfigOpen, setRawConfigOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const isis = vrf.isis;
@@ -45,9 +47,10 @@ export function VrfIsisTab({ vrf, capabilities, canWrite, onRefresh }: VrfIsisTa
     <SchemaEditor
       open={editOpen}
       onOpenChange={setEditOpen}
-      title={`IS-IS Settings — ${vrf.name}`}
+      title={t("isis.settingsTitle", { vrf: vrf.name })}
       vrfName={vrf.name}
       sections={ISIS_SCHEMA}
+      scope="isis"
       rawConfig={isis?.raw_config}
       capabilities={capabilities}
       canWrite={canWrite}
@@ -60,11 +63,11 @@ export function VrfIsisTab({ vrf, capabilities, canWrite, onRefresh }: VrfIsisTa
       <div className="flex flex-col items-center justify-center py-16">
         <Globe className="h-12 w-12 text-muted-foreground mb-4" />
         <h3 className="text-lg font-semibold mb-2">IS-IS</h3>
-        <p className="text-sm text-muted-foreground mb-4">Not configured</p>
+        <p className="text-sm text-muted-foreground mb-4">{t("tabs.notConfigured")}</p>
         {canWrite && (
           <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
             <Settings2 className="h-3.5 w-3.5 mr-1.5" />
-            Configure IS-IS
+            {t("isis.configure")}
           </Button>
         )}
         {editor}
@@ -84,19 +87,19 @@ export function VrfIsisTab({ vrf, capabilities, canWrite, onRefresh }: VrfIsisTa
         </Card>
         <Card className="border-0 shadow-none bg-muted/50">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Interfaces</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("tabs.interfaces")}</p>
             <p className="text-lg font-semibold">{isis.interfaces.length}</p>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-none bg-muted/50">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">IPv4 Redistribute</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("isis.ipv4Redistribute")}</p>
             <p className="text-lg font-semibold">{isis.redistribute_ipv4.length}</p>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-none bg-muted/50">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">IPv6 Redistribute</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("isis.ipv6Redistribute")}</p>
             <p className="text-lg font-semibold">{isis.redistribute_ipv6.length}</p>
           </CardContent>
         </Card>
@@ -132,13 +135,13 @@ export function VrfIsisTab({ vrf, capabilities, canWrite, onRefresh }: VrfIsisTa
         {canWrite && (
           <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
             <Settings2 className="h-3.5 w-3.5 mr-1.5" />
-            Edit Settings
+            {t("tabs.editSettings")}
           </Button>
         )}
         {isis.raw_config && (
           <Button variant="outline" size="sm" onClick={() => setRawConfigOpen(true)}>
             <Code className="h-3.5 w-3.5 mr-1.5" />
-            View Raw Config
+            {t("tabs.viewRawConfig")}
           </Button>
         )}
       </div>
@@ -147,7 +150,7 @@ export function VrfIsisTab({ vrf, capabilities, canWrite, onRefresh }: VrfIsisTa
       <Dialog open={rawConfigOpen} onOpenChange={setRawConfigOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle>IS-IS Raw Configuration — {vrf.name}</DialogTitle>
+            <DialogTitle>{t("isis.rawTitle", { vrf: vrf.name })}</DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[60vh]">
             <pre className="text-xs font-mono bg-muted p-4 rounded-lg overflow-x-auto">

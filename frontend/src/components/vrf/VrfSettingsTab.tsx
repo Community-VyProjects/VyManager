@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,8 @@ export function VrfSettingsTab({
   canWrite,
   onRefresh,
 }: VrfSettingsTabProps) {
+  const t = useTranslations("vrf");
+  const tc = useTranslations("common");
   // Edit state
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -90,12 +93,12 @@ export function VrfSettingsTab({
         ipv6_nht_no_resolve: ipv6NhtNoResolve,
       });
       if (!result.success) {
-        throw new Error(result.error || "Failed to save settings");
+        throw new Error(result.error || t("settings.saveFailed"));
       }
       setEditing(false);
       onRefresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save settings");
+      setError(err instanceof Error ? err.message : t("settings.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -105,11 +108,11 @@ export function VrfSettingsTab({
     try {
       const result = await vrfService.deleteIpProtocolRouteMap(vrf.name, family, protocol);
       if (!result.success) {
-        throw new Error(result.error || "Failed to delete route-map");
+        throw new Error(result.error || t("settings.deleteRouteMapFailed"));
       }
       onRefresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete route-map");
+      setError(err instanceof Error ? err.message : t("settings.deleteRouteMapFailed"));
     }
   };
 
@@ -126,18 +129,18 @@ export function VrfSettingsTab({
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Core Settings</CardTitle>
+            <CardTitle className="text-base">{t("settings.coreSettings")}</CardTitle>
             {canWrite && !editing && (
               <Button variant="outline" size="sm" onClick={handleStartEdit}>
                 <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                Edit
+                {tc("edit")}
               </Button>
             )}
             {editing && (
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={handleCancel} disabled={saving}>
                   <X className="h-3.5 w-3.5 mr-1.5" />
-                  Cancel
+                  {tc("cancel")}
                 </Button>
                 <Button size="sm" onClick={handleSave} disabled={saving}>
                   {saving ? (
@@ -145,7 +148,7 @@ export function VrfSettingsTab({
                   ) : (
                     <Save className="h-3.5 w-3.5 mr-1.5" />
                   )}
-                  Save
+                  {tc("save")}
                 </Button>
               </div>
             )}
@@ -155,15 +158,15 @@ export function VrfSettingsTab({
           {editing ? (
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Description</Label>
+                <Label>{tc("description")}</Label>
                 <Input
-                  placeholder="Optional description"
+                  placeholder={t("optionalDescription")}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Table ID</Label>
+                <Label>{t("tableId")}</Label>
                 <Input
                   type="number"
                   min={1}
@@ -174,7 +177,7 @@ export function VrfSettingsTab({
               <div className="space-y-2">
                 <Label>VNI</Label>
                 <Input
-                  placeholder="VXLAN Network Identifier"
+                  placeholder={t("vxlanNetworkId")}
                   type="number"
                   min={0}
                   value={vni}
@@ -188,18 +191,18 @@ export function VrfSettingsTab({
                   onCheckedChange={(checked) => setDisabled(checked === true)}
                 />
                 <Label htmlFor="settings-disabled" className="text-sm font-normal">
-                  Disable VRF
+                  {t("settings.disableVrf")}
                 </Label>
               </div>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Description</p>
+                <p className="text-xs text-muted-foreground mb-1">{tc("description")}</p>
                 <p className="text-sm">{vrf.description || "—"}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Table ID</p>
+                <p className="text-xs text-muted-foreground mb-1">{t("tableId")}</p>
                 <p className="text-sm">{vrf.table ?? "—"}</p>
               </div>
               <div>
@@ -207,9 +210,9 @@ export function VrfSettingsTab({
                 <p className="text-sm">{vrf.vni ?? "—"}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Status</p>
+                <p className="text-xs text-muted-foreground mb-1">{tc("status")}</p>
                 <Badge variant={vrf.disabled ? "outline" : "secondary"}>
-                  {vrf.disabled ? "Disabled" : "Enabled"}
+                  {vrf.disabled ? tc("disabled") : tc("enabled")}
                 </Badge>
               </div>
             </div>
@@ -220,7 +223,7 @@ export function VrfSettingsTab({
       {/* IP Settings */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">IPv4 Settings</CardTitle>
+          <CardTitle className="text-base">{t("settings.ipv4Settings")}</CardTitle>
         </CardHeader>
         <CardContent>
           {editing ? (
@@ -232,7 +235,7 @@ export function VrfSettingsTab({
                   onCheckedChange={(checked) => setIpDisableForwarding(checked === true)}
                 />
                 <Label htmlFor="ip-disable-fwd" className="text-sm font-normal">
-                  Disable IPv4 forwarding
+                  {t("settings.disableIpv4Forwarding")}
                 </Label>
               </div>
               <div className="flex items-center gap-2">
@@ -242,22 +245,22 @@ export function VrfSettingsTab({
                   onCheckedChange={(checked) => setIpNhtNoResolve(checked === true)}
                 />
                 <Label htmlFor="ip-nht" className="text-sm font-normal">
-                  NHT: No resolve via default route
+                  {t("settings.nhtNoResolve")}
                 </Label>
               </div>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Forwarding</p>
+                <p className="text-xs text-muted-foreground mb-1">{t("settings.forwarding")}</p>
                 <Badge variant={vrf.ip.disable_forwarding ? "outline" : "secondary"}>
-                  {vrf.ip.disable_forwarding ? "Disabled" : "Enabled"}
+                  {vrf.ip.disable_forwarding ? tc("disabled") : tc("enabled")}
                 </Badge>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground mb-1">NHT Resolve via Default</p>
+                <p className="text-xs text-muted-foreground mb-1">{t("settings.nhtResolveViaDefault")}</p>
                 <Badge variant={vrf.ip.nht_no_resolve_via_default ? "outline" : "secondary"}>
-                  {vrf.ip.nht_no_resolve_via_default ? "Disabled" : "Enabled"}
+                  {vrf.ip.nht_no_resolve_via_default ? tc("disabled") : tc("enabled")}
                 </Badge>
               </div>
             </div>
@@ -268,7 +271,7 @@ export function VrfSettingsTab({
       {/* IPv6 Settings */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">IPv6 Settings</CardTitle>
+          <CardTitle className="text-base">{t("settings.ipv6Settings")}</CardTitle>
         </CardHeader>
         <CardContent>
           {editing ? (
@@ -280,7 +283,7 @@ export function VrfSettingsTab({
                   onCheckedChange={(checked) => setIpv6DisableForwarding(checked === true)}
                 />
                 <Label htmlFor="ipv6-disable-fwd" className="text-sm font-normal">
-                  Disable IPv6 forwarding
+                  {t("settings.disableIpv6Forwarding")}
                 </Label>
               </div>
               <div className="flex items-center gap-2">
@@ -290,22 +293,22 @@ export function VrfSettingsTab({
                   onCheckedChange={(checked) => setIpv6NhtNoResolve(checked === true)}
                 />
                 <Label htmlFor="ipv6-nht" className="text-sm font-normal">
-                  NHT: No resolve via default route
+                  {t("settings.nhtNoResolve")}
                 </Label>
               </div>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Forwarding</p>
+                <p className="text-xs text-muted-foreground mb-1">{t("settings.forwarding")}</p>
                 <Badge variant={vrf.ipv6.disable_forwarding ? "outline" : "secondary"}>
-                  {vrf.ipv6.disable_forwarding ? "Disabled" : "Enabled"}
+                  {vrf.ipv6.disable_forwarding ? tc("disabled") : tc("enabled")}
                 </Badge>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground mb-1">NHT Resolve via Default</p>
+                <p className="text-xs text-muted-foreground mb-1">{t("settings.nhtResolveViaDefault")}</p>
                 <Badge variant={vrf.ipv6.nht_no_resolve_via_default ? "outline" : "secondary"}>
-                  {vrf.ipv6.nht_no_resolve_via_default ? "Disabled" : "Enabled"}
+                  {vrf.ipv6.nht_no_resolve_via_default ? tc("disabled") : tc("enabled")}
                 </Badge>
               </div>
             </div>
@@ -317,15 +320,15 @@ export function VrfSettingsTab({
       {(vrf.ip.protocol_route_maps.length > 0 || vrf.ipv6.protocol_route_maps.length > 0) && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Protocol Route Maps</CardTitle>
+            <CardTitle className="text-base">{t("settings.protocolRouteMaps")}</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead>Family</TableHead>
-                  <TableHead>Protocol</TableHead>
-                  <TableHead>Route Map</TableHead>
+                  <TableHead>{t("settings.family")}</TableHead>
+                  <TableHead>{t("settings.protocol")}</TableHead>
+                  <TableHead>{t("settings.routeMap")}</TableHead>
                   {canWrite && <TableHead className="w-[60px]" />}
                 </TableRow>
               </TableHeader>
@@ -379,12 +382,12 @@ export function VrfSettingsTab({
       {/* Configured Protocols Overview */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Configured Protocols & Services</CardTitle>
+          <CardTitle className="text-base">{t("settings.configuredProtocols")}</CardTitle>
         </CardHeader>
         <CardContent>
           {vrf.protocols.length === 0 && vrf.services.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No protocols or services configured. Use the tabs above to add them.
+              {t("settings.noProtocols")}
             </p>
           ) : (
             <div className="flex flex-wrap gap-2">
