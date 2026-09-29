@@ -148,6 +148,7 @@ export function UserModal({ open, onOpenChange, user, onSuccess }: Props) {
               id="fullname"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
+              // eslint-disable-next-line vymanager/no-untranslated-text -- example value
               placeholder="Administrator"
               autoComplete="off"
             />

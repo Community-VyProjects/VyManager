@@ -944,6 +944,7 @@ export function OpenvpnModal({
                 id="openvpnOpts"
                 value={openvpnOptionsText}
                 onChange={(e) => setOpenvpnOptionsText(e.target.value)}
+                // eslint-disable-next-line vymanager/no-untranslated-text -- example value
                 placeholder="--verb 3"
                 rows={3}
               />

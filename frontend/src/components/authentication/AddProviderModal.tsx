@@ -289,6 +289,7 @@ export function AddProviderModal({
                   id="scopes"
                   value={scopes}
                   onChange={(e) => setScopes(e.target.value)}
+                  // eslint-disable-next-line vymanager/no-untranslated-text -- OIDC scope values
                   placeholder="openid email profile"
                 />
                 <p className="text-xs text-muted-foreground">{t("form.scopesHint")}</p>

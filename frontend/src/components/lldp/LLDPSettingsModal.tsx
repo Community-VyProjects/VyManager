@@ -193,6 +193,7 @@ export function LLDPSettingsModal({
                   {t("settings.legacyProtocolsHint")}
                 </p>
               </div>
+              {/* eslint-disable vymanager/no-untranslated-text -- vendor discovery protocol names */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex items-center gap-2">
                   <Checkbox
@@ -247,6 +248,7 @@ export function LLDPSettingsModal({
                   </Label>
                 </div>
               </div>
+              {/* eslint-enable vymanager/no-untranslated-text */}
             </div>
           </div>
         </ScrollArea>

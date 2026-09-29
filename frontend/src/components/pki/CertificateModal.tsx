@@ -338,6 +338,7 @@ export function CertificateModal({
           id="acme-domains"
           value={domainNames}
           onChange={(e) => setDomainNames(e.target.value)}
+          // eslint-disable-next-line vymanager/no-untranslated-text -- example value
           placeholder="example.com, www.example.com"
         />
       </div>
@@ -430,6 +431,7 @@ export function CertificateModal({
           id="gen-cert-sans"
           value={sans}
           onChange={(e) => setSans(e.target.value)}
+          // eslint-disable-next-line vymanager/no-untranslated-text -- example value
           placeholder="server.example.com, 10.0.0.1, *.example.com"
         />
         <p className="text-xs text-muted-foreground">{t("cert.sansHelp")}</p>
@@ -478,6 +480,7 @@ export function CertificateModal({
         </div>
         <div className="space-y-2">
           <Label htmlFor="gen-cert-state">{t("shared.state")}</Label>
+          {/* eslint-disable-next-line vymanager/no-untranslated-text -- example value */}
           <Input id="gen-cert-state" value={state} onChange={(e) => setState(e.target.value)} placeholder="California" />
         </div>
       </div>
@@ -485,6 +488,7 @@ export function CertificateModal({
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
           <Label htmlFor="gen-cert-locality">{t("shared.locality")}</Label>
+          {/* eslint-disable-next-line vymanager/no-untranslated-text -- example value */}
           <Input id="gen-cert-locality" value={locality} onChange={(e) => setLocality(e.target.value)} placeholder="San Francisco" />
         </div>
         <div className="space-y-2">

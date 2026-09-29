@@ -167,6 +167,7 @@ export function PPPOptionsModal({
           </div>
 
           <Separator />
+          {/* eslint-disable-next-line vymanager/no-untranslated-text -- protocol/VyOS term, same in every locale */}
           <h4 className="text-sm font-medium">LCP Echo</h4>
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">

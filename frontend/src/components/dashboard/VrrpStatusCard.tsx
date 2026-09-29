@@ -50,6 +50,7 @@ function GroupRow({ group }: { group: VrrpGroupData }) {
       {group.interface && (
         <span className="text-xs text-muted-foreground font-mono shrink-0">
           {group.interface}
+          {/* eslint-disable-next-line vymanager/no-untranslated-text -- protocol/VyOS term, same in every locale */}
           {group.vrid != null && <span className="opacity-60"> · vrid {group.vrid}</span>}
         </span>
       )}

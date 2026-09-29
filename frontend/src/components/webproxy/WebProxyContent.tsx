@@ -326,7 +326,9 @@ export function WebProxyContent() {
                       <Row label={t("content.ldapServer")} value={config?.authentication.ldap.server ?? "—"} />
                       <Row label={t("content.ldapPort")} value={config?.authentication.ldap.port ?? t("content.withDefault", { value: "389" })} />
                       <Row label={t("content.ldapVersion")} value={config?.authentication.ldap.version ?? t("content.withDefault", { value: "3" })} />
+                      {/* eslint-disable-next-line vymanager/no-untranslated-text -- LDAP terms */}
                       <Row label="Base DN" value={config?.authentication.ldap.base_dn ?? "—"} />
+                      {/* eslint-disable-next-line vymanager/no-untranslated-text -- LDAP terms */}
                       <Row label="Bind DN" value={config?.authentication.ldap.bind_dn ?? "—"} />
                       <Row label={t("content.useSslTls")} value={config?.authentication.ldap.use_ssl ? t("content.yes") : t("content.no")} />
                       <Row label={t("content.persistentConnection")} value={config?.authentication.ldap.persistent_connection ? t("content.yes") : t("content.no")} />

@@ -815,6 +815,7 @@ export function PppoeModal({
                   id="pppoe-hostuniq"
                   value={hostUniq}
                   onChange={(e) => setHostUniq(e.target.value)}
+                  // eslint-disable-next-line vymanager/no-untranslated-text -- example value
                   placeholder="RFC2516 host-uniq"
                 />
               </div>

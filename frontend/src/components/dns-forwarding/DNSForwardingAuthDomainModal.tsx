@@ -562,6 +562,7 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                       <TableCell><Input value={newNAPTR.preference} onChange={(e) => setNewNAPTR({ ...newNAPTR, preference: e.target.value })} placeholder="0" type="number" className="h-7 w-16" /></TableCell>
                       <TableCell><Input value={newNAPTR.service} onChange={(e) => setNewNAPTR({ ...newNAPTR, service: e.target.value })} placeholder="SIP+D2U" className="h-7 font-mono" /></TableCell>
                       <TableCell><Input value={newNAPTR.replacement} onChange={(e) => setNewNAPTR({ ...newNAPTR, replacement: e.target.value })} placeholder="sip.example.com" className="h-7 font-mono" /></TableCell>
+                      {/* eslint-disable-next-line vymanager/no-untranslated-text -- example value */}
                       <TableCell><Input value={newNAPTR.regexp} onChange={(e) => setNewNAPTR({ ...newNAPTR, regexp: e.target.value })} placeholder="!foo!bar!" className="h-7 font-mono" /></TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">

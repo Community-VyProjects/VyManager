@@ -172,10 +172,12 @@ export function WebProxyAuthModal({ open, onOpenChange, auth, caps, onSubmit }: 
                   <Input id="wp-ldap-userattr" value={usernameAttribute} onChange={(e) => setUsernameAttribute(e.target.value)} placeholder="cn" className="font-mono" />
                 </div>
                 <div className="space-y-2 col-span-2">
+                  {/* eslint-disable-next-line vymanager/no-untranslated-text -- LDAP terms */}
                   <Label htmlFor="wp-ldap-basedn">Base DN</Label>
                   <Input id="wp-ldap-basedn" value={baseDn} onChange={(e) => setBaseDn(e.target.value)} placeholder="dc=example,dc=com" className="font-mono" />
                 </div>
                 <div className="space-y-2 col-span-2">
+                  {/* eslint-disable-next-line vymanager/no-untranslated-text -- LDAP terms */}
                   <Label htmlFor="wp-ldap-binddn">Bind DN</Label>
                   <Input id="wp-ldap-binddn" value={bindDn} onChange={(e) => setBindDn(e.target.value)} placeholder="cn=admin,dc=example,dc=com" className="font-mono" />
                 </div>

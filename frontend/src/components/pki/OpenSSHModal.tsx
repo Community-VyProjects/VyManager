@@ -191,6 +191,7 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: Ope
                       id="ssh-pubkey"
                       value={publicKey}
                       onChange={(e) => setPublicKey(e.target.value)}
+                      // eslint-disable-next-line vymanager/no-untranslated-text -- example value
                       placeholder="ssh-rsa AAAA..."
                       className="font-mono text-xs"
                       rows={3}

@@ -89,6 +89,7 @@ export function SaltMinionContent() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
+                  {/* eslint-disable-next-line vymanager/no-untranslated-text -- product name */}
                   <h1 className="text-2xl font-bold text-foreground">Salt Minion</h1>
                   {!hasWrite && <Badge variant="secondary">{t("content.readOnly")}</Badge>}
                 </div>

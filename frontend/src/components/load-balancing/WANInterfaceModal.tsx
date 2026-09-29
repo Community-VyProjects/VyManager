@@ -230,6 +230,7 @@ export function WANInterfaceModal({ open, onOpenChange, iface, onSuccess }: Prop
                     >
                       <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
                       <SelectContent>
+                        {/* eslint-disable-next-line vymanager/no-untranslated-text -- protocol/VyOS term, same in every locale */}
                         <SelectItem value="ping">Ping</SelectItem>
                         <SelectItem value="ttl">TTL</SelectItem>
                         <SelectItem value="user-defined">{t("interfaceModal.userDefined")}</SelectItem>

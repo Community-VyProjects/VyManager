@@ -171,6 +171,7 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
           {/* Azure Data Explorer */}
           <PluginCard
             icon={<Cloud className="h-4 w-4" />}
+            // eslint-disable-next-line vymanager/no-untranslated-text -- product name
             title="Azure Data Explorer"
             configured={!!config?.azure_data_explorer}
             summary={config?.azure_data_explorer ? [
@@ -185,6 +186,7 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
           {/* Prometheus Client */}
           <PluginCard
             icon={<BarChart3 className="h-4 w-4" />}
+            // eslint-disable-next-line vymanager/no-untranslated-text -- product name
             title="Prometheus Client"
             configured={!!config?.prometheus_client}
             summary={config?.prometheus_client ? [

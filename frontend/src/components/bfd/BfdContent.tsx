@@ -477,6 +477,7 @@ export function BfdContent() {
                             <TableCell className="font-medium font-mono">
                               {s.peer}
                               {s.multihop && (
+                                // eslint-disable-next-line vymanager/no-untranslated-text -- protocol/VyOS term, same in every locale
                                 <Badge variant="outline" className="ml-2 text-xs">Multihop</Badge>
                               )}
                             </TableCell>

@@ -286,6 +286,7 @@ export function TaskSchedulerPanel({ config, isReadOnly, onRefresh }: Props) {
               <Input
                 value={formExecArgs}
                 onChange={(e) => setFormExecArgs(e.target.value)}
+                // eslint-disable-next-line vymanager/no-untranslated-text -- example value
                 placeholder="--verbose --output /var/log/backup.log"
                 className="font-mono text-sm"
               />

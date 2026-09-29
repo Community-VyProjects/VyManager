@@ -130,6 +130,7 @@ export function WebProxyCachePeerModal({ open, onOpenChange, peer, caps, onSubmi
             </div>
             <div className="space-y-2">
               <Label htmlFor="cp-options">{t("content.options")}</Label>
+              {/* eslint-disable-next-line vymanager/no-untranslated-text -- example value */}
               <Input id="cp-options" value={options} onChange={(e) => setOptions(e.target.value)} placeholder="no-query default" className="font-mono" />
             </div>
           </div>

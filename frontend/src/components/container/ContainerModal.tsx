@@ -551,6 +551,7 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="c-args">{t("modal.arguments")}</Label>
+                  {/* eslint-disable-next-line vymanager/no-untranslated-text -- example value */}
                   <Input id="c-args" value={args} onChange={e => setArgs(e.target.value)} placeholder="--flag value --other" className="font-mono" />
                 </div>
                 <div className="grid grid-cols-3 gap-3">

@@ -334,6 +334,7 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="gen-state">{t("shared.state")}</Label>
+                      {/* eslint-disable-next-line vymanager/no-untranslated-text -- example value */}
                       <Input id="gen-state" value={state} onChange={(e) => setState(e.target.value)} placeholder="California" />
                     </div>
                   </div>
@@ -341,6 +342,7 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
                       <Label htmlFor="gen-locality">{t("shared.locality")}</Label>
+                      {/* eslint-disable-next-line vymanager/no-untranslated-text -- example value */}
                       <Input id="gen-locality" value={locality} onChange={(e) => setLocality(e.target.value)} placeholder="San Francisco" />
                     </div>
                     <div className="space-y-2">

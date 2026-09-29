@@ -39,6 +39,26 @@ Keys are type-checked against the English files, so a typo is a TypeScript error
   VLAN, API, SSH, WireGuard, OpenVPN, IPsec, ...
 - Error messages returned by the backend (shown as-is for now).
 
+## Lint rule
+
+`npm run lint` runs `vymanager/no-untranslated-text` (`eslint-rules/no-untranslated-text.mjs`)
+on `src/**/*.tsx`. It reports JSX text and `placeholder`/`title`/`alt`/`aria-label`/`label`/`description`
+string props that contain natural-language words, e.g. `<p>No rules</p>` or `placeholder="Search..."`.
+Acronyms, numbers, symbols, single lowercase config keywords and technical values
+(`example.com`, `level-1`) are not reported.
+
+For text that must stay English (protocol or product names, example values), either:
+
+- write it as an expression, e.g. `{"Node Exporter"}`, or
+- add a disable comment with the reason:
+
+  ```tsx
+  {/* eslint-disable-next-line vymanager/no-untranslated-text -- IANA protocol name */}
+  <SelectItem value="ggp">Gateway-Gateway Protocol</SelectItem>
+  ```
+
+Names used across the app go in the rule's `allow` list in `eslint.config.mjs`.
+
 ## zh-CN glossary
 
 Use 你 (not 您). Keep acronyms in English with a space around them in Chinese

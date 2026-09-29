@@ -895,6 +895,7 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
                       <SelectItem value="icmp">ICMP</SelectItem>
                       <SelectItem value="ip">IP</SelectItem>
                       <SelectItem value="ipv6">IPv6</SelectItem>
+                      {/* eslint-disable vymanager/no-untranslated-text -- IANA protocol names */}
                       <SelectItem value="hopopt">IPv6 Hop-by-Hop Option</SelectItem>
                       <SelectItem value="igmp">IGMP</SelectItem>
                       <SelectItem value="ggp">Gateway-Gateway Protocol</SelectItem>
@@ -945,6 +946,7 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
                       <SelectItem value="shim6">Shim6 Protocol</SelectItem>
                       <SelectItem value="wesp">Wrapped Encapsulating Security Payload</SelectItem>
                       <SelectItem value="rohc">Robust Header Compression</SelectItem>
+                      {/* eslint-enable vymanager/no-untranslated-text */}
                     </SelectContent>
                   )}
                 </Select>

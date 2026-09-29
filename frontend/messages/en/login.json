@@ -20,5 +20,6 @@
     "revokeFailed": "Failed to revoke other sessions",
     "loginCancelledRetry": "Login cancelled. Please try again from your other device or choose to continue.",
     "loginCancelled": "Login cancelled"
-  }
+  },
+  "logoAlt": "VyManager Logo"
 }

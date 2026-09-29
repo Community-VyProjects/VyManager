@@ -112,6 +112,7 @@ export function UserModal({ open, onOpenChange, onSuccess, existing }: UserModal
             </Label>
             <Input
               id="name"
+              // eslint-disable-next-line vymanager/no-untranslated-text -- example value
               placeholder="John Doe"
               value={draft.name}
               onChange={(e) => patch({ name: e.target.value })}
