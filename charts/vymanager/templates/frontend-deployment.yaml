@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vymanager.fullname" . }}-frontend
+  labels:
+    {{- include "vymanager.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: {{ .Values.frontend.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "vymanager.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: frontend
+  template:
+    metadata:
+      labels:
+        {{- include "vymanager.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: frontend
+        {{- with .Values.frontend.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.frontend.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "vymanager.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automount }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.frontend.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.frontend.terminationGracePeriodSeconds }}
+      {{- if .Values.migrations.enabled }}
+      initContainers:
+        - name: wait-for-schema
+          image: {{ include "vymanager.migrationImage" . | quote }}
+          imagePullPolicy: {{ include "vymanager.migrationPullPolicy" . }}
+          command: ["sh", "-c", "until npx prisma migrate status >/dev/null 2>&1; do sleep 2; done"]
+          securityContext:
+            {{- toYaml .Values.migrations.securityContext | nindent 12 }}
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "vymanager.databaseSecretName" . }}
+                  key: {{ include "vymanager.databaseUrlSecretKey" . }}
+          resources:
+            {{- toYaml .Values.migrations.resources | nindent 12 }}
+      {{- end }}
+      containers:
+        - name: frontend
+          image: {{ include "vymanager.frontendImage" . | quote }}
+          imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+          # Migrations are owned by the dedicated Job. Bypassing
+          # the image entrypoint prevents every replica from running them too.
+          command: ["npm", "start"]
+          securityContext:
+            {{- toYaml .Values.frontend.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "vymanager.databaseSecretName" . }}
+                  key: {{ include "vymanager.databaseUrlSecretKey" . }}
+            - name: BETTER_AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.applicationSecrets.existingSecret }}
+                  key: {{ .Values.applicationSecrets.betterAuthSecretKey }}
+            - name: NODE_ENV
+              value: {{ .Values.frontend.config.nodeEnv | quote }}
+            - name: VYMANAGER_ENV
+              value: {{ .Values.frontend.config.vymanagerEnv | quote }}
+            - name: BETTER_AUTH_URL
+              value: {{ .Values.frontend.config.betterAuthUrl | quote }}
+            - name: NEXT_PUBLIC_APP_URL
+              value: {{ .Values.frontend.config.nextPublicAppUrl | quote }}
+            - name: BACKEND_URL
+              value: {{ printf "http://%s-backend:%v" (include "vymanager.fullname" .) .Values.backend.service.port | quote }}
+            - name: TRUSTED_ORIGINS
+              value: {{ .Values.frontend.config.trustedOrigins | quote }}
+            - name: BETTER_AUTH_SECURE_COOKIES
+              value: {{ .Values.frontend.config.betterAuthSecureCookies | quote }}
+            {{- with .Values.frontend.config.publicWsUrl }}
+            - name: PUBLIC_WS_URL
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.frontend.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          readinessProbe:
+            {{- toYaml .Values.frontend.readinessProbe | nindent 12 }}
+          livenessProbe:
+            {{- toYaml .Values.frontend.livenessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.frontend.resources | nindent 12 }}
+      {{- with .Values.frontend.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.frontend.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.frontend.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.frontend.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
