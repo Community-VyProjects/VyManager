@@ -40,6 +40,21 @@ def test_parse_eeprom_read_error_is_not_unsupported():
     assert result.present is False
 
 
+def test_parse_1_4_wrapper_ethtool_failure_is_unsupported():
+    # 1.4 op wrapper text for show interfaces ethernet <if> transceiver.
+    result = parse_transceiver_output("eth0", "Invalid command: [ethtool]")
+
+    assert result.present is False
+    assert result.unsupported is True
+
+
+def test_parse_empty_output_is_not_an_error_grade():
+    result = parse_transceiver_output("eth0", "")
+
+    assert result.present is False
+    assert result.unsupported is False
+
+
 def test_parse_transceiver_ignores_inactive_flags_and_thresholds():
     result = parse_transceiver_output("eth2", """Identifier: SFP+
 Vendor PN: OPT-10G

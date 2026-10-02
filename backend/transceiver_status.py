@@ -121,14 +121,12 @@ _ABSENT_IDENTITY = (
 # ethtool --module-info when the NIC has no EEPROM. The lab string is
 # "netlink error: Operation not supported". Match that failure, not every
 # netlink error: an I/O error can be a bad module and must stay diagnosable.
-_UNSUPPORTED_TEXT = (
-    "operation not supported",
-)
-
-
 def _eeprom_unsupported(text: str) -> bool:
     lowered = (text or "").lower()
-    return any(phrase in lowered for phrase in _UNSUPPORTED_TEXT)
+    if "operation not supported" in lowered:
+        return True
+    # 1.4 op wrapper prints this instead of running ethtool.
+    return "invalid command" in lowered and "ethtool" in lowered
 
 
 def _usable_identity(value: Optional[str]) -> bool:

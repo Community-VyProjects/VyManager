@@ -70,6 +70,19 @@ describe("opticSeverity", () => {
     assert.equal(opticDiagnosticsAvailable("error"), true);
     assert.equal(opticReadError(ioError), "netlink error: Input/output error");
     assert.notEqual(opticColumnLabel(opticSeverity(ioError)), opticColumnLabel("unknown"));
+    assert.equal(opticSeverity({ present: false, unsupported: false, raw: "" }), "unknown");
+    assert.equal(opticColumnLabel(opticSeverity({ present: false, unsupported: false, raw: "" })), null);
+    const wrapper = {
+      present: false,
+      unsupported: true,
+      transceiver: null,
+      alarms: [] as string[],
+      warnings: [] as string[],
+    };
+    assert.equal(opticSeverity(wrapper), "none");
+    assert.equal(opticColumnLabel(opticSeverity(wrapper)), "N/A");
+    assert.equal(opticDiagnosticsAvailable(opticSeverity(wrapper)), false);
+    assert.equal(opticSeverity({ present: false, raw: "Invalid command: [ethtool]" }), "none");
   });
 
   it("leaves an unloaded row unlabeled and still openable", () => {

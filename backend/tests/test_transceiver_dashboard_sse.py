@@ -166,6 +166,12 @@ def test_sse_payload_marks_unsupported_eeprom_without_raw():
     assert cage["present"] is False
     assert "raw" not in cage
 
+    wrapped = build_transceiver_status(_gql_for({"eth0": "Invalid command: [ethtool]"}), ["eth0"])
+    old = wrapped["interfaces"][0]
+    assert old["unsupported"] is True
+    assert old["present"] is False
+    assert "raw" not in old
+
 
 def test_missing_or_non_string_alias_degrades_to_an_absent_port():
     gql = {transceiver_alias("eth1"): {"data": {"result": {"unexpected": "shape"}}}}
