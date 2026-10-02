@@ -18,6 +18,47 @@ def test_parse_absent_transceiver():
     result = parse_transceiver_output("eth3", "Transceiver: not present")
 
     assert result.present is False
+    assert result.transceiver is None
+    assert result.unsupported is False
+    assert result.read_error is False
+
+
+def test_parse_copper_port_is_not_an_optic():
+    # GraphQL Show on the 1.4 and 1.5 labs returned this line for a non-fiber port.
+    # The SSH op wrapper's "Invalid command: [ethtool]" is a different invocation.
+    result = parse_transceiver_output("eth2", "netlink error: Operation not supported")
+
+    assert result.present is False
+    assert result.transceiver is None
+    assert result.unsupported is True
+    assert result.read_error is False
+    assert result.alarms == []
+    assert result.warnings == []
+
+
+def test_parse_eeprom_read_error_is_not_unsupported():
+    result = parse_transceiver_output("eth2", "netlink error: Input/output error")
+
+    assert result.unsupported is False
+    assert result.read_error is True
+    assert result.present is False
+
+
+def test_parse_1_4_wrapper_failure_is_not_a_module_reading():
+    # The op wrapper failed before ethtool ran. That is not evidence of no EEPROM.
+    result = parse_transceiver_output("eth0", "Invalid command: [ethtool]")
+
+    assert result.present is False
+    assert result.unsupported is False
+    assert result.read_error is True
+
+
+def test_parse_empty_output_is_not_an_error_grade():
+    result = parse_transceiver_output("eth0", "")
+
+    assert result.present is False
+    assert result.unsupported is False
+    assert result.read_error is False
 
 
 def test_parse_transceiver_ignores_inactive_flags_and_thresholds():

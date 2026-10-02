@@ -149,6 +149,37 @@ def test_payload_omits_raw_ethtool_text():
     assert "raw" not in payload["interfaces"][0]
 
 
+def test_sse_payload_marks_unsupported_eeprom_without_raw():
+    # The dashboard card has no raw text. Copper must be carried by unsupported.
+    payload = build_transceiver_status(
+        _gql_for({"eth2": "netlink error: Operation not supported"}),
+        ["eth2"],
+    )
+    port = payload["interfaces"][0]
+    assert port["unsupported"] is True
+    assert port["read_error"] is False
+    assert port["present"] is False
+    assert "raw" not in port
+
+    empty = build_transceiver_status(_gql_for({"eth3": "Transceiver: not present"}), ["eth3"])
+    cage = empty["interfaces"][0]
+    assert cage["unsupported"] is False
+    assert cage["present"] is False
+    assert "raw" not in cage
+
+    wrapped = build_transceiver_status(_gql_for({"eth0": "Invalid command: [ethtool]"}), ["eth0"])
+    old = wrapped["interfaces"][0]
+    assert old["unsupported"] is False
+    assert old["read_error"] is True
+    assert old["present"] is False
+    assert "raw" not in old
+    io = build_transceiver_status(_gql_for({"eth1": "netlink error: Input/output error"}), ["eth1"])
+    failed = io["interfaces"][0]
+    assert failed["unsupported"] is False
+    assert failed["read_error"] is True
+    assert "raw" not in failed
+
+
 def test_missing_or_non_string_alias_degrades_to_an_absent_port():
     gql = {transceiver_alias("eth1"): {"data": {"result": {"unexpected": "shape"}}}}
     payload = build_transceiver_status(gql, ["eth0", "eth1"])
