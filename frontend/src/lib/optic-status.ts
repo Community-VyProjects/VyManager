@@ -7,7 +7,7 @@
  * a warning, with the diagnostics button, because it is not the same fault.
  */
 
-export type OpticSeverity = "unknown" | "none" | "absent" | "ok" | "warning" | "alarm";
+export type OpticSeverity = "unknown" | "none" | "absent" | "error" | "ok" | "warning" | "alarm";
 
 export interface OpticReading {
   present?: boolean;
@@ -64,12 +64,13 @@ export function opticSeverity(status: OpticReading | null | undefined): OpticSev
   }
   if (eepromUnsupported(status)) return "none";
   if (modulePulled(status)) return "absent";
-  return "unknown";
+  return "error";
 }
 
 /** Word shown in the ethernet Optic column. null means the reading has not loaded. */
 export function opticColumnLabel(severity: OpticSeverity): string | null {
   if (severity === "none") return "N/A";
+  if (severity === "error") return "Error";
   if (severity === "absent" || severity === "warning") return "Warning";
   if (severity === "ok") return "Healthy";
   if (severity === "alarm") return "Alarm";
@@ -79,6 +80,13 @@ export function opticColumnLabel(severity: OpticSeverity): string | null {
 /** Hide diagnostics only when the port has no EEPROM. An empty cage, or a read we could not classify, still opens. */
 export function opticDiagnosticsAvailable(severity: OpticSeverity): boolean {
   return severity !== "none";
+}
+
+/** Text shown when a read came back but was not a module and not a copper port. */
+export function opticReadError(status: OpticReading | null | undefined): string | null {
+  if (opticSeverity(status) !== "error") return null;
+  const raw = status?.raw?.trim();
+  return raw || "Unable to read transceiver";
 }
 
 /** Dashboard card grade. Keeps the old absent rule, and does not call copper Absent. */

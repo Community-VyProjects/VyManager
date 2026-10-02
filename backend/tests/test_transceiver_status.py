@@ -19,7 +19,7 @@ def test_parse_absent_transceiver():
 
     assert result.present is False
     assert result.transceiver is None
-    assert getattr(result, "unsupported", False) is False
+    assert result.unsupported is False
 
 
 def test_parse_copper_port_is_not_an_optic():

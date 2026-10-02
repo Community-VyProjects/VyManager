@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ethernetService } from "@/lib/api/ethernet";
 import type { TransceiverStatus } from "@/lib/api/types/ethernet";
-import { opticSeverity } from "@/lib/optic-status";
+import { opticReadError, opticSeverity } from "@/lib/optic-status";
 
 const measurementLabels: Record<string, string> = {
   temperature: "Temperature",
@@ -100,7 +100,9 @@ export function TransceiverDiagnosticsDialog({
               {currentSeverity === "alarm" ? <Badge variant="destructive"><CircleAlert /> Alarm</Badge> : null}
               {currentSeverity === "none" ? <span className="text-sm text-muted-foreground">No optical transceiver</span> : null}
               {currentSeverity === "absent" ? <span className="text-sm text-muted-foreground">No transceiver detected</span> : null}
+              {currentSeverity === "error" ? <Badge variant="outline">Error</Badge> : null}
             </div>
+            {currentSeverity === "error" ? <pre className="whitespace-pre-wrap rounded-md border bg-muted/40 p-3 text-sm">{opticReadError(status)}</pre> : null}
             {currentSeverity === "ok" || currentSeverity === "warning" || currentSeverity === "alarm" ? (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {[["Type", status.transceiver], ["Vendor", status.vendor], ["Part number", status.part_number], ["Serial number", status.serial_number]].map(([label, value]) => (
