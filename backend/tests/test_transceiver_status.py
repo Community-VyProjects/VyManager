@@ -20,15 +20,18 @@ def test_parse_absent_transceiver():
     assert result.present is False
     assert result.transceiver is None
     assert result.unsupported is False
+    assert result.read_error is False
 
 
 def test_parse_copper_port_is_not_an_optic():
-    # ethtool --module-info text. The lab line is "netlink error: Operation not supported".
+    # GraphQL Show on the 1.4 and 1.5 labs returned this line for a non-fiber port.
+    # The SSH op wrapper's "Invalid command: [ethtool]" is a different invocation.
     result = parse_transceiver_output("eth2", "netlink error: Operation not supported")
 
     assert result.present is False
     assert result.transceiver is None
     assert result.unsupported is True
+    assert result.read_error is False
     assert result.alarms == []
     assert result.warnings == []
 
@@ -37,6 +40,7 @@ def test_parse_eeprom_read_error_is_not_unsupported():
     result = parse_transceiver_output("eth2", "netlink error: Input/output error")
 
     assert result.unsupported is False
+    assert result.read_error is True
     assert result.present is False
 
 
@@ -46,6 +50,7 @@ def test_parse_1_4_wrapper_failure_is_not_a_module_reading():
 
     assert result.present is False
     assert result.unsupported is False
+    assert result.read_error is True
 
 
 def test_parse_empty_output_is_not_an_error_grade():
@@ -53,6 +58,7 @@ def test_parse_empty_output_is_not_an_error_grade():
 
     assert result.present is False
     assert result.unsupported is False
+    assert result.read_error is False
 
 
 def test_parse_transceiver_ignores_inactive_flags_and_thresholds():

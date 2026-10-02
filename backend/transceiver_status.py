@@ -29,6 +29,9 @@ class TransceiverStatus(BaseModel):
     # True when ethtool cannot read a module EEPROM (copper or virtual NIC).
     # Distinct from an empty cage, which says the transceiver is not present.
     unsupported: bool = False
+    # True when the read returned text that is neither a module nor "no EEPROM".
+    # A failed command is not evidence that no module is fitted.
+    read_error: bool = False
     transceiver: Optional[str] = None
     vendor: Optional[str] = None
     part_number: Optional[str] = None
@@ -201,6 +204,9 @@ def parse_transceiver_output(interface: str, text: str) -> TransceiverStatus:
         for name in ("transceiver", "vendor", "part_number", "serial_number")
     ) or bool(measurements)
     status.unsupported = (not status.present) and _eeprom_unsupported(text or "")
+    lowered = (text or "").lower()
+    module_absent = any(phrase in lowered for phrase in ("not present", "no transceiver", "no module"))
+    status.read_error = bool((text or "").strip()) and not status.present and not status.unsupported and not module_absent
     return status
 
 

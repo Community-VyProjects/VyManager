@@ -12,6 +12,7 @@ export type OpticSeverity = "unknown" | "none" | "absent" | "error" | "ok" | "wa
 export interface OpticReading {
   present?: boolean;
   unsupported?: boolean;
+  read_error?: boolean;
   transceiver?: string | null;
   vendor?: string | null;
   part_number?: string | null;
@@ -93,8 +94,9 @@ export function opticReadError(status: OpticReading | null | undefined): string 
 /** Dashboard card grade. Keeps the old absent rule, and does not call copper Absent. */
 export function dashboardOpticSeverity(
   port: OpticReading,
-): "ok" | "warning" | "critical" | "absent" | "none" {
+): "ok" | "warning" | "critical" | "absent" | "none" | "error" {
   if (eepromUnsupported(port)) return "none";
+  if (port.read_error) return "error";
   if (!port.present || !port.transceiver) return "absent";
   if (port.alarms?.length) return "critical";
   if (port.warnings?.length) return "warning";

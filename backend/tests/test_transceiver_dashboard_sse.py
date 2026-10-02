@@ -157,6 +157,7 @@ def test_sse_payload_marks_unsupported_eeprom_without_raw():
     )
     port = payload["interfaces"][0]
     assert port["unsupported"] is True
+    assert port["read_error"] is False
     assert port["present"] is False
     assert "raw" not in port
 
@@ -169,8 +170,14 @@ def test_sse_payload_marks_unsupported_eeprom_without_raw():
     wrapped = build_transceiver_status(_gql_for({"eth0": "Invalid command: [ethtool]"}), ["eth0"])
     old = wrapped["interfaces"][0]
     assert old["unsupported"] is False
+    assert old["read_error"] is True
     assert old["present"] is False
     assert "raw" not in old
+    io = build_transceiver_status(_gql_for({"eth1": "netlink error: Input/output error"}), ["eth1"])
+    failed = io["interfaces"][0]
+    assert failed["unsupported"] is False
+    assert failed["read_error"] is True
+    assert "raw" not in failed
 
 
 def test_missing_or_non_string_alias_degrades_to_an_absent_port():

@@ -32,7 +32,7 @@ interface TransceiverHealthCardProps {
   config?: Record<string, unknown>;
 }
 
-function transceiverSeverity(port: TransceiverPortData): "ok" | "warning" | "critical" | "absent" | "none" {
+function transceiverSeverity(port: TransceiverPortData): "ok" | "warning" | "critical" | "absent" | "none" | "error" {
   return dashboardOpticSeverity(port);
 }
 
@@ -53,6 +53,14 @@ function SeverityBadge({ port }: { port: TransceiverPortData }) {
       <Badge className="bg-yellow-600 shrink-0">
         <AlertTriangle className="h-3 w-3 mr-1" />
         Warning
+      </Badge>
+    );
+  }
+
+  if (severity === "error") {
+    return (
+      <Badge variant="outline" className="shrink-0">
+        Error
       </Badge>
     );
   }
@@ -99,7 +107,9 @@ export function TransceiverHealthCard({
     ? "critical"
     : ports.some((port) => transceiverSeverity(port) === "warning")
       ? "warning"
-      : ports.some((port) => transceiverSeverity(port) === "absent")
+      : ports.some((port) => transceiverSeverity(port) === "error")
+        ? "error"
+        : ports.some((port) => transceiverSeverity(port) === "absent")
         ? "absent"
         : ports.some((port) => transceiverSeverity(port) === "none")
           ? "none"
@@ -155,7 +165,7 @@ export function TransceiverHealthCard({
                   <CircleAlert className="h-4 w-4 text-red-600" />
                 ) : overallSeverity === "warning" ? (
                   <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                ) : overallSeverity === "absent" || overallSeverity === "none" ? (
+                ) : overallSeverity === "absent" || overallSeverity === "none" || overallSeverity === "error" ? (
                   <CircleAlert className="h-4 w-4 text-muted-foreground" />
                 ) : (
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -175,7 +185,7 @@ export function TransceiverHealthCard({
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-sm font-medium break-all">{port.interface}</span>
-                      <span className="text-xs text-muted-foreground">{port.unsupported ? "No optic" : (port.transceiver || "No part")}</span>
+                      <span className="text-xs text-muted-foreground">{port.read_error ? "Read failed" : port.unsupported ? "No optic" : (port.transceiver || "No part")}</span>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       {port.alarms.length > 0 && (
@@ -184,7 +194,7 @@ export function TransceiverHealthCard({
                       {port.warnings.length > 0 && (
                         <span className="text-yellow-600">{port.warnings.length} warning{port.warnings.length === 1 ? "" : "s"}</span>
                       )}
-                      {!port.present && !port.unsupported && <span>No transceiver</span>}
+                      {!port.present && !port.unsupported && !port.read_error && <span>No transceiver</span>}
                     </div>
                   </div>
                   <SeverityBadge port={port} />

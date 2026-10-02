@@ -99,10 +99,11 @@ describe("opticSeverity", () => {
     assert.equal(dashboardOpticSeverity({
       present: false,
       unsupported: false,
+      read_error: true,
       transceiver: null,
       alarms: [],
       warnings: [],
-    }), "absent");
+    }), "error");
     assert.equal(dashboardOpticSeverity({
       present: true,
       unsupported: false,
