@@ -196,6 +196,7 @@ export function RadiusSettingsModal({
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>{t("radiusSettings.attribute")}</Label>
+                {/* eslint-disable-next-line vymanager/no-untranslated-text -- RADIUS attribute name */}
                 <Input value={rateLimitAttribute} onChange={(e) => setRateLimitAttribute(e.target.value)} placeholder="Filter-Id" />
               </div>
               <div className="space-y-2">

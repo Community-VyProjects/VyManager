@@ -101,7 +101,9 @@
     "httpClient": "HTTP 客户端",
     "sshClient": "SSH 客户端",
     "sourceAddress": "源地址",
-    "sourceInterface": "源接口"
+    "sourceInterface": "源接口",
+    "timeFormat24": "24 小时制",
+    "timeFormat12": "12 小时制"
   },
   "kernel": {
     "saveFailed": "保存内核选项失败",

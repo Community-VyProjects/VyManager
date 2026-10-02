@@ -967,7 +967,7 @@
         "label": "启动时过载位（秒）"
       },
       "shortcut": {
-        "label": "Shortcut"
+        "label": "快捷方式"
       },
       "shutdown": {
         "label": "关闭"
@@ -1164,7 +1164,7 @@
       "rsServer": "RS 服务器",
       "secondary": "备",
       "sendOnly": "仅发送",
-      "shortcut": "Shortcut",
+      "shortcut": "快捷",
       "standard": "标准",
       "static": "静态",
       "stub": "Stub",

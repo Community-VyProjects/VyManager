@@ -29,7 +29,7 @@ const eslintConfig = defineConfig([
           allow: [
             "VyOS", "VyManager", "Forward", "Input", "Output", "Prerouting", "Postrouting", "Raw",
             "Cisco", "Babel", "Splunk", "Loki", "Telegraf", "Zabbix", "Prometheus", "Podman", "Discord",
-            "VyProjects Org", "Ethernet", "Syslog", "Switchdev",
+            "VyProjects Org", "Syslog", "Switchdev",
             // Units
             "Kbps", "Mbps", "Gbps",
           ],

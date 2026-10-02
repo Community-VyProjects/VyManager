@@ -477,8 +477,7 @@ export function BfdContent() {
                             <TableCell className="font-medium font-mono">
                               {s.peer}
                               {s.multihop && (
-                                // eslint-disable-next-line vymanager/no-untranslated-text -- protocol/VyOS term, same in every locale
-                                <Badge variant="outline" className="ml-2 text-xs">Multihop</Badge>
+                                <Badge variant="outline" className="ml-2 text-xs">{t("content.multihop")}</Badge>
                               )}
                             </TableCell>
                             <TableCell>
@@ -488,10 +487,10 @@ export function BfdContent() {
                             </TableCell>
                             <TableCell>
                               {s.status === "up" ? (
-                                <Badge variant="secondary" className="bg-green-500/10 text-green-600">Up</Badge>
+                                <Badge variant="secondary" className="bg-green-500/10 text-green-600">{t("content.sessionUp")}</Badge>
                               ) : (
                                 <Badge variant="secondary" className="bg-red-500/10 text-red-600">
-                                  {s.status ? s.status.charAt(0).toUpperCase() + s.status.slice(1) : "Down"}
+                                  {s.status ? s.status.charAt(0).toUpperCase() + s.status.slice(1) : t("content.sessionDown")}
                                 </Badge>
                               )}
                             </TableCell>

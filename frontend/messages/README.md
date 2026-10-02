@@ -57,7 +57,10 @@ For text that must stay English (protocol or product names, example values), eit
   <SelectItem value="ggp">Gateway-Gateway Protocol</SelectItem>
   ```
 
-Names used across the app go in the rule's `allow` list in `eslint.config.mjs`.
+Names used across the app go in the rule's `allow` list in `eslint.config.mjs`. Only add names
+that are the same in every locale; if a word has a translation (e.g. Ethernet → 以太网), translate it.
+
+When changing the rule, run its tests with `node --test eslint-rules/*.test.mjs`.
 
 ## zh-CN glossary
 

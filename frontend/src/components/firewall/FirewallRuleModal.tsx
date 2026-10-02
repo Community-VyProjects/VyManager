@@ -1806,7 +1806,7 @@ export function FirewallRuleModal({
                     <SelectItem value="egp">EGP</SelectItem>
                     <SelectItem value="encap">ENCAP</SelectItem>
                     <SelectItem value="etherip">EtherIP</SelectItem>
-                    <SelectItem value="ethernet">Ethernet</SelectItem>
+                    <SelectItem value="ethernet">{t("protocolLabels.ethernet")}</SelectItem>
                     <SelectItem value="fc">FC</SelectItem>
                     <SelectItem value="ggp">GGP</SelectItem>
                     <SelectItem value="hip">HIP</SelectItem>
@@ -1818,6 +1818,7 @@ export function FirewallRuleModal({
                     <SelectItem value="ip">IP</SelectItem>
                     <SelectItem value="ipcomp">IPComp</SelectItem>
                     <SelectItem value="ipencap">IP-ENCAP</SelectItem>
+                    {/* eslint-disable vymanager/no-untranslated-text -- protocol names as nftables spells them */}
                     <SelectItem value="ipv6-frag">IPv6-Frag</SelectItem>
                     <SelectItem value="ipv6-nonxt">IPv6-NoNxt</SelectItem>
                     <SelectItem value="ipv6-opts">IPv6-Opts</SelectItem>
@@ -1826,6 +1827,7 @@ export function FirewallRuleModal({
                     <SelectItem value="iso-tp4">ISO-TP4</SelectItem>
                     <SelectItem value="manet">MANET</SelectItem>
                     <SelectItem value="mobility-header">Mobility-Header</SelectItem>
+                    {/* eslint-enable vymanager/no-untranslated-text */}
                     <SelectItem value="mpls-in-ip">MPLS-in-IP</SelectItem>
                     <SelectItem value="mptcp">MPTCP</SelectItem>
                     <SelectItem value="pup">PUP</SelectItem>

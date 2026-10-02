@@ -73,7 +73,11 @@
     "opaqueLsa": "Opaque LSA",
     "rfc1583": "RFC 1583 Compatibility",
     "defaultInformation": "Default Information Originate",
-    "always": "Always"
+    "always": "Always",
+    "abrTypes": {
+      "shortcut": "Shortcut",
+      "standard": "Standard"
+    }
   },
   "areas": {
     "description": "OSPF area configuration",

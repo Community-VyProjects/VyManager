@@ -1207,8 +1207,8 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                   <SelectTrigger><SelectValue placeholder={tc("default")} /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="unset">{tc("default")}</SelectItem>
-                    <SelectItem value="24-hour">24-hour</SelectItem>
-                    <SelectItem value="12-hour">12-hour</SelectItem>
+                    <SelectItem value="24-hour">{t("opts.timeFormat24")}</SelectItem>
+                    <SelectItem value="12-hour">{t("opts.timeFormat12")}</SelectItem>
                   </SelectContent>
                 </Select>
               ) : (
@@ -1216,6 +1216,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
               )}
             </div>
             <div className="space-y-1.5">
+              {/* eslint-disable-next-line vymanager/no-untranslated-text -- key combination name */}
               <Label>Ctrl-Alt-Delete</Label>
               {editingOpts ? (
                 <Select value={optCtrlAlt || "unset"} onValueChange={(v) => setOptCtrlAlt(v === "unset" ? "" : v)}>

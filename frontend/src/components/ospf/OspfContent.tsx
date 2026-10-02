@@ -609,10 +609,8 @@ export function OspfContent() {
                           <SelectContent>
                             <SelectItem value="cisco">Cisco</SelectItem>
                             <SelectItem value="ibm">IBM</SelectItem>
-                            {/* eslint-disable-next-line vymanager/no-untranslated-text -- FRR ABR type names */}
-                            <SelectItem value="shortcut">Shortcut</SelectItem>
-                            {/* eslint-disable-next-line vymanager/no-untranslated-text -- FRR ABR type names */}
-                            <SelectItem value="standard">Standard</SelectItem>
+                            <SelectItem value="shortcut">{t("overview.abrTypes.shortcut")}</SelectItem>
+                            <SelectItem value="standard">{t("overview.abrTypes.standard")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

@@ -37,7 +37,9 @@
     "profileName": "配置文件名称",
     "minTtl": "最小 TTL",
     "usedBy": "使用者",
-    "peerCount": "{count} 个对等体"
+    "peerCount": "{count} 个对等体",
+    "sessionUp": "在线",
+    "sessionDown": "离线"
   },
   "form": {
     "statusAndMode": "状态与模式",

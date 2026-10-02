@@ -17,20 +17,34 @@
 
 const DEFAULT_PROPS = ["placeholder", "title", "alt", "aria-label", "label", "description"];
 
-// A "word" is a run of letters starting with a letter and containing at least
-// two further lowercase letters, e.g. "Rule", "delete", "Configured".
-// Mixed-case identifiers like "WireGuard", "IPsec", "OpenVPN" don't match.
-const WORD = /^[A-Za-z][a-z]{2,}$/;
+// A "word" is a capitalized two-letter word ("Up", "No", "On") or a letter
+// followed by at least two lowercase letters ("Rule", "delete"). All-caps
+// acronyms ("IP", "VRF"), mixed-case identifiers ("WireGuard", "IPsec") and
+// lowercase two-letter units/abbreviations ("ms", "rx") don't match.
+const WORD = /^(?:[A-Z][a-z]|[A-Za-z][a-z]{2,})$/;
 
-// A single token containing - . / : _ @ , or = is a technical value (example
-// hostnames, paths, config keys, "level-1", "Monday,Tuesday"), not prose.
-const TECHNICAL_VALUE = /^\S*[-./:_@,=]\S*$/;
-// A single all-lowercase word is almost always a config keyword shown as-is
-// ("disable", "strict", "masquerade", "udp").
-const KEYWORD = /^[a-z][a-z0-9]*$/;
+// A single token is a technical value, not prose, when it
+//   - has a separator *between* letters/digits: "example.com", "/path/to/x", "a=b", "Monday,Tuesday";
+//   - starts with @ / ~ or contains "://": "@local-id", "/health", "https://...";
+//   - is a lowercase (hyphenated) keyword: "client-identifier", "vlt:".
+// Trailing punctuation alone doesn't make a value, so "Search..." and
+// "Loading…" are still prose.
+const INNER_SEPARATOR = /[A-Za-z0-9][./:_@,=]+[A-Za-z0-9]/;
+const LEADING_SYMBOL = /^[@/~]|:\/\//;
+const LOWERCASE_KEYWORD = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+const TRAILING_PUNCTUATION = /[:;.,…]+$/;
+
+function isTechnicalValue(text) {
+  if (/\s/.test(text)) return false;
+  return (
+    INNER_SEPARATOR.test(text) ||
+    LEADING_SYMBOL.test(text) ||
+    LOWERCASE_KEYWORD.test(text.replace(TRAILING_PUNCTUATION, ""))
+  );
+}
 
 function hasWords(text, allow) {
-  if (allow.has(text) || TECHNICAL_VALUE.test(text) || KEYWORD.test(text)) return false;
+  if (allow.has(text) || isTechnicalValue(text)) return false;
   return text
     .split(/[\s/()[\]{}.,:;!?…"'`·—–-]+/)
     .filter(Boolean)

@@ -245,5 +245,8 @@
     "srcTimeout": "源超时",
     "dstAddressGroup": "目标地址组",
     "dstTimeout": "目标超时"
+  },
+  "protocolLabels": {
+    "ethernet": "以太网"
   }
 }
