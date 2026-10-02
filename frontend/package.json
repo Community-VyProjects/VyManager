@@ -68,6 +68,12 @@
     "typescript": "^5.9.3"
   },
   "overrides": {
-    "deepmerge-ts": "8.0.2"
+    "deepmerge-ts": "8.0.2",
+    "minimatch@3": {
+      "brace-expansion": "1.1.21"
+    },
+    "minimatch@9": {
+      "brace-expansion": "2.1.7"
+    }
   }
 }
