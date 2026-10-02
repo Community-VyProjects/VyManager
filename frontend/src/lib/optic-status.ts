@@ -1,16 +1,17 @@
 /**
  * Optic column / DDM severity.
  *
- * "Healthy" means a module EEPROM was read and it has no alarm or warning.
- * A copper PHY, virtual NIC, or empty cage has no optical transceiver.
- * ethtool answers those with "Operation not supported" or "not present",
- * which is not a health grade.
+ * Healthy means a module EEPROM was read and it has no alarm or warning.
+ * "Operation not supported" means this port has no EEPROM (copper or virtual).
+ * "not present" means a cage was read and the module is missing. That stays
+ * a warning, with the diagnostics button, because it is not the same fault.
  */
 
-export type OpticSeverity = "unknown" | "none" | "ok" | "warning" | "alarm";
+export type OpticSeverity = "unknown" | "none" | "absent" | "ok" | "warning" | "alarm";
 
 export interface OpticReading {
   present?: boolean;
+  unsupported?: boolean;
   transceiver?: string | null;
   vendor?: string | null;
   part_number?: string | null;
@@ -18,6 +19,7 @@ export interface OpticReading {
   measurements?: Record<string, unknown> | null;
   alarms?: string[] | null;
   warnings?: string[] | null;
+  raw?: string | null;
 }
 
 const BOGUS_IDENTITY = new Set(["none", "n/a", "na", "unknown", "unspecified"]);
@@ -35,6 +37,19 @@ function usableIdentity(value: string | null | undefined): boolean {
   );
 }
 
+function eepromUnsupported(status: OpticReading): boolean {
+  if (status.unsupported) return true;
+  const raw = (status.raw ?? "").toLowerCase();
+  return raw.includes("netlink error")
+    || raw.includes("operation not supported")
+    || raw.includes("cannot get module eeprom");
+}
+
+function modulePulled(status: OpticReading): boolean {
+  const raw = `${status.raw ?? ""} ${status.transceiver ?? ""}`.toLowerCase();
+  return raw.includes("not present") || raw.includes("no transceiver") || raw.includes("no module");
+}
+
 export function hasOpticalModule(status: OpticReading | null | undefined): boolean {
   if (!status?.present) return false;
   if ([status.transceiver, status.vendor, status.part_number, status.serial_number].some(usableIdentity)) {
@@ -45,22 +60,26 @@ export function hasOpticalModule(status: OpticReading | null | undefined): boole
 
 export function opticSeverity(status: OpticReading | null | undefined): OpticSeverity {
   if (!status) return "unknown";
-  if (!hasOpticalModule(status)) return "none";
-  if (status.alarms?.length) return "alarm";
-  if (status.warnings?.length) return "warning";
-  return "ok";
+  if (hasOpticalModule(status)) {
+    if (status.alarms?.length) return "alarm";
+    if (status.warnings?.length) return "warning";
+    return "ok";
+  }
+  if (eepromUnsupported(status)) return "none";
+  if (modulePulled(status)) return "absent";
+  return "none";
 }
 
 /** Word shown in the ethernet Optic column. null means the reading has not loaded. */
 export function opticColumnLabel(severity: OpticSeverity): string | null {
   if (severity === "none") return "N/A";
+  if (severity === "absent" || severity === "warning") return "Warning";
   if (severity === "ok") return "Healthy";
-  if (severity === "warning") return "Warning";
   if (severity === "alarm") return "Alarm";
   return null;
 }
 
-/** The diagnostics button is only useful when a module was read, or the read failed. */
+/** Hide diagnostics only when the port has no EEPROM. An empty cage still opens. */
 export function opticDiagnosticsAvailable(severity: OpticSeverity): boolean {
   return severity !== "none";
 }

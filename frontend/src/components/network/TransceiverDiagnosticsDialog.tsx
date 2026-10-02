@@ -96,11 +96,12 @@ export function TransceiverDiagnosticsDialog({
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
               {currentSeverity === "ok" ? <Badge className="bg-green-600"><CheckCircle2 /> Healthy</Badge> : null}
-              {currentSeverity === "warning" ? <Badge className="bg-yellow-600"><AlertTriangle /> Warning</Badge> : null}
+              {currentSeverity === "warning" || currentSeverity === "absent" ? <Badge className="bg-yellow-600"><AlertTriangle /> Warning</Badge> : null}
               {currentSeverity === "alarm" ? <Badge variant="destructive"><CircleAlert /> Alarm</Badge> : null}
               {currentSeverity === "none" ? <span className="text-sm text-muted-foreground">No optical transceiver</span> : null}
+              {currentSeverity === "absent" ? <span className="text-sm text-muted-foreground">No transceiver detected</span> : null}
             </div>
-            {currentSeverity !== "none" ? (
+            {currentSeverity === "ok" || currentSeverity === "warning" || currentSeverity === "alarm" ? (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {[["Type", status.transceiver], ["Vendor", status.vendor], ["Part number", status.part_number], ["Serial number", status.serial_number]].map(([label, value]) => (
                   <Card key={label}><CardContent className="p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 font-medium break-words">{value || "-"}</p></CardContent></Card>

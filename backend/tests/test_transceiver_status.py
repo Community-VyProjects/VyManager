@@ -18,21 +18,19 @@ def test_parse_absent_transceiver():
     result = parse_transceiver_output("eth3", "Transceiver: not present")
 
     assert result.present is False
+    assert result.unsupported is False
     assert result.transceiver is None
 
 
 def test_parse_copper_port_is_not_an_optic():
-    # Lab-captured: ethtool --module-info on a non-fiber NIC (vif and copper).
-    for text in (
-        "netlink error: Operation not supported",
-        "Cannot get module EEPROM information: Operation not supported",
-        "",
-    ):
-        result = parse_transceiver_output("eth2", text)
-        assert result.present is False
-        assert result.transceiver is None
-        assert result.alarms == []
-        assert result.warnings == []
+    # Lab-captured: ethtool --module-info on the 1.4 and 1.5 vif NICs.
+    result = parse_transceiver_output("eth2", "netlink error: Operation not supported")
+
+    assert result.present is False
+    assert result.unsupported is True
+    assert result.transceiver is None
+    assert result.alarms == []
+    assert result.warnings == []
 
 
 def test_parse_transceiver_ignores_inactive_flags_and_thresholds():

@@ -2173,6 +2173,7 @@ function InterfacesPageInner() {
                               <TableCell>
                                 {!opticLabel ? <span className="text-muted-foreground">-</span> : null}
                                 {optic === "none" ? <span className="text-muted-foreground" title="No optical transceiver">{opticLabel}</span> : null}
+                                {optic === "absent" ? <Badge variant="outline" className="cursor-pointer border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400" onClick={openOptic} title="No transceiver detected">{opticLabel}</Badge> : null}
                                 {optic === "alarm" ? <Badge variant="destructive" className="cursor-pointer" onClick={openOptic} title="Optic alarm">{opticLabel}</Badge> : null}
                                 {optic === "warning" ? <Badge variant="outline" className="cursor-pointer border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400" onClick={openOptic} title="Optic warning">{opticLabel}</Badge> : null}
                                 {optic === "ok" ? <Badge variant="outline" className="cursor-pointer border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400" onClick={openOptic} title="Optic healthy">{opticLabel}</Badge> : null}

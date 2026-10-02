@@ -24,10 +24,11 @@ class TransceiverMeasurement(BaseModel):
 
 class TransceiverStatus(BaseModel):
     interface: str
-    # False until a module identity or DDM measurement is parsed. Copper and
-    # virtual NICs answer ``ethtool --module-info`` with "Operation not
-    # supported"; that is not a healthy optic.
+    # False until a module identity or DDM measurement is parsed.
     present: bool = False
+    # True when ethtool cannot read a module EEPROM (copper or virtual NIC).
+    # Distinct from an empty cage, which says the transceiver is not present.
+    unsupported: bool = False
     transceiver: Optional[str] = None
     vendor: Optional[str] = None
     part_number: Optional[str] = None
@@ -117,6 +118,21 @@ _ABSENT_IDENTITY = (
 )
 
 
+# ethtool --module-info on a NIC with no EEPROM. Lab-captured text is
+# "netlink error: Operation not supported". The other phrases are the same
+# failure in the ioctl wording, not a second lab capture.
+_UNSUPPORTED_TEXT = (
+    "netlink error",
+    "operation not supported",
+    "cannot get module eeprom",
+)
+
+
+def _eeprom_unsupported(text: str) -> bool:
+    lowered = (text or "").lower()
+    return any(phrase in lowered for phrase in _UNSUPPORTED_TEXT)
+
+
 def _usable_identity(value: Optional[str]) -> bool:
     if not value or not value.strip():
         return False
@@ -191,6 +207,7 @@ def parse_transceiver_output(interface: str, text: str) -> TransceiverStatus:
         _usable_identity(getattr(status, name))
         for name in ("transceiver", "vendor", "part_number", "serial_number")
     ) or bool(measurements)
+    status.unsupported = (not status.present) and _eeprom_unsupported(text or "")
     return status
 
 

@@ -21,7 +21,6 @@ import {
 import { CardSizeMenu } from "@/components/dashboard/CardSizeMenu";
 import { useDashboardData } from "@/contexts/DashboardDataContext";
 import type { TransceiverHealthData, TransceiverPortData } from "@/hooks/useDashboardSSE";
-import { opticSeverity } from "@/lib/optic-status";
 
 interface TransceiverHealthCardProps {
   onRemove?: () => void;
@@ -33,11 +32,16 @@ interface TransceiverHealthCardProps {
 }
 
 function transceiverSeverity(port: TransceiverPortData): "ok" | "warning" | "critical" | "absent" {
-  const severity = opticSeverity(port);
-  if (severity === "alarm") return "critical";
-  if (severity === "warning") return "warning";
-  if (severity === "ok") return "ok";
-  return "absent";
+  if (!port.present || !port.transceiver) {
+    return "absent";
+  }
+  if (port.alarms.length > 0) {
+    return "critical";
+  }
+  if (port.warnings.length > 0) {
+    return "warning";
+  }
+  return "ok";
 }
 
 function SeverityBadge({ port }: { port: TransceiverPortData }) {
