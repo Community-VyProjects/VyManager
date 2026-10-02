@@ -1,0 +1,24 @@
+VyManager has been installed with database mode: {{ .Values.database.mode }}.
+
+{{- if eq .Values.database.mode "internal" }}
+PostgreSQL service:
+  {{ include "vymanager.postgresqlServiceName" . }}:{{ .Values.database.internal.service.port }}
+
+The generated PostgreSQL credentials are stored in:
+  Secret/{{ include "vymanager.databaseSecretName" . }}
+{{- else }}
+External PostgreSQL connection Secret:
+  Secret/{{ include "vymanager.databaseSecretName" . }} (key {{ include "vymanager.databaseUrlSecretKey" . }})
+{{- end }}
+
+Frontend service:
+  {{ include "vymanager.fullname" . }}-frontend:{{ .Values.frontend.service.port }}
+
+Backend service:
+  {{ include "vymanager.fullname" . }}-backend:{{ .Values.backend.service.port }}
+
+{{- if not .Values.ingress.enabled }}
+For local access, run:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "vymanager.fullname" . }}-frontend 3000:{{ .Values.frontend.service.port }}
+{{- end }}
+

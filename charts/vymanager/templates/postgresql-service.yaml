@@ -1,0 +1,23 @@
+{{- if eq .Values.database.mode "internal" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "vymanager.postgresqlServiceName" . }}
+  labels:
+    {{- include "vymanager.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+  {{- with .Values.database.internal.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: postgresql
+      port: {{ .Values.database.internal.service.port }}
+      targetPort: postgresql
+      protocol: TCP
+  selector:
+    {{- include "vymanager.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+{{- end }}
