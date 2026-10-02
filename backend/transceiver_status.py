@@ -118,13 +118,11 @@ _ABSENT_IDENTITY = (
 )
 
 
-# ethtool --module-info on a NIC with no EEPROM. Lab-captured text is
-# "netlink error: Operation not supported". The other phrases are the same
-# failure in the ioctl wording, not a second lab capture.
+# ethtool --module-info when the NIC has no EEPROM. The lab string is
+# "netlink error: Operation not supported". Match that failure, not every
+# netlink error: an I/O error can be a bad module and must stay diagnosable.
 _UNSUPPORTED_TEXT = (
-    "netlink error",
     "operation not supported",
-    "cannot get module eeprom",
 )
 
 

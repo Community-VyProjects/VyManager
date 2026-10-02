@@ -145,6 +145,7 @@ export interface TransceiverMeasurementData {
 export interface TransceiverPortData {
   interface: string;
   present: boolean;
+  unsupported?: boolean;
   transceiver?: string | null;
   vendor?: string | null;
   part_number?: string | null;

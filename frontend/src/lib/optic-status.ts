@@ -39,10 +39,7 @@ function usableIdentity(value: string | null | undefined): boolean {
 
 function eepromUnsupported(status: OpticReading): boolean {
   if (status.unsupported) return true;
-  const raw = (status.raw ?? "").toLowerCase();
-  return raw.includes("netlink error")
-    || raw.includes("operation not supported")
-    || raw.includes("cannot get module eeprom");
+  return (status.raw ?? "").toLowerCase().includes("operation not supported");
 }
 
 function modulePulled(status: OpticReading): boolean {
@@ -67,7 +64,7 @@ export function opticSeverity(status: OpticReading | null | undefined): OpticSev
   }
   if (eepromUnsupported(status)) return "none";
   if (modulePulled(status)) return "absent";
-  return "none";
+  return "unknown";
 }
 
 /** Word shown in the ethernet Optic column. null means the reading has not loaded. */
@@ -79,7 +76,18 @@ export function opticColumnLabel(severity: OpticSeverity): string | null {
   return null;
 }
 
-/** Hide diagnostics only when the port has no EEPROM. An empty cage still opens. */
+/** Hide diagnostics only when the port has no EEPROM. An empty cage, or a read we could not classify, still opens. */
 export function opticDiagnosticsAvailable(severity: OpticSeverity): boolean {
   return severity !== "none";
+}
+
+/** Dashboard card grade. Keeps the old absent rule, and does not call copper Absent. */
+export function dashboardOpticSeverity(
+  port: OpticReading,
+): "ok" | "warning" | "critical" | "absent" | "none" {
+  if (eepromUnsupported(port)) return "none";
+  if (!port.present || !port.transceiver) return "absent";
+  if (port.alarms?.length) return "critical";
+  if (port.warnings?.length) return "warning";
+  return "ok";
 }

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { opticColumnLabel, opticDiagnosticsAvailable, opticSeverity } from "./optic-status";
+import { opticColumnLabel, opticDiagnosticsAvailable, opticSeverity, dashboardOpticSeverity } from "./optic-status";
 
 const copper = {
   present: false,
@@ -56,10 +56,37 @@ describe("opticSeverity", () => {
     assert.equal(opticDiagnosticsAvailable("alarm"), true);
   });
 
+  it("does not hide diagnostics for an unclassified read", () => {
+    const ioError = {
+      present: false,
+      unsupported: false,
+      transceiver: null,
+      alarms: [],
+      warnings: [],
+      raw: "netlink error: Input/output error",
+    };
+    assert.equal(opticSeverity(ioError), "unknown");
+    assert.equal(opticDiagnosticsAvailable(opticSeverity(ioError)), true);
+    assert.equal(opticSeverity({ present: false, unsupported: false, raw: "" }), "unknown");
+  });
+
   it("leaves an unloaded row unlabeled and still openable", () => {
     assert.equal(opticSeverity(null), "unknown");
     assert.equal(opticSeverity(undefined), "unknown");
     assert.equal(opticColumnLabel("unknown"), null);
     assert.equal(opticDiagnosticsAvailable("unknown"), true);
+  });
+
+  it("does not call copper Absent on the dashboard card", () => {
+    assert.equal(dashboardOpticSeverity(copper), "none");
+    assert.equal(dashboardOpticSeverity(emptyCage), "absent");
+    assert.equal(dashboardOpticSeverity({
+      present: true,
+      unsupported: false,
+      transceiver: null,
+      vendor: "Acme",
+      alarms: [],
+      warnings: [],
+    }), "absent");
   });
 });
