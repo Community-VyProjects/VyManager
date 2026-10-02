@@ -24,7 +24,10 @@ class TransceiverMeasurement(BaseModel):
 
 class TransceiverStatus(BaseModel):
     interface: str
-    present: bool = True
+    # False until a module identity or DDM measurement is parsed. Copper and
+    # virtual NICs answer ``ethtool --module-info`` with "Operation not
+    # supported"; that is not a healthy optic.
+    present: bool = False
     transceiver: Optional[str] = None
     vendor: Optional[str] = None
     part_number: Optional[str] = None
@@ -101,6 +104,28 @@ def _measurement_key(value: str) -> Optional[str]:
     return None
 
 
+# Values that look like a field but mean "there is no module". ethtool prints
+# these as the whole result on a copper PHY, an empty cage, or a driver with
+# no EEPROM. They must not become a transceiver identity.
+_ABSENT_IDENTITY = (
+    "not present",
+    "no transceiver",
+    "no module",
+    "not supported",
+    "netlink error",
+    "operation not supported",
+)
+
+
+def _usable_identity(value: Optional[str]) -> bool:
+    if not value or not value.strip():
+        return False
+    lowered = value.strip().lower()
+    if lowered in {"none", "n/a", "na", "unknown", "unspecified"}:
+        return False
+    return not any(phrase in lowered for phrase in _ABSENT_IDENTITY)
+
+
 def _measurement(value: str) -> TransceiverMeasurement:
     """Split a current value from inline alarm/warning thresholds."""
     thresholds = {}
@@ -115,15 +140,13 @@ def _measurement(value: str) -> TransceiverMeasurement:
 
 def parse_transceiver_output(interface: str, text: str) -> TransceiverStatus:
     """Parse key/value output from ``show interfaces ethernet ... transceiver``."""
-    status = TransceiverStatus(interface=interface, raw=text or "")
+    status = TransceiverStatus(interface=interface, raw=text or "", present=False)
     measurements: Dict[str, TransceiverMeasurement] = {}
 
     for raw_line in (text or "").splitlines():
         line = raw_line.strip()
         if not line:
             continue
-        if "not present" in line.lower() or "no transceiver" in line.lower():
-            status.present = False
 
         if ":" in line:
             label, value = line.split(":", 1)
@@ -136,7 +159,8 @@ def parse_transceiver_output(interface: str, text: str) -> TransceiverStatus:
         value = value.strip()
 
         if label_key in _FIELD_NAMES:
-            setattr(status, _FIELD_NAMES[label_key], value)
+            if _usable_identity(value):
+                setattr(status, _FIELD_NAMES[label_key], value)
             continue
 
         if _is_threshold_label(label_key):
@@ -163,6 +187,10 @@ def parse_transceiver_output(interface: str, text: str) -> TransceiverStatus:
             continue
 
     status.measurements = measurements
+    status.present = any(
+        _usable_identity(getattr(status, name))
+        for name in ("transceiver", "vendor", "part_number", "serial_number")
+    ) or bool(measurements)
     return status
 
 
