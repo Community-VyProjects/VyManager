@@ -168,7 +168,7 @@ def test_sse_payload_marks_unsupported_eeprom_without_raw():
 
     wrapped = build_transceiver_status(_gql_for({"eth0": "Invalid command: [ethtool]"}), ["eth0"])
     old = wrapped["interfaces"][0]
-    assert old["unsupported"] is True
+    assert old["unsupported"] is False
     assert old["present"] is False
     assert "raw" not in old
 

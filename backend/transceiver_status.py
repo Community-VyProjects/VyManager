@@ -123,10 +123,7 @@ _ABSENT_IDENTITY = (
 # netlink error: an I/O error can be a bad module and must stay diagnosable.
 def _eeprom_unsupported(text: str) -> bool:
     lowered = (text or "").lower()
-    if "operation not supported" in lowered:
-        return True
-    # 1.4 op wrapper prints this instead of running ethtool.
-    return "invalid command" in lowered and "ethtool" in lowered
+    return "operation not supported" in lowered
 
 
 def _usable_identity(value: Optional[str]) -> bool:

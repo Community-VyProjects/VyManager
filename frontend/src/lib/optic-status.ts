@@ -39,9 +39,7 @@ function usableIdentity(value: string | null | undefined): boolean {
 
 function eepromUnsupported(status: OpticReading): boolean {
   if (status.unsupported) return true;
-  const raw = (status.raw ?? "").toLowerCase();
-  if (raw.includes("operation not supported")) return true;
-  return raw.includes("invalid command") && raw.includes("ethtool");
+  return (status.raw ?? "").toLowerCase().includes("operation not supported");
 }
 
 function modulePulled(status: OpticReading): boolean {
