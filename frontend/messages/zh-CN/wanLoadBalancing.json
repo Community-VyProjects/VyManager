@@ -75,7 +75,8 @@
     "type": "类型",
     "userDefined": "用户自定义",
     "script": "脚本",
-    "target": "目标"
+    "target": "目标",
+    "testPing": "Ping"
   },
   "ruleModal": {
     "groupName": "组名称",

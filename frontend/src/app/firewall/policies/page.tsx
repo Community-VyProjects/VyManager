@@ -1025,6 +1025,7 @@ function FirewallPoliciesPageInner() {
                           : "hover:bg-accent/50 text-foreground"
                       )}
                     >
+                      {/* eslint-disable-next-line vymanager/no-untranslated-text -- VyOS base chain name */}
                       <span className="font-medium">Forward</span>
                     </button>
 
@@ -1037,6 +1038,7 @@ function FirewallPoliciesPageInner() {
                           : "hover:bg-accent/50 text-foreground"
                       )}
                     >
+                      {/* eslint-disable-next-line vymanager/no-untranslated-text -- VyOS base chain name */}
                       <span className="font-medium">Input</span>
                     </button>
 
@@ -1049,6 +1051,7 @@ function FirewallPoliciesPageInner() {
                           : "hover:bg-accent/50 text-foreground"
                       )}
                     >
+                      {/* eslint-disable-next-line vymanager/no-untranslated-text -- VyOS base chain name */}
                       <span className="font-medium">Output</span>
                     </button>
 
@@ -1062,6 +1065,7 @@ function FirewallPoliciesPageInner() {
                             : "hover:bg-accent/50 text-foreground"
                         )}
                       >
+                        {/* eslint-disable-next-line vymanager/no-untranslated-text -- VyOS base chain name */}
                         <span className="font-medium">Prerouting Raw</span>
                       </button>
                     )}
@@ -1147,6 +1151,7 @@ function FirewallPoliciesPageInner() {
                           : "hover:bg-accent/50 text-foreground"
                       )}
                     >
+                      {/* eslint-disable-next-line vymanager/no-untranslated-text -- VyOS base chain name */}
                       <span className="font-medium">Forward</span>
                     </button>
 
@@ -1159,6 +1164,7 @@ function FirewallPoliciesPageInner() {
                           : "hover:bg-accent/50 text-foreground"
                       )}
                     >
+                      {/* eslint-disable-next-line vymanager/no-untranslated-text -- VyOS base chain name */}
                       <span className="font-medium">Input</span>
                     </button>
 
@@ -1171,6 +1177,7 @@ function FirewallPoliciesPageInner() {
                           : "hover:bg-accent/50 text-foreground"
                       )}
                     >
+                      {/* eslint-disable-next-line vymanager/no-untranslated-text -- VyOS base chain name */}
                       <span className="font-medium">Output</span>
                     </button>
 
@@ -1184,6 +1191,7 @@ function FirewallPoliciesPageInner() {
                             : "hover:bg-accent/50 text-foreground"
                         )}
                       >
+                        {/* eslint-disable-next-line vymanager/no-untranslated-text -- VyOS base chain name */}
                         <span className="font-medium">Prerouting Raw</span>
                       </button>
                     )}

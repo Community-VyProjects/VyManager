@@ -24,14 +24,15 @@ const DEFAULT_PROPS = ["placeholder", "title", "alt", "aria-label", "label", "de
 const WORD = /^(?:[A-Z][a-z]|[A-Za-z][a-z]{2,})$/;
 
 // A single token is a technical value, not prose, when it
-//   - has a separator *between* letters/digits: "example.com", "/path/to/x", "a=b", "Monday,Tuesday";
+//   - has a separator *between* letters/digits: "example.com", "a=b", "user@host", "snake_case";
 //   - starts with @ / ~ or contains "://": "@local-id", "/health", "https://...";
-//   - is a lowercase (hyphenated) keyword: "client-identifier", "vlt:".
+//   - is a lowercase keyword or a list of them: "client-identifier", "vlt:", "rx/tx", "80,443,https", "1/min".
 // Trailing punctuation alone doesn't make a value, so "Search..." and
-// "Loading…" are still prose.
-const INNER_SEPARATOR = /[A-Za-z0-9][./:_@,=]+[A-Za-z0-9]/;
+// "Loading…" are still prose, and "/" or "," between words doesn't either
+// ("Enabled/Disabled", "Yes,No").
+const INNER_SEPARATOR = /[A-Za-z0-9][.:_@=]+[A-Za-z0-9]/;
 const LEADING_SYMBOL = /^[@/~]|:\/\//;
-const LOWERCASE_KEYWORD = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+const LOWERCASE_KEYWORD = /^[a-z0-9]+(?:[-/,][a-z0-9]+)*$/;
 const TRAILING_PUNCTUATION = /[:;.,…]+$/;
 
 function isTechnicalValue(text) {

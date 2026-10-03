@@ -967,7 +967,7 @@
         "label": "启动时过载位（秒）"
       },
       "shortcut": {
-        "label": "快捷方式"
+        "label": "快捷"
       },
       "shutdown": {
         "label": "关闭"

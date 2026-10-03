@@ -48,7 +48,8 @@
     "passwordOptional": "密码（可选）",
     "confirmPassword": "确认密码",
     "saveChanges": "保存更改",
-    "createUser": "创建用户"
+    "createUser": "创建用户",
+    "fullNamePlaceholder": "管理员"
   },
   "sshModal": {
     "keyNameRequired": "公钥名称为必填项。",

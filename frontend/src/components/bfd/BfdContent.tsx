@@ -490,7 +490,7 @@ export function BfdContent() {
                                 <Badge variant="secondary" className="bg-green-500/10 text-green-600">{t("content.sessionUp")}</Badge>
                               ) : (
                                 <Badge variant="secondary" className="bg-red-500/10 text-red-600">
-                                  {s.status ? s.status.charAt(0).toUpperCase() + s.status.slice(1) : t("content.sessionDown")}
+                                  {s.status && s.status !== "down" ? s.status.charAt(0).toUpperCase() + s.status.slice(1) : t("content.sessionDown")}
                                 </Badge>
                               )}
                             </TableCell>

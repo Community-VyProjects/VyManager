@@ -235,5 +235,6 @@
     "title": "Connect your first VyOS instance",
     "description": "VyManager is running, but no router has been added yet. Add a VyOS instance in the Site Manager and connect to it to start managing your network. You will need the router's address and its HTTP API key.",
     "openSiteManager": "Open Site Manager"
-  }
+  },
+  "vrrpVrid": "vrid {vrid}"
 }

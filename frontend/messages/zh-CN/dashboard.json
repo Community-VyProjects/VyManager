@@ -235,5 +235,6 @@
     "title": "连接你的第一个 VyOS 实例",
     "description": "VyManager 已在运行，但尚未添加任何路由器。请在站点管理中添加 VyOS 实例并连接，即可开始管理你的网络。你需要路由器的地址及其 HTTP API 密钥。",
     "openSiteManager": "打开站点管理"
-  }
+  },
+  "vrrpVrid": "VRID {vrid}"
 }

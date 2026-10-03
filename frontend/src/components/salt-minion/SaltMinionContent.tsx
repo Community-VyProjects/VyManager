@@ -31,6 +31,7 @@ function hashLabel(value: string | null, defaultLabel: string): string {
 export function SaltMinionContent() {
   const t = useTranslations("saltMinion");
   const tc = useTranslations("common");
+  const tn = useTranslations("navigation");
   const { canWrite } = usePermissions();
   const hasWrite = canWrite(FeatureGroup.SALT_MINION);
 
@@ -89,8 +90,7 @@ export function SaltMinionContent() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  {/* eslint-disable-next-line vymanager/no-untranslated-text -- product name */}
-                  <h1 className="text-2xl font-bold text-foreground">Salt Minion</h1>
+                  <h1 className="text-2xl font-bold text-foreground">{tn("saltMinion")}</h1>
                   {!hasWrite && <Badge variant="secondary">{t("content.readOnly")}</Badge>}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">

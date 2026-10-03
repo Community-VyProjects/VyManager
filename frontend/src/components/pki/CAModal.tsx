@@ -39,6 +39,7 @@ interface CAModalProps {
 export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Defaults }: CAModalProps) {
   const t = useTranslations("pkiCerts");
   const tc = useTranslations("common");
+  const tp = useTranslations("pki");
   const isEdit = !!existingCA;
 
   const [mode, setMode] = useState<"import" | "generate">("import");
@@ -334,16 +335,14 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="gen-state">{t("shared.state")}</Label>
-                      {/* eslint-disable-next-line vymanager/no-untranslated-text -- example value */}
-                      <Input id="gen-state" value={state} onChange={(e) => setState(e.target.value)} placeholder="California" />
+                      <Input id="gen-state" value={state} onChange={(e) => setState(e.target.value)} placeholder={tp("x509.statePlaceholder")} />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
                       <Label htmlFor="gen-locality">{t("shared.locality")}</Label>
-                      {/* eslint-disable-next-line vymanager/no-untranslated-text -- example value */}
-                      <Input id="gen-locality" value={locality} onChange={(e) => setLocality(e.target.value)} placeholder="San Francisco" />
+                      <Input id="gen-locality" value={locality} onChange={(e) => setLocality(e.target.value)} placeholder={tp("x509.localityPlaceholder")} />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="gen-org">{t("shared.organization")}</Label>

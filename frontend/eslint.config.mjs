@@ -25,9 +25,10 @@ const eslintConfig = defineConfig([
       "vymanager/no-untranslated-text": [
         "error",
         {
-          // Product and protocol names, and VyOS base chain names, stay English in every locale.
+          // Product and protocol names that stay English in every locale. Don't add words
+          // that are translated elsewhere (e.g. "Input" → 输入); disable those uses locally.
           allow: [
-            "VyOS", "VyManager", "Forward", "Input", "Output", "Prerouting", "Postrouting", "Raw",
+            "VyOS", "VyManager",
             "Cisco", "Babel", "Splunk", "Loki", "Telegraf", "Zabbix", "Prometheus", "Podman", "Discord",
             "VyProjects Org", "Syslog", "Switchdev",
             // Units

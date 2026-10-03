@@ -31,8 +31,12 @@ ruleTester.run("no-untranslated-text", rule, {
     '<input placeholder="@local-id" />',
     '<input placeholder="/health" />',
     '<input placeholder="https://vyos.example.com" />',
-    '<input placeholder="Monday,Tuesday" />',
+    '<input placeholder="user@host" />',
     "<span>vlt:</span>",
+    // Lowercase keyword lists and rates
+    "<span>rx/tx</span>",
+    '<input placeholder="80,443,telnet,8080-8090" />',
+    '<input placeholder="60/sec" />',
     // Props that aren't checked
     '<div className="Delete rule" />',
     // String expressions are a deliberate escape
@@ -47,7 +51,17 @@ ruleTester.run("no-untranslated-text", rule, {
     invalid("<p>Loading...</p>"),
     invalid("<p>Loading…</p>"),
     invalid('<input placeholder="Search..." />'),
+    // Every checked prop
     invalid('<button title="Delete rule" />'),
+    invalid('<img alt="VyManager Logo" />'),
+    invalid('<button aria-label="Close dialog" />'),
+    invalid('<Field label="Interface name" />'),
+    invalid('<Card description="Firewall rules for this zone" />'),
+    // "/" and "," between words are still prose
+    invalid("<span>Enabled/Disabled</span>"),
+    invalid('<input placeholder="Read/Write" />'),
+    invalid("<span>Yes,No</span>"),
+    invalid('<input placeholder="Monday,Tuesday" />'),
     // Short capitalized words
     invalid("<Badge>Up</Badge>"),
     invalid("<Badge>No</Badge>"),

@@ -165,7 +165,8 @@
     "ipv6InterfaceIds": "IPv6 Interface IDs",
     "interfaceId": "Interface ID",
     "peerInterfaceId": "Peer Interface ID",
-    "acceptPeerInterfaceId": "Accept Peer Interface ID"
+    "acceptPeerInterfaceId": "Accept Peer Interface ID",
+    "lcpEcho": "LCP Echo"
   },
   "advanced": {
     "updateFailed": "Failed to update advanced settings",
