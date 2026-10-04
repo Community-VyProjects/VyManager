@@ -324,7 +324,6 @@ export function HAProxyServiceModal({ open, onOpenChange, service, backends, cap
               <CollapsibleTrigger className="flex w-full items-center justify-between py-1 text-sm font-semibold hover:text-foreground text-muted-foreground transition-colors">
                 HTTP Compression
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">VyOS 1.5+</Badge>
                   <ChevronDown className={cn("h-4 w-4 transition-transform", compressionOpen && "rotate-180")} />
                 </div>
               </CollapsibleTrigger>

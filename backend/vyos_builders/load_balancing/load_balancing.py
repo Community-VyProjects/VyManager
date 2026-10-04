@@ -249,7 +249,7 @@ class LoadBalancingBatchBuilder(BatchBuilder):
         return self
 
     def delete_rp_backend_server_check_port(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
-        return self.add_delete(self._m().get_rp_backend_server_check_path(name, value) + ["port"])
+        return self.add_delete(self._m().get_rp_backend_server_check_port_delete_path(name, value))
 
     def set_rp_backend_server_send_proxy(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         return self.add_set(self._m().get_rp_backend_server_send_proxy_path(name, value))
@@ -286,18 +286,11 @@ class LoadBalancingBatchBuilder(BatchBuilder):
         return self
 
     def set_rp_backend_rule_wildcard_domain(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
-        """value format: 'rule_id|domain'  (1.5 only)"""
-        parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_rp_backend_rule_wildcard_domain_path(name, parts[0], parts[1]))
-        return self
+        """value is the rule id. wildcard-domain is a presence node."""
+        return self.add_set(self._m().get_rp_backend_rule_wildcard_domain_path(name, value))
 
     def delete_rp_backend_rule_wildcard_domain(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
-        """value format: 'rule_id|domain'"""
-        parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_delete(self._m().get_rp_backend_rule_wildcard_domain_path(name, parts[0], parts[1]))
-        return self
+        return self.add_delete(self._m().get_rp_backend_rule_wildcard_domain_path(name, value))
 
     def set_rp_backend_rule_ssl(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'rule_id|ssl_option'"""
@@ -484,18 +477,11 @@ class LoadBalancingBatchBuilder(BatchBuilder):
         return self
 
     def set_rp_service_rule_wildcard_domain(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
-        """value format: 'rule_id|domain'"""
-        parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_rp_service_rule_wildcard_domain_path(name, parts[0], parts[1]))
-        return self
+        """value is the rule id. wildcard-domain is a presence node."""
+        return self.add_set(self._m().get_rp_service_rule_wildcard_domain_path(name, value))
 
     def delete_rp_service_rule_wildcard_domain(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
-        """value format: 'rule_id|domain'"""
-        parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_delete(self._m().get_rp_service_rule_wildcard_domain_path(name, parts[0], parts[1]))
-        return self
+        return self.add_delete(self._m().get_rp_service_rule_wildcard_domain_path(name, value))
 
     def set_rp_service_rule_ssl(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'rule_id|ssl_option'"""
@@ -794,6 +780,7 @@ class LoadBalancingBatchBuilder(BatchBuilder):
     # =========================================================================
 
     def get_capabilities(self) -> Dict[str, Any]:
+        m = self._m()
         is_v15 = "1.5" in self.version
         rp_key = "haproxy" if is_v15 else "reverse-proxy"
         return {
@@ -809,24 +796,24 @@ class LoadBalancingBatchBuilder(BatchBuilder):
                     "description": "WAN load balancing with policy-based routing",
                 },
                 "http_compression": {
-                    "supported": is_v15,
-                    "description": "HTTP response compression on services (1.5+)",
+                    "supported": m.supports_http_compression(),
+                    "description": "HTTP response compression on services",
                 },
                 "server_check_port": {
-                    "supported": is_v15,
-                    "description": "Separate health check port per backend server (1.5+)",
+                    "supported": m.supports_server_check_port(),
+                    "description": "Separate health check port per backend server",
                 },
                 "listen_address_accept_proxy": {
-                    "supported": is_v15,
-                    "description": "Accept PROXY protocol per listen address (1.5+)",
+                    "supported": m.supports_listen_address_accept_proxy(),
+                    "description": "Accept PROXY protocol per listen address",
                 },
                 "backend_rule_wildcard_domain": {
-                    "supported": is_v15,
-                    "description": "Wildcard domain matching in backend rules (1.5+)",
+                    "supported": m.supports_wildcard_domain(),
+                    "description": "Match subdomains of the rule domain names",
                 },
                 "wan_rule_groups": {
-                    "supported": is_v15,
-                    "description": "Firewall group matching in WAN rules (1.5+)",
+                    "supported": m.supports_wan_rule_groups(),
+                    "description": "Firewall group matching in WAN rules",
                 },
             },
         }

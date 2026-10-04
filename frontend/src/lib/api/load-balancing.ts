@@ -64,7 +64,7 @@ export interface LBServer {
 export interface LBBackendRule {
   rule_id: string;
   domain_name: string[];
-  wildcard_domain: string[];
+  wildcard_domain: boolean;
   ssl: string | null;
   url_path: { begin: string[]; end: string[]; exact: string[] };
   set: { redirect_location: string | null; server: string | null };
@@ -99,7 +99,7 @@ export interface LBListenAddress {
 export interface LBServiceRule {
   rule_id: string;
   domain_name: string[];
-  wildcard_domain: string[];
+  wildcard_domain: boolean;
   ssl: string | null;
   url_path: { begin: string[]; end: string[]; exact: string[] };
   set: { redirect_location: string | null; backend: string | null };
@@ -236,8 +236,8 @@ class LoadBalancingService {
     const ops: BatchOperation[] = [{ op: "create_rp_service_rule", value: id }];
     for (const d of rule.domain_name)
       ops.push({ op: "set_rp_service_rule_domain_name", value: `${id}|${d}` });
-    for (const d of rule.wildcard_domain)
-      ops.push({ op: "set_rp_service_rule_wildcard_domain", value: `${id}|${d}` });
+    if (rule.wildcard_domain)
+      ops.push({ op: "set_rp_service_rule_wildcard_domain", value: id });
     if (rule.ssl)
       ops.push({ op: "set_rp_service_rule_ssl", value: `${id}|${rule.ssl}` });
     for (const p of rule.url_path.begin)
@@ -258,8 +258,8 @@ class LoadBalancingService {
     const ops: BatchOperation[] = [{ op: "create_rp_backend_rule", value: id }];
     for (const d of rule.domain_name)
       ops.push({ op: "set_rp_backend_rule_domain_name", value: `${id}|${d}` });
-    for (const d of rule.wildcard_domain)
-      ops.push({ op: "set_rp_backend_rule_wildcard_domain", value: `${id}|${d}` });
+    if (rule.wildcard_domain)
+      ops.push({ op: "set_rp_backend_rule_wildcard_domain", value: id });
     if (rule.ssl)
       ops.push({ op: "set_rp_backend_rule_ssl", value: `${id}|${rule.ssl}` });
     for (const p of rule.url_path.begin)
