@@ -25,7 +25,7 @@
   "delete": {
     "title": "移除 NDP 代理接口",
     "description": "要移除 <mono>{name}</mono> 的 NDP 代理配置吗？",
-    "alsoRemove": "这也将移除 <b>{count}</b> 个前缀。",
+    "alsoRemove": "{count, plural, one {这也将移除 <b>#</b> 个前缀。} other {这也将移除 <b>#</b> 个前缀。}}",
     "remove": "移除"
   },
   "global": {

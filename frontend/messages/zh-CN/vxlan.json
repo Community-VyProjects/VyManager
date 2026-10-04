@@ -70,7 +70,7 @@
   "delete": {
     "title": "删除接口：{name}",
     "confirm": "确定要删除此 VXLAN 接口吗？此操作无法撤销。",
-    "mappingsWarning": "警告：此接口配置了 {count} 个 VLAN 到 VNI 映射。",
+    "mappingsWarning": "{count, plural, one {警告：此接口配置了 # 个 VLAN 到 VNI 映射。} other {警告：此接口配置了 # 个 VLAN 到 VNI 映射。}}",
     "mappingsRemoved": "删除接口将移除所有 VLAN 到 VNI 映射。",
     "failed": "删除 VXLAN 接口失败"
   }

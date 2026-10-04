@@ -6,7 +6,7 @@
     "title": "Flowtables",
     "subtitle": "Manage fast-path packet offloading for established connections",
     "searchPlaceholder": "Search flowtables...",
-    "count": "{count, plural, =1 {{n} flowtable} other {{n} flowtables}}",
+    "count": "{count, plural, one {# flowtable} other {# flowtables}}",
     "hwOffload": "HW Offload",
     "loading": "Loading flowtables configuration...",
     "loadFailed": "Failed to load flowtables configuration",

@@ -6,7 +6,7 @@
     "title": "流表",
     "subtitle": "管理已建立连接的快速路径数据包卸载",
     "searchPlaceholder": "搜索流表...",
-    "count": "{count, plural, other {{n} 个流表}}",
+    "count": "{count, plural, one {# 个流表} other {# 个流表}}",
     "hwOffload": "硬件卸载",
     "loading": "正在加载流表配置...",
     "loadFailed": "加载流表配置失败",

@@ -94,7 +94,7 @@
     "adjustMss": "调整 TCP MSS (IPv6)",
     "baseReachableTime": "基础可达时间",
     "dadTransmits": "重复地址检测发送次数",
-    "transmits": "{count} — {count} 次发送",
+    "transmits": "{count, plural, one {# 次发送} other {# 次发送}}",
     "customCount": "自定义次数",
     "countPlaceholder": "输入次数（0 或更大）",
     "sourceValidation": "源地址校验 (IPv6)",

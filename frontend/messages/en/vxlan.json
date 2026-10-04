@@ -70,7 +70,7 @@
   "delete": {
     "title": "Delete Interface: {name}",
     "confirm": "Are you sure you want to delete this VXLAN interface? This action cannot be undone.",
-    "mappingsWarning": "Warning: This interface has {count} VLAN-to-VNI {count, plural, one {mapping} other {mappings}} configured.",
+    "mappingsWarning": "Warning: This interface has {count, plural, one {# VLAN-to-VNI mapping} other {# VLAN-to-VNI mappings}} configured.",
     "mappingsRemoved": "Deleting the interface will remove all VLAN-to-VNI mappings.",
     "failed": "Failed to delete VXLAN interface"
   }

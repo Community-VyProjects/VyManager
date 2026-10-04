@@ -43,25 +43,47 @@ function canonicalize(value: string): string {
   return value.replaceAll("…", "...").toLowerCase();
 }
 
-// One plural shape: the number and the noun live inside `{name, plural, ...}`.
-// A split `{count} {count, plural, ...}`, a repeated `{drops} drops`, a
-// `{count}`/`{total}` followed by a plural noun, or `route(s)` all fail.
+// One plural shape: `{name, plural, one {# noun} other {# nouns}}`.
+// A raw `{name}` next to `{name, plural`, `=1`, `{n}`, or `{packets} pkts`
+// is another shape. `route(s)` is the same hole in source text.
 // "Timeout (s)" is a unit, not this.
-const SPLIT_PLURAL = /\{([A-Za-z0-9_]+)\}\s+\{\1,\s*plural/;
+const RAW_PLACEHOLDER = /\{([A-Za-z0-9_]+)\}(?!,)/g;
 const PAREN_PLURAL = /[A-Za-z]{2,}\((?:s|es)\)/;
-const REPEATED_NOUN = /\{([A-Za-z][A-Za-z0-9_]*s)\}\s+(?:[A-Za-z]+\s+){0,2}\1\b/;
-const COUNT_NOUN = /\{(count|total)\}\s+(?:[A-Za-z]+\s+){0,2}[a-z]{4,}s\b/;
-const PROSE_PAREN_PLURAL = /(?<=\s)[A-Za-z]{3,}\((?:s|es)\)/;
+const PACKET_ABBREV = /\{[A-Za-z]*[Pp]ackets\}\s+pkts/;
 
-function pluralProblems(value: string): string[] {
+export function pluralProblems(value: string): string[] {
   const problems: string[] = [];
   if (PAREN_PLURAL.test(value)) problems.push("paren");
-  if (SPLIT_PLURAL.test(value)) problems.push("split");
-  if (!value.includes("plural,") || SPLIT_PLURAL.test(value)) {
-    if (REPEATED_NOUN.test(value)) problems.push("repeated");
-    if (COUNT_NOUN.test(value) && !value.includes("plural,")) problems.push("count-noun");
+  const raw = [...value.matchAll(RAW_PLACEHOLDER)].map((match) => match[1]);
+  for (const name of new Set(raw)) {
+    if (value.includes(`{${name}, plural`) || value.includes(`{${name},plural`)) {
+      problems.push(`split:${name}`);
+    }
+  }
+  if (value.includes("plural") && value.includes("=1")) problems.push("exact-one");
+  if (value.includes("plural") && value.includes("{n}")) problems.push("n-slot");
+  if (PACKET_ABBREV.test(value)) problems.push("packet-abbrev");
+  if (!value.includes("plural")) {
+    const repeated = /\{([A-Za-z][A-Za-z0-9_]*s)\}\s+(?:[A-Za-z]+\s+){0,2}\1\b/;
+    const countNoun = /\{(count|total)\}\s+(?:[A-Za-z]+\s+){0,2}[a-z]{4,}s\b/;
+    if (repeated.test(value)) problems.push("repeated");
+    if (countNoun.test(value)) problems.push("count-noun");
   }
   return problems;
+}
+
+export function proseParenPlurals(source: string): string[] {
+  const pattern = /[A-Za-z]{3,}\((?:s|es)\)/g;
+  const hits: string[] = [];
+  for (const line of source.split("\n")) {
+    const quoted = [...line.matchAll(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g)].map((match) => match[0]);
+    const jsx = [...line.matchAll(/>([^<]*)</g)].map((match) => match[1]);
+    const comment = /^\s*(\/\/|\*|{\/\*)/.test(line) ? [line] : [];
+    for (const chunk of [...quoted, ...jsx, ...comment]) {
+      for (const match of chunk.matchAll(pattern)) hits.push(match[0]);
+    }
+  }
+  return hits;
 }
 
 function walkFiles(dir: string, suffix: string, out: string[] = []): string[] {
@@ -121,24 +143,41 @@ describe("message catalogs", () => {
   });
 
   it("uses one plural shape for counted nouns", () => {
-    const english = catalogs.get("en");
-    assert.ok(english);
     const hacks: string[] = [];
-    for (const [file, keys] of english) {
-      for (const [path, value] of Object.entries(keys)) {
-        const problems = pluralProblems(value);
-        if (problems.length > 0) hacks.push(`${file}:${path} [${problems.join(",")}] ${value}`);
+    for (const [locale, catalog] of catalogs) {
+      for (const [file, keys] of catalog) {
+        for (const [path, value] of Object.entries(keys)) {
+          const problems = pluralProblems(value);
+          if (problems.length > 0) hacks.push(`${locale}/${file}:${path} [${problems.join(",")}] ${value}`);
+        }
       }
     }
     const srcRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
-    for (const file of walkFiles(srcRoot, ".tsx")) {
-      const lines = readFileSync(file, "utf8").split("\n");
-      lines.forEach((line, index) => {
-        const trimmed = line.trim();
-        if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("{/*")) return;
-        if (PROSE_PAREN_PLURAL.test(line)) hacks.push(`${file}:${index + 1} ${trimmed}`);
-      });
+    for (const suffix of [".tsx", ".ts"]) {
+      for (const file of walkFiles(srcRoot, suffix)) {
+        if (file.endsWith(".test.ts") || file.endsWith(".test.tsx")) continue;
+        const hits = proseParenPlurals(readFileSync(file, "utf8"));
+        for (const hit of hits) hacks.push(`${file} ${hit}`);
+      }
     }
     assert.deepEqual(hacks, []);
+  });
+
+  it("rejects the plural shapes a catalog scan used to miss", () => {
+    assert.ok(
+      pluralProblems(
+        "Warning: This interface has {count} VLAN-to-VNI {count, plural, one {mapping} other {mappings}} configured.",
+      ).includes("split:count"),
+    );
+    assert.ok(pluralProblems("{packets} pkts").includes("packet-abbrev"));
+    assert.ok(
+      pluralProblems("{count, plural, =1 {{n} flowtable} other {{n} flowtables}}").includes("exact-one"),
+    );
+    assert.ok(pluralProblems("{count, plural, one {{n} member} other {{n} members}}").includes("n-slot"));
+    assert.equal(pluralProblems("Timeout (s)").length, 0);
+    assert.equal(canonicalize("Add interface"), canonicalize("Add Interface"));
+    assert.deepEqual(proseParenPlurals("<span>Route(s)</span>"), ["Route(s)"]);
+    assert.deepEqual(proseParenPlurals('const label = "Tunnel(s)"'), ["Tunnel(s)"]);
+    assert.deepEqual(proseParenPlurals("sources.includes(s)"), []);
   });
 });

@@ -25,7 +25,7 @@
   "delete": {
     "title": "Remove NDP Proxy Interface",
     "description": "Remove NDP proxy configuration for <mono>{name}</mono>?",
-    "alsoRemove": "This will also remove <b>{count}</b> {count, plural, one {prefix} other {prefixes}}.",
+    "alsoRemove": "{count, plural, one {This will also remove <b>#</b> prefix.} other {This will also remove <b>#</b> prefixes.}}",
     "remove": "Remove"
   },
   "global": {

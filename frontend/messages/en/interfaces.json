@@ -239,8 +239,8 @@
     "peers": "Peers",
     "showingInterfaces": "Showing {shown} of {total, plural, one {# interface} other {# interfaces}}",
     "showingTunnels": "Showing {shown} of {total, plural, one {# tunnel} other {# tunnels}}",
-    "showingVlans": "Showing {count} {label}{count, plural, one {} other {s}}",
-    "showingVpp": "Showing {shown} of {total} {shown, plural, one {interface} other {interfaces}}"
+    "showingVlans": "{count, plural, one {Showing # {label}} other {Showing # {label}s}}",
+    "showingVpp": "{shown, plural, one {Showing # of {total} interface} other {Showing # of {total} interfaces}}"
   },
   "optic": {
     "alarm": "Alarm",

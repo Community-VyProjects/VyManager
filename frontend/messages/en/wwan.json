@@ -94,7 +94,7 @@
     "adjustMss": "Adjust TCP MSS (IPv6)",
     "baseReachableTime": "Base Reachable Time",
     "dadTransmits": "Duplicate Address Detect Transmits",
-    "transmits": "{count} — {count, plural, one {# transmit} other {# transmits}}",
+    "transmits": "{count, plural, one {# transmit} other {# transmits}}",
     "customCount": "Custom count",
     "countPlaceholder": "Enter count (0 or greater)",
     "sourceValidation": "Source Validation (IPv6)",

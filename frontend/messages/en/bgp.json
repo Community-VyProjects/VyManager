@@ -261,7 +261,7 @@
   "deletePeerGroup": {
     "title": "Delete BGP Peer Group",
     "description": "Are you sure you want to delete the peer group <mono>{name}</mono>?",
-    "membersWarning": "This peer group is currently referenced by <b>{count}</b> {count, plural, one {neighbor} other {neighbors}}. Those neighbors will lose their peer group association.",
+    "membersWarning": "This peer group is currently referenced by {count, plural, one {<b>#</b> neighbor} other {<b>#</b> neighbors}}. Those neighbors will lose their peer group association.",
     "confirm": "Delete Peer Group"
   }
 }

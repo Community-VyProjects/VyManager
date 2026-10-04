@@ -136,7 +136,7 @@
     "prev": "Prev",
     "next": "Next",
     "page": "Page {current} of {total}",
-    "trafficTooltip": "RX: {rx} / {rxPackets} pkts\nTX: {tx} / {txPackets} pkts",
+    "trafficTooltip": "RX: {rx} / {rxPackets, plural, one {# pkt} other {# pkts}}\nTX: {tx} / {txPackets, plural, one {# pkt} other {# pkts}}",
     "droppedErrors": "Dropped: {dropped} · Errors: {errors}"
   },
   "ipsec": {
@@ -182,8 +182,8 @@
     "stale": "“{name}” no longer has QoS applied — showing all interfaces.",
     "drops": "{count, plural, one {# drop} other {# drops}}",
     "noDrops": "no drops",
-    "classTooltip": "{bytes} · {packets} pkts",
-    "classTooltipDrops": "{bytes} · {packets} pkts · {drops, plural, one {# drop} other {# drops}}"
+    "classTooltip": "{bytes} · {packets, plural, one {# pkt} other {# pkts}}",
+    "classTooltipDrops": "{bytes} · {packets, plural, one {# pkt} other {# pkts}} · {drops, plural, one {# drop} other {# drops}}"
   },
   "systemInfo": {
     "title": "System Information",

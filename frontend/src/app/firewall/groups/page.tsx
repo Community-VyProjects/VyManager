@@ -353,7 +353,7 @@ export default function FirewallGroupsPage() {
                                   {group.name}
                                 </code>
                                 <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
-                                  <span>{t("memberCount", { count: group.members.length, n: String(group.members.length) })}</span>
+                                  <span>{t("memberCount", { count: group.members.length })}</span>
                                   {group.included_groups && group.included_groups.length > 0 && (
                                     <>
                                       <span className="text-muted-foreground/50">•</span>

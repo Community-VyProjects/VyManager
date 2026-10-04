@@ -163,7 +163,6 @@ export default function FlowtablesPage() {
             <div className="text-sm text-muted-foreground">
               {t("page.count", {
                 count: filteredFlowtables.length,
-                n: String(filteredFlowtables.length),
               })}
             </div>
             {capabilities && (

@@ -1,5 +1,5 @@
 {
-  "memberCount": "{count, plural, other {{n} 个成员}}",
+  "memberCount": "{count, plural, one {# 个成员} other {# 个成员}}",
   "types": {
     "addressGroup": "IPv4 地址组",
     "ipv6AddressGroup": "IPv6 地址组",
@@ -85,7 +85,7 @@
     "description": "创建新的防火墙分组，用于组织地址、网络、端口或其他资源，以便在防火墙规则中使用。",
     "namePlaceholder": "例如 INTERNAL_NETS",
     "nameHint": "请使用大写字母和下划线（例如 WEB_SERVERS、INTERNAL_NETS）",
-    "memberCountColon": "{count, plural, other {{n} 个成员}}：",
+    "memberCountColon": "{count, plural, one {# 个成员} other {# 个成员}}：",
     "includeOptional": "包含其他分组（可选）",
     "noGroupsAvailable": "没有可用的分组",
     "nameRequired": "分组名称为必填项",

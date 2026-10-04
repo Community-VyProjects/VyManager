@@ -261,7 +261,7 @@
   "deletePeerGroup": {
     "title": "删除 BGP 对等体组",
     "description": "确定要删除对等体组 <mono>{name}</mono> 吗？",
-    "membersWarning": "当前有 <b>{count}</b> 个邻居引用此对等体组。这些邻居将失去与该对等体组的关联。",
+    "membersWarning": "{count, plural, one {当前有 <b>#</b> 个邻居引用此对等体组。这些邻居将失去与该对等体组的关联。} other {当前有 <b>#</b> 个邻居引用此对等体组。这些邻居将失去与该对等体组的关联。}}",
     "confirm": "删除对等体组"
   }
 }
