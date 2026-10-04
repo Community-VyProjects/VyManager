@@ -25,8 +25,8 @@ const eslintConfig = defineConfig([
       "vymanager/no-untranslated-text": [
         "error",
         {
-          // Product and protocol names that stay English in every locale. Don't add words
-          // that are translated elsewhere (e.g. "Input" → 输入); disable those uses locally.
+          // Tokens that stay the same in every locale. If a word has a translation, use t().
+          // Do not disable a translated label.
           allow: [
             "VyOS", "VyManager",
             "Cisco", "Babel", "Splunk", "Loki", "Telegraf", "Zabbix", "Prometheus", "Podman", "Discord",

@@ -189,8 +189,7 @@ export function LLDPInterfaceModal({
                     <SelectItem value="rx-tx">rx-tx — {t("modal.modeRxTx")}</SelectItem>
                     <SelectItem value="rx">rx — {t("modal.modeRx")}</SelectItem>
                     <SelectItem value="tx">tx — {t("modal.modeTx")}</SelectItem>
-                    {/* eslint-disable-next-line vymanager/no-untranslated-text -- VyOS value shown next to its label */}
-                    <SelectItem value="disable">disable — {tc("disabled")}</SelectItem>
+                    <SelectItem value="disable">{tc("shown.disable")} — {tc("disabled")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -344,7 +344,7 @@ export function HAProxyServiceModal({ open, onOpenChange, service, backends, cap
                       <SelectItem value="gzip">gzip</SelectItem>
                       <SelectItem value="deflate">deflate</SelectItem>
                       <SelectItem value="raw-deflate">raw-deflate</SelectItem>
-                      <SelectItem value="identity">{tc("shown.identity")}</SelectItem>
+                      <SelectItem value="identity">identity</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

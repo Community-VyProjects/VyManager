@@ -130,7 +130,7 @@ function VifForm({ form, onChange }: { form: VifFormState; onChange: (patch: Par
           <Input type="number" value={form.mtu} onChange={(e) => onChange({ mtu: e.target.value })} />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">{tc("shown.mac")}</Label>
+          <Label className="text-xs">MAC</Label>
           <Input value={form.mac} onChange={(e) => onChange({ mac: e.target.value })} placeholder="xx:xx:xx:xx:xx:xx" />
         </div>
         <div className="space-y-1">

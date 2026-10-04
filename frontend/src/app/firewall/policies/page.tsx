@@ -1038,8 +1038,7 @@ function FirewallPoliciesPageInner() {
                           : "hover:bg-accent/50 text-foreground"
                       )}
                     >
-                      {/* eslint-disable-next-line vymanager/no-untranslated-text -- VyOS base chain name */}
-                      <span className="font-medium">Input</span>
+                      <span className="font-medium">{tc("shown.input")}</span>
                     </button>
 
                     <button
@@ -1051,8 +1050,7 @@ function FirewallPoliciesPageInner() {
                           : "hover:bg-accent/50 text-foreground"
                       )}
                     >
-                      {/* eslint-disable-next-line vymanager/no-untranslated-text -- VyOS base chain name */}
-                      <span className="font-medium">Output</span>
+                      <span className="font-medium">{tc("shown.output")}</span>
                     </button>
 
                     {capabilities?.features.prerouting_raw?.supported && (
@@ -1164,8 +1162,7 @@ function FirewallPoliciesPageInner() {
                           : "hover:bg-accent/50 text-foreground"
                       )}
                     >
-                      {/* eslint-disable-next-line vymanager/no-untranslated-text -- VyOS base chain name */}
-                      <span className="font-medium">Input</span>
+                      <span className="font-medium">{tc("shown.input")}</span>
                     </button>
 
                     <button
@@ -1177,8 +1174,7 @@ function FirewallPoliciesPageInner() {
                           : "hover:bg-accent/50 text-foreground"
                       )}
                     >
-                      {/* eslint-disable-next-line vymanager/no-untranslated-text -- VyOS base chain name */}
-                      <span className="font-medium">Output</span>
+                      <span className="font-medium">{tc("shown.output")}</span>
                     </button>
 
                     {capabilitiesIPv6?.features.prerouting_raw?.supported && (

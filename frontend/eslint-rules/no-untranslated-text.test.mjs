@@ -33,6 +33,10 @@ ruleTester.run("no-untranslated-text", rule, {
     '<input placeholder="https://vyos.example.com" />',
     '<input placeholder="user@host" />',
     "<span>vlt:</span>",
+    "<TableHead>MAC</TableHead>",
+    '<input placeholder="groups" />',
+    '<input placeholder="admin" />',
+    '<SelectItem value="identity">identity</SelectItem>',
     // Lowercase keyword lists and rates
     "<span>rx/tx</span>",
     '<input placeholder="80,443,telnet,8080-8090" />',

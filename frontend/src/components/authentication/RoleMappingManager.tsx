@@ -284,7 +284,7 @@ export function RoleMappingManager({
             id="groupsClaim"
             value={groupsClaim}
             onChange={(e) => setGroupsClaim(e.target.value)}
-            placeholder={tc("shown.groups")}
+            placeholder="groups"
             className="w-40"
           />
         </div>

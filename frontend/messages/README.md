@@ -48,9 +48,10 @@ Acronyms, numbers, symbols, and technical values
 (`example.com`, `level-1`, `rx/tx`, `ssh`) are not reported.
 A lowercase word is reported when a locale already translates it, in any
 case (`shortcut` matches `Shortcut`), with a trailing colon (`unknown:`), or in
-parentheses (`(unknown)`). Trailing ellipsis is prose (`search...`). An
-untranslated field prefix (`vlt:`) is not reported. A SelectItem is not exempt
-when its label is translated. A string rendered from a branch is reported too,
+parentheses (`(unknown)`). Trailing ellipsis is prose (`search...`).
+An all-caps acronym (`MAC`, `NET`) is not reported. A placeholder that is a single
+token (`groups`, `admin`) is an example to type, not prose. A SelectItem that
+repeats its value is a device token unless `common.shown` lists that word as a label.
 including a template literal (`{ok ? `Up` : name}`).
 
 For text that must stay English (protocol or product names, example values), either:
