@@ -253,7 +253,7 @@ export function CreateVirtualEthernetModal({
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder={t("form.descriptionPlaceholder")}
+                placeholder={tc("optionalDescription")}
               />
             </div>
 
@@ -488,7 +488,7 @@ export function CreateVirtualEthernetModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t("create.creating")}
+                {tc("creating")}
               </>
             ) : (
               t("create.submit")

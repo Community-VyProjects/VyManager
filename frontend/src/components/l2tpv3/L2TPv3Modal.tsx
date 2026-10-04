@@ -244,7 +244,7 @@ export function L2TPv3Modal({
   };
 
   const validateForm = (): string | null => {
-    if (!name.trim()) return t("modal.errors.nameRequired");
+    if (!name.trim()) return tc("interfaceNameRequired");
     if (!/^l2tpeth\d+$/.test(name)) return t("modal.errors.nameFormat");
     if (existingInterfaces.includes(name)) return t("modal.errors.nameExists", { name });
     return validateShared();
@@ -465,7 +465,7 @@ export function L2TPv3Modal({
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder={t("modal.general.descriptionPlaceholder")}
+                placeholder={tc("optionalDescription")}
               />
             </div>
 
@@ -839,10 +839,10 @@ export function L2TPv3Modal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? tc("saving") : t("modal.creating")}
+                {isEdit ? tc("saving") : tc("creating")}
               </>
             ) : isEdit ? (
-              t("modal.saveChanges")
+              tc("saveChanges")
             ) : (
               t("modal.createInterface")
             )}

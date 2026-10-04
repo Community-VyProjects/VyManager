@@ -6,16 +6,13 @@
     "ac": "AC:",
     "service": "Service:",
     "user": "User:",
-    "failed": "Failed to delete PPPoE interface",
-    "submit": "Delete Interface"
+    "failed": "Failed to delete PPPoE interface"
   },
   "modal": {
     "editTitle": "Edit PPPoE Interface",
     "createTitle": "Create PPPoE Interface",
     "editing": "Editing interface",
     "createDescription": "Dial up to an upstream access concentrator over an Ethernet source interface.",
-    "creating": "Creating...",
-    "saveChanges": "Save Changes",
     "createInterface": "Create Interface",
     "updateFailed": "Failed to update PPPoE interface",
     "createFailed": "Failed to create PPPoE interface"
@@ -106,7 +103,6 @@
     "prefixLength": "Prefix Length",
     "removePdInstance": "Remove PD instance",
     "delegatedInterfaces": "Delegated Interfaces",
-    "addInterface": "Add Interface",
     "noDelegatedInterfaces": "No delegated interfaces.",
     "interface": "Interface",
     "address": "Address",
@@ -115,7 +111,6 @@
   },
   "mirror": {
     "ingress": "Ingress Mirror Interface",
-    "egress": "Egress Mirror Interface",
-    "selectInterface": "Select interface"
+    "egress": "Egress Mirror Interface"
   }
 }

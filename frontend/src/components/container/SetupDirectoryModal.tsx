@@ -21,6 +21,7 @@ interface Props {
 
 export function SetupDirectoryModal({ open, onCreated }: Props) {
   const t = useTranslations("containers");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,7 +74,7 @@ export function SetupDirectoryModal({ open, onCreated }: Props) {
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                {t("setupDir.creating")}
+                {tc("creating")}
               </>
             ) : (
               t("setupDir.create")

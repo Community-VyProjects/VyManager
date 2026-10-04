@@ -3,8 +3,7 @@
     "failed": "删除环回接口失败",
     "title": "删除接口：{name}",
     "confirm": "确定要删除环回接口配置吗？此操作无法撤销。",
-    "addressCount": "{count} 个地址",
-    "submit": "删除接口"
+    "addressCount": "{count} 个地址"
   },
   "modal": {
     "editTitle": "编辑环回接口",
@@ -16,7 +15,6 @@
       "advanced": "高级"
     },
     "interfaceName": "接口名称",
-    "descriptionPlaceholder": "可选描述",
     "ipAddresses": "IP 地址",
     "addressesHint": "每行一个地址，使用 IPv4 或 IPv6 CIDR 格式",
     "ipSettings": "IP 设置",
@@ -29,7 +27,6 @@
     "mirrorEgress": "镜像出站流量",
     "redirectTo": "重定向到",
     "configuring": "正在配置...",
-    "saveChanges": "保存更改",
     "configureLoopback": "配置环回接口",
     "errors": {
       "updateFailed": "更新环回接口失败",

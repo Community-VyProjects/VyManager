@@ -1,8 +1,6 @@
 {
   "shared": {
     "nameRequired": "Name is required",
-    "creating": "Creating...",
-    "saveChanges": "Save Changes",
     "lifetimeSeconds": "Lifetime (seconds)",
     "mode": "Mode",
     "proposals": "Proposals",
@@ -72,7 +70,7 @@
     "titleEdit": "Edit Address Pool",
     "titleCreate": "Create Address Pool",
     "description": "Configure an IP address pool for remote access clients.",
-    "prefixes": "Prefix(es)",
+    "prefixes": "Prefixes",
     "prefixesHelp": "Comma-separated CIDR blocks",
     "dnsServers": "DNS Servers",
     "exclude": "Exclude",

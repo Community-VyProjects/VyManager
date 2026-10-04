@@ -2,7 +2,6 @@
   "example": "例如 {value}",
   "header": {
     "title": "RIP 协议",
-    "readOnly": "只读",
     "subtitle": "路由信息协议 — 距离矢量路由"
   },
   "errors": {
@@ -60,7 +59,6 @@
   },
   "interfaces": {
     "description": "每个接口的认证、版本和水平分割设置",
-    "addInterface": "添加接口",
     "empty": "未配置接口设置",
     "emptyHint": "添加一个接口以配置认证或水平分割。",
     "interface": "接口",
@@ -103,7 +101,6 @@
   },
   "modal": {
     "adding": "正在添加...",
-    "saveChanges": "保存更改",
     "optionalHint": "（可选）"
   },
   "validation": {
@@ -141,7 +138,6 @@
     "editTitle": "编辑接口过滤器",
     "addTitle": "添加接口过滤器",
     "description": "为指定接口配置分发列表过滤器。",
-    "selectInterface": "选择接口",
     "addFilter": "添加过滤器"
   },
   "ndModal": {

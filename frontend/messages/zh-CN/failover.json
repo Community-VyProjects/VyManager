@@ -59,7 +59,6 @@
     "targetIp": "目标 IP"
   },
   "modal": {
-    "selectInterface": "选择接口",
     "editTitle": "编辑故障转移路由",
     "addTitle": "添加故障转移路由",
     "editDescription": "修改 {destination} 的故障转移路由配置。",
@@ -77,8 +76,6 @@
     "addDhcpInterface": "添加 DHCP 接口",
     "noDhcp": "未配置 DHCP 接口。点击“添加 DHCP 接口”进行添加。",
     "dhcpInterfaceN": "DHCP 接口 #{n}",
-    "nameRequired": "名称 *",
-    "creating": "正在创建...",
-    "saveChanges": "保存更改"
+    "nameRequired": "名称 *"
   }
 }

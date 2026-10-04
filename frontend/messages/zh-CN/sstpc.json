@@ -4,8 +4,7 @@
     "confirm": "确定要删除此 SSTP 客户端接口吗？这将断开 SSTP 会话，且无法撤销。",
     "server": "服务器：",
     "user": "用户：",
-    "failed": "删除 SSTP 客户端接口失败",
-    "submit": "删除接口"
+    "failed": "删除 SSTP 客户端接口失败"
   },
   "modal": {
     "editTitle": "编辑 SSTP 客户端接口：{name}",
@@ -14,8 +13,6 @@
     "createDescription": "配置新的安全套接字隧道协议（SSTP）客户端接口。",
     "updateFailed": "更新接口失败",
     "createFailed": "创建接口失败",
-    "creating": "正在创建...",
-    "saveChanges": "保存更改",
     "createInterface": "创建接口"
   },
   "validation": {
@@ -39,7 +36,6 @@
     "serverPlaceholder": "vpn.example.com 或 192.0.2.1",
     "serverHint": "远端 SSTP 服务器的主机名或 IPv4 地址",
     "port": "端口",
-    "descriptionPlaceholder": "可选描述",
     "disableInterface": "管理性禁用此接口"
   },
   "auth": {

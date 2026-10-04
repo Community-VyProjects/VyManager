@@ -222,9 +222,9 @@ export function RangeModal({
             {loading
               ? isEdit
                 ? tc("saving")
-                : t("creating")
+                : tc("creating")
               : isEdit
-                ? t("saveChanges")
+                ? tc("saveChanges")
                 : t("range.create")}
           </Button>
         </DialogFooter>

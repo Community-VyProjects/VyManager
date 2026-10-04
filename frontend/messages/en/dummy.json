@@ -3,8 +3,7 @@
     "failed": "Failed to delete dummy interface",
     "title": "Delete Interface: {name}",
     "confirm": "Are you sure you want to delete this dummy interface? This action cannot be undone.",
-    "addressCount": "{count, plural, one {# address} other {# addresses}}",
-    "submit": "Delete Interface"
+    "addressCount": "{count, plural, one {# address} other {# addresses}}"
   },
   "modal": {
     "editTitle": "Edit Dummy Interface",
@@ -19,7 +18,6 @@
     "interfaceName": "Interface Name",
     "nameImmutable": "Interface name cannot be changed.",
     "namePatternHint": "Must match pattern: dum0, dum1, dum2, …",
-    "descriptionPlaceholder": "Optional description",
     "mtuHint": "Valid range: 68–16000",
     "disableInterface": "Disable Interface",
     "ipAddresses": "IP Addresses",
@@ -43,12 +41,9 @@
     "macAddress": "MAC Address",
     "networkNamespace": "Network Namespace",
     "namespacePlaceholder": "Namespace name",
-    "creating": "Creating...",
-    "saveChanges": "Save Changes",
     "createInterface": "Create Interface",
     "errors": {
       "mtuRange": "MTU must be between 68 and 16000",
-      "nameRequired": "Interface name is required",
       "namePattern": "Name must be dum0, dum1, etc.",
       "nameExists": "Interface {name} already exists",
       "updateFailed": "Failed to update dummy interface",

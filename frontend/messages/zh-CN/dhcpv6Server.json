@@ -91,7 +91,6 @@
     "ciscoTftpServers": "Cisco TFTP 服务器",
     "addSubnet": "添加子网"
   },
-  "optionalDescription": "可选描述",
   "networkModal": {
     "errors": {
       "nameRequired": "网络名称为必填项",

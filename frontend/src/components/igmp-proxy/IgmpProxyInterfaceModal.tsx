@@ -204,7 +204,7 @@ export function IgmpProxyInterfaceModal({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? t("interfaceModal.editTitle") : t("addInterface")}
+            {isEditMode ? t("interfaceModal.editTitle") : tc("addInterface")}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
@@ -229,7 +229,7 @@ export function IgmpProxyInterfaceModal({
                   value={name}
                   onValueChange={setName}
                   interfaces={availableInterfaces}
-                  placeholder={t("selectInterface")}
+                  placeholder={tc("selectInterface")}
                 />
               )}
               <p className="text-xs text-muted-foreground">
@@ -397,9 +397,9 @@ export function IgmpProxyInterfaceModal({
                 {isEditMode ? tc("saving") : t("adding")}
               </>
             ) : isEditMode ? (
-              t("saveChanges")
+              tc("saveChanges")
             ) : (
-              t("addInterface")
+              tc("addInterface")
             )}
           </Button>
         </DialogFooter>

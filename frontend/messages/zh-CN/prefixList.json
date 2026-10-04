@@ -64,7 +64,6 @@
     "updateFailed": "更新规则失败",
     "addFailed": "添加规则失败",
     "adding": "正在添加...",
-    "saveChanges": "保存更改",
     "addRule": "添加规则"
   },
   "banner": {
@@ -82,7 +81,6 @@
     "descriptionPlaceholder": "输入前缀列表描述（可选）",
     "startingAt": "从 100 开始",
     "failed": "创建前缀列表失败",
-    "creating": "正在创建...",
     "submit": "创建前缀列表"
   },
   "edit": {

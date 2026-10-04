@@ -2,7 +2,6 @@
   "content": {
     "loadFailed": "Failed to load config-sync configuration",
     "title": "Config Sync",
-    "readOnly": "Read Only",
     "subtitle": "Primary/secondary configuration synchronization",
     "editConfiguration": "Edit Configuration",
     "configure": "Configure",
@@ -41,8 +40,7 @@
     "allQos": "All QoS",
     "allServices": "All Services",
     "allSystem": "All System",
-    "operationFailed": "Operation Failed",
-    "saveChanges": "Save Changes"
+    "operationFailed": "Operation Failed"
   },
   "sections": {
     "firewall": "Firewall",

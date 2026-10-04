@@ -1,7 +1,6 @@
 {
   "content": {
     "loadFailed": "加载 Salt Minion 配置失败",
-    "readOnly": "只读",
     "subtitle": "配置管理代理 — 连接到 Salt Master 服务器以自动执行状态管理",
     "editSettings": "编辑设置",
     "masters": "Master 服务器",

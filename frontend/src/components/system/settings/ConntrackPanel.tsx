@@ -682,7 +682,7 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
                   {tc("cancel")}
                 </Button>
                 <Button size="sm" onClick={handleSaveSizes} disabled={sizesSaving}>
-                  {sizesSaving ? t("saving") : tc("save")}
+                  {sizesSaving ? tc("saving") : tc("save")}
                 </Button>
               </div>
             )}
@@ -760,7 +760,7 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
                   {tc("cancel")}
                 </Button>
                 <Button size="sm" onClick={handleSaveTcp} disabled={tcpSaving}>
-                  {tcpSaving ? t("saving") : tc("save")}
+                  {tcpSaving ? tc("saving") : tc("save")}
                 </Button>
               </div>
             )}
@@ -910,7 +910,7 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
                 editingGlobalTimeouts ? (
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => { setEditingGlobalTimeouts(false); setGtError(null); }} disabled={gtSaving}>{tc("cancel")}</Button>
-                    <Button size="sm" onClick={handleSaveGlobalTimeouts} disabled={gtSaving}>{gtSaving ? t("saving") : tc("save")}</Button>
+                    <Button size="sm" onClick={handleSaveGlobalTimeouts} disabled={gtSaving}>{gtSaving ? tc("saving") : tc("save")}</Button>
                   </div>
                 ) : (
                   <Button variant="outline" size="sm" onClick={startEditGlobalTimeouts}>
@@ -1169,7 +1169,7 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIgnoreModalOpen(false)} disabled={ignSaving}>{tc("cancel")}</Button>
-            <Button onClick={handleSaveIgnoreRule} disabled={ignSaving}>{ignSaving ? t("creating") : t("createRule")}</Button>
+            <Button onClick={handleSaveIgnoreRule} disabled={ignSaving}>{ignSaving ? tc("creating") : t("createRule")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1252,7 +1252,7 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCtModalOpen(false)} disabled={ctSaving}>{tc("cancel")}</Button>
-            <Button onClick={handleSaveCtRule} disabled={ctSaving}>{ctSaving ? t("creating") : t("createRule")}</Button>
+            <Button onClick={handleSaveCtRule} disabled={ctSaving}>{ctSaving ? tc("creating") : t("createRule")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

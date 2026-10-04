@@ -187,7 +187,7 @@ export function NdpProxyInterfaceModal({
   };
 
   const validate = (): string | null => {
-    if (!interfaceName.trim()) return t("validation.interfaceRequired");
+    if (!interfaceName.trim()) return tc("interfaceNameRequired");
     if (!isEdit && existingNames.includes(interfaceName.trim())) {
       return t("validation.interfaceExists", { name: interfaceName.trim() });
     }
@@ -254,7 +254,7 @@ export function NdpProxyInterfaceModal({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? t("modal.editTitle") : t("modal.addTitle")}
+            {isEdit ? t("modal.editTitle") : tc("addInterface")}
           </DialogTitle>
           <DialogDescription>
             {t("modal.description")}
@@ -274,7 +274,7 @@ export function NdpProxyInterfaceModal({
                   onValueChange={setInterfaceName}
                   id="iface-name"
                   interfaces={availableInterfaces.filter((i) => !existingNames.includes(i.name))}
-                  placeholder={t("modal.selectInterface")}
+                  placeholder={tc("selectInterface")}
                 />
               )}
             </div>

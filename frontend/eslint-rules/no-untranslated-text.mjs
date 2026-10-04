@@ -35,8 +35,8 @@ import { fileURLToPath } from "node:url";
 
 const DEFAULT_PROPS = ["placeholder", "title", "alt", "aria-label", "label", "description"];
 
-// English message values whose zh-CN text differs. A hardcoded copy of one of
-// these is the same hole as "unknown" (bfd.json renders it as 未知).
+// English message values that differ in another locale. A hardcoded copy of
+// one of these is the same hole as "unknown" (bfd.json renders it as 未知).
 function loadTranslatedTokens() {
   const tokens = new Set();
   const exact = new Set();
@@ -51,25 +51,31 @@ function loadTranslatedTokens() {
     if (typeof value === "string") out.set(path, value);
   };
   let enNames;
+  let localeNames;
   try {
     enNames = readdirSync(join(root, "en")).filter((name) => name.endsWith(".json"));
+    localeNames = readdirSync(root, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && entry.name !== "en")
+      .map((entry) => entry.name);
   } catch {
     return { tokens, exact };
   }
   for (const name of enNames) {
     const en = new Map();
-    const zh = new Map();
     flatten(JSON.parse(readFileSync(join(root, "en", name), "utf8")), "", en);
-    try {
-      flatten(JSON.parse(readFileSync(join(root, "zh-CN", name), "utf8")), "", zh);
-    } catch {
-      continue;
-    }
-    for (const [path, english] of en) {
-      const chinese = zh.get(path);
-      if (chinese && chinese.toLowerCase() !== english.toLowerCase()) {
-        tokens.add(english.toLowerCase());
-        exact.add(english);
+    for (const locale of localeNames) {
+      const translated = new Map();
+      try {
+        flatten(JSON.parse(readFileSync(join(root, locale, name), "utf8")), "", translated);
+      } catch {
+        continue;
+      }
+      for (const [path, english] of en) {
+        const other = translated.get(path);
+        if (other && other.toLowerCase() !== english.toLowerCase()) {
+          tokens.add(english.toLowerCase());
+          exact.add(english);
+        }
       }
     }
   }

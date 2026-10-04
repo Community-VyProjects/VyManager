@@ -135,7 +135,7 @@ export function AsPathListRuleModal({
             <Label htmlFor="description">{tc("description")}</Label>
             <Input
               id="description"
-              placeholder={t("shared.descriptionPlaceholder")}
+              placeholder={tc("optionalDescription")}
               value={draft.description}
               onChange={(e) => patch({ description: e.target.value })}
               disabled={loading}
@@ -156,7 +156,7 @@ export function AsPathListRuleModal({
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {loading ? (isEdit ? tc("saving") : t("shared.creating")) : isEdit ? t("shared.saveChanges") : t("shared.createRule")}
+            {loading ? (isEdit ? tc("saving") : tc("creating")) : isEdit ? tc("saveChanges") : t("shared.createRule")}
           </Button>
         </DialogFooter>
       </DialogContent>

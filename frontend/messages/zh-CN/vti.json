@@ -3,7 +3,6 @@
     "title": "删除接口：{name}",
     "confirm": "确定要删除此 VTI 接口吗？此操作无法撤销。",
     "addressCount": "{count} 个地址",
-    "submit": "删除接口",
     "failed": "删除 VTI 接口失败"
   },
   "modal": {
@@ -11,8 +10,6 @@
     "editTitle": "编辑：{name}",
     "createDescription": "创建用于 IPsec 的新虚拟隧道接口。",
     "editDescription": "修改虚拟隧道接口配置。",
-    "creating": "正在创建...",
-    "saveChanges": "保存更改",
     "createInterface": "创建接口",
     "createFailed": "创建 VTI 接口失败",
     "updateFailed": "更新 VTI 接口失败"
@@ -24,7 +21,6 @@
     "advanced": "高级"
   },
   "validation": {
-    "nameRequired": "接口名称为必填项",
     "nameFormat": "名称必须为 vti0、vti1、vti2 等",
     "nameExists": "接口 {name} 已存在",
     "mtuRange": "MTU 必须在 68 到 16000 之间",
@@ -38,7 +34,6 @@
     "interfaceName": "接口名称",
     "nameLocked": "接口名称不可更改。",
     "nameHint": "必须符合格式：vti0、vti1、vti2 等",
-    "descriptionPlaceholder": "可选描述",
     "mtuDefault": "默认（1500）",
     "mtu1280": "1280 — IPv6 最小值",
     "mtu1400": "1400 — IPsec/VPN 常用值",

@@ -28,8 +28,7 @@
     "arpProxy": "ARP 代理（IPv4）",
     "ndProxy": "ND 代理（IPv6）",
     "createEntry": "创建条目",
-    "createRoute": "创建路由",
-    "saveChanges": "保存更改"
+    "createRoute": "创建路由"
   },
   "arpModal": {
     "updateFailed": "更新 ARP 条目失败",

@@ -32,7 +32,6 @@
     "update": "Update Interface"
   },
   "deleteInterface": {
-    "title": "Delete Interface",
     "description": "Are you sure you want to delete interface <iface>{name}</iface>? This action cannot be undone and may disrupt network connectivity."
   }
 }

@@ -132,7 +132,7 @@ export function DeletePppoeModal({
                 {tc("deleting")}
               </>
             ) : (
-              t("delete.submit")
+              tc("deleteInterface")
             )}
           </Button>
         </AlertDialogFooter>

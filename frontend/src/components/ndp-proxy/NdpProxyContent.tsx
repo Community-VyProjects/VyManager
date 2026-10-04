@@ -112,7 +112,7 @@ export function NdpProxyContent() {
                 <div className="flex items-center gap-2">
                   <h1 className="text-2xl font-bold text-foreground">{t("content.title")}</h1>
                   {!hasWrite && (
-                    <Badge variant="secondary">{t("content.readOnly")}</Badge>
+                    <Badge variant="secondary">{tc("readOnly")}</Badge>
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
@@ -205,7 +205,7 @@ export function NdpProxyContent() {
                     }}
                   >
                     <Plus className="h-4 w-4 mr-1" />
-                    {t("content.addInterface")}
+                    {tc("addInterface")}
                   </Button>
                 )}
               </div>
@@ -374,7 +374,7 @@ export function NdpProxyContent() {
                       }}
                     >
                       <Plus className="h-4 w-4 mr-1" />
-                      {t("content.addInterface")}
+                      {tc("addInterface")}
                     </Button>
                   )}
                 </div>

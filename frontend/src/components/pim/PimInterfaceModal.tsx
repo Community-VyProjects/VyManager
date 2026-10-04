@@ -296,7 +296,7 @@ export function PimInterfaceModal({
                       value={name}
                       onValueChange={setName}
                       interfaces={availableInterfaces}
-                      placeholder={t("interfaceModal.selectInterface")}
+                      placeholder={tc("selectInterface")}
                     />
                   )}
                 </div>
@@ -556,9 +556,9 @@ export function PimInterfaceModal({
                 {isEditMode ? tc("saving") : t("adding")}
               </>
             ) : isEditMode ? (
-              t("saveChanges")
+              tc("saveChanges")
             ) : (
-              t("addInterface")
+              tc("addInterface")
             )}
           </Button>
         </DialogFooter>

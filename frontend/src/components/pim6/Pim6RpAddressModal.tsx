@@ -301,7 +301,7 @@ export function Pim6RpAddressModal({
                 {isEditMode ? tc("saving") : t("adding")}
               </>
             ) : isEditMode ? (
-              t("saveChanges")
+              tc("saveChanges")
             ) : (
               t("addRpAddress")
             )}

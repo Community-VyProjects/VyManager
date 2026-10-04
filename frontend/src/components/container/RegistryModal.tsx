@@ -197,8 +197,8 @@ export function RegistryModal({ open, onOpenChange, registry, capabilities, onSu
           <Button variant="outline" onClick={handleClose} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEditMode ? t("registryModal.saving") : t("registryModal.adding")}</>
-            ) : isEditMode ? t("registryModal.saveChanges") : t("registries.addRegistry")}
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEditMode ? tc("saving") : t("registryModal.adding")}</>
+            ) : isEditMode ? tc("saveChanges") : t("registries.addRegistry")}
           </Button>
         </DialogFooter>
       </DialogContent>

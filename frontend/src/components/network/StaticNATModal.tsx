@@ -191,7 +191,7 @@ export function StaticNATModal({ open, onOpenChange, existing, onSuccess }: Stat
               value={inboundInterface}
               onValueChange={setInboundInterface}
               id="inbound-interface"
-              placeholder={isEdit ? t("staticModal.selectInterfaceOptional") : t("form.selectInterface")}
+              placeholder={isEdit ? t("staticModal.selectInterfaceOptional") : tc("selectInterface")}
             />
             {isEdit && inboundInterface && (
               <Button
@@ -244,7 +244,7 @@ export function StaticNATModal({ open, onOpenChange, existing, onSuccess }: Stat
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? (isEdit ? t("form.updating") : t("form.creating")) : isEdit ? t("form.updateRule") : t("form.createRule")}
+            {loading ? (isEdit ? t("form.updating") : tc("creating")) : isEdit ? t("form.updateRule") : t("form.createRule")}
           </Button>
         </DialogFooter>
       </DialogContent>

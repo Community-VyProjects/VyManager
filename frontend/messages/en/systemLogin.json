@@ -1,7 +1,6 @@
 {
   "unexpectedError": "An unexpected error occurred",
   "deleteFailed": "Delete failed",
-  "saving": "Saving…",
   "users": {
     "deleteUserFailed": "Failed to delete user",
     "userDeleted": "User deleted",
@@ -47,7 +46,6 @@
     "newPassword": "New Password (leave blank to keep current)",
     "passwordOptional": "Password (optional)",
     "confirmPassword": "Confirm Password",
-    "saveChanges": "Save Changes",
     "createUser": "Create User",
     "fullNamePlaceholder": "Administrator"
   },

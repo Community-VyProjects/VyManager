@@ -270,7 +270,7 @@ export function WwanModal({
 
   const validateForm = (): string | null => {
     if (!isEdit) {
-      if (!name.trim()) return t("errors.nameRequired");
+      if (!name.trim()) return tc("interfaceNameRequired");
       if (!/^wwan\d+$/.test(name)) return t("errors.namePattern");
       if (existingInterfaces.includes(name)) return t("errors.nameExists", { name });
     }
@@ -546,7 +546,7 @@ export function WwanModal({
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder={t("basic.descriptionPlaceholder")}
+                placeholder={tc("optionalDescription")}
               />
             </div>
 
@@ -1022,10 +1022,10 @@ export function WwanModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? tc("saving") : t("creating")}
+                {isEdit ? tc("saving") : tc("creating")}
               </>
             ) : (
-              isEdit ? t("saveChanges") : t("createInterface")
+              isEdit ? tc("saveChanges") : t("createInterface")
             )}
           </Button>
         </DialogFooter>

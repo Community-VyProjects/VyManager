@@ -140,7 +140,6 @@
     "caCertificates": "CA 证书",
     "caHint": "选择一个或多个 CA（例如中间 CA 链）。",
     "createInterface": "创建接口",
-    "creating": "正在创建...",
     "dataCiphersHint": "选择一个或多个允许对端协商的加密算法。",
     "errors": {
       "addressesRequired": "站点到站点模式需要填写本地和远端地址。",

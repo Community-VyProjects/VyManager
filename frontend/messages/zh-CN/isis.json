@@ -19,9 +19,7 @@
     "ldpSyncHolddown": "LDP 同步保持时间（秒）",
     "defaultValue": "默认 ({value})",
     "levelRequired": "级别为必填项",
-    "addInterface": "添加接口",
-    "addRedistribute": "添加重分发",
-    "saveChanges": "保存更改"
+    "addRedistribute": "添加重分发"
   },
   "values": {
     "auto": "自动",
@@ -35,7 +33,6 @@
   "page": {
     "title": "IS-IS 配置",
     "subtitle": "中间系统到中间系统路由协议",
-    "readOnly": "只读",
     "loadFailed": "加载 IS-IS 配置失败",
     "saveConfigFailed": "保存配置失败",
     "saveTimersFailed": "保存计时器失败",
@@ -142,7 +139,6 @@
     "tabTimers": "计时器",
     "tabAuthentication": "认证",
     "tabFastReroute": "快速重路由",
-    "selectInterface": "选择接口",
     "circuitTypePlaceholder": "继承全局级别",
     "priorityDr": "优先级（DR 选举）",
     "passiveSuppress": "被动（抑制 Hello）",

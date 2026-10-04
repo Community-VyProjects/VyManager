@@ -47,7 +47,7 @@
       "liveStatus": "Live tunnel status",
       "tunnelsUp": "{up}/{total} up",
       "bounceTitle": "Bounce tunnel (reset peer)",
-      "deleteWarning": "This peer has {count} tunnel(s) that will also be removed."
+      "deleteWarning": "{count, plural, one {This peer has # tunnel that will also be removed.} other {This peer has # tunnels that will also be removed.}}"
     },
     "ra": {
       "title": "Remote Access Connections",
@@ -119,9 +119,7 @@
     "localId": "Local ID",
     "caCertificate": "CA Certificate",
     "certificate": "Certificate",
-    "preSharedSecret": "Pre-Shared Secret",
-    "creating": "Creating...",
-    "saveChanges": "Save Changes"
+    "preSharedSecret": "Pre-Shared Secret"
   },
   "s2sModal": {
     "peerNameRequired": "Peer name is required",
@@ -137,7 +135,7 @@
     "ikeGroupLabel": "IKE Group *",
     "defaultEspGroup": "Default ESP Group",
     "localAddressPlaceholder": "any or IP address",
-    "remoteAddresses": "Remote Address(es)",
+    "remoteAddresses": "Remote addresses",
     "commaSeparated": "Comma-separated for multiple",
     "connectionType": "Connection Type",
     "initiate": "Initiate",

@@ -1234,7 +1234,7 @@ export function EditVirtualEthernetModal({
                 {tc("saving")}
               </>
             ) : (
-              t("edit.saveChanges")
+              tc("saveChanges")
             )}
           </Button>
         </DialogFooter>

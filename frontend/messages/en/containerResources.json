@@ -37,7 +37,6 @@
     "networkName": "Network Name",
     "namePlaceholder": "e.g. my-net",
     "nameImmutable": "Network name cannot be changed after creation.",
-    "descriptionPlaceholder": "Optional description",
     "networkType": "Network Type",
     "selectType": "Select type",
     "noneOption": "— None —",
@@ -49,9 +48,7 @@
     "noNameServer": "Disable name server (no-name-server)",
     "prefixPlaceholder": "e.g. 10.0.0.0/24",
     "gatewayPlaceholder": "e.g. 10.0.0.1",
-    "saving": "Saving…",
-    "adding": "Adding…",
-    "saveChanges": "Save Changes"
+    "adding": "Adding…"
   },
   "deleteNetwork": {
     "failed": "Failed to delete network",
@@ -89,9 +86,7 @@
     "path": "Path",
     "port": "Port",
     "portPlaceholder": "e.g. 5000",
-    "saving": "Saving…",
-    "adding": "Adding…",
-    "saveChanges": "Save Changes"
+    "adding": "Adding…"
   },
   "deleteRegistry": {
     "failed": "Failed to delete registry",

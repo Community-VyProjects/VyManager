@@ -506,7 +506,7 @@ export function SiteToSiteModal({
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("modal.creating")}</> : isEdit ? t("modal.saveChanges") : t("s2sModal.createPeer")}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : tc("creating")}</> : isEdit ? tc("saveChanges") : t("s2sModal.createPeer")}
           </Button>
         </DialogFooter>
       </DialogContent>

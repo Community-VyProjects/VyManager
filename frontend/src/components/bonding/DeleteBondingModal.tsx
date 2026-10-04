@@ -106,7 +106,7 @@ export function DeleteBondingModal({
                 {tc("deleting")}
               </>
             ) : (
-              t("deleteButton")
+              tc("deleteInterface")
             )}
           </Button>
         </AlertDialogFooter>

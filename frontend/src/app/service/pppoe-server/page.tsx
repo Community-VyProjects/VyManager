@@ -867,7 +867,7 @@ function PPPoEPageInner() {
                     <h3 className="font-semibold">{t("interfaces.title")}</h3>
                     {hasWrite && (
                       <Button size="sm" onClick={() => { setEditingInterface(null); setShowInterfaceModal(true); }}>
-                        <Plus className="h-4 w-4 mr-1" /> {t("interfaces.add")}
+                        <Plus className="h-4 w-4 mr-1" /> {tc("addInterface")}
                       </Button>
                     )}
                   </div>

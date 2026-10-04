@@ -4,8 +4,6 @@
     "editTitle": "Edit MACsec Interface",
     "createDescription": "Create a new IEEE 802.1AE MACsec encrypted interface",
     "editDescription": "Editing interface <code>{name}</code>",
-    "creating": "Creating...",
-    "saveChanges": "Save Changes",
     "createInterface": "Create Interface",
     "tabs": {
       "basic": "Basic",
@@ -16,7 +14,6 @@
     "errors": {
       "sourceRequired": "Source interface is required",
       "mtuRange": "MTU must be between 68 and 16000",
-      "nameRequired": "Interface name is required",
       "nameFormat": "Name must be macsec0, macsec1, etc.",
       "nameExists": "Interface {name} already exists",
       "createFailed": "Failed to create MACsec interface",
@@ -115,7 +112,6 @@
     "mode": "Mode: <strong>{value}</strong>",
     "modeStatic": "Static",
     "addressCount": "{count} {count, plural, one {address} other {addresses}}",
-    "failed": "Failed to delete MACsec interface",
-    "button": "Delete Interface"
+    "failed": "Failed to delete MACsec interface"
   }
 }

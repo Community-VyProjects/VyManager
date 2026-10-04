@@ -162,7 +162,7 @@ export function CustomThemeEditor({ open, onOpenChange, editingTheme }: CustomTh
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             {tc("cancel")}
           </Button>
-          <Button onClick={handleSave}>{editingTheme ? t("themeEditor.saveChanges") : t("themeEditor.saveTheme")}</Button>
+          <Button onClick={handleSave}>{editingTheme ? tc("saveChanges") : t("themeEditor.saveTheme")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

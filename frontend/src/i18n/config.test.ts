@@ -15,10 +15,34 @@ describe("matchAcceptLanguage", () => {
     assert.equal(matchAcceptLanguage("EN"), "en");
   });
 
-  it("falls back to the primary language subtag", () => {
+  it("maps Simplified Chinese and English regions onto the one supported locale", () => {
     assert.equal(matchAcceptLanguage("zh"), "zh-CN");
+    assert.equal(matchAcceptLanguage("zh-Hans"), "zh-CN");
     assert.equal(matchAcceptLanguage("zh-Hans-CN"), "zh-CN");
+    assert.equal(matchAcceptLanguage("zh-SG"), "zh-CN");
     assert.equal(matchAcceptLanguage("en-GB"), "en");
+  });
+
+  it("does not treat Traditional Chinese as Simplified Chinese", () => {
+    assert.equal(matchAcceptLanguage("zh-TW"), undefined);
+    assert.equal(matchAcceptLanguage("zh-Hant"), undefined);
+    assert.equal(matchAcceptLanguage("zh-HK"), undefined);
+    assert.equal(matchAcceptLanguage("zh-TW,zh;q=0.8"), "zh-CN");
+  });
+
+  it("keeps scripts apart once both Chinese locales exist", () => {
+    const supported = ["en", "zh-CN", "zh-TW"] as const;
+    const families = [
+      { locale: "zh-CN", language: "zh", script: "hans", regions: ["cn", "sg", "my"] },
+      { locale: "zh-TW", language: "zh", script: "hant", regions: ["tw", "hk", "mo"] },
+    ];
+    assert.equal(matchAcceptLanguage("zh-TW", supported, families), "zh-TW");
+    assert.equal(matchAcceptLanguage("zh-Hant", supported, families), "zh-TW");
+    assert.equal(matchAcceptLanguage("zh-HK", supported, families), "zh-TW");
+    assert.equal(matchAcceptLanguage("zh-Hans", supported, families), "zh-CN");
+    assert.equal(matchAcceptLanguage("zh-SG", supported, families), "zh-CN");
+    assert.equal(matchAcceptLanguage("zh", supported, families), undefined);
+    assert.equal(matchAcceptLanguage("en-GB", supported, families), "en");
   });
 
   it("respects q-values and order", () => {
@@ -33,6 +57,7 @@ describe("isLocale", () => {
   it("accepts only supported locales", () => {
     assert.equal(isLocale("zh-CN"), true);
     assert.equal(isLocale("zh-cn"), false);
+    assert.equal(isLocale("zh-TW"), false);
     assert.equal(isLocale(undefined), false);
   });
 });

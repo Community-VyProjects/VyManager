@@ -318,7 +318,7 @@ export function CreateTokenDialog({ open, onOpenChange, onCreated }: CreateToken
                 {tc("cancel")}
               </Button>
               <Button type="submit" disabled={submitting || !name.trim()}>
-                {submitting ? t("createToken.creating") : t("createToken.submit")}
+                {submitting ? tc("creating") : t("createToken.submit")}
               </Button>
             </DialogFooter>
           </form>

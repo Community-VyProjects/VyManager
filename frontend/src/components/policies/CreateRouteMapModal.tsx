@@ -729,7 +729,7 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
         value={matchInterface || "__none__"}
         onValueChange={(v) => setMatchInterface(v === "__none__" ? "" : v)}
         noneOption={{ label: tc("none"), value: "__none__" }}
-        placeholder={t("create.selectInterface")}
+        placeholder={tc("selectInterface")}
         />
         </div>
         <div className="space-y-2">
@@ -1260,7 +1260,7 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
         {tc("cancel")}
         </Button>
         <Button onClick={handleSubmit} disabled={loading}>
-        {loading ? t("create.creating") : t("create.submit")}
+        {loading ? tc("creating") : t("create.submit")}
         </Button>
         </DialogFooter>
         </DialogContent>

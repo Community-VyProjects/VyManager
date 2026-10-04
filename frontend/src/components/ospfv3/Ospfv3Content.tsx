@@ -399,7 +399,7 @@ export function Ospfv3Content() {
             </div>
             <div className="flex items-center gap-2">
               {!hasWritePermission && (
-                <Badge variant="secondary">{t("page.readOnly")}</Badge>
+                <Badge variant="secondary">{tc("readOnly")}</Badge>
               )}
               <Button variant="outline" size="sm" onClick={() => loadData(true)}>
                 <RefreshCw className="h-4 w-4 mr-2" />
@@ -847,7 +847,7 @@ export function Ospfv3Content() {
                 {hasWritePermission && (
                   <Button size="sm" onClick={() => { setEditingIface(null); setIfaceModalOpen(true); }}>
                     <Plus className="h-4 w-4 mr-2" />
-                    {t("fields.addInterface")}
+                    {tc("addInterface")}
                   </Button>
                 )}
               </div>
@@ -863,7 +863,7 @@ export function Ospfv3Content() {
                     {hasWritePermission && (
                       <Button size="sm" onClick={() => { setEditingIface(null); setIfaceModalOpen(true); }}>
                         <Plus className="h-4 w-4 mr-2" />
-                        {t("fields.addInterface")}
+                        {tc("addInterface")}
                       </Button>
                     )}
                   </CardContent>

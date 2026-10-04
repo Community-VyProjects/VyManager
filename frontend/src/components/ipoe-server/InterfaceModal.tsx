@@ -96,7 +96,7 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
   };
 
   const handleSubmit = async () => {
-    if (!ifaceName.trim()) { setError(t("interfaceModal.nameRequired")); return; }
+    if (!ifaceName.trim()) { setError(tc("interfaceNameRequired")); return; }
 
     setLoading(true);
     setError(null);
@@ -140,7 +140,7 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Network className="h-5 w-5 text-primary" />
-            {isEdit ? t("interfaceModal.editTitle") : t("interfaceModal.addTitle")}
+            {isEdit ? t("interfaceModal.editTitle") : tc("addInterface")}
           </DialogTitle>
           <DialogDescription>{t("interfaceModal.description")}</DialogDescription>
         </DialogHeader>
@@ -252,7 +252,7 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("adding")}</> : isEdit ? t("saveChanges") : t("interfaceModal.addTitle")}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("adding")}</> : isEdit ? tc("saveChanges") : tc("addInterface")}
           </Button>
         </DialogFooter>
       </DialogContent>

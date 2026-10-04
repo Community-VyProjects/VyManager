@@ -815,7 +815,7 @@ export function SourceNATModal({ open, onOpenChange, existing, onSuccess }: Sour
                     value={outboundInterfaceName}
                     onValueChange={setOutboundInterfaceName}
                     id="outbound-interface-name"
-                    placeholder={t("form.selectInterface")}
+                    placeholder={tc("selectInterface")}
                   />
                 </div>
               ) : (
@@ -1436,7 +1436,7 @@ export function SourceNATModal({ open, onOpenChange, existing, onSuccess }: Sour
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? (isEdit ? t("form.updating") : t("form.creating")) : isEdit ? t("form.updateRule") : t("form.createRule")}
+            {loading ? (isEdit ? t("form.updating") : tc("creating")) : isEdit ? t("form.updateRule") : t("form.createRule")}
           </Button>
         </DialogFooter>
       </DialogContent>

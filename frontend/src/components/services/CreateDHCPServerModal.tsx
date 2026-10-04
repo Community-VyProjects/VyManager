@@ -579,7 +579,7 @@ export function CreateDHCPServerModal({
                   <Label htmlFor="createDescription">{tc("description")}</Label>
                   <Input
                     id="createDescription"
-                    placeholder={t("optionalDescription")}
+                    placeholder={tc("optionalDescription")}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                   />
@@ -1018,7 +1018,7 @@ export function CreateDHCPServerModal({
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? t("creating") : t("create.submit")}
+            {loading ? tc("creating") : t("create.submit")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -53,9 +53,7 @@
     "echoInterval": "Echo Interval (ms)",
     "advanced": "Advanced",
     "minimumTtl": "Minimum TTL",
-    "minimumTtlHelp": "Minimum TTL for incoming BFD multihop packets (1-254).",
-    "creating": "Creating...",
-    "saveChanges": "Save Changes"
+    "minimumTtlHelp": "Minimum TTL for incoming BFD multihop packets (1-254)."
   },
   "validation": {
     "transmitRange": "Transmit interval must be between 10 and 60000 ms",

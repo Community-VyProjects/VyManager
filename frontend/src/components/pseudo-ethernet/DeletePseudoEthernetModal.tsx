@@ -99,7 +99,7 @@ export function DeletePseudoEthernetModal({
                 {tc("deleting")}
               </>
             ) : (
-              t("delete.submit")
+              tc("deleteInterface")
             )}
           </Button>
         </AlertDialogFooter>

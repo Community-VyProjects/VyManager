@@ -599,7 +599,7 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
   const handleSubmit = async () => {
     const write = modalWriteKind(existing);
     if (write.kind === "create" && !name.trim()) {
-      setError(t("errors.nameRequired"));
+      setError(tc("interfaceNameRequired"));
       return;
     }
 
@@ -716,7 +716,7 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
               </div>
               <div className="space-y-1.5">
                 <Label>{tc("description")}</Label>
-                <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("basic.descriptionPlaceholder")} />
+                <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={tc("optionalDescription")} />
               </div>
               {hasBssid && (
                 <div className="space-y-1.5">
@@ -1234,8 +1234,8 @@ export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, exi
           <Button variant="outline" onClick={() => { if (!isEdit) resetForm(); onOpenChange(false); }} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading
-              ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />{isEdit ? t("saving") : t("creating")}</>
-              : isEdit ? t("saveChanges") : t("createInterface")}
+              ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />{isEdit ? tc("saving") : tc("creating")}</>
+              : isEdit ? tc("saveChanges") : t("createInterface")}
           </Button>
         </DialogFooter>
       </DialogContent>

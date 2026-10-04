@@ -75,7 +75,6 @@
     "sshKey": "SSH 密钥"
   },
   "schemaEditor": {
-    "saveChanges": "保存更改",
     "select": "请选择…",
     "addListItem": "添加{label}…"
   },

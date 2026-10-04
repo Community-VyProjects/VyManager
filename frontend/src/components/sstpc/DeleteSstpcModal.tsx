@@ -123,7 +123,7 @@ export function DeleteSstpcModal({
                 {tc("deleting")}
               </>
             ) : (
-              t("delete.submit")
+              tc("deleteInterface")
             )}
           </Button>
         </AlertDialogFooter>

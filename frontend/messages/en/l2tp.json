@@ -1,7 +1,5 @@
 {
   "shared": {
-    "saveChanges": "Save Changes",
-    "creating": "Creating...",
     "poolNameRequired": "Pool name is required",
     "saveFailedPool": "Failed to save pool",
     "poolName": "Pool Name",

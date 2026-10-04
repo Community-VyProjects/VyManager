@@ -110,7 +110,7 @@ export function DeleteL2TPv3Modal({
                 {tc("deleting")}
               </>
             ) : (
-              t("delete.button")
+              tc("deleteInterface")
             )}
           </Button>
         </AlertDialogFooter>

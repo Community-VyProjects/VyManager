@@ -4,7 +4,6 @@
   "yes": "Yes",
   "no": "No",
   "adding": "Adding...",
-  "saveChanges": "Save Changes",
   "zoneName": "Zone Name",
   "zoneNameRequired": "Zone name is required",
   "domainPlaceholder": "e.g. example.com",
@@ -13,7 +12,6 @@
   "content": {
     "loadFailed": "Failed to load DNS forwarding configuration",
     "title": "DNS Forwarding",
-    "readOnly": "Read Only",
     "configured": "Configured",
     "unconfigured": "Unconfigured",
     "subtitle": "PowerDNS Recursor — forwarding, local zones, and zone cache",

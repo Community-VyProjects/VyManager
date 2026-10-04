@@ -1106,10 +1106,10 @@ export function BgpPeerGroupModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? tc("saving") : t("form.creating")}
+                {isEditMode ? tc("saving") : tc("creating")}
               </>
             ) : isEditMode ? (
-              t("form.saveChanges")
+              tc("saveChanges")
             ) : (
               t("peerGroupModal.submit")
             )}

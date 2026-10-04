@@ -152,7 +152,7 @@ export function CreateVrfModal({
             <Label htmlFor="vrf-desc">{tc("description")}</Label>
             <Input
               id="vrf-desc"
-              placeholder={t("optionalDescription")}
+              placeholder={tc("optionalDescription")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />

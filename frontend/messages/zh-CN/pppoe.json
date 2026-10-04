@@ -6,16 +6,13 @@
     "ac": "AC：",
     "service": "服务：",
     "user": "用户：",
-    "failed": "删除 PPPoE 接口失败",
-    "submit": "删除接口"
+    "failed": "删除 PPPoE 接口失败"
   },
   "modal": {
     "editTitle": "编辑 PPPoE 客户端接口",
     "createTitle": "创建 PPPoE 客户端接口",
     "editing": "正在编辑接口",
     "createDescription": "通过以太网源接口拨号连接到上游接入集中器。",
-    "creating": "正在创建...",
-    "saveChanges": "保存更改",
     "createInterface": "创建接口",
     "updateFailed": "更新 PPPoE 接口失败",
     "createFailed": "创建 PPPoE 接口失败"
@@ -106,7 +103,6 @@
     "prefixLength": "前缀长度",
     "removePdInstance": "移除 PD 实例",
     "delegatedInterfaces": "委派接口",
-    "addInterface": "添加接口",
     "noDelegatedInterfaces": "没有委派接口。",
     "interface": "接口",
     "address": "地址",
@@ -115,7 +111,6 @@
   },
   "mirror": {
     "ingress": "入站镜像接口",
-    "egress": "出站镜像接口",
-    "selectInterface": "选择接口"
+    "egress": "出站镜像接口"
   }
 }

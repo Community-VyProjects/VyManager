@@ -33,14 +33,10 @@
     "namePlaceholder": "例如：FT_LAN",
     "nameHintEdit": "流表名称无法更改。如需重命名，请删除后重新创建。",
     "nameHintCreate": "必须以字母开头。可使用字母、数字、连字符和下划线。",
-    "descriptionPlaceholder": "可选描述",
-    "selectInterface": "选择接口",
     "interfacesHint": "选择要包含在此流表中的网络接口。",
     "offloadSoftware": "软件（基于内核）",
     "offloadHardware": "硬件（基于 NIC）",
-    "offloadHint": "软件卸载使用内核进行处理。硬件卸载使用 NIC（需要兼容的硬件）。",
-    "creating": "正在创建...",
-    "saveChanges": "保存更改"
+    "offloadHint": "软件卸载使用内核进行处理。硬件卸载使用 NIC（需要兼容的硬件）。"
   },
   "delete": {
     "title": "删除流表",

@@ -53,7 +53,6 @@
     "tabAdvanced": "高级",
     "outboundInterface": "出接口",
     "inboundInterface": "入接口",
-    "selectInterface": "选择接口",
     "translationType": "转换类型",
     "masquerade": "地址伪装（使用出接口地址）",
     "ipv6Address": "IPv6 地址",
@@ -86,7 +85,6 @@
     "disableRule": "禁用此规则",
     "excludeFromNat": "从 NAT 中排除",
     "enableLogging": "启用日志",
-    "creating": "正在创建...",
     "createRule": "创建规则"
   },
   "deleteDialog": {

@@ -1,7 +1,5 @@
 {
   "shared": {
-    "saveChanges": "保存更改",
-    "creating": "正在创建...",
     "poolNameRequired": "地址池名称为必填项",
     "saveFailedPool": "保存地址池失败",
     "poolName": "地址池名称",

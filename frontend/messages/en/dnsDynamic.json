@@ -8,7 +8,6 @@
   "content": {
     "loadFailed": "Failed to load DNS dynamic configuration",
     "title": "Dynamic DNS",
-    "readOnly": "Read Only",
     "configured": "Configured",
     "unconfigured": "Unconfigured",
     "subtitle": "ddclient — automatic DNS record updates",
@@ -40,17 +39,14 @@
     "source": "Source",
     "interface": "Interface",
     "webUrl": "Web URL",
-    "selectInterface": "Select interface",
     "skipWords": "Skip Words (optional)",
     "skipWordsPlaceholder": "words to skip in response",
-    "descriptionPlaceholder": "optional description",
     "ttl": "TTL (seconds)",
     "expiryTime": "Expiry Time (days)",
     "waitTime": "Wait Time (seconds)",
     "keyFile": "Key File Path (optional)",
     "zone": "DNS Zone (optional)",
-    "adding": "Adding...",
-    "saveChanges": "Save Changes"
+    "adding": "Adding..."
   },
   "global": {
     "title": "Global DDNS Settings",

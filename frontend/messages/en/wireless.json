@@ -26,7 +26,6 @@
     "hardwareId": "Hardware ID (MAC)",
     "hardwareIdHelp": "Physical radio MAC address identifier",
     "macOverride": "MAC Override",
-    "descriptionPlaceholder": "Optional description",
     "bssidHelp": "Target AP BSSID for station mode",
     "countryCode": "Country Code",
     "countryCodeHelp": "ISO 3166-1 alpha-2 country code for regulatory compliance",
@@ -138,20 +137,15 @@
     "redirect": "Redirect"
   },
   "errors": {
-    "nameRequired": "Interface name is required",
     "createFailed": "Create failed",
     "updateFailed": "Update failed",
     "deleteFailed": "Delete failed"
   },
-  "saving": "Saving…",
-  "creating": "Creating…",
-  "saveChanges": "Save Changes",
   "createInterface": "Create Interface",
   "delete": {
     "title": "Delete Wireless Interface",
     "description": "Are you sure you want to delete interface <code>{name}</code>? This will permanently remove the interface and all its configuration from VyOS.",
     "descriptionWithSsid": "Are you sure you want to delete interface <code>{name}</code> (SSID: <em>{ssid}</em>)? This will permanently remove the interface and all its configuration from VyOS.",
-    "deleting": "Deleting…",
-    "confirm": "Delete Interface"
+    "deleting": "Deleting…"
   }
 }

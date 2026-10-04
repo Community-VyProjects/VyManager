@@ -227,7 +227,7 @@ export function DHModal({ open, onOpenChange, onSuccess, existingDH }: DHModalPr
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{mode === "generate" && !isEdit ? t("shared.generating") : tc("saving")}</>
-            ) : isEdit ? t("shared.saveChanges") : mode === "generate" ? t("dh.generateButton") : t("dh.importButton")}
+            ) : isEdit ? tc("saveChanges") : mode === "generate" ? t("dh.generateButton") : t("dh.importButton")}
           </Button>
         </DialogFooter>
       </DialogContent>

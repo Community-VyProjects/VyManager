@@ -248,7 +248,7 @@ export function PrefixListRuleModal({
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? (isEdit ? tc("saving") : t("ruleModal.adding")) : isEdit ? t("ruleModal.saveChanges") : t("ruleModal.addRule")}
+            {loading ? (isEdit ? tc("saving") : t("ruleModal.adding")) : isEdit ? tc("saveChanges") : t("ruleModal.addRule")}
           </Button>
         </DialogFooter>
       </DialogContent>

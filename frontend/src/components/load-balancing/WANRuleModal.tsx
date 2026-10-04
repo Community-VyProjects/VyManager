@@ -258,7 +258,7 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, capabi
               <Input
                 value={form.description}
                 onChange={(e) => set("description", e.target.value)}
-                placeholder={t("ruleModal.optionalDescription")}
+                placeholder={tc("optionalDescription")}
               />
             </div>
           </div>
@@ -547,7 +547,7 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, capabi
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? t("saveChanges") : t("ruleModal.create")}
+            {isEdit ? tc("saveChanges") : t("ruleModal.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

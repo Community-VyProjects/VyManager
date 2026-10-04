@@ -71,8 +71,6 @@
     "infoOrder": "规则按编号顺序处理",
     "updateFailed": "更新规则失败",
     "createFailed": "创建规则失败",
-    "creating": "正在创建...",
-    "saveChanges": "保存更改",
     "createRule": "创建规则"
   },
   "banner": {

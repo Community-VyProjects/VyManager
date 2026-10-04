@@ -101,7 +101,6 @@
     "nameLabel": "Policy Name *",
     "descriptionPlaceholder": "Policy description",
     "defaultLog": "Enable default logging for unmatched packets",
-    "creating": "Creating...",
     "submit": "Create Policy"
   },
   "editPolicy": {
@@ -118,7 +117,7 @@
     "description": "Are you sure you want to delete this policy?",
     "deleteFailed": "Failed to delete policy",
     "warning": "Warning",
-    "warningText": "Deleting policy <mono>{name}</mono> will remove all {count} rule(s) associated with it. This action cannot be undone.",
+    "warningText": "{count, plural, one {Deleting policy <mono>{name}</mono> will remove the # rule associated with it. This action cannot be undone.} other {Deleting policy <mono>{name}</mono> will remove all # rules associated with it. This action cannot be undone.}}",
     "submit": "Delete Policy"
   },
   "deleteRule": {
@@ -134,7 +133,6 @@
     "updateFailed": "Failed to update interfaces",
     "title": "Manage Policy Interfaces",
     "description": "Select interfaces to apply the \"{policyName}\" policy to.",
-    "noInterfaces": "No interfaces available",
-    "saveChanges": "Save Changes"
+    "noInterfaces": "No interfaces available"
   }
 }

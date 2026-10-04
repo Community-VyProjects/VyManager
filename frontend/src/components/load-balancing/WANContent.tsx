@@ -435,7 +435,7 @@ export function WANContent() {
               size="sm"
               onClick={() => { setEditIface(null); setIfaceModalOpen(true); }}
             >
-              <Plus className="h-3.5 w-3.5 mr-1" /> {t("addInterface")}
+              <Plus className="h-3.5 w-3.5 mr-1" /> {tc("addInterface")}
             </Button>
           )}
         </div>
@@ -467,7 +467,7 @@ export function WANContent() {
                   size="sm" variant="outline"
                   onClick={() => { setEditIface(null); setIfaceModalOpen(true); }}
                 >
-                  <Plus className="h-3.5 w-3.5 mr-1" /> {t("addInterface")}
+                  <Plus className="h-3.5 w-3.5 mr-1" /> {tc("addInterface")}
                 </Button>
               )}
             </div>

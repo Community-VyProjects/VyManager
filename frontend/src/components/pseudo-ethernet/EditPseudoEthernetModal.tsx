@@ -1241,7 +1241,7 @@ export function EditPseudoEthernetModal({
                 {tc("saving")}
               </>
             ) : (
-              t("edit.saveChanges")
+              tc("saveChanges")
             )}
           </Button>
         </DialogFooter>

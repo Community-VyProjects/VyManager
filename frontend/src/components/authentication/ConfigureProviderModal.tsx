@@ -367,7 +367,7 @@ export function ConfigureProviderModal({
                 {saving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {t("form.saving")}
+                    {tc("saving")}
                   </>
                 ) : isEditing ? (
                   t("form.update")

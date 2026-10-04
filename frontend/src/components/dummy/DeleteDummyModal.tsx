@@ -104,7 +104,7 @@ export function DeleteDummyModal({
                 {tc("deleting")}
               </>
             ) : (
-              t("delete.submit")
+              tc("deleteInterface")
             )}
           </Button>
         </AlertDialogFooter>

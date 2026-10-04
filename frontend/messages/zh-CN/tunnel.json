@@ -4,7 +4,6 @@
     "confirm": "确定要删除此隧道接口吗？此操作无法撤销。",
     "encapsulation": "封装：",
     "addressCount": "{count} 个地址",
-    "submit": "删除接口",
     "failed": "删除隧道接口失败"
   },
   "modal": {
@@ -12,8 +11,6 @@
     "editTitle": "编辑隧道接口：{name}",
     "createDescription": "配置新的隧道接口及其封装设置。",
     "editDescription": "修改隧道接口配置。名称和封装不可更改。",
-    "creating": "正在创建...",
-    "saveChanges": "保存更改",
     "createInterface": "创建接口",
     "createFailed": "创建隧道接口失败",
     "updateFailed": "更新隧道接口失败"
@@ -24,7 +21,6 @@
     "parameters": "参数"
   },
   "validation": {
-    "nameRequired": "接口名称为必填项",
     "nameFormat": "名称格式必须为 'tun0'、'tun1' 等",
     "nameExists": "接口 {name} 已存在",
     "encapsulationRequired": "封装类型为必填项"
@@ -39,7 +35,6 @@
     "sourceAddressPlaceholder": "例如 10.0.0.1",
     "remoteAddress": "远端地址",
     "remoteAddressPlaceholder": "例如 10.0.0.2",
-    "descriptionPlaceholder": "可选描述",
     "addresses": "地址",
     "addressesPlaceholder": "以逗号分隔，例如 192.168.1.1/24, 10.0.0.1/30",
     "sourceInterface": "源接口"

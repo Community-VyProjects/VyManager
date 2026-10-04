@@ -53,7 +53,6 @@
     "tabAdvanced": "Advanced",
     "outboundInterface": "Outbound Interface",
     "inboundInterface": "Inbound Interface",
-    "selectInterface": "Select interface",
     "translationType": "Translation Type",
     "masquerade": "Masquerade (use outbound interface address)",
     "ipv6Address": "IPv6 Address",
@@ -86,7 +85,6 @@
     "disableRule": "Disable this rule",
     "excludeFromNat": "Exclude from NAT",
     "enableLogging": "Enable logging",
-    "creating": "Creating...",
     "createRule": "Create Rule"
   },
   "deleteDialog": {

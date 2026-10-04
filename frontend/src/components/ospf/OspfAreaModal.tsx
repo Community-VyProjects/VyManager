@@ -343,10 +343,10 @@ export function OspfAreaModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? tc("saving") : t("fields.creating")}
+                {isEditMode ? tc("saving") : tc("creating")}
               </>
             ) : isEditMode ? (
-              t("fields.saveChanges")
+              tc("saveChanges")
             ) : (
               t("fields.addArea")
             )}

@@ -299,7 +299,7 @@ export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
                 )}
                 <div className="flex gap-2">
                   <Input value={radiusSrcAddr} onChange={(e) => setRadiusSrcAddr(e.target.value)} placeholder={t("auth.leaveBlankToRemove")} className="max-w-xs" />
-                  <Button size="sm" onClick={handleSaveRadiusSrc} disabled={radiusSrcSaving}>{radiusSrcSaving ? t("saving") : tc("save")}</Button>
+                  <Button size="sm" onClick={handleSaveRadiusSrc} disabled={radiusSrcSaving}>{radiusSrcSaving ? tc("saving") : tc("save")}</Button>
                   <Button size="sm" variant="outline" onClick={() => { setEditingRadiusSrc(false); setRadiusSrcError(null); }}>{tc("cancel")}</Button>
                 </div>
               </div>
@@ -428,7 +428,7 @@ export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={handleSaveTacacsGlobal} disabled={tacacsGlobalSaving}>{tacacsGlobalSaving ? t("saving") : tc("save")}</Button>
+                  <Button size="sm" onClick={handleSaveTacacsGlobal} disabled={tacacsGlobalSaving}>{tacacsGlobalSaving ? tc("saving") : tc("save")}</Button>
                   <Button size="sm" variant="outline" onClick={() => { setEditingTacacsGlobal(false); setTacacsGlobalError(null); }}>{tc("cancel")}</Button>
                 </div>
               </div>

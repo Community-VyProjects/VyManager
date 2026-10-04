@@ -805,7 +805,7 @@ export function OpenvpnWizard({
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t("wizard.creating")}
+                  {tc("creating")}
                 </>
               ) : (
                 t("wizard.createInterface")

@@ -23,7 +23,6 @@
     "saveFailed": "保存设置失败",
     "title": "常规",
     "description": "主机名、域名、名称服务器、时区和性能配置文件。",
-    "saving": "正在保存…",
     "hostname": "主机名",
     "domainName": "域名",
     "timezone": "时区",

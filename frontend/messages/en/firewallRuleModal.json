@@ -10,7 +10,6 @@
     "updateFailed": "Failed to update rule",
     "createFailed": "Failed to create rule",
     "updating": "Updating...",
-    "creating": "Creating...",
     "updateRule": "Update Rule",
     "createRule": "Create Rule"
   },

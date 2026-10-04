@@ -107,7 +107,7 @@ export function SSHContent() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-2xl font-bold text-foreground">SSH</h1>
-                  {!hasWrite && <Badge variant="secondary">{t("content.readOnly")}</Badge>}
+                  {!hasWrite && <Badge variant="secondary">{tc("readOnly")}</Badge>}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
                   {t("content.subtitle")}

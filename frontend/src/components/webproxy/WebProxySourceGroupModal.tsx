@@ -90,7 +90,7 @@ export function WebProxySourceGroupModal({ open, onOpenChange, sourceGroup, exis
             </div>
             <div className="space-y-2">
               <Label htmlFor="sgrp-desc">{tc("description")}</Label>
-              <Input id="sgrp-desc" value={form.description ?? ""} onChange={(e) => update({ description: e.target.value })} placeholder={t("common.optionalDescription")} />
+              <Input id="sgrp-desc" value={form.description ?? ""} onChange={(e) => update({ description: e.target.value })} placeholder={tc("optionalDescription")} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="sgrp-user">{t("group.user")}</Label>
@@ -113,7 +113,7 @@ export function WebProxySourceGroupModal({ open, onOpenChange, sourceGroup, exis
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : isEdit ? t("common.saveChanges") : t("content.addGroup")}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : isEdit ? tc("saveChanges") : t("content.addGroup")}
           </Button>
         </DialogFooter>
       </DialogContent>

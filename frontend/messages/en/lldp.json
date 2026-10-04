@@ -1,7 +1,6 @@
 {
   "content": {
     "loadFailed": "Failed to load LLDP configuration",
-    "readOnly": "Read Only",
     "subtitle": "Link Layer Discovery Protocol — advertise and discover network neighbours",
     "editSettings": "Edit Settings",
     "managementAddresses": "Management Addresses",
@@ -63,7 +62,6 @@
     "addTitle": "Add Interface Override",
     "description": "Configure per-interface LLDP behaviour",
     "interface": "Interface",
-    "selectInterface": "Select interface",
     "mode": "Mode",
     "modeRxTx": "Send and receive (default)",
     "modeRx": "Receive only",

@@ -92,7 +92,7 @@
     "title": "Active PPPoE Sessions",
     "paused": "Updates paused.",
     "live": "Live counters arrive with the dashboard stream.",
-    "count": "{count} sessions",
+    "count": "{count, plural, one {# session} other {# sessions}}",
     "resume": "Resume",
     "pause": "Pause",
     "searchPlaceholder": "Search user, IP, interface",
@@ -123,7 +123,6 @@
   },
   "interfaces": {
     "title": "Server Interfaces",
-    "add": "Add Interface",
     "empty": "No interfaces configured",
     "interface": "Interface",
     "vlanMon": "VLAN Mon",
@@ -236,7 +235,6 @@
       "txRate": "Download rate (TX)"
     },
     "newLabel": "New label",
-    "saving": "Saving…",
     "saveRegistry": "Save registry"
   },
   "deleteModal": {
@@ -255,17 +253,14 @@
     "waiting": "Waiting for PPPoE samples..."
   },
   "interfaceModal": {
-    "addTitle": "Add Interface",
     "editTitle": "Edit Interface",
     "description": "Configure a PPPoE server interface.",
-    "nameRequired": "Interface name is required",
     "saveFailed": "Failed to save interface",
     "interface": "Interface",
     "selectInterface": "Select an interface",
     "vlanPlaceholder": "100 or 100-200",
     "vlanMonitoring": "VLAN Monitoring",
     "combined": "Combined (simultaneous sessions)",
-    "adding": "Adding...",
-    "saveChanges": "Save Changes"
+    "adding": "Adding..."
   }
 }

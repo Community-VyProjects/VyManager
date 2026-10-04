@@ -70,8 +70,7 @@
   },
   "reorder": {
     "title": "规则顺序已更改",
-    "prompt": "是否保存你的更改？",
-    "saveChanges": "保存更改"
+    "prompt": "是否保存你的更改？"
   },
   "deleteModal": {
     "failed": "删除 NAT 规则失败",
@@ -133,7 +132,6 @@
     "tabAdvanced": "高级",
     "interfaceName": "接口名称",
     "interfaceGroup": "接口组",
-    "selectInterface": "选择接口",
     "selectInterfaceGroup": "选择接口组",
     "invertMatchInterface": "反向匹配（除此接口外的所有接口）",
     "example": "例如 {value}",
@@ -189,7 +187,6 @@
     "excludeFromNat": "从 NAT 中排除",
     "enableLogging": "启用日志",
     "updating": "正在更新...",
-    "creating": "正在创建...",
     "updateRule": "更新规则",
     "createRule": "创建规则"
   },

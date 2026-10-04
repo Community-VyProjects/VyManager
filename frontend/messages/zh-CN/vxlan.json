@@ -4,16 +4,12 @@
     "editTitle": "编辑：{name}",
     "createDescription": "创建新的 VXLAN 隧道接口，用于 Overlay 网络。",
     "editDescription": "修改 VXLAN 接口配置。更改将以原子方式应用。",
-    "selectInterface": "选择接口",
-    "creating": "正在创建...",
-    "saveChanges": "保存更改",
     "createInterface": "创建接口",
     "tabs": {
       "basic": "基本",
       "advanced": "高级"
     },
     "errors": {
-      "nameRequired": "接口名称为必填项",
       "nameFormat": "名称格式必须为 'vxlan0'、'vxlan1' 等",
       "nameExists": "接口 {name} 已存在",
       "createFailed": "创建 VXLAN 接口失败",
@@ -76,7 +72,6 @@
     "confirm": "确定要删除此 VXLAN 接口吗？此操作无法撤销。",
     "mappingsWarning": "警告：此接口配置了 {count} 个 VLAN 到 VNI 映射。",
     "mappingsRemoved": "删除接口将移除所有 VLAN 到 VNI 映射。",
-    "failed": "删除 VXLAN 接口失败",
-    "button": "删除接口"
+    "failed": "删除 VXLAN 接口失败"
   }
 }

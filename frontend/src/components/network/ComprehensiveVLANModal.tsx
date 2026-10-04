@@ -1151,7 +1151,7 @@ export function ComprehensiveVLANModal({
             </Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {mode === "create" ? t("vif.create") : t("saveChanges")}
+              {mode === "create" ? t("vif.create") : tc("saveChanges")}
             </Button>
           </DialogFooter>
         </form>

@@ -52,7 +52,6 @@
     "reenterNewPassword": "Re-enter new password",
     "reenterPassword": "Re-enter password",
     "updating": "Updating...",
-    "creating": "Creating...",
     "updateSubmit": "Update User",
     "namePlaceholder": "John Doe"
   },
@@ -87,7 +86,7 @@
     "empty": "No access granted yet.",
     "selectAll": "Select all",
     "wholeSite": "{site} (whole site)",
-    "featureCount": "{count} features",
+    "featureCount": "{count, plural, one {# feature} other {# features}}",
     "viaSso": "via SSO",
     "managedInRoleMapping": "Managed in Role Mapping"
   },
@@ -100,12 +99,11 @@
     "roleOperator": "Operator (edit selected)",
     "roleViewer": "Viewer (view selected)",
     "featurePermissions": "Feature permissions",
-    "editBulkTitle": "Edit {count} grants",
+    "editBulkTitle": "{count, plural, one {Edit # grant} other {Edit # grants}}",
     "editTitle": "Edit grant",
     "addTitle": "Add grant",
     "bulkDescription": "Apply one role and feature set to the selected grants.",
     "description": "Grant access to specific instances or whole sites.",
-    "saving": "Saving…",
     "save": "Save grant"
   },
   "instances": {

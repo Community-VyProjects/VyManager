@@ -123,7 +123,7 @@ export function DNSDynamicContent() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-2xl font-bold text-foreground">{t("content.title")}</h1>
-                  {!hasWritePermission && <Badge variant="secondary">{t("content.readOnly")}</Badge>}
+                  {!hasWritePermission && <Badge variant="secondary">{tc("readOnly")}</Badge>}
                   <Badge variant={isConfigured ? "default" : "secondary"} className={isConfigured ? "bg-green-500/10 text-green-600 border-green-500/20" : ""}>
                     {isConfigured ? t("content.configured") : t("content.unconfigured")}
                   </Badge>

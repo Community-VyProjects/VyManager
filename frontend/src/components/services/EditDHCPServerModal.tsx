@@ -483,7 +483,7 @@ export function EditDHCPServerModal({
                   <Label htmlFor="subnetDescription">{tc("description")}</Label>
                   <Input
                     id="subnetDescription"
-                    placeholder={t("optionalDescription")}
+                    placeholder={tc("optionalDescription")}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                   />

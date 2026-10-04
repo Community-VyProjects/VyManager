@@ -267,7 +267,7 @@ export function OpenfabricContent() {
             </div>
             <div className="flex items-center gap-2">
               {!hasWritePermission && (
-                <Badge variant="secondary">{t("content.readOnly")}</Badge>
+                <Badge variant="secondary">{tc("readOnly")}</Badge>
               )}
               <Button variant="outline" size="sm" onClick={() => loadData(true)}>
                 <RefreshCw className="h-4 w-4 mr-2" />
@@ -598,7 +598,7 @@ export function OpenfabricContent() {
                     onClick={() => { setEditingIface(null); setIfaceModalOpen(true); }}
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    {t("content.addInterface")}
+                    {tc("addInterface")}
                   </Button>
                 )}
               </div>
@@ -742,7 +742,7 @@ export function OpenfabricContent() {
       <AlertDialog open={!!deletingIface} onOpenChange={(open) => !open && setDeletingIface(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("content.deleteInterfaceTitle")}</AlertDialogTitle>
+            <AlertDialogTitle>{tc("deleteInterface")}</AlertDialogTitle>
             <AlertDialogDescription>
               {t("content.deleteInterfaceDescription", { name: deletingIface?.iface.name ?? "", domain: deletingIface?.domain ?? "" })}
             </AlertDialogDescription>

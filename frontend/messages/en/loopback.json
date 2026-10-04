@@ -3,8 +3,7 @@
     "failed": "Failed to delete loopback interface",
     "title": "Delete Interface: {name}",
     "confirm": "Are you sure you want to delete the loopback interface configuration? This action cannot be undone.",
-    "addressCount": "{count, plural, one {# address} other {# addresses}}",
-    "submit": "Delete Interface"
+    "addressCount": "{count, plural, one {# address} other {# addresses}}"
   },
   "modal": {
     "editTitle": "Edit Loopback Interface",
@@ -16,7 +15,6 @@
       "advanced": "Advanced"
     },
     "interfaceName": "Interface Name",
-    "descriptionPlaceholder": "Optional description",
     "ipAddresses": "IP Addresses",
     "addressesHint": "One address per line, IPv4 or IPv6 CIDR notation",
     "ipSettings": "IP Settings",
@@ -29,7 +27,6 @@
     "mirrorEgress": "Mirror Egress",
     "redirectTo": "Redirect To",
     "configuring": "Configuring...",
-    "saveChanges": "Save Changes",
     "configureLoopback": "Configure Loopback",
     "errors": {
       "updateFailed": "Failed to update loopback interface",

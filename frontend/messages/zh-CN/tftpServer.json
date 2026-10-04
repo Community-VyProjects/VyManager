@@ -2,7 +2,6 @@
   "content": {
     "loadFailed": "加载 TFTP 服务器配置失败",
     "title": "TFTP 服务器",
-    "readOnly": "只读",
     "subtitle": "简单文件传输协议 — 向网络设备提供文件",
     "editSettings": "编辑设置",
     "settings": "设置",

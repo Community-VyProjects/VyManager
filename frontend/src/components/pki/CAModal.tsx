@@ -253,7 +253,7 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
 
                   <div className="space-y-2">
                     <Label htmlFor="ca-desc">{tc("description")}</Label>
-                    <Input id="ca-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("shared.descriptionPlaceholder")} />
+                    <Input id="ca-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={tc("optionalDescription")} />
                   </div>
 
                   <div className="space-y-2">
@@ -402,7 +402,7 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
 
                 <div className="space-y-2">
                   <Label htmlFor="ca-desc-edit">{tc("description")}</Label>
-                  <Input id="ca-desc-edit" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("shared.descriptionPlaceholder")} />
+                  <Input id="ca-desc-edit" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={tc("optionalDescription")} />
                 </div>
 
                 <div className="space-y-2">
@@ -461,7 +461,7 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{mode === "generate" ? t("shared.generating") : tc("saving")}</>
-            ) : isEdit ? t("shared.saveChanges") : mode === "generate" ? t("ca.generateButton") : t("ca.importButton")}
+            ) : isEdit ? tc("saveChanges") : mode === "generate" ? t("ca.generateButton") : t("ca.importButton")}
           </Button>
         </DialogFooter>
       </DialogContent>

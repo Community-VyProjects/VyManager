@@ -64,7 +64,6 @@
     "updateFailed": "Failed to update rule",
     "addFailed": "Failed to add rule",
     "adding": "Adding...",
-    "saveChanges": "Save Changes",
     "addRule": "Add Rule"
   },
   "banner": {
@@ -82,7 +81,6 @@
     "descriptionPlaceholder": "Enter prefix list description (optional)",
     "startingAt": "Starting at 100",
     "failed": "Failed to create prefix list",
-    "creating": "Creating...",
     "submit": "Create Prefix List"
   },
   "edit": {

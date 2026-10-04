@@ -1,7 +1,6 @@
 {
   "content": {
     "loadFailed": "加载 SSH 配置失败",
-    "readOnly": "只读",
     "subtitle": "SSH 服务 — 远程管理访问此设备",
     "connection": "连接",
     "ports": "端口",

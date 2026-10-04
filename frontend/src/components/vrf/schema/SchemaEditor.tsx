@@ -97,7 +97,6 @@ export function SchemaEditor({
   onSaved,
   scope,
 }: SchemaEditorProps) {
-  const t = useTranslations("vrfProtocols");
   const tc = useTranslations("common");
   const st = useSchemaText();
   const visibleSections = useMemo(
@@ -265,7 +264,7 @@ export function SchemaEditor({
           </Button>
           <Button onClick={handleSave} disabled={!canWrite || saving}>
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {t("schemaEditor.saveChanges")}
+            {tc("saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

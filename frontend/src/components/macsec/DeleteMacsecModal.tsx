@@ -112,7 +112,7 @@ export function DeleteMacsecModal({
                 {tc("deleting")}
               </>
             ) : (
-              t("delete.button")
+              tc("deleteInterface")
             )}
           </Button>
         </AlertDialogFooter>

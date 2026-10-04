@@ -50,7 +50,7 @@ export function LargeCommunityListReorderBanner({
           >
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {!saving && <Check className="h-4 w-4 mr-2" />}
-            {saving ? tc("saving") : t("shared.saveChanges")}
+            {saving ? tc("saving") : tc("saveChanges")}
           </Button>
         </div>
       </div>

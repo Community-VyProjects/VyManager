@@ -122,7 +122,7 @@ export function NhrpDynamicMapModal({
                 {isEditMode ? tc("saving") : t("adding")}
               </>
             ) : isEditMode ? (
-              t("saveChanges")
+              tc("saveChanges")
             ) : (
               t("dynamicMapModal.addTitle")
             )}

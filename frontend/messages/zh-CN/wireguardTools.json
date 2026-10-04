@@ -37,7 +37,6 @@
     "copied": "已复制",
     "copy": "复制",
     "download": "下载",
-    "creating": "正在创建...",
     "addClient": "添加客户端",
     "addAnother": "再添加一个",
     "done": "完成"
@@ -94,7 +93,6 @@
   },
   "quickSetup": {
     "validation": {
-      "interfaceNameRequired": "接口名称为必填项",
       "interfaceNameFormat": "接口名称格式必须为 wg0、wg1 等",
       "interfaceExists": "接口 {name} 已存在",
       "serverAddressRequired": "服务器地址为必填项",

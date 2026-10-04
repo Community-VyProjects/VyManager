@@ -407,7 +407,7 @@ export function VirtualServerModal({
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? t("saveChanges") : t("vsModal.create")}
+            {isEdit ? tc("saveChanges") : t("vsModal.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

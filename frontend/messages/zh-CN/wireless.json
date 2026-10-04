@@ -26,7 +26,6 @@
     "hardwareId": "硬件 ID (MAC)",
     "hardwareIdHelp": "物理无线网卡的 MAC 地址标识",
     "macOverride": "覆盖 MAC",
-    "descriptionPlaceholder": "可选描述",
     "bssidHelp": "客户端模式下要连接的目标 AP BSSID",
     "countryCode": "国家/地区代码",
     "countryCodeHelp": "用于满足监管要求的 ISO 3166-1 alpha-2 国家/地区代码",
@@ -138,20 +137,15 @@
     "redirect": "重定向"
   },
   "errors": {
-    "nameRequired": "接口名称为必填项",
     "createFailed": "创建失败",
     "updateFailed": "更新失败",
     "deleteFailed": "删除失败"
   },
-  "saving": "正在保存…",
-  "creating": "正在创建…",
-  "saveChanges": "保存更改",
   "createInterface": "创建接口",
   "delete": {
     "title": "删除无线接口",
     "description": "确定要删除接口 <code>{name}</code> 吗？这将从 VyOS 中永久移除该接口及其所有配置。",
     "descriptionWithSsid": "确定要删除接口 <code>{name}</code>（SSID：<em>{ssid}</em>）吗？这将从 VyOS 中永久移除该接口及其所有配置。",
-    "deleting": "正在删除…",
-    "confirm": "删除接口"
+    "deleting": "正在删除…"
   }
 }

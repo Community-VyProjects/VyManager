@@ -8,7 +8,6 @@
     "saveSettings": "保存设置失败"
   },
   "header": {
-    "readOnly": "只读",
     "subtitle": "资源公钥基础设施"
   },
   "stats": {
@@ -62,9 +61,7 @@
     "selectKey": "选择密钥",
     "keyHelp": "在 PKI → OpenSSH 中配置",
     "sshUsername": "SSH 用户名",
-    "usernamePlaceholder": "例如 rpki-user",
-    "creating": "正在创建...",
-    "saveChanges": "保存更改"
+    "usernamePlaceholder": "例如 rpki-user"
   },
   "delete": {
     "title": "删除 RPKI 缓存服务器",

@@ -51,7 +51,7 @@ export function NATReorderBanner({ onSave, onCancel, saving }: NATReorderBannerP
               className="gap-2 bg-primary hover:bg-primary/90"
             >
               <Save className="h-4 w-4" />
-              {saving ? tc("saving") : t("reorder.saveChanges")}
+              {saving ? tc("saving") : tc("saveChanges")}
             </Button>
           </div>
         </div>

@@ -496,7 +496,7 @@ export function PeerModal({
                 {isEdit ? tc("saving") : t("peerModal.adding")}
               </>
             ) : isEdit ? (
-              t("peerModal.saveChanges")
+              tc("saveChanges")
             ) : (
               t("peerModal.addPeer")
             )}

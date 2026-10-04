@@ -92,7 +92,7 @@
     "title": "PPPoE 在线会话",
     "paused": "已暂停更新。",
     "live": "实时计数通过仪表盘数据流推送。",
-    "count": "{count} 个会话",
+    "count": "{count, plural, one {# 个会话} other {# 个会话}}",
     "resume": "继续",
     "pause": "暂停",
     "searchPlaceholder": "搜索用户、IP、接口",
@@ -123,7 +123,6 @@
   },
   "interfaces": {
     "title": "服务器接口",
-    "add": "添加接口",
     "empty": "未配置接口",
     "interface": "接口",
     "vlanMon": "VLAN 监控",
@@ -236,7 +235,6 @@
       "txRate": "下载速率（TX）"
     },
     "newLabel": "新建标签",
-    "saving": "正在保存…",
     "saveRegistry": "保存注册表"
   },
   "deleteModal": {
@@ -255,17 +253,14 @@
     "waiting": "正在等待 PPPoE 采样数据..."
   },
   "interfaceModal": {
-    "addTitle": "添加接口",
     "editTitle": "编辑接口",
     "description": "配置 PPPoE 服务器接口。",
-    "nameRequired": "接口名称为必填项",
     "saveFailed": "保存接口失败",
     "interface": "接口",
     "selectInterface": "选择接口",
     "vlanPlaceholder": "100 或 100-200",
     "vlanMonitoring": "VLAN 监控",
     "combined": "组合（同时会话数）",
-    "adding": "正在添加...",
-    "saveChanges": "保存更改"
+    "adding": "正在添加..."
   }
 }

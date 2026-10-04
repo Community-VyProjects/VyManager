@@ -22,7 +22,6 @@
   "remove": "移除",
   "example": "例如 {value}",
   "nameCannotChange": "名称不可更改",
-  "optionalDescription": "可选描述",
   "healthCheckOptional": "健康检查（可选）",
   "pingTarget": "Ping 目标",
   "pingPlaceholder": "要 ping 的 IP",
@@ -30,7 +29,6 @@
   "failureCount": "失败次数",
   "scriptPath": "脚本路径",
   "scriptTimeout": "脚本超时（秒）",
-  "saveChanges": "保存更改",
   "globals": {
     "title": "VRRP 全局设置",
     "description": "配置适用于所有 VRRP 组的全局参数",
@@ -91,7 +89,7 @@
     "members": "VRRP 组成员",
     "membersHelp": "选择要一起同步的 VRRP 组",
     "noVrrpGroups": "未配置 VRRP 组。请先创建 VRRP 组。",
-    "memberSummary": "VRID {vrid} — {iface} — {count} 个 IP",
+    "memberSummary": "VRID {vrid} — {iface} — {count, plural, one {# 个 IP} other {# 个 IP}}",
     "membersSelected": "已选择 {count} 个成员",
     "create": "创建同步组"
   },
@@ -125,7 +123,6 @@
     "create": "创建服务器"
   },
   "vrrpModal": {
-    "selectInterface": "选择接口",
     "nameRequired": "组名称为必填项",
     "vridRequired": "VRID 为必填项",
     "interfaceRequired": "接口为必填项",

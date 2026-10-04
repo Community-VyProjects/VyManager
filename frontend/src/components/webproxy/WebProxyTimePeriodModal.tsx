@@ -111,7 +111,7 @@ export function WebProxyTimePeriodModal({ open, onOpenChange, timePeriod, caps, 
             </div>
             <div className="space-y-2">
               <Label htmlFor="tp-desc">{tc("description")}</Label>
-              <Input id="tp-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("common.optionalDescription")} />
+              <Input id="tp-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={tc("optionalDescription")} />
             </div>
 
             <div className="space-y-3">
@@ -158,7 +158,7 @@ export function WebProxyTimePeriodModal({ open, onOpenChange, timePeriod, caps, 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : isEdit ? t("common.saveChanges") : t("content.addPeriod")}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : isEdit ? tc("saveChanges") : t("content.addPeriod")}
           </Button>
         </DialogFooter>
       </DialogContent>

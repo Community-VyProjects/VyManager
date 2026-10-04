@@ -109,7 +109,7 @@ export function DeleteOpenvpnModal({
                 {tc("deleting")}
               </>
             ) : (
-              t("delete.confirmButton")
+              tc("deleteInterface")
             )}
           </Button>
         </AlertDialogFooter>

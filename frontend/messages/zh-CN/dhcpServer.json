@@ -17,8 +17,6 @@
     "macRequired": "MAC 地址为必填项",
     "macInvalidUse": "MAC 地址格式无效（请使用 XX:XX:XX:XX:XX:XX）"
   },
-  "creating": "正在创建...",
-  "saveChanges": "保存更改",
   "networkLabel": "网络：",
   "subnet": "子网",
   "selectSubnet": "选择子网",
@@ -39,7 +37,6 @@
     "stopIpHelp": "地址范围中的最后一个 IP 地址",
     "create": "创建地址范围"
   },
-  "optionalDescription": "可选描述",
   "mapping": {
     "updateFailed": "更新静态映射失败",
     "createFailed": "创建静态映射失败",
@@ -107,8 +104,6 @@
     "description": "绑定 DHCP 监听并切换 hosts 文件选项",
     "listenAddresses": "监听地址",
     "listenInterfaces": "监听接口",
-    "addInterface": "添加接口",
-    "selectInterface": "选择接口",
     "hostfileUpdate": "根据租约更新 hosts 文件",
     "hostDeclName": "使用主机声明名称"
   },
@@ -287,7 +282,7 @@
     "rangeCount": "{count} 个地址范围",
     "noRanges": "暂无地址范围",
     "noRangesHint": "此网络未配置 DHCP 地址范围",
-    "poolSizeIps": "{count} 个 IP",
+    "poolSizeIps": "{count, plural, one {# 个 IP} other {# 个 IP}}",
     "searchMappings": "按名称、IP 或 MAC 搜索...",
     "mappingCount": "{count} 个映射",
     "noMappings": "暂无静态映射",

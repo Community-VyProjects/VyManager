@@ -123,7 +123,7 @@ export function NhrpShortcutTargetModal({
                 {isEditMode ? tc("saving") : t("adding")}
               </>
             ) : isEditMode ? (
-              t("saveChanges")
+              tc("saveChanges")
             ) : (
               t("shortcutTargetModal.addTarget")
             )}

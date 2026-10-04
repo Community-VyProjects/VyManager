@@ -194,7 +194,7 @@ export function ContainerFilesModal({ open, onOpenChange, containerName, app }: 
           <div className="flex justify-end gap-2 pt-2 border-t">
             <Button variant="outline" onClick={backToList} disabled={saving}>{t("filesModal.back")}</Button>
             <Button onClick={save} disabled={saving}>
-              {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{t("filesModal.saving")}</> : tc("save")}
+              {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{tc("saving")}</> : tc("save")}
             </Button>
           </div>
         )}

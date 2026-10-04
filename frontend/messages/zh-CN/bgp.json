@@ -85,30 +85,96 @@
       "bestpathTitle": "最佳路径选择",
       "distanceTitle": "管理距离",
       "flags": {
-        "log_neighbor_changes": { "label": "记录邻居变化", "desc": "记录邻居 up/down 及重置原因" },
-        "always_compare_med": { "label": "始终比较 MED", "desc": "在所有路由间比较 MED，而不仅限于来自同一 AS 的路由" },
-        "deterministic_med": { "label": "确定性 MED", "desc": "比较 MED 前按 AS 对路径分组" },
-        "ebgp_requires_policy": { "label": "eBGP 需要策略", "desc": "eBGP 会话必须配置路由映射" },
-        "graceful_shutdown": { "label": "优雅关闭", "desc": "启动优雅关闭流程" },
-        "no_client_to_client_reflection": { "label": "禁止客户端间反射", "desc": "禁用 RR 客户端之间的路由反射" },
-        "no_fast_external_failover": { "label": "禁用快速外部故障切换", "desc": "eBGP 链路断开时不进行快速故障切换" },
-        "allow_martian_nexthop": { "label": "允许 Martian 下一跳", "desc": "允许 BGP 表中存在 martian 下一跳" },
-        "disable_ebgp_connected_route_check": { "label": "禁用 eBGP 直连检查", "desc": "跳过 eBGP 对等体的直连路由检查" },
-        "fast_convergence": { "label": "快速收敛", "desc": "变更后加快最佳路径选择" },
-        "network_import_check": { "label": "网络导入检查", "desc": "通告前检查 BGP network 路由是否存在于 RIB 中" },
-        "reject_as_sets": { "label": "拒绝 AS-Set", "desc": "拒绝带有 AS_SET 或 AS_CONFED_SET 的路由" },
-        "route_reflector_allow_outbound_policy": { "label": "RR 允许出站策略", "desc": "对反射的路由应用出站策略" },
-        "suppress_fib_pending": { "label": "抑制 FIB 待定路由", "desc": "不通告尚未安装到 FIB 的路由" },
-        "no_suppress_duplicates": { "label": "不抑制重复路由", "desc": "不抑制重复的 BGP 路由" },
-        "no_ipv6_auto_ra": { "label": "禁用 IPv6 自动 RA", "desc": "禁用 IPv6 自动路由器通告" },
-        "shutdown": { "label": "关闭", "desc": "以管理方式关闭 BGP" }
+        "log_neighbor_changes": {
+          "label": "记录邻居变化",
+          "desc": "记录邻居 up/down 及重置原因"
+        },
+        "always_compare_med": {
+          "label": "始终比较 MED",
+          "desc": "在所有路由间比较 MED，而不仅限于来自同一 AS 的路由"
+        },
+        "deterministic_med": {
+          "label": "确定性 MED",
+          "desc": "比较 MED 前按 AS 对路径分组"
+        },
+        "ebgp_requires_policy": {
+          "label": "eBGP 需要策略",
+          "desc": "eBGP 会话必须配置路由映射"
+        },
+        "graceful_shutdown": {
+          "label": "优雅关闭",
+          "desc": "启动优雅关闭流程"
+        },
+        "no_client_to_client_reflection": {
+          "label": "禁止客户端间反射",
+          "desc": "禁用 RR 客户端之间的路由反射"
+        },
+        "no_fast_external_failover": {
+          "label": "禁用快速外部故障切换",
+          "desc": "eBGP 链路断开时不进行快速故障切换"
+        },
+        "allow_martian_nexthop": {
+          "label": "允许 Martian 下一跳",
+          "desc": "允许 BGP 表中存在 martian 下一跳"
+        },
+        "disable_ebgp_connected_route_check": {
+          "label": "禁用 eBGP 直连检查",
+          "desc": "跳过 eBGP 对等体的直连路由检查"
+        },
+        "fast_convergence": {
+          "label": "快速收敛",
+          "desc": "变更后加快最佳路径选择"
+        },
+        "network_import_check": {
+          "label": "网络导入检查",
+          "desc": "通告前检查 BGP network 路由是否存在于 RIB 中"
+        },
+        "reject_as_sets": {
+          "label": "拒绝 AS-Set",
+          "desc": "拒绝带有 AS_SET 或 AS_CONFED_SET 的路由"
+        },
+        "route_reflector_allow_outbound_policy": {
+          "label": "RR 允许出站策略",
+          "desc": "对反射的路由应用出站策略"
+        },
+        "suppress_fib_pending": {
+          "label": "抑制 FIB 待定路由",
+          "desc": "不通告尚未安装到 FIB 的路由"
+        },
+        "no_suppress_duplicates": {
+          "label": "不抑制重复路由",
+          "desc": "不抑制重复的 BGP 路由"
+        },
+        "no_ipv6_auto_ra": {
+          "label": "禁用 IPv6 自动 RA",
+          "desc": "禁用 IPv6 自动路由器通告"
+        },
+        "shutdown": {
+          "label": "关闭",
+          "desc": "以管理方式关闭 BGP"
+        }
       },
       "bestpath": {
-        "as_path_confed": { "label": "AS-Path Confed", "desc": "比较路径长度时包含联盟段" },
-        "as_path_ignore": { "label": "AS-Path Ignore", "desc": "最佳路径选择时忽略 AS-path 长度" },
-        "as_path_multipath_relax": { "label": "AS-Path Multipath Relax", "desc": "允许在 AS 路径不同的多个提供商之间负载分担" },
-        "compare_routerid": { "label": "比较路由器 ID", "desc": "对相同的 eBGP 路径比较 router-id" },
-        "peer_type_multipath_relax": { "label": "Peer Type Multipath Relax", "desc": "允许在 iBGP 和 eBGP 路径之间负载分担" }
+        "as_path_confed": {
+          "label": "AS-Path Confed",
+          "desc": "比较路径长度时包含联盟段"
+        },
+        "as_path_ignore": {
+          "label": "AS-Path Ignore",
+          "desc": "最佳路径选择时忽略 AS-path 长度"
+        },
+        "as_path_multipath_relax": {
+          "label": "AS-Path Multipath Relax",
+          "desc": "允许在 AS 路径不同的多个提供商之间负载分担"
+        },
+        "compare_routerid": {
+          "label": "比较路由器 ID",
+          "desc": "对相同的 eBGP 路径比较 router-id"
+        },
+        "peer_type_multipath_relax": {
+          "label": "Peer Type Multipath Relax",
+          "desc": "允许在 iBGP 和 eBGP 路径之间负载分担"
+        }
       },
       "distance": {
         "external": "外部",
@@ -161,9 +227,7 @@
     "routeMapImport": "导入路由映射",
     "routeMapExport": "导出路由映射",
     "softReconfig": "入站软重配置",
-    "routeReflectorClient": "路由反射器客户端",
-    "creating": "正在创建...",
-    "saveChanges": "保存更改"
+    "routeReflectorClient": "路由反射器客户端"
   },
   "neighborModal": {
     "editTitle": "编辑 BGP 邻居",
@@ -177,7 +241,6 @@
     "addressHelp": "BGP 邻居的 IPv4 或 IPv6 地址。",
     "remoteAsPlaceholder": "例如 65001、\"internal\" 或 \"external\"",
     "remoteAsHelp": "自治系统号，或 \"internal\" / \"external\"。",
-    "descriptionPlaceholder": "可选描述",
     "peerGroupPlaceholder": "选择对等体组（可选）",
     "updateSourceHelp": "BGP 会话使用的源地址或接口。",
     "shutdownHelp": "以管理方式禁用此邻居。",

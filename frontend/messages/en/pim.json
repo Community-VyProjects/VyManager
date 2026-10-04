@@ -1,7 +1,5 @@
 {
   "adding": "Adding...",
-  "saveChanges": "Save Changes",
-  "addInterface": "Add Interface",
   "addRpAddress": "Add RP Address",
   "content": {
     "loadFailed": "Failed to load PIM configuration",
@@ -9,7 +7,6 @@
     "saveRpTimerFailed": "Failed to save RP timer",
     "title": "PIM Configuration",
     "subtitle": "Protocol Independent Multicast routing",
-    "readOnly": "Read Only",
     "statInterfaces": "Interfaces",
     "rpAddresses": "RP Addresses",
     "tabGeneral": "General",
@@ -44,7 +41,7 @@
     "flagNoBsm": "No BSM",
     "flagNoUbsm": "No UBSM",
     "igmpActive": "Active",
-    "igmpActiveJoins": "Active ({count} joins)",
+    "igmpActiveJoins": "{count, plural, one {Active (# join)} other {Active (# joins)}}",
     "rpKeepAliveTimer": "RP Keep Alive Timer (1-65535s)",
     "noRpAddresses": "No RP addresses configured",
     "noRpAddressesHint": "Add a Rendezvous Point address for PIM multicast routing.",
@@ -80,7 +77,6 @@
     "tabPim": "PIM Settings",
     "tabIgmp": "IGMP Settings",
     "interface": "Interface",
-    "selectInterface": "Select interface",
     "enableBfd": "Enable BFD (Bidirectional Forwarding Detection)",
     "bfdProfile": "BFD Profile",
     "bfdProfilePlaceholder": "Optional BFD profile name",

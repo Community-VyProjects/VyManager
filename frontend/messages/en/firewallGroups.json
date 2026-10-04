@@ -91,7 +91,6 @@
     "nameRequired": "Group name is required",
     "memberRequired": "At least one member or included group is required",
     "createFailed": "Failed to create group",
-    "creating": "Creating...",
     "submit": "Create Group"
   },
   "edit": {
@@ -107,8 +106,7 @@
     "memberExists": "Member \"{member}\" already exists",
     "memberQueued": "Member \"{member}\" is already queued to be added",
     "noChanges": "No changes to save",
-    "updateFailed": "Failed to update group",
-    "saveChanges": "Save Changes"
+    "updateFailed": "Failed to update group"
   },
   "delete": {
     "title": "Delete Firewall Group",

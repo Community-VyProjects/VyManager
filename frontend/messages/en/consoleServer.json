@@ -4,7 +4,6 @@
     "deleteDeviceFailed": "Failed to delete device.",
     "removeAllFailed": "Failed to remove configuration.",
     "title": "Console Server",
-    "readOnly": "Read Only",
     "subtitle": "Serial console server for remote out-of-band device access",
     "addDevice": "Add Device",
     "removeAll": "Remove All",
@@ -52,7 +51,6 @@
     "remoteAccessHint": "Enable SSH access to this serial console from the network.",
     "sshPort": "SSH Port",
     "sshPortPlaceholder": "e.g. 2300",
-    "sshPortHint": "Each device must have a unique port. Leave empty to disable SSH access.",
-    "saveChanges": "Save Changes"
+    "sshPortHint": "Each device must have a unique port. Leave empty to disable SSH access."
   }
 }

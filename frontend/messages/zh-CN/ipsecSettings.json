@@ -1,8 +1,6 @@
 {
   "shared": {
     "nameRequired": "名称为必填项",
-    "creating": "正在创建...",
-    "saveChanges": "保存更改",
     "lifetimeSeconds": "生存时间（秒）",
     "mode": "模式",
     "proposals": "提议",

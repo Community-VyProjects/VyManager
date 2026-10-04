@@ -4,7 +4,6 @@
     "deleteDeviceFailed": "删除设备失败。",
     "removeAllFailed": "移除配置失败。",
     "title": "控制台服务器",
-    "readOnly": "只读",
     "subtitle": "用于远程带外访问设备的串口控制台服务器",
     "addDevice": "添加设备",
     "removeAll": "全部移除",
@@ -52,7 +51,6 @@
     "remoteAccessHint": "允许从网络通过 SSH 访问此串口控制台。",
     "sshPort": "SSH 端口",
     "sshPortPlaceholder": "例如 2300",
-    "sshPortHint": "每个设备必须使用唯一的端口。留空则禁用 SSH 访问。",
-    "saveChanges": "保存更改"
+    "sshPortHint": "每个设备必须使用唯一的端口。留空则禁用 SSH 访问。"
   }
 }

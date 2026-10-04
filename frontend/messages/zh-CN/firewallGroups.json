@@ -91,7 +91,6 @@
     "nameRequired": "分组名称为必填项",
     "memberRequired": "至少需要一个成员或包含的分组",
     "createFailed": "创建分组失败",
-    "creating": "正在创建...",
     "submit": "创建分组"
   },
   "edit": {
@@ -107,8 +106,7 @@
     "memberExists": "成员“{member}”已存在",
     "memberQueued": "成员“{member}”已在待添加列表中",
     "noChanges": "没有需要保存的更改",
-    "updateFailed": "更新分组失败",
-    "saveChanges": "保存更改"
+    "updateFailed": "更新分组失败"
   },
   "delete": {
     "title": "删除防火墙分组",

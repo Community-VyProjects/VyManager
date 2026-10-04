@@ -8,7 +8,6 @@
     "saveSettings": "Failed to save settings"
   },
   "header": {
-    "readOnly": "Read Only",
     "subtitle": "Resource Public Key Infrastructure"
   },
   "stats": {
@@ -62,9 +61,7 @@
     "selectKey": "Select a key",
     "keyHelp": "Configured in PKI → OpenSSH",
     "sshUsername": "SSH Username",
-    "usernamePlaceholder": "e.g. rpki-user",
-    "creating": "Creating...",
-    "saveChanges": "Save Changes"
+    "usernamePlaceholder": "e.g. rpki-user"
   },
   "delete": {
     "title": "Delete RPKI Cache Server",

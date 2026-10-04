@@ -21,10 +21,7 @@
     "type1": "Type 1",
     "type2": "Type 2",
     "addArea": "Add Area",
-    "addInterface": "Add Interface",
     "addRedistribute": "Add Redistribute",
-    "saveChanges": "Save Changes",
-    "creating": "Creating...",
     "adding": "Adding..."
   },
   "values": {
@@ -37,7 +34,6 @@
   "page": {
     "title": "OSPFv3 Configuration",
     "subtitle": "Open Shortest Path First v3 for IPv6 routing",
-    "readOnly": "Read Only",
     "loadFailed": "Failed to load OSPFv3 configuration",
     "saveParametersFailed": "Failed to save parameters",
     "saveDefaultInfoFailed": "Failed to save default information",

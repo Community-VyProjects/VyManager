@@ -1,7 +1,6 @@
 {
   "content": {
     "loadFailed": "加载 NTP 配置失败",
-    "readOnly": "只读",
     "subtitle": "网络时间协议 — 将系统时间与上游服务器同步",
     "editSettings": "编辑设置",
     "servers": "服务器",

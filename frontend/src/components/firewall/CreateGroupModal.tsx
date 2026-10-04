@@ -454,7 +454,7 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? t("create.creating") : t("create.submit")}
+            {loading ? tc("creating") : t("create.submit")}
           </Button>
         </DialogFooter>
       </DialogContent>

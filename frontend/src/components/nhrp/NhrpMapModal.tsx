@@ -165,7 +165,7 @@ export function NhrpMapModal({
                 {isEditMode ? tc("saving") : t("adding")}
               </>
             ) : isEditMode ? (
-              t("saveChanges")
+              tc("saveChanges")
             ) : (
               t("mapModal.addMap")
             )}

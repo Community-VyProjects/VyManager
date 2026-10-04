@@ -26,7 +26,6 @@
     "notrack": "No Track"
   },
   "any": "Any",
-  "creating": "Creating...",
   "page": {
     "title": "Bridge Firewall",
     "totalRules": "{count, plural, one {# rule} other {# rules}} total",
@@ -116,7 +115,7 @@
     "ipAddressNetwork": "IP Address/Network",
     "ipPlaceholder": "e.g., 192.168.1.0/24",
     "negate": "Negate (match everything EXCEPT this address)",
-    "ports": "Port(s)",
+    "ports": "Ports",
     "portPlaceholder": "e.g., 80 or 80,443 or 1000-2000",
     "protocol": "Protocol",
     "tcpFlags": "TCP Flags",
@@ -171,7 +170,6 @@
     "mss1460": "1460 (Standard Ethernet)",
     "mss1400": "1400 (VPN/Tunnels)",
     "mss1360": "1360 (Double Encapsulation)",
-    "saveChanges": "Save Changes",
     "createRule": "Create Rule"
   },
   "ruleRow": {
@@ -211,7 +209,6 @@
     "chainName": "Chain Name *",
     "chainNamePlaceholder": "e.g., my-custom-chain",
     "chainNameHelp": "Must start with a letter. Only letters, numbers, underscores, and hyphens allowed.",
-    "descriptionPlaceholder": "Optional description",
     "defaultAction": "Default Action",
     "createChain": "Create Chain"
   },

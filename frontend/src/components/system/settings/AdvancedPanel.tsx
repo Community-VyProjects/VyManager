@@ -700,7 +700,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
             {editingCm && (
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => { setEditingCm(false); setCmError(null); }} disabled={cmSaving}>{tc("cancel")}</Button>
-                <Button size="sm" onClick={handleSaveCm} disabled={cmSaving}>{cmSaving ? t("saving") : tc("save")}</Button>
+                <Button size="sm" onClick={handleSaveCm} disabled={cmSaving}>{cmSaving ? tc("saving") : tc("save")}</Button>
               </div>
             )}
           </div>
@@ -803,7 +803,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button size="sm" onClick={handleAddSysctl} disabled={sysctlSaving}>{sysctlSaving ? t("saving") : t("sysctl.setButton")}</Button>
+                <Button size="sm" onClick={handleAddSysctl} disabled={sysctlSaving}>{sysctlSaving ? tc("saving") : t("sysctl.setButton")}</Button>
                 <Button size="sm" variant="outline" onClick={() => { setAddingSysctl(false); setSysctlError(null); }}>{tc("cancel")}</Button>
               </div>
             </div>
@@ -913,7 +913,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                         {editingConsole === d.device ? (
                           <div className="flex justify-end gap-2">
                             <Button size="sm" onClick={handleSaveConsoleDevice} disabled={consoleSaving}>
-                              {consoleSaving ? t("saving") : tc("save")}
+                              {consoleSaving ? tc("saving") : tc("save")}
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => { setEditingConsole(null); setConsoleError(null); }}>
                               {tc("cancel")}
@@ -967,7 +967,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                   {editingWd && (
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" onClick={() => { setEditingWd(false); setWdError(null); }} disabled={wdSaving}>{tc("cancel")}</Button>
-                      <Button size="sm" onClick={handleSaveWatchdog} disabled={wdSaving}>{wdSaving ? t("saving") : tc("save")}</Button>
+                      <Button size="sm" onClick={handleSaveWatchdog} disabled={wdSaving}>{wdSaving ? tc("saving") : tc("save")}</Button>
                     </div>
                   )}
                 </div>
@@ -1026,7 +1026,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                     </Select>
                     {!isReadOnly && (
                       <Button size="sm" onClick={handleSaveWireless} disabled={wirelessSaving}>
-                        {wirelessSaving ? t("saving") : tc("save")}
+                        {wirelessSaving ? tc("saving") : tc("save")}
                       </Button>
                     )}
                   </div>
@@ -1062,7 +1062,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                 </Select>
                 {!isReadOnly && (
                   <Button size="sm" onClick={handleSaveFrr} disabled={frrSaving}>
-                    {frrSaving ? t("saving") : tc("save")}
+                    {frrSaving ? tc("saving") : tc("save")}
                   </Button>
                 )}
               </div>
@@ -1175,7 +1175,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
             {editingOpts && (
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => { setEditingOpts(false); setOptsError(null); }} disabled={optsSaving}>{tc("cancel")}</Button>
-                <Button size="sm" onClick={handleSaveOptions} disabled={optsSaving}>{optsSaving ? t("saving") : tc("save")}</Button>
+                <Button size="sm" onClick={handleSaveOptions} disabled={optsSaving}>{optsSaving ? tc("saving") : tc("save")}</Button>
               </div>
             )}
           </div>
@@ -1332,7 +1332,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
               editingKernel ? (
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={() => { setEditingKernel(false); setKernelError(null); }} disabled={kernelSaving}>{tc("cancel")}</Button>
-                  <Button size="sm" onClick={handleSaveKernel} disabled={kernelSaving}>{kernelSaving ? t("saving") : tc("save")}</Button>
+                  <Button size="sm" onClick={handleSaveKernel} disabled={kernelSaving}>{kernelSaving ? tc("saving") : tc("save")}</Button>
                 </div>
               ) : (
                 <Button variant="outline" size="sm" onClick={startEditKernel}>
@@ -1493,7 +1493,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
             {editingLogs && (
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => { setEditingLogs(false); setLogsError(null); }} disabled={logsSaving}>{tc("cancel")}</Button>
-                <Button size="sm" onClick={handleSaveLogs} disabled={logsSaving}>{logsSaving ? t("saving") : tc("save")}</Button>
+                <Button size="sm" onClick={handleSaveLogs} disabled={logsSaving}>{logsSaving ? tc("saving") : tc("save")}</Button>
               </div>
             )}
           </div>
@@ -1562,7 +1562,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
               {editingUc && (
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={() => { setEditingUc(false); setUcError(null); }} disabled={ucSaving}>{tc("cancel")}</Button>
-                  <Button size="sm" onClick={handleSaveUc} disabled={ucSaving}>{ucSaving ? t("saving") : tc("save")}</Button>
+                  <Button size="sm" onClick={handleSaveUc} disabled={ucSaving}>{ucSaving ? tc("saving") : tc("save")}</Button>
                 </div>
               )}
             </div>
@@ -1619,7 +1619,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
               {editingProxy && (
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={() => { setEditingProxy(false); setProxyError(null); }} disabled={proxySaving}>{tc("cancel")}</Button>
-                  <Button size="sm" onClick={handleSaveProxy} disabled={proxySaving}>{proxySaving ? t("saving") : tc("save")}</Button>
+                  <Button size="sm" onClick={handleSaveProxy} disabled={proxySaving}>{proxySaving ? tc("saving") : tc("save")}</Button>
                 </div>
               )}
             </div>

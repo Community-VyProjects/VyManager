@@ -91,7 +91,6 @@
     "ciscoTftpServers": "Cisco TFTP Servers",
     "addSubnet": "Add Subnet"
   },
-  "optionalDescription": "Optional description",
   "networkModal": {
     "errors": {
       "nameRequired": "Network name is required",

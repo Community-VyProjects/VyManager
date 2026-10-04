@@ -295,7 +295,7 @@ export function TaskSchedulerPanel({ config, isReadOnly, onRefresh }: Props) {
           <DialogFooter>
             <Button variant="outline" onClick={() => setTaskModalOpen(false)} disabled={formSaving}>{tc("cancel")}</Button>
             <Button onClick={handleSave} disabled={formSaving}>
-              {formSaving ? t("saving") : editingTask ? t("scheduler.saveChanges") : t("scheduler.createTask")}
+              {formSaving ? tc("saving") : editingTask ? tc("saveChanges") : t("scheduler.createTask")}
             </Button>
           </DialogFooter>
         </DialogContent>

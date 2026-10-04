@@ -382,7 +382,7 @@ export function BabelContent() {
                 </p>
                 <Button size="sm" onClick={() => { setEditingInterface(null); setInterfaceModalOpen(true); }}>
                   <Plus className="h-4 w-4 mr-2" />
-                  {t("fields.addInterface")}
+                  {tc("addInterface")}
                 </Button>
               </div>
 
@@ -396,7 +396,7 @@ export function BabelContent() {
                     </p>
                     <Button size="sm" onClick={() => { setEditingInterface(null); setInterfaceModalOpen(true); }}>
                       <Plus className="h-4 w-4 mr-2" />
-                      {t("fields.addInterface")}
+                      {tc("addInterface")}
                     </Button>
                   </CardContent>
                 </Card>

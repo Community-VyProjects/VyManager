@@ -762,7 +762,7 @@ export function OpenvpnModal({
 
     setError(null);
     if (!name.trim()) {
-      setError(t("modal.nameRequired"));
+      setError(tc("interfaceNameRequired"));
       return;
     }
     if (existingNames.includes(name)) {
@@ -899,7 +899,7 @@ export function OpenvpnModal({
                 onValueChange={setRedirect}
                 id="redirect"
                 interfaces={availableInterfaces}
-                placeholder={t("modal.selectInterface")}
+                placeholder={tc("selectInterface")}
               />
             </div>
             <Separator />
@@ -1836,7 +1836,7 @@ export function OpenvpnModal({
                 onValueChange={setMirrorIngress}
                 id="mirrorIn"
                 interfaces={availableInterfaces}
-                placeholder={t("modal.selectInterface")}
+                placeholder={tc("selectInterface")}
               />
             </div>
             <div>
@@ -1846,7 +1846,7 @@ export function OpenvpnModal({
                 onValueChange={setMirrorEgress}
                 id="mirrorOut"
                 interfaces={availableInterfaces}
-                placeholder={t("modal.selectInterface")}
+                placeholder={tc("selectInterface")}
               />
             </div>
           </TabsContent>
@@ -1866,10 +1866,10 @@ export function OpenvpnModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? tc("saving") : t("modal.creating")}
+                {isEdit ? tc("saving") : tc("creating")}
               </>
             ) : isEdit ? (
-              t("modal.saveChanges")
+              tc("saveChanges")
             ) : (
               t("modal.createInterface")
             )}

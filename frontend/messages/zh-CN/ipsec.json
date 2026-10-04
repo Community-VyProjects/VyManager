@@ -47,7 +47,7 @@
       "liveStatus": "实时隧道状态",
       "tunnelsUp": "{up}/{total} 已建立",
       "bounceTitle": "重置隧道（重置对端）",
-      "deleteWarning": "该对端有 {count} 条隧道，也将一并删除。"
+      "deleteWarning": "{count, plural, one {该对端有 # 条隧道，也将一并删除。} other {该对端有 # 条隧道，也将一并删除。}}"
     },
     "ra": {
       "title": "远程访问连接",
@@ -119,9 +119,7 @@
     "localId": "本地 ID",
     "caCertificate": "CA 证书",
     "certificate": "证书",
-    "preSharedSecret": "预共享密钥",
-    "creating": "正在创建...",
-    "saveChanges": "保存更改"
+    "preSharedSecret": "预共享密钥"
   },
   "s2sModal": {
     "peerNameRequired": "对端名称为必填项",

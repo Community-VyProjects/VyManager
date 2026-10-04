@@ -7,7 +7,6 @@
   "addRoute": "Add Route",
   "destination": "Destination",
   "interface": "Interface",
-  "optionalDescription": "Optional description",
   "vxlanNetworkId": "VXLAN Network Identifier",
   "example": "e.g., {value}",
   "page": {
@@ -76,8 +75,8 @@
     "noProtocols": "No protocols or services configured. Use the tabs above to add them."
   },
   "staticRoutes": {
-    "nextHopCount": "{count} next-hop(s)",
-    "interfaceCount": "{count} interface(s)",
+    "nextHopCount": "{count, plural, one {# next-hop} other {# next-hops}}",
+    "interfaceCount": "{count, plural, one {# interface} other {# interfaces}}",
     "typeBlackhole": "blackhole",
     "typeReject": "reject",
     "typeEmpty": "empty",
@@ -88,7 +87,7 @@
     "noMatch": "No routes match your search",
     "noRoutes": "No {family} static routes configured",
     "type": "Type",
-    "targets": "Target(s)",
+    "targets": "Targets",
     "partial": "partial",
     "active": "active",
     "addTitle": "Add Static Route",

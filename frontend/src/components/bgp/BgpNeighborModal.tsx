@@ -495,7 +495,7 @@ export function BgpNeighborModal({
                     id="bgp-neighbor-description"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder={t("neighborModal.descriptionPlaceholder")}
+                    placeholder={tc("optionalDescription")}
                   />
                 </div>
 
@@ -1488,10 +1488,10 @@ export function BgpNeighborModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? tc("saving") : t("form.creating")}
+                {isEditMode ? tc("saving") : tc("creating")}
               </>
             ) : isEditMode ? (
-              t("form.saveChanges")
+              tc("saveChanges")
             ) : (
               t("neighborModal.submit")
             )}

@@ -160,6 +160,7 @@ export function NetworkSpeedCard({
   onConfigChange,
 }: NetworkSpeedCardProps) {
   const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const { status: sseStatus, data: sseData } = useDashboardData();
   const [ethernetConfig, setEthernetConfig] = useState<EthernetConfigResponse | null>(null);
@@ -290,7 +291,7 @@ export function NetworkSpeedCard({
                     variant="outline"
                     size="sm"
                     className="h-6 text-xs px-2 font-mono max-w-[120px] truncate"
-                    title={selectedIface || t("networkSpeed.selectInterfaceTitle")}
+                    title={selectedIface || tc("selectInterface")}
                   >
                     <Network className="h-3 w-3 mr-1 shrink-0" />
                     <span className="truncate">
@@ -299,7 +300,7 @@ export function NetworkSpeedCard({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
-                  <DropdownMenuLabel>{t("networkSpeed.selectInterface")}</DropdownMenuLabel>
+                  <DropdownMenuLabel>{tc("selectInterface")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {availableInterfaces.length === 0 ? (
                     <DropdownMenuItem disabled>{t("networkSpeed.noInterfacesAvailable")}</DropdownMenuItem>

@@ -33,14 +33,10 @@
     "namePlaceholder": "e.g., FT_LAN",
     "nameHintEdit": "Flowtable name cannot be changed. Delete and recreate to rename.",
     "nameHintCreate": "Must start with a letter. Use letters, numbers, hyphens, and underscores.",
-    "descriptionPlaceholder": "Optional description",
-    "selectInterface": "Select interface",
     "interfacesHint": "Select the network interfaces to include in this flowtable.",
     "offloadSoftware": "Software (kernel-based)",
     "offloadHardware": "Hardware (NIC-based)",
-    "offloadHint": "Software offload uses the kernel for processing. Hardware offload uses the NIC (requires compatible hardware).",
-    "creating": "Creating...",
-    "saveChanges": "Save Changes"
+    "offloadHint": "Software offload uses the kernel for processing. Hardware offload uses the NIC (requires compatible hardware)."
   },
   "delete": {
     "title": "Delete Flowtable",

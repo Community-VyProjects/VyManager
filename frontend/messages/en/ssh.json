@@ -1,7 +1,6 @@
 {
   "content": {
     "loadFailed": "Failed to load SSH configuration",
-    "readOnly": "Read Only",
     "subtitle": "Secure Shell — remote management access to this device",
     "connection": "Connection",
     "ports": "Ports",

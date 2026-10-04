@@ -2,7 +2,6 @@
   "content": {
     "loadFailed": "Failed to load event handler configuration",
     "title": "Event Handler",
-    "readOnly": "Read Only",
     "configured": "Configured",
     "unconfigured": "Unconfigured",
     "subtitle": "systemd-journal event triggers",
@@ -41,7 +40,6 @@
     "argumentsPlaceholder": "optional arguments passed to script",
     "addVariable": "Add Variable",
     "valuePlaceholder": "value",
-    "adding": "Adding...",
-    "saveChanges": "Save Changes"
+    "adding": "Adding..."
   }
 }

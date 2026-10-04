@@ -272,7 +272,7 @@ export function CreateZoneModal({
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder={t("zoneForm.descriptionPlaceholder")}
+                placeholder={tc("optionalDescription")}
                 disabled={loading}
               />
             </div>

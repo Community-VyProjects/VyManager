@@ -1,12 +1,9 @@
 {
   "adding": "Adding...",
-  "saveChanges": "Save Changes",
-  "addInterface": "Add Interface",
   "setupProxy": "Setup IGMP Proxy",
   "upstream": "Upstream",
   "downstream": "Downstream",
   "interface": "Interface",
-  "selectInterface": "Select interface",
   "ttlThreshold": "TTL Threshold",
   "thresholdPlaceholder": "1 (default)",
   "alternateSubnets": "Alternate Subnets",

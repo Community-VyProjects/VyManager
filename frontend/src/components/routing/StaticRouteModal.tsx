@@ -281,7 +281,7 @@ export function StaticRouteModal({
                 <Label className="text-base font-semibold">{t("modal.interfaceRoutes")}</Label>
                 <Button type="button" variant="outline" size="sm" onClick={addInterface}>
                   <Plus className="h-4 w-4 mr-2" />
-                  {t("modal.addInterface")}
+                  {tc("addInterface")}
                 </Button>
               </div>
 
@@ -303,7 +303,7 @@ export function StaticRouteModal({
                           value={iface.interface}
                           onValueChange={(value) => updateInterface(index, "interface", value)}
                           interfaces={availableInterfaces}
-                          placeholder={t("modal.selectInterface")}
+                          placeholder={tc("selectInterface")}
                         />
                       </div>
                       <div className="space-y-2">
@@ -428,7 +428,7 @@ export function StaticRouteModal({
                   onValueChange={(v) => patch({ dhcpInterface: v === "__none__" ? "" : v })}
                   interfaces={availableInterfaces}
                   noneOption={{ label: tc("none"), value: "__none__" }}
-                  placeholder={t("modal.selectInterface")}
+                  placeholder={tc("selectInterface")}
                 />
                 <p className="text-xs text-muted-foreground">
                   {t("modal.dhcpHelp")}
@@ -458,7 +458,7 @@ export function StaticRouteModal({
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? (isEdit ? t("modal.updating") : t("modal.creating")) : isEdit ? t("modal.updateRoute") : t("modal.createRoute")}
+            {loading ? (isEdit ? t("modal.updating") : tc("creating")) : isEdit ? t("modal.updateRoute") : t("modal.createRoute")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1189,7 +1189,7 @@ export function RouteMapRuleModal({
                         value={matchInterface || "__none__"}
                         onValueChange={(v) => setMatchInterface(v === "__none__" ? "" : v)}
                         noneOption={{ label: tc("none"), value: "__none__" }}
-                        placeholder={t("match.selectInterface")}
+                        placeholder={tc("selectInterface")}
                       />
                     </div>
                     <div className="space-y-2">
@@ -1956,7 +1956,7 @@ export function RouteMapRuleModal({
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? (isEdit ? tc("saving") : t("adding")) : isEdit ? t("saveChanges") : t("addRule")}
+            {loading ? (isEdit ? tc("saving") : t("adding")) : isEdit ? tc("saveChanges") : t("addRule")}
           </Button>
         </DialogFooter>
       </DialogContent>

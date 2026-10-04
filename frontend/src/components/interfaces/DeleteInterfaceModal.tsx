@@ -51,7 +51,7 @@ export function DeleteInterfaceModal({
               <AlertTriangle className="h-5 w-5 text-destructive" />
             </div>
             <div>
-              <DialogTitle>{t("deleteInterface.title")}</DialogTitle>
+              <DialogTitle>{tc("deleteInterface")}</DialogTitle>
             </div>
           </div>
           <DialogDescription className="pt-3">
@@ -73,7 +73,7 @@ export function DeleteInterfaceModal({
             disabled={isDeleting}
           >
             {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {t("deleteInterface.title")}
+            {tc("deleteInterface")}
           </Button>
         </DialogFooter>
       </DialogContent>

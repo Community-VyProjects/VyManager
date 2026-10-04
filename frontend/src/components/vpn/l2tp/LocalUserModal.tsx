@@ -158,7 +158,7 @@ export function LocalUserModal({
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("shared.creating")}</> : isEdit ? t("shared.saveChanges") : t("user.createUser")}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : tc("creating")}</> : isEdit ? tc("saveChanges") : t("user.createUser")}
           </Button>
         </DialogFooter>
       </DialogContent>

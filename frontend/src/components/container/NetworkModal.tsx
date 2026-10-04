@@ -161,7 +161,7 @@ export function NetworkModal({ open, onOpenChange, network, capabilities, onSubm
 
             <div className="space-y-2">
               <Label htmlFor="net-desc">{tc("description")}</Label>
-              <Input id="net-desc" value={description} onChange={e => setDescription(e.target.value)} placeholder={t("networkModal.descriptionPlaceholder")} />
+              <Input id="net-desc" value={description} onChange={e => setDescription(e.target.value)} placeholder={tc("optionalDescription")} />
             </div>
 
             {showType && typeOptions.length > 0 && (
@@ -265,8 +265,8 @@ export function NetworkModal({ open, onOpenChange, network, capabilities, onSubm
           <Button variant="outline" onClick={handleClose} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEditMode ? t("networkModal.saving") : t("networkModal.adding")}</>
-            ) : isEditMode ? t("networkModal.saveChanges") : t("networks.addNetwork")}
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEditMode ? tc("saving") : t("networkModal.adding")}</>
+            ) : isEditMode ? tc("saveChanges") : t("networks.addNetwork")}
           </Button>
         </DialogFooter>
       </DialogContent>

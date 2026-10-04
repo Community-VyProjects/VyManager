@@ -6,7 +6,6 @@
     "notAvailable": "OpenFabric is not available on this device.",
     "title": "OpenFabric Configuration",
     "subtitle": "OpenFabric routing protocol",
-    "readOnly": "Read Only",
     "domainsStat": "{count, plural, one {Domain} other {Domains}}",
     "interfacesStat": "{count, plural, one {Interface} other {Interfaces}}",
     "overviewTab": "Overview",
@@ -30,7 +29,6 @@
     "noDomains": "No domains configured",
     "auto": "Auto",
     "selectDomain": "Select domain",
-    "addInterface": "Add Interface",
     "selectDomainHint": "Select a domain to view its interfaces.",
     "addressFamily": "Address Family",
     "metric": "Metric",
@@ -41,7 +39,6 @@
     "no": "No",
     "deleteDomainTitle": "Delete Domain",
     "deleteDomainDescription": "Are you sure you want to delete domain \"{name}\"? This will remove all interfaces and settings within this domain.",
-    "deleteInterfaceTitle": "Delete Interface",
     "deleteInterfaceDescription": "Are you sure you want to remove interface \"{name}\" from domain \"{domain}\"?"
   },
   "modal": {
@@ -52,8 +49,7 @@
     "plaintext": "Plaintext",
     "password": "Password",
     "md5Password": "MD5 password",
-    "plaintextPassword": "Plaintext password",
-    "saveChanges": "Save Changes"
+    "plaintextPassword": "Plaintext password"
   },
   "domainModal": {
     "editTitle": "Edit OpenFabric Domain",
@@ -84,7 +80,6 @@
     "selectRequired": "Please select an interface",
     "saveFailed": "Failed to save interface",
     "interface": "Interface",
-    "selectInterface": "Select interface",
     "addressFamily": "Address Family",
     "metric": "Metric",
     "passive": "Passive (suppress hellos)",
@@ -93,7 +88,6 @@
     "helloMultiplier": "Hello Multiplier",
     "psnpInterval": "PSNP Interval (s)",
     "defaultWithValue": "Default ({value})",
-    "authHelp": "Configure per-interface authentication for OpenFabric.",
-    "submit": "Add Interface"
+    "authHelp": "Configure per-interface authentication for OpenFabric."
   }
 }

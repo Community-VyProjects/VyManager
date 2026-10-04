@@ -71,7 +71,6 @@
     "updateFailed": "更新规则失败",
     "addFailed": "添加规则失败",
     "adding": "正在添加...",
-    "saveChanges": "保存更改",
     "addRule": "添加规则"
   },
   "row": {
@@ -98,7 +97,6 @@
     "descriptionPlaceholder": "输入访问列表描述（可选）",
     "defaultRuleNumber": "默认起始规则编号",
     "failed": "创建访问列表失败",
-    "creating": "正在创建...",
     "submit": "创建访问列表"
   },
   "edit": {

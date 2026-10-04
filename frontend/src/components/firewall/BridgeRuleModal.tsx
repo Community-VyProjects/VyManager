@@ -1096,10 +1096,10 @@ export function BridgeRuleModal({
             {saving ? (
               <>
                 <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" />
-                {isEdit ? tc("saving") : t("creating")}
+                {isEdit ? tc("saving") : tc("creating")}
               </>
             ) : isEdit ? (
-              t("ruleModal.saveChanges")
+              tc("saveChanges")
             ) : (
               t("ruleModal.createRule")
             )}

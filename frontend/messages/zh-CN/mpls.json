@@ -1,6 +1,5 @@
 {
   "confirmDelete": "确认删除",
-  "saveChanges": "保存更改",
   "adding": "正在添加...",
   "errors": {
     "loadConfig": "加载 MPLS 配置失败",
@@ -13,7 +12,6 @@
     "saveLdpFilters": "保存 LDP 过滤器失败"
   },
   "header": {
-    "readOnly": "只读",
     "subtitle": "多协议标签交换与标签分发协议"
   },
   "stats": {
@@ -78,7 +76,6 @@
   },
   "ldpInterfaces": {
     "description": "参与 LDP 邻居发现的接口",
-    "add": "添加接口",
     "empty": "尚未配置 LDP 接口",
     "emptyHint": "添加接口以启用 LDP 邻居发现",
     "interface": "接口",
@@ -123,7 +120,6 @@
     "helloInterval": "Hello 间隔"
   },
   "interfaceModal": {
-    "nameRequired": "接口名称为必填项",
     "editTitle": "编辑 LDP 接口",
     "addTitle": "添加 LDP 接口",
     "selectPlaceholder": "选择接口...",

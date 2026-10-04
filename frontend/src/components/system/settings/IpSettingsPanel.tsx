@@ -130,7 +130,7 @@ export function IpSettingsPanel({ config, isReadOnly, onRefresh }: Props) {
               editingIp ? (
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={() => { setEditingIp(false); setIpError(null); }} disabled={ipSaving}>{tc("cancel")}</Button>
-                  <Button size="sm" onClick={handleSaveIp} disabled={ipSaving}>{ipSaving ? t("general.saving") : tc("save")}</Button>
+                  <Button size="sm" onClick={handleSaveIp} disabled={ipSaving}>{ipSaving ? tc("saving") : tc("save")}</Button>
                 </div>
               ) : (
                 <Button variant="outline" size="sm" onClick={startEditIp}>
@@ -201,7 +201,7 @@ export function IpSettingsPanel({ config, isReadOnly, onRefresh }: Props) {
               editingIpv6 ? (
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={() => { setEditingIpv6(false); setIpv6Error(null); }} disabled={ipv6Saving}>{tc("cancel")}</Button>
-                  <Button size="sm" onClick={handleSaveIpv6} disabled={ipv6Saving}>{ipv6Saving ? t("general.saving") : tc("save")}</Button>
+                  <Button size="sm" onClick={handleSaveIpv6} disabled={ipv6Saving}>{ipv6Saving ? tc("saving") : tc("save")}</Button>
                 </div>
               ) : (
                 <Button variant="outline" size="sm" onClick={startEditIpv6}>

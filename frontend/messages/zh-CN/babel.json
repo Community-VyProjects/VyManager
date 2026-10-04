@@ -4,10 +4,7 @@
     "type": "类型",
     "channel": "信道",
     "splitHorizon": "水平分割",
-    "editParameters": "编辑参数",
-    "addInterface": "添加接口",
-    "saveChanges": "保存更改",
-    "creating": "正在创建..."
+    "editParameters": "编辑参数"
   },
   "values": {
     "default": "默认",
@@ -78,8 +75,7 @@
   },
   "delete": {
     "title": "删除 Babel 接口",
-    "description": "确定要删除 Babel 接口 <mono>{name}</mono> 吗？此操作无法撤销。",
-    "confirm": "删除接口"
+    "description": "确定要删除 Babel 接口 <mono>{name}</mono> 吗？此操作无法撤销。"
   },
   "interfaceModal": {
     "titleEdit": "编辑 Babel 接口",

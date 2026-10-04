@@ -4,7 +4,6 @@
     "portDefault": "{port} (default)",
     "port": "Port",
     "loadFailed": "Failed to load SLA configuration",
-    "readOnly": "Read Only",
     "subtitle": "Service Level Agreement — OWAMP and TWAMP measurement servers",
     "editSettings": "Edit Settings",
     "enabledCount": "{count, plural, =0 {No measurement servers enabled} one {# measurement server enabled} other {# measurement servers enabled}}",

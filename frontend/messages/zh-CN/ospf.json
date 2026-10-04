@@ -20,10 +20,7 @@
     "type1": "类型 1",
     "type2": "类型 2",
     "addArea": "添加区域",
-    "addInterface": "添加接口",
     "addRedistribute": "添加重分发",
-    "saveChanges": "保存更改",
-    "creating": "正在创建...",
     "adding": "正在添加..."
   },
   "values": {
@@ -38,7 +35,6 @@
   "page": {
     "title": "OSPF 配置",
     "subtitle": "开放最短路径优先路由协议",
-    "readOnly": "只读",
     "loadFailed": "加载 OSPF 配置失败",
     "saveParametersFailed": "保存参数失败",
     "saveDefaultInfoFailed": "保存默认信息发布设置失败",

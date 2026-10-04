@@ -21,7 +21,6 @@
     "disableInterface": "禁用接口"
   },
   "basic": {
-    "descriptionPlaceholder": "可选描述",
     "mtuDefault": "默认 (1430)",
     "mtu1280": "1280 — IPv6 最小值",
     "mtu1400": "1400 — VPN 常用",
@@ -108,21 +107,17 @@
     "redirectTo": "重定向到"
   },
   "errors": {
-    "nameRequired": "接口名称为必填项",
     "namePattern": "名称必须为 wwan0、wwan1、wwan2……",
     "nameExists": "接口 {name} 已存在",
     "createFailed": "创建 WWAN 接口失败",
     "updateFailed": "更新 WWAN 接口失败",
     "deleteFailed": "删除 WWAN 接口失败"
   },
-  "creating": "正在创建...",
-  "saveChanges": "保存更改",
   "createInterface": "创建接口",
   "delete": {
     "title": "删除接口：{name}",
     "description": "确定要删除此移动网络接口 (WWAN) 吗？此操作无法撤销。",
     "apn": "APN：<em>{apn}</em>",
-    "addressCount": "{count} 个地址",
-    "confirm": "删除接口"
+    "addressCount": "{count} 个地址"
   }
 }

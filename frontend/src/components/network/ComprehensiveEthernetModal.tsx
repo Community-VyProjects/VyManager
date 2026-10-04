@@ -665,7 +665,7 @@ export function ComprehensiveEthernetModal({
     try {
       if (mode === "create") {
         if (!interfaceName.trim()) {
-          throw new Error(t("modal.nameRequired"));
+          throw new Error(tc("interfaceNameRequired"));
         }
 
         const operations = buildOperations();
@@ -1761,7 +1761,7 @@ export function ComprehensiveEthernetModal({
               disabled={loading || (mode === "create" && (loadingInterfaces || availableInterfaces.length === 0))}
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {mode === "create" ? t("modal.createInterface") : t("modal.saveChanges")}
+              {mode === "create" ? t("modal.createInterface") : tc("saveChanges")}
             </Button>
           </DialogFooter>
         </form>

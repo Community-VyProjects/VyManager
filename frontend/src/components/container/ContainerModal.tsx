@@ -503,7 +503,7 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
 
                 <div className="space-y-2">
                   <Label htmlFor="c-desc">{tc("description")}</Label>
-                  <Input id="c-desc" value={description} onChange={e => setDescription(e.target.value)} placeholder={t("modal.descriptionPlaceholder")} />
+                  <Input id="c-desc" value={description} onChange={e => setDescription(e.target.value)} placeholder={tc("optionalDescription")} />
                 </div>
 
                 <div className="space-y-2">
@@ -947,8 +947,8 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
           <Button variant="outline" onClick={handleClose} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEditMode ? t("modal.saving") : t("modal.adding")}</>
-            ) : isEditMode ? t("modal.saveChanges") : t("modal.addTitle")}
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEditMode ? tc("saving") : t("modal.adding")}</>
+            ) : isEditMode ? tc("saveChanges") : t("modal.addTitle")}
           </Button>
         </DialogFooter>
       </DialogContent>

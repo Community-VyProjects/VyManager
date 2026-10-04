@@ -1,6 +1,5 @@
 {
   "failedToLoad": "加载 QoS 配置失败",
-  "readOnly": "只读",
   "subtitle": "服务质量 — 对流量进行整形、优先级排序和管制",
   "policies": "流量策略",
   "interfaces": "接口",
@@ -50,7 +49,7 @@
     "none": "没有启用 QoS 的接口"
   },
   "cake": {
-    "drops": "{count} 个丢包",
+    "drops": "{count, plural, one {# 个丢包} other {# 个丢包}}",
     "noDrops": "无丢包",
     "throughput": "吞吐量",
     "tin": "Tin",

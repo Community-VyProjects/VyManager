@@ -310,7 +310,7 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEditing ? t("modal.saveChanges") : t("content.addDevice")}
+            {isEditing ? tc("saveChanges") : t("content.addDevice")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -6,9 +6,7 @@
   "loadingConfig": "正在加载 IPoE 配置...",
   "yes": "是",
   "no": "否",
-  "saveChanges": "保存更改",
   "adding": "正在添加...",
-  "creating": "正在创建...",
   "createPool": "创建地址池",
   "poolName": "地址池名称",
   "poolNameRequired": "地址池名称为必填项",
@@ -58,7 +56,6 @@
   },
   "interfaces": {
     "title": "服务器接口",
-    "add": "添加接口",
     "empty": "未配置接口",
     "interface": "接口",
     "mode": "模式",
@@ -185,10 +182,8 @@
     "addEntry": "添加条目"
   },
   "interfaceModal": {
-    "addTitle": "添加接口",
     "editTitle": "编辑接口",
     "description": "配置 IPoE 服务器接口。",
-    "nameRequired": "接口名称为必填项",
     "saveFailed": "保存接口失败",
     "interfaceName": "接口名称",
     "mode": "模式",

@@ -2,7 +2,6 @@
   "example": "e.g. {value}",
   "header": {
     "title": "RIP Protocol",
-    "readOnly": "Read Only",
     "subtitle": "Routing Information Protocol — distance-vector routing"
   },
   "errors": {
@@ -60,7 +59,6 @@
   },
   "interfaces": {
     "description": "Per-interface authentication, version, and split-horizon settings",
-    "addInterface": "Add Interface",
     "empty": "No interface settings configured",
     "emptyHint": "Add one to configure authentication or split-horizon.",
     "interface": "Interface",
@@ -103,7 +101,6 @@
   },
   "modal": {
     "adding": "Adding...",
-    "saveChanges": "Save Changes",
     "optionalHint": "(optional)"
   },
   "validation": {
@@ -141,7 +138,6 @@
     "editTitle": "Edit Interface Filter",
     "addTitle": "Add Interface Filter",
     "description": "Configure distribute list filters for a specific interface.",
-    "selectInterface": "Select interface",
     "addFilter": "Add Filter"
   },
   "ndModal": {

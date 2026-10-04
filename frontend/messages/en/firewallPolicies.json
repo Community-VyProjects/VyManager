@@ -88,7 +88,6 @@
     "actionReject": "Reject",
     "actionReturn": "Return",
     "defaultActionHint": "Action to take if no rules match in this chain",
-    "creating": "Creating...",
     "submit": "Create Chain",
     "nameRequired": "Chain name is required",
     "nameInvalid": "Chain name must start with a letter and contain only letters, numbers, hyphens, and underscores",

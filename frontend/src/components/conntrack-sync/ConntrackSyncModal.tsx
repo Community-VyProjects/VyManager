@@ -256,7 +256,7 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
                             iface.name === row.name ||
                             !ifaceRows.some((r) => r.key !== row.key && r.name === iface.name)
                         )}
-                        placeholder={t("modal.selectInterface")}
+                        placeholder={tc("selectInterface")}
                         emptyText={t("modal.noInterfacesFound")}
                       />
                     </div>
@@ -292,7 +292,7 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
 
                 <Button variant="outline" size="sm" className="mt-1" onClick={addIfaceRow}>
                   <Plus className="h-4 w-4 mr-1.5" />
-                  {t("modal.addInterface")}
+                  {tc("addInterface")}
                 </Button>
               </div>
             </ScrollArea>

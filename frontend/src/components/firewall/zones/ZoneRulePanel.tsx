@@ -1173,7 +1173,7 @@ export function ZoneRulePanel({
                   <Input
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder={t("zoneForm.descriptionPlaceholder")}
+                    placeholder={tc("optionalDescription")}
                     className="h-8 text-xs"
                     disabled={!canEdit}
                   />
@@ -2100,7 +2100,7 @@ export function ZoneRulePanel({
                     disabled={loading || !resolvedChain}
                   >
                     {loading && <RefreshCw className="h-3 w-3 animate-spin mr-1" />}
-                    {mode === "create" ? t("rulePanel.createRule") : t("editZone.saveChanges")}
+                    {mode === "create" ? t("rulePanel.createRule") : tc("saveChanges")}
                   </Button>
                 )}
               </div>

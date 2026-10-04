@@ -152,8 +152,8 @@ export function DHCPServerSettingsModal({
               <InterfaceSelect
                 value={ifacePick}
                 onValueChange={addInterface}
-                noneOption={{ label: t("settings.addInterface"), value: "__none__" }}
-                placeholder={t("settings.selectInterface")}
+                noneOption={{ label: tc("addInterface"), value: "__none__" }}
+                placeholder={tc("selectInterface")}
               />
               <div className="flex flex-wrap gap-1.5">
                 {listenInterfaces.map((iface) => (

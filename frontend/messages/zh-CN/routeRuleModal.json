@@ -166,8 +166,6 @@
     "tcpMssHelp": "TCP 最大报文段长度"
   },
   "buttons": {
-    "creating": "正在创建...",
-    "saveChanges": "保存更改",
     "createRule": "创建规则"
   }
 }

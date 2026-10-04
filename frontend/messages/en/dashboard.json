@@ -148,9 +148,7 @@
   },
   "networkSpeed": {
     "title": "Network Speed",
-    "selectInterfaceTitle": "Select interface",
     "selectShort": "Select…",
-    "selectInterface": "Select Interface",
     "noInterfacesAvailable": "No interfaces available",
     "now": "now",
     "download": "↓ Download",
@@ -182,7 +180,7 @@
     "streamDisconnected": "Dashboard stream disconnected",
     "notApplied": "QoS is not applied to any interface. Attach a policy to an interface to see live traffic here.",
     "stale": "“{name}” no longer has QoS applied — showing all interfaces.",
-    "drops": "{count} drops",
+    "drops": "{count, plural, one {# drop} other {# drops}}",
     "noDrops": "no drops",
     "classTooltip": "{bytes} · {packets} pkts",
     "classTooltipDrops": "{bytes} · {packets} pkts · {drops} drops"

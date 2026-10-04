@@ -231,7 +231,7 @@ export function UserModal({ open, onOpenChange, onSuccess, existing }: UserModal
               {loading
                 ? isEdit
                   ? t("form.updating")
-                  : t("form.creating")
+                  : tc("creating")
                 : isEdit
                   ? t("form.updateSubmit")
                   : t("form.createTitle")}

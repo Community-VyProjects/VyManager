@@ -4,7 +4,6 @@
     "editTitle": "编辑接口：{name}",
     "createDescription": "使用高级设置配置新的以太网接口",
     "editDescription": "修改此以太网接口的配置",
-    "nameRequired": "接口名称为必填项",
     "noChanges": "未检测到任何更改",
     "createFailed": "创建接口失败",
     "editFailed": "编辑接口失败",
@@ -100,11 +99,9 @@
     "adaptiveTx": "自适应 TX",
     "cqeModeRx": "CQE 模式 RX",
     "cqeModeTx": "CQE 模式 TX",
-    "createInterface": "创建接口",
-    "saveChanges": "保存更改"
+    "createInterface": "创建接口"
   },
   "delete": {
-    "title": "删除接口",
     "confirm": "确定要删除此接口吗？此操作无法撤销。",
     "failed": "删除接口失败",
     "interface": "接口：",
