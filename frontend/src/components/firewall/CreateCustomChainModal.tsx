@@ -22,7 +22,6 @@ import {
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { firewallIPv4Service } from "@/lib/api/firewall-ipv4";
 import { firewallIPv6Service } from "@/lib/api/firewall-ipv6";
-import { chainDefaultActions } from "@/lib/firewall-default-actions";
 
 interface CreateCustomChainModalProps {
   open: boolean;
@@ -152,11 +151,10 @@ export function CreateCustomChainModal({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {chainDefaultActions(["drop", "accept", "reject"], true).map((action) => (
-                  <SelectItem key={action} value={action}>
-                    {action.charAt(0).toUpperCase() + action.slice(1)}
-                  </SelectItem>
-                ))}
+                <SelectItem value="drop">Drop</SelectItem>
+                <SelectItem value="accept">Accept</SelectItem>
+                <SelectItem value="reject">Reject</SelectItem>
+                <SelectItem value="return">Return</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">

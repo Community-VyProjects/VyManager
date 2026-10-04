@@ -56,7 +56,6 @@ import {
   type BridgeChain,
 } from "@/lib/api/firewall-bridge";
 import { firewallFeatureSupported } from "@/lib/api/firewall-capability-gates";
-import { chainDefaultActions } from "@/lib/firewall-default-actions";
 import { cn } from "@/lib/utils";
 import { BridgeRuleModal } from "@/components/firewall/BridgeRuleModal";
 import { DeleteBridgeRuleModal } from "@/components/firewall/DeleteBridgeRuleModal";
@@ -696,11 +695,8 @@ export default function BridgeFirewallPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="not_set">Not Set</SelectItem>
-                    {chainDefaultActions(["accept", "drop"], isCustomChain).map((action) => (
-                      <SelectItem key={action} value={action}>
-                        {action.charAt(0).toUpperCase() + action.slice(1)}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="accept">Accept</SelectItem>
+                    <SelectItem value="drop">Drop</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

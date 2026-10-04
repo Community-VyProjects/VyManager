@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/select";
 import { RefreshCw, AlertCircle } from "lucide-react";
 import { bridgeFirewallService } from "@/lib/api/firewall-bridge";
-import { chainDefaultActions } from "@/lib/firewall-default-actions";
 
 interface CreateCustomBridgeChainModalProps {
   open: boolean;
@@ -144,11 +143,8 @@ export function CreateCustomBridgeChainModal({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="_none_">Not Set</SelectItem>
-                {chainDefaultActions(["accept", "drop"], true).map((action) => (
-                  <SelectItem key={action} value={action}>
-                    {action.charAt(0).toUpperCase() + action.slice(1)}
-                  </SelectItem>
-                ))}
+                <SelectItem value="accept">Accept</SelectItem>
+                <SelectItem value="drop">Drop</SelectItem>
               </SelectContent>
             </Select>
           </div>
