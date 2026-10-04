@@ -139,7 +139,7 @@ export function proseParenPlurals(source: string): string[] {
     let text = "";
     while (index < line.length) {
       const rest = line.slice(index);
-      if (expressionDepth > 0 && elementDepth === 0) {
+      if (expressionDepth > 0) {
         if (rest.startsWith("{")) expressionDepth++;
         else if (rest.startsWith("}")) expressionDepth = Math.max(0, expressionDepth - 1);
         else if (rest.startsWith("<") && /[A-Za-z/]/.test(rest[1] ?? "") && /\s|[=({\[]/.test(line[index - 1] ?? " ")) {
@@ -337,9 +337,10 @@ describe("message catalogs", () => {
     assert.deepEqual(proseParenPlurals("<ul>{items.map((r) => <li>route(s)</li>)}</ul>"), ["route(s)"]);
     assert.deepEqual(proseParenPlurals("<div>{ready && (\n<p>Delete route(s)</p>\n)}</div>"), ["route(s)"]);
     assert.deepEqual(proseParenPlurals("const f = <T>(x: T) => x;\nreturn sources.includes(s);"), []);
-    assert.deepEqual(proseParenPlurals("<span>{format(n)}</span>"), []);
-    assert.deepEqual(proseParenPlurals("<span>{x < y ? fmt(n) : b}</span>"), []);
-    assert.deepEqual(proseParenPlurals("<span>{ok ? <Icon /> : format(n)}</span>"), []);
+    assert.deepEqual(proseParenPlurals("<span>{x < y ? fmt(s) : b}</span>"), []);
+    assert.deepEqual(proseParenPlurals("<span>{ok ? <Icon /> : format(s)}</span>"), []);
+    assert.deepEqual(proseParenPlurals("<span>{format(s)}</span>"), []);
+    assert.deepEqual(proseParenPlurals("<Row onChange={handle(s)} />\nif (sources.includes(s)) {"), []);
     assert.deepEqual(proseParenPlurals("<Row onChange={(s) => pick(s)} />\nif (sources.includes(s)) {"), []);
     assert.deepEqual(proseParenPlurals("`${m}:${String(s).padStart(2, \"0\")}`"), []);
     assert.deepEqual(proseParenPlurals("// remove the old row(s)"), []);
