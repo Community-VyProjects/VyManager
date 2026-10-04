@@ -770,10 +770,10 @@ class LoadBalancingBatchBuilder(BatchBuilder):
         return self.add_set(self._m().get_wan_rule_destination_group_port_path(name, value))
 
     def delete_wan_rule_source_group(self, name: str) -> "LoadBalancingBatchBuilder":
-        return self.add_delete(self._m().get_wan_rule_source_path(name) + ["group"])
+        return self.add_delete(self._m().get_wan_rule_source_group_delete_path(name))
 
     def delete_wan_rule_destination_group(self, name: str) -> "LoadBalancingBatchBuilder":
-        return self.add_delete(self._m().get_wan_rule_destination_path(name) + ["group"])
+        return self.add_delete(self._m().get_wan_rule_destination_group_delete_path(name))
 
     # =========================================================================
     # Capabilities
