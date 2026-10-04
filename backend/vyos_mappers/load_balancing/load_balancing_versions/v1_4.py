@@ -18,6 +18,7 @@ class LoadBalancingMapperV1_4:
     - Log facility allows extra values: all, authpriv, mark
     - Log level allows extra value: all
     - No source/destination group matching on WAN rules
+    - No global or service timeout nodes (those exist under haproxy only)
     """
 
     def supports_http_compression(self) -> bool:
@@ -34,6 +35,30 @@ class LoadBalancingMapperV1_4:
 
     def supports_wan_rule_groups(self) -> bool:
         return False
+
+    def supports_rp_timeout(self) -> bool:
+        return False
+
+    def get_rp_timeout_base(self):
+        _unsupported("timeout")
+
+    def get_rp_timeout_check_path(self, value: str):
+        _unsupported("timeout")
+
+    def get_rp_timeout_client_path(self, value: str):
+        _unsupported("timeout")
+
+    def get_rp_timeout_connect_path(self, value: str):
+        _unsupported("timeout")
+
+    def get_rp_timeout_server_path(self, value: str):
+        _unsupported("timeout")
+
+    def get_rp_service_timeout_client_path(self, name: str, value: str):
+        _unsupported("service timeout")
+
+    def get_rp_service_timeout_path(self, name: str):
+        _unsupported("service timeout")
 
     def get_rp_service_http_compression_path(self, name: str):
         _unsupported("http-compression")

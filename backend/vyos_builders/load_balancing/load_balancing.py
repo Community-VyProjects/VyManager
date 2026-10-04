@@ -815,5 +815,9 @@ class LoadBalancingBatchBuilder(BatchBuilder):
                     "supported": m.supports_wan_rule_groups(),
                     "description": "Firewall group matching in WAN rules",
                 },
+                "rp_timeout": {
+                    "supported": m.supports_rp_timeout(),
+                    "description": "HAProxy global and service timeouts",
+                },
             },
         }

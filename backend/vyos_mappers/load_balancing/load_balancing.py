@@ -467,6 +467,9 @@ class LoadBalancingMapper:
     def supports_wan_rule_groups(self) -> bool:
         return True
 
+    def supports_rp_timeout(self) -> bool:
+        return True
+
     def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
         lb_config = full_config.get("load-balancing", {})
         return {
