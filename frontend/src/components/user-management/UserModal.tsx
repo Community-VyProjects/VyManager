@@ -112,7 +112,7 @@ export function UserModal({ open, onOpenChange, onSuccess, existing }: UserModal
             </Label>
             <Input
               id="name"
-              placeholder="John Doe"
+              placeholder={t("form.namePlaceholder")}
               value={draft.name}
               onChange={(e) => patch({ name: e.target.value })}
               disabled={loading}

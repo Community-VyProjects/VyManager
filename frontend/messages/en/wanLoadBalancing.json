@@ -75,7 +75,8 @@
     "type": "Type",
     "userDefined": "User Defined",
     "script": "Script",
-    "target": "Target"
+    "target": "Target",
+    "testPing": "Ping"
   },
   "ruleModal": {
     "groupName": "Group name",

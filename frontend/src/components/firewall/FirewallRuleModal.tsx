@@ -1778,12 +1778,12 @@ export function FirewallRuleModal({
                   <SelectContent>
                     <SelectItem value="tcp">TCP</SelectItem>
                     <SelectItem value="udp">UDP</SelectItem>
-                    <SelectItem value="tcp_udp">TCP & UDP</SelectItem>
+                    <SelectItem value="tcp_udp">{tc("shown.tcpUdp")}</SelectItem>
                   </SelectContent>
                 ) : (
                   <SelectContent className="max-h-[300px]">
                     <SelectItem value="all">{t("basic.allDefault")}</SelectItem>
-                    <SelectItem value="tcp_udp">TCP & UDP</SelectItem>
+                    <SelectItem value="tcp_udp">{tc("shown.tcpUdp")}</SelectItem>
                     <SelectItem value="tcp">TCP</SelectItem>
                     <SelectItem value="udp">UDP</SelectItem>
                     <SelectItem value="icmp">ICMP</SelectItem>
@@ -1806,7 +1806,7 @@ export function FirewallRuleModal({
                     <SelectItem value="egp">EGP</SelectItem>
                     <SelectItem value="encap">ENCAP</SelectItem>
                     <SelectItem value="etherip">EtherIP</SelectItem>
-                    <SelectItem value="ethernet">Ethernet</SelectItem>
+                    <SelectItem value="ethernet">{t("protocolLabels.ethernet")}</SelectItem>
                     <SelectItem value="fc">FC</SelectItem>
                     <SelectItem value="ggp">GGP</SelectItem>
                     <SelectItem value="hip">HIP</SelectItem>
@@ -1818,13 +1818,17 @@ export function FirewallRuleModal({
                     <SelectItem value="ip">IP</SelectItem>
                     <SelectItem value="ipcomp">IPComp</SelectItem>
                     <SelectItem value="ipencap">IP-ENCAP</SelectItem>
+                    {/* eslint-disable-next-line vymanager/no-untranslated-text -- protocol keyword as written in /etc/protocols */}
                     <SelectItem value="ipv6-frag">IPv6-Frag</SelectItem>
                     <SelectItem value="ipv6-nonxt">IPv6-NoNxt</SelectItem>
+                    {/* eslint-disable-next-line vymanager/no-untranslated-text -- protocol keyword as written in /etc/protocols */}
                     <SelectItem value="ipv6-opts">IPv6-Opts</SelectItem>
+                    {/* eslint-disable-next-line vymanager/no-untranslated-text -- protocol keyword as written in /etc/protocols */}
                     <SelectItem value="ipv6-route">IPv6-Route</SelectItem>
                     <SelectItem value="isis">ISIS</SelectItem>
                     <SelectItem value="iso-tp4">ISO-TP4</SelectItem>
                     <SelectItem value="manet">MANET</SelectItem>
+                    {/* eslint-disable-next-line vymanager/no-untranslated-text -- protocol keyword as written in /etc/protocols */}
                     <SelectItem value="mobility-header">Mobility-Header</SelectItem>
                     <SelectItem value="mpls-in-ip">MPLS-in-IP</SelectItem>
                     <SelectItem value="mptcp">MPTCP</SelectItem>
@@ -2931,6 +2935,7 @@ export function FirewallRuleModal({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="timeWeekdays">{t("limits.weekdays")}</Label>
+                {/* eslint-disable-next-line vymanager/no-untranslated-text -- VyOS weekday names, typed in English */}
                 <Input id="timeWeekdays" value={timeWeekdays} onChange={(e) => setTimeWeekdays(e.target.value)} placeholder="Monday,Tuesday,Wednesday" />
                 <p className="text-xs text-muted-foreground">{t("limits.weekdaysHint")}</p>
               </div>

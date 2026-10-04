@@ -453,7 +453,7 @@ export default function NAT66Page() {
                                   variant="outline"
                                   className="bg-blue-500/10 text-blue-500 border-blue-500/20"
                                 >
-                                  masquerade
+                                  {tc("shown.masquerade")}
                                 </Badge>
                               ) : (
                                 <div>

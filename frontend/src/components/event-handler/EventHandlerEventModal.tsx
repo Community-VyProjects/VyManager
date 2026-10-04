@@ -229,7 +229,7 @@ export function EventHandlerEventModal({ open, onOpenChange, event, onSubmit }: 
                     <Input
                       value={newEnvName}
                       onChange={(e) => setNewEnvName(e.target.value)}
-                      placeholder="NAME"
+                      placeholder={tc("shown.name")}
                       className="font-mono flex-1"
                       onKeyDown={(e) => e.key === "Enter" && addEnvVar()}
                     />

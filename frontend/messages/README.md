@@ -39,6 +39,35 @@ Keys are type-checked against the English files, so a typo is a TypeScript error
   VLAN, API, SSH, WireGuard, OpenVPN, IPsec, ...
 - Error messages returned by the backend (shown as-is for now).
 
+## Lint rule
+
+`npm run lint` runs `vymanager/no-untranslated-text` (`eslint-rules/no-untranslated-text.mjs`)
+on `src/**/*.tsx`. It reports JSX text and `placeholder`/`title`/`alt`/`aria-label`/`label`/`description`
+string props that contain natural-language words, e.g. `<p>No rules</p>` or `placeholder="Search..."`.
+Acronyms, numbers, symbols, and technical values
+(`example.com`, `level-1`, `rx/tx`, `ssh`) are not reported.
+A lowercase word is reported when a locale already translates it, in any
+case (`shortcut` matches `Shortcut`), with a trailing colon (`unknown:`), or in
+parentheses (`(unknown)`). Trailing ellipsis is prose (`search...`).
+An all-caps acronym is not reported unless that exact string has a translation
+(`NET` stays, `UP` is reported). A string rendered from a branch is
+reported too, including a template literal (`{ok ? `Up` : name}`).
+
+For text that must stay English (protocol or product names, example values), either:
+
+- write a bare expression, e.g. `{"Node Exporter"}` (a string inside a branch is still reported), or
+- add a disable comment with the reason:
+
+  ```tsx
+  {/* eslint-disable-next-line vymanager/no-untranslated-text -- key combination, same in every locale */}
+  <Label>Ctrl-Alt-Delete</Label>
+  ```
+
+Names used across the app go in the rule's `allow` list in `eslint.config.mjs`. Only add names
+that are the same in every locale; if a word has a translation (e.g. Ethernet → 以太网), translate it.
+
+When changing the rule, run its tests with `node --test eslint-rules/*.test.mjs`.
+
 ## zh-CN glossary
 
 Use 你 (not 您). Keep acronyms in English with a space around them in Chinese

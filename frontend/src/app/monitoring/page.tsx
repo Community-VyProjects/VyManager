@@ -409,6 +409,7 @@ function MonitoringPageInner() {
                           <Input
                             value={captureFilter}
                             onChange={(e) => setCaptureFilter(e.target.value)}
+                            // eslint-disable-next-line vymanager/no-untranslated-text -- example value
                             placeholder="tcp and port 443…"
                             disabled={isRunning}
                             className="h-8 font-mono text-xs pr-7"

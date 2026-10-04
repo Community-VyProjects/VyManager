@@ -45,7 +45,13 @@
     "addressPlaceholder": "例如 192.168.1.1 或 2001:db8::1",
     "snmp": "允许通过 SNMP 查询 LLDP 数据库",
     "legacyProtocols": "旧版发现协议",
-    "legacyProtocolsHint": "除 LLDP 外，还监听厂商专有协议"
+    "legacyProtocolsHint": "除 LLDP 外，还监听厂商专有协议",
+    "legacyProtocolNames": {
+      "cdp": "Cisco 发现协议",
+      "edp": "Extreme 发现协议",
+      "fdp": "Foundry 发现协议",
+      "sonmp": "北电 SONMP"
+    }
   },
   "modal": {
     "selectInterfaceError": "请选择接口",

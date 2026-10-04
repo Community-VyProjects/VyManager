@@ -119,7 +119,7 @@ export function WebProxyRuleModal({
               <div className="space-y-2">
                 <Label>{t("content.defaultAction")}</Label>
                 <Select value={form.default_action ?? ""} onValueChange={(v) => update({ default_action: v })}>
-                  <SelectTrigger><SelectValue placeholder="allow" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={tc("shown.allow")} /></SelectTrigger>
                   <SelectContent>
                     {(caps?.options.default_action ?? ["allow", "block"]).map((a) => (
                       <SelectItem key={a} value={a}>{a}</SelectItem>

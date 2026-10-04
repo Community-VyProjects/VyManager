@@ -428,6 +428,7 @@ export default function BridgeFirewallPage() {
                       : "hover:bg-accent/50 text-foreground"
                   )}
                 >
+                  {/* eslint-disable-next-line vymanager/no-untranslated-text -- VyOS base chain name */}
                   <span className="font-medium">Forward</span>
                   <div className="flex items-center gap-1.5">
                     {getDefaultAction("forward", false) && (
@@ -454,7 +455,7 @@ export default function BridgeFirewallPage() {
                         : "hover:bg-accent/50 text-foreground"
                     )}
                   >
-                    <span className="font-medium">Input</span>
+                    <span className="font-medium">{tc("shown.input")}</span>
                     <div className="flex items-center gap-1.5">
                       {getDefaultAction("input", false) && (
                         <Badge
@@ -481,7 +482,7 @@ export default function BridgeFirewallPage() {
                         : "hover:bg-accent/50 text-foreground"
                     )}
                   >
-                    <span className="font-medium">Output</span>
+                    <span className="font-medium">{tc("shown.output")}</span>
                     <div className="flex items-center gap-1.5">
                       {getDefaultAction("output", false) && (
                         <Badge
@@ -508,6 +509,7 @@ export default function BridgeFirewallPage() {
                         : "hover:bg-accent/50 text-foreground"
                     )}
                   >
+                    {/* eslint-disable-next-line vymanager/no-untranslated-text -- VyOS base chain name */}
                     <span className="font-medium">Prerouting</span>
                     <div className="flex items-center gap-1.5">
                       {getDefaultAction("prerouting", false) && (

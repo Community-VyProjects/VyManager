@@ -1025,6 +1025,7 @@ function FirewallPoliciesPageInner() {
                           : "hover:bg-accent/50 text-foreground"
                       )}
                     >
+                      {/* eslint-disable-next-line vymanager/no-untranslated-text -- VyOS base chain name */}
                       <span className="font-medium">Forward</span>
                     </button>
 
@@ -1037,7 +1038,7 @@ function FirewallPoliciesPageInner() {
                           : "hover:bg-accent/50 text-foreground"
                       )}
                     >
-                      <span className="font-medium">Input</span>
+                      <span className="font-medium">{tc("shown.input")}</span>
                     </button>
 
                     <button
@@ -1049,7 +1050,7 @@ function FirewallPoliciesPageInner() {
                           : "hover:bg-accent/50 text-foreground"
                       )}
                     >
-                      <span className="font-medium">Output</span>
+                      <span className="font-medium">{tc("shown.output")}</span>
                     </button>
 
                     {capabilities?.features.prerouting_raw?.supported && (
@@ -1062,6 +1063,7 @@ function FirewallPoliciesPageInner() {
                             : "hover:bg-accent/50 text-foreground"
                         )}
                       >
+                        {/* eslint-disable-next-line vymanager/no-untranslated-text -- VyOS base chain name */}
                         <span className="font-medium">Prerouting Raw</span>
                       </button>
                     )}
@@ -1147,6 +1149,7 @@ function FirewallPoliciesPageInner() {
                           : "hover:bg-accent/50 text-foreground"
                       )}
                     >
+                      {/* eslint-disable-next-line vymanager/no-untranslated-text -- VyOS base chain name */}
                       <span className="font-medium">Forward</span>
                     </button>
 
@@ -1159,7 +1162,7 @@ function FirewallPoliciesPageInner() {
                           : "hover:bg-accent/50 text-foreground"
                       )}
                     >
-                      <span className="font-medium">Input</span>
+                      <span className="font-medium">{tc("shown.input")}</span>
                     </button>
 
                     <button
@@ -1171,7 +1174,7 @@ function FirewallPoliciesPageInner() {
                           : "hover:bg-accent/50 text-foreground"
                       )}
                     >
-                      <span className="font-medium">Output</span>
+                      <span className="font-medium">{tc("shown.output")}</span>
                     </button>
 
                     {capabilitiesIPv6?.features.prerouting_raw?.supported && (
@@ -1184,6 +1187,7 @@ function FirewallPoliciesPageInner() {
                             : "hover:bg-accent/50 text-foreground"
                         )}
                       >
+                        {/* eslint-disable-next-line vymanager/no-untranslated-text -- VyOS base chain name */}
                         <span className="font-medium">Prerouting Raw</span>
                       </button>
                     )}
@@ -1343,9 +1347,9 @@ function FirewallPoliciesPageInner() {
                     <SelectValue placeholder={t("page.notSet")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="accept">accept</SelectItem>
-                    <SelectItem value="drop">drop</SelectItem>
-                    <SelectItem value="reject">reject</SelectItem>
+                    <SelectItem value="accept">{tc("shown.accept")}</SelectItem>
+                    <SelectItem value="drop">{tc("shown.drop")}</SelectItem>
+                    <SelectItem value="reject">{tc("shown.reject")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

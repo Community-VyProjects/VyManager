@@ -5,5 +5,6 @@
   "disconnectInstance": "Disconnect instance",
   "connectToInstance": "Connect to Instance",
   "userFallback": "User",
-  "logout": "Logout"
+  "logout": "Logout",
+  "logoAlt": "VyOS Logo"
 }

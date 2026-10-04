@@ -73,7 +73,11 @@
     "opaqueLsa": "Opaque LSA",
     "rfc1583": "RFC 1583 兼容",
     "defaultInformation": "默认信息发布",
-    "always": "始终"
+    "always": "始终",
+    "abrTypes": {
+      "shortcut": "快捷",
+      "standard": "标准"
+    }
   },
   "areas": {
     "description": "OSPF 区域配置",

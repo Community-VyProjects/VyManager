@@ -5,5 +5,6 @@
   "disconnectInstance": "断开实例连接",
   "connectToInstance": "连接到实例",
   "userFallback": "用户",
-  "logout": "退出登录"
+  "logout": "退出登录",
+  "logoAlt": "VyOS 标志"
 }

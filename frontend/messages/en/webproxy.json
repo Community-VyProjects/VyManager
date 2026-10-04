@@ -192,6 +192,7 @@
     "addTitle": "Add Source Group",
     "description": "Group clients by address, domain or LDAP membership for use in filter rules.",
     "user": "User",
+    "usernamePlaceholder": "username",
     "addressesPlaceholder": "IP, prefix or range",
     "ldapIpSearch": "LDAP IP Search",
     "ldapUserSearch": "LDAP User Search",

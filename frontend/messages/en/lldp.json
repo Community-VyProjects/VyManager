@@ -45,7 +45,13 @@
     "addressPlaceholder": "e.g. 192.168.1.1 or 2001:db8::1",
     "snmp": "Enable SNMP queries of the LLDP database",
     "legacyProtocols": "Legacy Discovery Protocols",
-    "legacyProtocolsHint": "Listen for vendor-specific protocols in addition to LLDP"
+    "legacyProtocolsHint": "Listen for vendor-specific protocols in addition to LLDP",
+    "legacyProtocolNames": {
+      "cdp": "Cisco Discovery Protocol",
+      "edp": "Extreme Discovery Protocol",
+      "fdp": "Foundry Discovery Protocol",
+      "sonmp": "Nortel SONMP"
+    }
   },
   "modal": {
     "selectInterfaceError": "Select an interface",

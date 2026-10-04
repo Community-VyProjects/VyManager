@@ -53,7 +53,8 @@
     "reenterPassword": "再次输入密码",
     "updating": "正在更新...",
     "creating": "正在创建...",
-    "updateSubmit": "更新用户"
+    "updateSubmit": "更新用户",
+    "namePlaceholder": "张三"
   },
   "deleteUser": {
     "title": "删除用户",

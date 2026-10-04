@@ -167,7 +167,7 @@ export function PPPOptionsModal({
           </div>
 
           <Separator />
-          <h4 className="text-sm font-medium">LCP Echo</h4>
+          <h4 className="text-sm font-medium">{t("ppp.lcpEcho")}</h4>
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>{t("ppp.failure")}</Label>

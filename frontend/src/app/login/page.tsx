@@ -261,7 +261,7 @@ export default function LoginPage() {
               <div className="relative w-20 h-20 rounded-2xl overflow-hidden shadow-lg shadow-primary/10">
                 <Image
                   src="/vy-icon.png"
-                  alt="VyManager Logo"
+                  alt={t("logoAlt")}
                   width={80}
                   height={80}
                   className="object-contain"

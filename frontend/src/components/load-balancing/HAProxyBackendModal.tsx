@@ -357,7 +357,9 @@ export function HAProxyBackendModal({ open, onOpenChange, backend, capabilities,
                 <div className="space-y-1.5">
                   <Label className="text-sm">{t("backendModal.expectString")}</Label>
                   <Input value={form.http_check_expect_string}
-                    onChange={(e) => set("http_check_expect_string", e.target.value)} placeholder="OK" />
+                    onChange={(e) => set("http_check_expect_string", e.target.value)}
+                    // eslint-disable-next-line vymanager/no-untranslated-text -- response text the health check matches
+                    placeholder="OK" />
                 </div>
               </div>
 

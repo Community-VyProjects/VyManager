@@ -94,7 +94,7 @@ export function WebProxySourceGroupModal({ open, onOpenChange, sourceGroup, exis
             </div>
             <div className="space-y-2">
               <Label htmlFor="sgrp-user">{t("group.user")}</Label>
-              <Input id="sgrp-user" value={form.user ?? ""} onChange={(e) => update({ user: e.target.value })} placeholder="username" className="font-mono" />
+              <Input id="sgrp-user" value={form.user ?? ""} onChange={(e) => update({ user: e.target.value })} placeholder={t("group.usernamePlaceholder")} className="font-mono" />
             </div>
             <MultiValueInput label={t("content.addresses")} values={form.address} onChange={(v) => update({ address: v })} placeholder={t("group.addressesPlaceholder")} />
             <MultiValueInput label={t("content.domains")} values={form.domain} onChange={(v) => update({ domain: v })} placeholder="example.com" />

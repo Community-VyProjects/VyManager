@@ -53,7 +53,8 @@
     "reenterPassword": "Re-enter password",
     "updating": "Updating...",
     "creating": "Creating...",
-    "updateSubmit": "Update User"
+    "updateSubmit": "Update User",
+    "namePlaceholder": "John Doe"
   },
   "deleteUser": {
     "title": "Delete User",

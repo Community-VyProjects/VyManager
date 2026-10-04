@@ -60,5 +60,6 @@
     "createAccountFailed": "Failed to create admin account",
     "signInFailed": "Account created but failed to sign in. Please go to login page.",
     "setupFailed": "Failed to complete setup. Please try again."
-  }
+  },
+  "logoAlt": "VyOS Logo"
 }

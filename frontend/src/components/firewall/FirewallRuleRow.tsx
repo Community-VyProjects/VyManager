@@ -48,6 +48,7 @@ export function FirewallRuleRow({
   groups = [],
   visibleOrderedColumns = DEFAULT_COLUMNS,
 }: FirewallRuleRowProps) {
+  const tc = useTranslations("common");
   const t = useTranslations("firewallPolicies");
   const getGroupMembers = (groupName: string): string[] => {
     const cleanName = groupName.startsWith("!") ? groupName.substring(1) : groupName;
@@ -350,10 +351,10 @@ export function FirewallRuleRow({
           <TableCell key="state">
             {rule.state ? (
               <div className="flex flex-wrap gap-1">
-                {rule.state.established && <Badge variant="outline" className="text-xs bg-green-500/10 text-green-500 border-green-500/20">EST</Badge>}
-                {rule.state.new && <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">NEW</Badge>}
-                {rule.state.related && <Badge variant="outline" className="text-xs bg-purple-500/10 text-purple-500 border-purple-500/20">REL</Badge>}
-                {rule.state.invalid && <Badge variant="outline" className="text-xs bg-red-500/10 text-red-500 border-red-500/20">INV</Badge>}
+                {rule.state.established && <Badge variant="outline" className="text-xs bg-green-500/10 text-green-500 border-green-500/20">{tc("shown.est")}</Badge>}
+                {rule.state.new && <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">{tc("shown.new")}</Badge>}
+                {rule.state.related && <Badge variant="outline" className="text-xs bg-purple-500/10 text-purple-500 border-purple-500/20">{tc("shown.rel")}</Badge>}
+                {rule.state.invalid && <Badge variant="outline" className="text-xs bg-red-500/10 text-red-500 border-red-500/20">{tc("shown.inv")}</Badge>}
               </div>
             ) : (
               <span className="text-sm text-muted-foreground">-</span>
@@ -566,7 +567,7 @@ export function FirewallRuleRow({
               rule.action === "jump" && "bg-blue-500/10 text-blue-500 border-blue-500/20"
             )}
           >
-            {rule.action || "accept"}
+            {rule.action || tc("shown.accept")}
           </Badge>
         )}
       </TableCell>

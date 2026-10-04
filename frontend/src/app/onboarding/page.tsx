@@ -285,7 +285,7 @@ export default function OnboardingPage() {
             <div className="flex h-16 w-16 items-center justify-center">
               <Image
                 src="/vy-icon.png"
-                alt="VyOS Logo"
+                alt={t("logoAlt")}
                 width={64}
                 height={64}
                 className="object-contain"

@@ -203,7 +203,7 @@ export function LLDPSettingsModal({
                   <Label htmlFor="cdp" className="cursor-pointer">
                     <span className="font-medium">CDP</span>
                     <span className="block text-xs text-muted-foreground">
-                      Cisco Discovery Protocol
+                      {t("settings.legacyProtocolNames.cdp")}
                     </span>
                   </Label>
                 </div>
@@ -216,7 +216,7 @@ export function LLDPSettingsModal({
                   <Label htmlFor="edp" className="cursor-pointer">
                     <span className="font-medium">EDP</span>
                     <span className="block text-xs text-muted-foreground">
-                      Extreme Discovery Protocol
+                      {t("settings.legacyProtocolNames.edp")}
                     </span>
                   </Label>
                 </div>
@@ -229,7 +229,7 @@ export function LLDPSettingsModal({
                   <Label htmlFor="fdp" className="cursor-pointer">
                     <span className="font-medium">FDP</span>
                     <span className="block text-xs text-muted-foreground">
-                      Foundry Discovery Protocol
+                      {t("settings.legacyProtocolNames.fdp")}
                     </span>
                   </Label>
                 </div>
@@ -242,7 +242,7 @@ export function LLDPSettingsModal({
                   <Label htmlFor="sonmp" className="cursor-pointer">
                     <span className="font-medium">SONMP</span>
                     <span className="block text-xs text-muted-foreground">
-                      Nortel SONMP
+                      {t("settings.legacyProtocolNames.sonmp")}
                     </span>
                   </Label>
                 </div>

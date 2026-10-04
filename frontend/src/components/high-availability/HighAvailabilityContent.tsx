@@ -864,7 +864,7 @@ export function HighAvailabilityContent() {
                             <TableCell>
                               {sg.health_check.ping ? (
                                 <Badge variant="outline" className="text-xs font-mono">
-                                  ping: {sg.health_check.ping}
+                                  {t("sync.pingBadge", { target: sg.health_check.ping })}
                                 </Badge>
                               ) : sg.health_check.script ? (
                                 <Badge variant="outline" className="text-xs">{t("sync.scriptBadge")}</Badge>

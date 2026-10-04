@@ -48,7 +48,8 @@
     "passwordOptional": "Password (optional)",
     "confirmPassword": "Confirm Password",
     "saveChanges": "Save Changes",
-    "createUser": "Create User"
+    "createUser": "Create User",
+    "fullNamePlaceholder": "Administrator"
   },
   "sshModal": {
     "keyNameRequired": "Key name is required.",
@@ -84,6 +85,7 @@
     "port": "Port",
     "timeoutSeconds": "Timeout (s)",
     "sharedKey": "Shared Key",
+    "secretPlaceholder": "secret",
     "adding": "Adding…",
     "noRadius": "No RADIUS servers configured.",
     "noTacacs": "No TACACS+ servers configured.",

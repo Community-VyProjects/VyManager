@@ -1209,7 +1209,7 @@ export function ZoneRulePanel({
                     {(["any", "address", "fqdn", "group", "geoip", "mac"] as SrcMode[]).map((m) => (
                       <label key={m} className="flex items-center gap-1.5 text-xs cursor-pointer">
                         <RadioGroupItem value={m} className="h-3.5 w-3.5" />
-                        {m === "fqdn" ? "FQDN" : m === "mac" ? "Mac" : t(`rulePanel.modes.${m}`)}
+                        {m === "fqdn" ? "FQDN" : m === "mac" ? "MAC" : t(`rulePanel.modes.${m}`)}
                       </label>
                     ))}
                   </RadioGroup>
@@ -1917,6 +1917,7 @@ export function ZoneRulePanel({
                     </div>
                     <div className="space-y-1">
                       <Label className="text-[11px] text-muted-foreground">{t("rulePanel.weekdays")}</Label>
+                      {/* eslint-disable-next-line vymanager/no-untranslated-text -- VyOS weekday names, typed in English */}
                       <Input value={timeWeekdays} onChange={(e) => setTimeWeekdays(e.target.value)} placeholder="Monday,Tuesday,Wednesday" className="h-8 text-xs" disabled={!canEdit} />
                     </div>
                   </div>

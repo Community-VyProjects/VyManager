@@ -121,7 +121,7 @@ export function WebProxySquidGuardModal({ open, onOpenChange, squidguard, caps, 
               <div className="space-y-2">
                 <Label>{t("content.defaultAction")}</Label>
                 <Select value={defaultAction} onValueChange={setDefaultAction}>
-                  <SelectTrigger><SelectValue placeholder="allow" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={tc("shown.allow")} /></SelectTrigger>
                   <SelectContent>
                     {(caps?.options.default_action ?? ["allow", "block"]).map((a) => (
                       <SelectItem key={a} value={a}>{a}</SelectItem>

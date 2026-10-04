@@ -100,6 +100,7 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
     <div className="space-y-6">
       {/* Node Exporter */}
       <ExporterCard
+        // eslint-disable-next-line vymanager/no-untranslated-text -- product name
         title="Node Exporter"
         description={t("prometheus.nodeExporterDescription")}
         defaultPort={caps.features.prometheus.exporters.node_exporter.default_port}
@@ -115,6 +116,7 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
 
       {/* FRR Exporter */}
       <ExporterCard
+        // eslint-disable-next-line vymanager/no-untranslated-text -- product name
         title="FRR Exporter"
         description={t("prometheus.frrExporterDescription")}
         defaultPort={caps.features.prometheus.exporters.frr_exporter.default_port}
@@ -132,6 +134,7 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
         <CardHeader className="pb-2 pt-4 px-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
+              {/* eslint-disable-next-line vymanager/no-untranslated-text -- product name */}
               <BarChart3 className="h-4 w-4" />
               Blackbox Exporter
               <span className="text-xs font-normal">— {t("prometheus.blackboxDescription")}</span>

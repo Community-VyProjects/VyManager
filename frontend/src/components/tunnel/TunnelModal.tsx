@@ -697,9 +697,9 @@ export function TunnelModal({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NONE}>{tc("none")}</SelectItem>
-                    <SelectItem value="strict">strict</SelectItem>
-                    <SelectItem value="loose">loose</SelectItem>
-                    <SelectItem value="disable">disable</SelectItem>
+                    <SelectItem value="strict">{tc("shown.strict")}</SelectItem>
+                    <SelectItem value="loose">{tc("shown.loose")}</SelectItem>
+                    <SelectItem value="disable">{tc("shown.disable")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -751,9 +751,9 @@ export function TunnelModal({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NONE}>{tc("none")}</SelectItem>
-                    <SelectItem value="strict">strict</SelectItem>
-                    <SelectItem value="loose">loose</SelectItem>
-                    <SelectItem value="disable">disable</SelectItem>
+                    <SelectItem value="strict">{tc("shown.strict")}</SelectItem>
+                    <SelectItem value="loose">{tc("shown.loose")}</SelectItem>
+                    <SelectItem value="disable">{tc("shown.disable")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -840,8 +840,8 @@ export function TunnelModal({
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value={NONE}>{tc("none")}</SelectItem>
-                            <SelectItem value="ingress">ingress</SelectItem>
-                            <SelectItem value="egress">egress</SelectItem>
+                            <SelectItem value="ingress">{tc("shown.ingress")}</SelectItem>
+                            <SelectItem value="egress">{tc("shown.egress")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

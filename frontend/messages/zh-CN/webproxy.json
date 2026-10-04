@@ -192,6 +192,7 @@
     "addTitle": "添加源组",
     "description": "按地址、域名或 LDAP 成员关系对客户端分组，供过滤规则使用。",
     "user": "用户",
+    "usernamePlaceholder": "用户名",
     "addressesPlaceholder": "IP、前缀或范围",
     "ldapIpSearch": "LDAP IP 搜索",
     "ldapUserSearch": "LDAP 用户搜索",

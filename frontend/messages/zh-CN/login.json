@@ -20,5 +20,6 @@
     "revokeFailed": "注销其他会话失败",
     "loginCancelledRetry": "已取消登录。请在另一台设备上重试，或选择继续。",
     "loginCancelled": "已取消登录"
-  }
+  },
+  "logoAlt": "VyManager 标志"
 }

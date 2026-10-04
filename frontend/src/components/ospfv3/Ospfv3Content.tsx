@@ -759,7 +759,7 @@ export function Ospfv3Content() {
                                   {area.area_type_no_summary && " (no-summary)"}
                                 </Badge>
                               ) : (
-                                <span className="text-muted-foreground">normal</span>
+                                <span className="text-muted-foreground">{tc("shown.normal")}</span>
                               )}
                             </TableCell>
                             <TableCell>

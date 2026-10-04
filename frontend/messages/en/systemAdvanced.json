@@ -101,7 +101,9 @@
     "httpClient": "HTTP client",
     "sshClient": "SSH client",
     "sourceAddress": "Source address",
-    "sourceInterface": "Source interface"
+    "sourceInterface": "Source interface",
+    "timeFormat24": "24-hour",
+    "timeFormat12": "12-hour"
   },
   "kernel": {
     "saveFailed": "Failed to save kernel options",

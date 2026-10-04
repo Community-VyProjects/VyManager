@@ -60,9 +60,10 @@ function StatPill({ label, value, tone }: { label: string; value: number; tone: 
 
 function TunnelRow({ tunnel }: { tunnel: IPSecTunnelStatus }) {
   const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   const up = (tunnel.state ?? "").toLowerCase() === "up";
-  const local = tunnel.local_ts.length ? tunnel.local_ts.join(", ") : "any";
-  const remote = tunnel.remote_ts.length ? tunnel.remote_ts.join(", ") : "any";
+  const local = tunnel.local_ts.length ? tunnel.local_ts.join(", ") : tc("shown.any");
+  const remote = tunnel.remote_ts.length ? tunnel.remote_ts.join(", ") : tc("shown.any");
   const proposal = tunnel.esp_proposal
     ? [
         tunnel.esp_proposal.cipher,
@@ -108,7 +109,7 @@ function TunnelRow({ tunnel }: { tunnel: IPSecTunnelStatus }) {
               : "border-red-500/30 text-red-600 dark:text-red-400",
           )}
         >
-          {up ? "UP" : "DOWN"}
+          {up ? tc("shown.up") : tc("shown.down")}
         </Badge>
       </div>
 

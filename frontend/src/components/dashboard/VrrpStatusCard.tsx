@@ -50,7 +50,7 @@ function GroupRow({ group }: { group: VrrpGroupData }) {
       {group.interface && (
         <span className="text-xs text-muted-foreground font-mono shrink-0">
           {group.interface}
-          {group.vrid != null && <span className="opacity-60"> · vrid {group.vrid}</span>}
+          {group.vrid != null && <span className="opacity-60"> · {t("vrrpVrid", { vrid: group.vrid })}</span>}
         </span>
       )}
       <div className="flex-1" />

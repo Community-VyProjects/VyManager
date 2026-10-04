@@ -60,5 +60,6 @@
     "createAccountFailed": "创建管理员账号失败",
     "signInFailed": "账号已创建，但登录失败。请前往登录页面。",
     "setupFailed": "设置未能完成，请重试。"
-  }
+  },
+  "logoAlt": "VyOS 标志"
 }

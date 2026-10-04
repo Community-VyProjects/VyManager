@@ -189,7 +189,7 @@ export function LLDPInterfaceModal({
                     <SelectItem value="rx-tx">rx-tx — {t("modal.modeRxTx")}</SelectItem>
                     <SelectItem value="rx">rx — {t("modal.modeRx")}</SelectItem>
                     <SelectItem value="tx">tx — {t("modal.modeTx")}</SelectItem>
-                    <SelectItem value="disable">disable — {tc("disabled")}</SelectItem>
+                    <SelectItem value="disable">{tc("shown.disable")} — {tc("disabled")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -165,7 +165,8 @@
     "ipv6InterfaceIds": "IPv6 接口 ID",
     "interfaceId": "接口 ID",
     "peerInterfaceId": "对端接口 ID",
-    "acceptPeerInterfaceId": "接受对端接口 ID"
+    "acceptPeerInterfaceId": "接受对端接口 ID",
+    "lcpEcho": "LCP 回显"
   },
   "advanced": {
     "updateFailed": "更新高级设置失败",

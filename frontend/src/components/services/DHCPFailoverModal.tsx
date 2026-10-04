@@ -127,8 +127,8 @@ export function DHCPFailoverModal({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">{t("unset")}</SelectItem>
-                <SelectItem value="active-active">active-active</SelectItem>
-                <SelectItem value="active-passive">active-passive</SelectItem>
+                <SelectItem value="active-active">{tc("shown.activeActive")}</SelectItem>
+                <SelectItem value="active-passive">{tc("shown.activePassive")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -160,8 +160,8 @@ export function DHCPFailoverModal({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">{t("unset")}</SelectItem>
-                <SelectItem value="primary">primary</SelectItem>
-                <SelectItem value="secondary">secondary</SelectItem>
+                <SelectItem value="primary">{tc("shown.primary")}</SelectItem>
+                <SelectItem value="secondary">{tc("shown.secondary")}</SelectItem>
               </SelectContent>
             </Select>
           </div>

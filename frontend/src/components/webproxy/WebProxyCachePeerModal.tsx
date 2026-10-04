@@ -112,7 +112,7 @@ export function WebProxyCachePeerModal({ open, onOpenChange, peer, caps, onSubmi
             <div className="space-y-2">
               <Label>{t("content.type")}</Label>
               <Select value={type} onValueChange={setType}>
-                <SelectTrigger><SelectValue placeholder="parent" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={tc("shown.parent")} /></SelectTrigger>
                 <SelectContent>
                   {(caps?.options.cache_peer_type ?? ["parent", "sibling", "multicast"]).map((pt) => (
                     <SelectItem key={pt} value={pt}>{pt}</SelectItem>
@@ -130,6 +130,7 @@ export function WebProxyCachePeerModal({ open, onOpenChange, peer, caps, onSubmi
             </div>
             <div className="space-y-2">
               <Label htmlFor="cp-options">{t("content.options")}</Label>
+              {/* eslint-disable-next-line vymanager/no-untranslated-text -- example value */}
               <Input id="cp-options" value={options} onChange={(e) => setOptions(e.target.value)} placeholder="no-query default" className="font-mono" />
             </div>
           </div>

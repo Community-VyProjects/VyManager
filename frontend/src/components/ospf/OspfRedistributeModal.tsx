@@ -131,7 +131,7 @@ export function OspfRedistributeModal({
                   <SelectItem key={p} value={p}>{p}</SelectItem>
                 ))}
                 {!existingProtocols.includes("table") && (
-                  <SelectItem value="table">table</SelectItem>
+                  <SelectItem value="table">{tc("shown.table")}</SelectItem>
                 )}
               </SelectContent>
             </Select>

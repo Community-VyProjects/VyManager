@@ -284,6 +284,7 @@ export function RoleMappingManager({
             id="groupsClaim"
             value={groupsClaim}
             onChange={(e) => setGroupsClaim(e.target.value)}
+            // eslint-disable-next-line vymanager/no-untranslated-text -- OIDC claim name, typed literally
             placeholder="groups"
             className="w-40"
           />

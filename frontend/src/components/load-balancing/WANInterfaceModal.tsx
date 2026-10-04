@@ -230,7 +230,7 @@ export function WANInterfaceModal({ open, onOpenChange, iface, onSuccess }: Prop
                     >
                       <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="ping">Ping</SelectItem>
+                        <SelectItem value="ping">{t("interfaceModal.testPing")}</SelectItem>
                         <SelectItem value="ttl">TTL</SelectItem>
                         <SelectItem value="user-defined">{t("interfaceModal.userDefined")}</SelectItem>
                       </SelectContent>

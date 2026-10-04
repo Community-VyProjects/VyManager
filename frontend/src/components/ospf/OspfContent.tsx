@@ -609,8 +609,8 @@ export function OspfContent() {
                           <SelectContent>
                             <SelectItem value="cisco">Cisco</SelectItem>
                             <SelectItem value="ibm">IBM</SelectItem>
-                            <SelectItem value="shortcut">Shortcut</SelectItem>
-                            <SelectItem value="standard">Standard</SelectItem>
+                            <SelectItem value="shortcut">{t("overview.abrTypes.shortcut")}</SelectItem>
+                            <SelectItem value="standard">{t("overview.abrTypes.standard")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -856,7 +856,7 @@ export function OspfContent() {
                                   {area.area_type_no_summary && " (no-summary)"}
                                 </Badge>
                               ) : (
-                                <span className="text-muted-foreground">normal</span>
+                                <span className="text-muted-foreground">{tc("shown.normal")}</span>
                               )}
                             </TableCell>
                             <TableCell>

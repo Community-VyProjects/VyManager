@@ -509,9 +509,9 @@ export function NhrpContent() {
                         )}
                         <span className="font-mono font-semibold">{tunnel.name}</span>
                         <div className="flex gap-1.5">
-                          {tunnel.redirect && <Badge variant="outline" className="text-xs">redirect</Badge>}
-                          {tunnel.shortcut && <Badge variant="outline" className="text-xs">shortcut</Badge>}
-                          {tunnel.non_caching && <Badge variant="outline" className="text-xs">non-caching</Badge>}
+                          {tunnel.redirect && <Badge variant="outline" className="text-xs">{t("tunnelModal.redirect")}</Badge>}
+                          {tunnel.shortcut && <Badge variant="outline" className="text-xs">{t("tunnelModal.shortcut")}</Badge>}
+                          {tunnel.non_caching && <Badge variant="outline" className="text-xs">{t("tunnelModal.nonCaching")}</Badge>}
                           {tunnel.shortcut_destination && <Badge variant="outline" className="text-xs">shortcut-dest</Badge>}
                           {tunnel.registration_no_unique && <Badge variant="outline" className="text-xs">reg-no-unique</Badge>}
                         </div>
@@ -519,7 +519,7 @@ export function NhrpContent() {
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <span>{t("tunnel.mapCount", { count: tunnel.maps.length })}</span>
                         {tunnel.authentication && (
-                          <Badge variant="secondary" className="text-xs">auth</Badge>
+                          <Badge variant="secondary" className="text-xs">{tc("shown.auth")}</Badge>
                         )}
                         {hasWritePermission && (
                           <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>

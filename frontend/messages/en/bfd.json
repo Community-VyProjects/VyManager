@@ -37,7 +37,9 @@
     "profileName": "Profile Name",
     "minTtl": "Min TTL",
     "usedBy": "Used By",
-    "peerCount": "{count, plural, one {# peer} other {# peers}}"
+    "peerCount": "{count, plural, one {# peer} other {# peers}}",
+    "sessionUp": "Up",
+    "sessionDown": "Down"
   },
   "form": {
     "statusAndMode": "Status & Mode",
