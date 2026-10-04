@@ -36,8 +36,11 @@ class LoadBalancingMapperV1_4:
     def supports_wan_rule_groups(self) -> bool:
         return False
 
-    def supports_rp_timeout(self) -> bool:
-        return False
+    def get_wan_rule_source_group_delete_path(self, rule_id: str):
+        raise ValueError(_WAN_RULE_GROUPS_UNSUPPORTED)
+
+    def get_wan_rule_destination_group_delete_path(self, rule_id: str):
+        raise ValueError(_WAN_RULE_GROUPS_UNSUPPORTED)
 
     def get_rp_timeout_base(self):
         _unsupported("timeout")

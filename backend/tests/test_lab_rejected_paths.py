@@ -112,7 +112,6 @@ def test_load_balancing_capabilities_follow_the_mapper():
         "listen_address_accept_proxy",
         "backend_rule_wildcard_domain",
         "wan_rule_groups",
-        "rp_timeout",
     ):
         assert caps_14[key]["supported"] is False
         assert caps_15[key]["supported"] is True

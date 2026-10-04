@@ -448,6 +448,12 @@ class LoadBalancingMapper:
     def get_wan_rule_destination_group_port_path(self, rule_id: str, grp: str) -> List[str]:
         return self.get_wan_base() + ["rule", rule_id, "destination", "group", "port-group", grp]
 
+    def get_wan_rule_source_group_delete_path(self, rule_id: str) -> List[str]:
+        return self.get_wan_rule_source_path(rule_id) + ["group"]
+
+    def get_wan_rule_destination_group_delete_path(self, rule_id: str) -> List[str]:
+        return self.get_wan_rule_destination_path(rule_id) + ["group"]
+
     # =========================================================================
     # Config Parsing
     # =========================================================================
@@ -465,9 +471,6 @@ class LoadBalancingMapper:
         return True
 
     def supports_wan_rule_groups(self) -> bool:
-        return True
-
-    def supports_rp_timeout(self) -> bool:
         return True
 
     def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:

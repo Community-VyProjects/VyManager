@@ -43,7 +43,6 @@ export interface LBCapabilities {
     listen_address_accept_proxy: { supported: boolean; description: string };
     backend_rule_wildcard_domain: { supported: boolean; description: string };
     wan_rule_groups: { supported: boolean; description: string };
-    rp_timeout: { supported: boolean; description: string };
   };
 }
 

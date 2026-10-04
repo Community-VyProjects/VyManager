@@ -2,8 +2,7 @@
 
 Paths checked with validateTmplPath on 1.4 (100.64.64.50) and 1.5 (100.64.64.5).
 1.4 uses load-balancing reverse-proxy. 1.5 uses load-balancing haproxy.
-Version-split leaves raise on 1.4. WAN rule group deletes stay unguarded on
-1.4; that path is lab-rejected, so it is asserted only on 1.5.
+Version-split leaves raise on 1.4, including WAN rule group deletes.
 """
 
 import inspect
@@ -376,6 +375,8 @@ REJECT_ON_14 = [
     ('set_wan_rule_source_group_domain', ('10', 'DOMS')),
     ('set_wan_rule_source_group_network', ('10', 'NETS')),
     ('set_wan_rule_source_group_port', ('10', 'WEB')),
+    ('delete_wan_rule_destination_group', ('10',)),
+    ('delete_wan_rule_source_group', ('10',)),
 ]
 
 
@@ -384,13 +385,6 @@ def test_load_balancing_version_split_rejected_on_1_4(method, args):
     builder = LoadBalancingBatchBuilder(version="1.4")
     with pytest.raises(ValueError):
         getattr(builder, method)(*args)
-
-
-def test_rp_timeout_capability_follows_the_mapper():
-    caps_14 = LoadBalancingBatchBuilder(version="1.4").get_capabilities()["features"]
-    caps_15 = LoadBalancingBatchBuilder(version="1.5").get_capabilities()["features"]
-    assert caps_14["rp_timeout"]["supported"] is False
-    assert caps_15["rp_timeout"]["supported"] is True
 
 
 def test_every_load_balancing_emitter_is_tabulated():
