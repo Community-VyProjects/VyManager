@@ -153,10 +153,9 @@ helm upgrade --install vymanager ./charts/vymanager \
 ```
 
 The migration Job waits for internal PostgreSQL and applies Prisma migrations.
-The frontend waits for the migrated schema before starting, while the backend
-uses its own schema gate. A failed migration therefore prevents the rollout
-from becoming ready. Migrations are forward-only; back up PostgreSQL before an
-upgrade.
+Frontend and backend both wait until that schema is clean before their probes
+start. A failed migration therefore prevents the rollout from becoming ready.
+Migrations are forward-only; back up PostgreSQL before an upgrade.
 
 ## Resource limits
 
@@ -192,7 +191,9 @@ Alternatively set `customCa.existingSecret`. Do not set both options.
 
 The frontend proxies HTTP API calls internally, but cannot proxy WebSockets.
 The chart therefore routes `/vyos/console/ws` and `/vyos/monitoring/ws` directly
-to the backend on every configured Ingress host. For a separate WebSocket host,
-set `frontend.config.publicWsUrl` and customize `ingress.backendPaths` or provide
-a separate Ingress.
+to the backend on every configured Ingress host. Ingress annotations default
+`proxy-read-timeout` and `proxy-send-timeout` to 3600 so those sockets are not
+cut at the controller's 60 second limit. Override `ingress.annotations` to
+change them. For a separate WebSocket host, set `frontend.config.publicWsUrl`
+and customize `ingress.backendPaths` or provide a separate Ingress.
 

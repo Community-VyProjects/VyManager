@@ -59,7 +59,9 @@ frontend:
   image:
     repository: ghcr.io/community-vyprojects/vymanager-frontend
     tag: beta
-    pullPolicy: IfNotPresent
+    # beta moves. IfNotPresent keeps the first pull, so an upgrade misses
+    # a newer image. A pinned tag (a version or digest) may use IfNotPresent.
+    pullPolicy: Always
   podAnnotations: {}
   podLabels: {}
   podSecurityContext: {}
@@ -107,7 +109,9 @@ backend:
   image:
     repository: ghcr.io/community-vyprojects/vymanager-backend
     tag: beta
-    pullPolicy: IfNotPresent
+    # beta moves. IfNotPresent keeps the first pull, so an upgrade misses
+    # a newer image. A pinned tag (a version or digest) may use IfNotPresent.
+    pullPolicy: Always
   podAnnotations: {}
   podLabels: {}
   podSecurityContext: {}
@@ -189,7 +193,11 @@ tests:
 ingress:
   enabled: false
   className: ""
-  annotations: {}
+  # ingress-nginx closes reads at 60s. Console and monitoring need the
+  # same 3600s window as the reverse-proxy notes. Override this map to change it.
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
   hosts:
     - host: vymanager.example.com
       paths:

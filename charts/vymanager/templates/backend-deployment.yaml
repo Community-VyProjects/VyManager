@@ -33,10 +33,27 @@ spec:
       securityContext:
         {{- toYaml .Values.backend.podSecurityContext | nindent 8 }}
       terminationGracePeriodSeconds: {{ .Values.backend.terminationGracePeriodSeconds }}
+      {{- if .Values.migrations.enabled }}
+      initContainers:
+        - name: wait-for-schema
+          image: {{ include "vymanager.migrationImage" . | quote }}
+          imagePullPolicy: {{ include "vymanager.migrationPullPolicy" . }}
+          command: ["sh", "-c", "until npx prisma migrate status >/dev/null 2>&1; do sleep 2; done"]
+          securityContext:
+            {{- toYaml .Values.migrations.securityContext | nindent 12 }}
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "vymanager.databaseSecretName" . }}
+                  key: {{ include "vymanager.databaseUrlSecretKey" . }}
+          resources:
+            {{- toYaml .Values.migrations.resources | nindent 12 }}
+      {{- end }}
       containers:
         - name: backend
           image: {{ include "vymanager.backendImage" . | quote }}
-          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          imagePullPolicy: {{ include "vymanager.pullPolicyFor" (dict "tag" .Values.backend.image.tag "policy" .Values.backend.image.pullPolicy) }}
           securityContext:
             {{- toYaml .Values.backend.securityContext | nindent 12 }}
           ports:

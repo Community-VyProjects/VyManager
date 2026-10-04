@@ -53,7 +53,7 @@ spec:
       containers:
         - name: frontend
           image: {{ include "vymanager.frontendImage" . | quote }}
-          imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+          imagePullPolicy: {{ include "vymanager.pullPolicyFor" (dict "tag" .Values.frontend.image.tag "policy" .Values.frontend.image.pullPolicy) }}
           # Migrations are owned by the dedicated Job. Bypassing
           # the image entrypoint prevents every replica from running them too.
           command: ["npm", "start"]
