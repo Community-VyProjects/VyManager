@@ -1,0 +1,131 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vymanager.fullname" . }}-backend
+  labels:
+    {{- include "vymanager.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  replicas: {{ .Values.backend.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "vymanager.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        {{- include "vymanager.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: backend
+        {{- with .Values.backend.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.backend.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "vymanager.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automount }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.backend.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.backend.terminationGracePeriodSeconds }}
+      {{- if .Values.migrations.enabled }}
+      initContainers:
+        - name: wait-for-schema
+          image: {{ include "vymanager.migrationImage" . | quote }}
+          imagePullPolicy: {{ include "vymanager.migrationPullPolicy" . }}
+          command: ["sh", "-c", "until npx prisma migrate status >/dev/null 2>&1; do sleep 2; done"]
+          securityContext:
+            {{- toYaml .Values.migrations.securityContext | nindent 12 }}
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "vymanager.databaseSecretName" . }}
+                  key: {{ include "vymanager.databaseUrlSecretKey" . }}
+          resources:
+            {{- toYaml .Values.migrations.resources | nindent 12 }}
+      {{- end }}
+      containers:
+        - name: backend
+          image: {{ include "vymanager.backendImage" . | quote }}
+          imagePullPolicy: {{ include "vymanager.pullPolicyFor" (dict "tag" .Values.backend.image.tag "policy" .Values.backend.image.pullPolicy) }}
+          securityContext:
+            {{- toYaml .Values.backend.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "vymanager.databaseSecretName" . }}
+                  key: {{ include "vymanager.databaseUrlSecretKey" . }}
+            - name: BETTER_AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.applicationSecrets.existingSecret }}
+                  key: {{ .Values.applicationSecrets.betterAuthSecretKey }}
+            - name: SSH_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.applicationSecrets.existingSecret }}
+                  key: {{ .Values.applicationSecrets.sshEncryptionKeyKey }}
+            - name: FRONTEND_URL
+              value: {{ .Values.backend.config.frontendUrl | quote }}
+            - name: FRONTEND_INTERNAL_URL
+              value: {{ printf "http://%s-frontend:%v" (include "vymanager.fullname" .) .Values.frontend.service.port | quote }}
+            - name: TRUSTED_ORIGINS
+              value: {{ .Values.backend.config.trustedOrigins | quote }}
+            - name: SESSION_INACTIVITY_TIMEOUT
+              value: {{ .Values.backend.config.sessionInactivityTimeout | quote }}
+            - name: SESSION_CLEANUP_INTERVAL
+              value: {{ .Values.backend.config.sessionCleanupInterval | quote }}
+            {{- with .Values.backend.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          readinessProbe:
+            {{- toYaml .Values.backend.readinessProbe | nindent 12 }}
+          livenessProbe:
+            {{- toYaml .Values.backend.livenessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          {{- if or .Values.customCa.existingConfigMap .Values.customCa.existingSecret }}
+          volumeMounts:
+            - name: custom-ca
+              mountPath: /usr/local/share/ca-certificates/custom
+              readOnly: true
+          {{- end }}
+      {{- if or .Values.customCa.existingConfigMap .Values.customCa.existingSecret }}
+      volumes:
+        - name: custom-ca
+          {{- if .Values.customCa.existingConfigMap }}
+          configMap:
+            name: {{ .Values.customCa.existingConfigMap }}
+          {{- else }}
+          secret:
+            secretName: {{ .Values.customCa.existingSecret }}
+          {{- end }}
+      {{- end }}
+      {{- with .Values.backend.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
