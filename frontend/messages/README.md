@@ -50,8 +50,7 @@ A lowercase word is reported when a locale already translates it, in any
 case (`shortcut` matches `Shortcut`), with a trailing colon (`unknown:`), or in
 parentheses (`(unknown)`). Trailing ellipsis is prose (`search...`).
 An all-caps acronym is not reported unless that exact string has a translation
-(`NET` stays, `UP` is reported). A placeholder the operator must type
-(`groups`, `admin`, `OK`) is not a label. A string rendered from a branch is
+(`NET` stays, `UP` is reported). A string rendered from a branch is
 reported too, including a template literal (`{ok ? `Up` : name}`).
 
 For text that must stay English (protocol or product names, example values), either:

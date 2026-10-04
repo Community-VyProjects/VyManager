@@ -136,6 +136,7 @@ export function UserModal({ open, onOpenChange, user, onSuccess }: Props) {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={isEdit}
+              // eslint-disable-next-line vymanager/no-untranslated-text -- example username, typed literally
               placeholder="admin"
               autoComplete="off"
             />

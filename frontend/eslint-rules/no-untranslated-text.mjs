@@ -19,9 +19,8 @@
  * parentheses (`(unknown)`), and a branch (`{name || "unknown"}`,
  * `{ok ? `Session down` : name}`). A case-only catalog pair (`Mac` / `MAC`) is
  * not a translation. An all-caps string is not reported unless that exact
- * string has a translation (`NET` stays, `UP` is reported). A placeholder the
- * operator must type (`groups`, `admin`, `OK`) is not a label. Trailing
- * ellipsis is prose (`search...`).
+ * string has a translation (`NET` stays, `UP` is reported). Trailing ellipsis is
+ * prose (`search...`).
  *
  * A string used only as a condition (`status === "up" ? t("a") : t("b")`) is
  * not rendered, so it is not reported.
@@ -249,11 +248,6 @@ const noUntranslatedText = {
         const name = node.name.type === "JSXIdentifier" ? node.name.name : null;
         if (!name || !props.has(name) || !node.value) return;
         if (node.value.type === "Literal" && typeof node.value.value === "string") {
-          // These three are the literal the operator types, not a label.
-          // "optional" and "search..." are still reported.
-          if (name === "placeholder" && ["groups", "admin", "OK"].includes(node.value.value)) {
-            return;
-          }
           report(node.value, node.value.value);
           return;
         }
