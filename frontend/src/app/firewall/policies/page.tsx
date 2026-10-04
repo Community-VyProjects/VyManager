@@ -59,6 +59,7 @@ import {
 import { firewallIPv6Service } from "@/lib/api/firewall-ipv6";
 import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
 import { cn } from "@/lib/utils";
+import { chainDefaultActions } from "@/lib/firewall-default-actions";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { FirewallRuleModal } from "@/components/firewall/FirewallRuleModal";
 import { DeleteFirewallRuleModal } from "@/components/firewall/DeleteFirewallRuleModal";
@@ -1329,9 +1330,12 @@ function FirewallPoliciesPageInner() {
                     <SelectValue placeholder="Not Set" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="accept">accept</SelectItem>
-                    <SelectItem value="drop">drop</SelectItem>
-                    <SelectItem value="reject">reject</SelectItem>
+                    {chainDefaultActions(
+                      ["accept", "drop", "reject"],
+                      selectedProtocol === "ipv4" ? isCustomChain : isCustomChainIPv6,
+                    ).map((action) => (
+                      <SelectItem key={action} value={action}>{action}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
