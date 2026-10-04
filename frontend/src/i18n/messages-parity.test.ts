@@ -101,7 +101,7 @@ export function pluralProblems(value: string): string[] {
     const name = match[1].toLowerCase();
     const words = match[2].trim().split(/\s+/);
     for (const rawWord of words) {
-      if (!/^[A-Za-z]{4,}s$/i.test(rawWord) && rawWord.toLowerCase() !== "pkts") continue;
+      if (!/^[A-Za-z]{3,}s$/i.test(rawWord) && rawWord.toLowerCase() !== "pkts") continue;
       const word = rawWord.toLowerCase();
       const stem = word.endsWith("s") ? word.slice(0, -1) : word;
       const related =
@@ -130,27 +130,64 @@ export function proseParenPlurals(source: string): string[] {
     }
   }
   const textLines = lines.map((line) => (/^\s*(\/\/|\*|{\/\*)/.test(line) ? "" : line));
-  const jsxTag = /<\/?[A-Za-z][A-Za-z0-9.-]*(?:\s[^>\n]*)?>/g;
+  const pieces: string[] = [];
+  let elementDepth = 0;
+  let expressionDepth = 0;
   for (const line of textLines) {
-    if (!/(?:^|[\s=({\[])</.test(line) && !/<\//.test(line)) continue;
-    const text = line.replace(jsxTag, " ");
-    if (text === line) continue;
-    for (const match of text.matchAll(pattern)) hits.push(match[0]);
-  }
-  let open = false;
-  for (const line of textLines) {
-    if (open && !/^\s*</.test(line)) {
-      for (const match of line.matchAll(pattern)) hits.push(match[0]);
+    let index = 0;
+    let text = "";
+    while (index < line.length) {
+      const rest = line.slice(index);
+      if (expressionDepth > 0) {
+        if (rest.startsWith("{")) expressionDepth++;
+        else if (rest.startsWith("}")) expressionDepth--;
+        index++;
+        continue;
+      }
+      if (elementDepth === 0 && /(?:^|[\s=({\[])<[A-Za-z]/.test(index === 0 ? ` ${rest}` : rest)) {
+        const start = rest.search(/<[A-Za-z]/);
+        if (start >= 0 && (index + start === 0 || /[\s=({\[]/.test(line[index + start - 1]))) {
+          index += start + 1;
+          elementDepth = 1;
+          continue;
+        }
+      }
+      if (elementDepth > 0 && rest.startsWith("</")) {
+        elementDepth = Math.max(0, elementDepth - 1);
+        const close = /^<\/[A-Za-z][A-Za-z0-9.-]*>/.exec(rest);
+        index += close ? close[0].length : 2;
+        text += " ";
+        continue;
+      }
+      if (elementDepth > 0 && /^<[A-Za-z]/.test(rest)) {
+        elementDepth++;
+        index++;
+        continue;
+      }
+      if (elementDepth > 0 && rest.startsWith("/>")) {
+        elementDepth = Math.max(0, elementDepth - 1);
+        index += 2;
+        text += " ";
+        continue;
+      }
+      if (elementDepth > 0 && rest.startsWith(">")) {
+        index++;
+        text += " ";
+        continue;
+      }
+      if (elementDepth > 0 && rest.startsWith("{")) {
+        expressionDepth = 1;
+        index++;
+        text += " ";
+        continue;
+      }
+      if (elementDepth > 0) text += line[index];
+      index++;
     }
-    const tags = [...line.matchAll(jsxTag)]
-      .map((match) => match[0])
-      .filter((_, index, all) => {
-        const start = line.indexOf(all[index]);
-        return start === 0 || /[\s=({\[]/.test(line[start - 1]) || all[index].startsWith("</");
-      });
-    if (tags.length === 0) continue;
-    const last = tags[tags.length - 1];
-    open = !last.startsWith("</") && !last.endsWith("/>");
+    if (text.trim()) pieces.push(text);
+  }
+  for (const piece of pieces) {
+    for (const match of piece.matchAll(pattern)) hits.push(match[0]);
   }
   return hits;
 }
@@ -252,6 +289,8 @@ describe("message catalogs", () => {
     assert.equal(pluralProblems("Timeout (s)").length, 0);
     assert.ok(pluralProblems("{routes} active routes").some((item) => item.startsWith("repeated")));
     assert.ok(pluralProblems("{routes} routes via peers").some((item) => item.startsWith("repeated")));
+    assert.ok(pluralProblems("{vrfs} VRFs").some((item) => item.startsWith("repeated")));
+    assert.equal(pluralProblems("{ips} ips").length, 0);
     assert.ok(pluralProblems("{hours}s").includes("bolt:hours"));
     assert.equal(pluralProblems("{seconds}s").length, 0);
     assert.equal(canonicalize("Add interface"), canonicalize("Add Interface"));
@@ -263,9 +302,21 @@ describe("message catalogs", () => {
     assert.deepEqual(proseParenPlurals("<span>VLAN(s)</span>"), ["VLAN(s)"]);
     assert.deepEqual(proseParenPlurals("<span>IP(s)</span>"), ["IP(s)"]);
     assert.deepEqual(proseParenPlurals("<p>\n<strong>{n}</strong> route(s)\n</p>"), ["route(s)"]);
+    assert.deepEqual(proseParenPlurals("<p>\n<strong>{n}</strong>\nroute(s)\n</p>"), ["route(s)"]);
+    assert.deepEqual(
+      proseParenPlurals("<Button\n  variant=\"ghost\"\n>\n  Delete route(s)\n</Button>"),
+      ["route(s)"],
+    );
     assert.deepEqual(proseParenPlurals("{items.map((r) => <span>route(s)</span>)}"), ["route(s)"]);
+    assert.deepEqual(proseParenPlurals("<span>{format(s)}</span>"), []);
+    assert.deepEqual(proseParenPlurals("<Row onChange={(s) => pick(s)} />"), []);
     assert.deepEqual(proseParenPlurals("if (count > 0 && sources.includes(s)) {"), []);
     assert.deepEqual(proseParenPlurals("items.length >\n  selected.includes(s)"), []);
+    assert.deepEqual(
+      proseParenPlurals("async getConfig(): Promise<ContainerConfig> {\n  return sources.includes(s);\n}"),
+      [],
+    );
+    assert.deepEqual(proseParenPlurals("<Row onChange={(s) => pick(s)} />\nif (sources.includes(s)) {"), []);
     assert.deepEqual(proseParenPlurals("`${m}:${String(s).padStart(2, \"0\")}`"), []);
     assert.deepEqual(proseParenPlurals("// remove the old row(s)"), []);
   });
