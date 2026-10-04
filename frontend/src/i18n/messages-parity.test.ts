@@ -44,12 +44,43 @@ function canonicalize(value: string): string {
 }
 
 // One plural shape: `{name, plural, one {# noun} other {# nouns}}`.
-// A raw `{name}` next to `{name, plural`, `=1`, `{n}`, or `{packets} pkts`
-// is another shape. `route(s)` is the same hole in source text.
-// "Timeout (s)" is a unit, not this.
+// A counted noun outside a plural block still fails when another plural sits
+// in the same string. Bolting "s" onto a placeholder is not a plural.
+// "Timeout (s)" and "{seconds}s" are units, not this.
 const RAW_PLACEHOLDER = /\{([A-Za-z0-9_]+)\}(?!,)/g;
 const PAREN_PLURAL = /[A-Za-z]{2,}\((?:s|es)\)/;
-const PACKET_ABBREV = /\{[A-Za-z]*[Pp]ackets\}\s+pkts/;
+const UNIT_NAMES = new Set(["seconds", "timeout", "value", "minutes", "hours"]);
+const REPEATED = /\{([A-Za-z][A-Za-z0-9_]*)\}\s+([A-Za-z]{3,}s)\b/g;
+const COUNT_NOUN = /\{(count|total)\}\s+(?:[A-Za-z]+\s+){0,2}[a-z]{4,}s\b/;
+const BOLT_S = /\{([A-Za-z0-9_]+)\}s\b/g;
+
+function stripPluralBlocks(value: string): string {
+  let result = "";
+  let index = 0;
+  while (index < value.length) {
+    const marker = value.indexOf(", plural", index);
+    if (marker === -1) {
+      result += value.slice(index);
+      break;
+    }
+    const open = value.lastIndexOf("{", marker);
+    result += value.slice(index, open);
+    let depth = 0;
+    let cursor = open;
+    for (; cursor < value.length; cursor++) {
+      if (value[cursor] === "{") depth++;
+      else if (value[cursor] === "}") {
+        depth--;
+        if (depth === 0) {
+          cursor++;
+          break;
+        }
+      }
+    }
+    index = cursor;
+  }
+  return result;
+}
 
 export function pluralProblems(value: string): string[] {
   const problems: string[] = [];
@@ -62,27 +93,42 @@ export function pluralProblems(value: string): string[] {
   }
   if (value.includes("plural") && value.includes("=1")) problems.push("exact-one");
   if (value.includes("plural") && value.includes("{n}")) problems.push("n-slot");
-  if (PACKET_ABBREV.test(value)) problems.push("packet-abbrev");
-  if (!value.includes("plural")) {
-    const repeated = /\{([A-Za-z][A-Za-z0-9_]*s)\}\s+(?:[A-Za-z]+\s+){0,2}\1\b/;
-    const countNoun = /\{(count|total)\}\s+(?:[A-Za-z]+\s+){0,2}[a-z]{4,}s\b/;
-    if (repeated.test(value)) problems.push("repeated");
-    if (countNoun.test(value)) problems.push("count-noun");
+  for (const match of value.matchAll(BOLT_S)) {
+    if (!UNIT_NAMES.has(match[1])) problems.push(`bolt:${match[1]}`);
   }
+  const outside = stripPluralBlocks(value);
+  for (const match of outside.matchAll(REPEATED)) {
+    const name = match[1].toLowerCase();
+    const word = match[2].toLowerCase();
+    const stem = word.endsWith("s") ? word.slice(0, -1) : word;
+    const related =
+      word === name ||
+      word === `${name}s` ||
+      name === `${word}s` ||
+      name.endsWith("s") ||
+      (stem.length >= 3 && name.startsWith(stem.slice(0, 3)) && word.length < name.length);
+    if (related) problems.push(`repeated:${match[1]}`);
+  }
+  if (COUNT_NOUN.test(outside)) problems.push("count-noun");
   return problems;
 }
 
 export function proseParenPlurals(source: string): string[] {
-  const pattern = /[A-Za-z]{3,}\((?:s|es)\)/g;
+  const pattern = /(?<![A-Za-z])([A-Z]?[a-z]{2,})\((?:s|es)\)(?!\.)/g;
   const hits: string[] = [];
-  for (const line of source.split("\n")) {
+  const lines = source.split("\n");
+  lines.forEach((line, index) => {
+    if (/^\s*(\/\/|\*|{\/\*)/.test(line)) return;
     const quoted = [...line.matchAll(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g)].map((match) => match[0]);
+    const templates = [...line.matchAll(/`(?:[^`\\]|\\.)*`/g)].map((match) => match[0]);
     const jsx = [...line.matchAll(/>([^<]*)</g)].map((match) => match[1]);
-    const comment = /^\s*(\/\/|\*|{\/\*)/.test(line) ? [line] : [];
-    for (const chunk of [...quoted, ...jsx, ...comment]) {
+    const previous = lines[index - 1] ?? "";
+    const next = lines[index + 1] ?? "";
+    const betweenTags = />\s*$/.test(previous) && /^\s*</.test(next) ? [line] : [];
+    for (const chunk of [...quoted, ...templates, ...jsx, ...betweenTags]) {
       for (const match of chunk.matchAll(pattern)) hits.push(match[0]);
     }
-  }
+  });
   return hits;
 }
 
@@ -169,15 +215,24 @@ describe("message catalogs", () => {
         "Warning: This interface has {count} VLAN-to-VNI {count, plural, one {mapping} other {mappings}} configured.",
       ).includes("split:count"),
     );
-    assert.ok(pluralProblems("{packets} pkts").includes("packet-abbrev"));
+    assert.ok(pluralProblems("{packets} pkts").some((item) => item.startsWith("repeated")));
+    assert.ok(
+      pluralProblems(
+        "{bytes} · {packets} packets · {drops, plural, one {# drop} other {# drops}}",
+      ).some((item) => item.startsWith("repeated")),
+    );
+    assert.ok(pluralProblems("{count, plural, one {Showing # {label}} other {Showing # {label}s}}").includes("bolt:label"));
     assert.ok(
       pluralProblems("{count, plural, =1 {{n} flowtable} other {{n} flowtables}}").includes("exact-one"),
     );
     assert.ok(pluralProblems("{count, plural, one {{n} member} other {{n} members}}").includes("n-slot"));
     assert.equal(pluralProblems("Timeout (s)").length, 0);
+    assert.equal(pluralProblems("{seconds}s").length, 0);
     assert.equal(canonicalize("Add interface"), canonicalize("Add Interface"));
     assert.deepEqual(proseParenPlurals("<span>Route(s)</span>"), ["Route(s)"]);
-    assert.deepEqual(proseParenPlurals('const label = "Tunnel(s)"'), ["Tunnel(s)"]);
+    assert.deepEqual(proseParenPlurals("<span>\nRoute(s)\n</span>"), ["Route(s)"]);
+    assert.deepEqual(proseParenPlurals("`${n} rule(s)`"), ["rule(s)"]);
     assert.deepEqual(proseParenPlurals("sources.includes(s)"), []);
+    assert.deepEqual(proseParenPlurals("// remove the old row(s)"), []);
   });
 });

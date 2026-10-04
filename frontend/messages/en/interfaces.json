@@ -195,8 +195,8 @@
       "none": "No WireGuard interfaces configured"
     },
     "vlan": {
-      "noMatch": "No {label}s matching your search",
-      "none": "No {label}s configured"
+      "noMatch": "No {label} matching your search",
+      "none": "No {label} configured"
     },
     "vpp": {
       "noMatch": "No VPP {label} interfaces matching your search",
@@ -239,7 +239,7 @@
     "peers": "Peers",
     "showingInterfaces": "Showing {shown} of {total, plural, one {# interface} other {# interfaces}}",
     "showingTunnels": "Showing {shown} of {total, plural, one {# tunnel} other {# tunnels}}",
-    "showingVlans": "{count, plural, one {Showing # {label}} other {Showing # {label}s}}",
+    "showingVlans": "{count, plural, one {Showing # {label}} other {Showing # {label}}}",
     "showingVpp": "{shown, plural, one {Showing # of {total} interface} other {Showing # of {total} interfaces}}"
   },
   "optic": {

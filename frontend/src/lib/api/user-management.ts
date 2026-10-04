@@ -358,7 +358,7 @@ export class UserManagementService {
   // ==========================================================================
 
   /**
-   * Assign a user to instances with roles
+   * Assign a user to instance(s) with role(s)
    * Can assign to multiple instances at once
    * ADMIN only
    */

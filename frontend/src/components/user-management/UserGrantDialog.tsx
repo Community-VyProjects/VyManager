@@ -113,7 +113,7 @@ export function UserGrantDialog({
     setSaving(true);
     setError(null);
     try {
-      // No update endpoint: editing removes the old rows, then re-creates them.
+      // No update endpoint: editing = remove the old row(s), then re-create.
       const reassign = async (a: UserInstanceAssignment) => {
         await userManagementService.removeAssignment(a.id);
         await userManagementService.assignUser({
