@@ -669,6 +669,12 @@ function InterfacesPageInner() {
     else setIsCreateVIFCModalOpen(true);
   };
 
+  const vlanTabMessage = {
+    vif: "vif",
+    "vif-s": "vifS",
+    "vif-c": "vifC",
+  } as const;
+
   const vlanSubTabLabel: Record<VlanSubTab, string> = {
     vif: "VLAN",
     "vif-s": "VIF-S",
@@ -690,8 +696,8 @@ function InterfacesPageInner() {
               <Network className="h-12 w-12 text-muted-foreground/30" />
               <p className="text-muted-foreground">
                 {searchQuery
-                  ? t("empty.vlan.noMatch", { label: vlanSubTabLabel[type] })
-                  : t("empty.vlan.none", { label: vlanSubTabLabel[type] })}
+                  ? t(`empty.vlan.noMatch.${vlanTabMessage[type]}`)
+                  : t(`empty.vlan.none.${vlanTabMessage[type]}`)}
               </p>
             </div>
           </CardContent>
@@ -816,7 +822,7 @@ function InterfacesPageInner() {
           </Table>
         </div>
         <p className="text-sm text-muted-foreground text-center mt-3">
-          {t("table.showingVlans", { count: items.length, label: vlanSubTabLabel[type] })}
+          {t(`table.showingVlans.${vlanTabMessage[type]}`, { count: items.length })}
         </p>
       </>
     );

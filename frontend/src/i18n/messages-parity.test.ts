@@ -49,8 +49,8 @@ function canonicalize(value: string): string {
 // "Timeout (s)" and "{seconds}s" are units, not this.
 const RAW_PLACEHOLDER = /\{([A-Za-z0-9_]+)\}(?!,)/g;
 const PAREN_PLURAL = /[A-Za-z]{2,}\((?:s|es)\)/;
-const UNIT_NAMES = new Set(["seconds", "timeout", "value", "minutes", "hours"]);
-const REPEATED = /\{([A-Za-z][A-Za-z0-9_]*)\}\s+([A-Za-z]{3,}s)\b/g;
+const UNIT_NAMES = new Set(["seconds", "timeout", "value"]);
+const REPEATED = /\{([A-Za-z][A-Za-z0-9_]*)\}\s+(?:[A-Za-z]+\s+){0,2}([A-Za-z]{3,}s)\b/g;
 const COUNT_NOUN = /\{(count|total)\}\s+(?:[A-Za-z]+\s+){0,2}[a-z]{4,}s\b/;
 const BOLT_S = /\{([A-Za-z0-9_]+)\}s\b/g;
 
@@ -105,7 +105,7 @@ export function pluralProblems(value: string): string[] {
       word === name ||
       word === `${name}s` ||
       name === `${word}s` ||
-      name.endsWith("s") ||
+      word === "pkts" ||
       (stem.length >= 3 && name.startsWith(stem.slice(0, 3)) && word.length < name.length);
     if (related) problems.push(`repeated:${match[1]}`);
   }
@@ -114,21 +114,35 @@ export function pluralProblems(value: string): string[] {
 }
 
 export function proseParenPlurals(source: string): string[] {
-  const pattern = /(?<![A-Za-z])([A-Z]?[a-z]{2,})\((?:s|es)\)(?!\.)/g;
+  const pattern = /(?<![A-Za-z])((?:[A-Z]{2,}|[A-Z]?[a-z]{2,})\((?:s|es)\))(?!\.[A-Za-z])/g;
   const hits: string[] = [];
   const lines = source.split("\n");
-  lines.forEach((line, index) => {
-    if (/^\s*(\/\/|\*|{\/\*)/.test(line)) return;
+  for (const line of lines) {
+    if (/^\s*(\/\/|\*|{\/\*)/.test(line)) continue;
     const quoted = [...line.matchAll(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g)].map((match) => match[0]);
     const templates = [...line.matchAll(/`(?:[^`\\]|\\.)*`/g)].map((match) => match[0]);
-    const jsx = [...line.matchAll(/>([^<]*)</g)].map((match) => match[1]);
-    const previous = lines[index - 1] ?? "";
-    const next = lines[index + 1] ?? "";
-    const betweenTags = />\s*$/.test(previous) && /^\s*</.test(next) ? [line] : [];
-    for (const chunk of [...quoted, ...templates, ...jsx, ...betweenTags]) {
+    for (const chunk of [...quoted, ...templates]) {
       for (const match of chunk.matchAll(pattern)) hits.push(match[0]);
     }
-  });
+  }
+  const textLines = lines.map((line) => (/^\s*(\/\/|\*|{\/\*)/.test(line) ? "" : line));
+  for (let index = 1; index < textLines.length; index++) {
+    const previous = textLines[index - 1];
+    if (!/>\s*$/.test(previous)) continue;
+    const block: string[] = [];
+    for (let cursor = index; cursor < textLines.length; cursor++) {
+      const line = textLines[cursor];
+      if (/^\s*</.test(line)) break;
+      if (/^\s*$/.test(line)) continue;
+      block.push(line);
+    }
+    for (const match of block.join(" ").matchAll(pattern)) hits.push(match[0]);
+  }
+  for (const line of textLines) {
+    for (const match of line.matchAll(/>([^<\n]*)</g)) {
+      for (const hit of match[1].matchAll(pattern)) hits.push(hit[0]);
+    }
+  }
   return hits;
 }
 
@@ -227,12 +241,19 @@ describe("message catalogs", () => {
     );
     assert.ok(pluralProblems("{count, plural, one {{n} member} other {{n} members}}").includes("n-slot"));
     assert.equal(pluralProblems("Timeout (s)").length, 0);
+    assert.ok(pluralProblems("{routes} active routes").some((item) => item.startsWith("repeated")));
+    assert.ok(pluralProblems("{hours}s").includes("bolt:hours"));
     assert.equal(pluralProblems("{seconds}s").length, 0);
     assert.equal(canonicalize("Add interface"), canonicalize("Add Interface"));
     assert.deepEqual(proseParenPlurals("<span>Route(s)</span>"), ["Route(s)"]);
     assert.deepEqual(proseParenPlurals("<span>\nRoute(s)\n</span>"), ["Route(s)"]);
+    assert.deepEqual(proseParenPlurals("<p>\nDelete the selected\nroute(s) now\n</p>"), ["route(s)"]);
     assert.deepEqual(proseParenPlurals("`${n} rule(s)`"), ["rule(s)"]);
+    assert.deepEqual(proseParenPlurals('"Delete route(s)."'), ["route(s)"]);
+    assert.deepEqual(proseParenPlurals("<span>VLAN(s)</span>"), ["VLAN(s)"]);
+    assert.deepEqual(proseParenPlurals("<span>IP(s)</span>"), ["IP(s)"]);
     assert.deepEqual(proseParenPlurals("sources.includes(s)"), []);
+    assert.deepEqual(proseParenPlurals("`${m}:${String(s).padStart(2, \"0\")}`"), []);
     assert.deepEqual(proseParenPlurals("// remove the old row(s)"), []);
   });
 });

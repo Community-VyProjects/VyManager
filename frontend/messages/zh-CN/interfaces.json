@@ -195,8 +195,16 @@
       "none": "尚未配置 WireGuard 接口"
     },
     "vlan": {
-      "noMatch": "没有与搜索匹配的 {label}",
-      "none": "尚未配置 {label}"
+      "noMatch": {
+        "vif": "没有与搜索匹配的 VLAN",
+        "vifS": "没有与搜索匹配的 VIF-S",
+        "vifC": "没有与搜索匹配的 VIF-C"
+      },
+      "none": {
+        "vif": "尚未配置 VLAN",
+        "vifS": "尚未配置 VIF-S",
+        "vifC": "尚未配置 VIF-C"
+      }
     },
     "vpp": {
       "noMatch": "没有与搜索匹配的 VPP {label} 接口",
@@ -239,7 +247,11 @@
     "peers": "对等体",
     "showingInterfaces": "显示 {shown} / {total} 个接口",
     "showingTunnels": "显示 {shown} / {total} 条隧道",
-    "showingVlans": "显示 {count} 个 {label}",
+    "showingVlans": {
+      "vif": "{count, plural, one {显示 # 个 VLAN} other {显示 # 个 VLAN}}",
+      "vifS": "{count, plural, one {显示 # 个 VIF-S} other {显示 # 个 VIF-S}}",
+      "vifC": "{count, plural, one {显示 # 个 VIF-C} other {显示 # 个 VIF-C}}"
+    },
     "showingVpp": "显示 {shown} / {total} 个接口"
   },
   "optic": {
