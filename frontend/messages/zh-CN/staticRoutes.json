@@ -138,6 +138,7 @@
     "dhcpInterfaces": "DHCP 接口：",
     "warningTitle": "这将永久删除该路由",
     "warningBody": "发往 {destination} 的流量将不再使用此路由。如有需要，请确保已配置备用路由。",
-    "deleteRoute": "删除路由"
+    "deleteRoute": "删除路由",
+    "tableContainsRoutes": "{count, plural, one {此路由表包含 # 条路由。删除该表也会移除其中的全部路由。} other {此路由表包含 # 条路由。删除该表也会移除其中的全部路由。}}"
   }
 }

@@ -111,7 +111,7 @@
     "cipher": "Cipher: <strong>{value}</strong>",
     "mode": "Mode: <strong>{value}</strong>",
     "modeStatic": "Static",
-    "addressCount": "{count} {count, plural, one {address} other {addresses}}",
+    "addressCount": "{count, plural, one {# address} other {# addresses}}",
     "failed": "Failed to delete MACsec interface"
   }
 }

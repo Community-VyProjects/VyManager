@@ -53,7 +53,7 @@
     "description": "Global IS-IS protocol settings",
     "editSettings": "Edit Settings",
     "globalSettings": "Global Settings",
-    "netAddresses": "NET addresses",
+    "netAddresses": "NET Addresses",
     "noNet": "No NET configured",
     "netPlaceholder": "e.g. 49.0001.1921.6800.1001.00",
     "levelPlaceholder": "Auto (L1-2)",

@@ -30,10 +30,11 @@ messages/
    Select interface, and the other sentences named in `messages-parity.test.ts`).
    Do not copy that sentence into a feature file. A word like Port stays in the
    feature file, because another language may need a different word there.
-3. Add `messages/<locale>/<feature>.json` with the same keys. The parity test
-   fails the build if a locale is missing a key. A missing key still falls back
-   to English at runtime, so a bad deploy does not blank the page, but it is
-   not a finished translation.
+3. Add `messages/<locale>/<feature>.json` with the same keys. `npm run build`
+   runs the parity test first and stops if a locale is missing a key, if shared
+   button text was copied into a feature file, or if a counted noun is not a
+   real plural. A missing key still falls back to English at runtime, so a bad
+   deploy does not blank the page, but it is not a finished translation.
 
 Keys are type-checked against the English files, so a typo is a TypeScript error.
 
@@ -45,8 +46,7 @@ Keys are type-checked against the English files, so a typo is a TypeScript error
    tag alone. Traditional Chinese must not follow Simplified Chinese.
 3. Copy `messages/en/` to `messages/<locale>/` and translate. Counted nouns use
    `{count, plural, one {# item} other {# items}}`, not `item(s)`.
-4. `npx tsx --test src/i18n/messages-parity.test.ts` must pass before the
-   language is done.
+4. `npm run build` must pass. That runs the parity test before Next builds.
 
 ## What not to translate
 

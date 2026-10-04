@@ -70,7 +70,7 @@
     "createFailed": "Failed to create host mapping",
     "title": "Add Static Host Mapping",
     "description": "Map a hostname to a static IP address.",
-    "ipAddresses": "IP addresses",
+    "ipAddresses": "IP Addresses",
     "aliasesOptional": "Aliases (optional)",
     "adding": "Adding…"
   }

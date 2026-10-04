@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run check:messages && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint && npm run check:messages && node --test eslint-rules/no-untranslated-text.test.mjs",
+    "check:messages": "tsx --test src/i18n/messages-parity.test.ts src/i18n/config.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

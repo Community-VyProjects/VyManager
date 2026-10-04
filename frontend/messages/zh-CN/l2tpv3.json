@@ -93,7 +93,7 @@
   "delete": {
     "title": "删除接口：{name}",
     "confirm": "确定要删除此 L2TPv3 接口吗？此操作无法撤销。",
-    "addressCount": "{count} 个地址",
+    "addressCount": "{count, plural, one {# 个地址} other {# 个地址}}",
     "remote": "远端：{remote}",
     "tunnelId": "隧道 ID：{id}",
     "failed": "删除 L2TPv3 接口失败"

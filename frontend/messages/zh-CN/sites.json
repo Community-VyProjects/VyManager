@@ -163,7 +163,7 @@
   "updates": {
     "allUpToDate": "所有路由器均为最新版本",
     "checking": "正在检查更新…",
-    "dialogDescription": "{total} 个实例中有 {withUpdates} 个有可用更新",
+    "dialogDescription": "{total, plural, one {# 个实例中有 {withUpdates} 个有可用更新} other {# 个实例中有 {withUpdates} 个有可用更新}}",
     "dialogTitle": "更新状态",
     "noMatch": "没有与“{query}”匹配的实例。",
     "notConfigured": "未配置",

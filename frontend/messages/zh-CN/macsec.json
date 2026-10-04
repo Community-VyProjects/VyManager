@@ -111,7 +111,7 @@
     "cipher": "密码套件：<strong>{value}</strong>",
     "mode": "模式：<strong>{value}</strong>",
     "modeStatic": "静态",
-    "addressCount": "{count} 个地址",
+    "addressCount": "{count, plural, one {# 个地址} other {# 个地址}}",
     "failed": "删除 MACsec 接口失败"
   }
 }

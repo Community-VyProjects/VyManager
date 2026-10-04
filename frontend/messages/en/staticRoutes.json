@@ -135,9 +135,10 @@
     "nextHops": "Next-Hops:",
     "interfaces": "Interfaces:",
     "distSuffix": " (dist: {distance})",
-    "dhcpInterfaces": "DHCP interfaces:",
+    "dhcpInterfaces": "DHCP Interfaces:",
     "warningTitle": "This will permanently delete the route",
     "warningBody": "Traffic destined for {destination} will no longer use this route. Make sure you have alternative routing configured if needed.",
-    "deleteRoute": "Delete Route"
+    "deleteRoute": "Delete Route",
+    "tableContainsRoutes": "{count, plural, one {This table contains # route. Deleting the table will also remove all routes within it.} other {This table contains # routes. Deleting the table will also remove all routes within it.}}"
   }
 }

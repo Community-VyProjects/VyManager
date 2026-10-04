@@ -35,7 +35,7 @@
     "accessDenied": "拒绝访问",
     "accessDeniedMessage": "你没有查看 NAT 配置的权限。请联系管理员获取访问权限。",
     "natRules": "NAT 规则",
-    "totalRulesCount": "共 {count} 条规则",
+    "totalRulesCount": "{count, plural, one {共 # 条规则} other {共 # 条规则}}",
     "failedToLoad": "加载失败",
     "ruleCount": "{count, plural, other {# 条规则}}",
     "masqueradeCount": "{count} 条伪装",

@@ -37,10 +37,10 @@ const DEFAULT_PROPS = ["placeholder", "title", "alt", "aria-label", "label", "de
 
 // English message values that differ in another locale. A hardcoded copy of
 // one of these is the same hole as "unknown" (bfd.json renders it as 未知).
-function loadTranslatedTokens() {
+export function loadTranslatedTokens(messagesRoot) {
   const tokens = new Set();
   const exact = new Set();
-  const root = join(dirname(fileURLToPath(import.meta.url)), "..", "messages");
+  const root = messagesRoot ?? join(dirname(fileURLToPath(import.meta.url)), "..", "messages");
   const flatten = (value, path, out) => {
     if (value && typeof value === "object" && !Array.isArray(value)) {
       for (const [key, child] of Object.entries(value)) {

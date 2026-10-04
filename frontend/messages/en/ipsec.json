@@ -135,7 +135,7 @@
     "ikeGroupLabel": "IKE Group *",
     "defaultEspGroup": "Default ESP Group",
     "localAddressPlaceholder": "any or IP address",
-    "remoteAddresses": "Remote addresses",
+    "remoteAddresses": "Remote Addresses",
     "commaSeparated": "Comma-separated for multiple",
     "connectionType": "Connection Type",
     "initiate": "Initiate",

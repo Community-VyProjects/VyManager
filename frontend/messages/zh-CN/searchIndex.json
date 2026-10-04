@@ -231,7 +231,7 @@
     "bridgeRuleDescription": "网桥规则：{action}"
   },
   "network": {
-    "dhcpSubnetDescription": "{mappings} 个静态映射 · {ranges} 个范围",
+    "dhcpSubnetDescription": "{mappings, plural, one {# 个静态映射} other {# 个静态映射}} · {ranges, plural, one {# 个范围} other {# 个范围}}",
     "dhcpRange": "DHCP 范围",
     "dhcpServerDescription": "{count, plural, one {# 个子网 · 权威：{authoritative}} other {# 个子网 · 权威：{authoritative}}}",
     "natRuleDescription": "{label} 规则 {number}",
@@ -261,11 +261,11 @@
     "containerNetwork": "容器网络"
   },
   "loadBalancing": {
-    "backendDescription": "{servers} 台服务器 · {rules} 条规则",
+    "backendDescription": "{servers, plural, one {# 台服务器} other {# 台服务器}} · {rules, plural, one {# 条规则} other {# 条规则}}",
     "backendServer": "后端服务器",
     "domains": "域名：{domains}",
     "backendRule": "后端路由规则",
-    "serviceDescription": "{count} 条路由规则",
+    "serviceDescription": "{count, plural, one {# 条路由规则} other {# 条路由规则}}",
     "serviceRule": "服务路由规则"
   },
   "pki": {

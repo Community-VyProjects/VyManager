@@ -40,17 +40,37 @@ function loadLocale(locale: string): Map<string, Record<string, string>> {
 }
 
 function canonicalize(value: string): string {
-  return value.replaceAll("…", "...");
+  return value.replaceAll("…", "...").toLowerCase();
 }
 
-// English plural hacks a new language cannot fix. Seconds units such as
-// "Timeout (s)" are not this. Counted nouns use ICU plural.
-function isPluralHack(value: string): boolean {
-  if (/[A-Za-z]\((?:s|es)\)/.test(value)) return true;
-  if (value.includes("plural,")) return false;
-  return /\{count\}\s+(?:sessions|features|rules|grants|records|drops|IPs|interfaces|members|subnets|ranges|joins|certs|tunnels)\b/.test(
-    value,
-  );
+// One plural shape: the number and the noun live inside `{name, plural, ...}`.
+// A split `{count} {count, plural, ...}`, a repeated `{drops} drops`, a
+// `{count}`/`{total}` followed by a plural noun, or `route(s)` all fail.
+// "Timeout (s)" is a unit, not this.
+const SPLIT_PLURAL = /\{([A-Za-z0-9_]+)\}\s+\{\1,\s*plural/;
+const PAREN_PLURAL = /[A-Za-z]{2,}\((?:s|es)\)/;
+const REPEATED_NOUN = /\{([A-Za-z][A-Za-z0-9_]*s)\}\s+(?:[A-Za-z]+\s+){0,2}\1\b/;
+const COUNT_NOUN = /\{(count|total)\}\s+(?:[A-Za-z]+\s+){0,2}[a-z]{4,}s\b/;
+const PROSE_PAREN_PLURAL = /(?<=\s)[A-Za-z]{3,}\((?:s|es)\)/;
+
+function pluralProblems(value: string): string[] {
+  const problems: string[] = [];
+  if (PAREN_PLURAL.test(value)) problems.push("paren");
+  if (SPLIT_PLURAL.test(value)) problems.push("split");
+  if (!value.includes("plural,") || SPLIT_PLURAL.test(value)) {
+    if (REPEATED_NOUN.test(value)) problems.push("repeated");
+    if (COUNT_NOUN.test(value) && !value.includes("plural,")) problems.push("count-noun");
+  }
+  return problems;
+}
+
+function walkFiles(dir: string, suffix: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) walkFiles(path, suffix, out);
+    else if (entry.name.endsWith(suffix)) out.push(path);
+  }
+  return out;
 }
 
 describe("message catalogs", () => {
@@ -83,15 +103,15 @@ describe("message catalogs", () => {
   it("keeps shared button text in common only", () => {
     const english = catalogs.get("en");
     assert.ok(english);
-    const wanted = new Set<string>(SHARED_CHROME);
+    const wanted = new Set(SHARED_CHROME.map((sentence) => canonicalize(sentence)));
     const found = new Set<string>();
     const duplicates: string[] = [];
     for (const [file, keys] of english) {
       for (const [path, value] of Object.entries(keys)) {
         const sentence = canonicalize(value);
-        if (!wanted.has(sentence) && !SHARED_CHROME.includes(value as (typeof SHARED_CHROME)[number])) continue;
+        if (!wanted.has(sentence)) continue;
         if (file !== "common.json") duplicates.push(`${file}:${path} = ${value}`);
-        else found.add(sentence);
+        else found.add(value);
       }
     }
     assert.deepEqual(duplicates, []);
@@ -106,8 +126,18 @@ describe("message catalogs", () => {
     const hacks: string[] = [];
     for (const [file, keys] of english) {
       for (const [path, value] of Object.entries(keys)) {
-        if (isPluralHack(value)) hacks.push(`${file}:${path} = ${value}`);
+        const problems = pluralProblems(value);
+        if (problems.length > 0) hacks.push(`${file}:${path} [${problems.join(",")}] ${value}`);
       }
+    }
+    const srcRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
+    for (const file of walkFiles(srcRoot, ".tsx")) {
+      const lines = readFileSync(file, "utf8").split("\n");
+      lines.forEach((line, index) => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("{/*")) return;
+        if (PROSE_PAREN_PLURAL.test(line)) hacks.push(`${file}:${index + 1} ${trimmed}`);
+      });
     }
     assert.deepEqual(hacks, []);
   });

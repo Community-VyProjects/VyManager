@@ -45,7 +45,7 @@
     "alreadyExists": "Interface \"{name}\" already exists",
     "arpCacheTimeout": "ARP Cache Timeout",
     "baseReachableTime": "Base Reachable Time",
-    "caCertificates": "CA certificates",
+    "caCertificates": "CA Certificates",
     "caHint": "Select one or more CAs (e.g. an intermediate CA chain).",
     "certificate": "Certificate",
     "challengePlaceholder": "Enter TOTP code",

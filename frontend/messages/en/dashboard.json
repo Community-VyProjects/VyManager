@@ -183,7 +183,7 @@
     "drops": "{count, plural, one {# drop} other {# drops}}",
     "noDrops": "no drops",
     "classTooltip": "{bytes} · {packets} pkts",
-    "classTooltipDrops": "{bytes} · {packets} pkts · {drops} drops"
+    "classTooltipDrops": "{bytes} · {packets} pkts · {drops, plural, one {# drop} other {# drops}}"
   },
   "systemInfo": {
     "title": "System Information",

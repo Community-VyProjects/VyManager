@@ -163,7 +163,7 @@
   "updates": {
     "allUpToDate": "All routers up to date",
     "checking": "Checking for updates…",
-    "dialogDescription": "{withUpdates} of {total} instances have updates available",
+    "dialogDescription": "{withUpdates} of {total, plural, one {# instance} other {# instances}} have updates available",
     "dialogTitle": "Update status",
     "noMatch": "No instances match “{query}”.",
     "notConfigured": "Not configured",

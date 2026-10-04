@@ -93,7 +93,7 @@
   "delete": {
     "title": "Delete Interface: {name}",
     "confirm": "Are you sure you want to delete this L2TPv3 interface? This action cannot be undone.",
-    "addressCount": "{count} {count, plural, one {address} other {addresses}}",
+    "addressCount": "{count, plural, one {# address} other {# addresses}}",
     "remote": "Remote: {remote}",
     "tunnelId": "Tunnel ID: {id}",
     "failed": "Failed to delete L2TPv3 interface"

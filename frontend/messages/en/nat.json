@@ -35,7 +35,7 @@
     "accessDenied": "Access Denied",
     "accessDeniedMessage": "You do not have permission to view NAT configurations. Please contact your administrator for access.",
     "natRules": "NAT Rules",
-    "totalRulesCount": "{count} total rules",
+    "totalRulesCount": "{count, plural, one {# total rule} other {# total rules}}",
     "failedToLoad": "Failed to load",
     "ruleCount": "{count, plural, one {# rule} other {# rules}}",
     "masqueradeCount": "{count} masquerade",
