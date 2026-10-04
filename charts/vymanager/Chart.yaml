@@ -3,7 +3,7 @@ name: vymanager
 description: Multi-tenant network management platform for VyOS instances
 type: application
 version: 0.1.0
-appVersion: "1.0.0-beta.4"
+appVersion: "1.0.0-beta.5"
 home: https://github.com/Community-VyProjects/VyManager
 sources:
   - https://github.com/Community-VyProjects/VyManager
