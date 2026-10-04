@@ -18,9 +18,10 @@
  * a different case (`shortcut` matches `Shortcut`), a trailing colon (`unknown:`),
  * parentheses (`(unknown)`), and a branch (`{name || "unknown"}`,
  * `{ok ? `Session down` : name}`). A case-only catalog pair (`Mac` / `MAC`) is
- * not a translation. An all-caps acronym (`MAC`, `NET`), an untranslated field
- * prefix (`vlt:`), and a single-token placeholder (`groups`, `admin`) are not
- * reported. Trailing ellipsis is prose (`search...`).
+ * not a translation. An all-caps string is not reported unless that exact
+ * string has a translation (`NET` stays, `UP` is reported). A placeholder the
+ * operator must type (`groups`, `admin`, `OK`) is not a label. Trailing
+ * ellipsis is prose (`search...`).
  *
  * A string used only as a condition (`status === "up" ? t("a") : t("b")`) is
  * not rendered, so it is not reported.
@@ -39,6 +40,7 @@ const DEFAULT_PROPS = ["placeholder", "title", "alt", "aria-label", "label", "de
 // these is the same hole as "unknown" (bfd.json renders it as 未知).
 function loadTranslatedTokens() {
   const tokens = new Set();
+  const exact = new Set();
   const root = join(dirname(fileURLToPath(import.meta.url)), "..", "messages");
   const flatten = (value, path, out) => {
     if (value && typeof value === "object" && !Array.isArray(value)) {
@@ -53,7 +55,7 @@ function loadTranslatedTokens() {
   try {
     enNames = readdirSync(join(root, "en")).filter((name) => name.endsWith(".json"));
   } catch {
-    return tokens;
+    return { tokens, exact };
   }
   for (const name of enNames) {
     const en = new Map();
@@ -66,33 +68,16 @@ function loadTranslatedTokens() {
     }
     for (const [path, english] of en) {
       const chinese = zh.get(path);
-      if (chinese && chinese.toLowerCase() !== english.toLowerCase()) tokens.add(english.toLowerCase());
-    }
-  }
-  return tokens;
-}
-
-const translatedTokens = loadTranslatedTokens();
-
-function loadShownLabels() {
-  const labels = new Set();
-  try {
-    const file = join(dirname(fileURLToPath(import.meta.url)), "..", "messages", "en", "common.json");
-    const shown = JSON.parse(readFileSync(file, "utf8")).shown;
-    if (shown && typeof shown === "object") {
-      for (const value of Object.values(shown)) {
-        if (typeof value === "string") labels.add(value.toLowerCase());
+      if (chinese && chinese.toLowerCase() !== english.toLowerCase()) {
+        tokens.add(english.toLowerCase());
+        exact.add(english);
       }
     }
-  } catch {
-    return labels;
   }
-  return labels;
+  return { tokens, exact };
 }
 
-// Words recorded as UI labels. A SelectItem that only repeats its value is a
-// device token (identity, gzip) unless the word is one of these.
-const shownLabels = loadShownLabels();
+const { tokens: translatedTokens, exact: exactTranslated } = loadTranslatedTokens();
 
 // A "word" is a capitalized two-letter word ("Up", "No", "On") or a letter
 // followed by at least two lowercase letters ("Rule", "delete"). All-caps
@@ -113,10 +98,16 @@ const INNER_SEPARATOR = /[A-Za-z0-9][.:_@=]+[A-Za-z0-9]/;
 const LEADING_SYMBOL = /^[@/~]|:\/\//;
 const LOWERCASE_KEYWORD = /^[a-z0-9]+(?:[-/,][a-z0-9]+)*$/;
 
+function isUntaggedAcronym(text) {
+  const trimmed = text.trim();
+  // NET stays an acronym: the catalog translates "net", not "NET".
+  // UP is reported: common.shown stores the exact string "UP".
+  return /^[A-Z][A-Z0-9]*$/.test(trimmed) && !exactTranslated.has(trimmed);
+}
+
 function isTechnicalValue(text) {
   const trimmed = text.trim();
-  // All-caps tokens (MAC, NET, OPTIONS, OK) are acronyms, not a case-variant of a translated word.
-  if (/^[A-Z][A-Z0-9]*$/.test(trimmed)) return true;
+  if (isUntaggedAcronym(trimmed)) return true;
   const colonless = trimmed.replace(/:$/, "");
   const paren = colonless.match(/^\(([a-z0-9]+(?:[-/,][a-z0-9]+)*)\)$/);
   if (paren) return !translatedTokens.has(paren[1].toLowerCase());
@@ -136,7 +127,7 @@ function isTechnicalValue(text) {
 
 function isTranslatedCopy(text) {
   const trimmed = text.replace(/\s+/g, " ").trim();
-  if (!trimmed || /^[A-Z][A-Z0-9]*$/.test(trimmed)) return false;
+  if (!trimmed || isUntaggedAcronym(trimmed)) return false;
   const forms = [trimmed, trimmed.replace(/:$/, "")];
   const paren = forms[1].match(/^\((.*)\)$/);
   if (paren) forms.push(paren[1].trim());
@@ -250,17 +241,6 @@ const noUntranslatedText = {
 
     return {
       JSXText(node) {
-        const el = node.parent;
-        const tag = el?.type === "JSXElement" && el.openingElement?.name?.type === "JSXIdentifier"
-          ? el.openingElement.name.name
-          : null;
-        if (tag === "SelectItem" || tag === "option") {
-          const text = node.value.replace(/\s+/g, " ").trim();
-          const valueAttr = el.openingElement.attributes.find(
-            (attr) => attr.type === "JSXAttribute" && attr.name?.name === "value" && attr.value?.type === "Literal",
-          );
-          if (valueAttr && valueAttr.value.value === text && !shownLabels.has(text.toLowerCase())) return;
-        }
         report(node, node.value);
       },
       JSXElement: reportChildExpressions,
@@ -269,9 +249,9 @@ const noUntranslatedText = {
         const name = node.name.type === "JSXIdentifier" ? node.name.name : null;
         if (!name || !props.has(name) || !node.value) return;
         if (node.value.type === "Literal" && typeof node.value.value === "string") {
-          // A single token in a placeholder is an example or a claim to type (groups, admin).
-          // "search..." still has an ellipsis, so it stays prose.
-          if (name === "placeholder" && LOWERCASE_KEYWORD.test(node.value.value) && !/[.…]$/.test(node.value.value)) {
+          // These three are the literal the operator types, not a label.
+          // "optional" and "search..." are still reported.
+          if (name === "placeholder" && ["groups", "admin", "OK"].includes(node.value.value)) {
             return;
           }
           report(node.value, node.value.value);

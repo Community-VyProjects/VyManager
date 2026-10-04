@@ -344,6 +344,7 @@ export function HAProxyServiceModal({ open, onOpenChange, service, backends, cap
                       <SelectItem value="gzip">gzip</SelectItem>
                       <SelectItem value="deflate">deflate</SelectItem>
                       <SelectItem value="raw-deflate">raw-deflate</SelectItem>
+                      {/* eslint-disable-next-line vymanager/no-untranslated-text -- compression algorithm token, same in every locale */}
                       <SelectItem value="identity">identity</SelectItem>
                     </SelectContent>
                   </Select>
