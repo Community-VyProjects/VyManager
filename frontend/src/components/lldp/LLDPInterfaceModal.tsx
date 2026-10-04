@@ -172,7 +172,7 @@ export function LLDPInterfaceModal({
                   value={interfaceName}
                   onValueChange={setInterfaceName}
                   interfaces={selectableInterfaces}
-                  placeholder={t("modal.selectInterface")}
+                  placeholder={tc("selectInterface")}
                 />
               )}
             </div>

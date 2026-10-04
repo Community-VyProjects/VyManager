@@ -193,7 +193,7 @@ export function RipngRedistributeModal({
                 {isEditMode ? tc("saving") : t("modal.adding")}
               </>
             ) : isEditMode ? (
-              t("modal.saveChanges")
+              tc("saveChanges")
             ) : (
               tc("add")
             )}

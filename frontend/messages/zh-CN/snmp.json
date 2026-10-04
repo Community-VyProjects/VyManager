@@ -1,7 +1,6 @@
 {
   "content": {
     "loadFailed": "加载 SNMP 配置失败",
-    "readOnly": "只读",
     "subtitle": "简单网络管理协议 — 公开设备指标并发送陷阱",
     "generalSettings": "常规设置",
     "active": "已启用",

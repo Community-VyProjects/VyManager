@@ -287,10 +287,10 @@ export function RpkiCacheServerModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? tc("saving") : t("modal.creating")}
+                {isEditMode ? tc("saving") : tc("creating")}
               </>
             ) : isEditMode ? (
-              t("modal.saveChanges")
+              tc("saveChanges")
             ) : (
               t("servers.add")
             )}

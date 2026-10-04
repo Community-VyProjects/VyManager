@@ -37,7 +37,6 @@
     "copied": "Copied",
     "copy": "Copy",
     "download": "Download",
-    "creating": "Creating...",
     "addClient": "Add Client",
     "addAnother": "Add Another",
     "done": "Done"
@@ -94,7 +93,6 @@
   },
   "quickSetup": {
     "validation": {
-      "interfaceNameRequired": "Interface name is required",
       "interfaceNameFormat": "Interface name must be in format 'wg0', 'wg1', etc.",
       "interfaceExists": "Interface {name} already exists",
       "serverAddressRequired": "Server address is required",

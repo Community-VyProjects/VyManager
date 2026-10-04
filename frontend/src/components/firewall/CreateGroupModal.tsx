@@ -316,7 +316,7 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
             {members.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  {t("create.memberCountColon", { count: members.length, n: String(members.length) })}
+                  {t("create.memberCountColon", { count: members.length })}
                 </p>
                 <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 border rounded-md bg-muted/30">
                   {members.map((member, idx) => (
@@ -454,7 +454,7 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? t("create.creating") : t("create.submit")}
+            {loading ? tc("creating") : t("create.submit")}
           </Button>
         </DialogFooter>
       </DialogContent>

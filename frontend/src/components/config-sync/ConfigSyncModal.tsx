@@ -449,7 +449,7 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {t("modal.saveChanges")}
+            {tc("saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

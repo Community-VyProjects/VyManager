@@ -419,7 +419,7 @@ export function RouterAdvertInterfaceModal({
   // ---- Validation & submit ----
 
   const validate = (): string | null => {
-    if (!interfaceName.trim()) return t("validation.interfaceRequired");
+    if (!interfaceName.trim()) return tc("interfaceNameRequired");
     if (!isEdit && existingNames.includes(interfaceName.trim())) {
       return t("validation.interfaceExists", { name: interfaceName.trim() });
     }
@@ -479,7 +479,7 @@ export function RouterAdvertInterfaceModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl flex flex-col max-h-[90vh] overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle>{isEdit ? t("modal.editTitle") : t("modal.addTitle")}</DialogTitle>
+          <DialogTitle>{isEdit ? t("modal.editTitle") : tc("addInterface")}</DialogTitle>
           <DialogDescription>
             {t("modal.description")}
           </DialogDescription>
@@ -515,7 +515,7 @@ export function RouterAdvertInterfaceModal({
                       onValueChange={setInterfaceName}
                       id="iface-name"
                       interfaces={availableInterfaces.filter((i) => !existingNames.includes(i.name))}
-                      placeholder={t("modal.selectInterface")}
+                      placeholder={tc("selectInterface")}
                     />
                   )}
                 </div>

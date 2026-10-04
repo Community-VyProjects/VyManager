@@ -1,7 +1,6 @@
 {
   "content": {
     "loadFailed": "Failed to load SNMP configuration",
-    "readOnly": "Read Only",
     "subtitle": "Simple Network Management Protocol — expose device metrics and send traps",
     "generalSettings": "General Settings",
     "active": "Active",

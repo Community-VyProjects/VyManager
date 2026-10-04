@@ -163,7 +163,7 @@ export function IPv6PoolModal({ open, onOpenChange, onSuccess, existingPool }: I
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("creating")}</> : isEdit ? t("saveChanges") : t("createPool")}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : tc("creating")}</> : isEdit ? tc("saveChanges") : t("createPool")}
           </Button>
         </DialogFooter>
       </DialogContent>

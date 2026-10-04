@@ -567,7 +567,7 @@ export function RipContent() {
                 {!hasWritePermission && (
                   <Badge variant="secondary" className="flex items-center gap-1">
                     <Lock className="h-3 w-3" />
-                    {t("header.readOnly")}
+                    {tc("readOnly")}
                   </Badge>
                 )}
               </div>
@@ -904,7 +904,7 @@ export function RipContent() {
                 {hasWritePermission && (
                   <Button size="sm" onClick={() => { setEditingIface(null); setIfaceModalOpen(true); }}>
                     <Plus className="h-4 w-4 mr-2" />
-                    {t("interfaces.addInterface")}
+                    {tc("addInterface")}
                   </Button>
                 )}
               </div>
@@ -920,7 +920,7 @@ export function RipContent() {
                     {hasWritePermission && (
                       <Button size="sm" onClick={() => { setEditingIface(null); setIfaceModalOpen(true); }}>
                         <Plus className="h-4 w-4 mr-2" />
-                        {t("interfaces.addInterface")}
+                        {tc("addInterface")}
                       </Button>
                     )}
                   </CardContent>

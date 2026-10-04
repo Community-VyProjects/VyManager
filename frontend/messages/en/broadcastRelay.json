@@ -3,7 +3,6 @@
     "loadFailed": "Failed to load broadcast relay configuration",
     "updateStatusFailed": "Failed to update service status",
     "title": "Broadcast Relay",
-    "readOnly": "Read Only",
     "subtitle": "UDP broadcast relay between interfaces",
     "enableService": "Enable Service",
     "disableService": "Disable Service",
@@ -47,9 +46,7 @@
     "sourceAddress": "Source Address",
     "sourceAddressPlaceholder": "e.g. 192.168.1.1",
     "sourceAddressHint": "Optional. If unset, the original sender's address is used.",
-    "descriptionPlaceholder": "Optional description",
     "disableInstance": "Disable this instance",
-    "adding": "Adding...",
-    "saveChanges": "Save Changes"
+    "adding": "Adding..."
   }
 }

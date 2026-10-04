@@ -356,7 +356,7 @@ export function ExtCommunityListRuleModal({
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {loading ? (isEdit ? tc("saving") : t("shared.creating")) : isEdit ? t("shared.saveChanges") : t("shared.createRule")}
+            {loading ? (isEdit ? tc("saving") : tc("creating")) : isEdit ? tc("saveChanges") : t("shared.createRule")}
           </Button>
         </DialogFooter>
       </DialogContent>

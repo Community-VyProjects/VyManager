@@ -156,7 +156,7 @@ export function RoutingTableModal({
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? t("shared.saveChanges") : t("routingTableModal.createTable")}
+            {isEdit ? tc("saveChanges") : t("routingTableModal.createTable")}
           </Button>
         </DialogFooter>
       </DialogContent>

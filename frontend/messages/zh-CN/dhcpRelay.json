@@ -5,7 +5,6 @@
     "unconfigured": "未配置",
     "active": "活动",
     "title": "DHCP 中继",
-    "readOnly": "只读",
     "subtitle": "将客户端的 DHCP 请求转发到集中式 DHCP 服务器",
     "enableService": "启用服务",
     "disableService": "禁用服务",

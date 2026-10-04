@@ -269,7 +269,7 @@ export function SyncGroupModal({
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? t("saveChanges") : t("syncModal.create")}
+            {isEdit ? tc("saveChanges") : t("syncModal.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

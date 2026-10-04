@@ -240,7 +240,7 @@ export function ManagePolicyInterfacesModal({
           </Button>
           <Button onClick={handleSubmit} disabled={loading || loadingData || !hasChanges()}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {loading ? tc("saving") : t("saveChanges")}
+            {loading ? tc("saving") : tc("saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

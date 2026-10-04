@@ -1096,7 +1096,7 @@ export function PppoeModal({
                       size="sm"
                       onClick={() => addPdDelegatedIface(idx)}
                     >
-                      <Plus className="h-3 w-3 mr-1" /> {t("dhcpv6.addInterface")}
+                      <Plus className="h-3 w-3 mr-1" /> {tc("addInterface")}
                     </Button>
                   </div>
                   {pd.interfaces.length === 0 && (
@@ -1171,7 +1171,7 @@ export function PppoeModal({
                 id="pppoe-mirror-in"
                 interfaces={sourceOptions.map((n) => ({ name: n, type: "", description: null }))}
                 noneOption={{ label: tc("none"), value: "__none__" }}
-                placeholder={t("mirror.selectInterface")}
+                placeholder={tc("selectInterface")}
               />
             </div>
             <div>
@@ -1182,7 +1182,7 @@ export function PppoeModal({
                 id="pppoe-mirror-out"
                 interfaces={sourceOptions.map((n) => ({ name: n, type: "", description: null }))}
                 noneOption={{ label: tc("none"), value: "__none__" }}
-                placeholder={t("mirror.selectInterface")}
+                placeholder={tc("selectInterface")}
               />
             </div>
           </TabsContent>
@@ -1206,10 +1206,10 @@ export function PppoeModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? tc("saving") : t("modal.creating")}
+                {isEdit ? tc("saving") : tc("creating")}
               </>
             ) : isEdit ? (
-              t("modal.saveChanges")
+              tc("saveChanges")
             ) : (
               t("modal.createInterface")
             )}

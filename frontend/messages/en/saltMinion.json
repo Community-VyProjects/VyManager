@@ -1,7 +1,6 @@
 {
   "content": {
     "loadFailed": "Failed to load Salt Minion configuration",
-    "readOnly": "Read Only",
     "subtitle": "Configuration management agent — connects to a Salt master for automated state enforcement",
     "editSettings": "Edit Settings",
     "masters": "Masters",

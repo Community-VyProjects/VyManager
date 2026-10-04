@@ -35,7 +35,7 @@
     "accessDenied": "Access Denied",
     "accessDeniedMessage": "You do not have permission to view NAT configurations. Please contact your administrator for access.",
     "natRules": "NAT Rules",
-    "totalRulesCount": "{count} total rules",
+    "totalRulesCount": "{count, plural, one {# total rule} other {# total rules}}",
     "failedToLoad": "Failed to load",
     "ruleCount": "{count, plural, one {# rule} other {# rules}}",
     "masqueradeCount": "{count} masquerade",
@@ -70,8 +70,7 @@
   },
   "reorder": {
     "title": "Rules have been reordered",
-    "prompt": "Do you want to save your changes?",
-    "saveChanges": "Save Changes"
+    "prompt": "Do you want to save your changes?"
   },
   "deleteModal": {
     "failed": "Failed to delete NAT rule",
@@ -133,7 +132,6 @@
     "tabAdvanced": "Advanced",
     "interfaceName": "Interface Name",
     "interfaceGroup": "Interface Group",
-    "selectInterface": "Select interface",
     "selectInterfaceGroup": "Select interface group",
     "invertMatchInterface": "Invert match (all except this interface)",
     "example": "e.g., {value}",
@@ -189,7 +187,6 @@
     "excludeFromNat": "Exclude from NAT",
     "enableLogging": "Enable logging",
     "updating": "Updating...",
-    "creating": "Creating...",
     "updateRule": "Update Rule",
     "createRule": "Create Rule"
   },

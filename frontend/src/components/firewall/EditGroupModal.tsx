@@ -601,7 +601,7 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading || !hasChanges}>
-            {loading ? tc("saving") : t("edit.saveChanges")}
+            {loading ? tc("saving") : tc("saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

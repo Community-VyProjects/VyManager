@@ -98,7 +98,6 @@
     "noSites": "没有可用的站点。",
     "noInstancesInSite": "没有实例。",
     "noInstances": "没有可用的实例。",
-    "creating": "正在创建…",
     "submit": "创建令牌"
   }
 }

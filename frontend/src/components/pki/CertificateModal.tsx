@@ -304,7 +304,7 @@ export function CertificateModal({
 
       <div className="space-y-2">
         <Label htmlFor="cert-desc">{tc("description")}</Label>
-        <Input id="cert-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("shared.descriptionPlaceholder")} />
+        <Input id="cert-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={tc("optionalDescription")} />
       </div>
 
       <div className="space-y-2">
@@ -530,7 +530,7 @@ export function CertificateModal({
       const loadingText = effectiveMode === "generate" ? t("shared.generating") : tc("saving");
       return <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{loadingText}</>;
     }
-    if (isEdit) return t("shared.saveChanges");
+    if (isEdit) return tc("saveChanges");
     if (mode === "generate") return t("cert.titleGenerate");
     if (mode === "acme") return t("cert.createAcmeButton");
     return t("cert.importButton");

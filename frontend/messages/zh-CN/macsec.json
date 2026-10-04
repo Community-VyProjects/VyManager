@@ -4,8 +4,6 @@
     "editTitle": "编辑 MACsec 接口",
     "createDescription": "创建新的 IEEE 802.1AE MACsec 加密接口",
     "editDescription": "正在编辑接口 <code>{name}</code>",
-    "creating": "正在创建...",
-    "saveChanges": "保存更改",
     "createInterface": "创建接口",
     "tabs": {
       "basic": "基本",
@@ -16,7 +14,6 @@
     "errors": {
       "sourceRequired": "源接口为必填项",
       "mtuRange": "MTU 必须介于 68 到 16000 之间",
-      "nameRequired": "接口名称为必填项",
       "nameFormat": "名称必须为 macsec0、macsec1 等",
       "nameExists": "接口 {name} 已存在",
       "createFailed": "创建 MACsec 接口失败",
@@ -114,8 +111,7 @@
     "cipher": "密码套件：<strong>{value}</strong>",
     "mode": "模式：<strong>{value}</strong>",
     "modeStatic": "静态",
-    "addressCount": "{count} 个地址",
-    "failed": "删除 MACsec 接口失败",
-    "button": "删除接口"
+    "addressCount": "{count, plural, one {# 个地址} other {# 个地址}}",
+    "failed": "删除 MACsec 接口失败"
   }
 }

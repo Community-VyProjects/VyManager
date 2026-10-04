@@ -228,7 +228,7 @@ export function RpkiContent() {
                 <Shield className="h-6 w-6 text-primary" />
                 <h1 className="text-2xl font-bold text-foreground">RPKI</h1>
                 {!hasWritePermission && (
-                  <Badge variant="secondary" className="text-xs">{t("header.readOnly")}</Badge>
+                  <Badge variant="secondary" className="text-xs">{tc("readOnly")}</Badge>
                 )}
               </div>
               <p className="text-sm text-muted-foreground mt-1">

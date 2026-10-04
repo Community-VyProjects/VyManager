@@ -26,7 +26,6 @@
     "notrack": "不跟踪"
   },
   "any": "任意",
-  "creating": "创建中...",
   "page": {
     "title": "网桥防火墙",
     "totalRules": "共 {count} 条规则",
@@ -171,7 +170,6 @@
     "mss1460": "1460（标准以太网）",
     "mss1400": "1400（VPN/隧道）",
     "mss1360": "1360（双重封装）",
-    "saveChanges": "保存更改",
     "createRule": "创建规则"
   },
   "ruleRow": {
@@ -211,7 +209,6 @@
     "chainName": "链名称 *",
     "chainNamePlaceholder": "例如 my-custom-chain",
     "chainNameHelp": "必须以字母开头，只允许字母、数字、下划线和连字符。",
-    "descriptionPlaceholder": "可选描述",
     "defaultAction": "默认动作",
     "createChain": "创建链"
   },

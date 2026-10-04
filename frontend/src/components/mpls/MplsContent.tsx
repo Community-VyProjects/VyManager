@@ -367,7 +367,7 @@ export function MplsContent() {
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl font-bold text-foreground">MPLS</h1>
                 {!hasWritePermission && (
-                  <Badge variant="secondary" className="text-xs">{t("header.readOnly")}</Badge>
+                  <Badge variant="secondary" className="text-xs">{tc("readOnly")}</Badge>
                 )}
               </div>
               <p className="text-sm text-muted-foreground mt-1">
@@ -671,7 +671,7 @@ export function MplsContent() {
                 {hasWritePermission && (
                   <Button size="sm" onClick={() => { setEditingLdpIface(null); setLdpIfaceModalOpen(true); }}>
                     <Plus className="h-4 w-4 mr-2" />
-                    {t("ldpInterfaces.add")}
+                    {tc("addInterface")}
                   </Button>
                 )}
               </div>
@@ -687,7 +687,7 @@ export function MplsContent() {
                     {hasWritePermission && (
                       <Button size="sm" onClick={() => { setEditingLdpIface(null); setLdpIfaceModalOpen(true); }}>
                         <Plus className="h-4 w-4 mr-2" />
-                        {t("ldpInterfaces.add")}
+                        {tc("addInterface")}
                       </Button>
                     )}
                   </CardContent>
@@ -1109,7 +1109,7 @@ export function MplsContent() {
                     )}
                     <div className="flex gap-2">
                       <Button onClick={handleSaveLdpGeneral} disabled={ldpGeneralSaving}>
-                        {ldpGeneralSaving ? tc("saving") : t("saveChanges")}
+                        {ldpGeneralSaving ? tc("saving") : tc("saveChanges")}
                       </Button>
                       <Button
                         variant="outline"
@@ -1465,7 +1465,7 @@ export function MplsContent() {
                     )}
                     <div className="flex gap-2">
                       <Button onClick={handleSaveFilters} disabled={filtersSaving}>
-                        {filtersSaving ? tc("saving") : t("saveChanges")}
+                        {filtersSaving ? tc("saving") : tc("saveChanges")}
                       </Button>
                       <Button
                         variant="outline"

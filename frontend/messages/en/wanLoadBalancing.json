@@ -6,12 +6,10 @@
   "globalSettings": "Global Settings",
   "disableSourceNat": "Disable Source NAT",
   "healthTests": "Health Tests",
-  "addInterface": "Add Interface",
   "interface": "Interface",
   "nexthopGateway": "Nexthop (Gateway)",
   "addRule": "Add Rule",
   "outboundInterfaces": "Outbound Interfaces",
-  "saveChanges": "Save Changes",
   "globals": {
     "saveFailed": "Save failed",
     "title": "WAN Global Settings",
@@ -63,7 +61,6 @@
     "deleteDescription": "This will remove the WAN load balancing rule. This action cannot be undone."
   },
   "interfaceModal": {
-    "interfaceRequired": "Interface name is required",
     "nexthopRequired": "Nexthop address is required",
     "editTitle": "Edit Interface Health",
     "addTitle": "Add Interface Health",
@@ -92,7 +89,6 @@
     "addTitle": "Add WAN Rule",
     "description": "Define traffic matching criteria and outbound interface selection for WAN load balancing.",
     "ruleId": "Rule ID",
-    "optionalDescription": "Optional description",
     "inboundInterface": "Inbound Interface",
     "protocol": "Protocol",
     "any": "Any",

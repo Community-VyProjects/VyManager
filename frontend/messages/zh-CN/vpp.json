@@ -34,8 +34,7 @@
     "confirm": "确定要删除此 VPP 接口吗？此操作无法撤销。",
     "type": "类型：",
     "name": "名称：",
-    "failed": "删除 VPP 接口失败",
-    "submit": "删除接口"
+    "failed": "删除 VPP 接口失败"
   },
   "modal": {
     "createTitle": "创建 VPP 接口",
@@ -45,8 +44,6 @@
     "createDescription": "配置新的 VPP {type} 接口。",
     "updateFailed": "更新 VPP 接口失败",
     "createFailed": "创建 VPP 接口失败",
-    "creating": "正在创建...",
-    "saveChanges": "保存更改",
     "createSubType": "创建 {type}"
   },
   "validation": {
@@ -76,7 +73,6 @@
     "sourceAddress": "源地址",
     "tunnelType": "隧道类型",
     "key": "密钥（0-4294967295）",
-    "descriptionPlaceholder": "可选描述",
     "ipAddresses": "IP 地址",
     "examplePlaceholder": "例如 {value}"
   },

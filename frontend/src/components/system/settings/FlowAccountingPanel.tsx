@@ -268,7 +268,7 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
             </div>
             {!isReadOnly && !addingIface && (
               <Button size="sm" variant="outline" onClick={() => setAddingIface(true)}>
-                <Plus className="h-4 w-4 mr-2" />{t("flow.addInterface")}
+                <Plus className="h-4 w-4 mr-2" />{tc("addInterface")}
               </Button>
             )}
           </div>
@@ -287,7 +287,7 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
                   <Label className="text-xs">{t("flow.interface")}</Label>
                   <Select value={ifaceValue} onValueChange={setIfaceValue}>
                     <SelectTrigger className="w-48 font-mono text-sm">
-                      <SelectValue placeholder={t("flow.selectInterface")} />
+                      <SelectValue placeholder={tc("selectInterface")} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="_none">{t("flow.selectInterfaceEllipsis")}</SelectItem>
@@ -333,7 +333,7 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
               editingNf ? (
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={() => { setEditingNf(false); setNfError(null); }} disabled={nfSaving}>{tc("cancel")}</Button>
-                  <Button size="sm" onClick={handleSaveNf} disabled={nfSaving}>{nfSaving ? t("saving") : tc("save")}</Button>
+                  <Button size="sm" onClick={handleSaveNf} disabled={nfSaving}>{nfSaving ? tc("saving") : tc("save")}</Button>
                 </div>
               ) : (
                 <Button variant="outline" size="sm" onClick={startEditNf}>
@@ -484,7 +484,7 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
                   editingSf ? (
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" onClick={() => { setEditingSf(false); setSfError(null); }} disabled={sfSaving}>{tc("cancel")}</Button>
-                      <Button size="sm" onClick={handleSaveSf} disabled={sfSaving}>{sfSaving ? t("saving") : tc("save")}</Button>
+                      <Button size="sm" onClick={handleSaveSf} disabled={sfSaving}>{sfSaving ? tc("saving") : tc("save")}</Button>
                     </div>
                   ) : (
                     <Button variant="outline" size="sm" onClick={startEditSf}>

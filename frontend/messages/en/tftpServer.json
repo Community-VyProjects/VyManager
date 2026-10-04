@@ -2,7 +2,6 @@
   "content": {
     "loadFailed": "Failed to load TFTP server configuration",
     "title": "TFTP Server",
-    "readOnly": "Read Only",
     "subtitle": "Trivial File Transfer Protocol — serve files to network devices",
     "editSettings": "Edit Settings",
     "settings": "Settings",

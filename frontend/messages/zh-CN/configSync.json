@@ -2,7 +2,6 @@
   "content": {
     "loadFailed": "加载配置同步配置失败",
     "title": "配置同步",
-    "readOnly": "只读",
     "subtitle": "主/辅助节点之间的配置同步",
     "editConfiguration": "编辑配置",
     "configure": "配置",
@@ -41,8 +40,7 @@
     "allQos": "所有 QoS",
     "allServices": "所有服务",
     "allSystem": "所有系统配置",
-    "operationFailed": "操作失败",
-    "saveChanges": "保存更改"
+    "operationFailed": "操作失败"
   },
   "sections": {
     "firewall": "防火墙",

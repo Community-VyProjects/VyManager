@@ -2,7 +2,6 @@
   "content": {
     "loadFailed": "加载事件处理配置失败",
     "title": "事件处理",
-    "readOnly": "只读",
     "configured": "已配置",
     "unconfigured": "未配置",
     "subtitle": "基于 systemd-journal 的事件触发器",
@@ -41,7 +40,6 @@
     "argumentsPlaceholder": "传递给脚本的可选参数",
     "addVariable": "添加变量",
     "valuePlaceholder": "值",
-    "adding": "正在添加...",
-    "saveChanges": "保存更改"
+    "adding": "正在添加..."
   }
 }

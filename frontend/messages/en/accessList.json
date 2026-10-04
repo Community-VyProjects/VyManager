@@ -71,7 +71,6 @@
     "updateFailed": "Failed to update rule",
     "addFailed": "Failed to add rule",
     "adding": "Adding...",
-    "saveChanges": "Save Changes",
     "addRule": "Add Rule"
   },
   "row": {
@@ -98,7 +97,6 @@
     "descriptionPlaceholder": "Enter access list description (optional)",
     "defaultRuleNumber": "Default starting rule number",
     "failed": "Failed to create access list",
-    "creating": "Creating...",
     "submit": "Create Access List"
   },
   "edit": {

@@ -188,7 +188,7 @@ export function UserModal({ open, onOpenChange, user, onSuccess }: Props) {
               {tc("cancel")}
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? t("saving") : isEdit ? t("userModal.saveChanges") : t("userModal.createUser")}
+              {loading ? tc("saving") : isEdit ? tc("saveChanges") : t("userModal.createUser")}
             </Button>
           </div>
         </form>

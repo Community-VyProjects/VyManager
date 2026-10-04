@@ -53,9 +53,7 @@
     "echoInterval": "回显间隔（毫秒）",
     "advanced": "高级",
     "minimumTtl": "最小 TTL",
-    "minimumTtlHelp": "传入的 BFD 多跳报文的最小 TTL（1-254）。",
-    "creating": "正在创建...",
-    "saveChanges": "保存更改"
+    "minimumTtlHelp": "传入的 BFD 多跳报文的最小 TTL（1-254）。"
   },
   "validation": {
     "transmitRange": "发送间隔必须介于 10 到 60000 毫秒之间",

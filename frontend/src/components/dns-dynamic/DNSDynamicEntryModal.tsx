@@ -308,7 +308,7 @@ export function DNSDynamicEntryModal({ open, onOpenChange, entry, onSubmit }: Pr
                       interfaces={availableInterfaces}
                       noneOption={{ label: tc("none"), value: "none" }}
                       className="font-mono"
-                      placeholder={t("entry.selectInterface")}
+                      placeholder={tc("selectInterface")}
                     />
                   </div>
                 ) : (
@@ -347,7 +347,7 @@ export function DNSDynamicEntryModal({ open, onOpenChange, entry, onSubmit }: Pr
                     id="ddns-desc"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder={t("entry.descriptionPlaceholder")}
+                    placeholder={tc("optionalDescription")}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -417,7 +417,7 @@ export function DNSDynamicEntryModal({ open, onOpenChange, entry, onSubmit }: Pr
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("entry.adding")}</> : isEdit ? t("entry.saveChanges") : t("addEntry")}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : t("entry.adding")}</> : isEdit ? tc("saveChanges") : t("addEntry")}
           </Button>
         </DialogFooter>
       </DialogContent>

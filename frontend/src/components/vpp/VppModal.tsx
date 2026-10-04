@@ -454,7 +454,7 @@ export function VppModal({
 
           <div className="space-y-2">
             <Label>{tc("description")}</Label>
-            <Input value={draft.description} onChange={(e) => patch({ description: e.target.value })} placeholder={t("form.descriptionPlaceholder")} />
+            <Input value={draft.description} onChange={(e) => patch({ description: e.target.value })} placeholder={tc("optionalDescription")} />
           </div>
 
           {selectedSubType !== "bridge" && (
@@ -681,10 +681,10 @@ export function VppModal({
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isEdit ? tc("saving") : t("modal.creating")}
+                  {isEdit ? tc("saving") : tc("creating")}
                 </>
               ) : isEdit ? (
-                t("modal.saveChanges")
+                tc("saveChanges")
               ) : (
                 t("modal.createSubType", { type: subTypeLabel(selectedSubType) })
               )}

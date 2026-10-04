@@ -146,7 +146,7 @@ export function WebProxyCachePeerModal({ open, onOpenChange, peer, caps, onSubmi
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : isEdit ? t("common.saveChanges") : t("content.addPeer")}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : isEdit ? tc("saveChanges") : t("content.addPeer")}
           </Button>
         </DialogFooter>
       </DialogContent>

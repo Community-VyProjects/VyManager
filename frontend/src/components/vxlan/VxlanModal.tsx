@@ -184,7 +184,7 @@ export function VxlanModal({
   const lockedName = lockedIdentity(existing, (i) => i.name, name);
 
   const validateCreate = (): string | null => {
-    if (!name.trim()) return t("modal.errors.nameRequired");
+    if (!name.trim()) return tc("interfaceNameRequired");
     if (!/^vxlan\d+$/.test(name.trim())) return t("modal.errors.nameFormat");
     if (existingInterfaces.includes(name.trim())) return t("modal.errors.nameExists", { name });
     return null;
@@ -424,7 +424,7 @@ export function VxlanModal({
                   onValueChange={(v) => setSourceInterface(v === "__none__" ? "" : v)}
                   interfaces={availableInterfaces}
                   noneOption={{ label: tc("none"), value: "__none__" }}
-                  placeholder={t("modal.selectInterface")}
+                  placeholder={tc("selectInterface")}
                 />
               </div>
             </div>
@@ -561,7 +561,7 @@ export function VxlanModal({
                     onValueChange={(v) => setMirrorIngress(v === "__none__" ? "" : v)}
                     interfaces={availableInterfaces}
                     noneOption={{ label: tc("none"), value: "__none__" }}
-                    placeholder={t("modal.selectInterface")}
+                    placeholder={tc("selectInterface")}
                   />
                 </div>
                 <div className="space-y-2">
@@ -571,7 +571,7 @@ export function VxlanModal({
                     onValueChange={(v) => setMirrorEgress(v === "__none__" ? "" : v)}
                     interfaces={availableInterfaces}
                     noneOption={{ label: tc("none"), value: "__none__" }}
-                    placeholder={t("modal.selectInterface")}
+                    placeholder={tc("selectInterface")}
                   />
                 </div>
               </div>
@@ -584,7 +584,7 @@ export function VxlanModal({
                 onValueChange={(v) => setRedirect(v === "__none__" ? "" : v)}
                 interfaces={availableInterfaces}
                 noneOption={{ label: tc("none"), value: "__none__" }}
-                placeholder={t("modal.selectInterface")}
+                placeholder={tc("selectInterface")}
               />
               <p className="text-xs text-muted-foreground">{t("modal.advanced.redirectHint")}</p>
             </div>
@@ -665,10 +665,10 @@ export function VxlanModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? tc("saving") : t("modal.creating")}
+                {isEdit ? tc("saving") : tc("creating")}
               </>
             ) : (
-              isEdit ? t("modal.saveChanges") : t("modal.createInterface")
+              isEdit ? tc("saveChanges") : t("modal.createInterface")
             )}
           </Button>
         </DialogFooter>

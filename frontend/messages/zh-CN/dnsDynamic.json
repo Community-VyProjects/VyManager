@@ -8,7 +8,6 @@
   "content": {
     "loadFailed": "加载动态 DNS 配置失败",
     "title": "动态 DNS",
-    "readOnly": "只读",
     "configured": "已配置",
     "unconfigured": "未配置",
     "subtitle": "ddclient — 自动更新 DNS 记录",
@@ -40,17 +39,14 @@
     "source": "来源",
     "interface": "接口",
     "webUrl": "Web URL",
-    "selectInterface": "选择接口",
     "skipWords": "跳过的文字（可选）",
     "skipWordsPlaceholder": "响应中需要跳过的文字",
-    "descriptionPlaceholder": "可选描述",
     "ttl": "TTL（秒）",
     "expiryTime": "过期时间（天）",
     "waitTime": "等待时间（秒）",
     "keyFile": "密钥文件路径（可选）",
     "zone": "DNS 区域（可选）",
-    "adding": "正在添加...",
-    "saveChanges": "保存更改"
+    "adding": "正在添加..."
   },
   "global": {
     "title": "全局 DDNS 设置",

@@ -1,5 +1,4 @@
 {
-  "errNameRequired": "Interface name is required",
   "errNameFormat": "Name must be bond0, bond1, etc.",
   "errNameExists": "Interface {name} already exists",
   "errModeRequired": "Bonding mode is required",
@@ -17,7 +16,6 @@
   "interfaceName": "Interface Name",
   "nameLocked": "Interface name cannot be changed.",
   "nameHint": "Must be bond0, bond1, etc.",
-  "optionalDescription": "Optional description",
   "bondingMode": "Bonding Mode",
   "hashPolicy": "Hash Policy",
   "selectPolicy": "Select policy",
@@ -105,13 +103,10 @@
   "redirect": "Redirect",
   "adminDisabled": "Administratively Disabled",
   "disableLinkDetect": "Disable Link Detect",
-  "creating": "Creating...",
-  "saveChanges": "Save Changes",
   "createBond": "Create Bond",
   "deleteTitle": "Delete Interface: {name}",
   "deleteConfirm": "Are you sure you want to delete this bonding interface? This action cannot be undone.",
   "deleteMode": "Mode: <b>{mode}</b>",
   "deleteMembers": "{count, plural, one {# member} other {# members}}",
-  "deleteAddresses": "{count, plural, one {# address} other {# addresses}}",
-  "deleteButton": "Delete Interface"
+  "deleteAddresses": "{count, plural, one {# address} other {# addresses}}"
 }

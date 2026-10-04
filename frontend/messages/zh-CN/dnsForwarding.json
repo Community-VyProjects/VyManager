@@ -4,7 +4,6 @@
   "yes": "是",
   "no": "否",
   "adding": "正在添加...",
-  "saveChanges": "保存更改",
   "zoneName": "区域名称",
   "zoneNameRequired": "区域名称为必填项",
   "domainPlaceholder": "例如 example.com",
@@ -13,7 +12,6 @@
   "content": {
     "loadFailed": "加载 DNS 转发配置失败",
     "title": "DNS 转发",
-    "readOnly": "只读",
     "configured": "已配置",
     "unconfigured": "未配置",
     "subtitle": "PowerDNS Recursor — 转发、本地区域和区域缓存",

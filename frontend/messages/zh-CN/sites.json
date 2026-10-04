@@ -4,7 +4,6 @@
   "connect": "连接",
   "connected": "已连接",
   "connecting": "正在连接...",
-  "creating": "正在创建...",
   "deleteConfirm": "确定要删除 <strong>{name}</strong> 吗？",
   "deleteInstance": "删除实例",
   "deleteSite": "删除站点",
@@ -17,7 +16,6 @@
   "instanceCount": "{count} 个实例",
   "moveToSite": "移动到站点",
   "port": "端口",
-  "saveChanges": "保存更改",
   "unreachable": "不可达",
   "validation": {
     "apiKeyRequired": "API 密钥为必填项",
@@ -165,7 +163,7 @@
   "updates": {
     "allUpToDate": "所有路由器均为最新版本",
     "checking": "正在检查更新…",
-    "dialogDescription": "{total} 个实例中有 {withUpdates} 个有可用更新",
+    "dialogDescription": "{total, plural, one {# 个实例中有 {withUpdates} 个有可用更新} other {# 个实例中有 {withUpdates} 个有可用更新}}",
     "dialogTitle": "更新状态",
     "noMatch": "没有与“{query}”匹配的实例。",
     "notConfigured": "未配置",

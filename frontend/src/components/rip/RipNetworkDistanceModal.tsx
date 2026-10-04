@@ -182,7 +182,7 @@ export function RipNetworkDistanceModal({
                 {isEditMode ? tc("saving") : t("modal.adding")}
               </>
             ) : isEditMode ? (
-              t("modal.saveChanges")
+              tc("saveChanges")
             ) : (
               tc("add")
             )}

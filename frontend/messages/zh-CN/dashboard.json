@@ -136,7 +136,7 @@
     "prev": "上一页",
     "next": "下一页",
     "page": "第 {current} / {total} 页",
-    "trafficTooltip": "RX: {rx} / {rxPackets} 个包\nTX: {tx} / {txPackets} 个包",
+    "trafficTooltip": "RX: {rx} / {rxPackets, plural, one {# 个包} other {# 个包}}\nTX: {tx} / {txPackets, plural, one {# 个包} other {# 个包}}",
     "droppedErrors": "丢弃：{dropped} · 错误：{errors}"
   },
   "ipsec": {
@@ -148,9 +148,7 @@
   },
   "networkSpeed": {
     "title": "网络速率",
-    "selectInterfaceTitle": "选择接口",
     "selectShort": "选择…",
-    "selectInterface": "选择接口",
     "noInterfacesAvailable": "没有可用的接口",
     "now": "现在",
     "download": "↓ 下载",
@@ -182,10 +180,10 @@
     "streamDisconnected": "仪表盘数据流已断开",
     "notApplied": "QoS 未应用到任何接口。将策略绑定到接口后即可在此查看实时流量。",
     "stale": "“{name}”已不再应用 QoS，正在显示所有接口。",
-    "drops": "{count} 次丢包",
+    "drops": "{count, plural, one {# 次丢包} other {# 次丢包}}",
     "noDrops": "无丢包",
-    "classTooltip": "{bytes} · {packets} 个包",
-    "classTooltipDrops": "{bytes} · {packets} 个包 · {drops} 次丢包"
+    "classTooltip": "{bytes} · {packets, plural, one {# 个包} other {# 个包}}",
+    "classTooltipDrops": "{bytes} · {packets, plural, one {# 个包} other {# 个包}} · {drops, plural, one {# 次丢包} other {# 次丢包}}"
   },
   "systemInfo": {
     "title": "系统信息",

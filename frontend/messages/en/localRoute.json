@@ -71,8 +71,6 @@
     "infoOrder": "Rules are processed in numerical order",
     "updateFailed": "Failed to update rule",
     "createFailed": "Failed to create rule",
-    "creating": "Creating...",
-    "saveChanges": "Save Changes",
     "createRule": "Create Rule"
   },
   "banner": {

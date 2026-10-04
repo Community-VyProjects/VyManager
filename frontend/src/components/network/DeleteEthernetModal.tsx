@@ -58,7 +58,7 @@ export function DeleteEthernetModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            {t("delete.title")}
+            {tc("deleteInterface")}
           </DialogTitle>
           <DialogDescription>
             {t("delete.confirm")}
@@ -122,7 +122,7 @@ export function DeleteEthernetModal({
             disabled={loading}
           >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {t("delete.title")}
+            {tc("deleteInterface")}
           </Button>
         </DialogFooter>
       </DialogContent>

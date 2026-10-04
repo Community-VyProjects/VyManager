@@ -166,8 +166,6 @@
     "tcpMssHelp": "TCP Maximum Segment Size"
   },
   "buttons": {
-    "creating": "Creating...",
-    "saveChanges": "Save Changes",
     "createRule": "Create Rule"
   }
 }

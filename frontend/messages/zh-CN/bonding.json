@@ -1,5 +1,4 @@
 {
-  "errNameRequired": "接口名称为必填项",
   "errNameFormat": "名称必须为 bond0、bond1 等",
   "errNameExists": "接口 {name} 已存在",
   "errModeRequired": "链路聚合模式为必填项",
@@ -17,7 +16,6 @@
   "interfaceName": "接口名称",
   "nameLocked": "接口名称无法更改。",
   "nameHint": "必须为 bond0、bond1 等。",
-  "optionalDescription": "可选描述",
   "bondingMode": "链路聚合模式",
   "hashPolicy": "哈希策略",
   "selectPolicy": "选择策略",
@@ -105,13 +103,10 @@
   "redirect": "重定向",
   "adminDisabled": "管理性禁用",
   "disableLinkDetect": "禁用链路检测",
-  "creating": "正在创建...",
-  "saveChanges": "保存更改",
   "createBond": "创建链路聚合",
   "deleteTitle": "删除接口：{name}",
   "deleteConfirm": "确定要删除此链路聚合接口吗？此操作无法撤销。",
   "deleteMode": "模式：<b>{mode}</b>",
   "deleteMembers": "{count} 个成员",
-  "deleteAddresses": "{count} 个地址",
-  "deleteButton": "删除接口"
+  "deleteAddresses": "{count} 个地址"
 }

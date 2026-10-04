@@ -6,7 +6,6 @@
     "notAvailable": "此设备不支持 OpenFabric。",
     "title": "OpenFabric 配置",
     "subtitle": "OpenFabric 路由协议",
-    "readOnly": "只读",
     "domainsStat": "域",
     "interfacesStat": "接口",
     "overviewTab": "概览",
@@ -30,7 +29,6 @@
     "noDomains": "尚未配置域",
     "auto": "自动",
     "selectDomain": "选择域",
-    "addInterface": "添加接口",
     "selectDomainHint": "选择一个域以查看其接口。",
     "addressFamily": "地址族",
     "metric": "度量值",
@@ -41,7 +39,6 @@
     "no": "否",
     "deleteDomainTitle": "删除域",
     "deleteDomainDescription": "确定要删除域“{name}”吗？这将移除该域内的所有接口和设置。",
-    "deleteInterfaceTitle": "删除接口",
     "deleteInterfaceDescription": "确定要从域“{domain}”中移除接口“{name}”吗？"
   },
   "modal": {
@@ -52,8 +49,7 @@
     "plaintext": "明文",
     "password": "密码",
     "md5Password": "MD5 密码",
-    "plaintextPassword": "明文密码",
-    "saveChanges": "保存更改"
+    "plaintextPassword": "明文密码"
   },
   "domainModal": {
     "editTitle": "编辑 OpenFabric 域",
@@ -84,7 +80,6 @@
     "selectRequired": "请选择接口",
     "saveFailed": "保存接口失败",
     "interface": "接口",
-    "selectInterface": "选择接口",
     "addressFamily": "地址族",
     "metric": "度量值",
     "passive": "被动（抑制 Hello）",
@@ -93,7 +88,6 @@
     "helloMultiplier": "Hello 倍数",
     "psnpInterval": "PSNP 间隔（秒）",
     "defaultWithValue": "默认（{value}）",
-    "authHelp": "为 OpenFabric 配置接口级认证。",
-    "submit": "添加接口"
+    "authHelp": "为 OpenFabric 配置接口级认证。"
   }
 }

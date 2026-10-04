@@ -23,7 +23,6 @@
     "colour": "颜色",
     "labelRequired": "标签为必填项",
     "saveFailed": "保存分隔栏失败",
-    "saveChanges": "保存更改",
     "add": "添加分隔栏",
     "colors": {
       "red": "红色",

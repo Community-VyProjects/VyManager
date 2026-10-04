@@ -28,8 +28,7 @@
     "arpProxy": "ARP Proxy (IPv4)",
     "ndProxy": "ND Proxy (IPv6)",
     "createEntry": "Create Entry",
-    "createRoute": "Create Route",
-    "saveChanges": "Save Changes"
+    "createRoute": "Create Route"
   },
   "arpModal": {
     "updateFailed": "Failed to update ARP entry",
@@ -86,7 +85,7 @@
     "type": "Type:",
     "ipv4AddressColon": "IPv4 Address:",
     "ipv6AddressColon": "IPv6 Address:",
-    "interfacesColon": "Interface(s):"
+    "interfacesColon": "Interfaces:"
   },
   "routingTableModal": {
     "updateFailed": "Failed to update routing table",

@@ -110,10 +110,8 @@
     "disableNextHop": "禁用此下一跳",
     "noNextHops": "未配置下一跳。点击“添加下一跳”进行添加。",
     "interfaceRoutes": "接口路由",
-    "addInterface": "添加接口",
     "interfaceN": "接口 #{n}",
     "interface": "接口",
-    "selectInterface": "选择接口",
     "disableInterface": "禁用此接口路由",
     "noInterfaces": "未配置接口路由。点击“添加接口”进行添加。",
     "blackholeRoute": "黑洞路由（静默丢弃）",
@@ -125,7 +123,6 @@
     "dhcpHelp": "使用此接口上通过 DHCP 获取的网关",
     "noAdvanced": "此设备上没有可用的高级选项。",
     "updating": "正在更新...",
-    "creating": "正在创建...",
     "updateRoute": "更新路由",
     "createRoute": "创建路由"
   },
@@ -141,6 +138,7 @@
     "dhcpInterfaces": "DHCP 接口：",
     "warningTitle": "这将永久删除该路由",
     "warningBody": "发往 {destination} 的流量将不再使用此路由。如有需要，请确保已配置备用路由。",
-    "deleteRoute": "删除路由"
+    "deleteRoute": "删除路由",
+    "tableContainsRoutes": "{count, plural, one {此路由表包含 # 条路由。删除该表也会移除其中的全部路由。} other {此路由表包含 # 条路由。删除该表也会移除其中的全部路由。}}"
   }
 }

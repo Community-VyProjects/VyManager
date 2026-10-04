@@ -113,7 +113,7 @@ export function CreateCommunityListModal({
             <Label htmlFor="description">{tc("description")}</Label>
             <Textarea
               id="description"
-              placeholder={t("shared.descriptionPlaceholder")}
+              placeholder={tc("optionalDescription")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={loading}
@@ -180,7 +180,7 @@ export function CreateCommunityListModal({
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {loading ? t("shared.creating") : t("shared.createList", { listType: t("types.community.title") })}
+            {loading ? tc("creating") : t("shared.createList", { listType: t("types.community.title") })}
           </Button>
         </DialogFooter>
       </DialogContent>

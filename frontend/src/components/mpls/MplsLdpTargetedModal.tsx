@@ -241,7 +241,7 @@ export function MplsLdpTargetedModal({
                 {tc("saving")}
               </>
             ) : (
-              t("saveChanges")
+              tc("saveChanges")
             )}
           </Button>
         </DialogFooter>

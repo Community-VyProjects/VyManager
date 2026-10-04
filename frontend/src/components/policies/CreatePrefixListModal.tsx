@@ -341,7 +341,7 @@ export function CreatePrefixListModal({ open, onOpenChange, onSuccess, listType 
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? t("create.creating") : t("create.submit")}
+            {loading ? tc("creating") : t("create.submit")}
           </Button>
         </DialogFooter>
       </DialogContent>

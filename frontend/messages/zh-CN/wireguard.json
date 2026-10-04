@@ -1,6 +1,5 @@
 {
   "validation": {
-    "interfaceNameRequired": "接口名称为必填项",
     "interfaceNameFormat": "接口名称格式必须为 ''wg0''、''wg1'' 等",
     "interfaceExists": "接口 {name} 已存在",
     "privateKeyRequired": "私钥为必填项。请使用“生成密钥”创建。",
@@ -112,8 +111,6 @@
     "mssCustomHint": "设置具体的 TCP MSS 值，单位为字节（536–65535）。",
     "mssOffHint": "此接口不调整 MSS。",
     "peerRequiredNotice": "此设备在创建接口时至少需要一个对等体。请改用<strong>快速设置向导</strong>，它会同时创建接口和对等体。",
-    "creating": "正在创建...",
-    "saveChanges": "保存更改",
     "createInterface": "创建接口"
   },
   "peerModal": {
@@ -163,7 +160,6 @@
     "disablePeerHintEdit": "禁用此对等体连接。",
     "disablePeerHint": "以禁用状态创建对等体。",
     "adding": "正在添加...",
-    "saveChanges": "保存更改",
     "addPeer": "添加对等体"
   },
   "deleteInterface": {
@@ -171,8 +167,7 @@
     "title": "删除接口：{name}",
     "confirm": "确定要删除此 WireGuard 接口吗？此操作无法撤销。",
     "peerWarning": "警告：此接口配置了 {count} 个对等体。",
-    "peerWarningHint": "删除接口将移除所有对等体配置。",
-    "submit": "删除接口"
+    "peerWarningHint": "删除接口将移除所有对等体配置。"
   },
   "deletePeer": {
     "failed": "删除对等体失败",

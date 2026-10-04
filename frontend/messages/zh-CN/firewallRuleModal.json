@@ -10,7 +10,6 @@
     "updateFailed": "更新规则失败",
     "createFailed": "创建规则失败",
     "updating": "正在更新...",
-    "creating": "正在创建...",
     "updateRule": "更新规则",
     "createRule": "创建规则"
   },

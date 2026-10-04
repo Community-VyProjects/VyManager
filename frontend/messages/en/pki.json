@@ -6,7 +6,6 @@
     "nameRequired": "Name is required",
     "generationFailed": "Generation failed",
     "generating": "Generating...",
-    "saveChanges": "Save Changes",
     "leaveEmpty": "Leave empty to keep current",
     "bits": "{size} bits",
     "present": "Present",

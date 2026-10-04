@@ -59,7 +59,6 @@
     "targetIp": "Target IP"
   },
   "modal": {
-    "selectInterface": "Select interface",
     "editTitle": "Edit Failover Route",
     "addTitle": "Add Failover Route",
     "editDescription": "Modify failover route configuration for {destination}.",
@@ -77,8 +76,6 @@
     "addDhcpInterface": "Add DHCP Interface",
     "noDhcp": "No DHCP interfaces configured. Click \"Add DHCP Interface\" to add one.",
     "dhcpInterfaceN": "DHCP Interface #{n}",
-    "nameRequired": "Name *",
-    "creating": "Creating...",
-    "saveChanges": "Save Changes"
+    "nameRequired": "Name *"
   }
 }

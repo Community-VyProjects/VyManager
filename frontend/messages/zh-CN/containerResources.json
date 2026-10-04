@@ -37,7 +37,6 @@
     "networkName": "网络名称",
     "namePlaceholder": "例如 my-net",
     "nameImmutable": "网络创建后无法更改名称。",
-    "descriptionPlaceholder": "可选描述",
     "networkType": "网络类型",
     "selectType": "选择类型",
     "noneOption": "— 无 —",
@@ -49,9 +48,7 @@
     "noNameServer": "禁用域名服务器 (no-name-server)",
     "prefixPlaceholder": "例如 10.0.0.0/24",
     "gatewayPlaceholder": "例如 10.0.0.1",
-    "saving": "正在保存…",
-    "adding": "正在添加…",
-    "saveChanges": "保存更改"
+    "adding": "正在添加…"
   },
   "deleteNetwork": {
     "failed": "删除网络失败",
@@ -89,9 +86,7 @@
     "path": "路径",
     "port": "端口",
     "portPlaceholder": "例如 5000",
-    "saving": "正在保存…",
-    "adding": "正在添加…",
-    "saveChanges": "保存更改"
+    "adding": "正在添加…"
   },
   "deleteRegistry": {
     "failed": "删除镜像仓库失败",

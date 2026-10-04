@@ -165,10 +165,10 @@ export function SiteModal({
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  {isEdit ? tc("saving") : t("creating")}
+                  {isEdit ? tc("saving") : tc("creating")}
                 </>
               ) : isEdit ? (
-                t("saveChanges")
+                tc("saveChanges")
               ) : (
                 t("siteModal.createButton")
               )}

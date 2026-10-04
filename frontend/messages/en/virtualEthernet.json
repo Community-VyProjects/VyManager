@@ -15,7 +15,6 @@
     "peerName": "Peer Name",
     "peerNameRequired": "Peer Name *",
     "peerNameHint": "The other end of the veth pair",
-    "descriptionPlaceholder": "Optional description",
     "networkNamespace": "Network Namespace",
     "disabled": "Disabled",
     "disableLinkDetect": "Disable Link Detect",
@@ -103,14 +102,12 @@
   "create": {
     "title": "Create Virtual Ethernet Interface",
     "description": "Configure a new kernel veth pair. Both ends of the pair are created together.",
-    "creating": "Creating...",
     "submit": "Create Interface",
     "failed": "Failed to create interface"
   },
   "edit": {
     "title": "Edit Virtual Ethernet Interface: {name}",
     "description": "Modify the configuration for virtual-ethernet interface {name}.",
-    "saveChanges": "Save Changes",
     "failed": "Failed to update interface"
   },
   "vif": {
@@ -136,7 +133,6 @@
     "namespace": "Namespace:",
     "addressCount": "{count, plural, one {# address} other {# addresses}}",
     "subInterfaceCount": "{count, plural, one {# sub-interface} other {# sub-interfaces}}",
-    "submit": "Delete Interface",
     "failed": "Failed to delete virtual-ethernet interface"
   }
 }

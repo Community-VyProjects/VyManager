@@ -4,7 +4,6 @@
   "connect": "Connect",
   "connected": "Connected",
   "connecting": "Connecting...",
-  "creating": "Creating...",
   "deleteConfirm": "Are you sure you want to delete <strong>{name}</strong>?",
   "deleteInstance": "Delete Instance",
   "deleteSite": "Delete Site",
@@ -17,7 +16,6 @@
   "instanceCount": "{count, plural, one {# instance} other {# instances}}",
   "moveToSite": "Move to Site",
   "port": "Port",
-  "saveChanges": "Save Changes",
   "unreachable": "Unreachable",
   "validation": {
     "apiKeyRequired": "API Key is required",
@@ -165,7 +163,7 @@
   "updates": {
     "allUpToDate": "All routers up to date",
     "checking": "Checking for updates…",
-    "dialogDescription": "{withUpdates} of {total} instances have updates available",
+    "dialogDescription": "{withUpdates} of {total, plural, one {# instance} other {# instances}} have updates available",
     "dialogTitle": "Update status",
     "noMatch": "No instances match “{query}”.",
     "notConfigured": "Not configured",

@@ -75,7 +75,6 @@
     "sshKey": "SSH key"
   },
   "schemaEditor": {
-    "saveChanges": "Save Changes",
     "select": "Select…",
     "addListItem": "Add {label}…"
   },

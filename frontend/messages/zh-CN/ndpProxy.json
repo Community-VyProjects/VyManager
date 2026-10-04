@@ -2,7 +2,6 @@
   "content": {
     "loadFailed": "加载 NDP 代理配置失败",
     "title": "NDP 代理",
-    "readOnly": "只读",
     "subtitle": "邻居发现协议代理 — 在接口之间转发 NDP",
     "editSettings": "编辑设置",
     "totalInterfaces": "接口总数",
@@ -12,7 +11,6 @@
     "routeRefresh": "路由刷新间隔",
     "routeRefreshDefault": "30000 ms（默认）",
     "interfaces": "接口",
-    "addInterface": "添加接口",
     "colInterface": "接口",
     "colTimeout": "超时",
     "colPrefixes": "前缀",
@@ -27,7 +25,7 @@
   "delete": {
     "title": "移除 NDP 代理接口",
     "description": "要移除 <mono>{name}</mono> 的 NDP 代理配置吗？",
-    "alsoRemove": "这也将移除 <b>{count}</b> 个前缀。",
+    "alsoRemove": "{count, plural, one {这也将移除 <b>#</b> 个前缀。} other {这也将移除 <b>#</b> 个前缀。}}",
     "remove": "移除"
   },
   "global": {
@@ -44,7 +42,6 @@
     "prefixInvalid": "请输入有效的 IPv6 前缀或地址（例如 2001:db8::/64）",
     "prefixDuplicate": "此前缀已在列表中",
     "fwdInterfaceRequired": "interface 模式需要指定转发接口",
-    "interfaceRequired": "接口名称为必填项",
     "interfaceExists": "接口“{name}”已配置",
     "timeoutRange": "超时必须介于 500 和 120000 ms 之间",
     "ttlRange": "TTL 必须介于 10000 和 120000 ms 之间",
@@ -52,10 +49,8 @@
   },
   "modal": {
     "editTitle": "编辑接口",
-    "addTitle": "添加接口",
     "description": "配置 NDP 代理监听接口及其前缀",
     "interfaceName": "接口名称",
-    "selectInterface": "选择接口",
     "disableInterface": "禁用此接口",
     "routerBit": "在邻居通告中启用路由器标志位",
     "timeout": "超时 (ms)",

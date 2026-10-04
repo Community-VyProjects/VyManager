@@ -8,8 +8,6 @@
   "deleteRuleFailed": "无法删除规则",
   "orderSaved": "规则顺序已保存",
   "orderSaveFailed": "保存规则顺序失败",
-  "saving": "正在保存…",
-  "creating": "正在创建…",
   "deleting": "正在删除…",
   "createRule": "创建规则",
   "addRule": "添加规则",

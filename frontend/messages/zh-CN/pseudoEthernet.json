@@ -23,7 +23,6 @@
     "sourceInterfaceRequired": "源接口 *",
     "selectEthernetInterface": "选择以太网接口",
     "mode": "模式",
-    "descriptionPlaceholder": "可选描述",
     "macAddress": "MAC 地址",
     "redirect": "重定向",
     "disabled": "禁用",
@@ -114,14 +113,12 @@
   "create": {
     "title": "创建伪以太网接口",
     "description": "配置一个绑定到物理以太网端口的新 MacVLAN 伪以太网接口。",
-    "creating": "正在创建...",
     "submit": "创建接口",
     "failed": "创建接口失败"
   },
   "edit": {
     "title": "编辑伪以太网接口：{name}",
     "description": "修改伪以太网接口 {name} 的配置。",
-    "saveChanges": "保存更改",
     "failed": "更新接口失败"
   },
   "vif": {
@@ -146,7 +143,6 @@
     "source": "源接口：",
     "mode": "模式：",
     "addressCount": "{count, plural, other {# 个地址}}",
-    "submit": "删除接口",
     "failed": "删除伪以太网接口失败"
   }
 }

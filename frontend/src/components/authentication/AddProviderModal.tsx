@@ -346,7 +346,7 @@ export function AddProviderModal({
                 </Button>
                 <Button onClick={handleSave} disabled={saving || success}>
                   {saving ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("form.saving")}</>
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</>
                   ) : (
                     t("form.saveProvider")
                   )}

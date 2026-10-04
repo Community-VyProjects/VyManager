@@ -238,7 +238,7 @@ export function IgmpProxySetupModal({
                   value={upstreamName}
                   onValueChange={setUpstreamName}
                   interfaces={availableInterfaces}
-                  placeholder={t("selectInterface")}
+                  placeholder={tc("selectInterface")}
                 />
               </div>
 
@@ -372,7 +372,7 @@ export function IgmpProxySetupModal({
                   value={downstreamName}
                   onValueChange={setDownstreamName}
                   interfaces={availableInterfaces}
-                  placeholder={t("selectInterface")}
+                  placeholder={tc("selectInterface")}
                 />
               </div>
 

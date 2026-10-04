@@ -1,6 +1,5 @@
 {
   "confirmDelete": "Confirm Delete",
-  "saveChanges": "Save Changes",
   "adding": "Adding...",
   "errors": {
     "loadConfig": "Failed to load MPLS configuration",
@@ -13,7 +12,6 @@
     "saveLdpFilters": "Failed to save LDP filters"
   },
   "header": {
-    "readOnly": "Read Only",
     "subtitle": "Multiprotocol Label Switching and Label Distribution Protocol"
   },
   "stats": {
@@ -78,7 +76,6 @@
   },
   "ldpInterfaces": {
     "description": "Interfaces participating in LDP neighbor discovery",
-    "add": "Add Interface",
     "empty": "No LDP interfaces configured",
     "emptyHint": "Add an interface to enable LDP neighbor discovery",
     "interface": "Interface",
@@ -123,7 +120,6 @@
     "helloInterval": "Hello Interval"
   },
   "interfaceModal": {
-    "nameRequired": "Interface name is required",
     "editTitle": "Edit LDP Interface",
     "addTitle": "Add LDP Interface",
     "selectPlaceholder": "Select interface...",

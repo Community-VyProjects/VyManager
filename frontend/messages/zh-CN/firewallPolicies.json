@@ -88,7 +88,6 @@
     "actionReject": "拒绝",
     "actionReturn": "返回",
     "defaultActionHint": "当此链中没有规则匹配时执行的动作",
-    "creating": "正在创建...",
     "submit": "创建链",
     "nameRequired": "链名称为必填项",
     "nameInvalid": "链名称必须以字母开头，且只能包含字母、数字、连字符和下划线",

@@ -1,7 +1,6 @@
 {
   "unexpectedError": "发生意外错误",
   "deleteFailed": "删除失败",
-  "saving": "正在保存…",
   "users": {
     "deleteUserFailed": "删除用户失败",
     "userDeleted": "用户已删除",
@@ -47,7 +46,6 @@
     "newPassword": "新密码（留空则保持当前密码）",
     "passwordOptional": "密码（可选）",
     "confirmPassword": "确认密码",
-    "saveChanges": "保存更改",
     "createUser": "创建用户",
     "fullNamePlaceholder": "管理员"
   },

@@ -1,7 +1,5 @@
 {
-  "saveChanges": "保存更改",
   "adding": "正在添加...",
-  "creating": "正在创建...",
   "tunnelIpRequired": "隧道 IP 为必填项",
   "errors": {
     "loadConfig": "加载 NHRP 配置失败",
@@ -14,7 +12,6 @@
     "deleteMulticast": "删除组播失败"
   },
   "header": {
-    "readOnly": "只读",
     "subtitle": "下一跳解析协议",
     "addTunnel": "添加隧道"
   },

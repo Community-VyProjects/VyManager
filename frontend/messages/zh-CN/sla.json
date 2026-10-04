@@ -4,7 +4,6 @@
     "portDefault": "{port}（默认）",
     "port": "端口",
     "loadFailed": "加载 SLA 配置失败",
-    "readOnly": "只读",
     "subtitle": "SLA 监测 — OWAMP 和 TWAMP 测量服务器",
     "editSettings": "编辑设置",
     "enabledCount": "{count, plural, =0 {未启用任何测量服务器} other {已启用 # 个测量服务器}}",

@@ -106,7 +106,7 @@ export function DeleteBridgeModal({
                 {tc("deleting")}
               </>
             ) : (
-              t("deleteButton")
+              tc("deleteInterface")
             )}
           </Button>
         </AlertDialogFooter>

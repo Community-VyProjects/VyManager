@@ -2,7 +2,6 @@
   "content": {
     "loadFailed": "Failed to load service monitoring configuration",
     "title": "Service Monitoring",
-    "readOnly": "Read Only",
     "subtitle": "Telegraf, Zabbix, Prometheus exporters, and network event logging",
     "tabs": {
       "zabbixAgent": "Zabbix Agent",

@@ -162,7 +162,7 @@ export function TrafficEngineeringContent() {
                 <h1 className="text-2xl font-bold text-foreground">{t("header.title")}</h1>
                 {!hasWritePermission && (
                   <Badge variant="secondary" className="text-xs">
-                    {t("header.readOnly")}
+                    {tc("readOnly")}
                   </Badge>
                 )}
               </div>
@@ -372,7 +372,7 @@ export function TrafficEngineeringContent() {
                     }}
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    {t("interfaces.add")}
+                    {tc("addInterface")}
                   </Button>
                 )}
               </div>
@@ -393,7 +393,7 @@ export function TrafficEngineeringContent() {
                       }}
                     >
                       <Plus className="h-4 w-4 mr-2" />
-                      {t("interfaces.add")}
+                      {tc("addInterface")}
                     </Button>
                   )}
                 </div>

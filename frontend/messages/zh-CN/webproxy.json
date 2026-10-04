@@ -2,7 +2,6 @@
   "content": {
     "loadFailed": "加载 Web 代理配置失败",
     "title": "Web 代理",
-    "readOnly": "只读",
     "configured": "已配置",
     "unconfigured": "未配置",
     "subtitle": "Squid 缓存代理，配合 SquidGuard URL 过滤",
@@ -94,9 +93,7 @@
     "deleteConfirm": "确定移除 <code>{name}</code> 吗？此操作无法撤销。"
   },
   "common": {
-    "saveChanges": "保存更改",
-    "nameImmutable": "名称创建后无法更改。",
-    "optionalDescription": "可选描述"
+    "nameImmutable": "名称创建后无法更改。"
   },
   "auth": {
     "description": "要求用户先通过 LDAP 目录认证才能使用代理。",

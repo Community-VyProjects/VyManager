@@ -196,7 +196,6 @@ function InterfaceSelect({
   interfaces: InterfaceName[];
   placeholder?: string;
 }) {
-  const t = useTranslations("failover");
   const tc = useTranslations("common");
   return (
     <Select
@@ -204,7 +203,7 @@ function InterfaceSelect({
       onValueChange={(v) => onChange(v === "__none__" ? "" : v)}
     >
       <SelectTrigger id={id} className="h-8 text-xs">
-        <SelectValue placeholder={placeholder || t("modal.selectInterface")} />
+        <SelectValue placeholder={placeholder || tc("selectInterface")} />
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="__none__">{tc("none")}</SelectItem>
@@ -778,7 +777,7 @@ export function FailoverRouteModal({
                             value={d.name}
                             onChange={(v) => updateDhcpInterface(dIndex, { name: v })}
                             interfaces={availableInterfaces}
-                            placeholder={t("modal.selectInterface")}
+                            placeholder={tc("selectInterface")}
                           />
                         </div>
                         <div className="space-y-1">
@@ -851,10 +850,10 @@ export function FailoverRouteModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? tc("saving") : t("modal.creating")}
+                {isEditMode ? tc("saving") : tc("creating")}
               </>
             ) : isEditMode ? (
-              t("modal.saveChanges")
+              tc("saveChanges")
             ) : (
               t("addRoute")
             )}

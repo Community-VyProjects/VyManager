@@ -107,7 +107,7 @@ export function DeleteWwanModal({
                 {tc("deleting")}
               </>
             ) : (
-              t("delete.confirm")
+              tc("deleteInterface")
             )}
           </Button>
         </AlertDialogFooter>

@@ -69,7 +69,6 @@
     "nameRequired": "区域名称为必填项",
     "nameInvalid": "区域名称必须以字母或数字开头，且只能包含字母、数字、连字符、下划线或点",
     "interfaceRequired": "至少需要选择一个接口",
-    "descriptionPlaceholder": "可选描述",
     "defaultAction": "默认动作",
     "drop": "丢弃",
     "reject": "拒绝",
@@ -120,8 +119,7 @@
     "deleting": "正在删除…",
     "confirmDelete": "确认删除",
     "deleteZone": "删除区域",
-    "cancelDelete": "取消删除",
-    "saveChanges": "保存更改"
+    "cancelDelete": "取消删除"
   },
   "rulePanel": {
     "newTitle": "新建防火墙规则",

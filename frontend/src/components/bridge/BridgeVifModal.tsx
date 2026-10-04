@@ -196,7 +196,7 @@ export function BridgeVifModal({
               id="vif-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder={t("optionalDescription")}
+              placeholder={tc("optionalDescription")}
             />
           </div>
 
@@ -258,10 +258,10 @@ export function BridgeVifModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? tc("saving") : t("creating")}
+                {isEdit ? tc("saving") : tc("creating")}
               </>
             ) : isEdit ? (
-              t("saveChanges")
+              tc("saveChanges")
             ) : (
               t("vifCreateButton")
             )}

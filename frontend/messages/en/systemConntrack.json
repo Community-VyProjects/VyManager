@@ -8,8 +8,6 @@
   "deleteRuleFailed": "Could not delete rule",
   "orderSaved": "Rule order saved",
   "orderSaveFailed": "Failed to save rule order",
-  "saving": "Saving…",
-  "creating": "Creating…",
   "deleting": "Deleting…",
   "createRule": "Create Rule",
   "addRule": "Add Rule",

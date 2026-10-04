@@ -2,7 +2,6 @@
   "content": {
     "loadFailed": "Failed to load container configuration",
     "title": "Containers",
-    "readOnly": "Read Only",
     "subtitle": "Manage container instances, networks, and registries",
     "containers": "Containers",
     "networks": "Networks",
@@ -69,7 +68,6 @@
     "loadingImages": "Loading images...",
     "noImages": "No images found on device",
     "useImage": "Use \"{image}\"",
-    "descriptionPlaceholder": "Optional description",
     "restartPolicy": "Restart Policy",
     "selectRestartPolicy": "Select restart policy",
     "noneOption": "— None —",
@@ -137,9 +135,7 @@
     "linuxCapabilities": "Linux Capabilities",
     "sysctlParameters": "Sysctl Parameters",
     "value": "Value",
-    "saving": "Saving…",
-    "adding": "Adding…",
-    "saveChanges": "Save Changes"
+    "adding": "Adding…"
   },
   "deleteModal": {
     "failed": "Failed to delete container",
@@ -157,8 +153,7 @@
     "editFile": "Edit File",
     "noFiles": "No editable files defined for this app.",
     "saved": "Saved. A backup was written to <mono>{path}</mono>",
-    "back": "Back",
-    "saving": "Saving…"
+    "back": "Back"
   },
   "sshOutput": {
     "running": "Running command, please wait…",
@@ -172,7 +167,6 @@
     "failed": "Failed to create directory.",
     "title": "Container Storage Setup",
     "description": "The base directory <mono>{path}</mono> does not exist on this device. It must be created before containers can be deployed.",
-    "creating": "Creating…",
     "create": "Create Directory"
   }
 }

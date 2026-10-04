@@ -206,7 +206,7 @@ export function HAProxyBackendModal({ open, onOpenChange, backend, capabilities,
               <Input
                 value={form.description}
                 onChange={(e) => set("description", e.target.value)}
-                placeholder={t("optionalDescription")}
+                placeholder={tc("optionalDescription")}
               />
             </div>
           </div>
@@ -391,7 +391,7 @@ export function HAProxyBackendModal({ open, onOpenChange, backend, capabilities,
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? t("saveChanges") : t("backendModal.create")}
+            {isEdit ? tc("saveChanges") : t("backendModal.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

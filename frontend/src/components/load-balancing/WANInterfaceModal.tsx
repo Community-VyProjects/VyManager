@@ -122,7 +122,7 @@ export function WANInterfaceModal({ open, onOpenChange, iface, onSuccess }: Prop
     setForm((f) => ({ ...f, tests: f.tests.filter((_, i) => i !== idx) }));
 
   const handleSubmit = async () => {
-    if (!form.interface.trim()) { setError(t("interfaceModal.interfaceRequired")); return; }
+    if (!form.interface.trim()) { setError(tc("interfaceNameRequired")); return; }
     if (!form.nexthop.trim()) { setError(t("interfaceModal.nexthopRequired")); return; }
 
     setLoading(true);
@@ -266,7 +266,7 @@ export function WANInterfaceModal({ open, onOpenChange, iface, onSuccess }: Prop
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? t("saveChanges") : t("addInterface")}
+            {isEdit ? tc("saveChanges") : tc("addInterface")}
           </Button>
         </DialogFooter>
       </DialogContent>

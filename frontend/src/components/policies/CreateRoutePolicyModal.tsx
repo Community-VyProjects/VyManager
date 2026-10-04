@@ -123,7 +123,7 @@ export function CreateRoutePolicyModal({
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? t("creating") : t("submit")}
+            {loading ? tc("creating") : t("submit")}
           </Button>
         </div>
       </DialogContent>

@@ -69,7 +69,6 @@
     "nameRequired": "Zone name is required",
     "nameInvalid": "Zone name must start with alphanumeric and contain only letters, numbers, hyphens, underscores, or dots",
     "interfaceRequired": "At least one interface must be selected",
-    "descriptionPlaceholder": "Optional description",
     "defaultAction": "Default Action",
     "drop": "Drop",
     "reject": "Reject",
@@ -120,8 +119,7 @@
     "deleting": "Deleting…",
     "confirmDelete": "Confirm Delete",
     "deleteZone": "Delete Zone",
-    "cancelDelete": "Cancel Delete",
-    "saveChanges": "Save Changes"
+    "cancelDelete": "Cancel Delete"
   },
   "rulePanel": {
     "newTitle": "New Firewall Rule",

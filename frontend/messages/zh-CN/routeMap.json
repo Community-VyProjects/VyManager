@@ -85,7 +85,6 @@
     "routeSourceAccessList": "路由源访问列表",
     "routeSourcePrefixList": "路由源前缀列表",
     "interface": "接口",
-    "selectInterface": "选择接口",
     "protocol": "协议",
     "selectProtocol": "选择协议",
     "protocolConnected": "直连",
@@ -152,7 +151,6 @@
     "onMatchGoto": "退出策略：跳转 (goto)",
     "onMatchGotoHint": "匹配时跳转到指定规则编号",
     "onMatchNext": "退出策略：下一条 (next)（转到下一个序号）",
-    "creating": "正在创建...",
     "submit": "创建路由映射"
   },
   "edit": {

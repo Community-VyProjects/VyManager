@@ -51,6 +51,7 @@ export function QuickSetupWizard({
   existingPorts,
 }: QuickSetupWizardProps) {
   const t = useTranslations("wireguardTools");
+  const tc = useTranslations("common");
   // Wizard state
   const [step, setStep] = useState<WizardStep>("welcome");
   const [loading, setLoading] = useState(false);
@@ -157,7 +158,7 @@ export function QuickSetupWizard({
   // Validate server step
   const validateServerStep = (): string | null => {
     if (!interfaceName.trim()) {
-      return t("quickSetup.validation.interfaceNameRequired");
+      return tc("interfaceNameRequired");
     }
     if (!/^wg\d+$/.test(interfaceName.trim())) {
       return t("quickSetup.validation.interfaceNameFormat");

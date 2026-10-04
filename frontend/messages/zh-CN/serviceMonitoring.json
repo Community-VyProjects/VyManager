@@ -2,7 +2,6 @@
   "content": {
     "loadFailed": "加载监控服务配置失败",
     "title": "监控服务",
-    "readOnly": "只读",
     "subtitle": "Telegraf、Zabbix、Prometheus 导出器以及网络事件日志",
     "tabs": {
       "zabbixAgent": "Zabbix 代理",

@@ -190,7 +190,9 @@ export function InterfaceModal({
   // Validate create-only identity rules
   const validateCreate = (): string | null => {
     const error = validateInterfaceCreate(draft(), existingInterfaces);
-    return error && t(`validation.${error}`, { name: draft().name });
+    if (!error) return null;
+    if (error === "interfaceNameRequired") return tc("interfaceNameRequired");
+    return t(`validation.${error}`, { name: draft().name });
   };
 
   const submitCreate = async () => {
@@ -562,10 +564,10 @@ export function InterfaceModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? tc("saving") : t("interfaceModal.creating")}
+                {isEdit ? tc("saving") : tc("creating")}
               </>
             ) : isEdit ? (
-              t("interfaceModal.saveChanges")
+              tc("saveChanges")
             ) : (
               t("interfaceModal.createInterface")
             )}

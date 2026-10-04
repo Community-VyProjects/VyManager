@@ -205,7 +205,7 @@ export function LoopbackModal({
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder={t("modal.descriptionPlaceholder")}
+                placeholder={tc("optionalDescription")}
               />
             </div>
 
@@ -295,7 +295,7 @@ export function LoopbackModal({
                 {isEdit ? tc("saving") : t("modal.configuring")}
               </>
             ) : isEdit ? (
-              t("modal.saveChanges")
+              tc("saveChanges")
             ) : (
               t("modal.configureLoopback")
             )}

@@ -1,7 +1,6 @@
 {
   "content": {
     "loadFailed": "Failed to load NTP configuration",
-    "readOnly": "Read Only",
     "subtitle": "Network Time Protocol — synchronise system time with upstream servers",
     "editSettings": "Edit Settings",
     "servers": "Servers",

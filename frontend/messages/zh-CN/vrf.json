@@ -7,7 +7,6 @@
   "addRoute": "添加路由",
   "destination": "目标",
   "interface": "接口",
-  "optionalDescription": "可选描述",
   "vxlanNetworkId": "VXLAN 网络标识符",
   "example": "例如：{value}",
   "page": {
@@ -76,8 +75,8 @@
     "noProtocols": "尚未配置协议或服务。使用上方的标签页添加。"
   },
   "staticRoutes": {
-    "nextHopCount": "{count} 个下一跳",
-    "interfaceCount": "{count} 个接口",
+    "nextHopCount": "{count, plural, one {# 个下一跳} other {# 个下一跳}}",
+    "interfaceCount": "{count, plural, one {# 个接口} other {# 个接口}}",
     "typeBlackhole": "黑洞",
     "typeReject": "拒绝",
     "typeEmpty": "空",

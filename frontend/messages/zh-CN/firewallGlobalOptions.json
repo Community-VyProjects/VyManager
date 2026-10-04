@@ -2,7 +2,6 @@
   "title": "全局选项",
   "subtitle": "配置防火墙全局设置",
   "reset": "重置",
-  "saveChanges": "保存更改",
   "unsavedChanges": "你有未保存的更改",
   "loadFailed": "加载全局选项失败",
   "saveSuccess": "配置已保存",

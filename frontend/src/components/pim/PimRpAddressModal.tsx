@@ -230,7 +230,7 @@ export function PimRpAddressModal({
                 {isEditMode ? tc("saving") : t("adding")}
               </>
             ) : isEditMode ? (
-              t("saveChanges")
+              tc("saveChanges")
             ) : (
               t("addRpAddress")
             )}

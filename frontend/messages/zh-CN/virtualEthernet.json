@@ -15,7 +15,6 @@
     "peerName": "对端接口名称",
     "peerNameRequired": "对端接口名称 *",
     "peerNameHint": "veth 对的另一端",
-    "descriptionPlaceholder": "可选描述",
     "networkNamespace": "网络命名空间",
     "disabled": "禁用",
     "disableLinkDetect": "禁用链路检测",
@@ -103,14 +102,12 @@
   "create": {
     "title": "创建虚拟以太网接口",
     "description": "配置一个新的内核 veth 对。该对的两端会同时创建。",
-    "creating": "正在创建...",
     "submit": "创建接口",
     "failed": "创建接口失败"
   },
   "edit": {
     "title": "编辑虚拟以太网接口：{name}",
     "description": "修改虚拟以太网接口 {name} 的配置。",
-    "saveChanges": "保存更改",
     "failed": "更新接口失败"
   },
   "vif": {
@@ -136,7 +133,6 @@
     "namespace": "命名空间：",
     "addressCount": "{count, plural, other {# 个地址}}",
     "subInterfaceCount": "{count, plural, other {# 个子接口}}",
-    "submit": "删除接口",
     "failed": "删除虚拟以太网接口失败"
   }
 }

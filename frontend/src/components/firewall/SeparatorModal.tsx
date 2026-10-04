@@ -172,7 +172,7 @@ export function SeparatorModal({
             {tc("cancel")}
           </Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? tc("saving") : editing ? t("separatorModal.saveChanges") : t("separatorModal.add")}
+            {saving ? tc("saving") : editing ? tc("saveChanges") : t("separatorModal.add")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -302,7 +302,7 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: Ope
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{mode === "generate" && !isEdit ? t("shared.generating") : tc("saving")}</>
-            ) : isEdit ? t("shared.saveChanges") : mode === "generate" ? t("openssh.generateButton") : t("openssh.importButton")}
+            ) : isEdit ? tc("saveChanges") : mode === "generate" ? t("openssh.generateButton") : t("openssh.importButton")}
           </Button>
         </DialogFooter>
       </DialogContent>

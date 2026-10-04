@@ -389,7 +389,7 @@ export function NhrpContent() {
                 <Globe className="h-6 w-6 text-primary" />
                 <h1 className="text-2xl font-bold text-foreground">NHRP</h1>
                 {!hasWritePermission && (
-                  <Badge variant="secondary" className="text-xs">{t("header.readOnly")}</Badge>
+                  <Badge variant="secondary" className="text-xs">{tc("readOnly")}</Badge>
                 )}
               </div>
               <p className="text-sm text-muted-foreground mt-1">

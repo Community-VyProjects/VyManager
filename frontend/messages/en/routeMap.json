@@ -85,7 +85,6 @@
     "routeSourceAccessList": "Route Source Access List",
     "routeSourcePrefixList": "Route Source Prefix List",
     "interface": "Interface",
-    "selectInterface": "Select interface",
     "protocol": "Protocol",
     "selectProtocol": "Select protocol",
     "protocolConnected": "Connected",
@@ -152,7 +151,6 @@
     "onMatchGoto": "On-Match Goto",
     "onMatchGotoHint": "Jump to rule number on match",
     "onMatchNext": "On-Match Next (go to next sequence number)",
-    "creating": "Creating...",
     "submit": "Create Route Map"
   },
   "edit": {

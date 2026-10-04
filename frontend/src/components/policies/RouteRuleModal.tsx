@@ -1672,7 +1672,7 @@ export function RouteRuleModal({
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? (isEdit ? tc("saving") : t("buttons.creating")) : isEdit ? t("buttons.saveChanges") : t("buttons.createRule")}
+            {loading ? (isEdit ? tc("saving") : tc("creating")) : isEdit ? tc("saveChanges") : t("buttons.createRule")}
           </Button>
         </div>
       </DialogContent>

@@ -17,8 +17,6 @@
     "macRequired": "MAC address is required",
     "macInvalidUse": "Invalid MAC address format (use XX:XX:XX:XX:XX:XX)"
   },
-  "creating": "Creating...",
-  "saveChanges": "Save Changes",
   "networkLabel": "Network:",
   "subnet": "Subnet",
   "selectSubnet": "Select a subnet",
@@ -39,7 +37,6 @@
     "stopIpHelp": "The last IP address in the range",
     "create": "Create Range"
   },
-  "optionalDescription": "Optional description",
   "mapping": {
     "updateFailed": "Failed to update static mapping",
     "createFailed": "Failed to create static mapping",
@@ -107,8 +104,6 @@
     "description": "Bind the DHCP listener and toggle host-file options",
     "listenAddresses": "Listen addresses",
     "listenInterfaces": "Listen interfaces",
-    "addInterface": "Add interface",
-    "selectInterface": "Select interface",
     "hostfileUpdate": "Update hosts file from leases",
     "hostDeclName": "Use host declaration name"
   },
@@ -287,7 +282,7 @@
     "rangeCount": "{count, plural, one {# range} other {# ranges}}",
     "noRanges": "No Ranges",
     "noRangesHint": "No DHCP ranges configured for this network",
-    "poolSizeIps": "{count} IPs",
+    "poolSizeIps": "{count, plural, one {# IP} other {# IPs}}",
     "searchMappings": "Search by name, IP, or MAC...",
     "mappingCount": "{count, plural, one {# mapping} other {# mappings}}",
     "noMappings": "No Static Mappings",

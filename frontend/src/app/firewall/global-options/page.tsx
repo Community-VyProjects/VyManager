@@ -492,7 +492,7 @@ function FirewallGlobalOptionsPageInner() {
               ) : (
                 <Save className="h-4 w-4 mr-1.5" />
               )}
-              {saving ? tc("saving") : t("saveChanges")}
+              {saving ? tc("saving") : tc("saveChanges")}
             </Button>
           </div>
         </div>

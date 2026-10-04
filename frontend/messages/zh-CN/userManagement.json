@@ -52,7 +52,6 @@
     "reenterNewPassword": "再次输入新密码",
     "reenterPassword": "再次输入密码",
     "updating": "正在更新...",
-    "creating": "正在创建...",
     "updateSubmit": "更新用户",
     "namePlaceholder": "张三"
   },
@@ -87,7 +86,7 @@
     "empty": "尚未授予任何访问权限。",
     "selectAll": "全选",
     "wholeSite": "{site}（整个站点）",
-    "featureCount": "{count} 项功能",
+    "featureCount": "{count, plural, one {# 项功能} other {# 项功能}}",
     "viaSso": "通过 SSO",
     "managedInRoleMapping": "在角色映射中管理"
   },
@@ -100,12 +99,11 @@
     "roleOperator": "操作员（可编辑所选功能）",
     "roleViewer": "只读用户（可查看所选功能）",
     "featurePermissions": "功能权限",
-    "editBulkTitle": "编辑 {count} 项授权",
+    "editBulkTitle": "{count, plural, one {编辑 # 项授权} other {编辑 # 项授权}}",
     "editTitle": "编辑授权",
     "addTitle": "添加授权",
     "bulkDescription": "将同一角色和功能权限应用到所选授权。",
     "description": "授予对特定实例或整个站点的访问权限。",
-    "saving": "正在保存…",
     "save": "保存授权"
   },
   "instances": {

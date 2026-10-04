@@ -103,7 +103,7 @@ export function DeleteVxlanModal({
                 {tc("deleting")}
               </>
             ) : (
-              t("delete.button")
+              tc("deleteInterface")
             )}
           </Button>
         </AlertDialogFooter>

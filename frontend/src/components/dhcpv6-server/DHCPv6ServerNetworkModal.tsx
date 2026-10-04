@@ -319,7 +319,7 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                   <Label htmlFor="net-desc">{tc("description")}</Label>
                   <Input
                     id="net-desc"
-                    placeholder={t("optionalDescription")}
+                    placeholder={tc("optionalDescription")}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                   />

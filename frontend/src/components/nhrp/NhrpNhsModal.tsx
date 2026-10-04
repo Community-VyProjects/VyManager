@@ -169,7 +169,7 @@ export function NhrpNhsModal({
                 {isEditMode ? tc("saving") : t("adding")}
               </>
             ) : isEditMode ? (
-              t("saveChanges")
+              tc("saveChanges")
             ) : (
               t("nhsModal.addNhs")
             )}

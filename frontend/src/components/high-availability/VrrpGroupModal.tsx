@@ -177,8 +177,8 @@ function InterfaceSelect({
   placeholder?: string;
   className?: string;
 }) {
-  const t = useTranslations("highAvailability");
-  const ph = placeholder ?? t("vrrpModal.selectInterface");
+  const tc = useTranslations("common");
+  const ph = placeholder ?? tc("selectInterface");
   // If we have no interfaces loaded yet, fall back to a plain input
   if (interfaces.length === 0) {
     return (
@@ -382,7 +382,7 @@ export function VrrpGroupModal({
                   value={form.interface}
                   onChange={(v) => set("interface")(v)}
                   interfaces={interfaces}
-                  placeholder={t("vrrpModal.selectInterface")}
+                  placeholder={tc("selectInterface")}
                 />
               </div>
               <div className="space-y-1.5">
@@ -414,7 +414,7 @@ export function VrrpGroupModal({
                 <Input
                   value={form.description}
                   onChange={(e) => set("description")(e.target.value)}
-                  placeholder={t("optionalDescription")}
+                  placeholder={tc("optionalDescription")}
                 />
               </div>
             </div>
@@ -688,7 +688,7 @@ export function VrrpGroupModal({
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? t("saveChanges") : t("vrrpModal.create")}
+            {isEdit ? tc("saveChanges") : t("vrrpModal.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

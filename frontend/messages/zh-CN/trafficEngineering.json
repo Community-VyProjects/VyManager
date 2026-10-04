@@ -1,13 +1,10 @@
 {
   "adminGroups": "管理组",
-  "creating": "正在创建...",
-  "saveChanges": "保存更改",
   "errors": {
     "loadConfig": "加载流量工程配置失败"
   },
   "header": {
     "title": "流量工程",
-    "readOnly": "只读",
     "subtitle": "MPLS-TE 链路参数配置"
   },
   "stats": {
@@ -27,7 +24,6 @@
   },
   "interfaces": {
     "description": "按接口配置流量工程参数。",
-    "add": "添加接口",
     "empty": "尚未配置接口",
     "emptyHint": "添加接口以配置 TE 参数",
     "interface": "接口",
@@ -54,7 +50,6 @@
     "editTitle": "编辑接口参数",
     "addTitle": "添加接口参数",
     "description": "为网络接口配置流量工程参数。",
-    "selectInterface": "选择接口",
     "noGroups": "尚未配置管理组 — 请在“管理组”标签页中添加",
     "bit": "比特 {position}"
   },

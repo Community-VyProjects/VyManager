@@ -357,7 +357,7 @@ export function DHCPv6RelayModal({ open, onClose, onSuccess, config }: DHCPv6Rel
                   value={listenSelectedIface}
                   onValueChange={setListenSelectedIface}
                   interfaces={availableForListen}
-                  placeholder={t("modal.selectInterface")}
+                  placeholder={tc("selectInterface")}
                 />
                 <Input
                   value={listenAddressInput}

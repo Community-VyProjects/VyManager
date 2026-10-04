@@ -202,7 +202,7 @@ export function EditZoneModal({
                 id="edit-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder={t("zoneForm.descriptionPlaceholder")}
+                placeholder={tc("optionalDescription")}
               />
             </div>
 
@@ -399,7 +399,7 @@ export function EditZoneModal({
               {tc("cancel")}
             </Button>
             <Button onClick={handleSave} disabled={loading || deleteLoading}>
-              {loading ? tc("saving") : t("editZone.saveChanges")}
+              {loading ? tc("saving") : tc("saveChanges")}
             </Button>
           </div>
         </DialogFooter>

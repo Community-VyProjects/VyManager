@@ -1,7 +1,5 @@
 {
-  "saveChanges": "保存更改",
   "adding": "正在添加...",
-  "creating": "正在创建...",
   "createPool": "创建地址池",
   "poolName": "地址池名称",
   "poolNameRequired": "地址池名称为必填项",

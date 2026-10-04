@@ -2,7 +2,6 @@
   "content": {
     "loadFailed": "Failed to load web proxy configuration",
     "title": "Web Proxy",
-    "readOnly": "Read Only",
     "configured": "Configured",
     "unconfigured": "Unconfigured",
     "subtitle": "Squid caching proxy with squidGuard URL filtering",
@@ -94,9 +93,7 @@
     "deleteConfirm": "Remove <code>{name}</code>? This cannot be undone."
   },
   "common": {
-    "saveChanges": "Save Changes",
-    "nameImmutable": "Name cannot be changed after creation.",
-    "optionalDescription": "Optional description"
+    "nameImmutable": "Name cannot be changed after creation."
   },
   "auth": {
     "description": "Require users to authenticate against an LDAP directory before using the proxy.",

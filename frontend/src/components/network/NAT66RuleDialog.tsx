@@ -458,7 +458,7 @@ export function NAT66RuleDialog({
                   value={interfaceName}
                   onValueChange={setInterfaceName}
                   id="nat66-iface"
-                  placeholder={t("ruleDialog.selectInterface")}
+                  placeholder={tc("selectInterface")}
                 />
               </div>
 
@@ -692,7 +692,7 @@ export function NAT66RuleDialog({
             {tc("cancel")}
           </Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? (isEditing ? tc("saving") : t("ruleDialog.creating")) : (isEditing ? tc("save") : t("ruleDialog.createRule"))}
+            {saving ? (isEditing ? tc("saving") : tc("creating")) : (isEditing ? tc("save") : t("ruleDialog.createRule"))}
           </Button>
         </DialogFooter>
       </DialogContent>

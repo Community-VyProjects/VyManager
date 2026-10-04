@@ -166,12 +166,12 @@ export function QoSStatsCard({ onRemove, span = 1, onSpanChange, height, onHeigh
                           c.drops
                             ? t("qos.classTooltipDrops", {
                                 bytes: formatBytes(c.bytes),
-                                packets: c.packets.toLocaleString(),
-                                drops: c.drops.toLocaleString(),
+                                packets: c.packets,
+                                drops: c.drops,
                               })
                             : t("qos.classTooltip", {
                                 bytes: formatBytes(c.bytes),
-                                packets: c.packets.toLocaleString(),
+                                packets: c.packets,
                               })
                         }
                       >

@@ -1,8 +1,12 @@
 // Run: node --test eslint-rules/
 import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { RuleTester } from "eslint";
 import tsParser from "@typescript-eslint/parser";
-import rule from "./no-untranslated-text.mjs";
+import rule, { loadTranslatedTokens } from "./no-untranslated-text.mjs";
 
 RuleTester.describe = describe;
 RuleTester.it = it;
@@ -110,4 +114,20 @@ ruleTester.run("no-untranslated-text", rule, {
       errors: [{ messageId: "text", data: { text: "This is a very long sentence that keeps …" } }],
     },
   ],
+});
+
+describe("loadTranslatedTokens", () => {
+  it("reads every locale directory, not only zh-CN", () => {
+    const root = mkdtempSync(join(tmpdir(), "i18n-tokens-"));
+    mkdirSync(join(root, "en"));
+    mkdirSync(join(root, "de"));
+    writeFileSync(join(root, "en", "sample.json"), JSON.stringify({ widget: "Widget" }));
+    writeFileSync(join(root, "de", "sample.json"), JSON.stringify({ widget: "Ding" }));
+    try {
+      const { tokens } = loadTranslatedTokens(root);
+      assert.equal(tokens.has("widget"), true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

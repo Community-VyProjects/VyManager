@@ -1,7 +1,5 @@
 {
   "adding": "正在添加...",
-  "saveChanges": "保存更改",
-  "addInterface": "添加接口",
   "addRpAddress": "添加 RP 地址",
   "content": {
     "loadFailed": "加载 PIMv6 配置失败",
@@ -9,7 +7,6 @@
     "saveRpTimerFailed": "保存 RP 计时器失败",
     "title": "PIMv6 配置",
     "subtitle": "IPv6 协议无关组播 (PIM)",
-    "readOnly": "只读",
     "statInterfaces": "接口",
     "rpAddresses": "RP 地址",
     "mldJoins": "MLD 加入",
@@ -33,7 +30,7 @@
     "flagNoBsm": "无 BSM",
     "flagNoUbsm": "无 UBSM",
     "mldActive": "活动",
-    "mldActiveJoins": "活动（{count} 个加入）",
+    "mldActiveJoins": "{count, plural, one {活动（# 个加入）} other {活动（# 个加入）}}",
     "rpKeepAliveTimer": "RP 保活计时器（1-65535 秒）",
     "noRpAddresses": "尚未配置 RP 地址",
     "noRpAddressesHint": "为 PIMv6 组播路由添加汇聚点 (RP) 地址。",
@@ -73,7 +70,6 @@
     "tabPim6": "PIMv6 设置",
     "tabMld": "MLD 设置",
     "interface": "接口",
-    "selectInterface": "选择接口",
     "drPriority": "DR 优先级",
     "drPriorityHelp": "指定路由器 (DR) 选举优先级，数值高者胜出。",
     "helloInterval": "Hello 间隔（秒）",

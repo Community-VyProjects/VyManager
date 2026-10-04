@@ -3210,7 +3210,7 @@ export function FirewallRuleModal({
             {loading ? (
               <>
                 <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? t("dialog.updating") : t("dialog.creating")}
+                {isEdit ? t("dialog.updating") : tc("creating")}
               </>
             ) : isEdit ? (
               t("dialog.updateRule")

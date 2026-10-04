@@ -22,7 +22,6 @@
   "remove": "Remove",
   "example": "e.g. {value}",
   "nameCannotChange": "Name cannot be changed",
-  "optionalDescription": "Optional description",
   "healthCheckOptional": "Health Check (optional)",
   "pingTarget": "Ping Target",
   "pingPlaceholder": "IP to ping",
@@ -30,7 +29,6 @@
   "failureCount": "Failure Count",
   "scriptPath": "Script Path",
   "scriptTimeout": "Script Timeout (s)",
-  "saveChanges": "Save Changes",
   "globals": {
     "title": "VRRP Global Settings",
     "description": "Configure global parameters for all VRRP groups",
@@ -91,7 +89,7 @@
     "members": "VRRP Group Members",
     "membersHelp": "Select which VRRP groups to synchronize together",
     "noVrrpGroups": "No VRRP groups configured. Create VRRP groups first.",
-    "memberSummary": "VRID {vrid} — {iface} — {count} IP(s)",
+    "memberSummary": "VRID {vrid} — {iface} — {count, plural, one {# IP} other {# IPs}}",
     "membersSelected": "{count, plural, one {# member selected} other {# members selected}}",
     "create": "Create Sync Group"
   },
@@ -125,7 +123,6 @@
     "create": "Create Server"
   },
   "vrrpModal": {
-    "selectInterface": "Select interface",
     "nameRequired": "Group name is required",
     "vridRequired": "VRID is required",
     "interfaceRequired": "Interface is required",

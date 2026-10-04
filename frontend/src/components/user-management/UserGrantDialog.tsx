@@ -221,7 +221,7 @@ export function UserGrantDialog({
               {saving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t("grant.saving")}
+                  {tc("saving")}
                 </>
               ) : isBulk || isEditing ? (
                 t("grant.save")

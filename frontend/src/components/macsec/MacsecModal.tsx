@@ -287,7 +287,7 @@ export function MacsecModal({
   };
 
   const validateForm = (): string | null => {
-    if (!name.trim()) return t("modal.errors.nameRequired");
+    if (!name.trim()) return tc("interfaceNameRequired");
     if (!/^macsec\d+$/.test(name)) return t("modal.errors.nameFormat");
     if (existingInterfaces.includes(name)) return t("modal.errors.nameExists", { name });
     return validateShared();
@@ -957,10 +957,10 @@ export function MacsecModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? tc("saving") : t("modal.creating")}
+                {isEdit ? tc("saving") : tc("creating")}
               </>
             ) : isEdit ? (
-              t("modal.saveChanges")
+              tc("saveChanges")
             ) : (
               t("modal.createInterface")
             )}

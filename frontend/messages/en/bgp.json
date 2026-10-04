@@ -161,9 +161,7 @@
     "routeMapImport": "Route Map Import",
     "routeMapExport": "Route Map Export",
     "softReconfig": "Soft Reconfiguration Inbound",
-    "routeReflectorClient": "Route Reflector Client",
-    "creating": "Creating...",
-    "saveChanges": "Save Changes"
+    "routeReflectorClient": "Route Reflector Client"
   },
   "neighborModal": {
     "editTitle": "Edit BGP Neighbor",
@@ -177,7 +175,6 @@
     "addressHelp": "IPv4 or IPv6 address of the BGP neighbor.",
     "remoteAsPlaceholder": "e.g. 65001, \"internal\", or \"external\"",
     "remoteAsHelp": "Autonomous System number, or \"internal\" / \"external\".",
-    "descriptionPlaceholder": "Optional description",
     "peerGroupPlaceholder": "Select peer group (optional)",
     "updateSourceHelp": "Source address or interface for BGP sessions.",
     "shutdownHelp": "Administratively disable this neighbor.",
@@ -264,7 +261,7 @@
   "deletePeerGroup": {
     "title": "Delete BGP Peer Group",
     "description": "Are you sure you want to delete the peer group <mono>{name}</mono>?",
-    "membersWarning": "This peer group is currently referenced by <b>{count}</b> {count, plural, one {neighbor} other {neighbors}}. Those neighbors will lose their peer group association.",
+    "membersWarning": "This peer group is currently referenced by {count, plural, one {<b>#</b> neighbor} other {<b>#</b> neighbors}}. Those neighbors will lose their peer group association.",
     "confirm": "Delete Peer Group"
   }
 }

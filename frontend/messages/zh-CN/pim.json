@@ -1,7 +1,5 @@
 {
   "adding": "正在添加...",
-  "saveChanges": "保存更改",
-  "addInterface": "添加接口",
   "addRpAddress": "添加 RP 地址",
   "content": {
     "loadFailed": "加载 PIM 配置失败",
@@ -9,7 +7,6 @@
     "saveRpTimerFailed": "保存 RP 计时器失败",
     "title": "PIM 配置",
     "subtitle": "协议无关组播 (PIM) 路由",
-    "readOnly": "只读",
     "statInterfaces": "接口",
     "rpAddresses": "RP 地址",
     "tabGeneral": "常规",
@@ -44,7 +41,7 @@
     "flagNoBsm": "无 BSM",
     "flagNoUbsm": "无 UBSM",
     "igmpActive": "活动",
-    "igmpActiveJoins": "活动（{count} 个加入）",
+    "igmpActiveJoins": "{count, plural, one {活动（# 个加入）} other {活动（# 个加入）}}",
     "rpKeepAliveTimer": "RP 保活计时器（1-65535 秒）",
     "noRpAddresses": "尚未配置 RP 地址",
     "noRpAddressesHint": "为 PIM 组播路由添加汇聚点 (RP) 地址。",
@@ -80,7 +77,6 @@
     "tabPim": "PIM 设置",
     "tabIgmp": "IGMP 设置",
     "interface": "接口",
-    "selectInterface": "选择接口",
     "enableBfd": "启用 BFD（双向转发检测）",
     "bfdProfile": "BFD 配置文件",
     "bfdProfilePlaceholder": "可选的 BFD 配置文件名称",

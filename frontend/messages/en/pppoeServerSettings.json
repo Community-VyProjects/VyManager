@@ -1,7 +1,5 @@
 {
-  "saveChanges": "Save Changes",
   "adding": "Adding...",
-  "creating": "Creating...",
   "createPool": "Create Pool",
   "poolName": "Pool Name",
   "poolNameRequired": "Pool name is required",

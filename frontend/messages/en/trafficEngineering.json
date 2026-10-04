@@ -1,13 +1,10 @@
 {
   "adminGroups": "Admin Groups",
-  "creating": "Creating...",
-  "saveChanges": "Save Changes",
   "errors": {
     "loadConfig": "Failed to load Traffic Engineering configuration"
   },
   "header": {
     "title": "Traffic Engineering",
-    "readOnly": "Read Only",
     "subtitle": "MPLS-TE link parameter configuration"
   },
   "stats": {
@@ -27,7 +24,6 @@
   },
   "interfaces": {
     "description": "Configure Traffic Engineering parameters per interface.",
-    "add": "Add Interface",
     "empty": "No interfaces configured",
     "emptyHint": "Add an interface to configure TE parameters",
     "interface": "Interface",
@@ -54,7 +50,6 @@
     "editTitle": "Edit Interface Parameters",
     "addTitle": "Add Interface Parameters",
     "description": "Configure Traffic Engineering parameters for a network interface.",
-    "selectInterface": "Select interface",
     "noGroups": "No admin groups configured — add one in the Admin Groups tab",
     "bit": "bit {position}"
   },

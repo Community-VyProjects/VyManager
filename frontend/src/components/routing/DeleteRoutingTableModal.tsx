@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,7 @@ export function DeleteRoutingTableModal({
   onSuccess,
   table,
 }: DeleteRoutingTableModalProps) {
+  const t = useTranslations("staticRoutes");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,7 +98,7 @@ export function DeleteRoutingTableModal({
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 mt-4 flex items-start gap-2">
               <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
               <p className="text-sm text-destructive">
-                This table contains {totalRoutes} route(s). Deleting the table will also remove all routes within it.
+                {t("deleteModal.tableContainsRoutes", { count: totalRoutes })}
               </p>
             </div>
           )}

@@ -108,9 +108,9 @@ function TrafficBars({
       className="flex-1 min-w-0 space-y-1"
       title={t("interfaceStatistics.trafficTooltip", {
         rx: formatBytes(rxBytes),
-        rxPackets: rxPackets.toLocaleString(),
+        rxPackets,
         tx: formatBytes(txBytes),
-        txPackets: txPackets.toLocaleString(),
+        txPackets,
       })}
     >
       <div className="flex items-center gap-1.5">

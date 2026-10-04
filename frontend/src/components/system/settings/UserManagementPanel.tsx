@@ -302,7 +302,7 @@ export function UserManagementPanel({ config, capabilities, isReadOnly, onRefres
                   {tc("cancel")}
                 </Button>
                 <Button size="sm" onClick={handleSaveLoginSettings} disabled={loginSaving}>
-                  {loginSaving ? t("saving") : tc("save")}
+                  {loginSaving ? tc("saving") : tc("save")}
                 </Button>
               </div>
             )}

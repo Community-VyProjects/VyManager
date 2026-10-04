@@ -290,7 +290,7 @@ export function AddLeaseToStaticMappingModal({
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? t("creating") : t("leaseMapping.create")}
+            {loading ? tc("creating") : t("leaseMapping.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

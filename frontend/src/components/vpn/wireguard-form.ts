@@ -70,8 +70,9 @@ const mssValue = (draft: InterfaceDraft): string | null => {
  * after create, so the pattern and uniqueness rules never run on an edit.
  */
 /**
- * Validation failures are message keys (wireguard.validation.*); the modals
- * translate them and pass the draft name for the "already exists" messages.
+ * Validation failures are message keys. interfaceNameRequired is shared chrome
+ * (common.interfaceNameRequired). The other keys live under wireguard.validation
+ * and the modal passes the draft name for the "already exists" message.
  */
 export type InterfaceValidationError =
   | "interfaceNameRequired"

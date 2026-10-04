@@ -132,7 +132,7 @@ export function CreateCustomBridgeChainModal({
             <Label htmlFor="description">{tc("description")}</Label>
             <Input
               id="description"
-              placeholder={t("createChain.descriptionPlaceholder")}
+              placeholder={tc("optionalDescription")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
@@ -161,7 +161,7 @@ export function CreateCustomBridgeChainModal({
             {saving ? (
               <>
                 <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" />
-                {t("creating")}
+                {tc("creating")}
               </>
             ) : (
               t("createChain.createChain")

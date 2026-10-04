@@ -208,7 +208,7 @@ export function OpenVPNSecretModal({ open, onOpenChange, onSuccess, existingSecr
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{mode === "generate" && !isEdit ? t("shared.generating") : tc("saving")}</>
-            ) : isEdit ? t("shared.saveChanges") : mode === "generate" ? t("openvpn.generateButton") : t("openvpn.importButton")}
+            ) : isEdit ? tc("saveChanges") : mode === "generate" ? t("openvpn.generateButton") : t("openvpn.importButton")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -287,7 +287,7 @@ export function TunnelModal({
   const showSixrd = encapsulation === "sit";
 
   const validateCreate = (): string | null => {
-    if (!name.trim()) return t("validation.nameRequired");
+    if (!name.trim()) return tc("interfaceNameRequired");
     if (!/^tun\d+$/.test(name.trim())) return t("validation.nameFormat");
     if (existingInterfaces.includes(name.trim())) return t("validation.nameExists", { name });
     if (!encapsulation) return t("validation.encapsulationRequired");
@@ -625,7 +625,7 @@ export function TunnelModal({
 
             <div className="space-y-2">
               <Label htmlFor="tunnel-description">{tc("description")}</Label>
-              <Input id="tunnel-description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("basic.descriptionPlaceholder")} />
+              <Input id="tunnel-description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={tc("optionalDescription")} />
             </div>
 
             <div className="space-y-2">
@@ -970,10 +970,10 @@ export function TunnelModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? tc("saving") : t("modal.creating")}
+                {isEdit ? tc("saving") : tc("creating")}
               </>
             ) : isEdit ? (
-              t("modal.saveChanges")
+              tc("saveChanges")
             ) : (
               t("modal.createInterface")
             )}

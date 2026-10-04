@@ -273,7 +273,7 @@ export function StaticMappingModal({
             <Label htmlFor="mapping-description">{tc("description")}</Label>
             <Input
               id="mapping-description"
-              placeholder={t("optionalDescription")}
+              placeholder={tc("optionalDescription")}
               value={draft.description}
               onChange={(e) => patch({ description: e.target.value })}
             />
@@ -295,9 +295,9 @@ export function StaticMappingModal({
             {loading
               ? isEdit
                 ? tc("saving")
-                : t("creating")
+                : tc("creating")
               : isEdit
-                ? t("saveChanges")
+                ? tc("saveChanges")
                 : t("mapping.create")}
           </Button>
         </DialogFooter>

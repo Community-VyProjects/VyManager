@@ -68,7 +68,7 @@ export function MplsLdpInterfaceModal({
 
   const handleSubmit = async () => {
     if (!interfaceName.trim()) {
-      setError(t("interfaceModal.nameRequired"));
+      setError(tc("interfaceNameRequired"));
       return;
     }
 
@@ -159,9 +159,9 @@ export function MplsLdpInterfaceModal({
                 {isEditMode ? tc("saving") : t("adding")}
               </>
             ) : isEditMode ? (
-              t("saveChanges")
+              tc("saveChanges")
             ) : (
-              t("ldpInterfaces.add")
+              tc("addInterface")
             )}
           </Button>
         </DialogFooter>

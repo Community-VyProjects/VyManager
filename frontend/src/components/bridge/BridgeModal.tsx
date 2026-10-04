@@ -302,7 +302,7 @@ export function BridgeModal({
   };
 
   const validateForm = (): string | null => {
-    if (!name.trim()) return t("errNameRequired");
+    if (!name.trim()) return tc("interfaceNameRequired");
     if (!/^br\d+$/.test(name)) return t("errNameFormat");
     if (existingInterfaces.includes(name)) return t("errNameExists", { name });
     return null;
@@ -642,7 +642,7 @@ export function BridgeModal({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">{tc("description")}</Label>
-                <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("optionalDescription")} />
+                <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={tc("optionalDescription")} />
               </div>
             </div>
 
@@ -1050,10 +1050,10 @@ export function BridgeModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? tc("saving") : t("creating")}
+                {isEdit ? tc("saving") : tc("creating")}
               </>
             ) : isEdit ? (
-              t("saveChanges")
+              tc("saveChanges")
             ) : (
               t("createBridge")
             )}

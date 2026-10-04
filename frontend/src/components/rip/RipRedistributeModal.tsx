@@ -191,7 +191,7 @@ export function RipRedistributeModal({
                 {isEditMode ? tc("saving") : t("modal.adding")}
               </>
             ) : isEditMode ? (
-              t("modal.saveChanges")
+              tc("saveChanges")
             ) : (
               tc("add")
             )}

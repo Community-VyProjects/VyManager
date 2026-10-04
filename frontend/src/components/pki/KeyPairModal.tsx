@@ -330,7 +330,7 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{mode === "generate" && !isEdit ? t("shared.generating") : tc("saving")}</>
-            ) : isEdit ? t("shared.saveChanges") : mode === "generate" ? t("keyPair.generateButton") : t("keyPair.importButton")}
+            ) : isEdit ? tc("saveChanges") : mode === "generate" ? t("keyPair.generateButton") : t("keyPair.importButton")}
           </Button>
         </DialogFooter>
       </DialogContent>

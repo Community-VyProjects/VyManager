@@ -166,7 +166,7 @@ export function RipDistributeListInterfaceModal({
             <Label>{t("interfaces.interface")}</Label>
             <Select value={iface} onValueChange={setIface} disabled={isEditMode}>
               <SelectTrigger className={isEditMode ? "bg-muted" : ""}>
-                <SelectValue placeholder={t("dlModal.selectInterface")} />
+                <SelectValue placeholder={tc("selectInterface")} />
               </SelectTrigger>
               <SelectContent>
                 {selectableInterfaces.map((i) => (
@@ -214,7 +214,7 @@ export function RipDistributeListInterfaceModal({
                 {isEditMode ? tc("saving") : t("modal.adding")}
               </>
             ) : isEditMode ? (
-              t("modal.saveChanges")
+              tc("saveChanges")
             ) : (
               t("dlModal.addFilter")
             )}

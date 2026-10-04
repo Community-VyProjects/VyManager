@@ -103,7 +103,7 @@ export function DeleteInterfaceModal({
                 {tc("deleting")}
               </>
             ) : (
-              t("deleteInterface.submit")
+              tc("deleteInterface")
             )}
           </Button>
         </AlertDialogFooter>

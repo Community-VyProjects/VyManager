@@ -2,7 +2,6 @@
   "title": "Global Options",
   "subtitle": "Configure global firewall settings",
   "reset": "Reset",
-  "saveChanges": "Save Changes",
   "unsavedChanges": "You have unsaved changes",
   "loadFailed": "Failed to load global options",
   "saveSuccess": "Configuration saved successfully",

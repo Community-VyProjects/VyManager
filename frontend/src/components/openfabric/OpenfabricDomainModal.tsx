@@ -305,7 +305,7 @@ export function OpenfabricDomainModal({
           </Button>
           <Button onClick={handleSubmit} disabled={saving}>
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? t("modal.saveChanges") : t("domainModal.submit")}
+            {isEdit ? tc("saveChanges") : t("domainModal.submit")}
           </Button>
         </DialogFooter>
       </DialogContent>

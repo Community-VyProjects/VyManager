@@ -164,9 +164,9 @@ export function RipngInterfaceModal({
                 {isEditMode ? tc("saving") : t("modal.adding")}
               </>
             ) : isEditMode ? (
-              t("modal.saveChanges")
+              tc("saveChanges")
             ) : (
-              t("interfaces.addInterface")
+              tc("addInterface")
             )}
           </Button>
         </DialogFooter>

@@ -26,10 +26,27 @@ messages/
    const t = await getTranslations("sites");  // server components
    t("deleteTitle", { name: site.name })      // placeholders use {name}
    ```
-   Use `useTranslations("common")` for shared words instead of duplicating them.
-3. Add `messages/zh-CN/<feature>.json` with the same keys (optional; missing keys show English).
+   Use `useTranslations("common")` for shared button text (Save Changes, Creating...,
+   Select interface, and the other sentences named in `messages-parity.test.ts`).
+   Do not copy that sentence into a feature file. A word like Port stays in the
+   feature file, because another language may need a different word there.
+3. Add `messages/<locale>/<feature>.json` with the same keys. `npm run build`
+   runs the parity test first and stops if a locale is missing a key, if shared
+   button text was copied into a feature file, or if a counted noun is not a
+   real plural. A missing key still falls back to English at runtime, so a bad
+   deploy does not blank the page, but it is not a finished translation.
 
 Keys are type-checked against the English files, so a typo is a TypeScript error.
+
+## Adding a language
+
+1. Add the tag to `locales` and `localeNames` in `src/i18n/config.ts`.
+2. If it shares a language with a locale that is already there, add a row to
+   `localeFamilies` with its script and regions. Do not rely on the language
+   tag alone. Traditional Chinese must not follow Simplified Chinese.
+3. Copy `messages/en/` to `messages/<locale>/` and translate. Counted nouns use
+   `{count, plural, one {# item} other {# items}}`, not `item(s)`.
+4. `npm run build` must pass. That runs the parity test before Next builds.
 
 ## What not to translate
 

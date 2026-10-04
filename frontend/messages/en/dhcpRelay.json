@@ -5,7 +5,6 @@
     "unconfigured": "Unconfigured",
     "active": "Active",
     "title": "DHCP Relay",
-    "readOnly": "Read Only",
     "subtitle": "Forward DHCP requests from clients to a centralized DHCP server",
     "enableService": "Enable Service",
     "disableService": "Disable Service",

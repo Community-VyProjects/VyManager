@@ -1,5 +1,5 @@
 {
-  "memberCount": "{count, plural, one {{n} member} other {{n} members}}",
+  "memberCount": "{count, plural, one {# member} other {# members}}",
   "types": {
     "addressGroup": "IPv4 Address Group",
     "ipv6AddressGroup": "IPv6 Address Group",
@@ -85,13 +85,12 @@
     "description": "Create a new firewall group to organize addresses, networks, ports, or other resources for use in firewall rules.",
     "namePlaceholder": "e.g., INTERNAL_NETS",
     "nameHint": "Use uppercase with underscores (e.g., WEB_SERVERS, INTERNAL_NETS)",
-    "memberCountColon": "{count, plural, one {{n} member} other {{n} members}}:",
+    "memberCountColon": "{count, plural, one {# member} other {# members}}:",
     "includeOptional": "Include Other Groups (Optional)",
     "noGroupsAvailable": "No groups available",
     "nameRequired": "Group name is required",
     "memberRequired": "At least one member or included group is required",
     "createFailed": "Failed to create group",
-    "creating": "Creating...",
     "submit": "Create Group"
   },
   "edit": {
@@ -107,8 +106,7 @@
     "memberExists": "Member \"{member}\" already exists",
     "memberQueued": "Member \"{member}\" is already queued to be added",
     "noChanges": "No changes to save",
-    "updateFailed": "Failed to update group",
-    "saveChanges": "Save Changes"
+    "updateFailed": "Failed to update group"
   },
   "delete": {
     "title": "Delete Firewall Group",

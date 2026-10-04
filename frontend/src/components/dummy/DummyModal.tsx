@@ -149,7 +149,7 @@ export function DummyModal({
   };
 
   const validateForm = (): string | null => {
-    if (!name.trim()) return t("modal.errors.nameRequired");
+    if (!name.trim()) return tc("interfaceNameRequired");
     if (!/^dum\d+$/.test(name)) return t("modal.errors.namePattern");
     if (existingInterfaces.includes(name)) return t("modal.errors.nameExists", { name });
     return validateMtu();
@@ -318,7 +318,7 @@ export function DummyModal({
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder={t("modal.descriptionPlaceholder")}
+                placeholder={tc("optionalDescription")}
               />
             </div>
 
@@ -498,10 +498,10 @@ export function DummyModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? tc("saving") : t("modal.creating")}
+                {isEdit ? tc("saving") : tc("creating")}
               </>
             ) : isEdit ? (
-              t("modal.saveChanges")
+              tc("saveChanges")
             ) : (
               t("modal.createInterface")
             )}

@@ -4,10 +4,7 @@
     "type": "Type",
     "channel": "Channel",
     "splitHorizon": "Split Horizon",
-    "editParameters": "Edit Parameters",
-    "addInterface": "Add Interface",
-    "saveChanges": "Save Changes",
-    "creating": "Creating..."
+    "editParameters": "Edit Parameters"
   },
   "values": {
     "default": "default",
@@ -78,8 +75,7 @@
   },
   "delete": {
     "title": "Delete Babel Interface",
-    "description": "Are you sure you want to delete the Babel interface <mono>{name}</mono>? This action cannot be undone.",
-    "confirm": "Delete Interface"
+    "description": "Are you sure you want to delete the Babel interface <mono>{name}</mono>? This action cannot be undone."
   },
   "interfaceModal": {
     "titleEdit": "Edit Babel Interface",

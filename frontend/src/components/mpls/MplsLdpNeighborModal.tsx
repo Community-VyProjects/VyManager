@@ -179,7 +179,7 @@ export function MplsLdpNeighborModal({
                 {isEditMode ? tc("saving") : t("adding")}
               </>
             ) : isEditMode ? (
-              t("saveChanges")
+              tc("saveChanges")
             ) : (
               t("neighbors.add")
             )}

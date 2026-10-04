@@ -58,7 +58,6 @@
     "routeSourceAccessList": "Route Source Access List",
     "routeSourcePrefixList": "Route Source Prefix List",
     "interface": "Interface",
-    "selectInterface": "Select interface",
     "protocol": "Protocol",
     "selectProtocol": "Select protocol",
     "protocolConnected": "Connected",
@@ -84,7 +83,7 @@
     "deleteCommunities": "Delete Communities",
     "selectCommunityListToDelete": "Select community list to delete",
     "selectCommunityListEllipsis": "Select community list...",
-    "deleteCommunitiesHint": "Select community list(s) to delete all matching communities",
+    "deleteCommunitiesHint": "Select community lists to delete all matching communities",
     "replaceAllWith": "Replace All With",
     "removeAllCommunities": "Remove All Communities",
     "largeCommunity": "Large Community",
@@ -92,7 +91,7 @@
     "deleteLargeCommunities": "Delete Large Communities",
     "selectLargeCommunityListToDelete": "Select large community list to delete",
     "selectLargeCommunityListEllipsis": "Select large community list...",
-    "deleteLargeCommunitiesHint": "Select large community list(s) to delete all matching communities",
+    "deleteLargeCommunitiesHint": "Select large community lists to delete all matching communities",
     "removeAllLargeCommunities": "Remove All Large Communities",
     "extendedCommunity": "Extended Community",
     "bandwidth": "Bandwidth",
@@ -148,6 +147,5 @@
     "onMatchNext": "On-Match Next (go to next sequence number)"
   },
   "adding": "Adding...",
-  "saveChanges": "Save Changes",
   "addRule": "Add Rule"
 }

@@ -66,7 +66,7 @@ export function DeleteBabelInterfaceModal({
                 {tc("deleting")}
               </>
             ) : (
-              t("delete.confirm")
+              tc("deleteInterface")
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

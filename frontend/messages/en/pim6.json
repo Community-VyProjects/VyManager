@@ -1,7 +1,5 @@
 {
   "adding": "Adding...",
-  "saveChanges": "Save Changes",
-  "addInterface": "Add Interface",
   "addRpAddress": "Add RP Address",
   "content": {
     "loadFailed": "Failed to load PIMv6 configuration",
@@ -9,7 +7,6 @@
     "saveRpTimerFailed": "Failed to save RP timer",
     "title": "PIMv6 Configuration",
     "subtitle": "Protocol Independent Multicast for IPv6",
-    "readOnly": "Read Only",
     "statInterfaces": "Interfaces",
     "rpAddresses": "RP Addresses",
     "mldJoins": "MLD Joins",
@@ -33,7 +30,7 @@
     "flagNoBsm": "No BSM",
     "flagNoUbsm": "No UBSM",
     "mldActive": "Active",
-    "mldActiveJoins": "Active ({count} joins)",
+    "mldActiveJoins": "{count, plural, one {Active (# join)} other {Active (# joins)}}",
     "rpKeepAliveTimer": "RP Keep Alive Timer (1-65535s)",
     "noRpAddresses": "No RP addresses configured",
     "noRpAddressesHint": "Add a Rendezvous Point address for PIMv6 multicast routing.",
@@ -73,7 +70,6 @@
     "tabPim6": "PIMv6 Settings",
     "tabMld": "MLD Settings",
     "interface": "Interface",
-    "selectInterface": "Select interface",
     "drPriority": "DR Priority",
     "drPriorityHelp": "Designated Router election priority. Higher wins.",
     "helloInterval": "Hello Interval (seconds)",

@@ -22,7 +22,7 @@
     "mergeHint": "Add missing records and update existing ones. Nothing is deleted.",
     "replace": "Replace (destructive)",
     "replaceHint": "Wipe all current VyManager data and restore the backup exactly. You will be signed out and must log in with a restored account.",
-    "recordCount": "{count} records in this backup",
+    "recordCount": "{count, plural, one {# record in this backup} other {# records in this backup}}",
     "created": "Created: {date}",
     "counts": "Users: {users} · Sites: {sites} · Instances: {instances} · OIDC providers: {providers}",
     "sshKeysWarning": "Encrypted SSH keys were created on a different host and cannot be restored here; re-run SSH key setup per instance.",

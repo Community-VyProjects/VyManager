@@ -6,9 +6,7 @@
   "loadingConfig": "Loading IPoE configuration...",
   "yes": "Yes",
   "no": "No",
-  "saveChanges": "Save Changes",
   "adding": "Adding...",
-  "creating": "Creating...",
   "createPool": "Create Pool",
   "poolName": "Pool Name",
   "poolNameRequired": "Pool name is required",
@@ -58,7 +56,6 @@
   },
   "interfaces": {
     "title": "Server Interfaces",
-    "add": "Add Interface",
     "empty": "No interfaces configured",
     "interface": "Interface",
     "mode": "Mode",
@@ -185,10 +182,8 @@
     "addEntry": "Add Entry"
   },
   "interfaceModal": {
-    "addTitle": "Add Interface",
     "editTitle": "Edit Interface",
     "description": "Configure an IPoE server interface.",
-    "nameRequired": "Interface name is required",
     "saveFailed": "Failed to save interface",
     "interfaceName": "Interface Name",
     "mode": "Mode",

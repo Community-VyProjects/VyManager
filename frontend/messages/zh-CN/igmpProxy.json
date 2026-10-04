@@ -1,12 +1,9 @@
 {
   "adding": "正在添加...",
-  "saveChanges": "保存更改",
-  "addInterface": "添加接口",
   "setupProxy": "设置 IGMP 代理",
   "upstream": "上游",
   "downstream": "下游",
   "interface": "接口",
-  "selectInterface": "选择接口",
   "ttlThreshold": "TTL 阈值",
   "thresholdPlaceholder": "1（默认）",
   "alternateSubnets": "替代子网",

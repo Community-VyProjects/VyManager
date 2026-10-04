@@ -1,10 +1,10 @@
 {
   "activeSession": {
     "title": "Active Session Detected",
-    "description": "You're already signed in on {count, plural, =1 {another device} other {other devices}}. Do you want to sign out of {count, plural, =1 {that session} other {those sessions}} and continue here?",
+    "description": "You're already signed in on {count, plural, one {another device} other {other devices}}. Do you want to sign out of {count, plural, one {that session} other {those sessions}} and continue here?",
     "securityNotice": "Security Notice",
-    "securityText": "Continuing will sign you out of your other active {count, plural, =1 {session} other {sessions}}. This action cannot be undone.",
-    "listTitle": "Active {count, plural, =1 {Session} other {Sessions}}:",
+    "securityText": "Continuing will sign you out of your other active {count, plural, one {session} other {sessions}}. This action cannot be undone.",
+    "listTitle": "Active {count, plural, one {Session} other {Sessions}}:",
     "unknownDevice": "Unknown device",
     "browser": "{name} Browser",
     "webBrowser": "Web Browser",
@@ -16,8 +16,8 @@
     "signedIn": "Signed in {when}",
     "error": "Error",
     "revokeFailed": "Failed to revoke other sessions",
-    "signingOut": "Signing out other {count, plural, =1 {session} other {sessions}}...",
-    "continue": "Continue & Sign Out Other {count, plural, =1 {Session} other {Sessions}}"
+    "signingOut": "Signing out other {count, plural, one {session} other {sessions}}...",
+    "continue": "Continue & Sign Out Other {count, plural, one {Session} other {Sessions}}"
   },
   "challenge": {
     "methodTotp": "Authenticator app",

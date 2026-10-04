@@ -6,7 +6,6 @@
     "nameRequired": "名称为必填项",
     "generationFailed": "生成失败",
     "generating": "正在生成...",
-    "saveChanges": "保存更改",
     "leaveEmpty": "留空以保留当前值",
     "bits": "{size} 位",
     "present": "已设置",

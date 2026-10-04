@@ -280,7 +280,7 @@ export function BroadcastRelayInstanceModal({ open, onOpenChange, instance, onSu
                 id="br-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder={t("modal.descriptionPlaceholder")}
+                placeholder={tc("optionalDescription")}
                 maxLength={255}
               />
             </div>
@@ -317,7 +317,7 @@ export function BroadcastRelayInstanceModal({ open, onOpenChange, instance, onSu
                 {isEditMode ? tc("saving") : t("modal.adding")}
               </>
             ) : isEditMode ? (
-              t("modal.saveChanges")
+              tc("saveChanges")
             ) : (
               t("content.addInstance")
             )}

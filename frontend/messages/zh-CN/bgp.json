@@ -161,9 +161,7 @@
     "routeMapImport": "导入路由映射",
     "routeMapExport": "导出路由映射",
     "softReconfig": "入站软重配置",
-    "routeReflectorClient": "路由反射器客户端",
-    "creating": "正在创建...",
-    "saveChanges": "保存更改"
+    "routeReflectorClient": "路由反射器客户端"
   },
   "neighborModal": {
     "editTitle": "编辑 BGP 邻居",
@@ -177,7 +175,6 @@
     "addressHelp": "BGP 邻居的 IPv4 或 IPv6 地址。",
     "remoteAsPlaceholder": "例如 65001、\"internal\" 或 \"external\"",
     "remoteAsHelp": "自治系统号，或 \"internal\" / \"external\"。",
-    "descriptionPlaceholder": "可选描述",
     "peerGroupPlaceholder": "选择对等体组（可选）",
     "updateSourceHelp": "BGP 会话使用的源地址或接口。",
     "shutdownHelp": "以管理方式禁用此邻居。",
@@ -264,7 +261,7 @@
   "deletePeerGroup": {
     "title": "删除 BGP 对等体组",
     "description": "确定要删除对等体组 <mono>{name}</mono> 吗？",
-    "membersWarning": "当前有 <b>{count}</b> 个邻居引用此对等体组。这些邻居将失去与该对等体组的关联。",
+    "membersWarning": "{count, plural, one {当前有 <b>#</b> 个邻居引用此对等体组。这些邻居将失去与该对等体组的关联。} other {当前有 <b>#</b> 个邻居引用此对等体组。这些邻居将失去与该对等体组的关联。}}",
     "confirm": "删除对等体组"
   }
 }

@@ -23,7 +23,6 @@
     "sourceInterfaceRequired": "Source Interface *",
     "selectEthernetInterface": "Select ethernet interface",
     "mode": "Mode",
-    "descriptionPlaceholder": "Optional description",
     "macAddress": "MAC Address",
     "redirect": "Redirect",
     "disabled": "Disabled",
@@ -114,14 +113,12 @@
   "create": {
     "title": "Create Pseudo-Ethernet Interface",
     "description": "Configure a new MacVLAN pseudo-ethernet interface bound to a physical Ethernet port.",
-    "creating": "Creating...",
     "submit": "Create Interface",
     "failed": "Failed to create interface"
   },
   "edit": {
     "title": "Edit Pseudo-Ethernet Interface: {name}",
     "description": "Modify the configuration for pseudo-ethernet interface {name}.",
-    "saveChanges": "Save Changes",
     "failed": "Failed to update interface"
   },
   "vif": {
@@ -146,7 +143,6 @@
     "source": "Source:",
     "mode": "Mode:",
     "addressCount": "{count, plural, one {# address} other {# addresses}}",
-    "submit": "Delete Interface",
     "failed": "Failed to delete pseudo-ethernet interface"
   }
 }

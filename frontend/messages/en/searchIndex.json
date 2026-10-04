@@ -223,19 +223,19 @@
   "firewall": {
     "actionFallback": "action",
     "chainRuleDescription": "{chain} chain: {action}",
-    "customChainDescription": "Custom chain with {count} rules",
+    "customChainDescription": "{count, plural, one {Custom chain with # rule} other {Custom chain with # rules}}",
     "customRuleDescription": "Rule in {chain}: {action}",
-    "groupDescription": "{group} with {count} members",
-    "zoneDescription": "Zone · {count} interfaces",
-    "bridgeChainDescription": "Bridge chain · {count} rules",
+    "groupDescription": "{count, plural, one {{group} with # member} other {{group} with # members}}",
+    "zoneDescription": "{count, plural, one {Zone · # interface} other {Zone · # interfaces}}",
+    "bridgeChainDescription": "{count, plural, one {Bridge chain · # rule} other {Bridge chain · # rules}}",
     "bridgeRuleDescription": "Bridge rule: {action}"
   },
   "network": {
-    "dhcpSubnetDescription": "{mappings} static mappings · {ranges} ranges",
+    "dhcpSubnetDescription": "{mappings, plural, one {# static mapping} other {# static mappings}} · {ranges, plural, one {# range} other {# ranges}}",
     "dhcpRange": "DHCP range",
-    "dhcpServerDescription": "{count} subnets · authoritative: {authoritative}",
+    "dhcpServerDescription": "{count, plural, one {# subnet · authoritative: {authoritative}} other {# subnets · authoritative: {authoritative}}}",
     "natRuleDescription": "{label} rule {number}",
-    "cgnatExternalPoolDescription": "CGNAT external pool · {count} ranges",
+    "cgnatExternalPoolDescription": "{count, plural, one {CGNAT external pool · # range} other {CGNAT external pool · # ranges}}",
     "cgnatInternalPool": "CGNAT internal pool",
     "cgnatRule": "CGNAT Rule {number}",
     "cgnatRuleDescription": "CGNAT rule {number}",
@@ -261,11 +261,11 @@
     "containerNetwork": "Container network"
   },
   "loadBalancing": {
-    "backendDescription": "{servers} servers · {rules} rules",
+    "backendDescription": "{servers, plural, one {# server} other {# servers}} · {rules, plural, one {# rule} other {# rules}}",
     "backendServer": "Backend server",
     "domains": "Domains: {domains}",
     "backendRule": "Backend routing rule",
-    "serviceDescription": "{count} routing rules",
+    "serviceDescription": "{count, plural, one {# routing rule} other {# routing rules}}",
     "serviceRule": "Service routing rule"
   },
   "pki": {

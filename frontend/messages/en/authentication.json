@@ -60,7 +60,6 @@
     "authorizationUrl": "Authorization URL",
     "tokenUrl": "Token URL",
     "userInfoUrl": "User Info URL",
-    "saving": "Saving…",
     "saveProvider": "Save Provider",
     "update": "Update"
   },
@@ -96,7 +95,7 @@
     "noGrants": "No grants yet.",
     "selectAll": "Select all",
     "wholeSite": "{site} (whole site)",
-    "featureCount": "{count} features"
+    "featureCount": "{count, plural, one {# feature} other {# features}}"
   },
   "roleValues": {
     "ADMIN": "ADMIN",
@@ -112,12 +111,11 @@
     "roleOperator": "Operator (edit selected)",
     "roleViewer": "Viewer (view selected)",
     "featurePermissions": "Feature permissions",
-    "editBulkTitle": "Edit {count} grants",
+    "editBulkTitle": "{count, plural, one {Edit # grant} other {Edit # grants}}",
     "editTitle": "Edit grant",
     "addTitle": "Add grant",
     "bulkDescription": "Apply one role and feature set to the selected grants for <strong>{claim}</strong>.",
     "description": "Grant <strong>{claim}</strong> access to instances or whole sites.",
-    "saving": "Saving…",
     "save": "Save grant"
   },
   "target": {

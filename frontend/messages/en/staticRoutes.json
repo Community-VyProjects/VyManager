@@ -110,10 +110,8 @@
     "disableNextHop": "Disable this next-hop",
     "noNextHops": "No next-hops configured. Click \"Add Next-Hop\" to add one.",
     "interfaceRoutes": "Interface Routes",
-    "addInterface": "Add Interface",
     "interfaceN": "Interface #{n}",
     "interface": "Interface",
-    "selectInterface": "Select interface",
     "disableInterface": "Disable this interface route",
     "noInterfaces": "No interface routes configured. Click \"Add Interface\" to add one.",
     "blackholeRoute": "Blackhole Route (Drop silently)",
@@ -125,7 +123,6 @@
     "dhcpHelp": "Use gateway from DHCP on this interface",
     "noAdvanced": "No advanced options available on this device.",
     "updating": "Updating...",
-    "creating": "Creating...",
     "updateRoute": "Update Route",
     "createRoute": "Create Route"
   },
@@ -138,9 +135,10 @@
     "nextHops": "Next-Hops:",
     "interfaces": "Interfaces:",
     "distSuffix": " (dist: {distance})",
-    "dhcpInterfaces": "DHCP Interface(s):",
+    "dhcpInterfaces": "DHCP Interfaces:",
     "warningTitle": "This will permanently delete the route",
     "warningBody": "Traffic destined for {destination} will no longer use this route. Make sure you have alternative routing configured if needed.",
-    "deleteRoute": "Delete Route"
+    "deleteRoute": "Delete Route",
+    "tableContainsRoutes": "{count, plural, one {This table contains # route. Deleting the table will also remove all routes within it.} other {This table contains # routes. Deleting the table will also remove all routes within it.}}"
   }
 }

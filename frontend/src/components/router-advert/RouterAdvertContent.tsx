@@ -111,7 +111,7 @@ export function RouterAdvertContent() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-2xl font-bold text-foreground">{t("content.title")}</h1>
-                  {!hasWrite && <Badge variant="secondary">{t("content.readOnly")}</Badge>}
+                  {!hasWrite && <Badge variant="secondary">{tc("readOnly")}</Badge>}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
                   {t("content.subtitle")}
@@ -129,7 +129,7 @@ export function RouterAdvertContent() {
                   }}
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  {t("content.addInterface")}
+                  {tc("addInterface")}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={() => loadData(true)}>
@@ -189,7 +189,7 @@ export function RouterAdvertContent() {
                     }}
                   >
                     <Plus className="h-4 w-4 mr-1" />
-                    {t("content.addInterface")}
+                    {tc("addInterface")}
                   </Button>
                 )}
               </div>
@@ -324,7 +324,7 @@ export function RouterAdvertContent() {
                       }}
                     >
                       <Plus className="h-4 w-4 mr-1" />
-                      {t("content.addInterface")}
+                      {tc("addInterface")}
                     </Button>
                   )}
                 </div>

@@ -234,7 +234,7 @@ export function FlowtableModal({
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder={t("modal.descriptionPlaceholder")}
+              placeholder={tc("optionalDescription")}
               rows={2}
             />
           </div>
@@ -251,7 +251,7 @@ export function FlowtableModal({
                   .filter((iface) => !interfaces.includes(iface.name))
                   .map((i) => ({ name: i.name, type: i.type, description: i.description ?? null }))}
                 className="flex-1"
-                placeholder={t("modal.selectInterface")}
+                placeholder={tc("selectInterface")}
               />
               <Button
                 type="button"
@@ -309,9 +309,9 @@ export function FlowtableModal({
             {loading
               ? isEdit
                 ? tc("saving")
-                : t("modal.creating")
+                : tc("creating")
               : isEdit
-                ? t("modal.saveChanges")
+                ? tc("saveChanges")
                 : t("createFlowtable")}
           </Button>
         </DialogFooter>

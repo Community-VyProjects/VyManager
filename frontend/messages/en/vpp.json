@@ -34,8 +34,7 @@
     "confirm": "Are you sure you want to delete this VPP interface? This action cannot be undone.",
     "type": "Type:",
     "name": "Name:",
-    "failed": "Failed to delete VPP interface",
-    "submit": "Delete Interface"
+    "failed": "Failed to delete VPP interface"
   },
   "modal": {
     "createTitle": "Create VPP Interface",
@@ -45,8 +44,6 @@
     "createDescription": "Configure a new VPP {type} interface.",
     "updateFailed": "Failed to update VPP interface",
     "createFailed": "Failed to create VPP interface",
-    "creating": "Creating...",
-    "saveChanges": "Save Changes",
     "createSubType": "Create {type}"
   },
   "validation": {
@@ -76,7 +73,6 @@
     "sourceAddress": "Source Address",
     "tunnelType": "Tunnel Type",
     "key": "Key (0-4294967295)",
-    "descriptionPlaceholder": "Optional description",
     "ipAddresses": "IP Addresses",
     "examplePlaceholder": "e.g., {value}"
   },

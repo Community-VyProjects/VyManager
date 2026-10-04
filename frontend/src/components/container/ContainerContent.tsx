@@ -102,7 +102,7 @@ export function ContainerContent() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl font-bold text-foreground">{t("content.title")}</h1>
-                {!hasWritePermission && <Badge variant="secondary">{t("content.readOnly")}</Badge>}
+                {!hasWritePermission && <Badge variant="secondary">{tc("readOnly")}</Badge>}
               </div>
               <p className="text-sm text-muted-foreground mt-0.5">
                 {t("content.subtitle")}

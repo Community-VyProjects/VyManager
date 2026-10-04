@@ -6,12 +6,10 @@
   "globalSettings": "全局设置",
   "disableSourceNat": "禁用源 NAT",
   "healthTests": "健康检测",
-  "addInterface": "添加接口",
   "interface": "接口",
   "nexthopGateway": "下一跳（网关）",
   "addRule": "添加规则",
   "outboundInterfaces": "出站接口",
-  "saveChanges": "保存更改",
   "globals": {
     "saveFailed": "保存失败",
     "title": "WAN 全局设置",
@@ -63,7 +61,6 @@
     "deleteDescription": "这将删除该 WAN 负载均衡规则。此操作无法撤销。"
   },
   "interfaceModal": {
-    "interfaceRequired": "接口名称为必填项",
     "nexthopRequired": "下一跳地址为必填项",
     "editTitle": "编辑接口健康检查",
     "addTitle": "添加接口健康检查",
@@ -92,7 +89,6 @@
     "addTitle": "添加 WAN 规则",
     "description": "为 WAN 负载均衡定义流量匹配条件和出站接口选择。",
     "ruleId": "规则 ID",
-    "optionalDescription": "可选描述",
     "inboundInterface": "入站接口",
     "protocol": "协议",
     "any": "任意",

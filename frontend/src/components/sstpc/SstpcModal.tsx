@@ -325,7 +325,7 @@ export function SstpcModal({
                 id="sstpc-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder={t("basic.descriptionPlaceholder")}
+                placeholder={tc("optionalDescription")}
               />
             </div>
 
@@ -481,10 +481,10 @@ export function SstpcModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEdit ? tc("saving") : t("modal.creating")}
+                {isEdit ? tc("saving") : tc("creating")}
               </>
             ) : isEdit ? (
-              t("modal.saveChanges")
+              tc("saveChanges")
             ) : (
               t("modal.createInterface")
             )}

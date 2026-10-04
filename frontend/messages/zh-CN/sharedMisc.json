@@ -32,7 +32,6 @@
     "update": "更新接口"
   },
   "deleteInterface": {
-    "title": "删除接口",
     "description": "确定要删除接口 <iface>{name}</iface> 吗？此操作无法撤销，并可能中断网络连接。"
   }
 }

@@ -285,7 +285,7 @@ export function IsisInterfaceModal({
                   onValueChange={setName}
                   disabled={interfacesLoading}
                   interfaces={interfaceNames}
-                  placeholder={t("interfaceModal.selectInterface")}
+                  placeholder={tc("selectInterface")}
                 />
               )}
             </div>
@@ -588,7 +588,7 @@ export function IsisInterfaceModal({
           </Button>
           <Button onClick={handleSubmit} disabled={saving}>
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? t("fields.saveChanges") : t("fields.addInterface")}
+            {isEdit ? tc("saveChanges") : tc("addInterface")}
           </Button>
         </DialogFooter>
       </DialogContent>

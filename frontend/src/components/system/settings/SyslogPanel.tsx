@@ -251,7 +251,7 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
                   </Select>
                 </div>
                 <Button size="sm" onClick={handleAddLocalFacility} disabled={localSaving}>
-                  {localSaving ? t("saving") : t("syslog.apply")}
+                  {localSaving ? tc("saving") : t("syslog.apply")}
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => { setAddingLocal(false); setLocalError(null); }}>
                   {tc("cancel")}
@@ -418,7 +418,7 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
                     </Select>
                   </div>
                   <Button size="sm" onClick={handleAddConsoleFacility} disabled={consoleSaving}>
-                    {consoleSaving ? t("saving") : t("syslog.apply")}
+                    {consoleSaving ? tc("saving") : t("syslog.apply")}
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => { setAddingConsole(false); setConsoleError(null); }}>
                     {tc("cancel")}
@@ -527,7 +527,7 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
               editingMarker ? (
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={() => { setEditingMarker(false); setMarkerError(null); }} disabled={markerSaving}>{tc("cancel")}</Button>
-                  <Button size="sm" onClick={handleSaveMarker} disabled={markerSaving}>{markerSaving ? t("saving") : tc("save")}</Button>
+                  <Button size="sm" onClick={handleSaveMarker} disabled={markerSaving}>{markerSaving ? tc("saving") : tc("save")}</Button>
                 </div>
               ) : (
                 <Button variant="outline" size="sm" onClick={() => {
@@ -651,7 +651,7 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
           <AlertDialogFooter>
             <AlertDialogCancel disabled={formatSaving}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleSaveRemoteFormat} disabled={formatSaving}>
-              {formatSaving ? t("saving") : tc("save")}
+              {formatSaving ? tc("saving") : tc("save")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1,6 +1,5 @@
 {
   "failedToLoad": "Failed to load QoS configuration",
-  "readOnly": "Read Only",
   "subtitle": "Quality of Service — shape, prioritise and police traffic",
   "policies": "Policies",
   "interfaces": "Interfaces",
@@ -50,7 +49,7 @@
     "none": "No QoS interfaces"
   },
   "cake": {
-    "drops": "{count} drops",
+    "drops": "{count, plural, one {# drop} other {# drops}}",
     "noDrops": "no drops",
     "throughput": "Throughput",
     "tin": "Tin",

@@ -2,7 +2,6 @@
   "content": {
     "loadFailed": "加载容器配置失败",
     "title": "容器",
-    "readOnly": "只读",
     "subtitle": "管理容器实例、网络和镜像仓库",
     "containers": "容器",
     "networks": "网络",
@@ -69,7 +68,6 @@
     "loadingImages": "正在加载镜像...",
     "noImages": "设备上未找到镜像",
     "useImage": "使用“{image}”",
-    "descriptionPlaceholder": "可选描述",
     "restartPolicy": "重启策略",
     "selectRestartPolicy": "选择重启策略",
     "noneOption": "— 无 —",
@@ -137,9 +135,7 @@
     "linuxCapabilities": "Linux 能力",
     "sysctlParameters": "Sysctl 参数",
     "value": "值",
-    "saving": "正在保存…",
-    "adding": "正在添加…",
-    "saveChanges": "保存更改"
+    "adding": "正在添加…"
   },
   "deleteModal": {
     "failed": "删除容器失败",
@@ -157,8 +153,7 @@
     "editFile": "编辑文件",
     "noFiles": "此应用未定义可编辑的文件。",
     "saved": "已保存。备份已写入 <mono>{path}</mono>",
-    "back": "返回",
-    "saving": "正在保存…"
+    "back": "返回"
   },
   "sshOutput": {
     "running": "正在执行命令，请稍候…",
@@ -172,7 +167,6 @@
     "failed": "创建目录失败。",
     "title": "容器存储设置",
     "description": "此设备上不存在基础目录 <mono>{path}</mono>。必须先创建该目录才能部署容器。",
-    "creating": "正在创建…",
     "create": "创建目录"
   }
 }

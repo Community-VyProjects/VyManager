@@ -1,7 +1,6 @@
 {
   "header": {
     "title": "RIPng Protocol",
-    "readOnly": "Read Only",
     "subtitle": "Routing Information Protocol Next Generation — IPv6 distance-vector routing"
   },
   "errors": {
@@ -56,7 +55,6 @@
   },
   "interfaces": {
     "description": "Per-interface split-horizon settings",
-    "addInterface": "Add Interface",
     "empty": "No interface settings configured",
     "emptyHint": "Add one to configure split-horizon.",
     "interface": "Interface",
@@ -90,7 +88,6 @@
   },
   "modal": {
     "adding": "Adding...",
-    "saveChanges": "Save Changes",
     "optionalHint": "(optional)"
   },
   "validation": {
@@ -110,7 +107,6 @@
     "editTitle": "Edit Interface Filter",
     "addTitle": "Add Interface Filter",
     "description": "Configure distribute list filters for a specific interface.",
-    "selectInterface": "Select interface",
     "addFilter": "Add Filter"
   },
   "redistModal": {

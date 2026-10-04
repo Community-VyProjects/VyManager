@@ -332,7 +332,7 @@ export function TableRouteModal({
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEdit ? t("shared.saveChanges") : t("shared.createRoute")}
+            {isEdit ? tc("saveChanges") : t("shared.createRoute")}
           </Button>
         </DialogFooter>
       </DialogContent>

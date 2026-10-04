@@ -1,7 +1,6 @@
 {
   "content": {
     "loadFailed": "加载 LLDP 配置失败",
-    "readOnly": "只读",
     "subtitle": "链路层发现协议 — 通告并发现网络邻居",
     "editSettings": "编辑设置",
     "managementAddresses": "管理地址",
@@ -63,7 +62,6 @@
     "addTitle": "添加接口覆盖配置",
     "description": "配置按接口的 LLDP 行为",
     "interface": "接口",
-    "selectInterface": "选择接口",
     "mode": "模式",
     "modeRxTx": "发送和接收（默认）",
     "modeRx": "仅接收",

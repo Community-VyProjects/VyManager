@@ -95,7 +95,7 @@ export function DeleteWirelessModal({
                 {t("delete.deleting")}
               </>
             ) : (
-              t("delete.confirm")
+              tc("deleteInterface")
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

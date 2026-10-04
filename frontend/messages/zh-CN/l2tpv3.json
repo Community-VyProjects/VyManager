@@ -4,8 +4,6 @@
     "editTitle": "编辑 L2TPv3 接口",
     "createDescription": "创建新的 L2TPv3 隧道接口，用于二层隧道传输。",
     "editDescription": "正在编辑接口 <code>{name}</code>",
-    "creating": "正在创建...",
-    "saveChanges": "保存更改",
     "createInterface": "创建接口",
     "tabs": {
       "general": "常规",
@@ -23,7 +21,6 @@
       "peerSessionIdRange": "对端会话 ID 必须介于 1 到 429496729 之间",
       "destinationPortRange": "目标端口必须介于 1 到 65535 之间",
       "sourcePortRange": "源端口必须介于 1 到 65535 之间",
-      "nameRequired": "接口名称为必填项",
       "nameFormat": "名称必须为 l2tpeth0、l2tpeth1 等",
       "nameExists": "接口 {name} 已存在",
       "createFailed": "创建 L2TPv3 接口失败",
@@ -33,7 +30,6 @@
       "interfaceName": "接口名称",
       "nameLocked": "接口名称不可更改。",
       "nameFormatHint": "必须符合格式：l2tpeth0、l2tpeth1、l2tpeth2……",
-      "descriptionPlaceholder": "可选描述",
       "remoteAddress": "远端地址",
       "remotePlaceholder": "10.0.0.1 或 2001:db8::1",
       "remoteHint": "远端隧道端点",
@@ -97,10 +93,9 @@
   "delete": {
     "title": "删除接口：{name}",
     "confirm": "确定要删除此 L2TPv3 接口吗？此操作无法撤销。",
-    "addressCount": "{count} 个地址",
+    "addressCount": "{count, plural, one {# 个地址} other {# 个地址}}",
     "remote": "远端：{remote}",
     "tunnelId": "隧道 ID：{id}",
-    "failed": "删除 L2TPv3 接口失败",
-    "button": "删除接口"
+    "failed": "删除 L2TPv3 接口失败"
   }
 }

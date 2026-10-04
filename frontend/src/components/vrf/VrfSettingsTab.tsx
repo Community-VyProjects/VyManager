@@ -160,7 +160,7 @@ export function VrfSettingsTab({
               <div className="space-y-2">
                 <Label>{tc("description")}</Label>
                 <Input
-                  placeholder={t("optionalDescription")}
+                  placeholder={tc("optionalDescription")}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                 />

@@ -314,7 +314,7 @@ export function PimContent() {
             </div>
             <div className="flex items-center gap-2">
               {!hasWritePermission && (
-                <Badge variant="secondary">{t("content.readOnly")}</Badge>
+                <Badge variant="secondary">{tc("readOnly")}</Badge>
               )}
               <Button variant="outline" size="sm" onClick={() => loadData(true)}>
                 <RefreshCw className="h-4 w-4 mr-2" />
@@ -635,7 +635,7 @@ export function PimContent() {
                   {hasWritePermission && (
                     <Button size="sm" onClick={() => { setEditingIface(null); setIfaceModalOpen(true); }}>
                       <Plus className="h-4 w-4 mr-2" />
-                      {t("addInterface")}
+                      {tc("addInterface")}
                     </Button>
                   )}
                 </div>
@@ -649,7 +649,7 @@ export function PimContent() {
                       {hasWritePermission && (
                         <Button variant="outline" size="sm" className="mt-4" onClick={() => { setEditingIface(null); setIfaceModalOpen(true); }}>
                           <Plus className="h-4 w-4 mr-2" />
-                          {t("addInterface")}
+                          {tc("addInterface")}
                         </Button>
                       )}
                     </CardContent>

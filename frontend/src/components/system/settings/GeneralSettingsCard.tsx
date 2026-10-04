@@ -220,7 +220,7 @@ export function GeneralSettingsCard({ config, capabilities, isReadOnly, onRefres
                 {tc("cancel")}
               </Button>
               <Button size="sm" onClick={handleSave} disabled={saving}>
-                {saving ? t("general.saving") : tc("save")}
+                {saving ? tc("saving") : tc("save")}
               </Button>
             </div>
           )}

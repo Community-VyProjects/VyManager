@@ -272,7 +272,7 @@ export function EventHandlerEventModal({ open, onOpenChange, event, onSubmit }: 
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {isEdit ? tc("saving") : t("modal.adding")}
               </>
-            ) : isEdit ? t("modal.saveChanges") : t("content.addEvent")}
+            ) : isEdit ? tc("saveChanges") : t("content.addEvent")}
           </Button>
         </DialogFooter>
       </DialogContent>

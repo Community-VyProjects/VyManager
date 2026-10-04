@@ -22,7 +22,7 @@
     "mergeHint": "添加缺失的记录并更新已有记录，不会删除任何内容。",
     "replace": "替换（破坏性）",
     "replaceHint": "清除当前所有 VyManager 数据并完全按备份恢复。你将被退出登录，必须使用恢复后的账户重新登录。",
-    "recordCount": "此备份包含 {count} 条记录",
+    "recordCount": "{count, plural, one {此备份包含 # 条记录} other {此备份包含 # 条记录}}",
     "created": "创建时间：{date}",
     "counts": "用户：{users} · 站点：{sites} · 实例：{instances} · OIDC 提供商：{providers}",
     "sshKeysWarning": "加密的 SSH 密钥是在另一台主机上创建的，无法在此恢复；请为每个实例重新设置 SSH 密钥。",
