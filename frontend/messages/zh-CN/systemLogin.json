@@ -85,6 +85,7 @@
     "port": "端口",
     "timeoutSeconds": "超时（秒）",
     "sharedKey": "共享密钥",
+    "secretPlaceholder": "密钥",
     "adding": "正在添加…",
     "noRadius": "未配置 RADIUS 服务器。",
     "noTacacs": "未配置 TACACS+ 服务器。",

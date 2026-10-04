@@ -235,7 +235,7 @@ export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">{t("auth.sharedKey")}</Label>
-                  <Input type="password" value={radiusKey} onChange={(e) => setRadiusKey(e.target.value)} placeholder="secret" />
+                  <Input type="password" value={radiusKey} onChange={(e) => setRadiusKey(e.target.value)} placeholder={t("auth.secretPlaceholder")} />
                 </div>
               </div>
               <div className="flex gap-2">
@@ -351,7 +351,7 @@ export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">{t("auth.sharedKey")}</Label>
-                  <Input type="password" value={tacacsKey} onChange={(e) => setTacacsKey(e.target.value)} placeholder="secret" />
+                  <Input type="password" value={tacacsKey} onChange={(e) => setTacacsKey(e.target.value)} placeholder={t("auth.secretPlaceholder")} />
                 </div>
               </div>
               <div className="flex gap-2">

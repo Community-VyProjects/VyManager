@@ -39,8 +39,14 @@ ruleTester.run("no-untranslated-text", rule, {
     '<input placeholder="60/sec" />',
     // Props that aren't checked
     '<div className="Delete rule" />',
-    // String expressions are a deliberate escape
+    // A bare string expression is the deliberate escape. A comparison string is not rendered.
     '<p>{"Kept as is"}</p>',
+    '<input placeholder={"Kept as is"} />',
+    '<span>{status === "up" ? t("sessionUp") : t("sessionDown")}</span>',
+    '<span>{ready && t("loading")}</span>',
+    // Config token with no translation. A translated word is not this.
+    "<SelectItem>disable</SelectItem>",
+    '<SelectItem value="reject">reject</SelectItem>',
     // Allow list
     { code: "<p>VyOS</p>", options },
     { code: "<SelectItem>Forward</SelectItem>", options },
@@ -51,6 +57,20 @@ ruleTester.run("no-untranslated-text", rule, {
     invalid("<p>Loading...</p>"),
     invalid("<p>Loading…</p>"),
     invalid('<input placeholder="Search..." />'),
+    invalid('<input placeholder="search..." />'),
+    invalid("<span>unknown</span>"),
+    invalid('<span>{ready && "Loading sessions"}</span>'),
+    invalid('<span>{name || "Unknown peer"}</span>'),
+    {
+      code: '<span>{ready ? "Session up" : "Session down"}</span>',
+      options,
+      errors: [{ messageId: "text" }, { messageId: "text" }],
+    },
+    {
+      code: '<input placeholder={ready ? "Search rules" : "Filter rules"} />',
+      options,
+      errors: [{ messageId: "text" }, { messageId: "text" }],
+    },
     // Every checked prop
     invalid('<button title="Delete rule" />'),
     invalid('<img alt="VyManager Logo" />'),

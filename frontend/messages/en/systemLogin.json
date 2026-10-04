@@ -85,6 +85,7 @@
     "port": "Port",
     "timeoutSeconds": "Timeout (s)",
     "sharedKey": "Shared Key",
+    "secretPlaceholder": "secret",
     "adding": "Adding…",
     "noRadius": "No RADIUS servers configured.",
     "noTacacs": "No TACACS+ servers configured.",

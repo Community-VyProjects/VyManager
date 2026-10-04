@@ -154,7 +154,7 @@
     "defaultCostPlaceholder": "注入的默认路由的开销",
     "networkPlaceholder": "例如 10.0.0.0/24",
     "networksHelp": "此区域包含的 CIDR 前缀。",
-    "shortcut": "快捷",
+    "shortcut": "快捷方式",
     "enable": "启用",
     "disable": "禁用",
     "exportList": "导出列表",

@@ -44,17 +44,20 @@ Keys are type-checked against the English files, so a typo is a TypeScript error
 `npm run lint` runs `vymanager/no-untranslated-text` (`eslint-rules/no-untranslated-text.mjs`)
 on `src/**/*.tsx`. It reports JSX text and `placeholder`/`title`/`alt`/`aria-label`/`label`/`description`
 string props that contain natural-language words, e.g. `<p>No rules</p>` or `placeholder="Search..."`.
-Acronyms, numbers, symbols, single lowercase config keywords and technical values
-(`example.com`, `level-1`) are not reported.
+Acronyms, numbers, symbols, and technical values
+(`example.com`, `level-1`, `rx/tx`, `disable`) are not reported. A single
+lowercase word is reported when a locale already translates it (`unknown`),
+or when it only has trailing punctuation (`search...`).
+A string rendered from a branch is reported too (`{ok ? "Up" : "Down"}`).
 
 For text that must stay English (protocol or product names, example values), either:
 
-- write it as an expression, e.g. `{"Node Exporter"}`, or
+- write a bare expression, e.g. `{"Node Exporter"}` (a string inside a branch is still reported), or
 - add a disable comment with the reason:
 
   ```tsx
-  {/* eslint-disable-next-line vymanager/no-untranslated-text -- IANA protocol name */}
-  <SelectItem value="ggp">Gateway-Gateway Protocol</SelectItem>
+  {/* eslint-disable-next-line vymanager/no-untranslated-text -- key combination, same in every locale */}
+  <Label>Ctrl-Alt-Delete</Label>
   ```
 
 Names used across the app go in the rule's `allow` list in `eslint.config.mjs`. Only add names

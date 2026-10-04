@@ -509,7 +509,7 @@ export function NhrpContent() {
                         )}
                         <span className="font-mono font-semibold">{tunnel.name}</span>
                         <div className="flex gap-1.5">
-                          {tunnel.redirect && <Badge variant="outline" className="text-xs">redirect</Badge>}
+                          {tunnel.redirect && <Badge variant="outline" className="text-xs">{t("tunnelModal.redirect")}</Badge>}
                           {tunnel.shortcut && <Badge variant="outline" className="text-xs">shortcut</Badge>}
                           {tunnel.non_caching && <Badge variant="outline" className="text-xs">non-caching</Badge>}
                           {tunnel.shortcut_destination && <Badge variant="outline" className="text-xs">shortcut-dest</Badge>}

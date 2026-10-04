@@ -1209,7 +1209,7 @@ export function ZoneRulePanel({
                     {(["any", "address", "fqdn", "group", "geoip", "mac"] as SrcMode[]).map((m) => (
                       <label key={m} className="flex items-center gap-1.5 text-xs cursor-pointer">
                         <RadioGroupItem value={m} className="h-3.5 w-3.5" />
-                        {m === "fqdn" ? "FQDN" : m === "mac" ? "Mac" : t(`rulePanel.modes.${m}`)}
+                        {m === "fqdn" ? "FQDN" : m === "mac" ? "MAC" : t(`rulePanel.modes.${m}`)}
                       </label>
                     ))}
                   </RadioGroup>
