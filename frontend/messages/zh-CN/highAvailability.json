@@ -66,6 +66,7 @@
     "emptyHint": "同步组可在多个组之间同步 VRRP 状态切换",
     "members": "成员",
     "scriptBadge": "脚本",
+    "pingBadge": "探测：{target}",
     "noMatch": "没有与“{search}”匹配的同步组",
     "deleteTitle": "删除同步组",
     "deleteDescription": "删除同步组“{name}”？此操作无法撤销。"

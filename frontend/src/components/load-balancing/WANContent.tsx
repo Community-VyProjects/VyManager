@@ -505,9 +505,10 @@ export function WANContent() {
                           {iface.tests.length === 0 ? (
                             <span className="text-xs text-muted-foreground">{tc("none")}</span>
                           ) : (
-                            iface.tests.map((t) => (
-                              <Badge key={t.test_id} variant="secondary" className="text-xs">
-                                {t.type ?? "ping"}{t.target ? ` → ${t.target}` : ""}
+                            iface.tests.map((test) => (
+                              <Badge key={test.test_id} variant="secondary" className="text-xs">
+                                {test.type && test.type !== "ping" ? test.type : t("interfaceModal.testPing")}
+                                {test.target ? ` → ${test.target}` : ""}
                               </Badge>
                             ))
                           )}

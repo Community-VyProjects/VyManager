@@ -66,6 +66,7 @@
     "emptyHint": "Sync groups synchronize VRRP state transitions across multiple groups",
     "members": "Members",
     "scriptBadge": "script",
+    "pingBadge": "ping: {target}",
     "noMatch": "No sync groups match \"{search}\"",
     "deleteTitle": "Delete Sync Group",
     "deleteDescription": "Delete sync group \"{name}\"? This action cannot be undone."
