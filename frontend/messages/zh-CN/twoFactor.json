@@ -1,7 +1,7 @@
 {
   "activeSession": {
     "title": "检测到活动会话",
-    "description": "你已在{count, plural, one {另一台设备} other {其他设备}}上登录。要退出{count, plural, one {该会话} other {这些会话}}并在此继续吗？",
+    "description": "你已在其他设备上登录。要退出其他会话并在此继续吗？",
     "securityNotice": "安全提示",
     "securityText": "继续操作将退出你在其他设备上的活动会话。此操作无法撤销。",
     "listTitle": "活动会话：",

@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
+import { parse, isArgumentElement, isNumberElement, isPluralElement, isPoundElement, isSelectElement, isTagElement } from "@formatjs/icu-messageformat-parser";
 import { locales } from "./config";
 
 const messagesRoot = join(dirname(fileURLToPath(import.meta.url)), "../../messages");
@@ -116,6 +117,83 @@ export function pluralProblems(value: string): string[] {
   if (COUNT_NOUN.test(outside)) problems.push("count-noun");
   return problems;
 }
+
+// Chinese (and any locale whose plural rules never select `one`) always shows
+// `other`, even when the count is 1. A different `one` branch is dead text.
+export function pluralBranches(value: string): Array<Record<string, string>> {
+  const found: Array<Record<string, string>> = [];
+  let index = 0;
+  while (index < value.length) {
+    const marker = value.slice(index).search(/,\s*plural/);
+    if (marker === -1) break;
+    const at = index + marker;
+    const open = value.lastIndexOf("{", at);
+    let depth = 0;
+    let end = open;
+    for (let cursor = open; cursor < value.length; cursor++) {
+      if (value[cursor] === "{") depth++;
+      else if (value[cursor] === "}") {
+        depth--;
+        if (depth === 0) {
+          end = cursor;
+          break;
+        }
+      }
+    }
+    const body = value.slice(open + 1, end).split("plural,")[1] ?? "";
+    const selectors: Record<string, string> = {};
+    const selector = /\s*(=\d+|one|other|zero|two|few|many)\s*\{/g;
+    for (const match of body.matchAll(selector)) {
+      const name = match[1];
+      let depth = 1;
+      let cursor = match.index + match[0].length;
+      const start = cursor;
+      for (; cursor < body.length && depth > 0; cursor++) {
+        if (body[cursor] === "{") depth++;
+        else if (body[cursor] === "}") depth--;
+      }
+      selectors[name] = body.slice(start, cursor - 1);
+    }
+    if (Object.keys(selectors).length > 0) found.push(selectors);
+    index = end + 1;
+  }
+  return found;
+}
+
+// Values the user actually sees. A plural selector with no # is only choosing
+// words, so a number-neutral translation may omit it. A name or a printed
+// count may not disappear.
+export function shownValues(value: string): { names: string[]; counts: string[] } {
+  const names = new Set<string>();
+  const counts = new Set<string>();
+  const walk = (nodes: ReturnType<typeof parse>, pluralName?: string) => {
+    for (const node of nodes) {
+      if (isPoundElement(node) && pluralName) counts.add(pluralName);
+      else if (isArgumentElement(node) || isNumberElement(node)) names.add(node.value);
+      else if (isTagElement(node)) walk(node.children, pluralName);
+      else if (isPluralElement(node)) {
+        for (const option of Object.values(node.options)) walk(option.value, node.value);
+      } else if (isSelectElement(node)) {
+        for (const option of Object.values(node.options)) walk(option.value, pluralName);
+      }
+    }
+  };
+  walk(parse(value));
+  return { names: [...names].sort(), counts: [...counts].sort() };
+}
+
+export function missingShown(source: string, translated: string): string[] {
+  const from = shownValues(source);
+  const to = shownValues(translated);
+  const missing = from.names.filter((name) => !to.names.includes(name));
+  for (const count of from.counts) {
+    if (!to.counts.includes(count) && !to.names.includes(count)) missing.push(`#${count}`);
+  }
+  return missing;
+}
+
+// appsCatalog is plain text read with t.raw. "<user>" is not an ICU tag there.
+const RAW_MESSAGE_FILES = new Set(["appsCatalog.json"]);
 
 export function proseParenPlurals(source: string): string[] {
   const pattern = /(?<![A-Za-z])((?:[A-Z]{2,}|[A-Z]?[a-z]{2,})\((?:s|es)\))(?!\.[A-Za-z])/g;
@@ -352,5 +430,63 @@ describe("message catalogs", () => {
     assert.deepEqual(proseParenPlurals("<Row onChange={(s) => pick(s)} />\nif (sources.includes(s)) {"), []);
     assert.deepEqual(proseParenPlurals("`${m}:${String(s).padStart(2, \"0\")}`"), []);
     assert.deepEqual(proseParenPlurals("// remove the old row(s)"), []);
+  });
+
+  it("does not use a singular branch a language never selects", () => {
+    const mismatches: string[] = [];
+    for (const [locale, catalog] of catalogs) {
+      const language = locale.split("-")[0];
+      if (new Intl.PluralRules(language).select(1) === "one") continue;
+      for (const [file, keys] of catalog) {
+        for (const [path, value] of Object.entries(keys)) {
+          for (const selectors of pluralBranches(value)) {
+            if (selectors.one !== undefined && selectors.one !== selectors.other) {
+              mismatches.push(`${locale}/${file}:${path}`);
+            }
+          }
+        }
+      }
+    }
+    assert.deepEqual(mismatches, []);
+    const description = catalogs.get("zh-CN")?.get("twoFactor.json")?.["activeSession.description"];
+    assert.equal(description, "你已在其他设备上登录。要退出其他会话并在此继续吗？");
+    assert.deepEqual(
+      pluralBranches("{count,plural,one {另一台设备} other {其他设备}}").map((item) => item.one),
+      ["另一台设备"],
+    );
+    assert.deepEqual(shownValues("Delete {name}").names, ["name"]);
+    assert.deepEqual(missingShown("{count, plural, other {# items}}", "items"), ["#count"]);
+    assert.deepEqual(missingShown("{count, plural, other {# items}}", "{count} 条"), []);
+    assert.deepEqual(missingShown("Delete {name}", "Delete"), ["name"]);
+    assert.deepEqual(missingShown("{count, number} pkts", "pkts"), ["count"]);
+    assert.deepEqual(missingShown("{count, number} pkts", "{count} pkts"), []);
+    assert.throws(() => parse("create --user <user>"));
+  });
+
+  it("parses every rendered message and keeps the values English shows", () => {
+    const parseErrors: string[] = [];
+    const dropped: string[] = [];
+    const english = catalogs.get("en");
+    assert.ok(english);
+    for (const [locale, catalog] of catalogs) {
+      for (const [file, keys] of catalog) {
+        for (const [path, value] of Object.entries(keys)) {
+          if (RAW_MESSAGE_FILES.has(file)) continue;
+          try {
+            parse(value);
+          } catch (err) {
+            parseErrors.push(`${locale}/${file}:${path} ${err instanceof Error ? err.message : err}`);
+            continue;
+          }
+          if (locale === "en") continue;
+          const source = english.get(file)?.[path];
+          if (source === undefined) continue;
+          const missing = missingShown(source, value);
+          if (missing.length > 0) dropped.push(`${locale}/${file}:${path} ${missing.join(",")}`);
+        }
+      }
+    }
+    assert.deepEqual(parseErrors, []);
+    assert.deepEqual(dropped, []);
   });
 });

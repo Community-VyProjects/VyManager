@@ -117,7 +117,7 @@
     "description": "确定要删除此策略吗？",
     "deleteFailed": "删除策略失败",
     "warning": "警告",
-    "warningText": "{count, plural, one {删除策略 <mono>{name}</mono> 将移除与其关联的 # 条规则。此操作无法撤销。} other {删除策略 <mono>{name}</mono> 将移除与其关联的全部 # 条规则。此操作无法撤销。}}",
+    "warningText": "{count, plural, one {删除策略 <mono>{name}</mono> 将移除与其关联的 # 条规则。此操作无法撤销。} other {删除策略 <mono>{name}</mono> 将移除与其关联的 # 条规则。此操作无法撤销。}}",
     "submit": "删除策略"
   },
   "deleteRule": {

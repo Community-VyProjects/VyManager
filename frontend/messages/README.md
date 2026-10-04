@@ -45,7 +45,9 @@ Keys are type-checked against the English files, so a typo is a TypeScript error
    `localeFamilies` with its script and regions. Do not rely on the language
    tag alone. Traditional Chinese must not follow Simplified Chinese.
 3. Copy `messages/en/` to `messages/<locale>/` and translate. Counted nouns use
-   `{count, plural, one {# item} other {# items}}`, not `item(s)`.
+   `{count, plural, one {# item} other {# items}}`, not `item(s)`. Chinese has
+   no singular: `one` is never chosen, so that branch must say the same thing
+   as `other`, or the sentence must work for one item and many.
 4. `npm run build` must pass. That runs the parity test before Next builds.
 
 ## What not to translate

@@ -54,6 +54,7 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "@formatjs/icu-messageformat-parser": "3.5.18",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "24.13.4",
@@ -70,6 +71,7 @@
     "typescript": "^5.9.3"
   },
   "overrides": {
-    "deepmerge-ts": "8.0.2"
+    "deepmerge-ts": "8.0.2",
+    "@formatjs/icu-messageformat-parser": "3.5.18"
   }
 }
