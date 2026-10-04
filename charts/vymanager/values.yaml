@@ -60,7 +60,7 @@ frontend:
     repository: ghcr.io/community-vyprojects/vymanager-frontend
     tag: beta
     # beta moves. IfNotPresent keeps the first pull, so an upgrade misses
-    # a newer image. A pinned tag (a version or digest) may use IfNotPresent.
+    # a newer image. A version tag such as 1.2.3 may use IfNotPresent.
     pullPolicy: Always
   podAnnotations: {}
   podLabels: {}
@@ -110,7 +110,7 @@ backend:
     repository: ghcr.io/community-vyprojects/vymanager-backend
     tag: beta
     # beta moves. IfNotPresent keeps the first pull, so an upgrade misses
-    # a newer image. A pinned tag (a version or digest) may use IfNotPresent.
+    # a newer image. A version tag such as 1.2.3 may use IfNotPresent.
     pullPolicy: Always
   podAnnotations: {}
   podLabels: {}

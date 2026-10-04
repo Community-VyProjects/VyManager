@@ -57,7 +57,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- define "vymanager.pullPolicyFor" -}}
 {{- $tag := required "image tag is required" .tag -}}
 {{- $policy := required "image pullPolicy is required" .policy -}}
-{{- $pinned := or (regexMatch "^(v|V)?[0-9]+\\.[0-9]+" $tag) (regexMatch "^sha256:[0-9a-fA-F]+$" $tag) (regexMatch "^[0-9a-f]{40}$" $tag) -}}
+{{- $pinned := regexMatch "^(v|V)?[0-9]+\\.[0-9]+" $tag -}}
 {{- if and (not $pinned) (ne $policy "Never") -}}
 Always
 {{- else -}}

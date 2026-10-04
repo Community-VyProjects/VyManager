@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Render the chart and check the install contract.
 
-These assertions fail on the original chart: the backend has no schema
-wait, ingress timeouts stay at the controller default, the test hook is
-not deleted, and a floating tag can render IfNotPresent.
+These assertions fail on the chart before the schema wait, ingress
+timeouts, test-hook cleanup, and floating-tag pull policy. The harness
+lives outside the chart so helm package does not ship it.
 """
 
 from __future__ import annotations
@@ -13,14 +13,12 @@ import sys
 import tempfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[1]
 CHART = ROOT / "charts" / "vymanager"
 
 
-def helm(*args: str, values: str | None = None) -> str:
+def helm(*args: str) -> str:
     cmd = ["helm", "template", "rel", str(CHART), *args]
-    if values:
-        cmd.extend(["-f", values])
     result = subprocess.run(cmd, check=False, capture_output=True, text=True)
     if result.returncode != 0:
         sys.stderr.write(result.stderr)
@@ -63,6 +61,28 @@ def main() -> None:
         text=True,
     )
     require(lint.returncode == 0, lint.stdout + lint.stderr)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        packaged = subprocess.run(
+            ["helm", "package", str(CHART), "--destination", tmp],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        require(packaged.returncode == 0, packaged.stderr or packaged.stdout)
+        tarballs = list(Path(tmp).glob("*.tgz"))
+        require(len(tarballs) == 1, "helm package did not write a chart")
+        listing = subprocess.run(
+            ["tar", "-tzf", str(tarballs[0])],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        require(listing.returncode == 0, listing.stderr)
+        require(
+            "test_render_contract.py" not in listing.stdout,
+            "helm package ships the render harness",
+        )
 
     internal = helm("--set", "ingress.enabled=true", "--set", "ingress.className=nginx")
     backend = section(internal, "Deployment", "backend")
@@ -112,15 +132,15 @@ def main() -> None:
     )
     require(
         "imagePullPolicy: IfNotPresent" in section(pinned, "Deployment", "frontend"),
-        "a pinned tag must keep IfNotPresent",
+        "a version tag must keep IfNotPresent",
     )
     require(
         "imagePullPolicy: IfNotPresent" in section(pinned, "Deployment", "backend"),
-        "a pinned backend tag must keep IfNotPresent",
+        "a versioned backend tag must keep IfNotPresent",
     )
     require(
         "imagePullPolicy: IfNotPresent" in section(pinned, "Job", "migrate"),
-        "a pinned migration tag must keep IfNotPresent",
+        "a versioned migration tag must keep IfNotPresent",
     )
 
     floating = helm(
