@@ -148,7 +148,6 @@ export function proseParenPlurals(source: string): string[] {
         }
         else if (rest.startsWith("<") && /[A-Za-z/]/.test(rest[1] ?? "") && /\s|[=({\[]/.test(line[index - 1] ?? " ")) {
           expressionStack.push(expressionDepth);
-          elementStack.push(elementDepth);
           expressionDepth = 0;
           elementDepth = 1;
           const name = /^[A-Za-z][A-Za-z0-9.-]*/.exec(rest.slice(1));
@@ -200,6 +199,7 @@ export function proseParenPlurals(source: string): string[] {
       }
       if (elementDepth > 0 && rest.startsWith("{")) {
         expressionDepth = 1;
+        elementStack.push(elementDepth);
         index++;
         text += " ";
         continue;
@@ -345,7 +345,8 @@ describe("message catalogs", () => {
     assert.deepEqual(proseParenPlurals("<span>{x < y ? fmt(s) : b}</span>"), []);
     assert.deepEqual(proseParenPlurals("<span>{ok ? <Icon /> : format(s)}</span>"), []);
     assert.deepEqual(proseParenPlurals("<span>{format(s)}</span>"), []);
-    assert.deepEqual(proseParenPlurals("<Button>{saving && <Loader2 />} Delete route(s)</Button>"), ["route(s)"]);
+    assert.deepEqual(proseParenPlurals("<Button>{saving ? <Loader2 /> : <Save />} Delete route(s)</Button>"), ["route(s)"]);
+    assert.deepEqual(proseParenPlurals("<p>{a && <b>{x}</b>} route(s)</p>"), ["route(s)"]);
     assert.deepEqual(proseParenPlurals("<p>{ok ? <Icon /> : b} route(s)</p>"), ["route(s)"]);
     assert.deepEqual(proseParenPlurals("<Row onChange={handle(s)} />\nif (sources.includes(s)) {"), []);
     assert.deepEqual(proseParenPlurals("<Row onChange={(s) => pick(s)} />\nif (sources.includes(s)) {"), []);
