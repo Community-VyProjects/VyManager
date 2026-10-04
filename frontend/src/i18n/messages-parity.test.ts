@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { parse, isArgumentElement, isPluralElement, isPoundElement, isSelectElement, isTagElement } from "@formatjs/icu-messageformat-parser";
+import { parse, isArgumentElement, isNumberElement, isPluralElement, isPoundElement, isSelectElement, isTagElement } from "@formatjs/icu-messageformat-parser";
 import { locales } from "./config";
 
 const messagesRoot = join(dirname(fileURLToPath(import.meta.url)), "../../messages");
@@ -169,7 +169,7 @@ export function shownValues(value: string): { names: string[]; counts: string[] 
   const walk = (nodes: ReturnType<typeof parse>, pluralName?: string) => {
     for (const node of nodes) {
       if (isPoundElement(node) && pluralName) counts.add(pluralName);
-      else if (isArgumentElement(node)) names.add(node.value);
+      else if (isArgumentElement(node) || isNumberElement(node)) names.add(node.value);
       else if (isTagElement(node)) walk(node.children, pluralName);
       else if (isPluralElement(node)) {
         for (const option of Object.values(node.options)) walk(option.value, node.value);
@@ -458,6 +458,8 @@ describe("message catalogs", () => {
     assert.deepEqual(missingShown("{count, plural, other {# items}}", "items"), ["#count"]);
     assert.deepEqual(missingShown("{count, plural, other {# items}}", "{count} 条"), []);
     assert.deepEqual(missingShown("Delete {name}", "Delete"), ["name"]);
+    assert.deepEqual(missingShown("{count, number} pkts", "pkts"), ["count"]);
+    assert.deepEqual(missingShown("{count, number} pkts", "{count} pkts"), []);
     assert.throws(() => parse("create --user <user>"));
   });
 
