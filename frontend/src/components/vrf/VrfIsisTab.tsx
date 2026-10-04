@@ -38,6 +38,7 @@ interface VrfIsisTabProps {
 }
 
 export function VrfIsisTab({ vrf, capabilities, canWrite, onRefresh }: VrfIsisTabProps) {
+  const tc = useTranslations("common");
   const t = useTranslations("vrfProtocols");
   const [rawConfigOpen, setRawConfigOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -81,7 +82,7 @@ export function VrfIsisTab({ vrf, capabilities, canWrite, onRefresh }: VrfIsisTa
       <div className="grid grid-cols-4 gap-4">
         <Card className="border-0 shadow-none bg-muted/50">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">NET</p>
+            <p className="text-xs text-muted-foreground mb-1">{tc("shown.net")}</p>
             <p className="text-sm font-mono font-medium truncate">{isis.net || "—"}</p>
           </CardContent>
         </Card>

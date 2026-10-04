@@ -292,7 +292,7 @@ export function OpenfabricContent() {
                     <Shield className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium">NET</p>
+                    <p className="text-sm font-medium">{tc("shown.net")}</p>
                     <p className="text-xs text-muted-foreground font-mono mt-0.5">
                       {config?.net || tc("notSet")}
                     </p>

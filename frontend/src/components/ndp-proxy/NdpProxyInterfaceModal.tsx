@@ -377,7 +377,7 @@ export function NdpProxyInterfaceModal({
                           </Badge>
                         )}
                         <Badge variant="secondary" className="shrink-0">
-                          {p.mode || "static"}
+                          {p.mode || tc("shown.static")}
                         </Badge>
                         {p.mode === "interface" && p.interface && (
                           <span className="text-muted-foreground font-mono text-xs shrink-0">
@@ -504,9 +504,9 @@ function PrefixInlineForm({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="static">static</SelectItem>
-            <SelectItem value="auto">auto</SelectItem>
-            <SelectItem value="interface">interface</SelectItem>
+            <SelectItem value="static">{tc("shown.static")}</SelectItem>
+            <SelectItem value="auto">{tc("shown.auto")}</SelectItem>
+            <SelectItem value="interface">{tc("shown.interface")}</SelectItem>
           </SelectContent>
         </Select>
       </div>

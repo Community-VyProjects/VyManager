@@ -857,7 +857,7 @@ function NATPageInner() {
                                           <TableCell>
                                             {isMasquerade ? (
                                               <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20">
-                                                masquerade
+                                                {tc("shown.masquerade")}
                                               </Badge>
                                             ) : (
                                               <code className="text-xs bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-1 rounded font-mono">

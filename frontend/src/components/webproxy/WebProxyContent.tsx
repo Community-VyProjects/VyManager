@@ -372,7 +372,7 @@ export function WebProxyContent() {
                           <TableRow key={p.name}>
                             <TableCell className="font-mono">{p.name}</TableCell>
                             <TableCell className="font-mono">{p.address ?? "—"}</TableCell>
-                            <TableCell>{p.type ?? "parent"}</TableCell>
+                            <TableCell>{p.type ?? tc("shown.parent")}</TableCell>
                             <TableCell className="font-mono">{p.http_port ?? "3128"}</TableCell>
                             <TableCell className="font-mono">{p.icp_port ?? "0"}</TableCell>
                             <TableCell className="font-mono text-xs">{p.options ?? "—"}</TableCell>
@@ -603,9 +603,9 @@ export function WebProxyContent() {
                         {sg?.rules.map((r) => (
                           <TableRow key={r.number}>
                             <TableCell className="font-mono">{r.number}</TableCell>
-                            <TableCell className="font-mono">{r.source_group ?? "any"}</TableCell>
-                            <TableCell className="font-mono">{r.time_period ?? "always"}</TableCell>
-                            <TableCell>{r.default_action ?? "allow"}</TableCell>
+                            <TableCell className="font-mono">{r.source_group ?? tc("shown.any")}</TableCell>
+                            <TableCell className="font-mono">{r.time_period ?? tc("shown.always")}</TableCell>
+                            <TableCell>{r.default_action ?? tc("shown.allow")}</TableCell>
                             <TableCell><CellChips items={r.block_categories} /></TableCell>
                             {hasWritePermission && (
                               <TableCell className="text-right">

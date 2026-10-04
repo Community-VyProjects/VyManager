@@ -308,7 +308,7 @@ function VifForm({
           <Input type="number" value={form.mtu} onChange={(e) => onChange({ mtu: e.target.value })} />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">MAC</Label>
+          <Label className="text-xs">{tc("shown.mac")}</Label>
           <Input value={form.mac} onChange={(e) => onChange({ mac: e.target.value })} placeholder="xx:xx:xx:xx:xx:xx" />
         </div>
         <div className="space-y-1">
@@ -1151,7 +1151,7 @@ export function EditVirtualEthernetModal({
                               <div className="space-y-1"><Label className="text-xs">C-VLAN ID *</Label><Input type="number" min={1} max={4094} value={newVifC.vlan_id} onChange={(e) => setNewVifC((p) => ({ ...p, vlan_id: e.target.value }))} /></div>
                               <div className="space-y-1"><Label className="text-xs">{tc("description")}</Label><Input value={newVifC.description} onChange={(e) => setNewVifC((p) => ({ ...p, description: e.target.value }))} /></div>
                               <div className="space-y-1"><Label className="text-xs">MTU</Label><Input type="number" value={newVifC.mtu} onChange={(e) => setNewVifC((p) => ({ ...p, mtu: e.target.value }))} /></div>
-                              <div className="space-y-1"><Label className="text-xs">MAC</Label><Input value={newVifC.mac} onChange={(e) => setNewVifC((p) => ({ ...p, mac: e.target.value }))} placeholder="xx:xx:xx:xx:xx:xx" /></div>
+                              <div className="space-y-1"><Label className="text-xs">{tc("shown.mac")}</Label><Input value={newVifC.mac} onChange={(e) => setNewVifC((p) => ({ ...p, mac: e.target.value }))} placeholder="xx:xx:xx:xx:xx:xx" /></div>
                               <div className="space-y-1"><Label className="text-xs">VRF</Label><VrfSelect value={newVifC.vrf} onValueChange={(v) => setNewVifC((p) => ({ ...p, vrf: v }))} /></div>
                               <div className="space-y-1"><Label className="text-xs">{t("form.redirect")}</Label><Input value={newVifC.redirect} onChange={(e) => setNewVifC((p) => ({ ...p, redirect: e.target.value }))} /></div>
                             </div>

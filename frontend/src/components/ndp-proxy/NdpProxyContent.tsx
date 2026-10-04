@@ -329,7 +329,7 @@ export function NdpProxyContent() {
                                       </TableCell>
                                       <TableCell className="py-1.5">
                                         <Badge variant="secondary" className="text-xs">
-                                          {prefix.mode ?? "static"}
+                                          {prefix.mode ?? tc("shown.static")}
                                         </Badge>
                                       </TableCell>
                                       <TableCell className="font-mono text-sm text-muted-foreground py-1.5">

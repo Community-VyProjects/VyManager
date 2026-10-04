@@ -878,7 +878,7 @@ function PPPoEPageInner() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>{t("interfaces.interface")}</TableHead>
-                          <TableHead>VLANs</TableHead>
+                          <TableHead>{tc("shown.vlans")}</TableHead>
                           <TableHead>{t("interfaces.vlanMon")}</TableHead>
                           {(capabilities?.features.vpp_cp ?? false) && <TableHead>VPP-CP</TableHead>}
                           <TableHead>{t("interfaces.combined")}</TableHead>
@@ -1490,9 +1490,9 @@ function PPPoEPageInner() {
                         </div>
                         <div className="min-w-0">
                           <select value={label.severity ?? "info"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, severity: event.target.value } : item))} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
-                            <option value="info">info</option>
-                            <option value="warning">warning</option>
-                            <option value="danger">danger</option>
+                            <option value="info">{tc("shown.info")}</option>
+                            <option value="warning">{tc("shown.warning")}</option>
+                            <option value="danger">{tc("shown.danger")}</option>
                           </select>
                         </div>
                         <div className="min-w-0">

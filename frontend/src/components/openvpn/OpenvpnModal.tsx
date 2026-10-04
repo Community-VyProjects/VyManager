@@ -1308,7 +1308,7 @@ export function OpenvpnModal({
                   <SelectContent>
                     <SelectItem value="net30">net30</SelectItem>
                     <SelectItem value="p2p">p2p</SelectItem>
-                    <SelectItem value="subnet">subnet</SelectItem>
+                    <SelectItem value="subnet">{tc("shown.subnet")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1665,9 +1665,9 @@ export function OpenvpnModal({
                     <SelectValue placeholder="—" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="strict">strict</SelectItem>
-                    <SelectItem value="loose">loose</SelectItem>
-                    <SelectItem value="disable">disable</SelectItem>
+                    <SelectItem value="strict">{tc("shown.strict")}</SelectItem>
+                    <SelectItem value="loose">{tc("shown.loose")}</SelectItem>
+                    <SelectItem value="disable">{tc("shown.disable")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1750,9 +1750,9 @@ export function OpenvpnModal({
                     <SelectValue placeholder="—" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="strict">strict</SelectItem>
-                    <SelectItem value="loose">loose</SelectItem>
-                    <SelectItem value="disable">disable</SelectItem>
+                    <SelectItem value="strict">{tc("shown.strict")}</SelectItem>
+                    <SelectItem value="loose">{tc("shown.loose")}</SelectItem>
+                    <SelectItem value="disable">{tc("shown.disable")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

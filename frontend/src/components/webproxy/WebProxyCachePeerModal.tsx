@@ -112,7 +112,7 @@ export function WebProxyCachePeerModal({ open, onOpenChange, peer, caps, onSubmi
             <div className="space-y-2">
               <Label>{t("content.type")}</Label>
               <Select value={type} onValueChange={setType}>
-                <SelectTrigger><SelectValue placeholder="parent" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={tc("shown.parent")} /></SelectTrigger>
                 <SelectContent>
                   {(caps?.options.cache_peer_type ?? ["parent", "sibling", "multicast"]).map((pt) => (
                     <SelectItem key={pt} value={pt}>{pt}</SelectItem>

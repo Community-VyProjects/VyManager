@@ -524,7 +524,7 @@ function IPSecPageInner() {
                                 {conn.description && <p className="text-xs text-muted-foreground">{conn.description}</p>}
                               </div>
                             </TableCell>
-                            <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded">{conn.local_address || "any"}</code></TableCell>
+                            <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded">{conn.local_address || tc("shown.any")}</code></TableCell>
                             <TableCell>{conn.ike_group || "-"}</TableCell>
                             <TableCell>{conn.esp_group || "-"}</TableCell>
                             <TableCell>{(conn.pools || []).join(", ") || "-"}</TableCell>
@@ -581,7 +581,7 @@ function IPSecPageInner() {
                             <TableCell className="font-medium">{g.name}</TableCell>
                             <TableCell><Badge variant="outline">{g.key_exchange || "ikev2"}</Badge></TableCell>
                             <TableCell>{g.lifetime ? `${g.lifetime}s` : "-"}</TableCell>
-                            <TableCell>{g.dpd_action || "none"}</TableCell>
+                            <TableCell>{g.dpd_action || tc("shown.none")}</TableCell>
                             <TableCell>{g.proposals.length}</TableCell>
                             {hasWrite && (
                               <TableCell className="text-right">
@@ -634,7 +634,7 @@ function IPSecPageInner() {
                         {config?.esp_groups.map((g) => (
                           <TableRow key={g.name} className="group">
                             <TableCell className="font-medium">{g.name}</TableCell>
-                            <TableCell>{g.mode || "tunnel"}</TableCell>
+                            <TableCell>{g.mode || tc("shown.tunnel")}</TableCell>
                             <TableCell>{g.pfs || "-"}</TableCell>
                             <TableCell>{g.lifetime ? `${g.lifetime}s` : "-"}</TableCell>
                             <TableCell>{g.proposals.length}</TableCell>
@@ -699,7 +699,7 @@ function IPSecPageInner() {
                               </div>
                             </TableCell>
                             <TableCell><span className="text-muted-foreground">***</span></TableCell>
-                            <TableCell>{psk.secret_type || "default"}</TableCell>
+                            <TableCell>{psk.secret_type || tc("shown.default")}</TableCell>
                             {hasWrite && (
                               <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -834,11 +834,11 @@ function IPSecPageInner() {
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">{t("page.settings.level")}</span>
-                          <span>{config?.log.level || "default"}</span>
+                          <span>{config?.log.level || tc("shown.default")}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">{t("page.settings.subsystems")}</span>
-                          <span>{(config?.log.subsystems || []).join(", ") || "none"}</span>
+                          <span>{(config?.log.subsystems || []).join(", ") || tc("shown.none")}</span>
                         </div>
                       </div>
                       {capabilities?.features.retransmission_options.supported && (
@@ -847,15 +847,15 @@ function IPSecPageInner() {
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">{t("page.settings.attempts")}</span>
-                              <span>{config?.options.retransmission_attempts || "default"}</span>
+                              <span>{config?.options.retransmission_attempts || tc("shown.default")}</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">{t("page.settings.base")}</span>
-                              <span>{config?.options.retransmission_base || "default"}</span>
+                              <span>{config?.options.retransmission_base || tc("shown.default")}</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">{t("page.settings.timeout")}</span>
-                              <span>{config?.options.retransmission_timeout || "default"}</span>
+                              <span>{config?.options.retransmission_timeout || tc("shown.default")}</span>
                             </div>
                           </div>
                         </>

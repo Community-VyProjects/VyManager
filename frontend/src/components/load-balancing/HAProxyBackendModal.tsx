@@ -338,7 +338,7 @@ export function HAProxyBackendModal({ open, onOpenChange, backend, capabilities,
                       <SelectItem value="_none">{tc("none")}</SelectItem>
                       <SelectItem value="GET">GET</SelectItem>
                       <SelectItem value="HEAD">HEAD</SelectItem>
-                      <SelectItem value="OPTIONS">OPTIONS</SelectItem>
+                      <SelectItem value="OPTIONS">{tc("shown.options")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -357,7 +357,7 @@ export function HAProxyBackendModal({ open, onOpenChange, backend, capabilities,
                 <div className="space-y-1.5">
                   <Label className="text-sm">{t("backendModal.expectString")}</Label>
                   <Input value={form.http_check_expect_string}
-                    onChange={(e) => set("http_check_expect_string", e.target.value)} placeholder="OK" />
+                    onChange={(e) => set("http_check_expect_string", e.target.value)} placeholder={tc("shown.ok")} />
                 </div>
               </div>
 

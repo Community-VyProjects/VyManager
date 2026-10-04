@@ -405,7 +405,7 @@ export function OpenvpnWizard({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="subnet">subnet</SelectItem>
+                        <SelectItem value="subnet">{tc("shown.subnet")}</SelectItem>
                         <SelectItem value="p2p">p2p</SelectItem>
                         <SelectItem value="net30">net30</SelectItem>
                       </SelectContent>

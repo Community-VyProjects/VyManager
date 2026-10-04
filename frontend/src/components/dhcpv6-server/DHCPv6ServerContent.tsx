@@ -968,7 +968,7 @@ export function DHCPv6ServerContent() {
                               <TableHead>
                                 {caps?.features.static_mapping_mac.supported ? "DUID" : t("content.columns.clientId")}
                               </TableHead>
-                              {caps?.features.static_mapping_mac.supported && <TableHead>MAC</TableHead>}
+                              {caps?.features.static_mapping_mac.supported && <TableHead>{tc("shown.mac")}</TableHead>}
                               <TableHead>{t("mapping.ipv6Address")}</TableHead>
                               <TableHead>{t("mapping.ipv6Prefix")}</TableHead>
                               <TableHead>{tc("status")}</TableHead>

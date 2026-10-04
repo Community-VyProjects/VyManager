@@ -853,9 +853,9 @@ export function BridgeModal({
                   <Select value={ipSourceValidation} onValueChange={setIpSourceValidation}>
                     <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="strict">strict</SelectItem>
-                      <SelectItem value="loose">loose</SelectItem>
-                      <SelectItem value="disable">disable</SelectItem>
+                      <SelectItem value="strict">{tc("shown.strict")}</SelectItem>
+                      <SelectItem value="loose">{tc("shown.loose")}</SelectItem>
+                      <SelectItem value="disable">{tc("shown.disable")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -903,9 +903,9 @@ export function BridgeModal({
                   <Select value={ipv6SourceValidation} onValueChange={setIpv6SourceValidation}>
                     <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="strict">strict</SelectItem>
-                      <SelectItem value="loose">loose</SelectItem>
-                      <SelectItem value="disable">disable</SelectItem>
+                      <SelectItem value="strict">{tc("shown.strict")}</SelectItem>
+                      <SelectItem value="loose">{tc("shown.loose")}</SelectItem>
+                      <SelectItem value="disable">{tc("shown.disable")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

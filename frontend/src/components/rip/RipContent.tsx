@@ -482,7 +482,7 @@ export function RipContent() {
                   <SelectValue placeholder={inputPlaceholder} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="default">default</SelectItem>
+                  <SelectItem value="default">{tc("shown.default")}</SelectItem>
                   {dropdownOptions.map((o) => (
                     <SelectItem key={o} value={o}>{o}</SelectItem>
                   ))}

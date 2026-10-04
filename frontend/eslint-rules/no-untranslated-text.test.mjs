@@ -44,9 +44,10 @@ ruleTester.run("no-untranslated-text", rule, {
     '<input placeholder={"Kept as is"} />',
     '<span>{status === "up" ? t("sessionUp") : t("sessionDown")}</span>',
     '<span>{ready && t("loading")}</span>',
-    // Config token with no translation. A translated word is not this.
-    "<SelectItem>disable</SelectItem>",
-    '<SelectItem value="reject">reject</SelectItem>',
+    // Untranslated config token. A translated label is not this.
+    '<SelectItem value="ssh">ssh</SelectItem>',
+    "<span>(vlt)</span>",
+    "<span> · ssh</span>",
     // Allow list
     { code: "<p>VyOS</p>", options },
     { code: "<SelectItem>Forward</SelectItem>", options },
@@ -59,6 +60,15 @@ ruleTester.run("no-untranslated-text", rule, {
     invalid('<input placeholder="Search..." />'),
     invalid('<input placeholder="search..." />'),
     invalid("<span>unknown</span>"),
+    invalid("<span>unknown:</span>"),
+    invalid("<span>(unknown)</span>"),
+    invalid("<span> · unknown</span>"),
+    invalid("<span>shortcut</span>"),
+    invalid('<SelectItem value="reject">reject</SelectItem>'),
+    invalid('<SelectItem value="disable">disable</SelectItem>'),
+    invalid('<span>{name || "unknown"}</span>'),
+    invalid('<input placeholder={ready ? "secret" : name} />'),
+    invalid("<span>{ok ? `Session down` : name}</span>"),
     invalid('<span>{ready && "Loading sessions"}</span>'),
     invalid('<span>{name || "Unknown peer"}</span>'),
     {

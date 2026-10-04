@@ -11,13 +11,15 @@
  *
  * Not reported: text without a natural-language word (acronyms such as "VRF",
  * "MTU", "IPv4", numbers, punctuation like "·" or "—"), product/protocol names
- * listed in `allow`, a config token that has no translation ("disable",
- * "masquerade", "rx/tx"), and a bare string expression {"…"} or {`…`} (the
+ * listed in `allow`, an untranslated config token (`ssh`, `rx/tx`), and a bare string expression {"…"} or {`…`} (the
  * deliberate escape for a value that must not be translated).
  *
- * A single lowercase word is reported when messages/ already translates it
- * ("unknown") or when trailing punctuation is the only extra ("search...",
- * "vlt:"). Punctuation does not turn a word into a keyword.
+ * A word messages/ already translates is reported wherever it is shown, including
+ * a different case (`shortcut` matches `Shortcut`), a trailing colon (`unknown:`),
+ * parentheses (`(unknown)`), and a branch (`{name || "unknown"}`,
+ * `{ok ? `Session down` : name}`). An untranslated field prefix (`vlt:`) and an
+ * untranslated config token (`ssh`) are not reported. Trailing ellipsis is
+ * prose (`search...`).
  *
  * A string used only as a condition (`status === "up" ? t("a") : t("b")`) is
  * not rendered, so it is not reported.
@@ -63,7 +65,7 @@ function loadTranslatedTokens() {
     }
     for (const [path, english] of en) {
       const chinese = zh.get(path);
-      if (chinese && chinese !== english) tokens.add(english);
+      if (chinese && chinese !== english) tokens.add(english.toLowerCase());
     }
   }
   return tokens;
@@ -82,8 +84,9 @@ const WORD = /^(?:[A-Z][a-z]|[A-Za-z][a-z]{2,})$/;
 //   - starts with @ / ~ or contains "://": "@local-id", "/health", "https://...";
 //   - is a lowercase config token: "disable", "client-identifier", "rx/tx", "80,443,https".
 // A single lowercase word is still a token only when no locale translates it.
-// Trailing punctuation does not make one ("search...", "vlt:"). "Search..." and
-// "Loading…" are prose either way, and "/" or "," between words doesn't either
+// A trailing colon does not hide a translated word ("unknown:"). An untranslated
+// field prefix ("vlt:") stays a token. "Search..." and "Loading…" are prose
+// either way, and "/" or "," between words doesn't either
 // ("Enabled/Disabled", "Yes,No").
 const INNER_SEPARATOR = /[A-Za-z0-9][.:_@=]+[A-Za-z0-9]/;
 const LEADING_SYMBOL = /^[@/~]|:\/\//;
@@ -93,17 +96,30 @@ function isTechnicalValue(text) {
   const trimmed = text.trim();
   const colonless = trimmed.replace(/:$/, "");
   const paren = colonless.match(/^\(([a-z0-9]+(?:[-/,][a-z0-9]+)*)\)$/);
-  if (paren) return !translatedTokens.has(paren[1]);
-  // " · ssh" is a protocol flag, not a sentence.
-  const flagged = trimmed.match(/^[·•\s-]+([a-z0-9]+(?:[-/,][a-z0-9]+)*)$/);
-  if (flagged) return !translatedTokens.has(flagged[1]);
+  if (paren) return !translatedTokens.has(paren[1].toLowerCase());
+  // " · ssh" is a protocol flag, not a sentence. A translated word in that
+  // slot (" · unknown") is not a flag.
+  const flagged = trimmed.match(/^[·•]\s*([a-z0-9]+(?:[-/,][a-z0-9]+)*)$/);
+  if (flagged) return !translatedTokens.has(flagged[1].toLowerCase());
   // A domain inside a sentence must not exempt the sentence.
   // A URL example ("https://...") stays technical even with a trailing ellipsis.
   if (!/\s/.test(text) && (INNER_SEPARATOR.test(text) || LEADING_SYMBOL.test(text))) return true;
   if (/[.…]+$/.test(trimmed)) return false;
   if (/\s/.test(text)) return false;
   if (!colonless) return false;
+  if (translatedTokens.has(colonless.toLowerCase())) return false;
   return LOWERCASE_KEYWORD.test(colonless);
+}
+
+function isTranslatedCopy(text) {
+  const trimmed = text.replace(/\s+/g, " ").trim();
+  if (!trimmed) return false;
+  const forms = [trimmed, trimmed.replace(/:$/, "")];
+  const paren = forms[1].match(/^\((.*)\)$/);
+  if (paren) forms.push(paren[1].trim());
+  const flagged = trimmed.match(/^[·•]\s*(.+)$/);
+  if (flagged) forms.push(flagged[1].trim());
+  return forms.some((form) => form && translatedTokens.has(form.toLowerCase()));
 }
 
 function hasWords(text, allow) {
@@ -117,8 +133,8 @@ function hasWords(text, allow) {
 function isBareStringEscape(expr) {
   if (!expr) return false;
   if (expr.type === "Literal" && typeof expr.value === "string") return true;
-  // A template that is the whole expression is the same escape, including
-  // command text with ${} interpolation. A template in a branch is not.
+  // A template that is the whole expression is the escape, including command
+  // text with ${} interpolation. A template inside a branch is walked.
   return expr.type === "TemplateLiteral";
 }
 
@@ -129,6 +145,12 @@ function displayedStrings(expr, out = []) {
   switch (expr.type) {
     case "Literal":
       if (typeof expr.value === "string") out.push({ node: expr, raw: expr.value });
+      break;
+    case "TemplateLiteral":
+      for (const quasi of expr.quasis) {
+        const raw = quasi.value && quasi.value.cooked;
+        if (typeof raw === "string" && raw.trim()) out.push({ node: quasi, raw });
+      }
       break;
     case "ConditionalExpression":
       displayedStrings(expr.consequent, out);
@@ -186,47 +208,10 @@ const noUntranslatedText = {
 
     const report = (node, raw) => {
       const text = raw.replace(/\s+/g, " ").trim();
-      if (text && hasWords(text, allow)) {
+      if (!text || allow.has(text)) return;
+      if (isTranslatedCopy(text) || hasWords(text, allow)) {
         context.report({ node, messageId: "text", data: { text: text.length > 40 ? `${text.slice(0, 40)}…` : text } });
       }
-    };
-
-    // JSX text and placeholders: a word the catalogs already translate is not a
-    // config token. A SelectItem whose value is that same token still is
-    // ("reject" next to "drop"). Branch fallbacks stay on hasWords, so
-    // {addr || "any"} is not a second copy of this check.
-    const reportVisible = (node, raw, selectToken) => {
-      const text = raw.replace(/\s+/g, " ").trim();
-      if (
-        !selectToken &&
-        text &&
-        LOWERCASE_KEYWORD.test(text) &&
-        translatedTokens.has(text) &&
-        !allow.has(text)
-      ) {
-        context.report({
-          node,
-          messageId: "text",
-          data: { text: text.length > 40 ? `${text.slice(0, 40)}…` : text },
-        });
-        return;
-      }
-      report(node, raw);
-    };
-
-    const isConfigSelectToken = (textNode) => {
-      const el = textNode.parent;
-      if (!el || el.type !== "JSXElement") return false;
-      const id = el.openingElement?.name;
-      const tag = id && id.type === "JSXIdentifier" ? id.name : null;
-      if (tag !== "SelectItem" && tag !== "option") return false;
-      const text = textNode.value.replace(/\s+/g, " ").trim();
-      if (!LOWERCASE_KEYWORD.test(text)) return false;
-      for (const attr of el.openingElement.attributes) {
-        if (attr.type !== "JSXAttribute" || attr.name?.name !== "value") continue;
-        return attr.value?.type === "Literal" && attr.value.value === text;
-      }
-      return false;
     };
 
     const reportRendered = (expr) => {
@@ -242,7 +227,7 @@ const noUntranslatedText = {
 
     return {
       JSXText(node) {
-        reportVisible(node, node.value, isConfigSelectToken(node));
+        report(node, node.value);
       },
       JSXElement: reportChildExpressions,
       JSXFragment: reportChildExpressions,
@@ -250,7 +235,7 @@ const noUntranslatedText = {
         const name = node.name.type === "JSXIdentifier" ? node.name.name : null;
         if (!name || !props.has(name) || !node.value) return;
         if (node.value.type === "Literal" && typeof node.value.value === "string") {
-          reportVisible(node.value, node.value.value, false);
+          report(node.value, node.value.value);
           return;
         }
         if (node.value.type === "JSXExpressionContainer") reportRendered(node.value.expression);

@@ -136,7 +136,7 @@ export function UserModal({ open, onOpenChange, user, onSuccess }: Props) {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={isEdit}
-              placeholder="admin"
+              placeholder={tc("shown.admin")}
               autoComplete="off"
             />
           </div>

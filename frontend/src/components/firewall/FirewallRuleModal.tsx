@@ -1778,12 +1778,12 @@ export function FirewallRuleModal({
                   <SelectContent>
                     <SelectItem value="tcp">TCP</SelectItem>
                     <SelectItem value="udp">UDP</SelectItem>
-                    <SelectItem value="tcp_udp">TCP & UDP</SelectItem>
+                    <SelectItem value="tcp_udp">{tc("shown.tcpUdp")}</SelectItem>
                   </SelectContent>
                 ) : (
                   <SelectContent className="max-h-[300px]">
                     <SelectItem value="all">{t("basic.allDefault")}</SelectItem>
-                    <SelectItem value="tcp_udp">TCP & UDP</SelectItem>
+                    <SelectItem value="tcp_udp">{tc("shown.tcpUdp")}</SelectItem>
                     <SelectItem value="tcp">TCP</SelectItem>
                     <SelectItem value="udp">UDP</SelectItem>
                     <SelectItem value="icmp">ICMP</SelectItem>

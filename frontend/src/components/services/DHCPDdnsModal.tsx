@@ -301,8 +301,8 @@ export function DHCPDdnsModal({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__none__">{t("unset")}</SelectItem>
-                        <SelectItem value="enable">enable</SelectItem>
-                        <SelectItem value="disable">disable</SelectItem>
+                        <SelectItem value="enable">{tc("shown.enable")}</SelectItem>
+                        <SelectItem value="disable">{tc("shown.disable")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

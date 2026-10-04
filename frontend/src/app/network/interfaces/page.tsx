@@ -3282,7 +3282,7 @@ function InterfacesPageInner() {
                           <TableHeader>
                             <TableRow>
                               <TableHead>{tc("name")}</TableHead>
-                              {vppSubTab === "bonding" && <><TableHead>{t("table.mode")}</TableHead><TableHead>{t("table.hashPolicy")}</TableHead><TableHead>MAC</TableHead></>}
+                              {vppSubTab === "bonding" && <><TableHead>{t("table.mode")}</TableHead><TableHead>{t("table.hashPolicy")}</TableHead><TableHead>{tc("shown.mac")}</TableHead></>}
                               {vppSubTab === "bridge" && <TableHead>{t("table.members")}</TableHead>}
                               {(vppSubTab === "gre" || vppSubTab === "ipip" || vppSubTab === "vxlan") && <><TableHead>{t("table.remote")}</TableHead><TableHead>{t("table.source")}</TableHead></>}
                               {vppSubTab === "gre" && <><TableHead>{t("table.tunnelType")}</TableHead><TableHead>{t("table.key")}</TableHead></>}

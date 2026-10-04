@@ -45,10 +45,13 @@ Keys are type-checked against the English files, so a typo is a TypeScript error
 on `src/**/*.tsx`. It reports JSX text and `placeholder`/`title`/`alt`/`aria-label`/`label`/`description`
 string props that contain natural-language words, e.g. `<p>No rules</p>` or `placeholder="Search..."`.
 Acronyms, numbers, symbols, and technical values
-(`example.com`, `level-1`, `rx/tx`, `disable`) are not reported. A single
-lowercase word is reported when a locale already translates it (`unknown`),
-or when it only has trailing punctuation (`search...`).
-A string rendered from a branch is reported too (`{ok ? "Up" : "Down"}`).
+(`example.com`, `level-1`, `rx/tx`, `ssh`) are not reported.
+A lowercase word is reported when a locale already translates it, in any
+case (`shortcut` matches `Shortcut`), with a trailing colon (`unknown:`), or in
+parentheses (`(unknown)`). Trailing ellipsis is prose (`search...`). An
+untranslated field prefix (`vlt:`) is not reported. A SelectItem is not exempt
+when its label is translated. A string rendered from a branch is reported too,
+including a template literal (`{ok ? `Up` : name}`).
 
 For text that must stay English (protocol or product names, example values), either:
 

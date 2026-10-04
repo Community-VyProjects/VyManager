@@ -354,7 +354,7 @@ function IPoEPageInner() {
                           <TableHead>{t("interfaces.network")}</TableHead>
                           <TableHead>{t("interfaces.startSession")}</TableHead>
                           <TableHead>{t("interfaces.clientSubnet")}</TableHead>
-                          <TableHead>VLANs</TableHead>
+                          <TableHead>{tc("shown.vlans")}</TableHead>
                           {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>

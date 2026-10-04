@@ -1351,9 +1351,9 @@ function FirewallPoliciesPageInner() {
                     <SelectValue placeholder={t("page.notSet")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="accept">accept</SelectItem>
-                    <SelectItem value="drop">drop</SelectItem>
-                    <SelectItem value="reject">reject</SelectItem>
+                    <SelectItem value="accept">{tc("shown.accept")}</SelectItem>
+                    <SelectItem value="drop">{tc("shown.drop")}</SelectItem>
+                    <SelectItem value="reject">{tc("shown.reject")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

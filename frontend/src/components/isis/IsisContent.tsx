@@ -729,7 +729,7 @@ export function IsisContent() {
                           >
                             <Badge variant="outline">{entry.family}</Badge>
                             <Badge variant="outline">{entry.level}</Badge>
-                            {entry.always && <Badge variant="secondary">always</Badge>}
+                            {entry.always && <Badge variant="secondary">{tc("shown.always")}</Badge>}
                             {entry.metric != null && (
                               <span className="text-muted-foreground">{t("values.metric", { metric: String(entry.metric) })}</span>
                             )}
@@ -833,7 +833,7 @@ export function IsisContent() {
                             </TableCell>
                             <TableCell>
                               <div className="flex flex-wrap gap-1">
-                                {iface.passive && <Badge variant="secondary" className="text-xs">passive</Badge>}
+                                {iface.passive && <Badge variant="secondary" className="text-xs">{tc("shown.passive")}</Badge>}
                                 {iface.point_to_point && <Badge variant="secondary" className="text-xs">p2p</Badge>}
                                 {!iface.passive && !iface.point_to_point && (
                                   <span className="text-muted-foreground text-sm">—</span>

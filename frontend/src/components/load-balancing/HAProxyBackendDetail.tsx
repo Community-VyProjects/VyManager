@@ -304,9 +304,9 @@ export function HAProxyBackendDetail({ backendName }: Props) {
                           </TableCell>
                           <TableCell className="py-1.5">
                             <div className="flex gap-1">
-                              {srv.check && <Badge variant="secondary" className="text-xs">check</Badge>}
-                              {srv.backup && <Badge variant="outline" className="text-xs">backup</Badge>}
-                              {srv.send_proxy && <Badge variant="outline" className="text-xs">proxy</Badge>}
+                              {srv.check && <Badge variant="secondary" className="text-xs">{tc("shown.check")}</Badge>}
+                              {srv.backup && <Badge variant="outline" className="text-xs">{tc("shown.backup")}</Badge>}
+                              {srv.send_proxy && <Badge variant="outline" className="text-xs">{tc("shown.proxy")}</Badge>}
                             </div>
                           </TableCell>
                         </TableRow>

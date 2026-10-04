@@ -138,7 +138,7 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
           </div>
 
           <div className="space-y-2">
-            <Label>VLANs</Label>
+            <Label>{tc("shown.vlans")}</Label>
             <div className="flex gap-2">
               <Input
                 value={vlanInput}
