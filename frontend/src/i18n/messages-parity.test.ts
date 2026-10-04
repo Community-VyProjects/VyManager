@@ -117,6 +117,47 @@ export function pluralProblems(value: string): string[] {
   return problems;
 }
 
+// Chinese (and any locale whose plural rules never select `one`) always shows
+// `other`, even when the count is 1. A different `one` branch is dead text.
+export function pluralBranches(value: string): Array<Record<string, string>> {
+  const found: Array<Record<string, string>> = [];
+  let index = 0;
+  while (index < value.length) {
+    const marker = value.indexOf(", plural", index);
+    if (marker === -1) break;
+    const open = value.lastIndexOf("{", marker);
+    let depth = 0;
+    let end = open;
+    for (let cursor = open; cursor < value.length; cursor++) {
+      if (value[cursor] === "{") depth++;
+      else if (value[cursor] === "}") {
+        depth--;
+        if (depth === 0) {
+          end = cursor;
+          break;
+        }
+      }
+    }
+    const body = value.slice(open + 1, end).split("plural,")[1] ?? "";
+    const selectors: Record<string, string> = {};
+    const selector = /\s*(=\d+|one|other|zero|two|few|many)\s*\{/g;
+    for (const match of body.matchAll(selector)) {
+      const name = match[1];
+      let depth = 1;
+      let cursor = match.index + match[0].length;
+      const start = cursor;
+      for (; cursor < body.length && depth > 0; cursor++) {
+        if (body[cursor] === "{") depth++;
+        else if (body[cursor] === "}") depth--;
+      }
+      selectors[name] = body.slice(start, cursor - 1);
+    }
+    if (Object.keys(selectors).length > 0) found.push(selectors);
+    index = end + 1;
+  }
+  return found;
+}
+
 export function proseParenPlurals(source: string): string[] {
   const pattern = /(?<![A-Za-z])((?:[A-Z]{2,}|[A-Z]?[a-z]{2,})\((?:s|es)\))(?!\.[A-Za-z])/g;
   const hits: string[] = [];
@@ -352,5 +393,25 @@ describe("message catalogs", () => {
     assert.deepEqual(proseParenPlurals("<Row onChange={(s) => pick(s)} />\nif (sources.includes(s)) {"), []);
     assert.deepEqual(proseParenPlurals("`${m}:${String(s).padStart(2, \"0\")}`"), []);
     assert.deepEqual(proseParenPlurals("// remove the old row(s)"), []);
+  });
+
+  it("does not use a singular branch a language never selects", () => {
+    const mismatches: string[] = [];
+    for (const [locale, catalog] of catalogs) {
+      const language = locale.split("-")[0];
+      if (new Intl.PluralRules(language).select(1) === "one") continue;
+      for (const [file, keys] of catalog) {
+        for (const [path, value] of Object.entries(keys)) {
+          for (const selectors of pluralBranches(value)) {
+            if (selectors.one !== undefined && selectors.one !== selectors.other) {
+              mismatches.push(`${locale}/${file}:${path}`);
+            }
+          }
+        }
+      }
+    }
+    assert.deepEqual(mismatches, []);
+    const description = catalogs.get("zh-CN")?.get("twoFactor.json")?.["activeSession.description"];
+    assert.equal(description, "你已在其他设备上登录。要退出其他会话并在此继续吗？");
   });
 });
