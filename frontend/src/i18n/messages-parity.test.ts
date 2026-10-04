@@ -50,9 +50,10 @@ function canonicalize(value: string): string {
 const RAW_PLACEHOLDER = /\{([A-Za-z0-9_]+)\}(?!,)/g;
 const PAREN_PLURAL = /[A-Za-z]{2,}\((?:s|es)\)/;
 const UNIT_NAMES = new Set(["seconds", "timeout", "value"]);
-const REPEATED = /\{([A-Za-z][A-Za-z0-9_]*)\}\s+(?:[A-Za-z]+\s+){0,2}([A-Za-z]{3,}s)\b/g;
+const REPEATED = /\{([A-Za-z][A-Za-z0-9_]*)\}\s+((?:[A-Za-z]+\s+){0,2}[A-Za-z]+)/g;
 const COUNT_NOUN = /\{(count|total)\}\s+(?:[A-Za-z]+\s+){0,2}[a-z]{4,}s\b/;
 const BOLT_S = /\{([A-Za-z0-9_]+)\}s\b/g;
+const PACKET_ABBREV = /\{([A-Za-z]*[Pp]ackets)\}\s+pkts\b/;
 
 function stripPluralBlocks(value: string): string {
   let result = "";
@@ -96,18 +97,24 @@ export function pluralProblems(value: string): string[] {
   for (const match of value.matchAll(BOLT_S)) {
     if (!UNIT_NAMES.has(match[1])) problems.push(`bolt:${match[1]}`);
   }
+  const abbreviated = value.match(PACKET_ABBREV);
+  if (abbreviated) problems.push(`repeated:${abbreviated[1]}`);
   const outside = stripPluralBlocks(value);
   for (const match of outside.matchAll(REPEATED)) {
     const name = match[1].toLowerCase();
-    const word = match[2].toLowerCase();
-    const stem = word.endsWith("s") ? word.slice(0, -1) : word;
-    const related =
-      word === name ||
-      word === `${name}s` ||
-      name === `${word}s` ||
-      word === "pkts" ||
-      (stem.length >= 3 && name.startsWith(stem.slice(0, 3)) && word.length < name.length);
-    if (related) problems.push(`repeated:${match[1]}`);
+    const words = match[2].trim().split(/\s+/);
+    for (const rawWord of words) {
+      if (!/[A-Za-z]{3,}s$/i.test(rawWord) && !/^[A-Za-z]{2,}s$/i.test(rawWord)) continue;
+      const word = rawWord.toLowerCase();
+      const stem = word.endsWith("s") ? word.slice(0, -1) : word;
+      const related =
+        word === name ||
+        word === `${name}s` ||
+        name === `${word}s` ||
+        word === "pkts" ||
+        (stem.length >= 3 && name.startsWith(stem.slice(0, 3)) && word.length < name.length);
+      if (related) problems.push(`repeated:${match[1]}`);
+    }
   }
   if (COUNT_NOUN.test(outside)) problems.push("count-noun");
   return problems;
@@ -128,7 +135,7 @@ export function proseParenPlurals(source: string): string[] {
   const textLines = lines.map((line) => (/^\s*(\/\/|\*|{\/\*)/.test(line) ? "" : line));
   for (let index = 1; index < textLines.length; index++) {
     const previous = textLines[index - 1];
-    if (!/>\s*$/.test(previous)) continue;
+    if (!/(?<!=)>\s*$/.test(previous)) continue;
     const block: string[] = [];
     for (let cursor = index; cursor < textLines.length; cursor++) {
       const line = textLines[cursor];
@@ -139,9 +146,9 @@ export function proseParenPlurals(source: string): string[] {
     for (const match of block.join(" ").matchAll(pattern)) hits.push(match[0]);
   }
   for (const line of textLines) {
-    for (const match of line.matchAll(/>([^<\n]*)</g)) {
-      for (const hit of match[1].matchAll(pattern)) hits.push(hit[0]);
-    }
+    if (!/[<>]/.test(line) || /=>/.test(line)) continue;
+    const text = line.replace(/<[^>\n]*>/g, " ");
+    for (const match of text.matchAll(pattern)) hits.push(match[0]);
   }
   return hits;
 }
@@ -242,6 +249,7 @@ describe("message catalogs", () => {
     assert.ok(pluralProblems("{count, plural, one {{n} member} other {{n} members}}").includes("n-slot"));
     assert.equal(pluralProblems("Timeout (s)").length, 0);
     assert.ok(pluralProblems("{routes} active routes").some((item) => item.startsWith("repeated")));
+    assert.ok(pluralProblems("{routes} routes via peers").some((item) => item.startsWith("repeated")));
     assert.ok(pluralProblems("{hours}s").includes("bolt:hours"));
     assert.equal(pluralProblems("{seconds}s").length, 0);
     assert.equal(canonicalize("Add interface"), canonicalize("Add Interface"));
@@ -252,7 +260,11 @@ describe("message catalogs", () => {
     assert.deepEqual(proseParenPlurals('"Delete route(s)."'), ["route(s)"]);
     assert.deepEqual(proseParenPlurals("<span>VLAN(s)</span>"), ["VLAN(s)"]);
     assert.deepEqual(proseParenPlurals("<span>IP(s)</span>"), ["IP(s)"]);
-    assert.deepEqual(proseParenPlurals("sources.includes(s)"), []);
+    assert.deepEqual(proseParenPlurals("<p>\n<strong>{n}</strong> route(s)\n</p>"), ["route(s)"]);
+    assert.deepEqual(
+      proseParenPlurals("items.filter((s) =>\n  selected.includes(s))"),
+      [],
+    );
     assert.deepEqual(proseParenPlurals("`${m}:${String(s).padStart(2, \"0\")}`"), []);
     assert.deepEqual(proseParenPlurals("// remove the old row(s)"), []);
   });
