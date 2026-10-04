@@ -32,8 +32,8 @@ function ruleMatchSummary(rule: LBServiceRule): string {
   const parts: string[] = [];
   if (rule.domain_name.length > 0)
     parts.push(rule.domain_name.join(", "));
-  if (rule.wildcard_domain.length > 0)
-    parts.push(rule.wildcard_domain.map((d) => `*.${d}`).join(", "));
+  if (rule.wildcard_domain)
+    parts.push("subdomains");
   if (rule.ssl)
     parts.push(`ssl:${rule.ssl}`);
   if (rule.url_path.begin.length > 0)

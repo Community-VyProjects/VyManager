@@ -157,6 +157,9 @@ class LoadBalancingMapper:
     def get_rp_backend_server_check_port_path(self, name: str, server: str, port: str) -> List[str]:
         return self.get_rp_backend_path(name) + ["server", server, "check", "port", port]
 
+    def get_rp_backend_server_check_port_delete_path(self, name: str, server: str) -> List[str]:
+        return self.get_rp_backend_server_check_path(name, server) + ["port"]
+
     def get_rp_backend_server_send_proxy_path(self, name: str, server: str) -> List[str]:
         return self.get_rp_backend_path(name) + ["server", server, "send-proxy"]
 
@@ -170,8 +173,8 @@ class LoadBalancingMapper:
     def get_rp_backend_rule_domain_name_path(self, name: str, rule_id: str, domain: str) -> List[str]:
         return self.get_rp_backend_path(name) + ["rule", rule_id, "domain-name", domain]
 
-    def get_rp_backend_rule_wildcard_domain_path(self, name: str, rule_id: str, domain: str) -> List[str]:
-        return self.get_rp_backend_path(name) + ["rule", rule_id, "wildcard-domain", domain]
+    def get_rp_backend_rule_wildcard_domain_path(self, name: str, rule_id: str) -> List[str]:
+        return self.get_rp_backend_path(name) + ["rule", rule_id, "wildcard-domain"]
 
     def get_rp_backend_rule_ssl_path(self, name: str, rule_id: str, value: str) -> List[str]:
         return self.get_rp_backend_path(name) + ["rule", rule_id, "ssl", value]
@@ -273,8 +276,8 @@ class LoadBalancingMapper:
     def get_rp_service_rule_domain_name_path(self, name: str, rule_id: str, domain: str) -> List[str]:
         return self.get_rp_service_path(name) + ["rule", rule_id, "domain-name", domain]
 
-    def get_rp_service_rule_wildcard_domain_path(self, name: str, rule_id: str, domain: str) -> List[str]:
-        return self.get_rp_service_path(name) + ["rule", rule_id, "wildcard-domain", domain]
+    def get_rp_service_rule_wildcard_domain_path(self, name: str, rule_id: str) -> List[str]:
+        return self.get_rp_service_path(name) + ["rule", rule_id, "wildcard-domain"]
 
     def get_rp_service_rule_ssl_path(self, name: str, rule_id: str, value: str) -> List[str]:
         return self.get_rp_service_path(name) + ["rule", rule_id, "ssl", value]
@@ -449,6 +452,21 @@ class LoadBalancingMapper:
     # Config Parsing
     # =========================================================================
 
+    def supports_http_compression(self) -> bool:
+        return True
+
+    def supports_server_check_port(self) -> bool:
+        return True
+
+    def supports_listen_address_accept_proxy(self) -> bool:
+        return True
+
+    def supports_wildcard_domain(self) -> bool:
+        return True
+
+    def supports_wan_rule_groups(self) -> bool:
+        return True
+
     def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
         lb_config = full_config.get("load-balancing", {})
         return {
@@ -571,12 +589,11 @@ class LoadBalancingMapper:
                 return list(val) if isinstance(val, (list, dict)) else []
 
             domain_names = to_list(cfg.get("domain-name"))
-            wildcard_domains = to_list(cfg.get("wildcard-domain"))
 
             entry = {
                 "rule_id": rule_id,
                 "domain_name": domain_names,
-                "wildcard_domain": wildcard_domains,
+                "wildcard_domain": "wildcard-domain" in cfg,
                 "ssl": cfg.get("ssl"),
                 "url_path": {
                     "begin": to_list(url_path_cfg.get("begin")),

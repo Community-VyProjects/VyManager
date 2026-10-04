@@ -70,6 +70,12 @@ class LLDPMapper(BaseFeatureMapper):
     def get_interface_disable(self, name: str) -> List[str]:
         return self._iface(name) + ["disable"]
 
+    def supports_interface_mode(self) -> bool:
+        return True
+
+    def supports_interface_disable(self) -> bool:
+        return True
+
     # ========================================================================
     # Interface location — coordinate-based
     # ========================================================================
