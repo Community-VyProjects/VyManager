@@ -133,16 +133,21 @@ export function proseParenPlurals(source: string): string[] {
   const pieces: string[] = [];
   let elementDepth = 0;
   let expressionDepth = 0;
+  const expressionStack: number[] = [];
   for (const line of textLines) {
     let index = 0;
     let text = "";
     while (index < line.length) {
       const rest = line.slice(index);
-      if (expressionDepth > 0) {
+      if (expressionDepth > 0 && elementDepth === 0) {
         if (rest.startsWith("{")) expressionDepth++;
         else if (rest.startsWith("}")) expressionDepth = Math.max(0, expressionDepth - 1);
-        else if (rest.startsWith("<") && /[\s=({\[]/.test(line[index - 1] ?? " ")) {
+        else if (rest.startsWith("<") && /[A-Za-z/]/.test(rest[1] ?? "") && /\s|[=({\[]/.test(line[index - 1] ?? " ")) {
+          expressionStack.push(expressionDepth);
           expressionDepth = 0;
+          elementDepth = 1;
+          const name = /^[A-Za-z][A-Za-z0-9.-]*/.exec(rest.slice(1));
+          index += 1 + (name ? name[0].length : 0);
           continue;
         }
         index++;
@@ -150,17 +155,26 @@ export function proseParenPlurals(source: string): string[] {
       }
       if (elementDepth === 0 && /(?:^|[\s=({\[])<[A-Za-z]/.test(index === 0 ? ` ${rest}` : rest)) {
         const start = rest.search(/<[A-Za-z]/);
-        if (start >= 0 && (index + start === 0 || /[\s=({\[]/.test(line[index + start - 1]))) {
-          index += start + 1;
+        if (start >= 0 && (index + start === 0 || /\s|[=({\[]/.test(line[index + start - 1]))) {
+          const name = /^[A-Za-z][A-Za-z0-9.-]*/.exec(rest.slice(start + 1));
+          index += start + 1 + (name ? name[0].length : 0);
           elementDepth = 1;
           continue;
         }
+      }
+      if (elementDepth > 0 && rest.startsWith("/>")) {
+        elementDepth = Math.max(0, elementDepth - 1);
+        index += 2;
+        text += " ";
+        if (elementDepth === 0 && expressionStack.length > 0) expressionDepth = expressionStack.pop() ?? 0;
+        continue;
       }
       if (elementDepth > 0 && rest.startsWith("</")) {
         elementDepth = Math.max(0, elementDepth - 1);
         const close = /^<\/[A-Za-z][A-Za-z0-9.-]*>/.exec(rest);
         index += close ? close[0].length : 2;
         text += " ";
+        if (elementDepth === 0 && expressionStack.length > 0) expressionDepth = expressionStack.pop() ?? 0;
         continue;
       }
       if (elementDepth > 0 && /^<[A-Za-z]/.test(rest)) {
@@ -168,15 +182,9 @@ export function proseParenPlurals(source: string): string[] {
         index++;
         continue;
       }
-      if (elementDepth > 0 && rest.startsWith("/>")) {
-        elementDepth = Math.max(0, elementDepth - 1);
-        index += 2;
-        text += " ";
-        continue;
-      }
       if (elementDepth > 0 && rest.startsWith(">")) {
         const before = line[index - 1] ?? "";
-        if (/[=\s]/.test(before)) {
+        if (before === "=") {
           elementDepth = 0;
           index++;
           continue;
@@ -314,11 +322,10 @@ describe("message catalogs", () => {
     assert.deepEqual(proseParenPlurals("<p>\n<strong>{n}</strong> route(s)\n</p>"), ["route(s)"]);
     assert.deepEqual(proseParenPlurals("<p>\n<strong>{n}</strong>\nroute(s)\n</p>"), ["route(s)"]);
     assert.deepEqual(
-      proseParenPlurals("<Button\n  variant=\"ghost\"\n>\n  Delete route(s)\n</Button>"),
+      proseParenPlurals("  <Button\n    variant=\"ghost\"\n  >\n    Delete route(s)\n  </Button>"),
       ["route(s)"],
     );
     assert.deepEqual(proseParenPlurals("{items.map((r) => <span>route(s)</span>)}"), ["route(s)"]);
-    assert.deepEqual(proseParenPlurals("<span>{format(s)}</span>"), []);
     assert.deepEqual(proseParenPlurals("<Row onChange={(s) => pick(s)} />"), []);
     assert.deepEqual(proseParenPlurals("if (count > 0 && sources.includes(s)) {"), []);
     assert.deepEqual(proseParenPlurals("items.length >\n  selected.includes(s)"), []);
@@ -330,6 +337,10 @@ describe("message catalogs", () => {
     assert.deepEqual(proseParenPlurals("<ul>{items.map((r) => <li>route(s)</li>)}</ul>"), ["route(s)"]);
     assert.deepEqual(proseParenPlurals("<div>{ready && (\n<p>Delete route(s)</p>\n)}</div>"), ["route(s)"]);
     assert.deepEqual(proseParenPlurals("const f = <T>(x: T) => x;\nreturn sources.includes(s);"), []);
+    assert.deepEqual(proseParenPlurals("<span>{format(n)}</span>"), []);
+    assert.deepEqual(proseParenPlurals("<span>{x < y ? fmt(n) : b}</span>"), []);
+    assert.deepEqual(proseParenPlurals("<span>{ok ? <Icon /> : format(n)}</span>"), []);
+    assert.deepEqual(proseParenPlurals("<Row onChange={(s) => pick(s)} />\nif (sources.includes(s)) {"), []);
     assert.deepEqual(proseParenPlurals("`${m}:${String(s).padStart(2, \"0\")}`"), []);
     assert.deepEqual(proseParenPlurals("// remove the old row(s)"), []);
   });
