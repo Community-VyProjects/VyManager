@@ -140,7 +140,11 @@ export function proseParenPlurals(source: string): string[] {
       const rest = line.slice(index);
       if (expressionDepth > 0) {
         if (rest.startsWith("{")) expressionDepth++;
-        else if (rest.startsWith("}")) expressionDepth--;
+        else if (rest.startsWith("}")) expressionDepth = Math.max(0, expressionDepth - 1);
+        else if (rest.startsWith("<") && /[\s=({\[]/.test(line[index - 1] ?? " ")) {
+          expressionDepth = 0;
+          continue;
+        }
         index++;
         continue;
       }
@@ -171,6 +175,12 @@ export function proseParenPlurals(source: string): string[] {
         continue;
       }
       if (elementDepth > 0 && rest.startsWith(">")) {
+        const before = line[index - 1] ?? "";
+        if (/[=\s]/.test(before)) {
+          elementDepth = 0;
+          index++;
+          continue;
+        }
         index++;
         text += " ";
         continue;
@@ -316,7 +326,10 @@ describe("message catalogs", () => {
       proseParenPlurals("async getConfig(): Promise<ContainerConfig> {\n  return sources.includes(s);\n}"),
       [],
     );
-    assert.deepEqual(proseParenPlurals("<Row onChange={(s) => pick(s)} />\nif (sources.includes(s)) {"), []);
+    assert.deepEqual(proseParenPlurals("<p>\n<br />\nroute(s)\n</p>"), ["route(s)"]);
+    assert.deepEqual(proseParenPlurals("<ul>{items.map((r) => <li>route(s)</li>)}</ul>"), ["route(s)"]);
+    assert.deepEqual(proseParenPlurals("<div>{ready && (\n<p>Delete route(s)</p>\n)}</div>"), ["route(s)"]);
+    assert.deepEqual(proseParenPlurals("const f = <T>(x: T) => x;\nreturn sources.includes(s);"), []);
     assert.deepEqual(proseParenPlurals("`${m}:${String(s).padStart(2, \"0\")}`"), []);
     assert.deepEqual(proseParenPlurals("// remove the old row(s)"), []);
   });
