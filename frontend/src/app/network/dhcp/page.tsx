@@ -48,8 +48,7 @@ import {
 } from "@/lib/api/dhcp";
 import { cn } from "@/lib/utils";
 import { ClickableSubnet } from "@/components/ui/clickable-items";
-import { CreateDHCPServerModal } from "@/components/services/CreateDHCPServerModal";
-import { EditDHCPServerModal } from "@/components/services/EditDHCPServerModal";
+import { DHCPServerModal } from "@/components/services/DHCPServerModal";
 import { DeleteDHCPModal } from "@/components/services/DeleteDHCPModal";
 import { DeleteStaticMappingModal } from "@/components/services/DeleteStaticMappingModal";
 import { AddLeaseToStaticMappingModal } from "@/components/services/AddLeaseToStaticMappingModal";
@@ -1334,12 +1333,13 @@ function DHCPPageInner() {
           )}
         </div>
 
-        <CreateDHCPServerModal
-          open={createModalOpen || !!addingSubnetToNetwork}
+        <DHCPServerModal
+          open={createModalOpen || !!addingSubnetToNetwork || !!editingSubnet}
           onOpenChange={(open) => {
             if (!open) {
               setCreateModalOpen(false);
               setAddingSubnetToNetwork(null);
+              setEditingSubnet(null);
             }
           }}
           onSuccess={() => {
@@ -1348,6 +1348,7 @@ function DHCPPageInner() {
           }}
           capabilities={capabilities}
           existingNetwork={addingSubnetToNetwork || undefined}
+          existing={editingSubnet}
         />
 
         {config && (
@@ -1402,20 +1403,6 @@ function DHCPPageInner() {
             onOpenChange={setClientClassOpen}
             onSuccess={() => fetchConfig(true)}
             classes={config.client_classes ?? []}
-          />
-        )}
-
-        {editingSubnet && (
-          <EditDHCPServerModal
-            open={!!editingSubnet}
-            onOpenChange={(open) => !open && setEditingSubnet(null)}
-            networkName={editingSubnet.network}
-            subnet={editingSubnet.subnet}
-            onSuccess={() => {
-              fetchConfig(true);
-              fetchLeases();
-            }}
-            capabilities={capabilities}
           />
         )}
 

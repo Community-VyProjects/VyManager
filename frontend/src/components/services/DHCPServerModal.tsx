@@ -15,77 +15,51 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Plus, X } from "lucide-react";
-import { dhcpService, type DHCPCapabilitiesResponse, type DHCPRange } from "@/lib/api/dhcp";
+import { dhcpService, type DHCPCapabilitiesResponse, type DHCPRange, type DHCPSubnet } from "@/lib/api/dhcp";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ApiError } from "@/lib/types/api";
+import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
 import { DhcpCatalogFields } from "./DhcpCatalogFields";
-import { catalogCreateOps, emptyCatalogDraft, type CatalogDraft } from "./dhcp-catalog";
+import {
+  catalogCreateOps,
+  catalogDraftFrom,
+  catalogOps,
+  emptyCatalogDraft,
+  type CatalogDraft,
+} from "./dhcp-catalog";
 import { failedSaveMessage } from "./dhcp-save";
+import {
+  emptyServerDraft,
+  serverDraftFrom,
+  serverFieldSupport,
+  submitServerCreate,
+  submitServerUpdate,
+  validateServerCreate,
+  validateServerShared,
+  type ServerDraft,
+} from "./dhcp-server-form";
 
 const NO_LEAVES: never[] = [];
 
-// Validation helper functions
-const isValidIPv4 = (ip: string): boolean => {
-  const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
-  const match = ip.match(ipv4Regex);
-  if (!match) return false;
-  return match.slice(1).every(octet => {
-    const num = parseInt(octet);
-    return num >= 0 && num <= 255;
-  });
-};
-
-const isValidCIDR = (cidr: string): boolean => {
-  const parts = cidr.split('/');
-  if (parts.length !== 2) return false;
-  const [ip, prefix] = parts;
-  if (!isValidIPv4(ip)) return false;
-  const prefixNum = parseInt(prefix);
-  return prefixNum >= 0 && prefixNum <= 32;
-};
-
-const isValidDomain = (domain: string): boolean => {
-  // Allow FQDN and simple hostnames
-  const domainRegex = /^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/;
-  return domainRegex.test(domain) && domain.length <= 253;
-};
-
-const ipToNumber = (ip: string): number => {
-  return ip.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet), 0) >>> 0;
-};
-
-const isIPInSubnet = (ip: string, subnet: string): boolean => {
-  if (!isValidIPv4(ip) || !isValidCIDR(subnet)) return false;
-  const [subnetIP, prefixStr] = subnet.split('/');
-  const prefix = parseInt(prefixStr);
-  const mask = (0xFFFFFFFF << (32 - prefix)) >>> 0;
-  const ipNum = ipToNumber(ip);
-  const subnetNum = ipToNumber(subnetIP);
-  return (ipNum & mask) === (subnetNum & mask);
-};
-
-const isValidIPRange = (start: string, stop: string, subnet: string): boolean => {
-  if (!isValidIPv4(start) || !isValidIPv4(stop)) return false;
-  if (!isIPInSubnet(start, subnet) || !isIPInSubnet(stop, subnet)) return false;
-  return ipToNumber(start) <= ipToNumber(stop);
-};
-
-interface CreateDHCPServerModalProps {
+interface DHCPServerModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   capabilities: DHCPCapabilitiesResponse | null;
   existingNetwork?: string;
+  existing?: { network: string; subnet: DHCPSubnet } | null;
 }
 
-export function CreateDHCPServerModal({
+export function DHCPServerModal({
   open,
   onOpenChange,
   onSuccess,
   capabilities,
   existingNetwork,
-}: CreateDHCPServerModalProps) {
+  existing,
+}: DHCPServerModalProps) {
+  const isEdit = modalIsEdit(existing);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -125,8 +99,11 @@ export function CreateDHCPServerModal({
   // Options
   const [pingCheck, setPingCheck] = useState(false);
   const [enableFailover, setEnableFailover] = useState(false);
+  const [disabled, setDisabled] = useState(false);
   const [catalogDraft, setCatalogDraft] = useState<CatalogDraft>({});
+  const [catalogOriginal, setCatalogOriginal] = useState<CatalogDraft>({});
   const subnetLeaves = capabilities?.catalog?.subnet ?? NO_LEAVES;
+  const support = serverFieldSupport(capabilities);
 
   const calculateNextSubnetId = useCallback(async () => {
     if (!capabilities?.has_subnet_id) return;
@@ -157,21 +134,84 @@ export function CreateDHCPServerModal({
     }
   }, [capabilities]);
 
+  const applyDraft = (next: ServerDraft) => {
+    setMode(next.mode);
+    setNetworkName(next.networkName);
+    setSelectedNetwork(next.selectedNetwork);
+    setDescription(next.description);
+    setSubnet(next.subnet);
+    setSubnetId(next.subnetId);
+    setDefaultRouter(next.defaultRouter);
+    setDomainName(next.domainName);
+    setLease(next.lease);
+    setNameServers(next.nameServers);
+    setDomainSearch(next.domainSearch);
+    setRanges(next.ranges);
+    setExcludes(next.excludes);
+    setBootfileName(next.bootfileName);
+    setBootfileServer(next.bootfileServer);
+    setTftpServerName(next.tftpServerName);
+    setTimeServers(next.timeServers);
+    setNtpServers(next.ntpServers);
+    setWinsServers(next.winsServers);
+    setTimeOffset(next.timeOffset);
+    setClientPrefixLength(next.clientPrefixLength);
+    setWpadUrl(next.wpadUrl);
+    setPingCheck(next.pingCheck);
+    setEnableFailover(next.enableFailover);
+    setDisabled(next.disabled);
+  };
+
+  const readDraft = (): ServerDraft => ({
+    mode,
+    networkName,
+    selectedNetwork,
+    description,
+    subnet,
+    subnetId,
+    defaultRouter,
+    domainName,
+    lease,
+    nameServers,
+    domainSearch,
+    ranges,
+    excludes,
+    bootfileName,
+    bootfileServer,
+    tftpServerName,
+    timeServers,
+    ntpServers,
+    winsServers,
+    timeOffset,
+    clientPrefixLength,
+    wpadUrl,
+    pingCheck,
+    enableFailover,
+    disabled,
+  });
+
   useEffect(() => {
-    if (open) {
-      // Set mode based on whether existingNetwork is provided
+    if (!open) return;
+    if (existing) {
+      applyDraft(serverDraftFrom(existing.network, existing.subnet));
+      const loaded = catalogDraftFrom(subnetLeaves, existing.subnet.catalog);
+      setCatalogDraft(loaded);
+      setCatalogOriginal({ ...loaded });
+    } else {
+      const next = emptyServerDraft();
       if (existingNetwork) {
-        setMode("existing");
-        setSelectedNetwork(existingNetwork);
-      } else {
-        setMode("new");
-        setSelectedNetwork("");
+        next.mode = "existing";
+        next.selectedNetwork = existingNetwork;
       }
+      applyDraft(next);
       calculateNextSubnetId();
       loadExistingNetworks();
-      setCatalogDraft(emptyCatalogDraft(subnetLeaves));
+      const loaded = emptyCatalogDraft(subnetLeaves);
+      setCatalogDraft(loaded);
+      setCatalogOriginal(loaded);
     }
-  }, [open, existingNetwork, calculateNextSubnetId, subnetLeaves]);
+    setError(null);
+  }, [open, existing, existingNetwork, calculateNextSubnetId, subnetLeaves]);
 
   const loadExistingNetworks = async () => {
     try {
@@ -208,7 +248,9 @@ export function CreateDHCPServerModal({
     setWpadUrl("");
     setPingCheck(false);
     setEnableFailover(false);
+    setDisabled(false);
     setCatalogDraft(emptyCatalogDraft(subnetLeaves));
+    setCatalogOriginal(emptyCatalogDraft(subnetLeaves));
     setError(null);
   };
 
@@ -217,204 +259,78 @@ export function CreateDHCPServerModal({
     onOpenChange(false);
   };
 
-  const validateForm = (): boolean => {
-    // Network name validation
-    if (mode === "new") {
-      if (!networkName.trim()) {
-        setError("Network name is required");
-        return false;
-      }
-    } else {
-      if (!selectedNetwork) {
-        setError("Please select an existing network");
-        return false;
-      }
-    }
-
-    // Subnet validation
-    if (!subnet.trim()) {
-      setError("Subnet is required");
-      return false;
-    }
-    if (!isValidCIDR(subnet.trim())) {
-      setError("Invalid subnet CIDR format. Use format like 192.168.1.0/24");
-      return false;
-    }
-
-    // Default router validation
-    if (!defaultRouter.trim()) {
-      setError("Default router (gateway) is required");
-      return false;
-    }
-    if (!isValidIPv4(defaultRouter.trim())) {
-      setError("Invalid default router IP address");
-      return false;
-    }
-    if (!isIPInSubnet(defaultRouter.trim(), subnet.trim())) {
-      setError("Default router must be within the subnet");
-      return false;
-    }
-
-    // Name servers validation
-    const validNameServers = nameServers.filter((ns) => ns.trim());
-    if (validNameServers.length === 0) {
-      setError("At least one name server is required");
-      return false;
-    }
-    for (const ns of validNameServers) {
-      if (!isValidIPv4(ns.trim())) {
-        setError(`Invalid name server IP address: ${ns}`);
-        return false;
-      }
-    }
-
-    // Domain name validation
-    if (!domainName.trim()) {
-      setError("Domain name is required");
-      return false;
-    }
-    if (!isValidDomain(domainName.trim())) {
-      setError("Invalid domain name format");
-      return false;
-    }
-
-    // Domain search validation
-    for (const ds of domainSearch.filter(d => d.trim())) {
-      if (!isValidDomain(ds.trim())) {
-        setError(`Invalid domain search format: ${ds}`);
-        return false;
-      }
-    }
-
-    // Lease validation
-    if (!lease.trim()) {
-      setError("Lease time is required");
-      return false;
-    }
-    const leaseNum = parseInt(lease);
-    if (isNaN(leaseNum) || leaseNum <= 0) {
-      setError("Lease time must be a positive number");
-      return false;
-    }
-
-    // DHCP ranges validation
-    const validRanges = ranges.filter((r) => (r.start ?? "").trim() && (r.stop ?? "").trim());
-    if (validRanges.length === 0) {
-      setError("At least one DHCP range with start and stop addresses is required");
-      return false;
-    }
-    for (const range of validRanges) {
-      const start = (range.start ?? "").trim();
-      const stop = (range.stop ?? "").trim();
-      if (!isValidIPRange(start, stop, subnet.trim())) {
-        setError(`Invalid DHCP range: ${start} - ${stop}. Both IPs must be valid, within subnet, and start must be <= stop`);
-        return false;
-      }
-    }
-
-    // Exclude addresses validation
-    for (const exclude of excludes.filter(e => e.trim())) {
-      if (!isValidIPv4(exclude.trim())) {
-        setError(`Invalid exclude IP address: ${exclude}`);
-        return false;
-      }
-      if (!isIPInSubnet(exclude.trim(), subnet.trim())) {
-        setError(`Exclude address ${exclude} must be within the subnet`);
-        return false;
-      }
-    }
-
-    // Time servers validation
-    for (const ts of timeServers.filter(t => t.trim())) {
-      if (!isValidIPv4(ts.trim())) {
-        setError(`Invalid time server IP address: ${ts}`);
-        return false;
-      }
-    }
-
-    // NTP servers validation (must be IP addresses, not FQDNs)
-    for (const ntp of ntpServers.filter(n => n.trim())) {
-      if (!isValidIPv4(ntp.trim())) {
-        setError(`Invalid NTP server IP address: ${ntp}. NTP servers must be IP addresses, not hostnames`);
-        return false;
-      }
-    }
-
-    // WINS servers validation
-    for (const wins of winsServers.filter(w => w.trim())) {
-      if (!isValidIPv4(wins.trim())) {
-        setError(`Invalid WINS server IP address: ${wins}`);
-        return false;
-      }
-    }
-
-    return true;
-  };
-
   const handleSubmit = async () => {
-    if (!validateForm()) return;
+    const draft = readDraft();
+    const validationError = isEdit && existing
+      ? validateServerShared(draft, existing.subnet.subnet)
+      : validateServerCreate(draft);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
 
+    const write = modalWriteKind(existing ? { name: existing.subnet.subnet } : null);
     setLoading(true);
     setError(null);
 
     try {
-      const targetNetworkName = mode === "new" ? networkName.trim() : selectedNetwork;
-
-      // Calculate subnet ID if needed for VyOS 1.5
-      let calculatedSubnetId: number | undefined = undefined;
-      if (capabilities?.has_subnet_id) {
-        if (subnetId) {
-          calculatedSubnetId = parseInt(subnetId);
-        } else {
-          // Auto-calculate if not already set
-          const config = await dhcpService.getConfig();
-          const usedIds = new Set<number>();
-          config.shared_networks.forEach((network) => {
-            network.subnets.forEach((s) => {
-              if (s.subnet_id) usedIds.add(s.subnet_id);
+      if (write.kind === "update" && existing) {
+        const updated = await submitServerUpdate(
+          existing,
+          draft,
+          support,
+          catalogOps(
+            "set_subnet_catalog",
+            "delete_subnet_catalog",
+            subnetLeaves,
+            catalogOriginal,
+            catalogDraft,
+          ),
+          dhcpService,
+        );
+        const updateError = failedSaveMessage(updated, "Failed to update DHCP server");
+        if (updateError) {
+          setError(updateError);
+          return;
+        }
+      } else {
+        let calculatedSubnetId: number | undefined;
+        if (support.hasSubnetId) {
+          if (subnetId) {
+            calculatedSubnetId = parseInt(subnetId, 10);
+          } else {
+            const config = await dhcpService.getConfig();
+            const usedIds = new Set<number>();
+            config.shared_networks.forEach((network) => {
+              network.subnets.forEach((entry) => {
+                if (entry.subnet_id) usedIds.add(entry.subnet_id);
+              });
             });
-          });
-          let nextId = 1;
-          while (usedIds.has(nextId)) nextId++;
-          calculatedSubnetId = nextId;
+            let nextId = 1;
+            while (usedIds.has(nextId)) nextId++;
+            calculatedSubnetId = nextId;
+          }
+        }
+        const created = await submitServerCreate(
+          draft,
+          support,
+          calculatedSubnetId,
+          catalogCreateOps("set_subnet_catalog", subnetLeaves, catalogDraft),
+          dhcpService,
+        );
+        const createError = failedSaveMessage(created, "Failed to create DHCP server");
+        if (createError) {
+          setError(createError);
+          return;
         }
       }
-
-      const created = await dhcpService.createSubnet({
-        network_name: targetNetworkName,
-        subnet: subnet.trim(),
-        subnet_id: calculatedSubnetId,
-        description: description.trim() || undefined,
-        default_router: defaultRouter.trim(),
-        name_servers: nameServers.filter((ns) => ns.trim()),
-        domain_name: domainName.trim(),
-        lease: lease.trim(),
-        ranges: ranges.filter((r) => r.start && r.stop),
-        excludes: excludes.filter((e) => e.trim()),
-        domain_search: domainSearch.filter((ds) => ds.trim()),
-        ping_check: capabilities?.fields.ping_check.supported && pingCheck,
-        enable_failover: capabilities?.fields.enable_failover.supported && enableFailover,
-        bootfile_name: capabilities?.fields.bootfile_name.supported ? (bootfileName.trim() || undefined) : undefined,
-        bootfile_server: capabilities?.fields.bootfile_server.supported ? (bootfileServer.trim() || undefined) : undefined,
-        tftp_server_name: capabilities?.fields.tftp_server_name.supported ? (tftpServerName.trim() || undefined) : undefined,
-        time_servers: capabilities?.fields.time_servers.supported ? timeServers.filter((ts) => ts.trim()) : [],
-        ntp_servers: capabilities?.fields.ntp_servers.supported ? ntpServers.filter((ntp) => ntp.trim()) : [],
-        wins_servers: capabilities?.fields.wins_servers.supported ? winsServers.filter((wins) => wins.trim()) : [],
-        time_offset: capabilities?.fields.time_offset.supported ? (timeOffset.trim() || undefined) : undefined,
-        client_prefix_length: capabilities?.fields.client_prefix_length.supported ? (clientPrefixLength.trim() || undefined) : undefined,
-        wpad_url: capabilities?.fields.wpad_url.supported ? (wpadUrl.trim() || undefined) : undefined,
-        catalog_operations: catalogCreateOps("set_subnet_catalog", subnetLeaves, catalogDraft),
-      });
-      const createError = failedSaveMessage(created, "Failed to create DHCP server");
-      if (createError) {
-        setError(createError);
-        return;
-      }
-
       handleClose();
       onSuccess();
     } catch (err) {
-      setError((err as ApiError).message || "Failed to create DHCP server");
+      setError(
+        (err as ApiError).message ||
+          (isEdit ? "Failed to update DHCP server" : "Failed to create DHCP server"),
+      );
     } finally {
       setLoading(false);
     }
@@ -494,23 +410,27 @@ export function CreateDHCPServerModal({
     setWinsServers(winsServers.filter((_, i) => i !== index));
   };
 
+  const lockedNetwork = lockedIdentity(existing, (record) => record.network, networkName);
+  const lockedSubnet = lockedIdentity(existing, (record) => record.subnet.subnet, subnet);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>
-            {mode === "new" ? "Create DHCP Server" : "Add DHCP Subnet"}
+            {isEdit ? "Edit DHCP Server" : mode === "new" ? "Create DHCP Server" : "Add DHCP Subnet"}
           </DialogTitle>
           <DialogDescription>
-            {mode === "new"
-              ? "Configure a new DHCP server with subnet and options"
-              : "Add a new subnet to an existing DHCP shared network"
-            }
+            {isEdit
+              ? `Update configuration for subnet ${lockedSubnet.value} in network ${lockedNetwork.value}`
+              : mode === "new"
+                ? "Configure a new DHCP server with subnet and options"
+                : "Add a new subnet to an existing DHCP shared network"}
           </DialogDescription>
         </DialogHeader>
 
         {/* Mode Selection - only show when not adding to existing network */}
-        {!existingNetwork && (
+        {!isEdit && !existingNetwork && (
           <div className="space-y-4">
             <div>
               <Label className="text-sm font-medium">Mode</Label>
@@ -556,10 +476,12 @@ export function CreateDHCPServerModal({
             <TabsContent value="basic" className="space-y-4 mt-4">
               <div className="grid gap-4">
                 <div>
-                  <Label className="required">
+                  <Label className={isEdit ? undefined : "required"}>
                     Shared Network Name
                   </Label>
-                  {mode === "new" ? (
+                  {isEdit ? (
+                    <Input value={lockedNetwork.value} disabled />
+                  ) : mode === "new" ? (
                     <Input
                       value={networkName}
                       onChange={(e) => setNetworkName(e.target.value)}
@@ -580,10 +502,11 @@ export function CreateDHCPServerModal({
                     </select>
                   )}
                   <p className="text-xs text-muted-foreground mt-1">
-                    {mode === "new"
-                      ? "Logical group name for this DHCP configuration"
-                      : "Select an existing shared network to add this subnet to"
-                    }
+                    {isEdit
+                      ? "Cannot be changed (delete and recreate to move)"
+                      : mode === "new"
+                        ? "Logical group name for this DHCP configuration"
+                        : "Select an existing shared network to add this subnet to"}
                   </p>
                 </div>
 
@@ -598,19 +521,38 @@ export function CreateDHCPServerModal({
                 </div>
 
                 <div>
-                  <Label htmlFor="subnet" className="required">
+                  <Label htmlFor="subnet" className={isEdit ? undefined : "required"}>
                     Subnet (CIDR)
                   </Label>
                   <Input
                     id="subnet"
-                    value={subnet}
+                    value={lockedSubnet.value}
                     onChange={(e) => setSubnet(e.target.value)}
                     placeholder="e.g., 192.168.1.0/24"
+                    disabled={lockedSubnet.disabled}
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Enter subnet in CIDR notation (e.g., 192.168.1.0/24)
+                    {isEdit
+                      ? "Cannot be changed"
+                      : "Enter subnet in CIDR notation (e.g., 192.168.1.0/24)"}
                   </p>
                 </div>
+
+                {isEdit && support.subnetDisable && (
+                  <div className="flex items-center gap-3 rounded-lg border p-4">
+                    <Checkbox
+                      id="subnetDisabled"
+                      checked={disabled}
+                      onCheckedChange={(checked) => setDisabled(checked === true)}
+                    />
+                    <div className="space-y-0.5">
+                      <Label htmlFor="subnetDisabled" className="cursor-pointer">Disable Subnet</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Subnet will not respond to DHCP requests while disabled
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <Label htmlFor="defaultRouter" className="required">
@@ -1019,7 +961,7 @@ export function CreateDHCPServerModal({
                   onChange={(token, value) =>
                     setCatalogDraft((current) => ({ ...current, [token]: value }))
                   }
-                  idPrefix="create-dhcp"
+                  idPrefix="server-dhcp"
                 />
               </div>
             </TabsContent>
@@ -1038,7 +980,13 @@ export function CreateDHCPServerModal({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Creating..." : "Create DHCP Server"}
+            {loading
+              ? isEdit
+                ? "Saving..."
+                : "Creating..."
+              : isEdit
+                ? "Update DHCP Server"
+                : "Create DHCP Server"}
           </Button>
         </DialogFooter>
       </DialogContent>
