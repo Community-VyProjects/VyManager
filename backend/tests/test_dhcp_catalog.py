@@ -289,7 +289,12 @@ def test_get_config_puts_catalog_and_classes_on_the_response(monkeypatch):
                                 "subnet": {
                                     "192.168.9.0/24": {
                                         "ignore-client-id": {},
-                                        "range": {"0": {"start": "192.168.9.10"}},
+                                        "range": {
+                                            "0": {
+                                                "start": "192.168.9.10",
+                                                "option": {"bootfile-size": "4"},
+                                            }
+                                        },
                                     }
                                 }
                             }
@@ -313,4 +318,4 @@ def test_get_config_puts_catalog_and_classes_on_the_response(monkeypatch):
     assert response.client_classes[0].circuit_id == "ge-0"
     subnet = response.shared_networks[0].subnets[0]
     assert subnet.catalog["ignore-client-id"] is True
-    assert subnet.ranges[0].catalog is not None
+    assert subnet.ranges[0].catalog["bootfile-size"] == "4"

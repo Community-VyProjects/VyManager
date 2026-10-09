@@ -7,6 +7,7 @@ import {
   type DHCPStaticMapping,
 } from "@/lib/api/dhcp";
 import type { VyOSResponse } from "@/lib/types/api";
+import { failedSaveMessage } from "./dhcp-save";
 import {
   emptyMappingDraft,
   emptyRangeDraft,
@@ -55,6 +56,8 @@ class RecordingDhcpService extends DHCPService {
     config: Record<string, unknown>;
   }[] = [];
 
+  failure: VyOSResponse | null = null;
+
   async createRange(
     network_name: string,
     subnet: string,
@@ -69,7 +72,7 @@ class RecordingDhcpService extends DHCPService {
       start,
       stop,
     });
-    return ok;
+    return this.failure ?? ok;
   }
 
   async batchConfigure(config: {
@@ -82,7 +85,7 @@ class RecordingDhcpService extends DHCPService {
       subnet: config.subnet,
       operations: config.operations,
     });
-    return ok;
+    return this.failure ?? ok;
   }
 
   async deleteRange(
@@ -214,6 +217,27 @@ describe("range create", () => {
       },
     ]);
     assert.equal(service.deletedRanges.length, 0);
+  });
+
+  it("returns a failed commit so the modal stays open", async () => {
+    const service = new RecordingDhcpService();
+    service.failure = { success: false, error: "commit failed" };
+    const draft = emptyRangeDraft();
+    draft.subnet = "192.168.1.0/24";
+    draft.startIp = "192.168.1.10";
+    draft.stopIp = "192.168.1.20";
+    const created = await submitRangeCreate("LAN", draft, "0", service, [
+      { op: "set_range_catalog", value: "0|bootfile-size|4" },
+    ]);
+    assert.equal(failedSaveMessage(created, "Failed to create range"), "commit failed");
+    const updated = await submitRangeUpdate(
+      "LAN",
+      { subnet: "192.168.1.0/24", range: storedRange },
+      rangeDraftFrom("192.168.1.0/24", storedRange),
+      service,
+      [{ op: "set_range_catalog", value: "2|bootfile-size|4" }],
+    );
+    assert.equal(failedSaveMessage(updated, "Failed to save range"), "commit failed");
   });
 });
 

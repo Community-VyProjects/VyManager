@@ -16,9 +16,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   dhcpService,
-  type DHCPBatchOperation,
   type DHCPClientClass,
 } from "@/lib/api/dhcp";
+import { clientClassOperations, type ClientClassDraft } from "./dhcp-client-class";
+import { failedSaveMessage } from "./dhcp-save";
 
 interface DHCPClientClassModalProps {
   open: boolean;
@@ -27,13 +28,7 @@ interface DHCPClientClassModalProps {
   classes: DHCPClientClass[];
 }
 
-interface Draft {
-  name: string;
-  disable: boolean;
-  circuitId: string;
-  remoteId: string;
-  originalName: string | null;
-}
+type Draft = ClientClassDraft;
 
 const emptyDraft = (): Draft => ({
   name: "",
@@ -69,26 +64,16 @@ export function DHCPClientClassModal({
     }
     setLoading(true);
     setError(null);
-    const operations: DHCPBatchOperation[] = [{ op: "set_client_class", value: name }];
     const stored = rows.find((item) => item.name === (draft.originalName ?? name));
-    if (draft.disable) operations.push({ op: "set_client_class_disable", value: name });
-    else if (stored?.disable) operations.push({ op: "delete_client_class_disable", value: name });
-    const circuit = draft.circuitId.trim();
-    if (circuit) operations.push({ op: "set_client_class_circuit_id", value: `${name}|${circuit}` });
-    else if (stored?.circuit_id) operations.push({ op: "delete_client_class_circuit_id", value: name });
-    const remote = draft.remoteId.trim();
-    if (remote) operations.push({ op: "set_client_class_remote_id", value: `${name}|${remote}` });
-    else if (stored?.remote_id) operations.push({ op: "delete_client_class_remote_id", value: name });
-    if (draft.originalName && draft.originalName !== name) {
-      operations.unshift({ op: "delete_client_class", value: draft.originalName });
-    }
+    const operations = clientClassOperations(draft, stored);
     try {
       const result = await dhcpService.batchConfigure({
         network_name: "_global",
         operations,
       });
-      if (!result.success) {
-        setError(result.error ?? "Failed to save client class");
+      const saveError = failedSaveMessage(result, "Failed to save client class");
+      if (saveError) {
+        setError(saveError);
         return;
       }
       onSuccess();
@@ -108,8 +93,9 @@ export function DHCPClientClassModal({
         network_name: "_global",
         operations: [{ op: "delete_client_class", value: name }],
       });
-      if (!result.success) {
-        setError(result.error ?? "Failed to delete client class");
+      const saveError = failedSaveMessage(result, "Failed to delete client class");
+      if (saveError) {
+        setError(saveError);
         return;
       }
       onSuccess();

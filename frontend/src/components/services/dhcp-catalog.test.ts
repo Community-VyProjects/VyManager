@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { DhcpCatalogLeaf } from "@/lib/api/dhcp";
-import { catalogCreateOps, catalogDraftFrom, catalogOps, editMultiRow } from "./dhcp-catalog";
+import { catalogCreateOps, catalogDraftFrom, catalogOps, editMultiRow, keptListValues } from "./dhcp-catalog";
 
 const leaves: DhcpCatalogLeaf[] = [
   {
@@ -77,8 +77,9 @@ describe("catalogOps", () => {
     ]);
   });
 
-  it("keeps a blank multi row so the operator can finish typing it", () => {
-    assert.deepEqual(editMultiRow(["192.0.2.1", "192.0.2.2"], 1, ""), ["192.0.2.1", ""]);
-    assert.deepEqual(editMultiRow(["192.0.2.1", ""], 0, "192.0.2.9"), ["192.0.2.9", ""]);
+  it("keeps a blank multi row through the filter that feeds the field", () => {
+    const edited = editMultiRow(["192.0.2.1", "192.0.2.2"], 1, "");
+    assert.deepEqual(keptListValues(edited), ["192.0.2.1", ""]);
+    assert.deepEqual(keptListValues(["192.0.2.1", ""]), ["192.0.2.1", ""]);
   });
 });

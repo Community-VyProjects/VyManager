@@ -53,6 +53,11 @@ export function catalogDraftFrom(
   return draft;
 }
 
+export function keptListValues(value: DhcpCatalogValue | undefined): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string");
+}
+
 export function editMultiRow(values: string[], index: number, nextValue: string): string[] {
   const rows = values.length === 0 ? [""] : values;
   const next = [...rows];

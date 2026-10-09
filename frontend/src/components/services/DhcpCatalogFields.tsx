@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { DhcpCatalogLeaf, DhcpCatalogValue, DhcpRoute } from "@/lib/api/dhcp";
-import { editMultiRow } from "./dhcp-catalog";
+import { editMultiRow, keptListValues } from "./dhcp-catalog";
 
 const NONE = "__none__";
 
@@ -29,8 +29,7 @@ function textValue(value: DhcpCatalogValue | undefined): string {
 }
 
 function listValue(value: DhcpCatalogValue | undefined): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((item): item is string => typeof item === "string");
+  return keptListValues(value);
 }
 
 function routeValue(value: DhcpCatalogValue | undefined): DhcpRoute[] {

@@ -18,6 +18,7 @@ import { AlertCircle, Plus, Settings2, X } from "lucide-react";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import { DhcpCatalogFields } from "./DhcpCatalogFields";
 import { catalogDraftFrom, catalogOps, type CatalogDraft } from "./dhcp-catalog";
+import { failedSaveMessage } from "./dhcp-save";
 import {
   dhcpService,
   type DHCPCapabilitiesResponse,
@@ -101,8 +102,9 @@ export function DHCPServerSettingsModal({
         hostfile_update: hostfileUpdate,
         host_decl_name: canHostDeclName ? hostDeclName : globalConfig.host_decl_name,
       }, catalog);
-      if (!result.success) {
-        setError(result.error ?? "Failed to save server settings");
+      const saveError = failedSaveMessage(result, "Failed to save server settings");
+      if (saveError) {
+        setError(saveError);
         setLoading(false);
         return;
       }
