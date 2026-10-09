@@ -10,8 +10,7 @@ const dir = dirname(fileURLToPath(import.meta.url));
 const modals = [
   "RangeModal.tsx",
   "StaticMappingModal.tsx",
-  "CreateDHCPServerModal.tsx",
-  "EditDHCPServerModal.tsx",
+  "DHCPServerModal.tsx",
   "DHCPNetworkOptionsModal.tsx",
   "DHCPClientClassModal.tsx",
   "DHCPServerSettingsModal.tsx",
@@ -40,7 +39,7 @@ describe("failedSaveMessage", () => {
         from = guard + 1;
       }
       assert.ok(guards.length >= 1, `${file} must call failedSaveMessage`);
-      if (file === "RangeModal.tsx" || file === "StaticMappingModal.tsx" || file === "DHCPClientClassModal.tsx") {
+      if (file === "RangeModal.tsx" || file === "StaticMappingModal.tsx" || file === "DHCPClientClassModal.tsx" || file === "DHCPServerModal.tsx") {
         assert.ok(guards.length >= 2, `${file} must check both save paths`);
       }
       guards.forEach((guard, index) => {
