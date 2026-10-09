@@ -76,4 +76,13 @@ describe("catalogOps", () => {
       { op: "set_subnet_catalog", value: "static-route|10.0.0.0/24|192.0.2.1" },
     ]);
   });
+
+  it("keeps a blank multi row so the operator can finish typing it", () => {
+    const original = catalogDraftFrom(leaves, { "pop-server": ["192.0.2.1"] });
+    const draft = { ...original, "pop-server": ["192.0.2.1", ""] };
+    assert.deepEqual(
+      catalogOps("set_subnet_catalog", "delete_subnet_catalog", leaves, original, draft),
+      [],
+    );
+  });
 });

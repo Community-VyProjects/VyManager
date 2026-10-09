@@ -20,6 +20,20 @@ from datetime import datetime, timezone
 import logging
 from batch_dispatch import resolve_batch_method
 from vyos_mappers.dhcp.dhcp_catalog import parse_client_classes, parse_scope
+
+
+def split_packed_value(value: str, count: int) -> List[str]:
+    """Split a pipe-packed batch value into `count` args.
+
+    Extra segments stay on the last argument so a value that itself contains
+    '|' is rejected by the mapper instead of being silently truncated.
+    """
+    parts = str(value).split("|")
+    if count <= 1:
+        return [str(value)]
+    if len(parts) <= count:
+        return parts
+    return parts[: count - 1] + ["|".join(parts[count - 1 :])]
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/dhcp", tags=["dhcp"])
@@ -506,13 +520,12 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
                         ranges = []
                         if "range" in subnet_data:
                             for range_id, range_data in subnet_data["range"].items():
-                                range_body = range_data if isinstance(range_data, dict) else {}
                                 ranges.append(
                                     DHCPRange(
                                         range_id=str(range_id),
-                                        start=range_body.get("start"),
-                                        stop=range_body.get("stop"),
-                                        catalog=parse_scope(range_body, version, "range"),
+                                        start=range_data.get("start"),
+                                        stop=range_data.get("stop"),
+                                        catalog=parse_scope(range_data, version, "range"),
                                     )
                                 )
 
@@ -534,17 +547,17 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
                                 "static-mapping"
                             ].items():
                                 total_static_mappings += 1
-                                mapping_body = mapping_data if isinstance(mapping_data, dict) else {}
-                                mac_addr = mapping_body.get("mac") or mapping_body.get("mac-address")
+                                # v1.4 uses 'mac-address', v1.5 uses 'mac'
+                                mac_addr = mapping_data.get("mac") or mapping_data.get("mac-address")
                                 static_mappings.append(
                                     DHCPStaticMapping(
                                         name=mapping_name,
-                                        ip_address=mapping_body.get("ip-address"),
+                                        ip_address=mapping_data.get("ip-address"),
                                         mac_address=mac_addr,
-                                        duid=mapping_body.get("duid"),
-                                        description=mapping_body.get("description"),
-                                        disable="disable" in mapping_body,
-                                        catalog=parse_scope(mapping_body, version, "static-mapping"),
+                                        duid=mapping_data.get("duid"),
+                                        description=mapping_data.get("description"),
+                                        disable="disable" in mapping_data,
+                                        catalog=parse_scope(mapping_data, version, "static-mapping"),
                                     )
                                 )
 
@@ -1026,11 +1039,8 @@ async def dhcp_batch_configure(http_request: Request, request: DHCPBatchRequest)
                 # Find the remaining parameters that need values
                 remaining_params = [p for p in params if p not in ["network_name", "subnet"]]
 
-                # If there are multiple remaining params and value contains pipe separator
-                if len(remaining_params) > 1 and "|" in str(op_value):
-                    # Split pipe-separated values
-                    value_parts = str(op_value).split("|")
-                    args.extend(value_parts[:len(remaining_params)])
+                if remaining_params and "|" in str(op_value):
+                    args.extend(split_packed_value(str(op_value), len(remaining_params)))
                 elif remaining_params:
                     # Single value parameter
                     args.append(op_value)

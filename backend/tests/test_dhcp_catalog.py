@@ -55,7 +55,6 @@ def test_client_class_rejected_on_14():
     with pytest.raises(ValueError, match="not supported"):
         DHCPMapper("1.4").get_client_class_path("LAN")
     path = DHCPMapper("1.5").get_client_class_circuit_id("LAN", "ge-0")
-    assert path[-3:] == ["circuit-id", "ge-0"] or path[-2:] == ["circuit-id", "ge-0"]
     assert path[-2:] == ["circuit-id", "ge-0"]
 
 
@@ -100,3 +99,130 @@ def test_parse_scope_reads_flag_and_route():
     assert parsed["bootfile-size"] == "4"
     assert parsed["static-route"] == [{"prefix": "10.0.0.0/24", "next_hop": "192.0.2.1"}]
     assert parsed["ip-forwarding"] is False
+
+
+def test_pipe_in_catalog_value_is_rejected_not_truncated():
+    mapper = DHCPMapper("1.5")
+    with pytest.raises(ValueError, match="cannot contain"):
+        mapper.catalog_set(
+            "subnet", "bootfile-name", ("LAN", "192.168.1.0/24"), ("pxe|linux",)
+        )
+    with pytest.raises(ValueError, match="cannot contain"):
+        mapper.catalog_delete(
+            "subnet", "pop-server", ("LAN", "192.168.1.0/24"), ("192.0.2.1|extra",)
+        )
+
+
+def test_pipe_in_client_class_id_is_rejected():
+    mapper = DHCPMapper("1.5")
+    with pytest.raises(ValueError, match="cannot contain"):
+        mapper.get_client_class_circuit_id("LAN", "ge-0|extra")
+    with pytest.raises(ValueError, match="cannot contain"):
+        mapper.get_client_class_remote_id("LAN", "aa|bb")
+
+
+def test_split_packed_value_keeps_extra_pipes_on_the_last_arg():
+    from routers.dhcp.dhcp import split_packed_value
+
+    assert split_packed_value("ge-0|extra", 1) == ["ge-0|extra"]
+    assert split_packed_value("LAN|ge-0|extra", 2) == ["LAN", "ge-0|extra"]
+    assert split_packed_value("a|b", 2) == ["a", "b"]
+
+
+@pytest.mark.parametrize(
+    "scope,token,anchors,value",
+    [
+        ("subnet", "subnet-parameters", ("LAN", "192.168.1.0/24"), "ping-check"),
+        ("shared-network", "shared-network-parameters", ("LAN",), "authoritative"),
+        ("static-mapping", "static-mapping-parameters", ("LAN", "192.168.1.0/24", "host1"), "duid"),
+        ("global", "global-parameters", (), "hostfile-update"),
+    ],
+)
+def test_14_only_parameter_leaf_raises_on_15(scope, token, anchors, value):
+    mapper = DHCPMapper("1.5")
+    with pytest.raises(ValueError, match="not supported"):
+        mapper.catalog_set(scope, token, anchors, (value,))
+    with pytest.raises(ValueError, match="not supported"):
+        mapper.catalog_delete(scope, token, anchors)
+
+
+def test_range_and_mapping_catalog_ops_include_child_id():
+    builder = DHCPBatchBuilder("1.5")
+    builder.set_range_catalog("LAN", "192.168.1.0/24", "0|bootfile-size|4")
+    builder.delete_range_catalog("LAN", "192.168.1.0/24", "0|pop-server|192.0.2.1")
+    builder.set_mapping_catalog("LAN", "192.168.1.0/24", "host1|bootfile-name|pxelinux.0")
+    builder.delete_mapping_catalog("LAN", "192.168.1.0/24", "host1|static-route|10.0.0.0/24")
+    ops = builder.get_operations()
+    assert ops[0]["op"] == "set"
+    assert ops[0]["path"][-5:] == ["range", "0", "option", "bootfile-size", "4"]
+    assert ops[1]["op"] == "delete"
+    assert ops[1]["path"][-4:] == ["0", "option", "pop-server", "192.0.2.1"]
+    assert ops[2]["path"][-5:-1] == ["static-mapping", "host1", "option", "bootfile-name"]
+    assert ops[2]["path"][-1] == "pxelinux.0"
+    assert ops[3]["op"] == "delete"
+    assert ops[3]["path"][-3:] == ["option", "static-route", "10.0.0.0/24"]
+
+
+def test_child_spec_rejects_a_bare_token():
+    builder = DHCPBatchBuilder("1.5")
+    with pytest.raises(ValueError, match="requires an id"):
+        builder.set_range_catalog("LAN", "192.168.1.0/24", "bootfile-size")
+
+
+def test_delete_flag_takes_no_packed_value():
+    builder = DHCPBatchBuilder("1.5")
+    with pytest.raises(ValueError, match="wrong number of values"):
+        builder.delete_subnet_catalog("LAN", "192.168.9.0/24", "ignore-client-id|extra")
+
+
+def test_parse_client_classes_reads_relay_ids():
+    from vyos_mappers.dhcp.dhcp_catalog import parse_client_classes
+
+    parsed = parse_client_classes({
+        "client-class": {
+            "LAN": {
+                "disable": {},
+                "relay-agent-information": {
+                    "circuit-id": "ge-0",
+                    "remote-id": "aa",
+                },
+            }
+        }
+    })
+    assert parsed == [{
+        "name": "LAN",
+        "disable": True,
+        "circuit_id": "ge-0",
+        "remote_id": "aa",
+    }]
+
+
+def test_batch_dispatch_rejects_a_pipe_in_circuit_id(monkeypatch):
+    import asyncio
+
+    from fastapi import HTTPException
+
+    from routers.dhcp.dhcp import DHCPBatchOperation, DHCPBatchRequest, dhcp_batch_configure
+
+    class _Service:
+        def get_version(self):
+            return "1.5"
+
+        def execute_batch(self, builder):
+            raise AssertionError("a rejected value must not be committed")
+
+    async def _allow(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr("routers.dhcp.dhcp.get_session_vyos_service", lambda request: _Service())
+    monkeypatch.setattr("routers.dhcp.dhcp.require_write_permission", _allow)
+
+    request = DHCPBatchRequest(
+        network_name="_global",
+        operations=[
+            DHCPBatchOperation(op="set_client_class_circuit_id", value="LAN|ge-0|extra"),
+        ],
+    )
+
+    with pytest.raises((ValueError, HTTPException), match="cannot contain"):
+        asyncio.run(dhcp_batch_configure(object(), request))  # type: ignore[arg-type]

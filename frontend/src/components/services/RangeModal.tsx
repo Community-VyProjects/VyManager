@@ -35,6 +35,7 @@ import {
   emptyRangeDraft,
   nextRangeId,
   rangeDraftFrom,
+  submitRangeCreate,
   submitRangeUpdate,
   validateRangeCreate,
   validateRangeShared,
@@ -127,40 +128,19 @@ export function RangeModal({
               catalogDraft,
               existing.range.range_id,
             );
-        if (startChanged && follow.length > 0) {
-          const rangeId = existing.range.range_id;
-          await dhcpService.batchConfigure({
-            network_name: network.name,
-            subnet: existing.subnet,
-            operations: [
-              { op: "delete_subnet_range", value: rangeId },
-              { op: "set_subnet_range", value: rangeId },
-              { op: "set_subnet_range_start", value: `${rangeId}|${draft.startIp.trim()}` },
-              { op: "set_subnet_range_stop", value: `${rangeId}|${draft.stopIp.trim()}` },
-              ...follow,
-            ],
-          });
-        } else {
-          await submitRangeUpdate(network.name, existing, draft);
-          if (follow.length > 0) {
-            await dhcpService.batchConfigure({
-              network_name: network.name,
-              subnet: existing.subnet,
-              operations: follow,
-            });
-          }
+        const updated = await submitRangeUpdate(network.name, existing, draft, dhcpService, follow);
+        if (updated && updated.success === false) {
+          setError(updated.error ?? "Failed to save range");
+          return;
         }
       } else {
         const rangeId = nextRangeId(network, draft.subnet);
         const follow = catalogCreateOps("set_range_catalog", rangeLeaves, catalogDraft, rangeId);
-        await dhcpService.createRange(
-          network.name,
-          draft.subnet,
-          rangeId,
-          draft.startIp.trim(),
-          draft.stopIp.trim(),
-          follow,
-        );
+        const created = await submitRangeCreate(network.name, draft, rangeId, dhcpService, follow);
+        if (!created.success) {
+          setError(created.error ?? "Failed to create range");
+          return;
+        }
       }
       handleClose();
       onSuccess();

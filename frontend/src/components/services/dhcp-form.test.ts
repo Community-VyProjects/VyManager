@@ -26,6 +26,11 @@ import {
 const ok: VyOSResponse = { success: true };
 
 class RecordingDhcpService extends DHCPService {
+  batches: {
+    network: string;
+    subnet?: string;
+    operations: { op: string; value?: string }[];
+  }[] = [];
   createdRanges: {
     network: string;
     subnet: string;
@@ -63,6 +68,19 @@ class RecordingDhcpService extends DHCPService {
       rangeId: range_id,
       start,
       stop,
+    });
+    return ok;
+  }
+
+  async batchConfigure(config: {
+    network_name: string;
+    subnet?: string;
+    operations: { op: string; value?: string }[];
+  }): Promise<VyOSResponse> {
+    this.batches.push({
+      network: config.network_name,
+      subnet: config.subnet,
+      operations: config.operations,
     });
     return ok;
   }
@@ -223,18 +241,20 @@ describe("range update", () => {
       draft,
       service,
     );
-    assert.deepEqual(service.deletedRanges, [
-      { network: "LAN", subnet: "192.168.1.0/24", rangeId: "2" },
-    ]);
-    assert.deepEqual(service.createdRanges, [
+    assert.deepEqual(service.batches, [
       {
         network: "LAN",
         subnet: "192.168.1.0/24",
-        rangeId: "2",
-        start: "192.168.1.110",
-        stop: "192.168.1.200",
+        operations: [
+          { op: "delete_subnet_range", value: "2" },
+          { op: "set_subnet_range", value: "2" },
+          { op: "set_subnet_range_start", value: "2|192.168.1.110" },
+          { op: "set_subnet_range_stop", value: "2|192.168.1.200" },
+        ],
       },
     ]);
+    assert.equal(service.deletedRanges.length, 0);
+    assert.equal(service.createdRanges.length, 0);
   });
 
   it("writes the stored range id and subnet when the draft identity was altered", async () => {
@@ -248,10 +268,52 @@ describe("range update", () => {
       draft,
       service,
     );
-    assert.equal(service.deletedRanges[0].rangeId, storedRange.range_id);
-    assert.equal(service.deletedRanges[0].subnet, "192.168.1.0/24");
-    assert.equal(service.createdRanges[0].rangeId, storedRange.range_id);
-    assert.equal(service.createdRanges[0].subnet, "192.168.1.0/24");
+    assert.equal(service.batches[0].operations[0].value, storedRange.range_id);
+    assert.equal(service.batches[0].subnet, "192.168.1.0/24");
+    assert.equal(service.batches[0].operations[2].value, `${storedRange.range_id}|192.168.1.111`);
+  });
+
+  it("puts a catalog change in the same batch when start and stop are unchanged", async () => {
+    const service = new RecordingDhcpService();
+    const result = await submitRangeUpdate(
+      "LAN",
+      { subnet: "192.168.1.0/24", range: storedRange },
+      rangeDraftFrom("192.168.1.0/24", storedRange),
+      service,
+      [{ op: "set_range_catalog", value: "2|bootfile-size|4" }],
+    );
+    assert.equal(result?.success, true);
+    assert.equal(service.deletedRanges.length, 0);
+    assert.equal(service.createdRanges.length, 0);
+    assert.deepEqual(service.batches, [
+      {
+        network: "LAN",
+        subnet: "192.168.1.0/24",
+        operations: [{ op: "set_range_catalog", value: "2|bootfile-size|4" }],
+      },
+    ]);
+  });
+
+  it("recreates the range and catalog leaves in one batch", async () => {
+    const service = new RecordingDhcpService();
+    const draft = rangeDraftFrom("192.168.1.0/24", storedRange);
+    draft.startIp = "192.168.1.110";
+    await submitRangeUpdate(
+      "LAN",
+      { subnet: "192.168.1.0/24", range: storedRange },
+      draft,
+      service,
+      [{ op: "set_range_catalog", value: "2|bootfile-size|4" }],
+    );
+    assert.equal(service.deletedRanges.length, 0);
+    assert.equal(service.createdRanges.length, 0);
+    assert.deepEqual(service.batches[0].operations.map((op) => op.op), [
+      "delete_subnet_range",
+      "set_subnet_range",
+      "set_subnet_range_start",
+      "set_subnet_range_stop",
+      "set_range_catalog",
+    ]);
   });
 });
 

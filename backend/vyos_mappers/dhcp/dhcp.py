@@ -1067,6 +1067,14 @@ class DHCPMapper(BaseFeatureMapper):
             raise ValueError("Invalid client-class name")
         return name
 
+    def _class_value(self, value: str, label: str) -> str:
+        cleaned = str(value or "").strip()
+        if not cleaned:
+            raise ValueError(f"{label} requires a value")
+        if "|" in cleaned:
+            raise ValueError(f"{label} value cannot contain '|'")
+        return cleaned
+
     def get_client_class(self, name: str) -> List[str]:
         return ["service", "dhcp-server", "client-class", self._client_class_name(name)]
 
@@ -1080,10 +1088,9 @@ class DHCPMapper(BaseFeatureMapper):
         return self.get_client_class_path(name) + ["disable"]
 
     def get_client_class_circuit_id(self, name: str, value: str) -> List[str]:
-        if not value or not str(value).strip():
-            raise ValueError("circuit-id requires a value")
+        cleaned = self._class_value(value, "circuit-id")
         return self.get_client_class(name) + [
-            "relay-agent-information", "circuit-id", value.strip(),
+            "relay-agent-information", "circuit-id", cleaned,
         ]
 
     def get_client_class_circuit_id_path(self, name: str) -> List[str]:
@@ -1092,10 +1099,9 @@ class DHCPMapper(BaseFeatureMapper):
         ]
 
     def get_client_class_remote_id(self, name: str, value: str) -> List[str]:
-        if not value or not str(value).strip():
-            raise ValueError("remote-id requires a value")
+        cleaned = self._class_value(value, "remote-id")
         return self.get_client_class(name) + [
-            "relay-agent-information", "remote-id", value.strip(),
+            "relay-agent-information", "remote-id", cleaned,
         ]
 
     def get_client_class_remote_id_path(self, name: str) -> List[str]:

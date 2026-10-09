@@ -140,7 +140,7 @@ function MultiField({
               onChange={(event) => {
                 const next = [...rows];
                 next[index] = event.target.value;
-                onChange(next.filter((item) => item.trim() || next.length === 1));
+                onChange(next);
               }}
             />
             <Button
