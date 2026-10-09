@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
-import { clientClassOperations } from "./dhcp-client-class";
+import { fileURLToPath } from "node:url";
+import { clientClassOperations, duplicateClassName } from "./dhcp-client-class";
 
 const stored = {
   name: "LAN",
@@ -35,5 +38,26 @@ describe("clientClassOperations", () => {
       { op: "set_client_class_remote_id", value: "WAN|bb" },
     ]);
     assert.equal(ops.some((op) => op.op.startsWith("delete_client_class_")), false);
+  });
+
+  it("rejects a rename onto a class that already exists", () => {
+    assert.equal(
+      duplicateClassName("WAN", [{ name: "LAN" }, { name: "WAN" }], "LAN"),
+      "A client class with that name already exists",
+    );
+    assert.equal(duplicateClassName("LAN", [{ name: "LAN" }], "LAN"), null);
+    assert.equal(duplicateClassName("NEW", [{ name: "LAN" }], null), null);
+  });
+
+  it("the modal rejects a taken name before it saves", () => {
+    const text = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), "DHCPClientClassModal.tsx"),
+      "utf8",
+    );
+    const call = text.indexOf("duplicateClassName(");
+    const save = text.indexOf("batchConfigure(");
+    assert.notEqual(call, -1);
+    assert.ok(call < save);
+    assert.ok(text.indexOf("return;", call) < save);
   });
 });

@@ -39,3 +39,13 @@ export function clientClassOperations(
   }
   return operations;
 }
+
+export function duplicateClassName(
+  name: string,
+  rows: { name: string }[],
+  originalName: string | null,
+): string | null {
+  const cleaned = name.trim();
+  const taken = rows.some((item) => item.name === cleaned && item.name !== originalName);
+  return taken ? "A client class with that name already exists" : null;
+}

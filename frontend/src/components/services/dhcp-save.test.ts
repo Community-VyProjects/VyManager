@@ -29,17 +29,32 @@ describe("failedSaveMessage", () => {
   });
 
   for (const file of modals) {
-    it(`${file} returns the failed-save message before it closes`, () => {
+    it(`${file} returns before close after every failedSaveMessage`, () => {
       const text = readFileSync(join(dir, file), "utf8");
-      const guard = text.indexOf("failedSaveMessage(");
-      assert.notEqual(guard, -1, `${file} must call failedSaveMessage`);
-      const stop = text.indexOf("return;", guard);
-      const closeAt = ["handleClose(", "onSuccess(", "onOpenChange(false)"]
-        .map((needle) => text.indexOf(needle, guard))
-        .filter((at) => at !== -1);
-      assert.notEqual(stop, -1);
-      assert.ok(closeAt.length > 0, `${file} must close after a successful save`);
-      assert.ok(stop < Math.min(...closeAt), `${file} must return before close when the save failed`);
+      const guards: number[] = [];
+      let from = 0;
+      while (from < text.length) {
+        const guard = text.indexOf("failedSaveMessage(", from);
+        if (guard === -1) break;
+        guards.push(guard);
+        from = guard + 1;
+      }
+      assert.ok(guards.length >= 1, `${file} must call failedSaveMessage`);
+      if (file === "RangeModal.tsx" || file === "StaticMappingModal.tsx" || file === "DHCPClientClassModal.tsx") {
+        assert.ok(guards.length >= 2, `${file} must check both save paths`);
+      }
+      guards.forEach((guard, index) => {
+        const windowEnd = guards[index + 1] ?? text.length;
+        const slice = text.slice(guard, windowEnd);
+        const stop = slice.indexOf("return;");
+        assert.notEqual(stop, -1, `${file} check ${index + 1} must return`);
+        const closes = ["handleClose(", "onSuccess(", "onOpenChange(false)"]
+          .map((needle) => slice.indexOf(needle))
+          .filter((at) => at !== -1);
+        if (closes.length > 0) {
+          assert.ok(stop < Math.min(...closes), `${file} check ${index + 1} must return before close`);
+        }
+      });
     });
   }
 });

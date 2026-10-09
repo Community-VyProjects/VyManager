@@ -18,7 +18,7 @@ import {
   dhcpService,
   type DHCPClientClass,
 } from "@/lib/api/dhcp";
-import { clientClassOperations, type ClientClassDraft } from "./dhcp-client-class";
+import { clientClassOperations, duplicateClassName, type ClientClassDraft } from "./dhcp-client-class";
 import { failedSaveMessage } from "./dhcp-save";
 
 interface DHCPClientClassModalProps {
@@ -60,6 +60,11 @@ export function DHCPClientClassModal({
     const name = draft.name.trim();
     if (!/^[-_a-zA-Z0-9][\w\-.+]*$/.test(name)) {
       setError("Class name may only contain letters, numbers, and . _ - +");
+      return;
+    }
+    const duplicate = duplicateClassName(name, rows, draft.originalName);
+    if (duplicate) {
+      setError(duplicate);
       return;
     }
     setLoading(true);
