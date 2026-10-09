@@ -19,6 +19,23 @@ import httpx
 from datetime import datetime, timezone
 import logging
 from batch_dispatch import resolve_batch_method
+from vyos_mappers.dhcp.dhcp_catalog import parse_client_classes, parse_scope
+
+
+def split_packed_value(value: str, count: int) -> List[str]:
+    """Split a pipe-packed batch value into `count` args.
+
+    Extra segments stay on the last argument so a value that itself contains
+    '|' is rejected by the mapper instead of being silently truncated.
+    """
+    parts = str(value).split("|")
+    if count <= 1:
+        return [str(value)]
+    if len(parts) <= count:
+        return parts
+    return parts[: count - 1] + ["|".join(parts[count - 1 :])]
+
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/dhcp", tags=["dhcp"])
@@ -99,6 +116,7 @@ class DHCPRange(BaseModel):
     range_id: str = Field(..., description="Range identifier (numeric)")
     start: Optional[str] = None
     stop: Optional[str] = None
+    catalog: Dict[str, Any] = Field(default_factory=dict)
 
 
 class DHCPStaticMapping(BaseModel):
@@ -110,6 +128,7 @@ class DHCPStaticMapping(BaseModel):
     duid: Optional[str] = None
     description: Optional[str] = None
     disable: bool = False
+    catalog: Dict[str, Any] = Field(default_factory=dict)
 
 
 class DHCPSubnet(BaseModel):
@@ -141,6 +160,7 @@ class DHCPSubnet(BaseModel):
     time_offset: Optional[str] = None
     client_prefix_length: Optional[str] = None
     wpad_url: Optional[str] = None
+    catalog: Dict[str, Any] = Field(default_factory=dict)
 
 
 class DHCPSharedNetwork(BaseModel):
@@ -155,6 +175,7 @@ class DHCPSharedNetwork(BaseModel):
     domain_search: List[str] = []
     ping_check: bool = False
     subnets: List[DHCPSubnet] = []
+    catalog: Dict[str, Any] = Field(default_factory=dict)
 
 
 class DHCPFailoverConfig(BaseModel):
@@ -213,6 +234,14 @@ class DHCPGlobalConfig(BaseModel):
     hostfile_update: bool = False
     host_decl_name: bool = False
     disable: bool = False
+    catalog: Dict[str, Any] = Field(default_factory=dict)
+
+
+class DHCPClientClass(BaseModel):
+    name: str
+    disable: bool = False
+    circuit_id: Optional[str] = None
+    remote_id: Optional[str] = None
 
 
 class DHCPConfigResponse(BaseModel):
@@ -222,6 +251,7 @@ class DHCPConfigResponse(BaseModel):
     failover: Optional[DHCPFailoverConfig] = None
     ddns: DHCPDdnsConfig = DHCPDdnsConfig()
     global_config: DHCPGlobalConfig = DHCPGlobalConfig()
+    client_classes: List[DHCPClientClass] = []
     total_subnets: int = 0
     total_static_mappings: int = 0
 
@@ -356,6 +386,7 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
             return DHCPConfigResponse()
 
         dhcp_config = service_config["dhcp-server"]
+        version = service.get_version()
 
         shared_networks = []
         total_subnets = 0
@@ -372,6 +403,7 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
             hostfile_update="hostfile-update" in dhcp_config,
             host_decl_name="host-decl-name" in dhcp_config,
             disable="disable" in dhcp_config,
+            catalog=parse_scope(dhcp_config, version, "global"),
         )
 
         # Parse failover configuration
@@ -495,6 +527,7 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
                                         range_id=str(range_id),
                                         start=range_data.get("start"),
                                         stop=range_data.get("stop"),
+                                        catalog=parse_scope(range_data, version, "range"),
                                     )
                                 )
 
@@ -526,6 +559,7 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
                                         duid=mapping_data.get("duid"),
                                         description=mapping_data.get("description"),
                                         disable="disable" in mapping_data,
+                                        catalog=parse_scope(mapping_data, version, "static-mapping"),
                                     )
                                 )
 
@@ -653,6 +687,7 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
                             time_offset=time_offset,
                             client_prefix_length=client_prefix_length,
                             wpad_url=wpad_url,
+                            catalog=parse_scope(subnet_data, version, "subnet"),
                         )
                         subnets.append(subnet)
 
@@ -666,6 +701,7 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
                     domain_search=network_domain_search,
                     ping_check="ping-check" in network_data,
                     subnets=subnets,
+                    catalog=parse_scope(network_data, version, "shared-network"),
                 )
                 shared_networks.append(network)
 
@@ -674,6 +710,9 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
             failover=failover,
             ddns=ddns,
             global_config=global_config,
+            client_classes=[
+                DHCPClientClass(**item) for item in parse_client_classes(dhcp_config)
+            ],
             total_subnets=total_subnets,
             total_static_mappings=total_static_mappings,
         )
@@ -1002,11 +1041,8 @@ async def dhcp_batch_configure(http_request: Request, request: DHCPBatchRequest)
                 # Find the remaining parameters that need values
                 remaining_params = [p for p in params if p not in ["network_name", "subnet"]]
 
-                # If there are multiple remaining params and value contains pipe separator
-                if len(remaining_params) > 1 and "|" in str(op_value):
-                    # Split pipe-separated values
-                    value_parts = str(op_value).split("|")
-                    args.extend(value_parts[:len(remaining_params)])
+                if remaining_params and "|" in str(op_value):
+                    args.extend(split_packed_value(str(op_value), len(remaining_params)))
                 elif remaining_params:
                     # Single value parameter
                     args.append(op_value)

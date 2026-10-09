@@ -10,6 +10,7 @@
 import {
   dhcpService,
   DHCPService,
+  type DHCPBatchOperation,
   type DHCPRange,
   type DHCPSharedNetwork,
   type DHCPStaticMapping,
@@ -103,6 +104,7 @@ export async function submitRangeCreate(
   draft: RangeDraft,
   rangeId: string,
   service: DHCPService = dhcpService,
+  extra: DHCPBatchOperation[] = [],
 ): Promise<VyOSResponse> {
   return service.createRange(
     networkName,
@@ -110,6 +112,7 @@ export async function submitRangeCreate(
     rangeId,
     draft.startIp.trim(),
     draft.stopIp.trim(),
+    extra,
   );
 }
 
@@ -118,23 +121,35 @@ export async function submitRangeUpdate(
   stored: { subnet: string; range: DHCPRange },
   draft: RangeDraft,
   service: DHCPService = dhcpService,
+  extra: DHCPBatchOperation[] = [],
 ): Promise<VyOSResponse | null> {
   const start = draft.startIp.trim();
   const stop = draft.stopIp.trim();
   const previousStart = stored.range.start || "";
   const previousStop = stored.range.stop || "";
-  if (start === previousStart && stop === previousStop) {
+  const unchanged = start === previousStart && stop === previousStop;
+  if (unchanged && extra.length === 0) {
     return null;
   }
+  if (unchanged) {
+    return service.batchConfigure({
+      network_name: networkName,
+      subnet: stored.subnet,
+      operations: extra,
+    });
+  }
 
-  await service.deleteRange(networkName, stored.subnet, stored.range.range_id);
-  return service.createRange(
-    networkName,
-    stored.subnet,
-    stored.range.range_id,
-    start,
-    stop,
-  );
+  return service.batchConfigure({
+    network_name: networkName,
+    subnet: stored.subnet,
+    operations: [
+      { op: "delete_subnet_range", value: stored.range.range_id },
+      { op: "set_subnet_range", value: stored.range.range_id },
+      { op: "set_subnet_range_start", value: `${stored.range.range_id}|${start}` },
+      { op: "set_subnet_range_stop", value: `${stored.range.range_id}|${stop}` },
+      ...extra,
+    ],
+  });
 }
 
 export interface MappingDraft {
@@ -282,6 +297,7 @@ export async function submitMappingCreate(
   networkName: string,
   draft: MappingDraft,
   service: DHCPService = dhcpService,
+  extra: DHCPBatchOperation[] = [],
 ): Promise<VyOSResponse> {
   return service.createStaticMapping(
     networkName,
@@ -291,6 +307,7 @@ export async function submitMappingCreate(
     draft.macAddress.trim(),
     draft.description.trim() || undefined,
     draft.duid.trim() || undefined,
+    extra,
   );
 }
 
@@ -298,13 +315,14 @@ export async function submitMappingUpdate(
   stored: { network: string; subnet: string; mapping: DHCPStaticMapping },
   draft: MappingDraft,
   service: DHCPService = dhcpService,
+  extra: DHCPBatchOperation[] = [],
 ): Promise<VyOSResponse | null> {
   const config = buildMappingUpdateConfig(stored.mapping, draft);
-  if (!config) return null;
+  if (!config && extra.length === 0) return null;
   return service.updateStaticMapping(
     stored.network,
     stored.subnet,
     stored.mapping.name,
-    config,
+    extra.length === 0 ? config! : { ...(config ?? {}), extra },
   );
 }
