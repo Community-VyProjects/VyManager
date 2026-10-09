@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { DhcpCatalogLeaf, DhcpCatalogValue, DhcpRoute } from "@/lib/api/dhcp";
+import { editMultiRow } from "./dhcp-catalog";
 
 const NONE = "__none__";
 
@@ -138,9 +139,7 @@ function MultiField({
               id={index === 0 ? id : undefined}
               value={value}
               onChange={(event) => {
-                const next = [...rows];
-                next[index] = event.target.value;
-                onChange(next);
+                onChange(editMultiRow(values, index, event.target.value));
               }}
             />
             <Button

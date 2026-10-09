@@ -34,6 +34,8 @@ def split_packed_value(value: str, count: int) -> List[str]:
     if len(parts) <= count:
         return parts
     return parts[: count - 1] + ["|".join(parts[count - 1 :])]
+
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/dhcp", tags=["dhcp"])

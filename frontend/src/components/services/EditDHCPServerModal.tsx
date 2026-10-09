@@ -26,6 +26,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ApiError } from "@/lib/types/api";
 import { DhcpCatalogFields } from "./DhcpCatalogFields";
 import { catalogDraftFrom, catalogOps, type CatalogDraft } from "./dhcp-catalog";
+import { failedSaveMessage } from "./dhcp-save";
 
 const NO_LEAVES: never[] = [];
 
@@ -305,7 +306,7 @@ export function EditDHCPServerModal({
     try {
       const descTrimmed = description.trim();
       const oldDesc = subnet.description ?? "";
-      await dhcpService.updateSubnet({
+      const updated = await dhcpService.updateSubnet({
         network_name: networkName,
         subnet: subnet.subnet,
         // Disable state
@@ -354,6 +355,11 @@ export function EditDHCPServerModal({
           catalogDraft,
         ),
       });
+      const updateError = failedSaveMessage(updated, "Failed to update DHCP server");
+      if (updateError) {
+        setError(updateError);
+        return;
+      }
 
       handleClose();
       onSuccess();

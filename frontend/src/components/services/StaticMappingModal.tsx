@@ -28,6 +28,7 @@ import {
 } from "@/lib/api/dhcp";
 import { ApiError } from "@/lib/types/api";
 import { DhcpCatalogFields } from "./DhcpCatalogFields";
+import { failedSaveMessage } from "./dhcp-save";
 import {
   catalogCreateOps,
   catalogDraftFrom,
@@ -132,7 +133,12 @@ export function StaticMappingModal({
           catalogDraft,
           existing.mapping.name,
         );
-        await submitMappingUpdate(existing, draft, undefined, follow);
+        const updated = await submitMappingUpdate(existing, draft, undefined, follow);
+        const updateError = failedSaveMessage(updated, "Failed to update static mapping");
+        if (updateError) {
+          setError(updateError);
+          return;
+        }
       } else {
         const follow = catalogCreateOps(
           "set_mapping_catalog",
@@ -140,7 +146,12 @@ export function StaticMappingModal({
           catalogDraft,
           draft.name.trim(),
         );
-        await submitMappingCreate(network.name, draft, undefined, follow);
+        const created = await submitMappingCreate(network.name, draft, undefined, follow);
+        const createError = failedSaveMessage(created, "Failed to create static mapping");
+        if (createError) {
+          setError(createError);
+          return;
+        }
       }
       handleClose();
       onSuccess();

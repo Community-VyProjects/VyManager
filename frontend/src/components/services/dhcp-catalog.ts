@@ -53,6 +53,13 @@ export function catalogDraftFrom(
   return draft;
 }
 
+export function editMultiRow(values: string[], index: number, nextValue: string): string[] {
+  const rows = values.length === 0 ? [""] : values;
+  const next = [...rows];
+  next[index] = nextValue;
+  return next;
+}
+
 export function catalogOps(
   setOp: string,
   deleteOp: string,

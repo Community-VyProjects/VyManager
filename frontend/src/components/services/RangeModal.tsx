@@ -25,6 +25,7 @@ import { dhcpService, type DHCPCapabilitiesResponse, type DHCPRange, type DHCPSh
 import { ApiError } from "@/lib/types/api";
 import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
 import { DhcpCatalogFields } from "./DhcpCatalogFields";
+import { failedSaveMessage } from "./dhcp-save";
 import {
   catalogCreateOps,
   catalogDraftFrom,
@@ -129,16 +130,18 @@ export function RangeModal({
               existing.range.range_id,
             );
         const updated = await submitRangeUpdate(network.name, existing, draft, dhcpService, follow);
-        if (updated && updated.success === false) {
-          setError(updated.error ?? "Failed to save range");
+        const updateError = failedSaveMessage(updated, "Failed to save range");
+        if (updateError) {
+          setError(updateError);
           return;
         }
       } else {
         const rangeId = nextRangeId(network, draft.subnet);
         const follow = catalogCreateOps("set_range_catalog", rangeLeaves, catalogDraft, rangeId);
         const created = await submitRangeCreate(network.name, draft, rangeId, dhcpService, follow);
-        if (!created.success) {
-          setError(created.error ?? "Failed to create range");
+        const createError = failedSaveMessage(created, "Failed to create range");
+        if (createError) {
+          setError(createError);
           return;
         }
       }

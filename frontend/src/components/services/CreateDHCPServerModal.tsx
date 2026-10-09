@@ -21,6 +21,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ApiError } from "@/lib/types/api";
 import { DhcpCatalogFields } from "./DhcpCatalogFields";
 import { catalogCreateOps, emptyCatalogDraft, type CatalogDraft } from "./dhcp-catalog";
+import { failedSaveMessage } from "./dhcp-save";
 
 const NO_LEAVES: never[] = [];
 
@@ -379,7 +380,7 @@ export function CreateDHCPServerModal({
         }
       }
 
-      await dhcpService.createSubnet({
+      const created = await dhcpService.createSubnet({
         network_name: targetNetworkName,
         subnet: subnet.trim(),
         subnet_id: calculatedSubnetId,
@@ -404,6 +405,11 @@ export function CreateDHCPServerModal({
         wpad_url: capabilities?.fields.wpad_url.supported ? (wpadUrl.trim() || undefined) : undefined,
         catalog_operations: catalogCreateOps("set_subnet_catalog", subnetLeaves, catalogDraft),
       });
+      const createError = failedSaveMessage(created, "Failed to create DHCP server");
+      if (createError) {
+        setError(createError);
+        return;
+      }
 
       handleClose();
       onSuccess();

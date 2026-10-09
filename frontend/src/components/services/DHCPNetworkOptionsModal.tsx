@@ -19,6 +19,7 @@ import {
 } from "@/lib/api/dhcp";
 import { DhcpCatalogFields } from "./DhcpCatalogFields";
 import { catalogDraftFrom, catalogOps, type CatalogDraft } from "./dhcp-catalog";
+import { failedSaveMessage } from "./dhcp-save";
 
 const NO_LEAVES: never[] = [];
 
@@ -70,8 +71,9 @@ export function DHCPNetworkOptionsModal({
         network_name: network.name,
         operations,
       });
-      if (!result.success) {
-        setError(result.error ?? "Failed to save network options");
+      const saveError = failedSaveMessage(result, "Failed to save network options");
+      if (saveError) {
+        setError(saveError);
         return;
       }
       onOpenChange(false);

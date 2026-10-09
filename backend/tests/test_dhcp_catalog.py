@@ -226,3 +226,91 @@ def test_batch_dispatch_rejects_a_pipe_in_circuit_id(monkeypatch):
 
     with pytest.raises((ValueError, HTTPException), match="cannot contain"):
         asyncio.run(dhcp_batch_configure(object(), request))  # type: ignore[arg-type]
+
+
+def test_batch_dispatch_sends_range_catalog_to_the_builder(monkeypatch):
+    import asyncio
+
+    from routers.dhcp.dhcp import DHCPBatchOperation, DHCPBatchRequest, dhcp_batch_configure
+
+    seen = {}
+
+    class _Service:
+        def get_version(self):
+            return "1.5"
+
+        def execute_batch(self, builder):
+            seen["ops"] = builder.get_operations()
+
+            class _Response:
+                status = 200
+                result = {"ok": True}
+                error = None
+
+            return _Response()
+
+    async def _allow(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr("routers.dhcp.dhcp.get_session_vyos_service", lambda request: _Service())
+    monkeypatch.setattr("routers.dhcp.dhcp.require_write_permission", _allow)
+
+    request = DHCPBatchRequest(
+        network_name="LAN",
+        subnet="192.168.1.0/24",
+        operations=[
+            DHCPBatchOperation(op="set_range_catalog", value="0|bootfile-size|4"),
+        ],
+    )
+    asyncio.run(dhcp_batch_configure(object(), request))  # type: ignore[arg-type]
+    assert seen["ops"][0]["path"][-5:] == ["range", "0", "option", "bootfile-size", "4"]
+
+
+def test_get_config_puts_catalog_and_classes_on_the_response(monkeypatch):
+    import asyncio
+
+    from routers.dhcp.dhcp import get_dhcp_config
+
+    class _Service:
+        def get_version(self):
+            return "1.5"
+
+        def get_full_config(self, refresh=False):
+            return {
+                "service": {
+                    "dhcp-server": {
+                        "client-class": {
+                            "LAN": {
+                                "relay-agent-information": {"circuit-id": "ge-0"},
+                            }
+                        },
+                        "shared-network-name": {
+                            "LAN": {
+                                "subnet": {
+                                    "192.168.9.0/24": {
+                                        "ignore-client-id": {},
+                                        "range": {"0": {"start": "192.168.9.10"}},
+                                    }
+                                }
+                            }
+                        },
+                    }
+                }
+            }
+
+    async def _allow(*_args, **_kwargs):
+        return None
+
+    async def _pool(fn, **kwargs):
+        return fn(**kwargs)
+
+    monkeypatch.setattr("routers.dhcp.dhcp.get_session_vyos_service", lambda request: _Service())
+    monkeypatch.setattr("routers.dhcp.dhcp.require_read_permission", _allow)
+    monkeypatch.setattr("routers.dhcp.dhcp.run_in_threadpool", _pool)
+
+    response = asyncio.run(get_dhcp_config(object()))  # type: ignore[arg-type]
+    assert response.client_classes[0].name == "LAN"
+    assert response.client_classes[0].circuit_id == "ge-0"
+    subnet = response.shared_networks[0].subnets[0]
+    assert subnet.catalog["ignore-client-id"] is True
+    assert subnet.ranges[0].catalog is not None
