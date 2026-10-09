@@ -19,6 +19,10 @@ import { dhcpService, type DHCPCapabilitiesResponse, type DHCPRange } from "@/li
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ApiError } from "@/lib/types/api";
+import { DhcpCatalogFields } from "./DhcpCatalogFields";
+import { catalogCreateOps, emptyCatalogDraft, type CatalogDraft } from "./dhcp-catalog";
+
+const NO_LEAVES: never[] = [];
 
 // Validation helper functions
 const isValidIPv4 = (ip: string): boolean => {
@@ -120,6 +124,8 @@ export function CreateDHCPServerModal({
   // Options
   const [pingCheck, setPingCheck] = useState(false);
   const [enableFailover, setEnableFailover] = useState(false);
+  const [catalogDraft, setCatalogDraft] = useState<CatalogDraft>({});
+  const subnetLeaves = capabilities?.catalog?.subnet ?? NO_LEAVES;
 
   const calculateNextSubnetId = useCallback(async () => {
     if (!capabilities?.has_subnet_id) return;
@@ -162,8 +168,9 @@ export function CreateDHCPServerModal({
       }
       calculateNextSubnetId();
       loadExistingNetworks();
+      setCatalogDraft(emptyCatalogDraft(subnetLeaves));
     }
-  }, [open, existingNetwork, calculateNextSubnetId]);
+  }, [open, existingNetwork, calculateNextSubnetId, subnetLeaves]);
 
   const loadExistingNetworks = async () => {
     try {
@@ -200,6 +207,7 @@ export function CreateDHCPServerModal({
     setWpadUrl("");
     setPingCheck(false);
     setEnableFailover(false);
+    setCatalogDraft(emptyCatalogDraft(subnetLeaves));
     setError(null);
   };
 
@@ -394,6 +402,7 @@ export function CreateDHCPServerModal({
         time_offset: capabilities?.fields.time_offset.supported ? (timeOffset.trim() || undefined) : undefined,
         client_prefix_length: capabilities?.fields.client_prefix_length.supported ? (clientPrefixLength.trim() || undefined) : undefined,
         wpad_url: capabilities?.fields.wpad_url.supported ? (wpadUrl.trim() || undefined) : undefined,
+        catalog_operations: catalogCreateOps("set_subnet_catalog", subnetLeaves, catalogDraft),
       });
 
       handleClose();
@@ -998,6 +1007,14 @@ export function CreateDHCPServerModal({
                     </div>
                   </div>
                 )}
+                <DhcpCatalogFields
+                  leaves={subnetLeaves}
+                  values={catalogDraft}
+                  onChange={(token, value) =>
+                    setCatalogDraft((current) => ({ ...current, [token]: value }))
+                  }
+                  idPrefix="create-dhcp"
+                />
               </div>
             </TabsContent>
           </ScrollArea>

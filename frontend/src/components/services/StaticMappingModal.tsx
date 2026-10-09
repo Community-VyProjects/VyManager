@@ -27,6 +27,13 @@ import {
   type DHCPStaticMapping,
 } from "@/lib/api/dhcp";
 import { ApiError } from "@/lib/types/api";
+import { DhcpCatalogFields } from "./DhcpCatalogFields";
+import {
+  catalogCreateOps,
+  catalogDraftFrom,
+  catalogOps,
+  type CatalogDraft,
+} from "./dhcp-catalog";
 import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
 import {
   emptyMappingDraft,
@@ -37,6 +44,8 @@ import {
   validateMappingShared,
   type MappingDraft,
 } from "./dhcp-form";
+
+const NO_LEAVES: never[] = [];
 
 interface StaticMappingModalProps {
   open: boolean;
@@ -60,7 +69,10 @@ export function StaticMappingModal({
   existing,
 }: StaticMappingModalProps) {
   const isEdit = modalIsEdit(existing);
+  const mappingLeaves = capabilities?.catalog?.static_mapping ?? NO_LEAVES;
   const [draft, setDraft] = useState<MappingDraft>(emptyMappingDraft());
+  const [catalogDraft, setCatalogDraft] = useState<CatalogDraft>({});
+  const [catalogOriginal, setCatalogOriginal] = useState<CatalogDraft>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,12 +80,18 @@ export function StaticMappingModal({
     if (!open) return;
     if (existing) {
       setDraft(mappingDraftFrom(existing.subnet, existing.mapping));
+      const loaded = catalogDraftFrom(mappingLeaves, existing.mapping.catalog);
+      setCatalogDraft(loaded);
+      setCatalogOriginal(loaded);
     } else {
       const next = emptyMappingDraft();
       if (network.subnets.length === 1) {
         next.subnet = network.subnets[0].subnet;
       }
       setDraft(next);
+      const loaded = catalogDraftFrom(mappingLeaves, undefined);
+      setCatalogDraft(loaded);
+      setCatalogOriginal(loaded);
     }
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -106,9 +124,23 @@ export function StaticMappingModal({
 
     try {
       if (write.kind === "update" && existing) {
-        await submitMappingUpdate(existing, draft);
+        const follow = catalogOps(
+          "set_mapping_catalog",
+          "delete_mapping_catalog",
+          mappingLeaves,
+          catalogOriginal,
+          catalogDraft,
+          existing.mapping.name,
+        );
+        await submitMappingUpdate(existing, draft, undefined, follow);
       } else {
-        await submitMappingCreate(network.name, draft);
+        const follow = catalogCreateOps(
+          "set_mapping_catalog",
+          mappingLeaves,
+          catalogDraft,
+          draft.name.trim(),
+        );
+        await submitMappingCreate(network.name, draft, undefined, follow);
       }
       handleClose();
       onSuccess();
@@ -275,6 +307,15 @@ export function StaticMappingModal({
               onChange={(e) => patch({ description: e.target.value })}
             />
           </div>
+
+          <DhcpCatalogFields
+            leaves={mappingLeaves}
+            values={catalogDraft}
+            onChange={(token, value) =>
+              setCatalogDraft((current) => ({ ...current, [token]: value }))
+            }
+            idPrefix="mapping-dhcp"
+          />
 
           {error && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">

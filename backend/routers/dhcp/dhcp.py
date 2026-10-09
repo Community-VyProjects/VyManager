@@ -19,6 +19,7 @@ import httpx
 from datetime import datetime, timezone
 import logging
 from batch_dispatch import resolve_batch_method
+from vyos_mappers.dhcp.dhcp_catalog import parse_client_classes, parse_scope
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/dhcp", tags=["dhcp"])
@@ -99,6 +100,7 @@ class DHCPRange(BaseModel):
     range_id: str = Field(..., description="Range identifier (numeric)")
     start: Optional[str] = None
     stop: Optional[str] = None
+    catalog: Dict[str, Any] = Field(default_factory=dict)
 
 
 class DHCPStaticMapping(BaseModel):
@@ -110,6 +112,7 @@ class DHCPStaticMapping(BaseModel):
     duid: Optional[str] = None
     description: Optional[str] = None
     disable: bool = False
+    catalog: Dict[str, Any] = Field(default_factory=dict)
 
 
 class DHCPSubnet(BaseModel):
@@ -141,6 +144,7 @@ class DHCPSubnet(BaseModel):
     time_offset: Optional[str] = None
     client_prefix_length: Optional[str] = None
     wpad_url: Optional[str] = None
+    catalog: Dict[str, Any] = Field(default_factory=dict)
 
 
 class DHCPSharedNetwork(BaseModel):
@@ -155,6 +159,7 @@ class DHCPSharedNetwork(BaseModel):
     domain_search: List[str] = []
     ping_check: bool = False
     subnets: List[DHCPSubnet] = []
+    catalog: Dict[str, Any] = Field(default_factory=dict)
 
 
 class DHCPFailoverConfig(BaseModel):
@@ -213,6 +218,14 @@ class DHCPGlobalConfig(BaseModel):
     hostfile_update: bool = False
     host_decl_name: bool = False
     disable: bool = False
+    catalog: Dict[str, Any] = Field(default_factory=dict)
+
+
+class DHCPClientClass(BaseModel):
+    name: str
+    disable: bool = False
+    circuit_id: Optional[str] = None
+    remote_id: Optional[str] = None
 
 
 class DHCPConfigResponse(BaseModel):
@@ -222,6 +235,7 @@ class DHCPConfigResponse(BaseModel):
     failover: Optional[DHCPFailoverConfig] = None
     ddns: DHCPDdnsConfig = DHCPDdnsConfig()
     global_config: DHCPGlobalConfig = DHCPGlobalConfig()
+    client_classes: List[DHCPClientClass] = []
     total_subnets: int = 0
     total_static_mappings: int = 0
 
@@ -356,6 +370,7 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
             return DHCPConfigResponse()
 
         dhcp_config = service_config["dhcp-server"]
+        version = service.get_version()
 
         shared_networks = []
         total_subnets = 0
@@ -372,6 +387,7 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
             hostfile_update="hostfile-update" in dhcp_config,
             host_decl_name="host-decl-name" in dhcp_config,
             disable="disable" in dhcp_config,
+            catalog=parse_scope(dhcp_config, version, "global"),
         )
 
         # Parse failover configuration
@@ -490,11 +506,13 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
                         ranges = []
                         if "range" in subnet_data:
                             for range_id, range_data in subnet_data["range"].items():
+                                range_body = range_data if isinstance(range_data, dict) else {}
                                 ranges.append(
                                     DHCPRange(
                                         range_id=str(range_id),
-                                        start=range_data.get("start"),
-                                        stop=range_data.get("stop"),
+                                        start=range_body.get("start"),
+                                        stop=range_body.get("stop"),
+                                        catalog=parse_scope(range_body, version, "range"),
                                     )
                                 )
 
@@ -516,16 +534,17 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
                                 "static-mapping"
                             ].items():
                                 total_static_mappings += 1
-                                # v1.4 uses 'mac-address', v1.5 uses 'mac'
-                                mac_addr = mapping_data.get("mac") or mapping_data.get("mac-address")
+                                mapping_body = mapping_data if isinstance(mapping_data, dict) else {}
+                                mac_addr = mapping_body.get("mac") or mapping_body.get("mac-address")
                                 static_mappings.append(
                                     DHCPStaticMapping(
                                         name=mapping_name,
-                                        ip_address=mapping_data.get("ip-address"),
+                                        ip_address=mapping_body.get("ip-address"),
                                         mac_address=mac_addr,
-                                        duid=mapping_data.get("duid"),
-                                        description=mapping_data.get("description"),
-                                        disable="disable" in mapping_data,
+                                        duid=mapping_body.get("duid"),
+                                        description=mapping_body.get("description"),
+                                        disable="disable" in mapping_body,
+                                        catalog=parse_scope(mapping_body, version, "static-mapping"),
                                     )
                                 )
 
@@ -653,6 +672,7 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
                             time_offset=time_offset,
                             client_prefix_length=client_prefix_length,
                             wpad_url=wpad_url,
+                            catalog=parse_scope(subnet_data, version, "subnet"),
                         )
                         subnets.append(subnet)
 
@@ -666,6 +686,7 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
                     domain_search=network_domain_search,
                     ping_check="ping-check" in network_data,
                     subnets=subnets,
+                    catalog=parse_scope(network_data, version, "shared-network"),
                 )
                 shared_networks.append(network)
 
@@ -674,6 +695,9 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
             failover=failover,
             ddns=ddns,
             global_config=global_config,
+            client_classes=[
+                DHCPClientClass(**item) for item in parse_client_classes(dhcp_config)
+            ],
             total_subnets=total_subnets,
             total_static_mappings=total_static_mappings,
         )

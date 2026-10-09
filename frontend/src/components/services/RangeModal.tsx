@@ -21,25 +21,34 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Network, Pencil, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { type DHCPRange, type DHCPSharedNetwork } from "@/lib/api/dhcp";
+import { dhcpService, type DHCPCapabilitiesResponse, type DHCPRange, type DHCPSharedNetwork } from "@/lib/api/dhcp";
 import { ApiError } from "@/lib/types/api";
 import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
+import { DhcpCatalogFields } from "./DhcpCatalogFields";
+import {
+  catalogCreateOps,
+  catalogDraftFrom,
+  catalogOps,
+  type CatalogDraft,
+} from "./dhcp-catalog";
 import {
   emptyRangeDraft,
   nextRangeId,
   rangeDraftFrom,
-  submitRangeCreate,
   submitRangeUpdate,
   validateRangeCreate,
   validateRangeShared,
   type RangeDraft,
 } from "./dhcp-form";
 
+const NO_LEAVES: never[] = [];
+
 interface RangeModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   network: DHCPSharedNetwork;
+  capabilities?: DHCPCapabilitiesResponse | null;
   existing?: { subnet: string; range: DHCPRange } | null;
 }
 
@@ -48,10 +57,14 @@ export function RangeModal({
   onOpenChange,
   onSuccess,
   network,
+  capabilities,
   existing,
 }: RangeModalProps) {
   const isEdit = modalIsEdit(existing);
+  const rangeLeaves = capabilities?.catalog?.range ?? NO_LEAVES;
   const [draft, setDraft] = useState<RangeDraft>(emptyRangeDraft());
+  const [catalogDraft, setCatalogDraft] = useState<CatalogDraft>({});
+  const [catalogOriginal, setCatalogOriginal] = useState<CatalogDraft>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,12 +72,18 @@ export function RangeModal({
     if (!open) return;
     if (existing) {
       setDraft(rangeDraftFrom(existing.subnet, existing.range));
+      const loaded = catalogDraftFrom(rangeLeaves, existing.range.catalog);
+      setCatalogDraft(loaded);
+      setCatalogOriginal(loaded);
     } else {
       const next = emptyRangeDraft();
       if (network.subnets.length === 1) {
         next.subnet = network.subnets[0].subnet;
       }
       setDraft(next);
+      const loaded = catalogDraftFrom(rangeLeaves, undefined);
+      setCatalogDraft(loaded);
+      setCatalogOriginal(loaded);
     }
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -95,12 +114,52 @@ export function RangeModal({
 
     try {
       if (write.kind === "update" && existing) {
-        await submitRangeUpdate(network.name, existing, draft);
+        const startChanged =
+          draft.startIp.trim() !== (existing.range.start || "") ||
+          draft.stopIp.trim() !== (existing.range.stop || "");
+        const follow = startChanged
+          ? catalogCreateOps("set_range_catalog", rangeLeaves, catalogDraft, existing.range.range_id)
+          : catalogOps(
+              "set_range_catalog",
+              "delete_range_catalog",
+              rangeLeaves,
+              catalogOriginal,
+              catalogDraft,
+              existing.range.range_id,
+            );
+        if (startChanged && follow.length > 0) {
+          const rangeId = existing.range.range_id;
+          await dhcpService.batchConfigure({
+            network_name: network.name,
+            subnet: existing.subnet,
+            operations: [
+              { op: "delete_subnet_range", value: rangeId },
+              { op: "set_subnet_range", value: rangeId },
+              { op: "set_subnet_range_start", value: `${rangeId}|${draft.startIp.trim()}` },
+              { op: "set_subnet_range_stop", value: `${rangeId}|${draft.stopIp.trim()}` },
+              ...follow,
+            ],
+          });
+        } else {
+          await submitRangeUpdate(network.name, existing, draft);
+          if (follow.length > 0) {
+            await dhcpService.batchConfigure({
+              network_name: network.name,
+              subnet: existing.subnet,
+              operations: follow,
+            });
+          }
+        }
       } else {
-        await submitRangeCreate(
+        const rangeId = nextRangeId(network, draft.subnet);
+        const follow = catalogCreateOps("set_range_catalog", rangeLeaves, catalogDraft, rangeId);
+        await dhcpService.createRange(
           network.name,
-          draft,
-          nextRangeId(network, draft.subnet),
+          draft.subnet,
+          rangeId,
+          draft.startIp.trim(),
+          draft.stopIp.trim(),
+          follow,
         );
       }
       handleClose();
@@ -202,6 +261,15 @@ export function RangeModal({
               The last IP address in the range
             </p>
           </div>
+
+          <DhcpCatalogFields
+            leaves={rangeLeaves}
+            values={catalogDraft}
+            onChange={(token, value) =>
+              setCatalogDraft((current) => ({ ...current, [token]: value }))
+            }
+            idPrefix="range-dhcp"
+          />
 
           {error && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">

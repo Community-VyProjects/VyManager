@@ -24,6 +24,10 @@ import {
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ApiError } from "@/lib/types/api";
+import { DhcpCatalogFields } from "./DhcpCatalogFields";
+import { catalogDraftFrom, catalogOps, type CatalogDraft } from "./dhcp-catalog";
+
+const NO_LEAVES: never[] = [];
 
 // Validation helper functions
 const isValidIPv4 = (ip: string): boolean => {
@@ -120,6 +124,9 @@ export function EditDHCPServerModal({
   // Options
   const [pingCheck, setPingCheck] = useState(false);
   const [enableFailover, setEnableFailover] = useState(false);
+  const [catalogDraft, setCatalogDraft] = useState<CatalogDraft>({});
+  const [catalogOriginal, setCatalogOriginal] = useState<CatalogDraft>({});
+  const subnetLeaves = capabilities?.catalog?.subnet ?? NO_LEAVES;
 
   const loadSubnetData = useCallback(() => {
     // Basic fields
@@ -155,9 +162,12 @@ export function EditDHCPServerModal({
     // Options
     setPingCheck(subnet.ping_check);
     setEnableFailover(subnet.enable_failover);
+    const loaded = catalogDraftFrom(subnetLeaves, subnet.catalog);
+    setCatalogDraft(loaded);
+    setCatalogOriginal(loaded);
 
     setError(null);
-  }, [subnet]);
+  }, [subnet, subnetLeaves]);
 
   useEffect(() => {
     if (open && subnet) {
@@ -336,6 +346,13 @@ export function EditDHCPServerModal({
         enable_failover: capabilities?.fields.enable_failover.supported && enableFailover ? true : undefined,
         delete_ping_check: capabilities?.fields.ping_check.supported && !pingCheck && subnet.ping_check,
         delete_enable_failover: capabilities?.fields.enable_failover.supported && !enableFailover && subnet.enable_failover,
+        catalog_operations: catalogOps(
+          "set_subnet_catalog",
+          "delete_subnet_catalog",
+          subnetLeaves,
+          catalogOriginal,
+          catalogDraft,
+        ),
       });
 
       handleClose();
@@ -952,6 +969,14 @@ export function EditDHCPServerModal({
                     </div>
                   </div>
                 )}
+                <DhcpCatalogFields
+                  leaves={subnetLeaves}
+                  values={catalogDraft}
+                  onChange={(token, value) =>
+                    setCatalogDraft((current) => ({ ...current, [token]: value }))
+                  }
+                  idPrefix="edit-dhcp"
+                />
               </div>
             </TabsContent>
           </ScrollArea>

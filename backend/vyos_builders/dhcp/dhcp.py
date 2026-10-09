@@ -5,8 +5,10 @@ Provides all DHCP batch operations following the standard pattern.
 Handles version-specific differences through the mapper layer.
 """
 
-from typing import Dict, Any
+from typing import Any, Dict, List, Sequence, Tuple, cast
 from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.dhcp.dhcp import DHCPMapper
+from vyos_mappers.dhcp.dhcp_catalog import catalog_payload, leaf_for
 from vyos_builders.base import BatchBuilder
 
 
@@ -19,6 +21,9 @@ class DHCPBatchBuilder(BatchBuilder):
 
         self.mapper_key = "dhcp"
         self.mappers = {self.mapper_key: CommandMapperRegistry.get_mapper(self.mapper_key, version)}
+
+    def _mapper(self) -> DHCPMapper:
+        return cast(DHCPMapper, self.mappers[self.mapper_key])
 
     # ========================================================================
     # Core Batch Operations
@@ -908,13 +913,108 @@ class DHCPBatchBuilder(BatchBuilder):
         )
         return self.add_delete(path)
 
+    def _catalog_values(self, spec: str, expect: int) -> Tuple[str, List[str]]:
+        parts = str(spec).split("|")
+        token = parts[0].strip()
+        values = parts[1:]
+        if not token:
+            raise ValueError("DHCP option name is required")
+        if len(values) != expect:
+            raise ValueError(f"{token} has the wrong number of values")
+        return token, values
+
+    def _apply_catalog(
+        self,
+        scope: str,
+        anchors: Sequence[str],
+        spec: str,
+        deleting: bool,
+    ) -> "DHCPBatchBuilder":
+        mapper = self._mapper()
+        token = str(spec).split("|", 1)[0].strip()
+        leaf_kind = leaf_for(token).kind
+        if deleting:
+            expect = 1 if leaf_kind in ("multi", "route") else 0
+        else:
+            expect = 2 if leaf_kind == "route" else (0 if leaf_kind == "flag" else 1)
+        token, values = self._catalog_values(spec, expect)
+        if deleting:
+            path = mapper.catalog_delete(scope, token, anchors, values)
+            return self.add_delete(path)
+        path = mapper.catalog_set(scope, token, anchors, values)
+        return self.add_set(path)
+
+    def set_subnet_catalog(self, network_name: str, subnet: str, spec: str) -> "DHCPBatchBuilder":
+        return self._apply_catalog("subnet", (network_name, subnet), spec, False)
+
+    def delete_subnet_catalog(self, network_name: str, subnet: str, spec: str) -> "DHCPBatchBuilder":
+        return self._apply_catalog("subnet", (network_name, subnet), spec, True)
+
+    def set_network_catalog(self, network_name: str, spec: str) -> "DHCPBatchBuilder":
+        return self._apply_catalog("shared-network", (network_name,), spec, False)
+
+    def delete_network_catalog(self, network_name: str, spec: str) -> "DHCPBatchBuilder":
+        return self._apply_catalog("shared-network", (network_name,), spec, True)
+
+    def set_global_catalog(self, spec: str) -> "DHCPBatchBuilder":
+        return self._apply_catalog("global", (), spec, False)
+
+    def delete_global_catalog(self, spec: str) -> "DHCPBatchBuilder":
+        return self._apply_catalog("global", (), spec, True)
+
+    def set_range_catalog(self, network_name: str, subnet: str, spec: str) -> "DHCPBatchBuilder":
+        range_id, rest = self._child_spec(spec)
+        return self._apply_catalog("range", (network_name, subnet, range_id), rest, False)
+
+    def delete_range_catalog(self, network_name: str, subnet: str, spec: str) -> "DHCPBatchBuilder":
+        range_id, rest = self._child_spec(spec)
+        return self._apply_catalog("range", (network_name, subnet, range_id), rest, True)
+
+    def set_mapping_catalog(self, network_name: str, subnet: str, spec: str) -> "DHCPBatchBuilder":
+        name, rest = self._child_spec(spec)
+        return self._apply_catalog("static-mapping", (network_name, subnet, name), rest, False)
+
+    def delete_mapping_catalog(self, network_name: str, subnet: str, spec: str) -> "DHCPBatchBuilder":
+        name, rest = self._child_spec(spec)
+        return self._apply_catalog("static-mapping", (network_name, subnet, name), rest, True)
+
+    def _child_spec(self, spec: str) -> Tuple[str, str]:
+        parts = str(spec).split("|", 1)
+        if len(parts) != 2 or not parts[0].strip() or not parts[1].strip():
+            raise ValueError("DHCP option requires an id and a name")
+        return parts[0].strip(), parts[1]
+
+    def set_client_class(self, name: str) -> "DHCPBatchBuilder":
+        return self.add_set(self._mapper().get_client_class(name))
+
+    def delete_client_class(self, name: str) -> "DHCPBatchBuilder":
+        return self.add_delete(self._mapper().get_client_class_path(name))
+
+    def set_client_class_disable(self, name: str) -> "DHCPBatchBuilder":
+        return self.add_set(self._mapper().get_client_class_disable(name))
+
+    def delete_client_class_disable(self, name: str) -> "DHCPBatchBuilder":
+        return self.add_delete(self._mapper().get_client_class_disable_path(name))
+
+    def set_client_class_circuit_id(self, name: str, value: str) -> "DHCPBatchBuilder":
+        return self.add_set(self._mapper().get_client_class_circuit_id(name, value))
+
+    def delete_client_class_circuit_id(self, name: str) -> "DHCPBatchBuilder":
+        return self.add_delete(self._mapper().get_client_class_circuit_id_path(name))
+
+    def set_client_class_remote_id(self, name: str, value: str) -> "DHCPBatchBuilder":
+        return self.add_set(self._mapper().get_client_class_remote_id(name, value))
+
+    def delete_client_class_remote_id(self, name: str) -> "DHCPBatchBuilder":
+        return self.add_delete(self._mapper().get_client_class_remote_id_path(name))
+
     # ========================================================================
     # Capabilities
     # ========================================================================
 
     def get_capabilities(self) -> Dict[str, Any]:
         """Get capabilities for the current VyOS version."""
-        mapper = self.mappers[self.mapper_key]
+        mapper = self._mapper()
         has_subnet_id = mapper.has_subnet_id()
         can_clear_inactive_leases = mapper.can_clear_inactive_leases()
         is_v15_or_later = "1.5" in self.version or "latest" in self.version
@@ -1069,7 +1169,12 @@ class DHCPBatchBuilder(BatchBuilder):
                     "supported": can_clear_inactive_leases,
                     "description": "Clear leases that are not in the active state",
                 },
+                "client_class": {
+                    "supported": mapper.has_client_class(),
+                    "description": "Named DHCP client classes",
+                },
             },
+            "catalog": catalog_payload(self.version),
             "version_notes": {
                 "subnet_id_required": has_subnet_id,
                 "option_prefix": is_v15_or_later,

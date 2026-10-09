@@ -10,6 +10,7 @@
 import {
   dhcpService,
   DHCPService,
+  type DHCPBatchOperation,
   type DHCPRange,
   type DHCPSharedNetwork,
   type DHCPStaticMapping,
@@ -282,6 +283,7 @@ export async function submitMappingCreate(
   networkName: string,
   draft: MappingDraft,
   service: DHCPService = dhcpService,
+  extra: DHCPBatchOperation[] = [],
 ): Promise<VyOSResponse> {
   return service.createStaticMapping(
     networkName,
@@ -291,6 +293,7 @@ export async function submitMappingCreate(
     draft.macAddress.trim(),
     draft.description.trim() || undefined,
     draft.duid.trim() || undefined,
+    extra,
   );
 }
 
@@ -298,13 +301,14 @@ export async function submitMappingUpdate(
   stored: { network: string; subnet: string; mapping: DHCPStaticMapping },
   draft: MappingDraft,
   service: DHCPService = dhcpService,
+  extra: DHCPBatchOperation[] = [],
 ): Promise<VyOSResponse | null> {
   const config = buildMappingUpdateConfig(stored.mapping, draft);
-  if (!config) return null;
+  if (!config && extra.length === 0) return null;
   return service.updateStaticMapping(
     stored.network,
     stored.subnet,
     stored.mapping.name,
-    config,
+    extra.length === 0 ? config! : { ...(config ?? {}), extra },
   );
 }
