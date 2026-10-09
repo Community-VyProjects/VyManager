@@ -159,7 +159,7 @@ export function RangeModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[450px]">
+      <DialogContent className="sm:max-w-[450px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isEdit ? <Pencil className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
