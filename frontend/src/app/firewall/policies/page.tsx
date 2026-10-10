@@ -58,6 +58,7 @@ import {
 } from "@/lib/api/firewall-ipv4";
 import { firewallIPv6Service } from "@/lib/api/firewall-ipv6";
 import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
+import { findFirewallCounter, showService, type FirewallRuleCounter } from "@/lib/api/show";
 import { cn } from "@/lib/utils";
 import { chainDefaultActions } from "@/lib/firewall-default-actions";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -102,6 +103,8 @@ const POLICIES_COLUMNS: ColumnDef[] = [
   { id: "mark",          label: "Mark",         defaultVisible: false },
   { id: "packetLength",  label: "Pkt Length",   defaultVisible: false },
   { id: "recent",        label: "Recent",       defaultVisible: false },
+  { id: "packets",       label: "Packets",      defaultVisible: false },
+  { id: "bytes",         label: "Bytes",        defaultVisible: false },
 ];
 
 function FirewallPoliciesPageInner() {
@@ -111,6 +114,7 @@ function FirewallPoliciesPageInner() {
 
   // IPv4 state
   const [config, setConfig] = useState<FirewallConfigResponse | null>(null);
+  const [ruleCounters, setRuleCounters] = useState<FirewallRuleCounter[]>([]);
   const [capabilities, setCapabilities] = useState<FirewallCapabilitiesResponse | null>(null);
   const [selectedChain, setSelectedChain] = useState<ChainType | string>("forward");
   const [isCustomChain, setIsCustomChain] = useState(false);
@@ -163,8 +167,9 @@ function FirewallPoliciesPageInner() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Column visibility & order
-  const { visibleColumns, toggleColumn, visibleColumnCount, orderedColumns, visibleOrderedColumns, reorderColumns, resetToDefault } =
+  const { visibleColumns, toggleColumn, isVisible, visibleColumnCount, orderedColumns, visibleOrderedColumns, reorderColumns, resetToDefault } =
     useColumnVisibility("firewall-policies-columns", POLICIES_COLUMNS);
+  const countersVisible = isVisible("packets") || isVisible("bytes");
 
   // Permissions — separator editing follows the firewall rules permission.
   const { canWrite } = usePermissions();
@@ -186,6 +191,15 @@ function FirewallPoliciesPageInner() {
     })
   );
 
+  const fetchStatistics = async () => {
+    try {
+      const data = await showService.getFirewallStatistics();
+      setRuleCounters(data.rules);
+    } catch (err) {
+      console.error("Error fetching firewall statistics:", err);
+    }
+  };
+
   // IPv4 fetch functions
   const fetchConfig = async (refresh: boolean = false) => {
     try {
@@ -197,6 +211,7 @@ function FirewallPoliciesPageInner() {
       setHasChanges(false);
       setReorderedRules([]);
       setOriginalRules([]);
+      if (refresh && countersVisible) fetchStatistics();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load firewall configuration");
       console.error("Error fetching firewall config:", err);
@@ -225,6 +240,7 @@ function FirewallPoliciesPageInner() {
       setHasChangesIPv6(false);
       setReorderedRulesIPv6([]);
       setOriginalRulesIPv6([]);
+      if (refresh && countersVisible) fetchStatistics();
     } catch (err) {
       setErrorIPv6(err instanceof Error ? err.message : "Failed to load IPv6 firewall configuration");
       console.error("Error fetching IPv6 firewall config:", err);
@@ -363,6 +379,10 @@ function FirewallPoliciesPageInner() {
     // Load coloured separators (UI metadata from VyManager's DB)
     loadSeparators();
   }, []);
+
+  useEffect(() => {
+    if (countersVisible) fetchStatistics();
+  }, [countersVisible]);
 
   useEffect(() => {
     const section = searchParams.get("section");
@@ -902,6 +922,13 @@ function FirewallPoliciesPageInner() {
           isDragging={(selectedProtocol === "ipv4" ? activeId : activeIdIPv6) === item.rule.rule_number}
           groups={groups}
           visibleOrderedColumns={visibleOrderedColumns}
+          counters={findFirewallCounter(
+            ruleCounters,
+            selectedProtocol,
+            currentChain,
+            item.rule.rule_number,
+            selectedProtocol === "ipv4" ? isCustomChain : isCustomChainIPv6,
+          ) ?? null}
         />
       );
       lastRuleNumber = item.rule.rule_number;
@@ -1458,6 +1485,7 @@ function FirewallPoliciesPageInner() {
                               time: "w-[160px]", icmpType: "w-[120px]", tcpFlags: "w-[120px]",
                               connectionStatus: "w-[120px]",
                               mark: "w-[100px]", packetLength: "w-[100px]", recent: "w-[100px]",
+                              packets: "w-[110px]", bytes: "w-[130px]",
                             };
                             return (
                               <TableHead key={col.id} className={widths[col.id] ?? ""}>

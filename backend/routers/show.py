@@ -35,6 +35,15 @@ from vrrp_status import vrrp_configured, vrrp_gql_fields, build_vrrp_status
 from bgp_status import bgp_configured, bgp_gql_fields, build_bgp_status
 from ipsec_status import ipsec_configured, ipsec_gql_fields, build_ipsec_status
 from hardware_status import HardwareSensorsResponse, parse_hardware_sensors, hardware_gql_fields, build_hardware_status
+from firewall_statistics import (
+    FIREWALL_STATS_INTEREST,
+    FirewallStatisticsResponse,
+    fetch_firewall_statistics_text,
+    filter_firewall_statistics,
+    firewall_hits_for_viewer,
+    parse_firewall_statistics,
+    zone_chain_names,
+)
 from transceiver_status import (
     build_transceiver_status,
     physical_ethernet_interfaces,
@@ -105,6 +114,57 @@ async def get_hardware_sensors(request: Request):
     except Exception as e:
         logger.exception("Unable to read hardware sensors")
         raise HTTPException(status_code=500, detail="Unable to read hardware sensors") from e
+
+
+async def firewall_statistics_access(request: Request) -> tuple[bool, bool, bool]:
+    """Policies, zones, and bridge read flags for the statistics endpoints."""
+    policies = await has_permission(request, FeatureGroup.FIREWALL_POLICIES, PermissionLevel.READ)
+    zones = await has_permission(request, FeatureGroup.FIREWALL_ZONES, PermissionLevel.READ)
+    bridge = await has_permission(request, FeatureGroup.FIREWALL_BRIDGE, PermissionLevel.READ)
+    return policies, zones, bridge
+
+
+@router.get("/firewall-statistics", response_model=FirewallStatisticsResponse)
+async def get_firewall_statistics(request: Request):
+    """Per-rule packets and bytes from ``show firewall statistics``.
+
+    The VyOS GraphQL schema has no typed firewall-counter op. This parses the
+    text table and returns only the families the caller can already read.
+    A missing rule means VyOS did not report it (usually disabled), not that
+    its counters are zero.
+    """
+    policies, zones, bridge = await firewall_statistics_access(request)
+    if not (policies or zones or bridge):
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions. Read access to Firewall Policies, Zones, or Bridge required.",
+        )
+    try:
+        service = get_session_vyos_service(request)
+        text = await fetch_firewall_statistics_text(service)
+        if text is None:
+            raise HTTPException(status_code=502, detail="Unable to read firewall statistics")
+        stats = parse_firewall_statistics(text)
+        zone_chains: dict[str, set[str]] = {"ipv4": set(), "ipv6": set()}
+        if zones and not policies:
+            try:
+                config = await run_in_threadpool(service.get_full_config, refresh=False)
+                zone_chains = zone_chain_names(config)
+            except Exception:
+                logger.exception("Unable to read zone chain names for statistics filter")
+                zone_chains = {"ipv4": set(), "ipv6": set()}
+        return filter_firewall_statistics(
+            stats,
+            policies=policies,
+            zones=zones,
+            bridge=bridge,
+            zone_chains=zone_chains,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Unable to read firewall statistics")
+        raise HTTPException(status_code=500, detail="Unable to read firewall statistics") from e
 
 
 # ========================================================================
@@ -1096,7 +1156,8 @@ _SLOW_EVERY = 5          # emit system-info / WG every N fast cycles (= every 15
 _WG_MIN_INTERVAL = 15.0  # minimum seconds between WireGuard status queries
 _OPENVPN_MIN_INTERVAL = 6.0  # minimum seconds between (slow, erratic) OpenVPN status queries
 _TRANSCEIVER_MIN_INTERVAL = 15.0  # minimum seconds between DDM sweeps (one ethtool per port)
-_STREAM_INTERESTS = frozenset({"pppoe-sessions", "transceiver-health"})
+_STREAM_INTERESTS = frozenset({"pppoe-sessions", "transceiver-health", FIREWALL_STATS_INTEREST})
+_FIREWALL_STATS_MIN_INTERVAL = 15.0  # nft dump; never ride the 3 s counter loop
 
 
 class DeviceDataBroadcaster:
@@ -1146,6 +1207,11 @@ class DeviceDataBroadcaster:
         self._transceiver_interfaces: list[str] = []
         self._transceiver_pending: list[str] = []
         self._last_transceiver_query_time: float = 0.0
+        # Firewall statistics walks every nft ruleset. Interest-gated and kept
+        # off the shared query so a dashboard without the hits card pays nothing.
+        self._firewall_task: Optional[asyncio.Task] = None
+        self._last_firewall_query_time: float = 0.0
+        self._zone_chains: dict[str, set[str]] = {"ipv4": set(), "ipv6": set()}
 
     # ------------------------------------------------------------------
     # Public API
@@ -1176,6 +1242,9 @@ class DeviceDataBroadcaster:
         if not self._has_interest("transceiver-health") and self._transceiver_task and not self._transceiver_task.done():
             self._transceiver_task.cancel()
             self._transceiver_task = None
+        if not self._has_interest(FIREWALL_STATS_INTEREST) and self._firewall_task and not self._firewall_task.done():
+            self._firewall_task.cancel()
+            self._firewall_task = None
         if not self._subscribers:
             if self._task and not self._task.done():
                 self._task.cancel()
@@ -1187,6 +1256,8 @@ class DeviceDataBroadcaster:
                 self._pppoe_task.cancel()
             if self._transceiver_task and not self._transceiver_task.done():
                 self._transceiver_task.cancel()
+            if self._firewall_task and not self._firewall_task.done():
+                self._firewall_task.cancel()
             _broadcasters.pop(self._key, None)
 
     def _has_interest(self, name: str) -> bool:
@@ -1310,6 +1381,7 @@ class DeviceDataBroadcaster:
             self._pppoe_configured = pppoe_configured(cfg)
             # Physical Ethernet ports only — a VLAN sub-interface has no module.
             self._transceiver_interfaces = physical_ethernet_interfaces(cfg)
+            self._zone_chains = zone_chain_names(cfg)
         except Exception:
             logger.exception("Broadcaster: config-state refresh error")
 
@@ -1487,6 +1559,62 @@ class DeviceDataBroadcaster:
             logger.exception("Broadcaster: transceiver-health error")
             self._push_to_all({"type": "error", "data": {"channel": "transceiver-health", "message": "Failed to fetch"}})
 
+    def _handle_firewall_cycle(self, *, start: bool) -> None:
+        """Collect a completed firewall-statistics fetch and start the next when due.
+
+        ``show firewall statistics`` walks every nft ruleset, so it stays off the
+        shared dashboard query. It runs only while a subscriber asked for
+        ``firewall-statistics``, and at most every ``_FIREWALL_STATS_MIN_INTERVAL``.
+        """
+        try:
+            if self._firewall_task is not None and self._firewall_task.done():
+                try:
+                    text = self._firewall_task.result()
+                except asyncio.CancelledError:
+                    self._firewall_task = None
+                    return
+                except Exception:
+                    logger.exception("Broadcaster: firewall-statistics fetch error")
+                    text = None
+                self._firewall_task = None
+                self._last_firewall_query_time = asyncio.get_event_loop().time()
+                if text is None:
+                    self._push_to_all({
+                        "type": "error",
+                        "data": {"channel": FIREWALL_STATS_INTEREST, "message": "Failed to fetch"},
+                    })
+                else:
+                    parsed = parse_firewall_statistics(text)
+                    self._push_to_all({
+                        "type": FIREWALL_STATS_INTEREST,
+                        "data": {
+                            "rules": [rule.model_dump() for rule in parsed.rules],
+                            "zone_chains": {
+                                "ipv4": sorted(self._zone_chains.get("ipv4") or []),
+                                "ipv6": sorted(self._zone_chains.get("ipv6") or []),
+                            },
+                        },
+                    })
+
+            if not start:
+                return
+            if not self._has_interest(FIREWALL_STATS_INTEREST):
+                return
+            if self._firewall_task is not None:
+                return
+            now = asyncio.get_event_loop().time()
+            if (now - self._last_firewall_query_time) < _FIREWALL_STATS_MIN_INTERVAL:
+                return
+            self._firewall_task = asyncio.create_task(
+                fetch_firewall_statistics_text(self._service)
+            )
+        except Exception:
+            logger.exception("Broadcaster: firewall-statistics error")
+            self._push_to_all({
+                "type": "error",
+                "data": {"channel": FIREWALL_STATS_INTEREST, "message": "Failed to fetch"},
+            })
+
     def _on_task_done(self, fut: asyncio.Future) -> None:
         """Clean up if _run() exits unexpectedly."""
         if fut.cancelled():
@@ -1503,6 +1631,8 @@ class DeviceDataBroadcaster:
                 self._pppoe_task.cancel()
             if self._transceiver_task and not self._transceiver_task.done():
                 self._transceiver_task.cancel()
+            if self._firewall_task and not self._firewall_task.done():
+                self._firewall_task.cancel()
 
     # ------------------------------------------------------------------
     # Main loop
@@ -1557,6 +1687,7 @@ class DeviceDataBroadcaster:
                 # Transceiver DDM is one ethtool per physical port, so its own
                 # task re-sweeps on a 15 s floor rather than every cycle.
                 self._handle_transceiver_cycle(start=True)
+                self._handle_firewall_cycle(start=True)
 
                 cycle += 1
                 await asyncio.sleep(_FAST_INTERVAL)
@@ -1571,6 +1702,8 @@ class DeviceDataBroadcaster:
                 self._pppoe_task.cancel()
             if self._transceiver_task and not self._transceiver_task.done():
                 self._transceiver_task.cancel()
+            if self._firewall_task and not self._firewall_task.done():
+                self._firewall_task.cancel()
 
 
 # Global broadcaster registry: instance_id -> DeviceDataBroadcaster
@@ -1589,6 +1722,13 @@ def _get_broadcaster(service) -> DeviceDataBroadcaster:
 # ========================================================================
 # Endpoint: SSE Dashboard Stream
 # ========================================================================
+
+
+def retain_firewall_interest(requested: set[str], *, include_firewall: bool) -> set[str]:
+    """Drop the statistics interest when this subscriber cannot see any counters."""
+    if not include_firewall:
+        requested.discard(FIREWALL_STATS_INTEREST)
+    return requested
 
 
 @router.get("/stream")
@@ -1615,6 +1755,10 @@ async def dashboard_stream(
     sweep is one ``ethtool --module-info`` per configured physical Ethernet port
     (VLAN sub-interfaces have no module and are never swept), so it runs on its
     own task with a 15 s floor and only while a permitted subscriber asks for it.
+
+    Pass ``interest=firewall-statistics`` for the top firewall rule hits card.
+    That op dumps every nft ruleset, so it runs on its own task with a 15 s floor
+    and only while a permitted subscriber asks for it.
     """
     service = get_session_vyos_service(request)
     include_wireguard = await has_permission(request, FeatureGroup.WIREGUARD, PermissionLevel.READ)
@@ -1625,6 +1769,8 @@ async def dashboard_stream(
     # Same gate as GET /vyos/ethernet/{interface}/transceiver, so the stream
     # cannot hand out DDM data the REST endpoint would refuse.
     include_transceiver = await has_permission(request, FeatureGroup.ETHERNET, PermissionLevel.READ)
+    include_policies, include_zones, include_bridge = await firewall_statistics_access(request)
+    include_firewall = include_policies or include_zones or include_bridge
     broadcaster = _get_broadcaster(service)
 
     instance_id: str = service.config.instance_id
@@ -1634,6 +1780,7 @@ async def dashboard_stream(
         requested.discard("pppoe-sessions")
     if not include_transceiver:
         requested.discard("transceiver-health")
+    retain_firewall_interest(requested, include_firewall=include_firewall)
 
     async def event_generator():
         from routers.events import _has_active_session
@@ -1670,6 +1817,18 @@ async def dashboard_stream(
                 if event["type"] == "hardware-sensors" and not include_hardware:
                     continue
                 if event["type"] == "transceiver-health" and not include_transceiver:
+                    continue
+                if event["type"] == FIREWALL_STATS_INTEREST:
+                    if not include_firewall:
+                        continue
+                    # Copy. The queued event is shared with every subscriber.
+                    payload = firewall_hits_for_viewer(
+                        event["data"],
+                        policies=include_policies,
+                        zones=include_zones,
+                        bridge=include_bridge,
+                    )
+                    yield f'event: {event["type"]}\ndata: {json.dumps(payload)}\n\n'
                     continue
                 yield f'event: {event["type"]}\ndata: {json.dumps(event["data"])}\n\n'
         finally:

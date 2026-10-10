@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Network, Plus, Server, Shield, Lock, TrendingUp, Gauge, ShieldCheck, Waypoints, Route, Activity, Thermometer } from "lucide-react";
+import { Network, Plus, Server, Shield, Lock, TrendingUp, Gauge, ShieldCheck, Waypoints, Route, Activity, Thermometer, Flame } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
@@ -21,6 +21,8 @@ interface AvailableCard {
   icon: React.ComponentType<{ className?: string }>;
   /** FeatureGroup key required to add this card. Undefined = no restriction. */
   requiredPermission?: FeatureGroup;
+  /** Unlocked when the user can read any of these groups. */
+  requiredAny?: FeatureGroup[];
 }
 
 const AVAILABLE_CARDS: AvailableCard[] = [
@@ -104,6 +106,13 @@ const AVAILABLE_CARDS: AvailableCard[] = [
     icon: Lock,
     requiredPermission: FeatureGroup.IPSEC,
   },
+  {
+    type: "firewall-hits",
+    name: "Firewall Hits",
+    description: "Busiest firewall rules by packet count, with byte counters",
+    icon: Flame,
+    requiredAny: [FeatureGroup.FIREWALL_POLICIES, FeatureGroup.FIREWALL_ZONES, FeatureGroup.FIREWALL_BRIDGE],
+  },
 ];
 
 interface AddCardModalProps {
@@ -137,10 +146,9 @@ export function AddCardModal({ open, onOpenChange, onAddCard }: AddCardModalProp
         <div className="grid gap-4 py-4 sm:grid-cols-2 lg:grid-cols-3 flex-1 min-h-0 overflow-y-auto">
           {AVAILABLE_CARDS.map((card) => {
             const Icon = card.icon;
-            const locked =
-              !permissionsLoading &&
-              !!card.requiredPermission &&
-              !canRead(card.requiredPermission);
+            const lockedByOne = !!card.requiredPermission && !canRead(card.requiredPermission);
+            const lockedByAny = !!card.requiredAny?.length && !card.requiredAny.some((group) => canRead(group));
+            const locked = !permissionsLoading && (lockedByOne || lockedByAny);
             const isSelected = selectedType === card.type;
 
             return (
@@ -164,7 +172,11 @@ export function AddCardModal({ open, onOpenChange, onAddCard }: AddCardModalProp
                     {locked && (
                       <div
                         className="flex items-center gap-1 text-xs text-muted-foreground"
-                        title={`Requires ${card.requiredPermission} read permission`}
+                        title={
+                          card.requiredAny?.length
+                            ? "Requires read access to Firewall Policies, Zones, or Bridge"
+                            : `Requires ${card.requiredPermission} read permission`
+                        }
                       >
                         <Lock className="h-3 w-3" />
                         <span>No access</span>

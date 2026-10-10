@@ -36,6 +36,7 @@ interface FirewallRuleRowProps {
   isDragging?: boolean;
   groups?: FirewallGroup[];
   visibleOrderedColumns?: ColumnDef[];
+  counters?: { packets: number; bytes: number } | null;
 }
 
 export function FirewallRuleRow({
@@ -46,6 +47,7 @@ export function FirewallRuleRow({
   isDragging,
   groups = [],
   visibleOrderedColumns = DEFAULT_COLUMNS,
+  counters = null,
 }: FirewallRuleRowProps) {
   const getGroupMembers = (groupName: string): string[] => {
     const cleanName = groupName.startsWith("!") ? groupName.substring(1) : groupName;
@@ -507,6 +509,20 @@ export function FirewallRuleRow({
             ) : (
               <span className="text-sm text-muted-foreground">any</span>
             )}
+          </TableCell>
+        );
+
+      case "packets":
+        return (
+          <TableCell key="packets" className="font-mono text-sm tabular-nums">
+            {counters ? counters.packets.toLocaleString() : <span className="text-muted-foreground">-</span>}
+          </TableCell>
+        );
+
+      case "bytes":
+        return (
+          <TableCell key="bytes" className="font-mono text-sm tabular-nums">
+            {counters ? counters.bytes.toLocaleString() : <span className="text-muted-foreground">-</span>}
           </TableCell>
         );
 
