@@ -184,20 +184,26 @@ def top_firewall_hits(stats: FirewallStatisticsResponse, limit: int = TOP_FIREWA
     return FirewallHitsResponse(hits=ranked[:limit], total=len(ranked))
 
 
-def zone_chain_names(config: Optional[dict]) -> set[str]:
-    """Named chains referenced by ``firewall zone`` (IPv4 name and IPv6 name)."""
+def zone_chain_names(config: Optional[dict]) -> dict[str, set[str]]:
+    """Named chains referenced by ``firewall zone``, split by family.
+
+    VyOS keeps ``firewall name`` and ``firewall ipv6-name`` in separate
+    namespaces, so a shared string is not the same chain.
+    """
     zones = ((config or {}).get("firewall") or {}).get("zone") or {}
-    names: set[str] = set()
+    names = {"ipv4": set(), "ipv6": set()}
 
     def walk(node: object) -> None:
         if not isinstance(node, dict):
             return
         firewall = node.get("firewall")
         if isinstance(firewall, dict):
-            for key in ("name", "ipv6-name"):
-                value = firewall.get(key)
-                if isinstance(value, str) and value:
-                    names.add(value)
+            ipv4_name = firewall.get("name")
+            ipv6_name = firewall.get("ipv6-name")
+            if isinstance(ipv4_name, str) and ipv4_name:
+                names["ipv4"].add(ipv4_name)
+            if isinstance(ipv6_name, str) and ipv6_name:
+                names["ipv6"].add(ipv6_name)
         for child in node.values():
             if isinstance(child, dict):
                 walk(child)
@@ -213,15 +219,15 @@ def visible_firewall_rules(
     policies: bool,
     zones: bool,
     bridge: bool,
-    zone_chains: Optional[set[str]] = None,
+    zone_chains: Optional[dict] = None,
 ) -> List[FirewallRuleCounter]:
     """Keep only counters the caller can already read as config.
 
     Policies covers every IPv4 and IPv6 ruleset, including named chains.
-    Zones alone covers only named chains that zone config actually references.
-    Bridge covers the bridge family and nothing else.
+    Zones alone covers only named chains that zone config references for
+    that family. Bridge covers the bridge family and nothing else.
     """
-    allowed_zone_chains = zone_chains or set()
+    allowed = zone_chains or {}
     visible: List[FirewallRuleCounter] = []
     for rule in rules:
         if rule.family == "bridge":
@@ -234,7 +240,8 @@ def visible_firewall_rules(
             if policies:
                 visible.append(rule)
             continue
-        if policies or (zones and rule.chain in allowed_zone_chains):
+        family_chains = allowed.get(rule.family) or set()
+        if policies or (zones and rule.chain in family_chains):
             visible.append(rule)
     return visible
 
@@ -245,7 +252,7 @@ def filter_firewall_statistics(
     policies: bool,
     zones: bool,
     bridge: bool,
-    zone_chains: Optional[set[str]] = None,
+    zone_chains: Optional[dict] = None,
 ) -> FirewallStatisticsResponse:
     return FirewallStatisticsResponse(
         rules=visible_firewall_rules(
@@ -274,7 +281,11 @@ def firewall_hits_for_viewer(
     """
     raw_rules = (data or {}).get("rules") or []
     stats = FirewallStatisticsResponse(rules=raw_rules)
-    zone_chains = {name for name in ((data or {}).get("zone_chains") or []) if isinstance(name, str)}
+    raw_chains = (data or {}).get("zone_chains") or {}
+    zone_chains = {"ipv4": set(), "ipv6": set()}
+    if isinstance(raw_chains, dict):
+        for family in ("ipv4", "ipv6"):
+            zone_chains[family] = {name for name in (raw_chains.get(family) or []) if isinstance(name, str)}
     filtered = filter_firewall_statistics(
         stats,
         policies=policies,

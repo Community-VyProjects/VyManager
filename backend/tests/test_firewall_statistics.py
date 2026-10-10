@@ -8,6 +8,7 @@ from fastapi import HTTPException
 
 from firewall_statistics import (
     FIREWALL_STATS_INTEREST,
+    FirewallRuleCounter,
     chain_key,
     firewall_hits_for_viewer,
     parse_firewall_statistics,
@@ -19,6 +20,7 @@ from rbac_permissions import FeatureGroup, PermissionLevel
 from routers.show import (
     DeviceDataBroadcaster,
     _STREAM_INTERESTS,
+    dashboard_stream,
     get_firewall_statistics,
     retain_firewall_interest,
 )
@@ -187,7 +189,10 @@ def test_zone_chain_names_reads_ipv4_and_ipv6_references():
             }
         }
     }
-    assert zone_chain_names(config) == {"WAN-LAN", "WAN-LAN-V6", "LAN-LAN"}
+    assert zone_chain_names(config) == {
+        "ipv4": {"WAN-LAN", "LAN-LAN"},
+        "ipv6": {"WAN-LAN-V6"},
+    }
 
 
 def test_zones_only_viewer_does_not_see_policy_or_bridge_rules():
@@ -197,12 +202,12 @@ def test_zones_only_viewer_does_not_see_policy_or_bridge_rules():
         policies=False,
         zones=True,
         bridge=False,
-        zone_chains={"Test"},
+        zone_chains={"ipv4": {"Test"}, "ipv6": set()},
     )
     assert {(rule.family, rule.chain, rule.custom) for rule in visible} == {("ipv4", "Test", True)}
 
     hits = firewall_hits_for_viewer(
-        {"rules": [rule.model_dump() for rule in stats.rules], "zone_chains": ["Test"]},
+        {"rules": [rule.model_dump() for rule in stats.rules], "zone_chains": {"ipv4": ["Test"], "ipv6": []}},
         policies=False,
         zones=True,
         bridge=False,
@@ -214,7 +219,7 @@ def test_zones_only_viewer_does_not_see_policy_or_bridge_rules():
 def test_policies_viewer_does_not_see_bridge_hits():
     stats = parse_firewall_statistics(LAB_SAMPLE)
     hits = firewall_hits_for_viewer(
-        {"rules": [rule.model_dump() for rule in stats.rules], "zone_chains": []},
+        {"rules": [rule.model_dump() for rule in stats.rules], "zone_chains": {"ipv4": [], "ipv6": []}},
         policies=True,
         zones=False,
         bridge=False,
@@ -224,7 +229,19 @@ def test_policies_viewer_does_not_see_bridge_hits():
     assert hits["total"] == 1
 
 
-def test_bridge_only_viewer_sees_only_bridge_rules():
+def test_shared_chain_name_does_not_cross_families():
+    rules = [
+        FirewallRuleCounter(family="ipv4", chain="Shared", custom=True, rule="1", action="accept", packets=5, bytes=5),
+        FirewallRuleCounter(family="ipv6", chain="Shared", custom=True, rule="1", action="accept", packets=9, bytes=9),
+    ]
+    visible = visible_firewall_rules(
+        rules,
+        policies=False,
+        zones=True,
+        bridge=False,
+        zone_chains={"ipv4": {"Shared"}, "ipv6": set()},
+    )
+    assert [(rule.family, rule.chain) for rule in visible] == [("ipv4", "Shared")]
     stats = parse_firewall_statistics(LAB_SAMPLE)
     visible = visible_firewall_rules(stats.rules, policies=False, zones=False, bridge=True)
     assert visible
@@ -274,3 +291,116 @@ def test_stream_drops_firewall_interest_without_permission():
     assert retain_firewall_interest(requested, include_firewall=False) == {"pppoe-sessions"}
     kept = {"firewall-statistics"}
     assert retain_firewall_interest(kept, include_firewall=True) == {"firewall-statistics"}
+
+
+def test_dashboard_stream_filters_each_subscriber(monkeypatch):
+    """Run the stream generator so a missed helper call fails the test."""
+    shared = {
+        "rules": [
+            {"family": "ipv4", "chain": "Shared", "custom": True, "rule": "1", "action": "accept", "packets": 5, "bytes": 5},
+            {"family": "ipv6", "chain": "Shared", "custom": True, "rule": "1", "action": "accept", "packets": 9, "bytes": 9},
+            {"family": "ipv4", "chain": "forward", "custom": False, "rule": "100", "action": "accept", "packets": 100, "bytes": 100},
+            {"family": "bridge", "chain": "Test", "custom": True, "rule": "1", "action": "accept", "packets": 4, "bytes": 4},
+        ],
+        "zone_chains": {"ipv4": ["Shared"], "ipv6": []},
+    }
+
+    class FakeBroadcaster:
+        def __init__(self):
+            self.subscribed = None
+
+        def subscribe(self, interests):
+            self.subscribed = set(interests)
+            queue = asyncio.Queue()
+            queue.put_nowait({"type": "firewall-statistics", "data": shared})
+            return queue
+
+        def unsubscribe(self, queue):
+            return None
+
+    holder = {}
+
+    def fake_broadcaster(service):
+        holder["broadcaster"] = FakeBroadcaster()
+        return holder["broadcaster"]
+
+    async def allow_zones(request, feature, level):
+        return feature == FeatureGroup.FIREWALL_ZONES
+
+    class Request:
+        def __init__(self):
+            self.state = SimpleNamespace(user={"id": "user"})
+            self._seen = 0
+
+        async def is_disconnected(self):
+            self._seen += 1
+            return self._seen > 1
+
+    monkeypatch.setattr("routers.show.get_session_vyos_service", lambda request: SimpleNamespace(config=SimpleNamespace(instance_id="inst")))
+    monkeypatch.setattr("routers.show.has_permission", allow_zones)
+    monkeypatch.setattr("routers.show._get_broadcaster", fake_broadcaster)
+
+    async def scenario():
+        response = await dashboard_stream(Request(), interest=["firewall-statistics"])
+        chunks = []
+        async for chunk in response.body_iterator:
+            chunks.append(chunk)
+        return "".join(chunks)
+
+    body = asyncio.run(scenario())
+    assert "firewall-statistics" in holder["broadcaster"].subscribed
+    assert "ipv6" not in body
+    assert "forward" not in body
+    assert "bridge" not in body
+    assert "Shared" in body
+
+
+def test_dashboard_stream_drops_interest_and_events_without_permission(monkeypatch):
+    class FakeBroadcaster:
+        def __init__(self):
+            self.subscribed = None
+
+        def subscribe(self, interests):
+            self.subscribed = set(interests)
+            queue = asyncio.Queue()
+            queue.put_nowait({
+                "type": "firewall-statistics",
+                "data": {"rules": [{"family": "ipv4", "chain": "forward", "custom": False, "rule": "1", "action": "drop", "packets": 3, "bytes": 3}], "zone_chains": {"ipv4": [], "ipv6": []}},
+            })
+            return queue
+
+        def unsubscribe(self, queue):
+            return None
+
+    holder = {}
+
+    def fake_broadcaster(service):
+        holder["broadcaster"] = FakeBroadcaster()
+        return holder["broadcaster"]
+
+    async def deny(request, feature, level):
+        return False
+
+    class Request:
+        def __init__(self):
+            self.state = SimpleNamespace(user={"id": "user"})
+            self._seen = 0
+
+        async def is_disconnected(self):
+            self._seen += 1
+            return self._seen > 1
+
+    monkeypatch.setattr("routers.show.get_session_vyos_service", lambda request: SimpleNamespace(config=SimpleNamespace(instance_id="inst")))
+    monkeypatch.setattr("routers.show.has_permission", deny)
+    monkeypatch.setattr("routers.show._get_broadcaster", fake_broadcaster)
+
+    async def scenario():
+        response = await dashboard_stream(Request(), interest=["firewall-statistics"])
+        chunks = []
+        async for chunk in response.body_iterator:
+            chunks.append(chunk)
+        return "".join(chunks)
+
+    body = asyncio.run(scenario())
+    assert "firewall-statistics" not in holder["broadcaster"].subscribed
+    assert "event: firewall-statistics" not in body

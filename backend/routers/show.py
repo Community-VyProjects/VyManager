@@ -145,14 +145,14 @@ async def get_firewall_statistics(request: Request):
         if text is None:
             raise HTTPException(status_code=502, detail="Unable to read firewall statistics")
         stats = parse_firewall_statistics(text)
-        zone_chains: set[str] = set()
+        zone_chains: dict[str, set[str]] = {"ipv4": set(), "ipv6": set()}
         if zones and not policies:
             try:
                 config = await run_in_threadpool(service.get_full_config, refresh=False)
                 zone_chains = zone_chain_names(config)
             except Exception:
                 logger.exception("Unable to read zone chain names for statistics filter")
-                zone_chains = set()
+                zone_chains = {"ipv4": set(), "ipv6": set()}
         return filter_firewall_statistics(
             stats,
             policies=policies,
@@ -1211,7 +1211,7 @@ class DeviceDataBroadcaster:
         # off the shared query so a dashboard without the hits card pays nothing.
         self._firewall_task: Optional[asyncio.Task] = None
         self._last_firewall_query_time: float = 0.0
-        self._zone_chains: set[str] = set()
+        self._zone_chains: dict[str, set[str]] = {"ipv4": set(), "ipv6": set()}
 
     # ------------------------------------------------------------------
     # Public API
@@ -1589,7 +1589,10 @@ class DeviceDataBroadcaster:
                         "type": FIREWALL_STATS_INTEREST,
                         "data": {
                             "rules": [rule.model_dump() for rule in parsed.rules],
-                            "zone_chains": sorted(self._zone_chains),
+                            "zone_chains": {
+                                "ipv4": sorted(self._zone_chains.get("ipv4") or []),
+                                "ipv6": sorted(self._zone_chains.get("ipv6") or []),
+                            },
                         },
                     })
 
