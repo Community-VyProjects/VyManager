@@ -242,6 +242,9 @@ def test_shared_chain_name_does_not_cross_families():
         zone_chains={"ipv4": {"Shared"}, "ipv6": set()},
     )
     assert [(rule.family, rule.chain) for rule in visible] == [("ipv4", "Shared")]
+
+
+def test_bridge_only_viewer_sees_only_bridge_rules():
     stats = parse_firewall_statistics(LAB_SAMPLE)
     visible = visible_firewall_rules(stats.rules, policies=False, zones=False, bridge=True)
     assert visible
