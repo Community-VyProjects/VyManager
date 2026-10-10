@@ -32,6 +32,7 @@ import { BgpStatusCard } from "@/components/dashboard/BgpStatusCard";
 import { IpsecCard } from "@/components/dashboard/IpsecCard";
 import { HardwareSensorsCard } from "@/components/dashboard/HardwareSensorsCard";
 import { TransceiverHealthCard } from "@/components/dashboard/TransceiverHealthCard";
+import { FirewallHitsCard } from "@/components/dashboard/FirewallHitsCard";
 import { AddCardModal } from "@/components/dashboard/AddCardModal";
 import { ConnectFirstInstance } from "@/components/dashboard/ConnectFirstInstance";
 import {
@@ -384,6 +385,9 @@ export default function Home() {
     if (cardType === "ipsec-status") {
       defaultSpan = 2;
     }
+    if (cardType === "firewall-hits") {
+      defaultSpan = 2;
+    }
     // system-info defaults to 1 column (already set above)
 
     // Append at the bottom of column 0 (large tentative position) and let
@@ -488,6 +492,8 @@ export default function Home() {
         return <HardwareSensorsCard {...baseProps} />;
       case "transceiver-health":
         return <TransceiverHealthCard {...baseProps} />;
+      case "firewall-hits":
+        return <FirewallHitsCard {...baseProps} />;
       default:
         return null;
     }
@@ -510,6 +516,7 @@ export default function Home() {
   const streamInterests: string[] = [];
   if (cards.some((card) => card.type === "pppoe-statistics")) streamInterests.push("pppoe-sessions");
   if (cards.some((card) => card.type === "transceiver-health")) streamInterests.push("transceiver-health");
+  if (cards.some((card) => card.type === "firewall-hits")) streamInterests.push("firewall-statistics");
 
   return (
     <AppLayout>

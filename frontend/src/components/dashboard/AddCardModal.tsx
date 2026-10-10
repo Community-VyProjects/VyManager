@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Network, Plus, Server, Shield, Lock, TrendingUp, Gauge, ShieldCheck, Waypoints, Route, Activity, Thermometer } from "lucide-react";
+import { Network, Plus, Server, Shield, Lock, TrendingUp, Gauge, ShieldCheck, Waypoints, Route, Activity, Thermometer, Flame } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
@@ -103,6 +103,13 @@ const AVAILABLE_CARDS: AvailableCard[] = [
     description: "Live site-to-site IPSec tunnel state (up/down) with traffic selectors, byte counters and the negotiated ESP proposal",
     icon: Lock,
     requiredPermission: FeatureGroup.IPSEC,
+  },
+  {
+    type: "firewall-hits",
+    name: "Firewall Hits",
+    description: "Busiest firewall rules by packet count, with byte counters",
+    icon: Flame,
+    requiredPermission: FeatureGroup.FIREWALL_POLICIES,
   },
 ];
 
