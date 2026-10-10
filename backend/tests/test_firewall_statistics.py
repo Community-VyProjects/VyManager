@@ -1,14 +1,27 @@
 """Parser and interest gating for firewall rule counters."""
 
 import asyncio
+from types import SimpleNamespace
+
+import pytest
+from fastapi import HTTPException
 
 from firewall_statistics import (
     FIREWALL_STATS_INTEREST,
     chain_key,
+    firewall_hits_for_viewer,
     parse_firewall_statistics,
     top_firewall_hits,
+    visible_firewall_rules,
+    zone_chain_names,
 )
-from routers.show import DeviceDataBroadcaster, _STREAM_INTERESTS
+from rbac_permissions import FeatureGroup, PermissionLevel
+from routers.show import (
+    DeviceDataBroadcaster,
+    _STREAM_INTERESTS,
+    get_firewall_statistics,
+    retain_firewall_interest,
+)
 
 # Captured from the 1.4 lab Show(path: ["firewall", "statistics"]) op.
 LAB_SAMPLE = """\
@@ -116,8 +129,148 @@ def test_firewall_cycle_does_not_fetch_without_a_subscriber():
     broadcaster._handle_firewall_cycle(start=True)
     assert broadcaster._firewall_task is None
 
-    queue = asyncio.Queue()
-    broadcaster._subscribers.append((queue, frozenset({FIREWALL_STATS_INTEREST})))
-    broadcaster._subscribers = []
-    broadcaster._handle_firewall_cycle(start=True)
-    assert broadcaster._firewall_task is None
+
+def test_interested_subscriber_starts_a_fetch(monkeypatch):
+    async def fake_fetch(service):
+        return "Rulesets Statistics\n"
+
+    monkeypatch.setattr("routers.show.fetch_firewall_statistics_text", fake_fetch)
+
+    async def scenario():
+        broadcaster = DeviceDataBroadcaster("instance", service=object())
+        queue = asyncio.Queue()
+        broadcaster._subscribers.append((queue, frozenset({FIREWALL_STATS_INTEREST})))
+        broadcaster._handle_firewall_cycle(start=True)
+        task = broadcaster._firewall_task
+        assert task is not None
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+    asyncio.run(scenario())
+
+
+def test_firewall_cycle_respects_the_15_second_floor():
+    async def scenario():
+        broadcaster = DeviceDataBroadcaster("instance", service=object())
+        queue = asyncio.Queue()
+        broadcaster._subscribers.append((queue, frozenset({FIREWALL_STATS_INTEREST})))
+        broadcaster._last_firewall_query_time = asyncio.get_running_loop().time()
+        broadcaster._handle_firewall_cycle(start=True)
+        assert broadcaster._firewall_task is None
+
+    asyncio.run(scenario())
+
+
+def test_unsubscribe_cancels_an_in_flight_firewall_fetch():
+    async def scenario():
+        broadcaster = DeviceDataBroadcaster("instance", service=object())
+        queue = asyncio.Queue()
+        other = asyncio.Queue()
+        broadcaster._subscribers.append((queue, frozenset({FIREWALL_STATS_INTEREST})))
+        broadcaster._subscribers.append((other, frozenset()))
+        broadcaster._firewall_task = asyncio.create_task(asyncio.sleep(60))
+        broadcaster.unsubscribe(queue)
+        assert broadcaster._firewall_task is None
+        assert broadcaster._subscribers == [(other, frozenset())]
+
+    asyncio.run(scenario())
+
+
+def test_zone_chain_names_reads_ipv4_and_ipv6_references():
+    config = {
+        "firewall": {
+            "zone": {
+                "LAN": {
+                    "from": {"WAN": {"firewall": {"name": "WAN-LAN", "ipv6-name": "WAN-LAN-V6"}}},
+                    "intra-zone-filtering": {"firewall": {"name": "LAN-LAN"}},
+                }
+            }
+        }
+    }
+    assert zone_chain_names(config) == {"WAN-LAN", "WAN-LAN-V6", "LAN-LAN"}
+
+
+def test_zones_only_viewer_does_not_see_policy_or_bridge_rules():
+    stats = parse_firewall_statistics(LAB_SAMPLE)
+    visible = visible_firewall_rules(
+        stats.rules,
+        policies=False,
+        zones=True,
+        bridge=False,
+        zone_chains={"Test"},
+    )
+    assert {(rule.family, rule.chain, rule.custom) for rule in visible} == {("ipv4", "Test", True)}
+
+    hits = firewall_hits_for_viewer(
+        {"rules": [rule.model_dump() for rule in stats.rules], "zone_chains": ["Test"]},
+        policies=False,
+        zones=True,
+        bridge=False,
+    )
+    assert hits["hits"] == []
+    assert hits["total"] == 0
+
+
+def test_policies_viewer_does_not_see_bridge_hits():
+    stats = parse_firewall_statistics(LAB_SAMPLE)
+    hits = firewall_hits_for_viewer(
+        {"rules": [rule.model_dump() for rule in stats.rules], "zone_chains": []},
+        policies=True,
+        zones=False,
+        bridge=False,
+    )
+    assert all(hit["family"] != "bridge" for hit in hits["hits"])
+    assert hits["hits"][0]["chain"] == "forward"
+    assert hits["total"] == 1
+
+
+def test_bridge_only_viewer_sees_only_bridge_rules():
+    stats = parse_firewall_statistics(LAB_SAMPLE)
+    visible = visible_firewall_rules(stats.rules, policies=False, zones=False, bridge=True)
+    assert visible
+    assert all(rule.family == "bridge" for rule in visible)
+
+
+def test_stats_endpoint_403_without_any_firewall_read(monkeypatch):
+    async def deny(request, feature, level):
+        assert level == PermissionLevel.READ
+        return False
+
+    monkeypatch.setattr("routers.show.has_permission", deny)
+
+    async def scenario():
+        with pytest.raises(HTTPException) as exc:
+            await get_firewall_statistics(SimpleNamespace())
+        assert exc.value.status_code == 403
+
+    asyncio.run(scenario())
+
+
+def test_stats_endpoint_filters_zones_only_response(monkeypatch):
+    async def allow_zones(request, feature, level):
+        return feature == FeatureGroup.FIREWALL_ZONES
+
+    class Service:
+        def get_full_config(self, refresh=False):
+            return {"firewall": {"zone": {"LAN": {"from": {"WAN": {"firewall": {"name": "Test"}}}}}}}
+
+    async def fake_fetch(service):
+        return LAB_SAMPLE
+
+    monkeypatch.setattr("routers.show.has_permission", allow_zones)
+    monkeypatch.setattr("routers.show.get_session_vyos_service", lambda request: Service())
+    monkeypatch.setattr("routers.show.fetch_firewall_statistics_text", fake_fetch)
+
+    async def scenario():
+        response = await get_firewall_statistics(SimpleNamespace())
+        keys = {(rule.family, rule.chain, rule.custom) for rule in response.rules}
+        assert keys == {("ipv4", "Test", True)}
+
+    asyncio.run(scenario())
+
+
+def test_stream_drops_firewall_interest_without_permission():
+    requested = {"firewall-statistics", "pppoe-sessions"}
+    assert retain_firewall_interest(requested, include_firewall=False) == {"pppoe-sessions"}
+    kept = {"firewall-statistics"}
+    assert retain_firewall_interest(kept, include_firewall=True) == {"firewall-statistics"}

@@ -167,8 +167,9 @@ function FirewallPoliciesPageInner() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Column visibility & order
-  const { visibleColumns, toggleColumn, visibleColumnCount, orderedColumns, visibleOrderedColumns, reorderColumns, resetToDefault } =
+  const { visibleColumns, toggleColumn, isVisible, visibleColumnCount, orderedColumns, visibleOrderedColumns, reorderColumns, resetToDefault } =
     useColumnVisibility("firewall-policies-columns", POLICIES_COLUMNS);
+  const countersVisible = isVisible("packets") || isVisible("bytes");
 
   // Permissions — separator editing follows the firewall rules permission.
   const { canWrite } = usePermissions();
@@ -210,7 +211,7 @@ function FirewallPoliciesPageInner() {
       setHasChanges(false);
       setReorderedRules([]);
       setOriginalRules([]);
-      if (refresh) fetchStatistics();
+      if (refresh && countersVisible) fetchStatistics();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load firewall configuration");
       console.error("Error fetching firewall config:", err);
@@ -239,7 +240,7 @@ function FirewallPoliciesPageInner() {
       setHasChangesIPv6(false);
       setReorderedRulesIPv6([]);
       setOriginalRulesIPv6([]);
-      if (refresh) fetchStatistics();
+      if (refresh && countersVisible) fetchStatistics();
     } catch (err) {
       setErrorIPv6(err instanceof Error ? err.message : "Failed to load IPv6 firewall configuration");
       console.error("Error fetching IPv6 firewall config:", err);
@@ -375,9 +376,13 @@ function FirewallPoliciesPageInner() {
     fetchCapabilitiesIPv6();
     // Load groups (shared between IPv4 and IPv6)
     fetchGroups();
+    // Load coloured separators (UI metadata from VyManager's DB)
     loadSeparators();
-    fetchStatistics();
   }, []);
+
+  useEffect(() => {
+    if (countersVisible) fetchStatistics();
+  }, [countersVisible]);
 
   useEffect(() => {
     const section = searchParams.get("section");

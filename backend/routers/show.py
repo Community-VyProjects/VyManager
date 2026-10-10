@@ -38,9 +38,11 @@ from hardware_status import HardwareSensorsResponse, parse_hardware_sensors, har
 from firewall_statistics import (
     FIREWALL_STATS_INTEREST,
     FirewallStatisticsResponse,
-    build_firewall_hits,
     fetch_firewall_statistics_text,
+    filter_firewall_statistics,
+    firewall_hits_for_viewer,
     parse_firewall_statistics,
+    zone_chain_names,
 )
 from transceiver_status import (
     build_transceiver_status,
@@ -114,19 +116,12 @@ async def get_hardware_sensors(request: Request):
         raise HTTPException(status_code=500, detail="Unable to read hardware sensors") from e
 
 
-_FIREWALL_STATS_GROUPS = (
-    FeatureGroup.FIREWALL_POLICIES,
-    FeatureGroup.FIREWALL_ZONES,
-    FeatureGroup.FIREWALL_BRIDGE,
-)
-
-
-async def can_read_firewall_statistics(request: Request) -> bool:
-    """True when the caller may see rule counters on any firewall page."""
-    for feature in _FIREWALL_STATS_GROUPS:
-        if await has_permission(request, feature, PermissionLevel.READ):
-            return True
-    return False
+async def firewall_statistics_access(request: Request) -> tuple[bool, bool, bool]:
+    """Policies, zones, and bridge read flags for the statistics endpoints."""
+    policies = await has_permission(request, FeatureGroup.FIREWALL_POLICIES, PermissionLevel.READ)
+    zones = await has_permission(request, FeatureGroup.FIREWALL_ZONES, PermissionLevel.READ)
+    bridge = await has_permission(request, FeatureGroup.FIREWALL_BRIDGE, PermissionLevel.READ)
+    return policies, zones, bridge
 
 
 @router.get("/firewall-statistics", response_model=FirewallStatisticsResponse)
@@ -134,10 +129,12 @@ async def get_firewall_statistics(request: Request):
     """Per-rule packets and bytes from ``show firewall statistics``.
 
     The VyOS GraphQL schema has no typed firewall-counter op. This parses the
-    text table. A missing rule means VyOS did not report it (usually disabled),
-    not that its counters are zero.
+    text table and returns only the families the caller can already read.
+    A missing rule means VyOS did not report it (usually disabled), not that
+    its counters are zero.
     """
-    if not await can_read_firewall_statistics(request):
+    policies, zones, bridge = await firewall_statistics_access(request)
+    if not (policies or zones or bridge):
         raise HTTPException(
             status_code=403,
             detail="Insufficient permissions. Read access to Firewall Policies, Zones, or Bridge required.",
@@ -147,7 +144,22 @@ async def get_firewall_statistics(request: Request):
         text = await fetch_firewall_statistics_text(service)
         if text is None:
             raise HTTPException(status_code=502, detail="Unable to read firewall statistics")
-        return parse_firewall_statistics(text)
+        stats = parse_firewall_statistics(text)
+        zone_chains: set[str] = set()
+        if zones and not policies:
+            try:
+                config = await run_in_threadpool(service.get_full_config, refresh=False)
+                zone_chains = zone_chain_names(config)
+            except Exception:
+                logger.exception("Unable to read zone chain names for statistics filter")
+                zone_chains = set()
+        return filter_firewall_statistics(
+            stats,
+            policies=policies,
+            zones=zones,
+            bridge=bridge,
+            zone_chains=zone_chains,
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -1199,6 +1211,7 @@ class DeviceDataBroadcaster:
         # off the shared query so a dashboard without the hits card pays nothing.
         self._firewall_task: Optional[asyncio.Task] = None
         self._last_firewall_query_time: float = 0.0
+        self._zone_chains: set[str] = set()
 
     # ------------------------------------------------------------------
     # Public API
@@ -1368,6 +1381,7 @@ class DeviceDataBroadcaster:
             self._pppoe_configured = pppoe_configured(cfg)
             # Physical Ethernet ports only — a VLAN sub-interface has no module.
             self._transceiver_interfaces = physical_ethernet_interfaces(cfg)
+            self._zone_chains = zone_chain_names(cfg)
         except Exception:
             logger.exception("Broadcaster: config-state refresh error")
 
@@ -1570,9 +1584,13 @@ class DeviceDataBroadcaster:
                         "data": {"channel": FIREWALL_STATS_INTEREST, "message": "Failed to fetch"},
                     })
                 else:
+                    parsed = parse_firewall_statistics(text)
                     self._push_to_all({
                         "type": FIREWALL_STATS_INTEREST,
-                        "data": build_firewall_hits({"FirewallStatistics": {"data": {"result": text}}}),
+                        "data": {
+                            "rules": [rule.model_dump() for rule in parsed.rules],
+                            "zone_chains": sorted(self._zone_chains),
+                        },
                     })
 
             if not start:
@@ -1703,6 +1721,13 @@ def _get_broadcaster(service) -> DeviceDataBroadcaster:
 # ========================================================================
 
 
+def retain_firewall_interest(requested: set[str], *, include_firewall: bool) -> set[str]:
+    """Drop the statistics interest when this subscriber cannot see any counters."""
+    if not include_firewall:
+        requested.discard(FIREWALL_STATS_INTEREST)
+    return requested
+
+
 @router.get("/stream")
 async def dashboard_stream(
     request: Request,
@@ -1741,7 +1766,8 @@ async def dashboard_stream(
     # Same gate as GET /vyos/ethernet/{interface}/transceiver, so the stream
     # cannot hand out DDM data the REST endpoint would refuse.
     include_transceiver = await has_permission(request, FeatureGroup.ETHERNET, PermissionLevel.READ)
-    include_firewall = await can_read_firewall_statistics(request)
+    include_policies, include_zones, include_bridge = await firewall_statistics_access(request)
+    include_firewall = include_policies or include_zones or include_bridge
     broadcaster = _get_broadcaster(service)
 
     instance_id: str = service.config.instance_id
@@ -1751,8 +1777,7 @@ async def dashboard_stream(
         requested.discard("pppoe-sessions")
     if not include_transceiver:
         requested.discard("transceiver-health")
-    if not include_firewall:
-        requested.discard(FIREWALL_STATS_INTEREST)
+    retain_firewall_interest(requested, include_firewall=include_firewall)
 
     async def event_generator():
         from routers.events import _has_active_session
@@ -1790,7 +1815,17 @@ async def dashboard_stream(
                     continue
                 if event["type"] == "transceiver-health" and not include_transceiver:
                     continue
-                if event["type"] == FIREWALL_STATS_INTEREST and not include_firewall:
+                if event["type"] == FIREWALL_STATS_INTEREST:
+                    if not include_firewall:
+                        continue
+                    # Copy. The queued event is shared with every subscriber.
+                    payload = firewall_hits_for_viewer(
+                        event["data"],
+                        policies=include_policies,
+                        zones=include_zones,
+                        bridge=include_bridge,
+                    )
+                    yield f'event: {event["type"]}\ndata: {json.dumps(payload)}\n\n'
                     continue
                 yield f'event: {event["type"]}\ndata: {json.dumps(event["data"])}\n\n'
         finally:

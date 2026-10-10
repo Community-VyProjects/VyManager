@@ -184,12 +184,105 @@ def top_firewall_hits(stats: FirewallStatisticsResponse, limit: int = TOP_FIREWA
     return FirewallHitsResponse(hits=ranked[:limit], total=len(ranked))
 
 
-def build_firewall_hits(gql: dict) -> dict:
-    """Build the ``firewall-statistics`` SSE payload from a Show result."""
-    node = (gql or {}).get("FirewallStatistics") or {}
-    result = (node.get("data") or {}).get("result")
-    stats = parse_firewall_statistics(result if isinstance(result, str) else "")
-    return top_firewall_hits(stats).dict()
+def zone_chain_names(config: Optional[dict]) -> set[str]:
+    """Named chains referenced by ``firewall zone`` (IPv4 name and IPv6 name)."""
+    zones = ((config or {}).get("firewall") or {}).get("zone") or {}
+    names: set[str] = set()
+
+    def walk(node: object) -> None:
+        if not isinstance(node, dict):
+            return
+        firewall = node.get("firewall")
+        if isinstance(firewall, dict):
+            for key in ("name", "ipv6-name"):
+                value = firewall.get(key)
+                if isinstance(value, str) and value:
+                    names.add(value)
+        for child in node.values():
+            if isinstance(child, dict):
+                walk(child)
+
+    if isinstance(zones, dict):
+        walk(zones)
+    return names
+
+
+def visible_firewall_rules(
+    rules: List[FirewallRuleCounter],
+    *,
+    policies: bool,
+    zones: bool,
+    bridge: bool,
+    zone_chains: Optional[set[str]] = None,
+) -> List[FirewallRuleCounter]:
+    """Keep only counters the caller can already read as config.
+
+    Policies covers every IPv4 and IPv6 ruleset, including named chains.
+    Zones alone covers only named chains that zone config actually references.
+    Bridge covers the bridge family and nothing else.
+    """
+    allowed_zone_chains = zone_chains or set()
+    visible: List[FirewallRuleCounter] = []
+    for rule in rules:
+        if rule.family == "bridge":
+            if bridge:
+                visible.append(rule)
+            continue
+        if rule.family not in ("ipv4", "ipv6"):
+            continue
+        if not rule.custom:
+            if policies:
+                visible.append(rule)
+            continue
+        if policies or (zones and rule.chain in allowed_zone_chains):
+            visible.append(rule)
+    return visible
+
+
+def filter_firewall_statistics(
+    stats: FirewallStatisticsResponse,
+    *,
+    policies: bool,
+    zones: bool,
+    bridge: bool,
+    zone_chains: Optional[set[str]] = None,
+) -> FirewallStatisticsResponse:
+    return FirewallStatisticsResponse(
+        rules=visible_firewall_rules(
+            stats.rules,
+            policies=policies,
+            zones=zones,
+            bridge=bridge,
+            zone_chains=zone_chains,
+        )
+    )
+
+
+def firewall_hits_for_viewer(
+    data: dict,
+    *,
+    policies: bool,
+    zones: bool,
+    bridge: bool,
+) -> dict:
+    """Rank a shared statistics snapshot for one subscriber.
+
+    The broadcaster fans one payload to every dashboard client. Filtering
+    happens here so a zones-only viewer never receives policy or bridge rows,
+    and their own hits are ranked after that cut rather than taken from the
+    global top ten.
+    """
+    raw_rules = (data or {}).get("rules") or []
+    stats = FirewallStatisticsResponse(rules=raw_rules)
+    zone_chains = {name for name in ((data or {}).get("zone_chains") or []) if isinstance(name, str)}
+    filtered = filter_firewall_statistics(
+        stats,
+        policies=policies,
+        zones=zones,
+        bridge=bridge,
+        zone_chains=zone_chains,
+    )
+    return top_firewall_hits(filtered).model_dump()
 
 
 async def fetch_firewall_statistics_text(service) -> Optional[str]:
