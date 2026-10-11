@@ -119,9 +119,11 @@ def parse_suricata_config(service_config: Any) -> SuricataConfig:
     if not isinstance(service_config, dict) or not service_config:
         return SuricataConfig()
 
-    eve = {}
     log_raw = service_config.get("log")
-    if isinstance(log_raw, dict):
+    eve: dict = {}
+    eve_present = False
+    if isinstance(log_raw, dict) and "eve" in log_raw:
+        eve_present = True
         eve_raw = log_raw.get("eve")
         if isinstance(eve_raw, dict):
             eve = eve_raw
@@ -135,7 +137,7 @@ def parse_suricata_config(service_config: Any) -> SuricataConfig:
         address_groups=_parse_groups(service_config.get("address-group"), "address"),
         port_groups=_parse_groups(service_config.get("port-group"), "port"),
         log=SuricataLog(
-            enabled=bool(eve),
+            enabled=eve_present,
             filename=str(filename) if filename else None,
             filetype=str(filetype) if filetype else None,
             types=sorted(_multi(eve.get("type"))) if types_set else [],

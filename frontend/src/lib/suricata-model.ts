@@ -82,8 +82,12 @@ const INTERFACE_NAME =
   /^(?:(?:bond|br|dum|en|ersp|eth|gnv|ifb|ipoe|lan|l2tp|l2tpeth|macsec|peth|ppp|pppoe|pptp|sstp|sstpc|tun|veth|vpptap|vpptun|vti|vtun|vxlan|wg|wlan|wwan)[0-9]+(?:\.\d+)?|pod-[-_a-zA-Z0-9]{1,11}|lo)$/;
 
 const GROUP_NAME = /^[a-z0-9-]+$/;
-const PORT_NUM = "(?:[1-9][0-9]{0,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])";
-const PORT = new RegExp(`^${PORT_NUM}(?:-${PORT_NUM})?$`);
+
+function portNumber(text: string): number | null {
+  if (!/^[1-9]\d{0,4}$/.test(text)) return null;
+  const number = Number(text);
+  return number >= 1 && number <= 65535 ? number : null;
+}
 
 export const GROUP_PURPOSE: Record<string, string> = {
   "home-net": "Addresses you own. Rules call this $HOME_NET.",
@@ -249,16 +253,19 @@ export function isGroupName(name: string): boolean {
 }
 
 export function isAddress(value: string): boolean {
-  if (!value || value.includes(",") || /\s/.test(value)) return false;
+  if (!value || value.includes(",") || value.includes("%") || /\s/.test(value)) return false;
   if (value.includes(":")) return isIPv6(value);
   return isIPv4(value);
 }
 
 export function isPort(value: string): boolean {
-  if (!PORT.test(value)) return false;
-  if (!value.includes("-")) return true;
-  const [start, end] = value.split("-").map(Number);
-  return start <= end;
+  const parts = value.split("-");
+  if (parts.length > 2) return false;
+  const start = portNumber(parts[0]);
+  if (start === null) return false;
+  if (parts.length === 1) return true;
+  const end = portNumber(parts[1]);
+  return end !== null && start <= end;
 }
 
 function isIPv4(value: string): boolean {
@@ -543,13 +550,18 @@ export function buildOps(original: SuricataConfig, updated: SuricataConfig): Sur
   if (before.enabled && !after.enabled) {
     ops.push({ op: "delete_log" });
   } else if (after.enabled) {
-    const filename = after.filename?.trim() || "eve.json";
-    const filetype = after.filetype || "regular";
-    if (!before.enabled || before.filename !== filename) {
-      ops.push({ op: "set_log_eve_filename", value: filename });
-    }
-    if (!before.enabled || before.filetype !== filetype) {
-      ops.push({ op: "set_log_eve_filetype", value: filetype });
+    const filename = after.filename?.trim() || null;
+    const filetype = after.filetype || null;
+    if (!before.enabled) {
+      ops.push({ op: "set_log_eve_filename", value: filename || "eve.json" });
+      ops.push({ op: "set_log_eve_filetype", value: filetype || "regular" });
+    } else {
+      if (filename && filename !== before.filename) {
+        ops.push({ op: "set_log_eve_filename", value: filename });
+      }
+      if (filetype && filetype !== before.filetype) {
+        ops.push({ op: "set_log_eve_filetype", value: filetype });
+      }
     }
     const oldTypes = new Set(before.types_set ? before.types : []);
     const nextTypes = effectiveTypes(after);
@@ -635,10 +647,5 @@ export function mergeMissingStandardGroups(config: SuricataConfig): SuricataConf
 }
 
 export function editorDraft(config: SuricataConfig): SuricataConfig {
-  const draft = cloneConfig(config);
-  if (draft.log.enabled) {
-    if (!draft.log.filename) draft.log.filename = "eve.json";
-    if (!draft.log.filetype) draft.log.filetype = "regular";
-  }
-  return draft;
+  return cloneConfig(config);
 }

@@ -121,7 +121,10 @@ def test_suricata_capabilities_follow_the_device():
         ("set_address", ("home-net", "192.168.1.1/24")),
         ("set_address", ("home-net", "not-an-ip")),
         ("set_port", ("http-ports", "0")),
+        ("set_port", ("http-ports", "65536")),
+        ("set_port", ("http-ports", "99999")),
         ("set_port", ("http-ports", "1005-1001")),
+        ("set_address", ("home-net", "fe80::1%eth0")),
         ("set_log_eve_filetype", ("redis",)),
         ("set_log_eve_type", ("geoip",)),
         ("set_address_group_ref", ("external-net", "!")),
@@ -166,3 +169,17 @@ def test_parse_suricata_config_splits_exclusions_and_implicit_log():
 def test_parse_missing_suricata_is_unconfigured():
     assert parse_suricata_config(None).configured is False
     assert parse_suricata_config({}).configured is False
+
+
+def test_parse_bare_eve_node_is_logging_on():
+    bare = parse_suricata_config({"interface": "eth0", "log": {"eve": {}}})
+    assert bare.log.enabled is True
+    assert bare.log.filename is None
+    assert bare.log.filetype is None
+    assert bare.log.types_set is False
+
+    typed = parse_suricata_config({"log": {"eve": {"type": {"alert": {}, "dns": {}}}}})
+    assert typed.log.enabled is True
+    assert typed.log.types_set is True
+    assert typed.log.types == ["alert", "dns"]
+    assert typed.log.filename is None

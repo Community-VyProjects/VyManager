@@ -78,8 +78,13 @@ describe("suricata review", () => {
     assert.equal(isAddress("192.168.1.1/24"), false);
     assert.equal(isAddress("10.0.0.0/8"), true);
     assert.equal(isAddress("2001:db8::1"), true);
+    assert.equal(isAddress("fe80::1%eth0"), false);
     assert.equal(isPort("1005-1001"), false);
     assert.equal(isPort("80"), true);
+    assert.equal(isPort("65535"), true);
+    assert.equal(isPort("65536"), false);
+    assert.equal(isPort("70000"), false);
+    assert.equal(isPort("99999"), false);
   });
 
   it("names a group cycle", () => {
@@ -112,6 +117,23 @@ describe("suricata ops", () => {
     original.log.types = [];
     original.log.types_set = false;
     const draft = editorDraft(original);
+    assert.deepEqual(buildOps(original, draft), []);
+  });
+
+  it("does not write default log file fields the user did not change", () => {
+    const original = buildSetupConfig({
+      interfaces: ["eth0"],
+      homeNet: ["10.0.0.0/8"],
+      includeStandardVariables: false,
+      logAlerts: true,
+    });
+    original.log.filename = null;
+    original.log.filetype = null;
+    original.log.types = [];
+    original.log.types_set = false;
+    const draft = editorDraft(original);
+    assert.equal(draft.log.filename, null);
+    assert.equal(draft.log.filetype, null);
     assert.deepEqual(buildOps(original, draft), []);
   });
 

@@ -33,8 +33,6 @@ _INTERFACE = re.compile(
     r"^(?:(?:bond|br|dum|en|ersp|eth|gnv|ifb|ipoe|lan|l2tp|l2tpeth|macsec|peth|ppp|pppoe|pptp|sstp|sstpc|tun|veth|vpptap|vpptun|vti|vtun|vxlan|wg|wlan|wwan)[0-9]+(?:\.\d+)?|pod-[-_a-zA-Z0-9]{1,11}|lo)$"
 )
 _GROUP_NAME = re.compile(r"^[a-z0-9-]+$")
-_PORT_NUM = r"(?:[1-9][0-9]{0,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])"
-_PORT = re.compile(rf"^!?{_PORT_NUM}(?:-{_PORT_NUM})?$")
 _FILENAME = re.compile(r"^[^\x00-\x1f,]+$")
 
 EVE_FILETYPES = ("regular", "syslog")
@@ -216,6 +214,8 @@ class SuricataMapper(BaseFeatureMapper):
     @staticmethod
     def _address(value: str) -> str:
         _reject_comma(value, "address")
+        if "%" in value:
+            raise ValueError(f"Invalid address or prefix: {value}")
         body = value[1:] if value.startswith("!") else value
         if not body or body.startswith("!"):
             raise ValueError("Invalid address or prefix")
@@ -229,12 +229,24 @@ class SuricataMapper(BaseFeatureMapper):
         return value
 
     @staticmethod
-    def _port(value: str) -> str:
-        if not _PORT.match(value):
+    def _port_number(text: str) -> int:
+        if not text.isdigit() or (len(text) > 1 and text.startswith("0")):
             raise ValueError("Invalid port or port range")
+        number = int(text)
+        if not 1 <= number <= 65535:
+            raise ValueError("Invalid port or port range")
+        return number
+
+    @staticmethod
+    def _port(value: str) -> str:
+        _reject_comma(value, "port")
         body = value[1:] if value.startswith("!") else value
+        if not body or body.startswith("!"):
+            raise ValueError("Invalid port or port range")
         if "-" in body:
             start_s, end_s = body.split("-", 1)
-            if int(start_s) > int(end_s):
+            if SuricataMapper._port_number(start_s) > SuricataMapper._port_number(end_s):
                 raise ValueError("Port range start must not exceed the end")
+        else:
+            SuricataMapper._port_number(body)
         return value

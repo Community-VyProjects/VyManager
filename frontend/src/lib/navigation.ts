@@ -139,8 +139,7 @@ export const navigation: NavItem[] = [
       { title: "Suricata", href: "/service/suricata", requiredPermission: FeatureGroup.SURICATA, sections: [
           { id: "interfaces", title: "Watched interfaces", href: "/service/suricata", description: "Interfaces Suricata inspects", searchParams: { section: "interfaces" } },
           { id: "network", title: "Your network", href: "/service/suricata", description: "HOME_NET and EXTERNAL_NET for intrusion detection", searchParams: { section: "network" } },
-          { id: "logging", title: "Suricata logging", href: "/service/suricata", description: "EVE JSON logs for IDS alerts", searchParams: { section: "logging" } },
-          { id: "ids", title: "Intrusion detection", href: "/service/suricata", description: "Suricata IDS, IPS, and security monitoring", searchParams: { section: "network" } },
+          { id: "logging", title: "Suricata logging", href: "/service/suricata", description: "EVE JSON logs for intrusion detection alerts", searchParams: { section: "logging" } },
         ] },
       { title: "TFTP Server", href: "/service/tftp-server", requiredPermission: FeatureGroup.TFTP_SERVER },
       { title: "Web Proxy", href: "/service/webproxy", requiredPermission: FeatureGroup.WEBPROXY },
