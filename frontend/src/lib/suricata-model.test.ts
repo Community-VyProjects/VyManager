@@ -172,6 +172,22 @@ describe("suricata ops", () => {
     assert.deepEqual(buildOps(original, back), []);
   });
 
+  it("turning logging off again drops unsaved log edits", () => {
+    const original = buildSetupConfig({
+      interfaces: ["eth0"],
+      homeNet: ["10.0.0.0/8"],
+      includeStandardVariables: false,
+      logAlerts: false,
+    });
+    const edited = setLoggingEnabled(original, true);
+    edited.log.filename = "alerts.json";
+    edited.log.types = ["alert"];
+    edited.log.types_set = true;
+    const back = setLoggingEnabled(edited, false);
+    assert.equal(configsEqual(original, back), true);
+    assert.deepEqual(buildOps(original, back), []);
+  });
+
   it("sets alert explicitly once another event type is added", () => {
     const original = buildSetupConfig({
       interfaces: ["eth0"],

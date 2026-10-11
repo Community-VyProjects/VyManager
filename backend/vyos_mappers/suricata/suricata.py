@@ -1,8 +1,7 @@
 """Suricata command mapper.
 
-Lab-checked on VyOS 1.5 rolling (100.64.64.5) and absent on 1.4.3
-(100.64.64.50). Every path method raises on 1.4. Builders do not
-version-check; they call these methods.
+``service suricata`` is absent on 1.4. Every path method raises there.
+Builders do not version-check; they call these methods.
 
 Leaves under ``service suricata``:
 
@@ -28,12 +27,14 @@ from ..base import BaseFeatureMapper
 
 BASE = ["service", "suricata"]
 
-# Copied from the 1.5 interface node.def. VLAN names are prefix + digits + .digits.
+# Interface names from the 1.5 node.def. \Z and ASCII so a trailing newline
+# or a non-ASCII digit cannot pass a value leaf.
 _INTERFACE = re.compile(
-    r"^(?:(?:bond|br|dum|en|ersp|eth|gnv|ifb|ipoe|lan|l2tp|l2tpeth|macsec|peth|ppp|pppoe|pptp|sstp|sstpc|tun|veth|vpptap|vpptun|vti|vtun|vxlan|wg|wlan|wwan)[0-9]+(?:\.\d+)?|pod-[-_a-zA-Z0-9]{1,11}|lo)$"
+    r"^(?:(?:bond|br|dum|en|ersp|eth|gnv|ifb|ipoe|lan|l2tp|l2tpeth|macsec|peth|ppp|pppoe|pptp|sstp|sstpc|tun|veth|vpptap|vpptun|vti|vtun|vxlan|wg|wlan|wwan)[0-9]+(?:\.\d+)?|pod-[-_a-zA-Z0-9]{1,11}|lo)\Z",
+    re.ASCII,
 )
-_GROUP_NAME = re.compile(r"^[a-z0-9-]+$")
-_FILENAME = re.compile(r"^[^\x00-\x1f,]+$")
+_GROUP_NAME = re.compile(r"^[a-z0-9-]+\Z")
+_FILENAME = re.compile(r"^[^\x00-\x1f,]+\Z")
 
 EVE_FILETYPES = ("regular", "syslog")
 EVE_TYPES = (

@@ -606,12 +606,15 @@ function normalizeForCompare(config: SuricataConfig): SuricataConfig {
 }
 
 function comparableLog(log: SuricataLog): SuricataLog {
+  if (!log.enabled) {
+    return { enabled: false, filename: null, filetype: null, types: [], types_set: false };
+  }
   const filename = log.filename?.trim() || null;
   const filetype = log.filetype || null;
   return {
     ...log,
-    filename: log.enabled && (!filename || filename === "eve.json") ? "eve.json" : filename,
-    filetype: log.enabled && (!filetype || filetype === "regular") ? "regular" : filetype,
+    filename: !filename || filename === "eve.json" ? "eve.json" : filename,
+    filetype: !filetype || filetype === "regular" ? "regular" : filetype,
     types: [...log.types].sort(),
   };
 }

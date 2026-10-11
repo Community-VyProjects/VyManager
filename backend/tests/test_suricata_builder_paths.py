@@ -117,6 +117,11 @@ def test_suricata_capabilities_follow_the_device():
     "method, args",
     [
         ("set_interface", ("tailscale0",)),
+        ("set_interface", ("eth0\n",)),
+        ("set_interface", ("eth0.\u0661\u0660",)),
+        ("set_address_group", ("home-net\n",)),
+        ("set_port_group", ("http-ports\n",)),
+        ("set_log_eve_filename", ("eve.json\n",)),
         ("set_address_group", ("Home",)),
         ("set_address", ("home-net", "192.168.1.1/24")),
         ("set_address", ("home-net", "not-an-ip")),
