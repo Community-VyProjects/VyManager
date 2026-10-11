@@ -611,11 +611,13 @@ function comparableLog(log: SuricataLog): SuricataLog {
   }
   const filename = log.filename?.trim() || null;
   const filetype = log.filetype || null;
+  const types = !log.types_set && log.types.length === 0 ? ["alert"] : [...log.types].sort();
   return {
-    ...log,
+    enabled: true,
     filename: !filename || filename === "eve.json" ? "eve.json" : filename,
     filetype: !filetype || filetype === "regular" ? "regular" : filetype,
-    types: [...log.types].sort(),
+    types,
+    types_set: true,
   };
 }
 

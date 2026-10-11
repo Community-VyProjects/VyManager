@@ -13,6 +13,7 @@ import {
   reviewConfig,
   setLoggingEnabled,
   variableName,
+  withLogTypes,
 } from "./suricata-model.ts";
 
 describe("suricata setup", () => {
@@ -186,6 +187,23 @@ describe("suricata ops", () => {
     const back = setLoggingEnabled(edited, false);
     assert.equal(configsEqual(original, back), true);
     assert.deepEqual(buildOps(original, back), []);
+  });
+
+  it("explicit alert-only matches an implicit alert log", () => {
+    const original = buildSetupConfig({
+      interfaces: ["eth0"],
+      homeNet: ["10.0.0.0/8"],
+      includeStandardVariables: false,
+      logAlerts: true,
+    });
+    original.log.filename = null;
+    original.log.filetype = null;
+    original.log.types = [];
+    original.log.types_set = false;
+    const draft = structuredClone(original);
+    draft.log = withLogTypes(draft.log, ["alert"]);
+    assert.equal(configsEqual(original, draft), true);
+    assert.deepEqual(buildOps(original, draft), []);
   });
 
   it("sets alert explicitly once another event type is added", () => {
