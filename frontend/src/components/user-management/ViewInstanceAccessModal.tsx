@@ -12,7 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-import { type LucideIcon, Loader2, AlertCircle, RefreshCw, Shield, Eye, Edit3, User, ChevronDown, ChevronRight, Server, Building2, Search, X, Network, Wifi, Router, Lock, Activity, Box, Waypoints, Globe, FileText, List, MapPin, Workflow, Radio, UserCircle, Power, ShieldCheck, GitBranch, Package, Terminal, ArrowLeftRight, MonitorSpeaker, Zap, Clock, Bot, Gauge, FolderUp } from "lucide-react";
+import { type LucideIcon, Loader2, AlertCircle, RefreshCw, Shield, Eye, Edit3, User, ChevronDown, ChevronRight, Server, Building2, Search, X, Network, Wifi, Router, Lock, Activity, Box, Waypoints, Globe, FileText, List, MapPin, Workflow, Radio, UserCircle, Power, ShieldCheck, ShieldAlert, GitBranch, Package, Terminal, ArrowLeftRight, MonitorSpeaker, Zap, Clock, Bot, Gauge, FolderUp } from "lucide-react";
 import { userManagementService, FeatureGroup, InstanceUserListItem } from "@/lib/api/user-management";
 import { ApiError } from "@/lib/types/api";
 
@@ -62,6 +62,7 @@ const FEATURE_ICONS: Record<FeatureGroup, LucideIcon> = {
   [FeatureGroup.SLA]: Gauge,
   [FeatureGroup.SNMP]: Network,
   [FeatureGroup.SSH]: Terminal,
+  [FeatureGroup.SURICATA]: ShieldAlert,
   [FeatureGroup.TFTP_SERVER]: FolderUp,
   [FeatureGroup.QOS]: Gauge,
   [FeatureGroup.CONTAINER]: Box,
@@ -174,6 +175,7 @@ const FEATURE_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.SLA]: "SLA",
   [FeatureGroup.SNMP]: "SNMP",
   [FeatureGroup.SSH]: "SSH",
+  [FeatureGroup.SURICATA]: "Suricata",
   [FeatureGroup.TFTP_SERVER]: "TFTP Server",
   [FeatureGroup.QOS]: "QoS",
   [FeatureGroup.CONTAINER]: "Containers",

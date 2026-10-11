@@ -102,6 +102,7 @@ class FeatureGroup(str, Enum):
     SLA = "SLA"
     SNMP = "SNMP"
     SSH = "SSH"
+    SURICATA = "SURICATA"
     TFTP_SERVER = "TFTP_SERVER"
     WEBPROXY = "WEBPROXY"
 
@@ -230,6 +231,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.SLA: PermissionLevel.WRITE,
         FeatureGroup.SNMP: PermissionLevel.WRITE,
         FeatureGroup.SSH: PermissionLevel.WRITE,
+        FeatureGroup.SURICATA: PermissionLevel.WRITE,
         FeatureGroup.TFTP_SERVER: PermissionLevel.WRITE,
         FeatureGroup.QOS: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
@@ -341,6 +343,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.SLA: PermissionLevel.WRITE,
         FeatureGroup.SNMP: PermissionLevel.WRITE,
         FeatureGroup.SSH: PermissionLevel.WRITE,
+        FeatureGroup.SURICATA: PermissionLevel.WRITE,
         FeatureGroup.TFTP_SERVER: PermissionLevel.WRITE,
         FeatureGroup.QOS: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
@@ -453,6 +456,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.SLA: PermissionLevel.READ,
         FeatureGroup.SNMP: PermissionLevel.READ,
         FeatureGroup.SSH: PermissionLevel.READ,
+        FeatureGroup.SURICATA: PermissionLevel.READ,
         FeatureGroup.TFTP_SERVER: PermissionLevel.READ,
         FeatureGroup.QOS: PermissionLevel.READ,
         FeatureGroup.DHCP: PermissionLevel.READ,
@@ -572,6 +576,7 @@ _INSTANCE_ADMIN_FEATURES = [
     FeatureGroup.SLA,
     FeatureGroup.SNMP,
     FeatureGroup.SSH,
+    FeatureGroup.SURICATA,
     FeatureGroup.TFTP_SERVER,
     FeatureGroup.QOS,
     FeatureGroup.DHCP,
@@ -767,6 +772,7 @@ async def get_user_permissions(
                 FeatureGroup.SLA,
                 FeatureGroup.SNMP,
                 FeatureGroup.SSH,
+                FeatureGroup.SURICATA,
                 FeatureGroup.TFTP_SERVER,
                 FeatureGroup.QOS,
                 FeatureGroup.DHCP,
@@ -1190,7 +1196,7 @@ def _apply_parent_child_permissions(permissions: Dict[FeatureGroup, PermissionLe
     # SERVICE grants permissions to all service features
     service_perm = permissions.get(FeatureGroup.SERVICE, PermissionLevel.NONE)
     if service_perm != PermissionLevel.NONE:
-        for child in [FeatureGroup.BROADCAST_RELAY, FeatureGroup.CONFIG_SYNC, FeatureGroup.CONNTRACK_SYNC, FeatureGroup.CONSOLE_SERVER, FeatureGroup.DHCP_RELAY, FeatureGroup.DHCPV6_RELAY, FeatureGroup.DHCPV6_SERVER, FeatureGroup.DNS_FORWARDING, FeatureGroup.DNS_DYNAMIC, FeatureGroup.EVENT_HANDLER, FeatureGroup.HTTPS, FeatureGroup.IPOE_SERVER, FeatureGroup.LLDP, FeatureGroup.NDP_PROXY, FeatureGroup.NTP, FeatureGroup.ROUTER_ADVERT, FeatureGroup.SALT_MINION, FeatureGroup.SERVICE_MONITORING, FeatureGroup.SLA, FeatureGroup.SNMP, FeatureGroup.SSH, FeatureGroup.TFTP_SERVER, FeatureGroup.WEBPROXY, FeatureGroup.DHCP]:
+        for child in [FeatureGroup.BROADCAST_RELAY, FeatureGroup.CONFIG_SYNC, FeatureGroup.CONNTRACK_SYNC, FeatureGroup.CONSOLE_SERVER, FeatureGroup.DHCP_RELAY, FeatureGroup.DHCPV6_RELAY, FeatureGroup.DHCPV6_SERVER, FeatureGroup.DNS_FORWARDING, FeatureGroup.DNS_DYNAMIC, FeatureGroup.EVENT_HANDLER, FeatureGroup.HTTPS, FeatureGroup.IPOE_SERVER, FeatureGroup.LLDP, FeatureGroup.NDP_PROXY, FeatureGroup.NTP, FeatureGroup.ROUTER_ADVERT, FeatureGroup.SALT_MINION, FeatureGroup.SERVICE_MONITORING, FeatureGroup.SLA, FeatureGroup.SNMP, FeatureGroup.SSH, FeatureGroup.SURICATA, FeatureGroup.TFTP_SERVER, FeatureGroup.WEBPROXY, FeatureGroup.DHCP]:
             current = permissions.get(child, PermissionLevel.NONE)
             if service_perm == PermissionLevel.WRITE:
                 permissions[child] = PermissionLevel.WRITE

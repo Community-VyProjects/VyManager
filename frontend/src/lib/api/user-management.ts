@@ -152,6 +152,7 @@ export enum FeatureGroup {
   SLA = "SLA",
   SNMP = "SNMP",
   SSH = "SSH",
+  SURICATA = "SURICATA",
   TFTP_SERVER = "TFTP_SERVER",
   QOS = "QOS",
   CONTAINER = "CONTAINER",
