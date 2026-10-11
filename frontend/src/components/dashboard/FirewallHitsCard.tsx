@@ -8,7 +8,7 @@ import { X, Flame, RefreshCw } from "lucide-react";
 import { CardSizeMenu } from "@/components/dashboard/CardSizeMenu";
 import { useDashboardData } from "@/contexts/DashboardDataContext";
 import type { FirewallHitsData, FirewallHit } from "@/hooks/useDashboardSSE";
-import { formatBytes, formatNumber } from "@/lib/utils";
+import { formatBytes, formatNumber, cn } from "@/lib/utils";
 
 interface FirewallHitsCardProps {
   onRemove?: () => void;
@@ -25,6 +25,14 @@ function chainLabel(hit: FirewallHit): string {
   return hit.chain === "prerouting_raw" ? "prerouting" : hit.chain;
 }
 
+function actionClass(action: string): string {
+  if (action === "accept") return "bg-green-500/10 text-green-500 border-green-500/20";
+  if (action === "drop") return "bg-red-500/10 text-red-500 border-red-500/20";
+  if (action === "reject") return "bg-orange-500/10 text-orange-500 border-orange-500/20";
+  if (action === "jump") return "bg-blue-500/10 text-blue-500 border-blue-500/20";
+  return "";
+}
+
 function HitRow({ hit, rank }: { hit: FirewallHit; rank: number }) {
   return (
     <div className="flex items-center gap-2 px-3 py-2 text-sm border-b last:border-0">
@@ -38,7 +46,7 @@ function HitRow({ hit, rank }: { hit: FirewallHit; rank: number }) {
       <span className="font-mono text-xs text-muted-foreground shrink-0">
         {hit.rule === "default" ? "default" : `#${hit.rule}`}
       </span>
-      <Badge variant="outline" className="text-[10px] h-4 px-1 uppercase shrink-0">
+      <Badge variant="outline" className={cn("text-[10px] h-4 px-1 uppercase shrink-0", actionClass(hit.action))}>
         {hit.action}
       </Badge>
       <div className="flex-1" />
