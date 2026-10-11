@@ -159,6 +159,7 @@ from .salt_minion import SaltMinionMapper
 from .salt_minion.salt_minion_versions import get_salt_minion_mapper
 from .sla import SLAMapper
 from .sla.sla_versions import get_sla_mapper
+from .suricata.suricata_versions import get_suricata_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -349,6 +350,7 @@ CommandMapperRegistry.register_feature("router_advert", get_router_advert_mapper
 CommandMapperRegistry.register_feature("salt_minion", get_salt_minion_mapper)
 # SLA uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("sla", get_sla_mapper)
+CommandMapperRegistry.register_feature("suricata", get_suricata_mapper)
 
 __all__ = [
     "BaseFeatureMapper",

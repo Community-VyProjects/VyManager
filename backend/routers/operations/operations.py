@@ -106,6 +106,7 @@ from vyos_builders.service_monitoring import ServiceMonitoringBatchBuilder
 from vyos_builders.sla import SLABatchBuilder
 from vyos_builders.snmp import SNMPBatchBuilder
 from vyos_builders.ssh import SSHBatchBuilder
+from vyos_builders.suricata import SuricataBatchBuilder
 from vyos_builders.tftp_server import TFTPServerBatchBuilder
 from vyos_builders.tunnel import TunnelBatchBuilder
 from vyos_builders.vxlan import VxlanBatchBuilder
@@ -185,6 +186,7 @@ _BUILDER_REGISTRY: dict[str, type] = {
     "sla": SLABatchBuilder,
     "snmp": SNMPBatchBuilder,
     "ssh": SSHBatchBuilder,
+    "suricata": SuricataBatchBuilder,
     "static-routes": StaticRoutesBatchBuilder,
     "system": SystemBatchBuilder,
     "tftp-server": TFTPServerBatchBuilder,
