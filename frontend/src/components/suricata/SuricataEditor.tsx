@@ -26,6 +26,7 @@ import {
   mergeMissingStandardGroups,
   referrers,
   reviewConfig,
+  setLoggingEnabled,
   variableName,
   withLogTypes,
   type SuricataConfig,
@@ -263,15 +264,7 @@ export function SuricataEditor({
           <Checkbox
             checked={draft.log.enabled}
             disabled={disabled}
-            onCheckedChange={(checked) => onChange({
-              ...draft,
-              log: {
-                ...draft.log,
-                enabled: checked === true,
-                filename: draft.log.filename || "eve.json",
-                filetype: draft.log.filetype || "regular",
-              },
-            })}
+            onCheckedChange={(checked) => onChange(setLoggingEnabled(draft, checked === true))}
           />
           Record events
         </label>
@@ -284,7 +277,10 @@ export function SuricataEditor({
                   name="suricata-filetype"
                   checked={(draft.log.filetype || "regular") === "regular"}
                   disabled={disabled}
-                  onChange={() => onChange({ ...draft, log: { ...draft.log, filetype: "regular" } })}
+                  onChange={() => {
+                    if ((draft.log.filetype || "regular") === "regular") return;
+                    onChange({ ...draft, log: { ...draft.log, filetype: "regular" } });
+                  }}
                 />
                 File
               </label>

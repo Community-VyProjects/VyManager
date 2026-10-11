@@ -123,6 +123,7 @@ def test_suricata_capabilities_follow_the_device():
         ("set_port", ("http-ports", "0")),
         ("set_port", ("http-ports", "65536")),
         ("set_port", ("http-ports", "99999")),
+        ("set_port", ("http-ports", "١٠")),
         ("set_port", ("http-ports", "1005-1001")),
         ("set_address", ("home-net", "fe80::1%eth0")),
         ("set_log_eve_filetype", ("redis",)),

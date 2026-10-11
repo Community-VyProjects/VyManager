@@ -558,9 +558,13 @@ export function buildOps(original: SuricataConfig, updated: SuricataConfig): Sur
     } else {
       if (filename && filename !== before.filename) {
         ops.push({ op: "set_log_eve_filename", value: filename });
+      } else if (!filename && before.filename && before.filename !== "eve.json") {
+        ops.push({ op: "set_log_eve_filename", value: "eve.json" });
       }
       if (filetype && filetype !== before.filetype) {
         ops.push({ op: "set_log_eve_filetype", value: filetype });
+      } else if (!filetype && before.filetype && before.filetype !== "regular") {
+        ops.push({ op: "set_log_eve_filetype", value: "regular" });
       }
     }
     const oldTypes = new Set(before.types_set ? before.types : []);
@@ -597,10 +601,18 @@ function normalizeForCompare(config: SuricataConfig): SuricataConfig {
     interfaces: [...config.interfaces].sort(),
     address_groups: sortGroups(config.address_groups),
     port_groups: sortGroups(config.port_groups),
-    log: {
-      ...config.log,
-      types: [...config.log.types].sort(),
-    },
+    log: comparableLog(config.log),
+  };
+}
+
+function comparableLog(log: SuricataLog): SuricataLog {
+  const filename = log.filename?.trim() || null;
+  const filetype = log.filetype || null;
+  return {
+    ...log,
+    filename: log.enabled && (!filename || filename === "eve.json") ? "eve.json" : filename,
+    filetype: log.enabled && (!filetype || filetype === "regular") ? "regular" : filetype,
+    types: [...log.types].sort(),
   };
 }
 
@@ -648,4 +660,8 @@ export function mergeMissingStandardGroups(config: SuricataConfig): SuricataConf
 
 export function editorDraft(config: SuricataConfig): SuricataConfig {
   return cloneConfig(config);
+}
+
+export function setLoggingEnabled(config: SuricataConfig, enabled: boolean): SuricataConfig {
+  return { ...config, log: { ...config.log, enabled } };
 }

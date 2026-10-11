@@ -230,7 +230,7 @@ class SuricataMapper(BaseFeatureMapper):
 
     @staticmethod
     def _port_number(text: str) -> int:
-        if not text.isdigit() or (len(text) > 1 and text.startswith("0")):
+        if not text.isascii() or not text.isdigit() or (len(text) > 1 and text.startswith("0")):
             raise ValueError("Invalid port or port range")
         number = int(text)
         if not 1 <= number <= 65535:

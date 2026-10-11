@@ -4,12 +4,14 @@ import {
   blockers,
   buildOps,
   buildSetupConfig,
+  configsEqual,
   editorDraft,
   findCycles,
   isAddress,
   isPort,
   mergeMissingStandardGroups,
   reviewConfig,
+  setLoggingEnabled,
   variableName,
 } from "./suricata-model.ts";
 
@@ -135,6 +137,39 @@ describe("suricata ops", () => {
     assert.equal(draft.log.filename, null);
     assert.equal(draft.log.filetype, null);
     assert.deepEqual(buildOps(original, draft), []);
+  });
+
+  it("clearing a custom log file resets it to eve.json", () => {
+    const original = buildSetupConfig({
+      interfaces: ["eth0"],
+      homeNet: ["10.0.0.0/8"],
+      includeStandardVariables: false,
+      logAlerts: true,
+    });
+    original.log.filename = "alerts.json";
+    const cleared = structuredClone(original);
+    cleared.log.filename = "";
+    assert.equal(configsEqual(original, cleared), false);
+    assert.deepEqual(
+      buildOps(original, cleared).filter((op) => op.op === "set_log_eve_filename"),
+      [{ op: "set_log_eve_filename", value: "eve.json" }],
+    );
+  });
+
+  it("turning logging off and back on does not invent file defaults", () => {
+    const original = buildSetupConfig({
+      interfaces: ["eth0"],
+      homeNet: ["10.0.0.0/8"],
+      includeStandardVariables: false,
+      logAlerts: true,
+    });
+    original.log.filename = null;
+    original.log.filetype = null;
+    const back = setLoggingEnabled(setLoggingEnabled(original, false), true);
+    assert.equal(back.log.filename, null);
+    assert.equal(back.log.filetype, null);
+    assert.equal(configsEqual(original, back), true);
+    assert.deepEqual(buildOps(original, back), []);
   });
 
   it("sets alert explicitly once another event type is added", () => {
