@@ -131,6 +131,7 @@ def test_suricata_capabilities_follow_the_device():
         ("set_port", ("http-ports", "١٠")),
         ("set_port", ("http-ports", "1005-1001")),
         ("set_address", ("home-net", "fe80::1%eth0")),
+        ("set_address", ("home-net", "2001:db8::1/32")),
         ("set_log_eve_filetype", ("redis",)),
         ("set_log_eve_type", ("geoip",)),
         ("set_address_group_ref", ("external-net", "!")),

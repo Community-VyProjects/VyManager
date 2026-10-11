@@ -290,14 +290,35 @@ function isIPv4(value: string): boolean {
 function isIPv6(value: string): boolean {
   const [addr, prefix, extra] = value.split("/");
   if (extra !== undefined || !addr || !addr.includes(":")) return false;
-  if (prefix !== undefined && (!/^\d{1,3}$/.test(prefix) || Number(prefix) > 128)) return false;
-  // Host-bit checks for IPv6 prefixes are left to the device. Format only.
-  const sides = addr.split("::");
-  if (sides.length > 2) return false;
-  const groups = sides.flatMap((side) => (side === "" ? [] : side.split(":")));
-  if (groups.some((group) => !/^[0-9a-fA-F]{1,4}$/.test(group))) return false;
-  const compressed = addr.includes("::");
-  return compressed ? groups.length < 8 : groups.length === 8;
+  const ip = ipv6ToBigInt(addr);
+  if (ip === null) return false;
+  if (prefix === undefined) return true;
+  if (!/^\d{1,3}$/.test(prefix) || (prefix.length > 1 && prefix.startsWith("0"))) return false;
+  const bits = Number(prefix);
+  if (bits > 128) return false;
+  const hostBits = 128 - bits;
+  if (hostBits === 0) return true;
+  const hostMask = (BigInt(1) << BigInt(hostBits)) - BigInt(1);
+  return (ip & hostMask) === BigInt(0);
+}
+
+function ipv6ToBigInt(addr: string): bigint | null {
+  const halves = addr.split("::");
+  if (halves.length > 2) return null;
+  const head = halves[0] ? halves[0].split(":") : [];
+  const tail = halves.length === 2 ? (halves[1] ? halves[1].split(":") : []) : [];
+  if (halves.length === 1 && head.length !== 8) return null;
+  if (halves.length === 2 && head.length + tail.length > 7) return null;
+  const groups = halves.length === 1
+    ? head
+    : [...head, ...Array(8 - head.length - tail.length).fill("0"), ...tail];
+  if (groups.length !== 8) return null;
+  let value = BigInt(0);
+  for (const group of groups) {
+    if (!/^[0-9a-fA-F]{1,4}$/.test(group)) return null;
+    value = (value << BigInt(16)) + BigInt(Number.parseInt(group, 16));
+  }
+  return value;
 }
 
 export function memberToken(item: SuricataMember): string {

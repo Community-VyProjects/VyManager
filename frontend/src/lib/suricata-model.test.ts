@@ -81,6 +81,8 @@ describe("suricata review", () => {
     assert.equal(isAddress("192.168.1.1/24"), false);
     assert.equal(isAddress("10.0.0.0/8"), true);
     assert.equal(isAddress("2001:db8::1"), true);
+    assert.equal(isAddress("2001:db8::/32"), true);
+    assert.equal(isAddress("2001:db8::1/32"), false);
     assert.equal(isAddress("fe80::1%eth0"), false);
     assert.equal(isPort("1005-1001"), false);
     assert.equal(isPort("80"), true);
