@@ -35,6 +35,7 @@ import { useSearchParams } from "next/navigation";
 import { DndContext, type DragStartEvent, type DragEndEvent, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { natService, type NATConfigResponse, type NATCapabilities, type SourceNATRule, type DestinationNATRule, type StaticNATRule } from "@/lib/api/nat";
+import { buildNatReorderItems } from "@/lib/api/nat-reorder";
 import { firewallGroupsService } from "@/lib/api/firewall-groups";
 import type { FirewallGroup } from "@/lib/api/types/firewall-groups";
 import { cn } from "@/lib/utils";
@@ -184,6 +185,9 @@ function NATPageInner() {
 
   const handleSaveReorder = async () => {
     if (!reorderedRules.length || !hasChanges) return;
+    if (selectedType !== "source" && selectedType !== "destination" && selectedType !== "static") {
+      return;
+    }
 
     setSavingReorder(true);
     try {
@@ -192,66 +196,9 @@ function NATPageInner() {
         .map(r => r.rule_number)
         .sort((a, b) => a - b);
 
-      // Build the reorder request with all rules in a single batch
-      const reorderItems = reorderedRules.map((rule, i) => {
-        const oldNumber = rule.rule_number;
-        const newNumber = sortedRuleNumbers[i];
-        let ruleData: Record<string, unknown> = {};
+      const reorderItems = buildNatReorderItems(selectedType, reorderedRules, sortedRuleNumbers);
 
-        if (selectedType === "source") {
-          const sRule = rule as SourceNATRule;
-          ruleData = {
-            description: sRule.description,
-            source_address: sRule.source?.address,
-            source_port: sRule.source?.port,
-            destination_address: sRule.destination?.address,
-            destination_port: sRule.destination?.port,
-            outbound_interface_name: sRule.outbound_interface?.name,
-            outbound_interface_group: sRule.outbound_interface?.group,
-            protocol: sRule.protocol,
-            packet_type: sRule.packet_type,
-            translation_address: sRule.translation?.address,
-            disable: sRule.disable,
-            exclude: sRule.exclude,
-            log: sRule.log,
-          };
-        } else if (selectedType === "destination") {
-          const dRule = rule as DestinationNATRule;
-          ruleData = {
-            description: dRule.description,
-            source_address: dRule.source?.address,
-            source_port: dRule.source?.port,
-            destination_address: dRule.destination?.address,
-            destination_port: dRule.destination?.port,
-            inbound_interface_name: dRule.inbound_interface?.name,
-            inbound_interface_group: dRule.inbound_interface?.group,
-            protocol: dRule.protocol,
-            packet_type: dRule.packet_type,
-            translation_address: dRule.translation?.address,
-            translation_port: dRule.translation?.port,
-            disable: dRule.disable,
-            exclude: dRule.exclude,
-            log: dRule.log,
-          };
-        } else {
-          const stRule = rule as StaticNATRule;
-          ruleData = {
-            description: stRule.description,
-            destination_address: stRule.destination?.address,
-            inbound_interface: stRule.inbound_interface,
-            translation_address: stRule.translation?.address,
-          };
-        }
-
-        return {
-          old_number: oldNumber,
-          new_number: newNumber,
-          rule_data: ruleData
-        };
-      });
-
-      // Call the new bulk reorder endpoint (single API call, single VyOS commit)
-      await natService.reorderRules(selectedType as "source" | "destination" | "static", reorderItems);
+      await natService.reorderRules(selectedType, reorderItems);
 
       // Refresh config and reset state
       await fetchConfig(true);
