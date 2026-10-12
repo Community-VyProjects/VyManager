@@ -10,7 +10,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from pyvyos.core.rest_client import commit_accepted
+from vyos_commit import commit_accepted
 
 
 def test_commit_accepted_rejects_http_200_with_error():

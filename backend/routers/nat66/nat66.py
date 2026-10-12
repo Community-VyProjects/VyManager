@@ -12,7 +12,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
-from pyvyos.core.rest_client import commit_accepted
+from vyos_commit import commit_accepted
 from vyos_builders import NAT66BatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -500,7 +500,7 @@ async def reorder_nat66_rules(http_request: Request, request: ReorderNAT66Reques
             return VyOSResponse(
                 success=False,
                 data=None,
-                error=api_error or "NAT66 configuration failed",
+                error=api_error or "NAT66 reorder failed",
             )
 
         result_data = response.result

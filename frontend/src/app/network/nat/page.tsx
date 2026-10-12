@@ -35,6 +35,7 @@ import { useSearchParams } from "next/navigation";
 import { DndContext, type DragStartEvent, type DragEndEvent, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { natService, type NATConfigResponse, type NATCapabilities, type SourceNATRule, type DestinationNATRule, type StaticNATRule } from "@/lib/api/nat";
+import { buildNatReorderItems, discardReorderOnTypeChange } from "@/lib/api/nat-reorder";
 import { firewallGroupsService } from "@/lib/api/firewall-groups";
 import type { FirewallGroup } from "@/lib/api/types/firewall-groups";
 import { cn } from "@/lib/utils";
@@ -58,8 +59,14 @@ function NATPageInner() {
   const [capabilities, setCapabilities] = useState<NATCapabilities | null>(null);
   const [groups, setGroups] = useState<FirewallGroup[]>([]);
   const [selectedType, setSelectedType] = useState<RuleType>("source");
-  const selectedTypeRef = useRef(selectedType);
-  selectedTypeRef.current = selectedType;
+  const selectedTypeRef = useRef({
+    type: selectedType,
+    hasChanges: false,
+    rules: [] as (SourceNATRule | DestinationNATRule | StaticNATRule)[],
+    sourceRules: [] as SourceNATRule[],
+    destinationRules: [] as DestinationNATRule[],
+    staticRules: [] as StaticNATRule[],
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -85,8 +92,26 @@ function NATPageInner() {
     const requestedType = searchParams.get("type");
     const validTypes: RuleType[] = ["source", "destination", "static", "cgnat"];
 
-    if (requestedType && validTypes.includes(requestedType as RuleType) && requestedType !== selectedTypeRef.current) {
-      setHasChanges(false);
+    if (requestedType && validTypes.includes(requestedType as RuleType)) {
+      const snap = selectedTypeRef.current;
+      const nextRules = requestedType === "source"
+        ? snap.sourceRules
+        : requestedType === "destination"
+          ? snap.destinationRules
+          : requestedType === "static"
+            ? snap.staticRules
+            : [];
+      const next = discardReorderOnTypeChange(
+        snap.type,
+        requestedType,
+        snap.hasChanges,
+        snap.rules,
+        nextRules,
+      );
+      if (next.unchanged) return;
+      setHasChanges(next.hasChanges);
+      setReorderedRules(next.rules);
+      setOriginalRules(next.rules);
       setSelectedType(requestedType as RuleType);
     }
   }, [searchParams]);
@@ -136,12 +161,24 @@ function NATPageInner() {
   const sourceRules = config ? config.source_rules : [];
   const destinationRules = config ? config.destination_rules : [];
   const staticRules = config ? config.static_rules : [];
+  selectedTypeRef.current = {
+    type: selectedType,
+    hasChanges,
+    rules: reorderedRules,
+    sourceRules,
+    destinationRules,
+    staticRules,
+  };
 
   const changeType = (type: RuleType) => {
-    if (type === selectedType) return;
+    const nextRules = type === "source" ? sourceRules : type === "destination" ? destinationRules : type === "static" ? staticRules : [];
+    const next = discardReorderOnTypeChange(selectedType, type, hasChanges, reorderedRules, nextRules);
+    if (next.unchanged) return;
     // Pending reorder belongs to the previous type. Saving it under the new
     // type would delete and recreate the wrong rule numbers.
-    setHasChanges(false);
+    setHasChanges(next.hasChanges);
+    setReorderedRules(next.rules);
+    setOriginalRules(next.rules);
     setActiveId(null);
     setSelectedType(type);
   };
@@ -207,13 +244,7 @@ function NATPageInner() {
         .map(r => r.rule_number)
         .sort((a, b) => a - b);
 
-      // Same data delete-and-compact already sends. A hand-picked subset drops
-      // redirect and load-balance backends, and VyOS then rejects the commit.
-      const reorderItems = reorderedRules.map((rule, i) => ({
-        old_number: rule.rule_number,
-        new_number: sortedRuleNumbers[i],
-        rule_data: natService.ruleDataForReorder(selectedType, rule),
-      }));
+      const reorderItems = buildNatReorderItems(selectedType, reorderedRules, sortedRuleNumbers);
 
       await natService.reorderRules(selectedType, reorderItems);
 

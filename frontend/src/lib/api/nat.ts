@@ -1,5 +1,11 @@
 import { apiClient } from "./client";
 import { ApiError } from "@/lib/types/api";
+import {
+  flattenCGNATRule as flattenCGNATRuleData,
+  flattenDestinationRule as flattenDestinationRuleData,
+  flattenSourceRule as flattenSourceRuleData,
+  flattenStaticRule as flattenStaticRuleData,
+} from "./nat-reorder";
 
 // ==================== Type Definitions ====================
 
@@ -1233,111 +1239,20 @@ class NATService {
     return apiClient.post<{ success: boolean }>("/vyos/config/refresh", {});
   }
 
-  /**
-   * Full rule_data for /reorder.
-   *
-   * Drag-save must use this, not a hand-picked field list. VyOS rejects the
-   * whole commit (and applies nothing) when a recreated destination rule has
-   * no translation address, translation port, redirect, or load-balance
-   * backend. Delete-and-compact already goes through the flatten helpers.
-   */
-  ruleDataForReorder(
-    natType: "source" | "destination" | "static",
-    rule: SourceNATRule | DestinationNATRule | StaticNATRule,
-  ): Record<string, unknown> {
-    if (natType === "source") return this.flattenSourceRule(rule as SourceNATRule);
-    if (natType === "destination") return this.flattenDestinationRule(rule as DestinationNATRule);
-    return this.flattenStaticRule(rule as StaticNATRule);
-  }
-
-  /**
-   * Flatten a SourceNATRule into a rule_data dict for the reorder endpoint
-   */
   private flattenSourceRule(rule: SourceNATRule): Record<string, unknown> {
-    const data: Record<string, unknown> = {};
-    if (rule.description) data.description = rule.description;
-    if (rule.source?.address) data.source_address = rule.source.address;
-    if (rule.source?.fqdn) data.source_fqdn = rule.source.fqdn;
-    if (rule.source?.port) data.source_port = rule.source.port;
-    if (rule.source?.group) data.source_group = rule.source.group;
-    if (rule.destination?.address) data.destination_address = rule.destination.address;
-    if (rule.destination?.fqdn) data.destination_fqdn = rule.destination.fqdn;
-    if (rule.destination?.port) data.destination_port = rule.destination.port;
-    if (rule.destination?.group) data.destination_group = rule.destination.group;
-    if (rule.outbound_interface) {
-      const key = Object.keys(rule.outbound_interface)[0];
-      if (key === "name") data.outbound_interface_name = rule.outbound_interface[key];
-      else if (key === "group") data.outbound_interface_group = rule.outbound_interface[key];
-    }
-    if (rule.protocol) data.protocol = rule.protocol;
-    if (rule.packet_type) data.packet_type = rule.packet_type;
-    if (rule.translation?.address) data.translation_address = rule.translation.address;
-    if (rule.translation?.port) data.translation_port = rule.translation.port;
-    if (rule.translation?.options?.address_mapping) data.translation_options_address_mapping = rule.translation.options.address_mapping;
-    if (rule.translation?.options?.port_mapping) data.translation_options_port_mapping = rule.translation.options.port_mapping;
-    if (rule.load_balance?.hash) data.load_balance_hash = rule.load_balance.hash;
-    if (rule.load_balance?.backends?.length) data.load_balance_backends = rule.load_balance.backends;
-    if (rule.disable) data.disable = true;
-    if (rule.exclude) data.exclude = true;
-    if (rule.log) data.log = true;
-    return data;
+    return flattenSourceRuleData(rule);
   }
 
-  /**
-   * Flatten a DestinationNATRule into a rule_data dict for the reorder endpoint
-   */
   private flattenDestinationRule(rule: DestinationNATRule): Record<string, unknown> {
-    const data: Record<string, unknown> = {};
-    if (rule.description) data.description = rule.description;
-    if (rule.source?.address) data.source_address = rule.source.address;
-    if (rule.source?.fqdn) data.source_fqdn = rule.source.fqdn;
-    if (rule.source?.port) data.source_port = rule.source.port;
-    if (rule.source?.group) data.source_group = rule.source.group;
-    if (rule.destination?.address) data.destination_address = rule.destination.address;
-    if (rule.destination?.fqdn) data.destination_fqdn = rule.destination.fqdn;
-    if (rule.destination?.port) data.destination_port = rule.destination.port;
-    if (rule.destination?.group) data.destination_group = rule.destination.group;
-    if (rule.inbound_interface) {
-      const key = Object.keys(rule.inbound_interface)[0];
-      if (key === "name") data.inbound_interface_name = rule.inbound_interface[key];
-      else if (key === "group") data.inbound_interface_group = rule.inbound_interface[key];
-    }
-    if (rule.protocol) data.protocol = rule.protocol;
-    if (rule.packet_type) data.packet_type = rule.packet_type;
-    if (rule.translation?.address) data.translation_address = rule.translation.address;
-    if (rule.translation?.port) data.translation_port = rule.translation.port;
-    if (rule.translation?.options?.address_mapping) data.translation_options_address_mapping = rule.translation.options.address_mapping;
-    if (rule.translation?.options?.port_mapping) data.translation_options_port_mapping = rule.translation.options.port_mapping;
-    if (rule.translation?.redirect?.port) data.translation_redirect_port = rule.translation.redirect.port;
-    if (rule.load_balance?.hash) data.load_balance_hash = rule.load_balance.hash;
-    if (rule.load_balance?.backends?.length) data.load_balance_backends = rule.load_balance.backends;
-    if (rule.disable) data.disable = true;
-    if (rule.exclude) data.exclude = true;
-    if (rule.log) data.log = true;
-    return data;
+    return flattenDestinationRuleData(rule);
   }
 
-  /**
-   * Flatten a StaticNATRule into a rule_data dict for the reorder endpoint
-   */
   private flattenStaticRule(rule: StaticNATRule): Record<string, unknown> {
-    const data: Record<string, unknown> = {};
-    if (rule.description) data.description = rule.description;
-    if (rule.destination?.address) data.destination_address = rule.destination.address;
-    if (rule.inbound_interface) data.inbound_interface = rule.inbound_interface;
-    if (rule.translation?.address) data.translation_address = rule.translation.address;
-    if (rule.log) data.log = true;
-    return data;
+    return flattenStaticRuleData(rule);
   }
 
-  /**
-   * Flatten a CGNATRule into a rule_data dict for the reorder endpoint
-   */
   private flattenCGNATRule(rule: CGNATRule): Record<string, unknown> {
-    const data: Record<string, unknown> = {};
-    if (rule.source_pool) data.source_pool = rule.source_pool;
-    if (rule.translation_pool) data.translation_pool = rule.translation_pool;
-    return data;
+    return flattenCGNATRuleData(rule);
   }
 
   /**

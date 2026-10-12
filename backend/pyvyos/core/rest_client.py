@@ -44,16 +44,6 @@ class ApiResponse:
     error: str
 
 
-def commit_accepted(response) -> tuple[bool, str | None]:
-    """Whether VyOS applied the commit.
-
-    pyvyos keeps HTTP 200 when the API body says success=false and stores
-    the message on error. A false error value means there was no error.
-    """
-    error = response.error if response.error else None
-    return response.status == 200 and error is None, error
-
-
 class RestClient(ABC):
     """Secure REST client for integration with VyOS device APIs"""
 
