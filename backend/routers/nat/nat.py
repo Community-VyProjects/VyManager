@@ -12,6 +12,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
+from pyvyos.core.rest_client import commit_accepted
 from vyos_builders import NATBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -662,6 +663,14 @@ async def batch_configure_nat(http_request: Request, request: NATBatchRequest):
         # Execute the batch
         response = service.execute_batch(batch)
 
+        ok, api_error = commit_accepted(response)
+        if not ok:
+            return VyOSResponse(
+                success=False,
+                data=None,
+                error=api_error or "NAT configuration failed",
+            )
+
         # Handle empty string result (convert to None for Pydantic validation)
         identifier = request.rule_number if request.rule_number is not None else request.item_name
         msg = f"Configured NAT {request.nat_type} {identifier}"
@@ -674,9 +683,9 @@ async def batch_configure_nat(http_request: Request, request: NATBatchRequest):
             result_data["message"] = msg
 
         return VyOSResponse(
-            success=response.status == 200,
+            success=True,
             data=result_data,
-            error=response.error if response.error else None
+            error=None,
         )
 
     except HTTPException:
@@ -891,8 +900,7 @@ async def reorder_nat_rules(http_request: Request, request: ReorderNATRequest):
         # pyvyos keeps HTTP 200 when VyOS returns success=false. Keying our
         # success flag off the HTTP status alone makes a rejected commit look
         # successful, and the UI refreshes with the rules unmoved.
-        api_error = response.error if response.error else None
-        ok = response.status == 200 and not api_error
+        ok, api_error = commit_accepted(response)
         if not ok:
             return VyOSResponse(
                 success=False,

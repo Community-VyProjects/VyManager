@@ -29,7 +29,7 @@ import {
   GripVertical,
   Layers
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { DndContext, type DragStartEvent, type DragEndEvent, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
@@ -58,6 +58,8 @@ function NATPageInner() {
   const [capabilities, setCapabilities] = useState<NATCapabilities | null>(null);
   const [groups, setGroups] = useState<FirewallGroup[]>([]);
   const [selectedType, setSelectedType] = useState<RuleType>("source");
+  const selectedTypeRef = useRef(selectedType);
+  selectedTypeRef.current = selectedType;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -83,7 +85,8 @@ function NATPageInner() {
     const requestedType = searchParams.get("type");
     const validTypes: RuleType[] = ["source", "destination", "static", "cgnat"];
 
-    if (requestedType && validTypes.includes(requestedType as RuleType)) {
+    if (requestedType && validTypes.includes(requestedType as RuleType) && requestedType !== selectedTypeRef.current) {
+      setHasChanges(false);
       setSelectedType(requestedType as RuleType);
     }
   }, [searchParams]);
@@ -133,6 +136,15 @@ function NATPageInner() {
   const sourceRules = config ? config.source_rules : [];
   const destinationRules = config ? config.destination_rules : [];
   const staticRules = config ? config.static_rules : [];
+
+  const changeType = (type: RuleType) => {
+    if (type === selectedType) return;
+    // Pending reorder belongs to the previous type. Saving it under the new
+    // type would delete and recreate the wrong rule numbers.
+    setHasChanges(false);
+    setActiveId(null);
+    setSelectedType(type);
+  };
 
   // Initialize reordered rules when current rules change or type changes
   useEffect(() => {
@@ -328,7 +340,7 @@ function NATPageInner() {
               <div className="space-y-1 py-3">
                 {/* Source NAT */}
                 <button
-                  onClick={() => setSelectedType("source")}
+                  onClick={() => changeType("source")}
                   className={cn(
                     "w-full text-left rounded-lg px-3 py-3 transition-all",
                     selectedType === "source"
@@ -374,7 +386,7 @@ function NATPageInner() {
 
                 {/* Destination NAT */}
                 <button
-                  onClick={() => setSelectedType("destination")}
+                  onClick={() => changeType("destination")}
                   className={cn(
                     "w-full text-left rounded-lg px-3 py-3 transition-all",
                     selectedType === "destination"
@@ -416,7 +428,7 @@ function NATPageInner() {
 
                 {/* Static NAT */}
                 <button
-                  onClick={() => setSelectedType("static")}
+                  onClick={() => changeType("static")}
                   className={cn(
                     "w-full text-left rounded-lg px-3 py-3 transition-all",
                     selectedType === "static"
@@ -459,7 +471,7 @@ function NATPageInner() {
                 {/* CGNAT (VyOS 1.5+ only) */}
                 {cgnatSupported && (
                   <button
-                    onClick={() => setSelectedType("cgnat")}
+                    onClick={() => changeType("cgnat")}
                     className={cn(
                       "w-full text-left rounded-lg px-3 py-3 transition-all",
                       selectedType === "cgnat"
@@ -879,7 +891,7 @@ function NATPageInner() {
       </div>
 
       {/* Reorder Banner */}
-      {hasChanges && selectedType !== "cgnat" && canWrite(FeatureGroup.NAT) && (
+      {hasChanges && canWrite(FeatureGroup.NAT) && (
         <NATReorderBanner
           changesCount={reorderedRules.length}
           onSave={handleSaveReorder}
