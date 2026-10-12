@@ -888,14 +888,14 @@ async def reorder_nat_rules(http_request: Request, request: ReorderNATRequest):
         # Execute the entire batch in a single commit
         response = service.execute_batch(batch)
 
+        # Handle response
         result_data = response.result
-        message = f"Reordered {len(request.rules)} {request.nat_type} NAT rules"
         if result_data == '' or result_data is None:
-            result_data = {"message": message}
+            result_data = {"message": f"Reordered {len(request.rules)} {request.nat_type} NAT rules"}
         elif not isinstance(result_data, dict):
-            result_data = {"result": result_data, "message": message}
+            result_data = {"result": result_data, "message": f"Reordered {len(request.rules)} {request.nat_type} NAT rules"}
         else:
-            result_data["message"] = message
+            result_data["message"] = f"Reordered {len(request.rules)} {request.nat_type} NAT rules"
 
         return VyOSResponse(
             success=response.status == 200,

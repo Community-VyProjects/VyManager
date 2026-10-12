@@ -1,10 +1,9 @@
 import { apiClient } from "./client";
 import { ApiError } from "@/lib/types/api";
 import {
-  flattenCGNATRule as flattenCGNATRuleData,
-  flattenDestinationRule as flattenDestinationRuleData,
-  flattenSourceRule as flattenSourceRuleData,
-  flattenStaticRule as flattenStaticRuleData,
+  flattenDestinationRule,
+  flattenSourceRule,
+  flattenStaticRule,
 } from "./nat-reorder";
 
 // ==================== Type Definitions ====================
@@ -1239,20 +1238,11 @@ class NATService {
     return apiClient.post<{ success: boolean }>("/vyos/config/refresh", {});
   }
 
-  private flattenSourceRule(rule: SourceNATRule): Record<string, unknown> {
-    return flattenSourceRuleData(rule);
-  }
-
-  private flattenDestinationRule(rule: DestinationNATRule): Record<string, unknown> {
-    return flattenDestinationRuleData(rule);
-  }
-
-  private flattenStaticRule(rule: StaticNATRule): Record<string, unknown> {
-    return flattenStaticRuleData(rule);
-  }
-
   private flattenCGNATRule(rule: CGNATRule): Record<string, unknown> {
-    return flattenCGNATRuleData(rule);
+    const data: Record<string, unknown> = {};
+    if (rule.source_pool) data.source_pool = rule.source_pool;
+    if (rule.translation_pool) data.translation_pool = rule.translation_pool;
+    return data;
   }
 
   /**
@@ -1276,17 +1266,17 @@ class NATService {
       remainingRules = (config.source_rules ?? [])
         .filter(r => r.rule_number !== ruleNumber)
         .sort((a, b) => a.rule_number - b.rule_number)
-        .map(r => ({ rule_number: r.rule_number, data: this.flattenSourceRule(r) }));
+        .map(r => ({ rule_number: r.rule_number, data: flattenSourceRule(r) }));
     } else if (natType === "destination") {
       remainingRules = (config.destination_rules ?? [])
         .filter(r => r.rule_number !== ruleNumber)
         .sort((a, b) => a.rule_number - b.rule_number)
-        .map(r => ({ rule_number: r.rule_number, data: this.flattenDestinationRule(r) }));
+        .map(r => ({ rule_number: r.rule_number, data: flattenDestinationRule(r) }));
     } else {
       remainingRules = (config.static_rules ?? [])
         .filter(r => r.rule_number !== ruleNumber)
         .sort((a, b) => a.rule_number - b.rule_number)
-        .map(r => ({ rule_number: r.rule_number, data: this.flattenStaticRule(r) }));
+        .map(r => ({ rule_number: r.rule_number, data: flattenStaticRule(r) }));
     }
 
     const reorderItems = [
@@ -1343,10 +1333,7 @@ class NATService {
         nat_type: natType,
         rules: rules
       });
-      // VyOS commit failures come back as HTTP 200. A false success here makes
-      // the page refresh and the rules snap back, which looks like the move
-      // never completed.
-      if (!response.success || response.error) {
+      if (!response.success) {
         throw new Error(response.error || "Failed to reorder NAT rules");
       }
       return response;

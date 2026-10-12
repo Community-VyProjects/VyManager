@@ -29,13 +29,13 @@ import {
   GripVertical,
   Layers
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { DndContext, type DragStartEvent, type DragEndEvent, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { natService, type NATConfigResponse, type NATCapabilities, type SourceNATRule, type DestinationNATRule, type StaticNATRule } from "@/lib/api/nat";
-import { buildNatReorderItems, discardReorderOnTypeChange } from "@/lib/api/nat-reorder";
+import { buildNatReorderItems } from "@/lib/api/nat-reorder";
 import { firewallGroupsService } from "@/lib/api/firewall-groups";
 import type { FirewallGroup } from "@/lib/api/types/firewall-groups";
 import { cn } from "@/lib/utils";
@@ -59,14 +59,6 @@ function NATPageInner() {
   const [capabilities, setCapabilities] = useState<NATCapabilities | null>(null);
   const [groups, setGroups] = useState<FirewallGroup[]>([]);
   const [selectedType, setSelectedType] = useState<RuleType>("source");
-  const selectedTypeRef = useRef({
-    type: selectedType,
-    hasChanges: false,
-    rules: [] as (SourceNATRule | DestinationNATRule | StaticNATRule)[],
-    sourceRules: [] as SourceNATRule[],
-    destinationRules: [] as DestinationNATRule[],
-    staticRules: [] as StaticNATRule[],
-  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -93,25 +85,6 @@ function NATPageInner() {
     const validTypes: RuleType[] = ["source", "destination", "static", "cgnat"];
 
     if (requestedType && validTypes.includes(requestedType as RuleType)) {
-      const snap = selectedTypeRef.current;
-      const nextRules = requestedType === "source"
-        ? snap.sourceRules
-        : requestedType === "destination"
-          ? snap.destinationRules
-          : requestedType === "static"
-            ? snap.staticRules
-            : [];
-      const next = discardReorderOnTypeChange(
-        snap.type,
-        requestedType,
-        snap.hasChanges,
-        snap.rules,
-        nextRules,
-      );
-      if (next.unchanged) return;
-      setHasChanges(next.hasChanges);
-      setReorderedRules(next.rules);
-      setOriginalRules(next.rules);
       setSelectedType(requestedType as RuleType);
     }
   }, [searchParams]);
@@ -161,27 +134,6 @@ function NATPageInner() {
   const sourceRules = config ? config.source_rules : [];
   const destinationRules = config ? config.destination_rules : [];
   const staticRules = config ? config.static_rules : [];
-  selectedTypeRef.current = {
-    type: selectedType,
-    hasChanges,
-    rules: reorderedRules,
-    sourceRules,
-    destinationRules,
-    staticRules,
-  };
-
-  const changeType = (type: RuleType) => {
-    const nextRules = type === "source" ? sourceRules : type === "destination" ? destinationRules : type === "static" ? staticRules : [];
-    const next = discardReorderOnTypeChange(selectedType, type, hasChanges, reorderedRules, nextRules);
-    if (next.unchanged) return;
-    // Pending reorder belongs to the previous type. Saving it under the new
-    // type would delete and recreate the wrong rule numbers.
-    setHasChanges(next.hasChanges);
-    setReorderedRules(next.rules);
-    setOriginalRules(next.rules);
-    setActiveId(null);
-    setSelectedType(type);
-  };
 
   // Initialize reordered rules when current rules change or type changes
   useEffect(() => {
@@ -371,7 +323,7 @@ function NATPageInner() {
               <div className="space-y-1 py-3">
                 {/* Source NAT */}
                 <button
-                  onClick={() => changeType("source")}
+                  onClick={() => setSelectedType("source")}
                   className={cn(
                     "w-full text-left rounded-lg px-3 py-3 transition-all",
                     selectedType === "source"
@@ -417,7 +369,7 @@ function NATPageInner() {
 
                 {/* Destination NAT */}
                 <button
-                  onClick={() => changeType("destination")}
+                  onClick={() => setSelectedType("destination")}
                   className={cn(
                     "w-full text-left rounded-lg px-3 py-3 transition-all",
                     selectedType === "destination"
@@ -459,7 +411,7 @@ function NATPageInner() {
 
                 {/* Static NAT */}
                 <button
-                  onClick={() => changeType("static")}
+                  onClick={() => setSelectedType("static")}
                   className={cn(
                     "w-full text-left rounded-lg px-3 py-3 transition-all",
                     selectedType === "static"
@@ -502,7 +454,7 @@ function NATPageInner() {
                 {/* CGNAT (VyOS 1.5+ only) */}
                 {cgnatSupported && (
                   <button
-                    onClick={() => changeType("cgnat")}
+                    onClick={() => setSelectedType("cgnat")}
                     className={cn(
                       "w-full text-left rounded-lg px-3 py-3 transition-all",
                       selectedType === "cgnat"

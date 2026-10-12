@@ -1,5 +1,4 @@
 import type {
-  CGNATRule,
   DestinationNATRule,
   SourceNATRule,
   StaticNATRule,
@@ -85,13 +84,6 @@ export function flattenStaticRule(rule: StaticNATRule): Record<string, unknown> 
   return data;
 }
 
-export function flattenCGNATRule(rule: CGNATRule): Record<string, unknown> {
-  const data: Record<string, unknown> = {};
-  if (rule.source_pool) data.source_pool = rule.source_pool;
-  if (rule.translation_pool) data.translation_pool = rule.translation_pool;
-  return data;
-}
-
 function ruleData(natType: ReorderNATType, rule: ReorderableNATRule): Record<string, unknown> {
   if (natType === "source") return flattenSourceRule(rule as SourceNATRule);
   if (natType === "destination") return flattenDestinationRule(rule as DestinationNATRule);
@@ -109,27 +101,4 @@ export function buildNatReorderItems(
     new_number: newNumbers[i],
     rule_data: ruleData(natType, rule),
   }));
-}
-
-export interface TypeChangeReorderState<T> {
-  unchanged: boolean;
-  hasChanges: boolean;
-  rules: T[];
-}
-
-/**
- * A pending reorder belongs to one NAT type. Changing type discards it so
- * save cannot rewrite another type's rule numbers.
- */
-export function discardReorderOnTypeChange<T>(
-  currentType: string,
-  nextType: string,
-  hasChanges: boolean,
-  pendingRules: T[],
-  nextTypeRules: T[],
-): TypeChangeReorderState<T> {
-  if (nextType === currentType) {
-    return { unchanged: true, hasChanges, rules: pendingRules };
-  }
-  return { unchanged: false, hasChanges: false, rules: nextTypeRules };
 }

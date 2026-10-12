@@ -1,9 +1,11 @@
 /**
- * Drag-save payload and tab-change discard.
+ * Drag-save payload, and reorderRules surfaces a rejected commit.
  * Run: npx tsx src/lib/api/nat-reorder.test.ts
  */
+import { apiClient } from "./client";
 import type { DestinationNATRule, SourceNATRule } from "./nat";
-import { buildNatReorderItems, discardReorderOnTypeChange } from "./nat-reorder";
+import { natService } from "./nat";
+import { buildNatReorderItems } from "./nat-reorder";
 
 function assert(cond: unknown, message: string): void {
   if (!cond) {
@@ -51,16 +53,29 @@ const portOnly: SourceNATRule = {
 const sourceItems = buildNatReorderItems("source", [portOnly], [30]);
 assert(sourceItems[0].rule_data.translation_port === "443", "source translation port dropped");
 
-const pending = [{ rule_number: 20 }, { rule_number: 10 }];
-const destinationRules = [{ rule_number: 100 }, { rule_number: 110 }];
-const switched = discardReorderOnTypeChange("source", "destination", true, pending, destinationRules);
-assert(switched.unchanged === false, "type change should apply");
-assert(switched.hasChanges === false, "type change must discard pending reorder");
-assert(switched.rules === destinationRules, "type change must load the new type's rules");
+async function main(): Promise<void> {
+  const originalPost = apiClient.post.bind(apiClient);
+  apiClient.post = (async () => ({
+    success: false,
+    error: "translation requires address and/or port",
+  })) as typeof apiClient.post;
+  try {
+    let threw = false;
+    try {
+      await natService.reorderRules("destination", []);
+    } catch (err) {
+      threw = true;
+      const message = err instanceof Error ? err.message : String(err);
+      assert(message.includes("translation requires"), "reorderRules hid the VyOS error");
+    }
+    assert(threw, "reorderRules did not throw on success=false");
+  } finally {
+    apiClient.post = originalPost;
+  }
+  console.log("nat reorder payload ok");
+}
 
-const same = discardReorderOnTypeChange("source", "source", true, pending, destinationRules);
-assert(same.unchanged === true, "same type should keep the pending reorder");
-assert(same.hasChanges === true, "same type must not clear hasChanges");
-assert(same.rules === pending, "same type must keep pending rules");
-
-console.log("nat reorder payload ok");
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

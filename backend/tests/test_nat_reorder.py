@@ -1,60 +1,50 @@
-"""A rejected VyOS commit must not look applied.
+"""NAT reorder reports a rejected commit as failure.
 
-pyvyos keeps HTTP 200 and sets error when the API body says success=false.
-execute_batch is the one place that turns that into a non-200 status, matching
-commit-confirm. Routers keep treating status 200 as applied.
+The service has already turned pyvyos HTTP 200 plus an error into status 400.
+The endpoint must not report that as success.
 """
 
-from pyvyos.core.rest_client import ApiResponse
-from vyos_builders.nat import NATBatchBuilder
-from vyos_service import VyOSDeviceConfig, VyOSService
+from types import SimpleNamespace
 
-recorded: list[str] = []
-
-
-def _service() -> VyOSService:
-    service = VyOSService(VyOSDeviceConfig(
-        hostname="lab",
-        apikey="key",
-        version="1.5",
-        instance_id="inst",
-    ))
-    service._record_managed_config = lambda instance_id: recorded.append(instance_id)
-    return service
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 
-def test_execute_batch_rejects_http_200_with_vyos_error():
-    recorded.clear()
-    service = _service()
-    service.device.configure_multiple_op = lambda op_path: ApiResponse(
-        status=200,
-        request={},
-        result={},
-        error="translation requires address and/or port",
+def test_reorder_reports_rejected_commit(monkeypatch):
+    async def allow(*_args, **_kwargs):
+        return None
+
+    class Service:
+        def get_version(self):
+            return "1.5"
+
+        def execute_batch(self, batch):
+            return SimpleNamespace(
+                status=400,
+                result="",
+                error="translation requires address and/or port",
+            )
+
+    monkeypatch.setattr("routers.nat.nat.require_write_permission", allow)
+    monkeypatch.setattr("routers.nat.nat.get_session_vyos_service", lambda _req: Service())
+
+    from routers.nat.nat import router
+
+    app = FastAPI()
+    app.include_router(router)
+    response = TestClient(app).post(
+        "/vyos/nat/reorder",
+        json={
+            "nat_type": "destination",
+            "rules": [{
+                "old_number": 10,
+                "new_number": 20,
+                "rule_data": {"translation_redirect_port": "8080"},
+            }],
+        },
     )
-    batch = NATBatchBuilder("1.5")
-    batch.set_destination_rule(10)
 
-    response = service.execute_batch(batch)
-
-    assert response.status == 400
-    assert "translation requires" in response.error
-    assert recorded == []
-
-
-def test_execute_batch_keeps_http_200_when_commit_applied():
-    recorded.clear()
-    service = _service()
-    service.device.configure_multiple_op = lambda op_path: ApiResponse(
-        status=200,
-        request={},
-        result="",
-        error=False,
-    )
-    batch = NATBatchBuilder("1.5")
-    batch.set_destination_rule(10)
-
-    response = service.execute_batch(batch)
-
-    assert response.status == 200
-    assert recorded == ["inst"]
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["success"] is False
+    assert "translation requires" in body["error"]
