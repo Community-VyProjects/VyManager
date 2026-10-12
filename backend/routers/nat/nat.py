@@ -888,19 +888,31 @@ async def reorder_nat_rules(http_request: Request, request: ReorderNATRequest):
         # Execute the entire batch in a single commit
         response = service.execute_batch(batch)
 
-        # Handle response
+        # pyvyos keeps HTTP 200 when VyOS returns success=false. Keying our
+        # success flag off the HTTP status alone makes a rejected commit look
+        # successful, and the UI refreshes with the rules unmoved.
+        api_error = response.error if response.error else None
+        ok = response.status == 200 and not api_error
+        if not ok:
+            return VyOSResponse(
+                success=False,
+                data=None,
+                error=api_error or "NAT reorder failed",
+            )
+
         result_data = response.result
+        message = f"Reordered {len(request.rules)} {request.nat_type} NAT rules"
         if result_data == '' or result_data is None:
-            result_data = {"message": f"Reordered {len(request.rules)} {request.nat_type} NAT rules"}
+            result_data = {"message": message}
         elif not isinstance(result_data, dict):
-            result_data = {"result": result_data, "message": f"Reordered {len(request.rules)} {request.nat_type} NAT rules"}
+            result_data = {"result": result_data, "message": message}
         else:
-            result_data["message"] = f"Reordered {len(request.rules)} {request.nat_type} NAT rules"
+            result_data["message"] = message
 
         return VyOSResponse(
-            success=response.status == 200,
+            success=ok,
             data=result_data,
-            error=response.error if response.error else None
+            error=api_error,
         )
 
     except HTTPException:

@@ -1234,6 +1234,23 @@ class NATService {
   }
 
   /**
+   * Full rule_data for /reorder.
+   *
+   * Drag-save must use this, not a hand-picked field list. VyOS rejects the
+   * whole commit (and applies nothing) when a recreated destination rule has
+   * no translation address, translation port, redirect, or load-balance
+   * backend. Delete-and-compact already goes through the flatten helpers.
+   */
+  ruleDataForReorder(
+    natType: "source" | "destination" | "static",
+    rule: SourceNATRule | DestinationNATRule | StaticNATRule,
+  ): Record<string, unknown> {
+    if (natType === "source") return this.flattenSourceRule(rule as SourceNATRule);
+    if (natType === "destination") return this.flattenDestinationRule(rule as DestinationNATRule);
+    return this.flattenStaticRule(rule as StaticNATRule);
+  }
+
+  /**
    * Flatten a SourceNATRule into a rule_data dict for the reorder endpoint
    */
   private flattenSourceRule(rule: SourceNATRule): Record<string, unknown> {
@@ -1411,6 +1428,12 @@ class NATService {
         nat_type: natType,
         rules: rules
       });
+      // VyOS commit failures come back as HTTP 200. A false success here makes
+      // the page refresh and the rules snap back, which looks like the move
+      // never completed.
+      if (!response.success || response.error) {
+        throw new Error(response.error || "Failed to reorder NAT rules");
+      }
       return response;
     } catch (error) {
       const errorMessage = ((error as ApiError).details as { detail?: string })?.detail || (error as ApiError).message || "Unknown error";
