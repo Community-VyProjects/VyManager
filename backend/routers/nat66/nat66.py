@@ -12,7 +12,6 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
-from vyos_commit import commit_accepted
 from vyos_builders import NAT66BatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -374,14 +373,6 @@ async def batch_configure(http_request: Request, request: NAT66BatchRequest):
 
         response = service.execute_batch(batch)
 
-        ok, api_error = commit_accepted(response)
-        if not ok:
-            return VyOSResponse(
-                success=False,
-                data=None,
-                error=api_error or "NAT66 configuration failed",
-            )
-
         result_data = response.result
         if result_data == '' or result_data is None:
             result_data = {"message": "NAT66 configuration updated successfully"}
@@ -389,9 +380,9 @@ async def batch_configure(http_request: Request, request: NAT66BatchRequest):
             result_data = {"result": result_data}
 
         return VyOSResponse(
-            success=True,
+            success=response.status == 200,
             data=result_data,
-            error=None,
+            error=response.error if response.error else None
         )
 
     except HTTPException:
@@ -495,14 +486,6 @@ async def reorder_nat66_rules(http_request: Request, request: ReorderNAT66Reques
 
         response = service.execute_batch(batch)
 
-        ok, api_error = commit_accepted(response)
-        if not ok:
-            return VyOSResponse(
-                success=False,
-                data=None,
-                error=api_error or "NAT66 reorder failed",
-            )
-
         result_data = response.result
         if result_data == '' or result_data is None:
             result_data = {"message": f"Reordered {len(request.rules)} NAT66 {request.rule_type} rules"}
@@ -512,9 +495,9 @@ async def reorder_nat66_rules(http_request: Request, request: ReorderNAT66Reques
             result_data["message"] = f"Reordered {len(request.rules)} NAT66 {request.rule_type} rules"
 
         return VyOSResponse(
-            success=True,
+            success=response.status == 200,
             data=result_data,
-            error=None,
+            error=response.error if response.error else None
         )
 
     except HTTPException:

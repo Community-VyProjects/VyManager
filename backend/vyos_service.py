@@ -264,6 +264,17 @@ class VyOSService:
                 instance_id,
             )
 
+    def _failed_commit_is_not_success(self, response: ApiResponse) -> ApiResponse:
+        """pyvyos keeps HTTP 200 when VyOS rejects the commit.
+
+        commit-confirm already returns 400 in that case. Do the same here so
+        every router can keep treating status 200 as applied, and a rejected
+        commit is not recorded as a managed snapshot.
+        """
+        if response.status == 200 and response.error:
+            response.status = 400
+        return response
+
     def execute_batch(
         self,
         batch: Union[
@@ -294,7 +305,9 @@ class VyOSService:
             raise ValueError("Cannot execute empty batch")
 
         operations = batch.get_operations()
-        response = self.device.configure_multiple_op(op_path=operations)
+        response = self._failed_commit_is_not_success(
+            self.device.configure_multiple_op(op_path=operations)
+        )
         if response.status == 200 and self.config.instance_id:
             self._record_managed_config(self.config.instance_id)
             event_manager.emit(self.config.instance_id, EVENT_CONFIG_DIFF, None)
@@ -483,7 +496,9 @@ class VyOSService:
 
             # Execute using configure_multiple_op
             if operations:
-                response = self.device.configure_multiple_op(op_path=operations)
+                response = self._failed_commit_is_not_success(
+                    self.device.configure_multiple_op(op_path=operations)
+                )
 
                 if response.status == 200:
                     if self.config.instance_id:
