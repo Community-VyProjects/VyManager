@@ -6,6 +6,8 @@ They are now L2TPv3Modal with existing?: L2TPv3Interface | null.
 
 from pathlib import Path
 
+from tests.en_message import en_message
+
 REPO = Path(__file__).resolve().parents[2]
 COMP = REPO / "frontend/src/components/l2tpv3"
 PAGE = REPO / "frontend/src/app/network/interfaces/page.tsx"
@@ -22,7 +24,8 @@ def test_unified_modal_has_existing_and_both_ops():
     assert "const isEdit = !!existing" in text
     assert "createInterface" in text
     assert "updateInterface" in text
-    assert "Interface name cannot be changed." in text
+    assert 't("modal.general.nameLocked")' in text
+    assert en_message(REPO, "l2tpv3.json", "modal.general.nameLocked") == "Interface name cannot be changed."
     assert "disabled={isEdit}" in text
 
 

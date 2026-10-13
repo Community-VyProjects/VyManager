@@ -7,6 +7,8 @@ or null. Bridge and VIF stay separate modals.
 
 from pathlib import Path
 
+from tests.en_message import en_message
+
 REPO = Path(__file__).resolve().parents[2]
 COMP = REPO / "frontend/src/components/bridge"
 PAGE = REPO / "frontend/src/app/network/interfaces/page.tsx"
@@ -25,7 +27,8 @@ def test_unified_bridge_modal_has_existing_and_both_ops():
     assert "const isEdit = !!existing" in text
     assert "createInterface" in text
     assert "updateInterface" in text
-    assert "Interface name cannot be changed." in text
+    assert 't("nameLocked")' in text
+    assert en_message(REPO, "bridgeInterface.json", "nameLocked") == "Interface name cannot be changed."
     assert "disabled={isEdit}" in text
 
 
@@ -35,7 +38,8 @@ def test_unified_vif_modal_has_existing_and_both_ops():
     assert "const isEdit = !!existing" in text
     assert "createVif" in text
     assert "updateVif" in text
-    assert "VLAN ID cannot be changed." in text
+    assert 't("vifVlanLocked")' in text
+    assert en_message(REPO, "bridgeInterface.json", "vifVlanLocked") == "VLAN ID cannot be changed."
     assert "disabled={isEdit}" in text
 
 

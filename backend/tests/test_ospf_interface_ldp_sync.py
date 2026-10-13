@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from routers.ospf.ospf import parse_interfaces
+from tests.en_message import en_message
 from vyos_builders.ospf.ospf_batch_builder import OspfBatchBuilder
 
 REPO = Path(__file__).resolve().parents[2]
@@ -72,8 +73,10 @@ def test_interface_modal_exposes_ldp_sync_leaves():
     text = MODAL.read_text()
     assert 'id="ospf-iface-ldp-sync-disable"' in text
     assert 'id="ospf-iface-ldp-sync-holddown"' in text
-    assert "Disable LDP Sync" in text
-    assert "LDP Sync Holddown" in text
+    assert 't("interfaceModal.disableLdpSync")' in text
+    assert 't("interfaceModal.ldpSyncHolddown")' in text
+    assert en_message(REPO, "ospf.json", "interfaceModal.disableLdpSync") == "Disable LDP Sync"
+    assert en_message(REPO, "ospf.json", "interfaceModal.ldpSyncHolddown") == "LDP Sync Holddown (s)"
     assert "VyOS 1." not in text
     assert "1.5+" not in text
     assert "1.4 only" not in text

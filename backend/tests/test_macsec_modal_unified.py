@@ -6,6 +6,8 @@ They are now MacsecModal with existing?: MacsecInterface | null.
 
 from pathlib import Path
 
+from tests.en_message import en_message
+
 REPO = Path(__file__).resolve().parents[2]
 COMP = REPO / "frontend/src/components/macsec"
 PAGE = REPO / "frontend/src/app/network/interfaces/page.tsx"
@@ -22,7 +24,8 @@ def test_unified_modal_has_existing_and_both_ops():
     assert "const isEdit = !!existing" in text
     assert "createInterface" in text
     assert "updateInterface" in text
-    assert "Interface name cannot be changed." in text
+    assert 't("modal.basic.nameLocked")' in text
+    assert en_message(REPO, "macsec.json", "modal.basic.nameLocked") == "Interface name cannot be changed."
     assert "disabled={isEdit}" in text
 
 

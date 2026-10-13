@@ -6,6 +6,8 @@ They are now FirewallRuleModal with existing?: FirewallRule | null.
 
 from pathlib import Path
 
+from tests.en_message import en_message
+
 REPO = Path(__file__).resolve().parents[2]
 FW = REPO / "frontend/src/components/firewall"
 PAGE = REPO / "frontend/src/app/firewall/policies/page.tsx"
@@ -22,7 +24,8 @@ def test_unified_modal_has_existing_and_both_ops():
     assert "const isEdit = !!existing" in text
     assert "createRule" in text
     assert "updateRule" in text
-    assert "Rule number cannot be changed" in text
+    assert 't("basic.ruleNumberLocked")' in text
+    assert en_message(REPO, "firewallRuleModal.json", "basic.ruleNumberLocked") == "Rule number cannot be changed"
     assert "cloneRule" in text
 
 

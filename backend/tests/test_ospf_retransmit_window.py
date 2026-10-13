@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from routers.ospf.ospf import parse_areas, parse_interfaces
+from tests.en_message import en_message
 from vyos_builders.ospf.ospf_batch_builder import OspfBatchBuilder
 from vyos_mappers.ospf.ospf_versions import get_ospf_mapper
 
@@ -102,7 +103,8 @@ def test_ospf_capabilities_retransmit_window():
 def test_interface_modal_gates_retransmit_window():
     text = MODAL.read_text()
     assert 'id="ospf-iface-retransmit-window"' in text
-    assert "Retransmit Window" in text
+    assert 't("interfaceModal.retransmitWindow")' in text
+    assert en_message(REPO, "ospf.json", "interfaceModal.retransmitWindow") == "Retransmit Window"
     assert "features?.retransmit_window?.supported" in text
     assert "VyOS 1." not in text
     assert "1.5+" not in text
