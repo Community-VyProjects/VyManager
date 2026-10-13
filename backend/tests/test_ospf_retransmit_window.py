@@ -6,6 +6,8 @@ Delete stays unguarded so a stale node can still be removed.
 
 from pathlib import Path
 
+from tests.en_message import en_message
+
 import pytest
 
 from routers.ospf.ospf import parse_areas, parse_interfaces
@@ -103,7 +105,7 @@ def test_interface_modal_gates_retransmit_window():
     text = MODAL.read_text()
     assert 'id="ospf-iface-retransmit-window"' in text
     assert 't("interfaceModal.retransmitWindow")' in text
-    assert "Retransmit Window" in (REPO / "frontend/messages/en/ospf.json").read_text()
+    assert en_message(REPO, "ospf.json", "interfaceModal.retransmitWindow") == "Retransmit Window"
     assert "features?.retransmit_window?.supported" in text
     assert "VyOS 1." not in text
     assert "1.5+" not in text

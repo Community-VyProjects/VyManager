@@ -6,6 +6,8 @@ validateTmplPath on 1.4 (100.64.64.50) and 1.5 (100.64.64.5).
 
 from pathlib import Path
 
+from tests.en_message import en_message
+
 import pytest
 
 from routers.ospf.ospf import parse_graceful_restart as parse_ospf_gr
@@ -88,10 +90,10 @@ def test_pages_expose_helper_router_id():
     ospfv3 = OSPFV3_PAGE.read_text()
     assert 'id="ospf-gr-helper-router-id"' in ospf
     assert 't("advanced.helperRouterIds")' in ospf
-    assert "Helper Router IDs" in (REPO / "frontend/messages/en/ospf.json").read_text()
+    assert en_message(REPO, "ospf.json", "advanced.helperRouterIds") == "Helper Router IDs"
     assert 'id="ospfv3-gr-helper-router-id"' in ospfv3
     assert 't("advanced.helperRouterIds")' in ospfv3
-    assert "Helper Router IDs" in (REPO / "frontend/messages/en/ospfv3.json").read_text()
+    assert en_message(REPO, "ospfv3.json", "advanced.helperRouterIds") == "Helper Router IDs"
     for text in (ospf, ospfv3):
         assert "VyOS 1." not in text
         assert "1.5+" not in text

@@ -6,6 +6,8 @@ They are now GeneveModal with existing?: GeneveInterface | null.
 
 from pathlib import Path
 
+from tests.en_message import en_message
+
 REPO = Path(__file__).resolve().parents[2]
 COMP = REPO / "frontend/src/components/geneve"
 PAGE = REPO / "frontend/src/app/network/interfaces/page.tsx"
@@ -23,7 +25,7 @@ def test_unified_modal_has_existing_and_both_ops():
     assert "createInterface" in text
     assert "updateInterface" in text
     assert 't("general.nameLocked")' in text
-    assert "Interface name cannot be changed." in (REPO / "frontend/messages/en/geneve.json").read_text()
+    assert en_message(REPO, "geneve.json", "general.nameLocked") == "Interface name cannot be changed."
     assert "disabled={isEdit}" in text
 
 

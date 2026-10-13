@@ -6,6 +6,8 @@ They are now FlowtableModal with existing?: Flowtable | null.
 
 from pathlib import Path
 
+from tests.en_message import en_message
+
 REPO = Path(__file__).resolve().parents[2]
 FW = REPO / "frontend/src/components/firewall"
 PAGE = REPO / "frontend/src/app/firewall/flowtables/page.tsx"
@@ -23,7 +25,10 @@ def test_unified_modal_has_existing_and_both_ops():
     assert "createFlowtable" in text
     assert "updateFlowtable" in text
     assert 't("modal.nameHintEdit")' in text
-    assert "Flowtable name cannot be changed" in (REPO / "frontend/messages/en/firewallFlowtables.json").read_text()
+    assert (
+        en_message(REPO, "firewallFlowtables.json", "modal.nameHintEdit")
+        == "Flowtable name cannot be changed. Delete and recreate to rename."
+    )
     assert "disabled={isEdit}" in text
 
 

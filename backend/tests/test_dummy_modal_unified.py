@@ -6,6 +6,8 @@ They are now DummyModal with existing?: DummyInterface | null.
 
 from pathlib import Path
 
+from tests.en_message import en_message
+
 REPO = Path(__file__).resolve().parents[2]
 COMP = REPO / "frontend/src/components/dummy"
 PAGE = REPO / "frontend/src/app/network/interfaces/page.tsx"
@@ -23,7 +25,7 @@ def test_unified_modal_has_existing_and_both_ops():
     assert "createInterface" in text
     assert "updateInterface" in text
     assert 't("modal.nameImmutable")' in text
-    assert "Interface name cannot be changed." in (REPO / "frontend/messages/en/dummy.json").read_text()
+    assert en_message(REPO, "dummy.json", "modal.nameImmutable") == "Interface name cannot be changed."
     assert "disabled={isEdit}" in text
 
 

@@ -6,6 +6,8 @@ They are now BridgeRuleModal with existing?: BridgeRule | null.
 
 from pathlib import Path
 
+from tests.en_message import en_message
+
 REPO = Path(__file__).resolve().parents[2]
 FW = REPO / "frontend/src/components/firewall"
 PAGE = REPO / "frontend/src/app/firewall/bridge/page.tsx"
@@ -23,7 +25,7 @@ def test_unified_modal_has_existing_and_both_ops():
     assert "createRule" in text
     assert "updateRule" in text
     assert 't("ruleModal.ruleNumberFixed")' in text
-    assert "Rule number cannot be changed" in (REPO / "frontend/messages/en/firewallBridge.json").read_text()
+    assert en_message(REPO, "firewallBridge.json", "ruleModal.ruleNumberFixed") == "Rule number cannot be changed"
 
 
 def test_bridge_page_uses_unified_modal():

@@ -6,6 +6,8 @@ on 1.4 (100.64.64.50) and 1.5 (100.64.64.5).
 
 from pathlib import Path
 
+from tests.en_message import en_message
+
 import pytest
 
 from routers.ospf.ospf import parse_interfaces
@@ -74,9 +76,8 @@ def test_interface_modal_exposes_ldp_sync_leaves():
     assert 'id="ospf-iface-ldp-sync-holddown"' in text
     assert 't("interfaceModal.disableLdpSync")' in text
     assert 't("interfaceModal.ldpSyncHolddown")' in text
-    catalog = (REPO / "frontend/messages/en/ospf.json").read_text()
-    assert "Disable LDP Sync" in catalog
-    assert "LDP Sync Holddown" in catalog
+    assert en_message(REPO, "ospf.json", "interfaceModal.disableLdpSync") == "Disable LDP Sync"
+    assert en_message(REPO, "ospf.json", "interfaceModal.ldpSyncHolddown") == "LDP Sync Holddown (s)"
     assert "VyOS 1." not in text
     assert "1.5+" not in text
     assert "1.4 only" not in text

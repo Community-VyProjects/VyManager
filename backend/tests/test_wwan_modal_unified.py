@@ -6,6 +6,8 @@ They are now WwanModal with existing?: WwanInterface | null.
 
 from pathlib import Path
 
+from tests.en_message import en_message
+
 REPO = Path(__file__).resolve().parents[2]
 COMP = REPO / "frontend/src/components/wwan"
 PAGE = REPO / "frontend/src/app/network/interfaces/page.tsx"
@@ -52,4 +54,4 @@ def test_create_only_name_validation_does_not_run_on_edit():
     validate = modal.split("const validateForm", 1)[1].split("};", 1)[0]
     assert "if (!isEdit) {" in validate
     assert 't("errors.nameExists"' in validate
-    assert "already exists" in (REPO / "frontend/messages/en/wwan.json").read_text()
+    assert en_message(REPO, "wwan.json", "errors.nameExists") == "Interface {name} already exists"
