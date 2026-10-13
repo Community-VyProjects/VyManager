@@ -22,7 +22,8 @@ def test_unified_modal_has_existing_and_both_ops():
     assert "const isEdit = !!existing" in text
     assert "createRule" in text
     assert "updateRule" in text
-    assert "Rule number cannot be changed" in text
+    assert 't("basic.ruleNumberLocked")' in text
+    assert "Rule number cannot be changed" in (REPO / "frontend/messages/en/firewallRuleModal.json").read_text()
     assert "cloneRule" in text
 
 

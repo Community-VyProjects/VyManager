@@ -22,7 +22,8 @@ def test_unified_modal_has_existing_and_both_ops():
     assert "const isEdit = !!existing" in text
     assert "createInterface" in text
     assert "updateInterface" in text
-    assert "Interface name cannot be changed." in text
+    assert 't("modal.nameImmutable")' in text
+    assert "Interface name cannot be changed." in (REPO / "frontend/messages/en/dummy.json").read_text()
     assert "disabled={isEdit}" in text
 
 

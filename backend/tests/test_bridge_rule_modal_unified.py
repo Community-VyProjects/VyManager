@@ -22,7 +22,8 @@ def test_unified_modal_has_existing_and_both_ops():
     assert "const isEdit = !!existing" in text
     assert "createRule" in text
     assert "updateRule" in text
-    assert "Rule number cannot be changed" in text
+    assert 't("ruleModal.ruleNumberFixed")' in text
+    assert "Rule number cannot be changed" in (REPO / "frontend/messages/en/firewallBridge.json").read_text()
 
 
 def test_bridge_page_uses_unified_modal():

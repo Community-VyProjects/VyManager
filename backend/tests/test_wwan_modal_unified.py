@@ -51,4 +51,5 @@ def test_create_only_name_validation_does_not_run_on_edit():
     modal = (COMP / "WwanModal.tsx").read_text()
     validate = modal.split("const validateForm", 1)[1].split("};", 1)[0]
     assert "if (!isEdit) {" in validate
-    assert "already exists" in validate
+    assert 't("errors.nameExists"' in validate
+    assert "already exists" in (REPO / "frontend/messages/en/wwan.json").read_text()

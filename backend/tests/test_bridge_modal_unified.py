@@ -25,7 +25,8 @@ def test_unified_bridge_modal_has_existing_and_both_ops():
     assert "const isEdit = !!existing" in text
     assert "createInterface" in text
     assert "updateInterface" in text
-    assert "Interface name cannot be changed." in text
+    assert 't("nameLocked")' in text
+    assert "Interface name cannot be changed." in (REPO / "frontend/messages/en/bridgeInterface.json").read_text()
     assert "disabled={isEdit}" in text
 
 
@@ -35,7 +36,8 @@ def test_unified_vif_modal_has_existing_and_both_ops():
     assert "const isEdit = !!existing" in text
     assert "createVif" in text
     assert "updateVif" in text
-    assert "VLAN ID cannot be changed." in text
+    assert 't("vifVlanLocked")' in text
+    assert "VLAN ID cannot be changed." in (REPO / "frontend/messages/en/bridgeInterface.json").read_text()
     assert "disabled={isEdit}" in text
 
 

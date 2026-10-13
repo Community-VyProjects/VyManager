@@ -72,8 +72,11 @@ def test_interface_modal_exposes_ldp_sync_leaves():
     text = MODAL.read_text()
     assert 'id="ospf-iface-ldp-sync-disable"' in text
     assert 'id="ospf-iface-ldp-sync-holddown"' in text
-    assert "Disable LDP Sync" in text
-    assert "LDP Sync Holddown" in text
+    assert 't("interfaceModal.disableLdpSync")' in text
+    assert 't("interfaceModal.ldpSyncHolddown")' in text
+    catalog = (REPO / "frontend/messages/en/ospf.json").read_text()
+    assert "Disable LDP Sync" in catalog
+    assert "LDP Sync Holddown" in catalog
     assert "VyOS 1." not in text
     assert "1.5+" not in text
     assert "1.4 only" not in text

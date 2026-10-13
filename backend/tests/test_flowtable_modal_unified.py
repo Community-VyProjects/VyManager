@@ -22,7 +22,8 @@ def test_unified_modal_has_existing_and_both_ops():
     assert "const isEdit = !!existing" in text
     assert "createFlowtable" in text
     assert "updateFlowtable" in text
-    assert "Flowtable name cannot be changed" in text
+    assert 't("modal.nameHintEdit")' in text
+    assert "Flowtable name cannot be changed" in (REPO / "frontend/messages/en/firewallFlowtables.json").read_text()
     assert "disabled={isEdit}" in text
 
 

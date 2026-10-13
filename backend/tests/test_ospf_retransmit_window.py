@@ -102,7 +102,8 @@ def test_ospf_capabilities_retransmit_window():
 def test_interface_modal_gates_retransmit_window():
     text = MODAL.read_text()
     assert 'id="ospf-iface-retransmit-window"' in text
-    assert "Retransmit Window" in text
+    assert 't("interfaceModal.retransmitWindow")' in text
+    assert "Retransmit Window" in (REPO / "frontend/messages/en/ospf.json").read_text()
     assert "features?.retransmit_window?.supported" in text
     assert "VyOS 1." not in text
     assert "1.5+" not in text

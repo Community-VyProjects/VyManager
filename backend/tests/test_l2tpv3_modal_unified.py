@@ -22,7 +22,8 @@ def test_unified_modal_has_existing_and_both_ops():
     assert "const isEdit = !!existing" in text
     assert "createInterface" in text
     assert "updateInterface" in text
-    assert "Interface name cannot be changed." in text
+    assert 't("modal.general.nameLocked")' in text
+    assert "Interface name cannot be changed." in (REPO / "frontend/messages/en/l2tpv3.json").read_text()
     assert "disabled={isEdit}" in text
 
 

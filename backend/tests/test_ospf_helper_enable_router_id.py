@@ -87,9 +87,11 @@ def test_pages_expose_helper_router_id():
     ospf = OSPF_PAGE.read_text()
     ospfv3 = OSPFV3_PAGE.read_text()
     assert 'id="ospf-gr-helper-router-id"' in ospf
-    assert "Helper Router IDs" in ospf
+    assert 't("advanced.helperRouterIds")' in ospf
+    assert "Helper Router IDs" in (REPO / "frontend/messages/en/ospf.json").read_text()
     assert 'id="ospfv3-gr-helper-router-id"' in ospfv3
-    assert "Helper Router IDs" in ospfv3
+    assert 't("advanced.helperRouterIds")' in ospfv3
+    assert "Helper Router IDs" in (REPO / "frontend/messages/en/ospfv3.json").read_text()
     for text in (ospf, ospfv3):
         assert "VyOS 1." not in text
         assert "1.5+" not in text
