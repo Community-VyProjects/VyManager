@@ -6,12 +6,11 @@ validateTmplPath on 1.4 (100.64.64.50) and 1.5 (100.64.64.5).
 
 from pathlib import Path
 
-from tests.en_message import en_message
-
 import pytest
 
 from routers.ospf.ospf import parse_graceful_restart as parse_ospf_gr
 from routers.ospfv3.ospfv3 import parse_graceful_restart as parse_ospfv3_gr
+from tests.en_message import en_message
 from vyos_builders.ospf.ospf_batch_builder import OspfBatchBuilder
 from vyos_builders.ospfv3.ospfv3_batch_builder import Ospfv3BatchBuilder
 

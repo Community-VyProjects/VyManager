@@ -6,11 +6,10 @@ on 1.4 (100.64.64.50) and 1.5 (100.64.64.5).
 
 from pathlib import Path
 
-from tests.en_message import en_message
-
 import pytest
 
 from routers.ospf.ospf import parse_interfaces
+from tests.en_message import en_message
 from vyos_builders.ospf.ospf_batch_builder import OspfBatchBuilder
 
 REPO = Path(__file__).resolve().parents[2]

@@ -6,11 +6,10 @@ Delete stays unguarded so a stale node can still be removed.
 
 from pathlib import Path
 
-from tests.en_message import en_message
-
 import pytest
 
 from routers.ospf.ospf import parse_areas, parse_interfaces
+from tests.en_message import en_message
 from vyos_builders.ospf.ospf_batch_builder import OspfBatchBuilder
 from vyos_mappers.ospf.ospf_versions import get_ospf_mapper
 
