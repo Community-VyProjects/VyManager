@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -26,7 +27,7 @@ import {
 interface RuleForm {
   rule_id: string;
   domain_names: string[];
-  wildcard_domains: string[];
+  wildcard_domain: boolean;
   ssl: string;
   url_path_begin: string[];
   url_path_end: string[];
@@ -34,17 +35,16 @@ interface RuleForm {
   set_action: "" | "backend" | "server" | "redirect";
   set_value: string;  // backend name, server name, or redirect URL
   new_domain: string;
-  new_wildcard: string;
   new_url_begin: string;
   new_url_end: string;
   new_url_exact: string;
 }
 
 const emptyForm = (): RuleForm => ({
-  rule_id: "", domain_names: [], wildcard_domains: [], ssl: "",
+  rule_id: "", domain_names: [], wildcard_domain: false, ssl: "",
   url_path_begin: [], url_path_end: [], url_path_exact: [],
   set_action: "", set_value: "",
-  new_domain: "", new_wildcard: "",
+  new_domain: "",
   new_url_begin: "", new_url_end: "", new_url_exact: "",
 });
 
@@ -52,14 +52,14 @@ function serviceRuleToForm(r: LBServiceRule): RuleForm {
   return {
     rule_id: r.rule_id,
     domain_names: [...r.domain_name],
-    wildcard_domains: [...r.wildcard_domain],
+    wildcard_domain: r.wildcard_domain,
     ssl: r.ssl ?? "",
     url_path_begin: [...r.url_path.begin],
     url_path_end: [...r.url_path.end],
     url_path_exact: [...r.url_path.exact],
     set_action: r.set.backend ? "backend" : r.set.redirect_location ? "redirect" : "",
     set_value: r.set.backend ?? r.set.redirect_location ?? "",
-    new_domain: "", new_wildcard: "",
+    new_domain: "",
     new_url_begin: "", new_url_end: "", new_url_exact: "",
   };
 }
@@ -68,14 +68,14 @@ function backendRuleToForm(r: LBBackendRule): RuleForm {
   return {
     rule_id: r.rule_id,
     domain_names: [...r.domain_name],
-    wildcard_domains: [...r.wildcard_domain],
+    wildcard_domain: r.wildcard_domain,
     ssl: r.ssl ?? "",
     url_path_begin: [...r.url_path.begin],
     url_path_end: [...r.url_path.end],
     url_path_exact: [...r.url_path.exact],
     set_action: r.set.server ? "server" : r.set.redirect_location ? "redirect" : "",
     set_value: r.set.server ?? r.set.redirect_location ?? "",
-    new_domain: "", new_wildcard: "",
+    new_domain: "",
     new_url_begin: "", new_url_end: "", new_url_exact: "",
   };
 }
@@ -84,7 +84,7 @@ function formToServiceRule(f: RuleForm): LBServiceRule {
   return {
     rule_id: f.rule_id,
     domain_name: [...f.domain_names],
-    wildcard_domain: [...f.wildcard_domains],
+    wildcard_domain: f.wildcard_domain,
     ssl: f.ssl || null,
     url_path: { begin: [...f.url_path_begin], end: [...f.url_path_end], exact: [...f.url_path_exact] },
     set: {
@@ -98,7 +98,7 @@ function formToBackendRule(f: RuleForm): LBBackendRule {
   return {
     rule_id: f.rule_id,
     domain_name: [...f.domain_names],
-    wildcard_domain: [...f.wildcard_domains],
+    wildcard_domain: f.wildcard_domain,
     ssl: f.ssl || null,
     url_path: { begin: [...f.url_path_begin], end: [...f.url_path_end], exact: [...f.url_path_exact] },
     set: {
@@ -138,7 +138,7 @@ export function HAProxyRuleModal({
   const t = useTranslations("haproxy");
   const tc = useTranslations("common");
   const isEdit = !!rule;
-  const isV15 = capabilities?.features.backend_rule_wildcard_domain.supported ?? false;
+  const wildcardSupported = capabilities?.features.backend_rule_wildcard_domain.supported ?? false;
 
   const [form, setForm] = useState<RuleForm>(emptyForm);
   const [loading, setLoading] = useState(false);
@@ -163,8 +163,8 @@ export function HAProxyRuleModal({
 
   // ---- Array field helpers ----
   const addItem = (
-    field: "domain_names" | "wildcard_domains" | "url_path_begin" | "url_path_end" | "url_path_exact",
-    tempKey: "new_domain" | "new_wildcard" | "new_url_begin" | "new_url_end" | "new_url_exact",
+    field: "domain_names" | "url_path_begin" | "url_path_end" | "url_path_exact",
+    tempKey: "new_domain" | "new_url_begin" | "new_url_end" | "new_url_exact",
   ) => {
     const val = form[tempKey].trim();
     if (!val || (form[field] as string[]).includes(val)) return;
@@ -176,7 +176,7 @@ export function HAProxyRuleModal({
   };
 
   const removeItem = (
-    field: "domain_names" | "wildcard_domains" | "url_path_begin" | "url_path_end" | "url_path_exact",
+    field: "domain_names" | "url_path_begin" | "url_path_end" | "url_path_exact",
     val: string,
   ) =>
     setForm((f) => ({ ...f, [field]: (f[field] as string[]).filter((v) => v !== val) }));
@@ -256,37 +256,14 @@ export function HAProxyRuleModal({
               )}
             </div>
 
-            {/* Wildcard Domains (v1.5+) */}
-            {isV15 && (
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <Label className="text-sm">{t("ruleModal.wildcardDomains")}</Label>
-                  <Badge variant="outline" className="text-xs">VyOS 1.5+</Badge>
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    value={form.new_wildcard}
-                    onChange={(e) => set("new_wildcard", e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addItem("wildcard_domains", "new_wildcard"))}
-                    placeholder={t("ruleModal.wildcardPlaceholder")}
-                  />
-                  <Button type="button" variant="outline" size="sm" onClick={() => addItem("wildcard_domains", "new_wildcard")}>
-                    <Plus className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-                {form.wildcard_domains.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {form.wildcard_domains.map((d) => (
-                      <Badge key={d} variant="secondary" className="gap-1 pr-1">
-                        *.{d}
-                        <button onClick={() => removeItem("wildcard_domains", d)} className="hover:text-destructive">
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
+            {wildcardSupported && (
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <Checkbox
+                  checked={form.wildcard_domain}
+                  onCheckedChange={(c) => set("wildcard_domain", !!c)}
+                />
+                {t("ruleModal.matchSubdomains")}
+              </label>
             )}
 
             {/* SSL Match */}

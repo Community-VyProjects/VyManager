@@ -90,6 +90,7 @@ import { ComprehensiveVLANModal } from "@/components/network/ComprehensiveVLANMo
 import { ComprehensiveVIFSModal } from "@/components/network/ComprehensiveVIFSModal";
 import { ComprehensiveVIFCModal } from "@/components/network/ComprehensiveVIFCModal";
 import { TransceiverDiagnosticsDialog } from "@/components/network/TransceiverDiagnosticsDialog";
+import { opticColumnLabel, opticDiagnosticsAvailable, opticSeverity } from "@/lib/optic-status";
 import { DeleteEthernetModal } from "@/components/network/DeleteEthernetModal";
 import { DeleteVLANModal } from "@/components/network/DeleteVLANModal";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -2119,6 +2120,10 @@ function InterfacesPageInner() {
                         {filteredInterfaces.map((iface) => {
                           const vlanCount = (iface.vif?.length || 0) + (iface.vif_s?.length || 0) +
                             (iface.vif_s?.reduce((count, serviceVlan) => count + (serviceVlan.vif_c?.length || 0), 0) || 0);
+                          const optic = opticSeverity(transceiverStatuses[iface.name]);
+                          const opticLabel = opticColumnLabel(optic);
+                          const showOpticDiagnostics = opticDiagnosticsAvailable(optic);
+                          const openOptic = () => setDiagnosticsInterface(iface.name);
                           return (
                             <TableRow key={iface.name}>
                               <TableCell>
@@ -2176,26 +2181,28 @@ function InterfacesPageInner() {
                                 )}
                               </TableCell>
                               <TableCell>
-                                {(() => {
-                                  const status = transceiverStatuses[iface.name];
-                                  if (!status) return <span className="text-muted-foreground">-</span>;
-                                  if (status.alarms.length) return <Badge variant="destructive" className="cursor-pointer" onClick={() => setDiagnosticsInterface(iface.name)} title={t("optic.alarmTitle")}>{t("optic.alarm")}</Badge>;
-                                  if (status.warnings.length || !status.present) return <Badge variant="outline" className="cursor-pointer border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400" onClick={() => setDiagnosticsInterface(iface.name)} title={t("optic.warningTitle")}>{t("optic.warning")}</Badge>;
-                                  return <Badge variant="outline" className="cursor-pointer border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400" onClick={() => setDiagnosticsInterface(iface.name)} title={t("optic.healthyTitle")}>{t("optic.healthy")}</Badge>;
-                                })()}
+                                {!opticLabel ? <span className="text-muted-foreground">-</span> : null}
+                                {optic === "none" ? <span className="text-muted-foreground" title={t("optic.noneTitle")}>{t("optic.na")}</span> : null}
+                                {optic === "error" ? <Badge variant="outline" className="cursor-pointer" onClick={openOptic} title={t("optic.errorTitle")}>{t("optic.error")}</Badge> : null}
+                                {optic === "absent" ? <Badge variant="outline" className="cursor-pointer border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400" onClick={openOptic} title={t("optic.absentTitle")}>{t("optic.warning")}</Badge> : null}
+                                {optic === "alarm" ? <Badge variant="destructive" className="cursor-pointer" onClick={openOptic} title={t("optic.alarmTitle")}>{t("optic.alarm")}</Badge> : null}
+                                {optic === "warning" ? <Badge variant="outline" className="cursor-pointer border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400" onClick={openOptic} title={t("optic.warningTitle")}>{t("optic.warning")}</Badge> : null}
+                                {optic === "ok" ? <Badge variant="outline" className="cursor-pointer border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400" onClick={openOptic} title={t("optic.healthyTitle")}>{t("optic.healthy")}</Badge> : null}
                               </TableCell>
                               <TableCell>
                                 <div className="flex gap-1 justify-end">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setDiagnosticsInterface(iface.name)}
-                                    className="h-7 w-7 p-0"
-                                    disabled={!canRead(FeatureGroup.ETHERNET) && !canRead(FeatureGroup.INTERFACES)}
-                                    title={t("actions.viewDiagnostics")}
-                                  >
-                                    <Signal className="h-3.5 w-3.5" />
-                                  </Button>
+                                  {showOpticDiagnostics ? (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={openOptic}
+                                      className="h-7 w-7 p-0"
+                                      disabled={!canRead(FeatureGroup.ETHERNET) && !canRead(FeatureGroup.INTERFACES)}
+                                      title={t("actions.viewDiagnostics")}
+                                    >
+                                      <Signal className="h-3.5 w-3.5" />
+                                    </Button>
+                                  ) : null}
                                   <Button
                                     variant="ghost"
                                     size="sm"

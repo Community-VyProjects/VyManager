@@ -46,9 +46,13 @@
   "service": "服务",
   "settings": "设置",
   "staticFailover": "静态路由与故障转移",
+  "suricata": "Suricata",
+  "suricataLogging": "Suricata 日志",
   "system": "系统",
   "tftpServer": "TFTP 服务器",
   "unicastProtocols": "单播协议",
+  "watchedInterfaces": "监视的接口",
   "webProxy": "Web 代理",
+  "yourNetwork": "您的网络",
   "zones": "区域"
 }

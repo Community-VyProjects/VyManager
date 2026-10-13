@@ -169,6 +169,7 @@
     "SLA": "SLA",
     "SNMP": "SNMP",
     "SSH": "SSH",
+    "SURICATA": "Suricata",
     "TFTP_SERVER": "TFTP Server",
     "QOS": "QoS",
     "CONTAINER": "Containers",

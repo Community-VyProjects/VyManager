@@ -131,6 +131,7 @@
     "domainNames": "域名",
     "wildcardDomains": "通配符域名",
     "wildcardPlaceholder": "example.com（匹配 *.example.com）",
+    "matchSubdomains": "匹配子域名",
     "sslMatch": "SSL 匹配",
     "sslHello": "hello — 匹配 TLS SNI",
     "urlPath": "URL 路径",

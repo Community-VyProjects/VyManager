@@ -71,6 +71,7 @@
     "primary": "primary",
     "proxy": "proxy",
     "reject": "reject",
+    "return": "return",
     "rel": "REL",
     "secondary": "secondary",
     "static": "static",

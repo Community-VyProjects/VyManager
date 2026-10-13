@@ -46,9 +46,13 @@
   "service": "Service",
   "settings": "Settings",
   "staticFailover": "Static & Failover",
+  "suricata": "Suricata",
+  "suricataLogging": "Suricata logging",
   "system": "System",
   "tftpServer": "TFTP Server",
   "unicastProtocols": "Unicast Protocols",
+  "watchedInterfaces": "Watched interfaces",
   "webProxy": "Web Proxy",
+  "yourNetwork": "Your network",
   "zones": "Zones"
 }

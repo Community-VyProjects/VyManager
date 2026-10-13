@@ -75,14 +75,14 @@ class LLDPBatchBuilder(BatchBuilder):
                     },
                 },
                 "interface_mode": {
-                    "supported": is_1_5,
+                    "supported": self.m.supports_interface_mode(),
                     "description": "Per-interface LLDP operation mode (disable, rx-tx, rx, tx)",
                     "values": ["disable", "rx-tx", "rx", "tx"],
                     "default": "rx-tx",
                 },
                 "interface_disable_flag": {
-                    "supported": is_1_4,
-                    "description": "Per-interface disable presence flag (1.4 only)",
+                    "supported": self.m.supports_interface_disable(),
+                    "description": "Per-interface disable presence flag",
                 },
                 "location_coordinate_based": {
                     "supported": True,

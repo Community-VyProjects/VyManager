@@ -22,6 +22,7 @@
     "title": "Add Dashboard Card",
     "description": "Select a card to add to your dashboard",
     "requiresPermission": "Requires {permission} read permission",
+    "requiresAnyFirewall": "Requires read access to Firewall Policies, Zones, or Bridge",
     "noAccess": "No access",
     "addCard": "Add Card",
     "cards": {
@@ -72,6 +73,10 @@
       "ipsecStatus": {
         "name": "IPSec Tunnels",
         "description": "Live site-to-site IPSec tunnel state (up/down) with traffic selectors, byte counters and the negotiated ESP proposal"
+      },
+      "firewallHits": {
+        "name": "Firewall Hits",
+        "description": "Busiest firewall rules by packet count, with byte counters"
       }
     }
   },
@@ -98,6 +103,8 @@
     "critical": "Critical",
     "warning": "Warning",
     "absent": "Absent",
+    "na": "N/A",
+    "error": "Error",
     "ok": "OK"
   },
   "traffic": {
@@ -204,6 +211,8 @@
     "scanned": "{count, plural, one {# interface scanned} other {# interfaces scanned}}",
     "okCount": "{count} OK",
     "noPart": "No part",
+    "readFailed": "Read failed",
+    "noOptic": "No optic",
     "alarms": "{count, plural, one {# alarm} other {# alarms}}",
     "warnings": "{count, plural, one {# warning} other {# warnings}}",
     "noTransceiver": "No transceiver"
@@ -214,6 +223,14 @@
     "prio": "prio {priority}",
     "lastTransition": "last transition",
     "noGroups": "No active VRRP groups."
+  },
+  "firewallHits": {
+    "title": "Firewall Hits",
+    "ofTotal": "{shown} of {total}",
+    "none": "No firewall hits yet.",
+    "rule": "Rule",
+    "packets": "Packets",
+    "packetsTitle": "packets"
   },
   "wireGuard": {
     "title": "WireGuard Peers",

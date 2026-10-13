@@ -158,6 +158,7 @@
     },
     "tabs": {
       "basic": "基本",
+      "dns": "DNS",
       "pool": "DHCP 地址池",
       "advanced": "高级",
       "options": "选项"
@@ -192,6 +193,7 @@
     "timeOffset": "时间偏移（秒）",
     "timeOffsetPlaceholder": "例如 -18000 表示 EST",
     "clientPrefixLength": "客户端前缀长度",
+    "wpadUrl": "WPAD URL",
     "pingCheck": "Ping 检查",
     "pingCheckHelp": "分配租约前用 ICMP ping 测试 IP 地址",
     "enableFailover": "启用故障转移",
@@ -323,5 +325,31 @@
     "description": "释放 <mono>{ip}</mono>{host} 的租约？该地址将返回地址池，客户端下次请求时可能获得不同的地址。",
     "releasing": "正在释放...",
     "confirm": "释放租约"
+  },
+  "clientClass": {
+    "title": "客户端类别",
+    "description": "在子网或地址范围分配地址之前匹配中继代理信息",
+    "none": "没有客户端类别",
+    "noRelayMatch": "无中继匹配",
+    "circuit": "电路 {id}",
+    "remote": "远端 {id}",
+    "className": "类别名称",
+    "disable": "禁用",
+    "circuitId": "中继 circuit-id",
+    "remoteId": "中继 remote-id",
+    "new": "新建",
+    "save": "保存类别",
+    "deleteFailed": "删除客户端类别失败"
+  },
+  "networkOptions": {
+    "title": "{name} 选项",
+    "description": "此设备支持、且尚未在其他位置设置的共享网络配置项",
+    "none": "此设备没有额外的共享网络选项。",
+    "saveFailed": "保存网络选项失败",
+    "open": "网络选项"
+  },
+  "catalog": {
+    "addItem": "添加 {label}",
+    "addRoute": "添加路由"
   }
 }

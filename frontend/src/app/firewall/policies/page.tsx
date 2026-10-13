@@ -59,7 +59,9 @@ import {
 } from "@/lib/api/firewall-ipv4";
 import { firewallIPv6Service } from "@/lib/api/firewall-ipv6";
 import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
+import { findFirewallCounter, showService, type FirewallRuleCounter } from "@/lib/api/show";
 import { cn } from "@/lib/utils";
+import { chainDefaultActions } from "@/lib/firewall-default-actions";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { FirewallRuleModal } from "@/components/firewall/FirewallRuleModal";
 import { DeleteFirewallRuleModal } from "@/components/firewall/DeleteFirewallRuleModal";
@@ -85,7 +87,8 @@ type ChainType = "forward" | "input" | "output" | "prerouting_raw";
 type PolicyColumnId =
   | "protocol" | "source" | "srcPort" | "destination" | "dstPort" | "state"
   | "description" | "status" | "log" | "interface" | "limit" | "time"
-  | "icmpType" | "tcpFlags" | "connectionStatus" | "mark" | "packetLength" | "recent";
+  | "icmpType" | "tcpFlags" | "connectionStatus" | "mark" | "packetLength" | "recent"
+  | "packets" | "bytes";
 
 // Labels are translated at render time from firewallPolicies.columns.<id>.
 const POLICIES_COLUMNS: { id: PolicyColumnId; defaultVisible?: boolean }[] = [
@@ -108,6 +111,8 @@ const POLICIES_COLUMNS: { id: PolicyColumnId; defaultVisible?: boolean }[] = [
   { id: "mark",          defaultVisible: false },
   { id: "packetLength",  defaultVisible: false },
   { id: "recent",        defaultVisible: false },
+  { id: "packets",       defaultVisible: false },
+  { id: "bytes",         defaultVisible: false },
 ];
 
 function FirewallPoliciesPageInner() {
@@ -119,6 +124,7 @@ function FirewallPoliciesPageInner() {
 
   // IPv4 state
   const [config, setConfig] = useState<FirewallConfigResponse | null>(null);
+  const [ruleCounters, setRuleCounters] = useState<FirewallRuleCounter[]>([]);
   const [capabilities, setCapabilities] = useState<FirewallCapabilitiesResponse | null>(null);
   const [selectedChain, setSelectedChain] = useState<ChainType | string>("forward");
   const [isCustomChain, setIsCustomChain] = useState(false);
@@ -175,8 +181,9 @@ function FirewallPoliciesPageInner() {
     () => POLICIES_COLUMNS.map((c) => ({ ...c, label: t(`columns.${c.id}`) })),
     [t]
   );
-  const { visibleColumns, toggleColumn, visibleColumnCount, orderedColumns, visibleOrderedColumns, reorderColumns, resetToDefault } =
+  const { visibleColumns, toggleColumn, isVisible, visibleColumnCount, orderedColumns, visibleOrderedColumns, reorderColumns, resetToDefault } =
     useColumnVisibility("firewall-policies-columns", policiesColumns);
+  const countersVisible = isVisible("packets") || isVisible("bytes");
 
   // Permissions — separator editing follows the firewall rules permission.
   const { canWrite } = usePermissions();
@@ -198,6 +205,15 @@ function FirewallPoliciesPageInner() {
     })
   );
 
+  const fetchStatistics = async () => {
+    try {
+      const data = await showService.getFirewallStatistics();
+      setRuleCounters(data.rules);
+    } catch (err) {
+      console.error("Error fetching firewall statistics:", err);
+    }
+  };
+
   // IPv4 fetch functions
   const fetchConfig = async (refresh: boolean = false) => {
     try {
@@ -209,6 +225,7 @@ function FirewallPoliciesPageInner() {
       setHasChanges(false);
       setReorderedRules([]);
       setOriginalRules([]);
+      if (refresh && countersVisible) fetchStatistics();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("errors.loadConfig"));
       console.error("Error fetching firewall config:", err);
@@ -237,6 +254,7 @@ function FirewallPoliciesPageInner() {
       setHasChangesIPv6(false);
       setReorderedRulesIPv6([]);
       setOriginalRulesIPv6([]);
+      if (refresh && countersVisible) fetchStatistics();
     } catch (err) {
       setErrorIPv6(err instanceof Error ? err.message : t("errors.loadConfigIPv6"));
       console.error("Error fetching IPv6 firewall config:", err);
@@ -376,6 +394,10 @@ function FirewallPoliciesPageInner() {
     loadSeparators();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount; a language switch re-renders via router.refresh()
   }, []);
+
+  useEffect(() => {
+    if (countersVisible) fetchStatistics();
+  }, [countersVisible]);
 
   useEffect(() => {
     const section = searchParams.get("section");
@@ -915,6 +937,13 @@ function FirewallPoliciesPageInner() {
           isDragging={(selectedProtocol === "ipv4" ? activeId : activeIdIPv6) === item.rule.rule_number}
           groups={groups}
           visibleOrderedColumns={visibleOrderedColumns}
+          counters={findFirewallCounter(
+            ruleCounters,
+            selectedProtocol,
+            currentChain,
+            item.rule.rule_number,
+            selectedProtocol === "ipv4" ? isCustomChain : isCustomChainIPv6,
+          ) ?? null}
         />
       );
       lastRuleNumber = item.rule.rule_number;
@@ -1347,9 +1376,18 @@ function FirewallPoliciesPageInner() {
                     <SelectValue placeholder={t("page.notSet")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="accept">{tc("shown.accept")}</SelectItem>
-                    <SelectItem value="drop">{tc("shown.drop")}</SelectItem>
-                    <SelectItem value="reject">{tc("shown.reject")}</SelectItem>
+                    {chainDefaultActions(
+                      ["accept", "drop", "reject"],
+                      selectedProtocol === "ipv4" ? isCustomChain : isCustomChainIPv6,
+                    ).map((action) => (
+                      <SelectItem key={action} value={action}>
+                        {action === "accept" ? tc("shown.accept")
+                          : action === "drop" ? tc("shown.drop")
+                          : action === "reject" ? tc("shown.reject")
+                          : action === "return" ? tc("shown.return")
+                          : action}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -1472,6 +1510,7 @@ function FirewallPoliciesPageInner() {
                               time: "w-[160px]", icmpType: "w-[120px]", tcpFlags: "w-[120px]",
                               connectionStatus: "w-[120px]",
                               mark: "w-[100px]", packetLength: "w-[100px]", recent: "w-[100px]",
+                              packets: "w-[110px]", bytes: "w-[130px]",
                             };
                             return (
                               <TableHead key={col.id} className={widths[col.id] ?? ""}>

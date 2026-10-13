@@ -264,6 +264,18 @@ class VyOSService:
                 instance_id,
             )
 
+    def commit_operations(self, operations: List[Dict[str, Any]]) -> ApiResponse:
+        """The only call to device.configure_multiple_op.
+
+        pyvyos keeps HTTP 200 when VyOS rejects the commit. commit-confirm
+        already returns 400 in that case. Do the same here so every caller
+        can treat status 200 as applied.
+        """
+        response = self.device.configure_multiple_op(op_path=operations)
+        if response.status == 200 and response.error:
+            response.status = 400
+        return response
+
     def execute_batch(
         self,
         batch: Union[
@@ -294,7 +306,7 @@ class VyOSService:
             raise ValueError("Cannot execute empty batch")
 
         operations = batch.get_operations()
-        response = self.device.configure_multiple_op(op_path=operations)
+        response = self.commit_operations(operations)
         if response.status == 200 and self.config.instance_id:
             self._record_managed_config(self.config.instance_id)
             event_manager.emit(self.config.instance_id, EVENT_CONFIG_DIFF, None)
@@ -483,7 +495,7 @@ class VyOSService:
 
             # Execute using configure_multiple_op
             if operations:
-                response = self.device.configure_multiple_op(op_path=operations)
+                response = self.commit_operations(operations)
 
                 if response.status == 200:
                     if self.config.instance_id:

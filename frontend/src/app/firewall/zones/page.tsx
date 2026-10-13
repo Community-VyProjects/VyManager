@@ -36,6 +36,7 @@ import { firewallZonesService, resolveChainName } from "@/lib/api/firewall-zones
 import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
 import { firewallIPv4Service } from "@/lib/api/firewall-ipv4";
 import { firewallIPv6Service } from "@/lib/api/firewall-ipv6";
+import { findFirewallCounter, showService, type FirewallRuleCounter } from "@/lib/api/show";
 import type { FirewallZone, ZonesCapabilities } from "@/lib/api/types/firewall-zones";
 import type { FirewallConfigResponse, FirewallRule, FirewallCapabilitiesResponse } from "@/lib/api/firewall-ipv4";
 import { CreateZoneModal } from "@/components/firewall/zones/CreateZoneModal";
@@ -93,6 +94,7 @@ function SortableRuleRow({
   onClone,
   isReordering,
   groups,
+  counter,
 }: {
   id: string;
   row: PolicyRow;
@@ -100,6 +102,7 @@ function SortableRuleRow({
   onClone?: (e: React.MouseEvent) => void;
   isReordering: boolean;
   groups: FirewallGroup[];
+  counter?: { packets: number; bytes: number } | null;
 }) {
   const t = useTranslations("firewallZones");
   const tc = useTranslations("common");
@@ -271,7 +274,23 @@ function SortableRuleRow({
               </Tooltip>
             )}
           </span>
-          {row.rule.rule_number}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="cursor-help border-b border-dotted border-muted-foreground/40">
+                {row.rule.rule_number}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              {counter ? (
+                <div className="text-xs tabular-nums">
+                  <div>{t("table.packets", { count: counter.packets.toLocaleString() })}</div>
+                  <div>{t("table.bytes", { count: counter.bytes.toLocaleString() })}</div>
+                </div>
+              ) : (
+                <span className="text-xs">{t("table.noLiveCounters")}</span>
+              )}
+            </TooltipContent>
+          </Tooltip>
         </div>
       </TableCell>
 
@@ -407,6 +426,7 @@ export default function FirewallZonesPage() {
   const [ipv6Config, setIpv6Config] = useState<FirewallConfigResponse | null>(null);
   const [firewallCaps, setFirewallCaps] = useState<FirewallCapabilitiesResponse | null>(null);
   const [groups, setGroups] = useState<FirewallGroup[]>([]);
+  const [ruleCounters, setRuleCounters] = useState<FirewallRuleCounter[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -452,7 +472,7 @@ export default function FirewallZonesPage() {
     setLoading(true);
     setError(null);
     try {
-      const [caps, zonesData, v4, v6, fwCaps, groupsData, seps] = await Promise.all([
+      const [caps, zonesData, v4, v6, fwCaps, groupsData, seps, stats] = await Promise.all([
         firewallZonesService.getCapabilities(),
         firewallZonesService.getConfig(refresh),
         firewallIPv4Service.getConfig(refresh),
@@ -460,12 +480,14 @@ export default function FirewallZonesPage() {
         firewallIPv4Service.getCapabilities(),
         firewallGroupsService.getConfig(refresh),
         firewallSeparatorsService.list(),
+        showService.getFirewallStatistics().catch(() => ({ rules: [] as FirewallRuleCounter[] })),
       ]);
       setCapabilities(caps);
       setZones(zonesData.zones);
       setIpv4Config(v4);
       setIpv6Config(v6);
       setFirewallCaps(fwCaps);
+      setRuleCounters(stats.rules);
       setSeparators(seps);
       setGroups([
         ...groupsData.address_groups,
@@ -868,6 +890,13 @@ export default function FirewallZonesPage() {
             onClick={() => openEditPanel(row)}
             onClone={() => openClonePanel(row)}
             groups={groups}
+            counter={findFirewallCounter(
+              ruleCounters,
+              row.ipVersion === "IPv4" ? "ipv4" : "ipv6",
+              row.chainName,
+              row.rule.rule_number,
+              true,
+            ) ?? null}
           />
         );
         lastRuleNumber = row.rule.rule_number;
@@ -947,6 +976,13 @@ export default function FirewallZonesPage() {
           onClick={() => openEditPanel(row)}
           onClone={() => openClonePanel(row)}
           groups={groups}
+          counter={findFirewallCounter(
+            ruleCounters,
+            row.ipVersion === "IPv4" ? "ipv4" : "ipv6",
+            row.chainName,
+            row.rule.rule_number,
+            true,
+          ) ?? null}
         />
       );
       const next = displayRows[idx + 1];

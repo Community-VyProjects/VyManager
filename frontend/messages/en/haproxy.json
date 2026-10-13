@@ -131,6 +131,7 @@
     "domainNames": "Domain Names",
     "wildcardDomains": "Wildcard Domains",
     "wildcardPlaceholder": "example.com  (matches *.example.com)",
+    "matchSubdomains": "Match subdomains",
     "sslMatch": "SSL Match",
     "sslHello": "hello — match on TLS SNI",
     "urlPath": "URL Path",

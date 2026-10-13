@@ -58,7 +58,9 @@
     "connectionStatus": "NAT 连接状态",
     "mark": "标记",
     "packetLength": "包长度",
-    "recent": "近期匹配"
+    "recent": "近期匹配",
+    "packets": "数据包",
+    "bytes": "字节"
   },
   "rule": {
     "all": "全部",

@@ -3,9 +3,13 @@
 Handles command path generation for DHCP server configuration.
 Integrates version-specific mappers for differences between VyOS 1.4 and 1.5.
 """
-from typing import FrozenSet, List
+import re
+from typing import FrozenSet, List, Sequence
 from ..base import BaseFeatureMapper
+from .dhcp_catalog import delete_path, set_path
 from .dhcp_versions import DHCPMapperV1_4, DHCPMapperV1_5
+
+_CLIENT_CLASS_NAME = re.compile(r"^[-_a-zA-Z0-9][\w\-\.\+]*$")
 
 
 class DHCPMapper(BaseFeatureMapper):
@@ -1031,3 +1035,76 @@ class DHCPMapper(BaseFeatureMapper):
     def can_clear_inactive_leases(self) -> bool:
         """Whether operational lease clear works for non-active states."""
         return self.version_mapper.can_clear_inactive_leases()
+
+    def has_client_class(self) -> bool:
+        return "1.4" not in self.version
+
+    def catalog_set(
+        self,
+        scope: str,
+        token: str,
+        anchors: Sequence[str],
+        values: Sequence[str] = (),
+    ) -> List[str]:
+        return set_path(self.version, scope, token, anchors, values)
+
+    def catalog_delete(
+        self,
+        scope: str,
+        token: str,
+        anchors: Sequence[str],
+        values: Sequence[str] = (),
+    ) -> List[str]:
+        return delete_path(self.version, scope, token, anchors, values)
+
+    def _require_client_class(self) -> None:
+        if not self.has_client_class():
+            raise ValueError("client-class is not supported on this device")
+
+    def _client_class_name(self, name: str) -> str:
+        self._require_client_class()
+        if not _CLIENT_CLASS_NAME.match(name or ""):
+            raise ValueError("Invalid client-class name")
+        return name
+
+    def _class_value(self, value: str, label: str) -> str:
+        cleaned = str(value or "").strip()
+        if not cleaned:
+            raise ValueError(f"{label} requires a value")
+        if "|" in cleaned:
+            raise ValueError(f"{label} value cannot contain '|'")
+        return cleaned
+
+    def get_client_class(self, name: str) -> List[str]:
+        return ["service", "dhcp-server", "client-class", self._client_class_name(name)]
+
+    def get_client_class_path(self, name: str) -> List[str]:
+        return ["service", "dhcp-server", "client-class", self._client_class_name(name)]
+
+    def get_client_class_disable(self, name: str) -> List[str]:
+        return self.get_client_class(name) + ["disable"]
+
+    def get_client_class_disable_path(self, name: str) -> List[str]:
+        return self.get_client_class_path(name) + ["disable"]
+
+    def get_client_class_circuit_id(self, name: str, value: str) -> List[str]:
+        cleaned = self._class_value(value, "circuit-id")
+        return self.get_client_class(name) + [
+            "relay-agent-information", "circuit-id", cleaned,
+        ]
+
+    def get_client_class_circuit_id_path(self, name: str) -> List[str]:
+        return self.get_client_class_path(name) + [
+            "relay-agent-information", "circuit-id",
+        ]
+
+    def get_client_class_remote_id(self, name: str, value: str) -> List[str]:
+        cleaned = self._class_value(value, "remote-id")
+        return self.get_client_class(name) + [
+            "relay-agent-information", "remote-id", cleaned,
+        ]
+
+    def get_client_class_remote_id_path(self, name: str) -> List[str]:
+        return self.get_client_class_path(name) + [
+            "relay-agent-information", "remote-id",
+        ]

@@ -55,12 +55,14 @@
     "serialize-javascript": "7.0.5",
     "yaml": "1.10.3",
     "js-yaml@4": "4.3.2",
-    "uuid": "11.1.1"
+    "uuid": "11.1.1",
+    "http-cache-semantics": "4.3.0"
   },
   "resolutions": {
     "qs": "6.16.0",
     "serialize-javascript": "7.0.5",
     "yaml": "1.10.3",
-    "uuid": "11.1.1"
+    "uuid": "11.1.1",
+    "http-cache-semantics": "4.3.0"
   }
 }

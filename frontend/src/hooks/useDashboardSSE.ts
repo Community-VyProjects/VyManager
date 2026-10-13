@@ -145,6 +145,8 @@ export interface TransceiverMeasurementData {
 export interface TransceiverPortData {
   interface: string;
   present: boolean;
+  unsupported?: boolean;
+  read_error?: boolean;
   transceiver?: string | null;
   vendor?: string | null;
   part_number?: string | null;
@@ -156,6 +158,21 @@ export interface TransceiverPortData {
 
 export interface TransceiverHealthData {
   interfaces: TransceiverPortData[];
+  total: number;
+}
+
+export interface FirewallHit {
+  family: string;
+  chain: string;
+  custom: boolean;
+  rule: string;
+  action: string;
+  packets: number;
+  bytes: number;
+}
+
+export interface FirewallHitsData {
+  hits: FirewallHit[];
   total: number;
 }
 
@@ -171,6 +188,7 @@ export interface DashboardSSEData {
   pppoeSessions: PPPoESessionsResponse | null;
   hardwareSensors: HardwareSensorsResponse | null;
   transceiverHealth: TransceiverHealthData | null;
+  firewallHits: FirewallHitsData | null;
 }
 
 export interface DashboardSSEState {
@@ -203,6 +221,7 @@ export function useDashboardSSE(options?: {
     pppoeSessions: null,
     hardwareSensors: null,
     transceiverHealth: null,
+    firewallHits: null,
   });
   const [error, setError] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
@@ -320,6 +339,15 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as TransceiverHealthData;
         setData((prev) => ({ ...prev, transceiverHealth: payload }));
+      } catch {
+        // Ignore malformed payloads
+      }
+    });
+
+    es.addEventListener("firewall-statistics", (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data) as FirewallHitsData;
+        setData((prev) => ({ ...prev, firewallHits: payload }));
       } catch {
         // Ignore malformed payloads
       }

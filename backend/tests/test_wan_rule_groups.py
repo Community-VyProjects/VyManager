@@ -105,17 +105,16 @@ def test_wan_rule_group_set_rejected_on_v1_4(method, args):
 
 
 @pytest.mark.parametrize(
-    "method, args, expected_path",
+    "method, args",
     [
-        ("delete_wan_rule_source_group", ("10",), BASE + ["source", "group"]),
-        ("delete_wan_rule_destination_group", ("10",), BASE + ["destination", "group"]),
+        ("delete_wan_rule_source_group", ("10",)),
+        ("delete_wan_rule_destination_group", ("10",)),
     ],
 )
-def test_wan_rule_group_delete_unguarded_on_v1_4(method, args, expected_path):
+def test_wan_rule_group_delete_rejected_on_v1_4(method, args):
     builder = LoadBalancingBatchBuilder(version="1.4")
-    getattr(builder, method)(*args)
-    operations = builder.get_operations()
-    assert [(item["op"], item["path"]) for item in operations] == [("delete", expected_path)]
+    with pytest.raises(ValueError):
+        getattr(builder, method)(*args)
 
 
 def test_capability_gated_to_v1_5():

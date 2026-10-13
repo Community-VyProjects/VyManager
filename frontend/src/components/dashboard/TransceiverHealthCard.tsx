@@ -22,6 +22,7 @@ import {
 import { CardSizeMenu } from "@/components/dashboard/CardSizeMenu";
 import { useDashboardData } from "@/contexts/DashboardDataContext";
 import type { TransceiverHealthData, TransceiverPortData } from "@/hooks/useDashboardSSE";
+import { dashboardOpticSeverity } from "@/lib/optic-status";
 
 interface TransceiverHealthCardProps {
   onRemove?: () => void;
@@ -32,17 +33,8 @@ interface TransceiverHealthCardProps {
   config?: Record<string, unknown>;
 }
 
-function transceiverSeverity(port: TransceiverPortData): "ok" | "warning" | "critical" | "absent" {
-  if (!port.present || !port.transceiver) {
-    return "absent";
-  }
-  if (port.alarms.length > 0) {
-    return "critical";
-  }
-  if (port.warnings.length > 0) {
-    return "warning";
-  }
-  return "ok";
+function transceiverSeverity(port: TransceiverPortData): "ok" | "warning" | "critical" | "absent" | "none" | "error" {
+  return dashboardOpticSeverity(port);
 }
 
 function SeverityBadge({ port }: { port: TransceiverPortData }) {
@@ -67,11 +59,19 @@ function SeverityBadge({ port }: { port: TransceiverPortData }) {
     );
   }
 
-  if (severity === "absent") {
+  if (severity === "error") {
+    return (
+      <Badge variant="outline" className="shrink-0">
+        {t("severity.error")}
+      </Badge>
+    );
+  }
+
+  if (severity === "absent" || severity === "none") {
     return (
       <Badge variant="outline" className="shrink-0 border-muted-foreground/40 text-muted-foreground">
         <CircleAlert className="h-3 w-3 mr-1" />
-        {t("severity.absent")}
+        {severity === "none" ? t("severity.na") : t("severity.absent")}
       </Badge>
     );
   }
@@ -110,9 +110,13 @@ export function TransceiverHealthCard({
     ? "critical"
     : ports.some((port) => transceiverSeverity(port) === "warning")
       ? "warning"
-      : ports.some((port) => transceiverSeverity(port) === "absent")
+      : ports.some((port) => transceiverSeverity(port) === "error")
+        ? "error"
+        : ports.some((port) => transceiverSeverity(port) === "absent")
         ? "absent"
-        : "ok";
+        : ports.some((port) => transceiverSeverity(port) === "none")
+          ? "none"
+          : "ok";
 
   return (
     <Card className="flex flex-col h-full">
@@ -164,7 +168,7 @@ export function TransceiverHealthCard({
                   <CircleAlert className="h-4 w-4 text-red-600" />
                 ) : overallSeverity === "warning" ? (
                   <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                ) : overallSeverity === "absent" ? (
+                ) : overallSeverity === "absent" || overallSeverity === "none" || overallSeverity === "error" ? (
                   <CircleAlert className="h-4 w-4 text-muted-foreground" />
                 ) : (
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -184,7 +188,7 @@ export function TransceiverHealthCard({
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-sm font-medium break-all">{port.interface}</span>
-                      <span className="text-xs text-muted-foreground">{port.transceiver || t("transceiver.noPart")}</span>
+                      <span className="text-xs text-muted-foreground">{port.read_error ? t("transceiver.readFailed") : port.unsupported ? t("transceiver.noOptic") : (port.transceiver || t("transceiver.noPart"))}</span>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       {port.alarms.length > 0 && (
@@ -193,7 +197,7 @@ export function TransceiverHealthCard({
                       {port.warnings.length > 0 && (
                         <span className="text-yellow-600">{t("transceiver.warnings", { count: port.warnings.length })}</span>
                       )}
-                      {!port.present && <span>{t("transceiver.noTransceiver")}</span>}
+                      {!port.present && !port.unsupported && !port.read_error && <span>{t("transceiver.noTransceiver")}</span>}
                     </div>
                   </div>
                   <SeverityBadge port={port} />

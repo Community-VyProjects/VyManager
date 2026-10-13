@@ -17,11 +17,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Plus, Settings2, X } from "lucide-react";
 import { InterfaceSelect } from "@/components/ui/interface-select";
+import { DhcpCatalogFields } from "./DhcpCatalogFields";
+import { catalogDraftFrom, catalogOps, type CatalogDraft } from "./dhcp-catalog";
+import { failedSaveMessage } from "./dhcp-save";
 import {
   dhcpService,
   type DHCPCapabilitiesResponse,
   type DHCPGlobalConfig,
 } from "@/lib/api/dhcp";
+
+const NO_LEAVES: never[] = [];
 
 interface DHCPServerSettingsModalProps {
   open: boolean;
@@ -48,6 +53,9 @@ export function DHCPServerSettingsModal({
   const [ifacePick, setIfacePick] = useState("__none__");
   const [hostfileUpdate, setHostfileUpdate] = useState(false);
   const [hostDeclName, setHostDeclName] = useState(false);
+  const [catalogDraft, setCatalogDraft] = useState<CatalogDraft>({});
+  const [catalogOriginal, setCatalogOriginal] = useState<CatalogDraft>({});
+  const globalLeaves = capabilities?.catalog?.global ?? NO_LEAVES;
 
   const canListenInterface = capabilities?.fields.listen_interface?.supported ?? false;
   const canHostDeclName = capabilities?.fields.host_decl_name?.supported ?? false;
@@ -61,7 +69,10 @@ export function DHCPServerSettingsModal({
     setIfacePick("__none__");
     setHostfileUpdate(globalConfig.hostfile_update);
     setHostDeclName(globalConfig.host_decl_name);
-  }, [open, globalConfig]);
+    const loaded = catalogDraftFrom(globalLeaves, globalConfig.catalog);
+    setCatalogDraft(loaded);
+    setCatalogOriginal(loaded);
+  }, [open, globalConfig, globalLeaves]);
 
   const addAddress = () => {
     const v = addressInput.trim();
@@ -80,15 +91,23 @@ export function DHCPServerSettingsModal({
     setLoading(true);
     setError(null);
     try {
+      const catalog = catalogOps(
+        "set_global_catalog",
+        "delete_global_catalog",
+        globalLeaves,
+        catalogOriginal,
+        catalogDraft,
+      );
       const result = await dhcpService.saveGlobalSettings(globalConfig, {
         ...globalConfig,
         listen_addresses: listenAddresses,
         listen_interfaces: canListenInterface ? listenInterfaces : (globalConfig.listen_interfaces ?? []),
         hostfile_update: hostfileUpdate,
         host_decl_name: canHostDeclName ? hostDeclName : globalConfig.host_decl_name,
-      });
-      if (!result.success) {
-        setError(result.error ?? t("settings.saveFailed"));
+      }, catalog);
+      const saveError = failedSaveMessage(result, t("settings.saveFailed"));
+      if (saveError) {
+        setError(saveError);
         setLoading(false);
         return;
       }
@@ -103,7 +122,7 @@ export function DHCPServerSettingsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-[480px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings2 className="h-5 w-5" />
@@ -191,6 +210,15 @@ export function DHCPServerSettingsModal({
               </Label>
             </div>
           )}
+
+          <DhcpCatalogFields
+            leaves={globalLeaves}
+            values={catalogDraft}
+            onChange={(token, value) =>
+              setCatalogDraft((current) => ({ ...current, [token]: value }))
+            }
+            idPrefix="dhcp-global"
+          />
 
           {error && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">

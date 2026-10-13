@@ -9,19 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ethernetService } from "@/lib/api/ethernet";
 import type { TransceiverStatus } from "@/lib/api/types/ethernet";
+import { opticSeverity } from "@/lib/optic-status";
 
 const measurementKeys = ["temperature", "voltage", "laser_bias", "tx_power", "rx_power"] as const;
 type MeasurementKey = (typeof measurementKeys)[number];
 const isMeasurementKey = (key: string): key is MeasurementKey =>
   (measurementKeys as readonly string[]).includes(key);
-
-function severity(status?: TransceiverStatus | null) {
-  if (!status) return "unknown";
-  if (status.alarms.length) return "alarm";
-  if (status.warnings.length) return "warning";
-  if (!status.present) return "warning";
-  return "ok";
-}
 
 export function TransceiverDiagnosticsDialog({
   interfaceName,
@@ -82,7 +75,7 @@ export function TransceiverDiagnosticsDialog({
     };
   }, [open, interfaceName]);
 
-  const currentSeverity = severity(status);
+  const currentSeverity = opticSeverity(status);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -104,15 +97,20 @@ export function TransceiverDiagnosticsDialog({
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
               {currentSeverity === "ok" ? <Badge className="bg-green-600"><CheckCircle2 /> {t("transceiver.healthy")}</Badge> : null}
-              {currentSeverity === "warning" ? <Badge className="bg-yellow-600"><AlertTriangle /> {t("transceiver.warning")}</Badge> : null}
+              {currentSeverity === "warning" || currentSeverity === "absent" ? <Badge className="bg-yellow-600"><AlertTriangle /> {t("transceiver.warning")}</Badge> : null}
               {currentSeverity === "alarm" ? <Badge variant="destructive"><CircleAlert /> {t("transceiver.alarm")}</Badge> : null}
-              {!status.present ? <span className="text-sm text-muted-foreground">{t("transceiver.notDetected")}</span> : null}
+              {currentSeverity === "none" ? <span className="text-sm text-muted-foreground">{t("transceiver.noOptical")}</span> : null}
+              {currentSeverity === "absent" ? <span className="text-sm text-muted-foreground">{t("transceiver.notDetected")}</span> : null}
+              {currentSeverity === "error" ? <Badge variant="outline">{t("transceiver.error")}</Badge> : null}
             </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {[[t("transceiver.type"), status.transceiver], [t("transceiver.vendor"), status.vendor], [t("transceiver.partNumber"), status.part_number], [t("transceiver.serialNumber"), status.serial_number]].map(([label, value]) => (
-                <Card key={label}><CardContent className="p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 font-medium break-words">{value || "-"}</p></CardContent></Card>
-              ))}
-            </div>
+            {currentSeverity === "error" ? <pre className="whitespace-pre-wrap rounded-md border bg-muted/40 p-3 text-sm">{status.raw?.trim() || t("transceiver.unableToRead")}</pre> : null}
+            {currentSeverity === "ok" || currentSeverity === "warning" || currentSeverity === "alarm" ? (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {[[t("transceiver.type"), status.transceiver], [t("transceiver.vendor"), status.vendor], [t("transceiver.partNumber"), status.part_number], [t("transceiver.serialNumber"), status.serial_number]].map(([label, value]) => (
+                  <Card key={label}><CardContent className="p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 font-medium break-words">{value || "-"}</p></CardContent></Card>
+                ))}
+              </div>
+            ) : null}
             {Object.keys(status.measurements).length > 0 ? <div><h3 className="mb-2 text-sm font-semibold">{t("transceiver.liveMeasurements")}</h3><div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{Object.entries(status.measurements).map(([key, measurement]) => <Card key={key}><CardContent className="p-3"><p className="text-xs text-muted-foreground">{isMeasurementKey(key) ? t(`transceiver.measurements.${key}`) : key}</p><p className="mt-1 font-mono font-medium">{measurement.value || "-"}</p></CardContent></Card>)}</div></div> : null}
             {status.alarms.length || status.warnings.length ? <div className="space-y-1 text-sm">{status.alarms.map((item) => <p key={`a-${item}`} className="text-destructive">{t("transceiver.alarmItem", { item })}</p>)}{status.warnings.map((item) => <p key={`w-${item}`} className="text-yellow-700 dark:text-yellow-400">{t("transceiver.warningItem", { item })}</p>)}</div> : null}
           </div>

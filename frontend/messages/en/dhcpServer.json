@@ -158,6 +158,7 @@
     },
     "tabs": {
       "basic": "Basic",
+      "dns": "DNS",
       "pool": "DHCP Pool",
       "advanced": "Advanced",
       "options": "Options"
@@ -192,6 +193,7 @@
     "timeOffset": "Time Offset (seconds)",
     "timeOffsetPlaceholder": "e.g., -18000 for EST",
     "clientPrefixLength": "Client Prefix Length",
+    "wpadUrl": "WPAD URL",
     "pingCheck": "Ping Check",
     "pingCheckHelp": "Test IP addresses with ICMP ping before lease assignment",
     "enableFailover": "Enable Failover",
@@ -323,5 +325,31 @@
     "description": "Release the lease for <mono>{ip}</mono>{host}? The address will be returned to the pool and the client may receive a different address on its next request.",
     "releasing": "Releasing...",
     "confirm": "Release Lease"
+  },
+  "clientClass": {
+    "title": "Client classes",
+    "description": "Match relay-agent information before a subnet or range assigns an address",
+    "none": "No client classes",
+    "noRelayMatch": "No relay match",
+    "circuit": "circuit {id}",
+    "remote": "remote {id}",
+    "className": "Class name",
+    "disable": "Disable",
+    "circuitId": "Relay circuit-id",
+    "remoteId": "Relay remote-id",
+    "new": "New",
+    "save": "Save class",
+    "deleteFailed": "Failed to delete client class"
+  },
+  "networkOptions": {
+    "title": "{name} options",
+    "description": "Shared-network leaves this device supports that are not already set elsewhere",
+    "none": "No extra shared-network options on this device.",
+    "saveFailed": "Failed to save network options",
+    "open": "Network options"
+  },
+  "catalog": {
+    "addItem": "Add {label}",
+    "addRoute": "Add route"
   }
 }

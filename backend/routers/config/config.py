@@ -297,9 +297,7 @@ async def discard_config(request: Request):
             return SaveConfigResponse(success=True, message="No changes to discard")
 
         operations = _build_discard_operations(added, removed, modified)
-        response = await run_in_threadpool(
-            service.device.configure_multiple_op, op_path=operations
-        )
+        response = await run_in_threadpool(service.commit_operations, operations)
 
         if response.status != 200:
             return SaveConfigResponse(

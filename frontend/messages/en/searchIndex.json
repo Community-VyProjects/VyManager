@@ -113,6 +113,11 @@
       "neighborProxy": "Manage neighbor proxies",
       "routingTables": "Manage routing tables"
     },
+    "suricata": {
+      "interfaces": "Interfaces Suricata inspects",
+      "network": "HOME_NET and EXTERNAL_NET for intrusion detection",
+      "logging": "EVE JSON logs for intrusion detection alerts"
+    },
     "routingInfrastructure": {
       "bfd": "Bidirectional Forwarding Detection",
       "mpls": "Multiprotocol Label Switching",
@@ -489,6 +494,7 @@
     "staticRules": "Static Rules",
     "subnet": "Subnet",
     "subnets": "Subnets",
+    "suricataLogging": "Suricata logging",
     "syncGroup": "Sync Group",
     "syncGroups": "Sync Groups",
     "sysctlParameter": "Sysctl Parameter",
@@ -524,8 +530,10 @@
     "vrrpGroups": "VRRP Groups",
     "watchdog": "Watchdog",
     "watchdogTimeout": "Watchdog Timeout",
+    "watchedInterfaces": "Watched interfaces",
     "wireless": "Wireless",
     "x509Defaults": "X509 Defaults",
+    "yourNetwork": "Your network",
     "zone": "Zone",
     "zones": "Zones"
   }

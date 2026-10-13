@@ -1,0 +1,135 @@
+{{- if eq .Values.database.mode "internal" }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "vymanager.postgresqlServiceName" . }}
+  labels:
+    {{- include "vymanager.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+spec:
+  serviceName: {{ include "vymanager.postgresqlServiceName" . }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "vymanager.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: postgresql
+  template:
+    metadata:
+      labels:
+        {{- include "vymanager.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: postgresql
+        {{- with .Values.database.internal.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.database.internal.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "vymanager.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automount }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.database.internal.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.database.internal.terminationGracePeriodSeconds }}
+      containers:
+        - name: postgresql
+          image: {{ printf "%s:%s" .Values.database.internal.image.repository .Values.database.internal.image.tag | quote }}
+          imagePullPolicy: {{ .Values.database.internal.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.database.internal.securityContext | nindent 12 }}
+          ports:
+            - name: postgresql
+              containerPort: 5432
+              protocol: TCP
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.database.internal.auth.username | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.database.internal.auth.database | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "vymanager.databaseSecretName" . }}
+                  key: POSTGRES_PASSWORD
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          startupProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            {{- toYaml .Values.database.internal.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      {{- if or (not .Values.database.internal.persistence.enabled) .Values.database.internal.persistence.existingClaim }}
+      volumes:
+        - name: data
+          {{- if .Values.database.internal.persistence.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.database.internal.persistence.existingClaim }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+      {{- end }}
+      {{- with .Values.database.internal.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.database.internal.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.database.internal.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.database.internal.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- if and .Values.database.internal.persistence.enabled (not .Values.database.internal.persistence.existingClaim) }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          {{- include "vymanager.labels" . | nindent 10 }}
+          app.kubernetes.io/component: postgresql
+        {{- with .Values.database.internal.persistence.annotations }}
+        annotations:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      spec:
+        accessModes:
+          {{- toYaml .Values.database.internal.persistence.accessModes | nindent 10 }}
+        {{- if .Values.database.internal.persistence.storageClass }}
+        {{- if eq "-" .Values.database.internal.persistence.storageClass }}
+        storageClassName: ""
+        {{- else }}
+        storageClassName: {{ .Values.database.internal.persistence.storageClass | quote }}
+        {{- end }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.database.internal.persistence.size }}
+  {{- end }}
+{{- end }}
+

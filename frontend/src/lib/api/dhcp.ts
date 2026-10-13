@@ -5,10 +5,42 @@ import { VyOSResponse } from "../types/api";
 // TypeScript Interfaces
 // ============================================================================
 
+export interface DhcpRoute {
+  prefix: string;
+  next_hop: string;
+}
+
+export type DhcpCatalogValue = boolean | string | string[] | DhcpRoute[];
+
+export interface DhcpCatalogLeaf {
+  token: string;
+  kind: "flag" | "text" | "multi" | "route";
+  label: string;
+  help: string;
+  choices: string[];
+  group: string;
+}
+
+export interface DhcpCatalog {
+  global: DhcpCatalogLeaf[];
+  shared_network: DhcpCatalogLeaf[];
+  subnet: DhcpCatalogLeaf[];
+  range: DhcpCatalogLeaf[];
+  static_mapping: DhcpCatalogLeaf[];
+}
+
+export interface DHCPClientClass {
+  name: string;
+  disable: boolean;
+  circuit_id?: string | null;
+  remote_id?: string | null;
+}
+
 export interface DHCPRange {
   range_id: string;
   start?: string;
   stop?: string;
+  catalog?: Record<string, DhcpCatalogValue>;
 }
 
 export interface DHCPStaticMapping {
@@ -18,6 +50,7 @@ export interface DHCPStaticMapping {
   duid?: string;
   disable: boolean;
   description?: string;
+  catalog?: Record<string, DhcpCatalogValue>;
 }
 
 export interface DHCPSubnet {
@@ -44,6 +77,7 @@ export interface DHCPSubnet {
   time_offset?: string;
   client_prefix_length?: string;
   wpad_url?: string;
+  catalog?: Record<string, DhcpCatalogValue>;
 }
 
 export interface DHCPSharedNetwork {
@@ -56,6 +90,7 @@ export interface DHCPSharedNetwork {
   domain_search: string[];
   ping_check: boolean;
   subnets: DHCPSubnet[];
+  catalog?: Record<string, DhcpCatalogValue>;
 }
 
 export interface DHCPFailoverConfig {
@@ -110,6 +145,7 @@ export interface DHCPGlobalConfig {
   listen_interfaces: string[];
   hostfile_update: boolean;
   host_decl_name: boolean;
+  catalog?: Record<string, DhcpCatalogValue>;
 }
 
 export interface DHCPConfigResponse {
@@ -117,6 +153,7 @@ export interface DHCPConfigResponse {
   failover?: DHCPFailoverConfig;
   ddns: DHCPDdnsConfig;
   global_config: DHCPGlobalConfig;
+  client_classes?: DHCPClientClass[];
   total_subnets: number;
   total_static_mappings: number;
 }
@@ -191,7 +228,9 @@ export interface DHCPCapabilitiesResponse {
     dynamic_dns_update_kea: DHCPFieldCapability;
     network_disable: DHCPFieldCapability;
     subnet_disable: DHCPFieldCapability;
+    client_class?: DHCPFieldCapability;
   };
+  catalog?: DhcpCatalog;
   version_notes: {
     subnet_id_required: boolean;
     option_prefix: boolean;
@@ -237,6 +276,7 @@ export interface CreateSubnetConfig {
   time_offset?: string;
   client_prefix_length?: string;
   wpad_url?: string;
+  catalog_operations?: DHCPBatchOperation[];
 }
 
 export interface UpdateSubnetConfig {
@@ -275,6 +315,7 @@ export interface UpdateSubnetConfig {
   delete_wpad_url?: boolean;
   delete_ping_check?: boolean;
   delete_enable_failover?: boolean;
+  catalog_operations?: DHCPBatchOperation[];
 }
 
 // ============================================================================
@@ -462,6 +503,8 @@ export class DHCPService {
     if (config.description?.trim()) {
       operations.push({ op: "set_subnet_description", value: config.description.trim() });
     }
+
+    operations.push(...(config.catalog_operations ?? []));
 
     return this.batchConfigure({
       network_name: config.network_name,
@@ -698,6 +741,8 @@ export class DHCPService {
       operations.push({ op: "set_subnet_description", value: config.description });
     }
 
+    operations.push(...(config.catalog_operations ?? []));
+
     return this.batchConfigure({
       network_name: config.network_name,
       subnet: config.subnet,
@@ -752,12 +797,14 @@ export class DHCPService {
     subnet: string,
     range_id: string,
     start: string,
-    stop: string
+    stop: string,
+    extra: DHCPBatchOperation[] = [],
   ): Promise<VyOSResponse> {
     const operations: DHCPBatchOperation[] = [
       { op: "set_subnet_range", value: range_id },
       { op: "set_subnet_range_start", value: `${range_id}|${start}` },
       { op: "set_subnet_range_stop", value: `${range_id}|${stop}` },
+      ...extra,
     ];
 
     return this.batchConfigure({
@@ -798,7 +845,8 @@ export class DHCPService {
     ip_address: string,
     mac_address: string,
     description?: string,
-    duid?: string
+    duid?: string,
+    extra: DHCPBatchOperation[] = [],
   ): Promise<VyOSResponse> {
     const operations: DHCPBatchOperation[] = [
       {
@@ -824,6 +872,7 @@ export class DHCPService {
         value: `${mapping_name}|${description.trim()}`,
       });
     }
+    operations.push(...extra);
 
     return this.batchConfigure({
       network_name,
@@ -849,6 +898,7 @@ export class DHCPService {
       delete_mac_address?: boolean;
       delete_duid?: boolean;
       delete_description?: boolean;
+      extra?: DHCPBatchOperation[];
     }
   ): Promise<VyOSResponse> {
     const operations: DHCPBatchOperation[] = [];
@@ -917,6 +967,11 @@ export class DHCPService {
       });
     }
 
+    operations.push(...(config.extra ?? []));
+    if (operations.length === 0) {
+      return { success: true };
+    }
+
     return this.batchConfigure({
       network_name,
       subnet,
@@ -960,7 +1015,8 @@ export class DHCPService {
 
   async saveGlobalSettings(
     original: DHCPGlobalConfig,
-    updated: DHCPGlobalConfig
+    updated: DHCPGlobalConfig,
+    extra: DHCPBatchOperation[] = [],
   ): Promise<VyOSResponse> {
     const operations: DHCPBatchOperation[] = [];
     const addedAddr = updated.listen_addresses.filter((a) => !original.listen_addresses.includes(a));
@@ -985,6 +1041,7 @@ export class DHCPService {
         op: updated.host_decl_name ? "set_host_decl_name" : "delete_host_decl_name",
       });
     }
+    operations.push(...extra);
     if (operations.length === 0) {
       return { success: true };
     }

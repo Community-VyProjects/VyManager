@@ -111,6 +111,7 @@ import snmp from "./snmp.json";
 import ssh from "./ssh.json";
 import sstpc from "./sstpc.json";
 import staticRoutes from "./staticRoutes.json";
+import suricata from "./suricata.json";
 import systemAdvanced from "./systemAdvanced.json";
 import systemConntrack from "./systemConntrack.json";
 import systemFlowArchive from "./systemFlowArchive.json";
@@ -247,6 +248,7 @@ const messages = {
   ssh,
   sstpc,
   staticRoutes,
+  suricata,
   systemAdvanced,
   systemConntrack,
   systemFlowArchive,

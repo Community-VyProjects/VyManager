@@ -1,0 +1,214 @@
+nameOverride: ""
+fullnameOverride: ""
+
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  automount: false
+  annotations: {}
+  name: ""
+
+database:
+  # Supported values: internal, external.
+  mode: internal
+  external:
+    # Required only when mode=external. The key must contain a complete
+    # PostgreSQL connection URL.
+    existingSecret: ""
+    secretKey: DATABASE_URL
+  internal:
+    image:
+      repository: postgres
+      tag: 16-alpine
+      pullPolicy: IfNotPresent
+    auth:
+      username: vymanager
+      database: vymanager
+    service:
+      port: 5432
+      annotations: {}
+    persistence:
+      enabled: true
+      existingClaim: ""
+      storageClass: ""
+      accessModes:
+        - ReadWriteOnce
+      size: 8Gi
+      annotations: {}
+    podAnnotations: {}
+    podLabels: {}
+    podSecurityContext: {}
+    securityContext: {}
+    resources: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    topologySpreadConstraints: []
+    terminationGracePeriodSeconds: 30
+
+# In external database mode these application secrets may live in the same
+# Secret as DATABASE_URL or in a separate Secret. SSH_ENCRYPTION_KEY must be a stable, 64-character hex value.
+applicationSecrets:
+  existingSecret: vymanager-secrets
+  betterAuthSecretKey: BETTER_AUTH_SECRET
+  sshEncryptionKeyKey: SSH_ENCRYPTION_KEY
+
+frontend:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/community-vyprojects/vymanager-frontend
+    tag: beta
+    # beta moves. IfNotPresent keeps the first pull, so an upgrade misses
+    # a newer image. A version tag such as 1.2.3 may use IfNotPresent.
+    pullPolicy: Always
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext: {}
+  securityContext: {}
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  topologySpreadConstraints: []
+  terminationGracePeriodSeconds: 30
+  service:
+    type: ClusterIP
+    port: 3000
+    annotations: {}
+  config:
+    nodeEnv: production
+    vymanagerEnv: production
+    betterAuthUrl: https://vymanager.example.com
+    nextPublicAppUrl: https://vymanager.example.com
+    trustedOrigins: https://vymanager.example.com
+    betterAuthSecureCookies: "true"
+    # Empty means that the browser uses the public origin from which the UI was
+    # loaded. Set this only when WebSockets use a different public endpoint.
+    publicWsUrl: ""
+  extraEnv: []
+  readinessProbe:
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+  livenessProbe:
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 20
+    timeoutSeconds: 5
+    failureThreshold: 6
+
+backend:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/community-vyprojects/vymanager-backend
+    tag: beta
+    # beta moves. IfNotPresent keeps the first pull, so an upgrade misses
+    # a newer image. A version tag such as 1.2.3 may use IfNotPresent.
+    pullPolicy: Always
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext: {}
+  securityContext: {}
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  topologySpreadConstraints: []
+  terminationGracePeriodSeconds: 30
+  service:
+    type: ClusterIP
+    port: 8000
+    annotations: {}
+  config:
+    frontendUrl: https://vymanager.example.com
+    trustedOrigins: https://vymanager.example.com
+    sessionInactivityTimeout: "30"
+    sessionCleanupInterval: "5"
+  extraEnv: []
+  readinessProbe:
+    httpGet:
+      path: /docs
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 12
+  livenessProbe:
+    httpGet:
+      path: /docs
+      port: http
+    initialDelaySeconds: 40
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 6
+
+# Optional custom CA bundle used by the backend when connecting to VyOS.
+# The referenced ConfigMap or Secret should contain one or more keys ending in
+# .crt. Set only one of existingConfigMap and existingSecret.
+customCa:
+  existingConfigMap: ""
+  existingSecret: ""
+
+migrations:
+  enabled: true
+  image:
+    repository: ""
+    tag: ""
+    pullPolicy: ""
+  annotations: {}
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext: {}
+  securityContext: {}
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  topologySpreadConstraints: []
+  backoffLimit: 3
+  activeDeadlineSeconds: 900
+  ttlSecondsAfterFinished: 86400
+
+tests:
+  enabled: true
+  image:
+    repository: busybox
+    tag: "1.37"
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 5m
+      memory: 8Mi
+    limits:
+      cpu: 50m
+      memory: 32Mi
+
+ingress:
+  enabled: false
+  className: ""
+  # ingress-nginx closes reads at 60s. Console and monitoring need the
+  # same 3600s window as the reverse-proxy notes. Override this map to change it.
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+  hosts:
+    - host: vymanager.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  # Next.js cannot proxy WebSockets. These public paths therefore go directly
+  # to the backend Service on the same host.
+  backendPaths:
+    - path: /vyos/console/ws
+      pathType: Prefix
+    - path: /vyos/monitoring/ws
+      pathType: Prefix
+  tls: []
+

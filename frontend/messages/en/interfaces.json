@@ -260,7 +260,12 @@
     "warning": "Warning",
     "warningTitle": "Optic warning",
     "healthy": "Healthy",
-    "healthyTitle": "Optic healthy"
+    "healthyTitle": "Optic healthy",
+    "na": "N/A",
+    "noneTitle": "No optical transceiver",
+    "error": "Error",
+    "errorTitle": "Transceiver read failed",
+    "absentTitle": "No transceiver detected"
   },
   "actions": {
     "viewDiagnostics": "View transceiver diagnostics"

@@ -9,5 +9,6 @@ def test_export_spec_writes_fastapi_document(tmp_path: Path):
     spec = export_spec(str(out))
     assert spec["openapi"].startswith("3.")
     assert "/vyos/show/hardware-sensors" in spec["paths"]
+    assert "/vyos/show/firewall-statistics" in spec["paths"]
     dumped = json.loads(out.read_text())
     assert dumped["paths"] == spec["paths"]

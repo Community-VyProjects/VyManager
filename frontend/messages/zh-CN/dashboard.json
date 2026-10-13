@@ -22,6 +22,7 @@
     "title": "添加仪表盘卡片",
     "description": "选择要添加到仪表盘的卡片",
     "requiresPermission": "需要 {permission} 读取权限",
+    "requiresAnyFirewall": "需要防火墙策略、区域或网桥的读取权限",
     "noAccess": "无权限",
     "addCard": "添加卡片",
     "cards": {
@@ -72,6 +73,10 @@
       "ipsecStatus": {
         "name": "IPSec 隧道",
         "description": "站点到站点 IPSec 隧道的实时状态（up/down），包括流量选择器、字节计数和协商的 ESP 提议"
+      },
+      "firewallHits": {
+        "name": "防火墙命中",
+        "description": "按数据包数量显示最繁忙的防火墙规则，并附带字节计数"
       }
     }
   },
@@ -98,6 +103,8 @@
     "critical": "严重",
     "warning": "警告",
     "absent": "未插入",
+    "na": "不适用",
+    "error": "错误",
     "ok": "正常"
   },
   "traffic": {
@@ -204,6 +211,8 @@
     "scanned": "已扫描 {count} 个接口",
     "okCount": "{count} 个正常",
     "noPart": "无型号",
+    "readFailed": "读取失败",
+    "noOptic": "无光模块",
     "alarms": "{count} 个告警",
     "warnings": "{count} 个警告",
     "noTransceiver": "未插入光模块"
@@ -214,6 +223,14 @@
     "prio": "优先级 {priority}",
     "lastTransition": "最近一次状态切换",
     "noGroups": "没有活动的 VRRP 组。"
+  },
+  "firewallHits": {
+    "title": "防火墙命中",
+    "ofTotal": "{shown} / {total}",
+    "none": "还没有防火墙命中。",
+    "rule": "规则",
+    "packets": "数据包",
+    "packetsTitle": "数据包"
   },
   "wireGuard": {
     "title": "WireGuard 对等体",

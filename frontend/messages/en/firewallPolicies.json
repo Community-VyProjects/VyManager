@@ -58,7 +58,9 @@
     "connectionStatus": "Conn Status",
     "mark": "Mark",
     "packetLength": "Pkt Length",
-    "recent": "Recent"
+    "recent": "Recent",
+    "packets": "Packets",
+    "bytes": "Bytes"
   },
   "rule": {
     "all": "all",

@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["database", "applicationSecrets", "frontend", "backend", "migrations"],
+  "properties": {
+    "database": {
+      "type": "object",
+      "required": ["mode", "external", "internal"],
+      "properties": {
+        "mode": { "enum": ["internal", "external"] },
+        "external": {
+          "type": "object",
+          "required": ["existingSecret", "secretKey"],
+          "properties": {
+            "existingSecret": { "type": "string" },
+            "secretKey": { "type": "string", "minLength": 1 }
+          }
+        },
+        "internal": {
+          "type": "object",
+          "required": ["image", "auth", "service", "persistence", "resources"],
+          "properties": {
+            "image": { "$ref": "#/$defs/image" },
+            "auth": {
+              "type": "object",
+              "required": ["username", "database"],
+              "properties": {
+                "username": { "type": "string", "minLength": 1 },
+                "database": { "type": "string", "minLength": 1 }
+              }
+            },
+            "service": {
+              "type": "object",
+              "required": ["port"],
+              "properties": {
+                "port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+              }
+            },
+            "persistence": {
+              "type": "object",
+              "required": ["enabled", "existingClaim", "accessModes", "size"],
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "existingClaim": { "type": "string" },
+                "accessModes": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": { "type": "string" }
+                },
+                "size": { "type": "string", "minLength": 1 }
+              }
+            },
+            "resources": { "type": "object" }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "mode": { "const": "external" } } },
+          "then": {
+            "properties": {
+              "external": {
+                "properties": {
+                  "existingSecret": { "minLength": 1 }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "applicationSecrets": {
+      "type": "object",
+      "required": ["existingSecret", "betterAuthSecretKey", "sshEncryptionKeyKey"],
+      "properties": {
+        "existingSecret": { "type": "string", "minLength": 1 },
+        "betterAuthSecretKey": { "type": "string", "minLength": 1 },
+        "sshEncryptionKeyKey": { "type": "string", "minLength": 1 }
+      }
+    },
+    "frontend": {
+      "type": "object",
+      "required": ["replicaCount", "image", "service", "config"],
+      "properties": {
+        "replicaCount": { "type": "integer", "minimum": 1 },
+        "image": { "$ref": "#/$defs/image" },
+        "resources": { "type": "object" }
+      }
+    },
+    "backend": {
+      "type": "object",
+      "required": ["replicaCount", "image", "service", "config"],
+      "properties": {
+        "replicaCount": { "type": "integer", "minimum": 1 },
+        "image": { "$ref": "#/$defs/image" },
+        "resources": { "type": "object" }
+      }
+    },
+    "migrations": {
+      "type": "object",
+      "required": ["enabled", "resources"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "resources": { "type": "object" },
+        "backoffLimit": { "type": "integer", "minimum": 0 },
+        "activeDeadlineSeconds": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "tests": {
+      "type": "object",
+      "required": ["enabled", "image", "resources"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "image": { "$ref": "#/$defs/image" },
+        "resources": { "type": "object" }
+      }
+    },
+    "customCa": {
+      "type": "object",
+      "properties": {
+        "existingConfigMap": { "type": "string" },
+        "existingSecret": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "image": {
+      "type": "object",
+      "required": ["repository", "tag", "pullPolicy"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "tag": { "type": "string", "minLength": 1 },
+        "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"] }
+      }
+    }
+  }
+}
+

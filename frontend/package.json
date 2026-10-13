@@ -1,6 +1,6 @@
 {
   "name": "vymanager-temp",
-  "version": "1.0.0-beta.4",
+  "version": "1.0.0-beta.5",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -35,7 +35,7 @@
     "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tabs": "^1.1.13",
-    "@radix-ui/react-tooltip": "^1.1.8",
+    "@radix-ui/react-tooltip": "^1.1.1",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "bcryptjs": "^2.4.3",
@@ -44,7 +44,7 @@
     "clsx": "^2.1.1",
     "dotenv": "^17.4.2",
     "lucide-react": "^0.562.0",
-    "next": "^16.3.4",
+    "next": "^16.3.8",
     "next-intl": "^4.14.7",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.6",
@@ -72,6 +72,12 @@
   },
   "overrides": {
     "deepmerge-ts": "8.0.2",
-    "@formatjs/icu-messageformat-parser": "3.5.18"
+    "@formatjs/icu-messageformat-parser": "3.5.18",
+    "minimatch@3": {
+      "brace-expansion": "1.1.21"
+    },
+    "minimatch@9": {
+      "brace-expansion": "2.1.7"
+    }
   }
 }

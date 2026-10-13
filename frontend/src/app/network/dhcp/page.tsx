@@ -49,8 +49,7 @@ import {
 } from "@/lib/api/dhcp";
 import { cn } from "@/lib/utils";
 import { ClickableSubnet } from "@/components/ui/clickable-items";
-import { CreateDHCPServerModal } from "@/components/services/CreateDHCPServerModal";
-import { EditDHCPServerModal } from "@/components/services/EditDHCPServerModal";
+import { DHCPServerModal } from "@/components/services/DHCPServerModal";
 import { DeleteDHCPModal } from "@/components/services/DeleteDHCPModal";
 import { DeleteStaticMappingModal } from "@/components/services/DeleteStaticMappingModal";
 import { AddLeaseToStaticMappingModal } from "@/components/services/AddLeaseToStaticMappingModal";
@@ -59,6 +58,8 @@ import { StaticMappingModal } from "@/components/services/StaticMappingModal";
 import { DHCPServerSettingsModal } from "@/components/services/DHCPServerSettingsModal";
 import { DHCPFailoverModal } from "@/components/services/DHCPFailoverModal";
 import { DHCPDdnsModal } from "@/components/services/DHCPDdnsModal";
+import { DHCPNetworkOptionsModal } from "@/components/services/DHCPNetworkOptionsModal";
+import { DHCPClientClassModal } from "@/components/services/DHCPClientClassModal";
 import { ChevronRight } from "lucide-react";
 
 function formatLease(
@@ -121,6 +122,8 @@ function DHCPPageInner() {
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [failoverModalOpen, setFailoverModalOpen] = useState(false);
   const [ddnsModalOpen, setDdnsModalOpen] = useState(false);
+  const [networkOptionsOpen, setNetworkOptionsOpen] = useState(false);
+  const [clientClassOpen, setClientClassOpen] = useState(false);
   const [addingSubnetToNetwork, setAddingSubnetToNetwork] = useState<string | null>(null);
   const [editingSubnet, setEditingSubnet] = useState<{
     network: string;
@@ -473,6 +476,17 @@ function DHCPPageInner() {
                 {t("page.dynamicDns")}
               </Button>
             )}
+            {capabilities?.fields.client_class?.supported && (
+              <Button
+                className="w-full mt-2"
+                size="sm"
+                variant="outline"
+                onClick={() => setClientClassOpen(true)}
+                disabled={!config}
+              >
+                {t("clientClass.title")}
+              </Button>
+            )}
           </div>
 
           {/* Network List */}
@@ -613,6 +627,13 @@ function DHCPPageInner() {
                     )}
                   </div>
                   <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setNetworkOptionsOpen(true)}
+                    >
+                      {t("networkOptions.open")}
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -1318,12 +1339,13 @@ function DHCPPageInner() {
           )}
         </div>
 
-        <CreateDHCPServerModal
-          open={createModalOpen || !!addingSubnetToNetwork}
+        <DHCPServerModal
+          open={createModalOpen || !!addingSubnetToNetwork || !!editingSubnet}
           onOpenChange={(open) => {
             if (!open) {
               setCreateModalOpen(false);
               setAddingSubnetToNetwork(null);
+              setEditingSubnet(null);
             }
           }}
           onSuccess={() => {
@@ -1332,6 +1354,7 @@ function DHCPPageInner() {
           }}
           capabilities={capabilities}
           existingNetwork={addingSubnetToNetwork || undefined}
+          existing={editingSubnet}
         />
 
         {config && (
@@ -1370,17 +1393,22 @@ function DHCPPageInner() {
           />
         )}
 
-        {editingSubnet && (
-          <EditDHCPServerModal
-            open={!!editingSubnet}
-            onOpenChange={(open) => !open && setEditingSubnet(null)}
-            networkName={editingSubnet.network}
-            subnet={editingSubnet.subnet}
-            onSuccess={() => {
-              fetchConfig(true);
-              fetchLeases();
-            }}
+        {currentNetwork && (
+          <DHCPNetworkOptionsModal
+            open={networkOptionsOpen}
+            onOpenChange={setNetworkOptionsOpen}
+            onSuccess={() => fetchConfig(true)}
+            network={currentNetwork}
             capabilities={capabilities}
+          />
+        )}
+
+        {config && capabilities?.fields.client_class?.supported && (
+          <DHCPClientClassModal
+            open={clientClassOpen}
+            onOpenChange={setClientClassOpen}
+            onSuccess={() => fetchConfig(true)}
+            classes={config.client_classes ?? []}
           />
         )}
 
@@ -1474,6 +1502,7 @@ function DHCPPageInner() {
               }
             }}
             network={currentNetwork}
+            capabilities={capabilities}
             existing={editingRange}
             onSuccess={() => {
               fetchConfig(true);

@@ -113,6 +113,11 @@
       "neighborProxy": "管理邻居代理",
       "routingTables": "管理路由表"
     },
+    "suricata": {
+      "interfaces": "Suricata 检查的接口",
+      "network": "用于入侵检测的 HOME_NET 和 EXTERNAL_NET",
+      "logging": "用于入侵检测警报的 EVE JSON 日志"
+    },
     "routingInfrastructure": {
       "bfd": "双向转发检测",
       "mpls": "多协议标签交换",
@@ -489,6 +494,7 @@
     "staticRules": "静态规则",
     "subnet": "子网",
     "subnets": "子网",
+    "suricataLogging": "Suricata 日志",
     "syncGroup": "同步组",
     "syncGroups": "同步组",
     "sysctlParameter": "Sysctl 参数",
@@ -524,8 +530,10 @@
     "vrrpGroups": "VRRP 组",
     "watchdog": "看门狗",
     "watchdogTimeout": "看门狗超时",
+    "watchedInterfaces": "监视的接口",
     "wireless": "无线",
     "x509Defaults": "X509 默认值",
+    "yourNetwork": "您的网络",
     "zone": "区域",
     "zones": "区域"
   }
