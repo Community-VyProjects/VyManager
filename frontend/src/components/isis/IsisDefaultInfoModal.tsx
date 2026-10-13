@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, AlertCircle } from "lucide-react";
 import { IsisDefaultInfoEntry, IsisCapabilities } from "@/lib/api/isis";
+import { useTranslations } from "next-intl";
 
 interface IsisDefaultInfoModalProps {
   open: boolean;
@@ -42,6 +43,8 @@ export function IsisDefaultInfoModal({
   routeMapNames,
   capabilities,
 }: IsisDefaultInfoModalProps) {
+  const t = useTranslations("isis");
+  const tc = useTranslations("common");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [family, setFamily] = useState<"ipv4" | "ipv6">("ipv4");
@@ -63,8 +66,8 @@ export function IsisDefaultInfoModal({
   const isDuplicate = level && existingKeys.includes(`${family}|${level}`);
 
   const handleSubmit = async () => {
-    if (!level) { setError("Level is required"); return; }
-    if (isDuplicate) { setError(`${family} default-information already exists at ${level}`); return; }
+    if (!level) { setError(t("fields.levelRequired")); return; }
+    if (isDuplicate) { setError(t("defaultInfoModal.alreadyExists", { family, level })); return; }
 
     try {
       setSaving(true);
@@ -78,7 +81,7 @@ export function IsisDefaultInfoModal({
       });
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add default-information");
+      setError(err instanceof Error ? err.message : t("defaultInfoModal.addFailed"));
     } finally {
       setSaving(false);
     }
@@ -88,9 +91,9 @@ export function IsisDefaultInfoModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Default Information</DialogTitle>
+          <DialogTitle>{t("defaultInfoModal.title")}</DialogTitle>
           <DialogDescription>
-            Originate a default route into IS-IS.
+            {t("defaultInfoModal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -103,7 +106,7 @@ export function IsisDefaultInfoModal({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Address family</Label>
+            <Label>{t("fields.addressFamily")}</Label>
             <Select value={family} onValueChange={(v) => setFamily(v as "ipv4" | "ipv6")}>
               <SelectTrigger>
                 <SelectValue />
@@ -117,10 +120,10 @@ export function IsisDefaultInfoModal({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>IS-IS Level</Label>
+            <Label>{t("fields.isisLevel")}</Label>
             <Select value={level} onValueChange={setLevel}>
               <SelectTrigger>
-                <SelectValue placeholder="Select level" />
+                <SelectValue placeholder={t("fields.selectLevel")} />
               </SelectTrigger>
               <SelectContent>
                 {LEVELS.map((l) => (
@@ -131,20 +134,20 @@ export function IsisDefaultInfoModal({
           </div>
           <div className="flex items-center gap-2">
             <Checkbox id="di-always" checked={always} onCheckedChange={(v) => setAlways(!!v)} />
-            <Label htmlFor="di-always">Always</Label>
+            <Label htmlFor="di-always">{t("fields.always")}</Label>
           </div>
           <div className="space-y-2">
-            <Label>Metric (optional)</Label>
+            <Label>{t("fields.metricOptional")}</Label>
             <Input type="number" value={metric} onChange={(e) => setMetric(e.target.value)} min={1} />
           </div>
           <div className="space-y-2">
-            <Label>Route Map (optional)</Label>
+            <Label>{t("fields.routeMapOptional")}</Label>
             <Select value={routeMap} onValueChange={(v) => setRouteMap(v === "__none__" ? "" : v)}>
               <SelectTrigger>
-                <SelectValue placeholder="None" />
+                <SelectValue placeholder={tc("none")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">None</SelectItem>
+                <SelectItem value="__none__">{tc("none")}</SelectItem>
                 {routeMapNames.map((name) => (
                   <SelectItem key={name} value={name}>{name}</SelectItem>
                 ))}
@@ -154,10 +157,10 @@ export function IsisDefaultInfoModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={saving || !!isDuplicate}>
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Add
+            {tc("add")}
           </Button>
         </DialogFooter>
       </DialogContent>

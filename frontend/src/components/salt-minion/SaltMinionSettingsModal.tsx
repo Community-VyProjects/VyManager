@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, KeyboardEvent } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -34,15 +35,16 @@ interface SaltMinionSettingsModalProps {
   onSuccess: () => void;
 }
 
-const HASH_OPTIONS: { value: string; label: string; description: string }[] = [
-  { value: "default",  label: "Default (SHA-256)", description: "Use VyOS default — sha256" },
-  { value: "sha256",   label: "SHA-256",            description: "Recommended — explicit sha256" },
-  { value: "sha384",   label: "SHA-384",            description: "Higher security variant of SHA-2" },
-  { value: "sha512",   label: "SHA-512",            description: "Strongest SHA-2 variant" },
-  { value: "sha224",   label: "SHA-224",            description: "Truncated SHA-2 variant" },
-  { value: "sha1",     label: "SHA-1",              description: "Legacy — not recommended for new deployments" },
-  { value: "md5",      label: "MD5",               description: "Legacy — not recommended for new deployments" },
-];
+// Descriptions (and the "default" label) are translated at render time via hash.<value>
+const HASH_OPTIONS = [
+  { value: "default",  label: null },
+  { value: "sha256",   label: "SHA-256" },
+  { value: "sha384",   label: "SHA-384" },
+  { value: "sha512",   label: "SHA-512" },
+  { value: "sha224",   label: "SHA-224" },
+  { value: "sha1",     label: "SHA-1" },
+  { value: "md5",      label: "MD5" },
+] as const;
 
 interface IfaceOption {
   name: string;
@@ -67,6 +69,7 @@ function MultiValueField({
   onAdd,
   onRemove,
 }: MultiValueFieldProps) {
+  const t = useTranslations("saltMinion");
   const [input, setInput] = useState("");
   const [fieldError, setFieldError] = useState<string | null>(null);
 
@@ -74,7 +77,7 @@ function MultiValueField({
     const val = input.trim();
     if (!val) return;
     if (values.includes(val)) {
-      setFieldError("Already added");
+      setFieldError(t("settings.alreadyAdded"));
       return;
     }
     onAdd(val);
@@ -137,6 +140,8 @@ export function SaltMinionSettingsModal({
   config,
   onSuccess,
 }: SaltMinionSettingsModalProps) {
+  const t = useTranslations("saltMinion");
+  const tc = useTranslations("common");
   const [masters, setMasters] = useState<string[]>(config.masters);
   const [id, setId] = useState(config.id ?? "");
   const [interval, setInterval] = useState(
@@ -176,7 +181,7 @@ export function SaltMinionSettingsModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -186,9 +191,9 @@ export function SaltMinionSettingsModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit Salt Minion Settings</DialogTitle>
+          <DialogTitle>{t("settings.title")}</DialogTitle>
           <DialogDescription>
-            Configure master servers, minion identity, and connection options
+            {t("settings.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -196,9 +201,9 @@ export function SaltMinionSettingsModal({
           <div className="space-y-6 py-1">
             {/* Masters */}
             <MultiValueField
-              label="Master Servers"
-              description="Hostname or IP address of each Salt master. At least one is required for the minion to connect."
-              placeholder="e.g. salt-master.example.com or 10.0.0.1"
+              label={t("settings.masterServers")}
+              description={t("settings.masterServersHint")}
+              placeholder={t("settings.masterServersPlaceholder")}
               values={masters}
               onAdd={(v) => setMasters((prev) => [...prev, v])}
               onRemove={(v) => setMasters((prev) => prev.filter((m) => m !== v))}
@@ -209,14 +214,14 @@ export function SaltMinionSettingsModal({
             {/* Minion ID */}
             <div className="space-y-1.5">
               <Label htmlFor="sm-id" className="text-sm font-medium">
-                Minion ID
+                {t("settings.minionId")}
               </Label>
               <p className="text-xs text-muted-foreground">
-                Unique identifier for this minion. Leave empty to use the system hostname.
+                {t("settings.minionIdHint")}
               </p>
               <Input
                 id="sm-id"
-                placeholder="Hostname (default)"
+                placeholder={t("settings.minionIdPlaceholder")}
                 value={id}
                 onChange={(e) => setId(e.target.value)}
               />
@@ -227,10 +232,10 @@ export function SaltMinionSettingsModal({
             {/* Update Interval */}
             <div className="space-y-1.5">
               <Label htmlFor="sm-interval" className="text-sm font-medium">
-                Update Interval
+                {t("settings.interval")}
               </Label>
               <p className="text-xs text-muted-foreground">
-                How often (in minutes) the minion checks in with the master. Range: 1–1440. Leave empty to use the default (60 min).
+                {t("settings.intervalHint")}
               </p>
               <div className="flex items-center gap-2">
                 <Input
@@ -238,12 +243,12 @@ export function SaltMinionSettingsModal({
                   type="number"
                   min={1}
                   max={1440}
-                  placeholder="60 (default)"
+                  placeholder={t("settings.intervalPlaceholder")}
                   value={interval}
                   onChange={(e) => setInterval(e.target.value)}
                   className="w-40"
                 />
-                <span className="text-sm text-muted-foreground">minutes</span>
+                <span className="text-sm text-muted-foreground">{t("settings.minutes")}</span>
               </div>
             </div>
 
@@ -251,9 +256,9 @@ export function SaltMinionSettingsModal({
 
             {/* Hash Algorithm */}
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Hash Algorithm</Label>
+              <Label className="text-sm font-medium">{t("settings.hash")}</Label>
               <p className="text-xs text-muted-foreground">
-                Hash used when discovering files on the master server.
+                {t("settings.hashHint")}
               </p>
               <Select value={hash} onValueChange={setHash}>
                 <SelectTrigger>
@@ -262,9 +267,9 @@ export function SaltMinionSettingsModal({
                 <SelectContent>
                   {HASH_OPTIONS.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
-                      <span className="font-medium">{opt.label}</span>
+                      <span className="font-medium">{opt.label ?? t("hash.defaultLabel")}</span>
                       <span className="block text-xs text-muted-foreground">
-                        {opt.description}
+                        {t(`hash.${opt.value}`)}
                       </span>
                     </SelectItem>
                   ))}
@@ -277,10 +282,10 @@ export function SaltMinionSettingsModal({
             {/* Master Key URL */}
             <div className="space-y-1.5">
               <Label htmlFor="sm-master-key" className="text-sm font-medium">
-                Master Key URL
+                {t("settings.masterKeyUrl")}
               </Label>
               <p className="text-xs text-muted-foreground">
-                URL containing the master&apos;s public key signature for auth reply verification. Leave empty to skip verification.
+                {t("settings.masterKeyUrlHint")}
               </p>
               <Input
                 id="sm-master-key"
@@ -294,15 +299,15 @@ export function SaltMinionSettingsModal({
 
             {/* Source Interface */}
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Source Interface</Label>
+              <Label className="text-sm font-medium">{t("settings.sourceInterface")}</Label>
               <p className="text-xs text-muted-foreground">
-                Network interface used to establish the connection to the master. Leave unset to use the default route.
+                {t("settings.sourceInterfaceHint")}
               </p>
               <InterfaceSelect
                 value={sourceInterface}
                 onValueChange={setSourceInterface}
                 interfaces={ifaces.map((i) => ({ name: i.name, type: i.type, description: i.description ?? null }))}
-                noneOption={{ label: "None", value: "none" }}
+                noneOption={{ label: tc("none"), value: "none" }}
               />
             </div>
           </div>
@@ -317,11 +322,11 @@ export function SaltMinionSettingsModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

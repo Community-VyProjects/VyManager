@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +28,8 @@ export function DeleteFlowtableModal({
   onSuccess,
   flowtable,
 }: DeleteFlowtableModalProps) {
+  const t = useTranslations("firewallFlowtables");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,7 +44,7 @@ export function DeleteFlowtableModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete flowtable");
+      setError(err instanceof Error ? err.message : t("delete.failed"));
     } finally {
       setLoading(false);
     }
@@ -53,11 +56,12 @@ export function DeleteFlowtableModal({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Flowtable</AlertDialogTitle>
+          <AlertDialogTitle>{t("delete.title")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete the flowtable{" "}
-            <span className="font-mono font-semibold">{flowtable.name}</span>?
-            This action cannot be undone.
+            {t.rich("delete.confirm", {
+              name: flowtable.name,
+              b: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -69,26 +73,26 @@ export function DeleteFlowtableModal({
         )}
 
         <div className="bg-muted rounded-lg p-3 text-sm">
-          <p className="font-medium mb-2">This will remove:</p>
+          <p className="font-medium mb-2">{t("delete.willRemove")}</p>
           <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-            <li>Flowtable configuration for {flowtable.name}</li>
+            <li>{t("delete.removeConfig", { name: flowtable.name })}</li>
             {flowtable.interfaces.length > 0 && (
-              <li>Interface bindings: {flowtable.interfaces.join(", ")}</li>
+              <li>{t("delete.removeBindings", { interfaces: flowtable.interfaces.join(", ") })}</li>
             )}
             {flowtable.offload && (
-              <li>Offload type: {flowtable.offload}</li>
+              <li>{t("delete.removeOffload", { offload: flowtable.offload })}</li>
             )}
           </ul>
         </div>
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleDelete}
             disabled={loading}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {loading ? "Deleting..." : "Delete Flowtable"}
+            {loading ? tc("deleting") : t("delete.title")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

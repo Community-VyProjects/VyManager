@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Minus, Edit, FileJson } from "lucide-react";
 import type { ConfigDiff } from "@/lib/api/config";
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 function expandSetCommands(pathParts: string[], value: unknown): string[] {
@@ -56,6 +57,7 @@ interface ConfigDiffModalProps {
 }
 
 export function ConfigDiffModal({ open, onOpenChange, diff }: ConfigDiffModalProps) {
+  const t = useTranslations("configChanges");
   if (!diff) return null;
 
   const { added, removed, modified, summary } = diff;
@@ -98,10 +100,10 @@ export function ConfigDiffModal({ open, onOpenChange, diff }: ConfigDiffModalPro
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileJson className="h-5 w-5" />
-            Configuration Changes
+            {t("diff.title")}
           </DialogTitle>
           <DialogDescription>
-            Review the differences between your current configuration and the last saved state.
+            {t("diff.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -110,7 +112,7 @@ export function ConfigDiffModal({ open, onOpenChange, diff }: ConfigDiffModalPro
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
                 <Plus className="h-3 w-3 mr-1" />
-                {summary.added} Added
+                {t("diff.addedBadge", { count: summary.added })}
               </Badge>
             </div>
           )}
@@ -118,7 +120,7 @@ export function ConfigDiffModal({ open, onOpenChange, diff }: ConfigDiffModalPro
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">
                 <Minus className="h-3 w-3 mr-1" />
-                {summary.removed} Removed
+                {t("diff.removedBadge", { count: summary.removed })}
               </Badge>
             </div>
           )}
@@ -126,7 +128,7 @@ export function ConfigDiffModal({ open, onOpenChange, diff }: ConfigDiffModalPro
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
                 <Edit className="h-3 w-3 mr-1" />
-                {summary.modified} Modified
+                {t("diff.modifiedBadge", { count: summary.modified })}
               </Badge>
             </div>
           )}
@@ -135,16 +137,16 @@ export function ConfigDiffModal({ open, onOpenChange, diff }: ConfigDiffModalPro
         <Tabs defaultValue={hasAdded ? "added" : hasRemoved ? "removed" : hasModified ? "modified" : "commands"} className="flex-1 overflow-hidden flex flex-col">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="added" disabled={!hasAdded}>
-              Added ({summary.added})
+              {t("diff.tabAdded", { count: summary.added })}
             </TabsTrigger>
             <TabsTrigger value="removed" disabled={!hasRemoved}>
-              Removed ({summary.removed})
+              {t("diff.tabRemoved", { count: summary.removed })}
             </TabsTrigger>
             <TabsTrigger value="modified" disabled={!hasModified}>
-              Modified ({summary.modified})
+              {t("diff.tabModified", { count: summary.modified })}
             </TabsTrigger>
             <TabsTrigger value="commands">
-              Commands
+              {t("diff.tabCommands")}
             </TabsTrigger>
           </TabsList>
 
@@ -153,7 +155,7 @@ export function ConfigDiffModal({ open, onOpenChange, diff }: ConfigDiffModalPro
             <ScrollArea className="h-[calc(80vh-280px)]">
               {Object.keys(added).length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  No items added
+                  {t("diff.noAdded")}
                 </div>
               ) : (
                 <div className="space-y-3 pr-4">
@@ -185,7 +187,7 @@ export function ConfigDiffModal({ open, onOpenChange, diff }: ConfigDiffModalPro
             <ScrollArea className="h-[calc(80vh-280px)]">
               {Object.keys(removed).length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  No items removed
+                  {t("diff.noRemoved")}
                 </div>
               ) : (
                 <div className="space-y-3 pr-4">
@@ -217,7 +219,7 @@ export function ConfigDiffModal({ open, onOpenChange, diff }: ConfigDiffModalPro
             <ScrollArea className="h-[calc(80vh-280px)]">
               {Object.keys(modified).length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  No items modified
+                  {t("diff.noModified")}
                 </div>
               ) : (
                 <div className="space-y-3 pr-4">
@@ -234,13 +236,13 @@ export function ConfigDiffModal({ open, onOpenChange, diff }: ConfigDiffModalPro
                           </p>
                           <div className="mt-2 space-y-2">
                             <div>
-                              <span className="text-xs font-semibold text-red-600">Old:</span>
+                              <span className="text-xs font-semibold text-red-600">{t("diff.old")}</span>
                               <div className="text-sm line-through opacity-60">
                                 {renderValue(change.old)}
                               </div>
                             </div>
                             <div>
-                              <span className="text-xs font-semibold text-green-600">New:</span>
+                              <span className="text-xs font-semibold text-green-600">{t("diff.new")}</span>
                               <div className="text-sm">
                                 {renderValue(change.new)}
                               </div>
@@ -265,7 +267,7 @@ export function ConfigDiffModal({ open, onOpenChange, diff }: ConfigDiffModalPro
                   ...generateCommands(removed, "removed"),
                 ];
                 return cmds.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">No commands to show</div>
+                  <div className="text-center py-8 text-muted-foreground">{t("diff.noCommands")}</div>
                 ) : (
                   <div className="space-y-1 pr-4">
                     {cmds.map((cmd, i) => (

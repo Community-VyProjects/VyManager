@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { Ospfv3Redistribute, Ospfv3Capabilities } from "@/lib/api/ospfv3";
+import { useTranslations } from "next-intl";
 
 interface Ospfv3RedistributeModalProps {
   open: boolean;
@@ -39,6 +40,8 @@ export function Ospfv3RedistributeModal({
   existingProtocols,
   routeMapNames = [],
 }: Ospfv3RedistributeModalProps) {
+  const t = useTranslations("ospfv3");
+  const tc = useTranslations("common");
   const [protocol, setProtocol] = useState("");
   const [metric, setMetric] = useState("");
   const [metricType, setMetricType] = useState("");
@@ -70,7 +73,7 @@ export function Ospfv3RedistributeModal({
   };
 
   const validateForm = (): string | null => {
-    if (!protocol) return "Please select a protocol";
+    if (!protocol) return t("redistributeModal.selectProtocolError");
     return null;
   };
 
@@ -95,7 +98,7 @@ export function Ospfv3RedistributeModal({
       await onSubmit(entry);
       handleClose();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Operation failed";
+      const message = err instanceof Error ? err.message : tc("operationFailed");
       setError(message);
     } finally {
       setLoading(false);
@@ -106,18 +109,18 @@ export function Ospfv3RedistributeModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Route Redistribution</DialogTitle>
+          <DialogTitle>{t("redistributeModal.title")}</DialogTitle>
           <DialogDescription>
-            Redistribute routes from another protocol into OSPFv3.
+            {t("redistributeModal.description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="ospfv3-redist-proto">Protocol</Label>
+            <Label htmlFor="ospfv3-redist-proto">{t("fields.protocol")}</Label>
             <Select value={protocol} onValueChange={setProtocol}>
               <SelectTrigger id="ospfv3-redist-proto">
-                <SelectValue placeholder="Select protocol" />
+                <SelectValue placeholder={t("redistributeModal.selectProtocol")} />
               </SelectTrigger>
               <SelectContent>
                 {availableProtocols.map((p) => (
@@ -129,40 +132,40 @@ export function Ospfv3RedistributeModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="ospfv3-redist-metric">Metric</Label>
+              <Label htmlFor="ospfv3-redist-metric">{t("fields.metric")}</Label>
               <Input
                 id="ospfv3-redist-metric"
                 type="number"
                 value={metric}
                 onChange={(e) => setMetric(e.target.value)}
-                placeholder="Metric value"
+                placeholder={t("redistributeModal.metricPlaceholder")}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="ospfv3-redist-metric-type">Metric Type</Label>
+              <Label htmlFor="ospfv3-redist-metric-type">{t("fields.metricType")}</Label>
               <Select value={metricType} onValueChange={setMetricType}>
                 <SelectTrigger id="ospfv3-redist-metric-type">
-                  <SelectValue placeholder="Default" />
+                  <SelectValue placeholder={tc("default")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">Type 1</SelectItem>
-                  <SelectItem value="2">Type 2</SelectItem>
+                  <SelectItem value="1">{t("fields.type1")}</SelectItem>
+                  <SelectItem value="2">{t("fields.type2")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="ospfv3-redist-route-map">Route Map</Label>
+            <Label htmlFor="ospfv3-redist-route-map">{t("fields.routeMap")}</Label>
             <Select
               value={routeMap}
               onValueChange={(v) => setRouteMap(v === "__none__" ? "" : v)}
             >
               <SelectTrigger id="ospfv3-redist-route-map">
-                <SelectValue placeholder="None" />
+                <SelectValue placeholder={tc("none")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">None</SelectItem>
+                <SelectItem value="__none__">{tc("none")}</SelectItem>
                 {routeMapNames.map((name) => (
                   <SelectItem key={name} value={name}>{name}</SelectItem>
                 ))}
@@ -180,16 +183,16 @@ export function Ospfv3RedistributeModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Adding...
+                {t("fields.adding")}
               </>
             ) : (
-              "Add Redistribute"
+              t("fields.addRedistribute")
             )}
           </Button>
         </DialogFooter>

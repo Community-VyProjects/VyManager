@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -42,6 +43,8 @@ export function SNMPv3CredentialFields({
   original,
   idPrefix,
 }: SNMPv3CredentialFieldsProps) {
+  const t = useTranslations("snmp");
+  const tc = useTranslations("common");
   const hasExistingPassword = !!(
     original?.encrypted_password || original?.plaintext_password
   );
@@ -65,13 +68,13 @@ export function SNMPv3CredentialFields({
       {enabled && (
         <div className="space-y-3 pl-7">
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Protocol</Label>
+            <Label className="text-xs font-medium">{t("content.protocol")}</Label>
             <Select
               value={value.type}
               onValueChange={(v) => onChange({ ...value, type: v })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Default" />
+                <SelectValue placeholder={tc("default")} />
               </SelectTrigger>
               <SelectContent>
                 {typeOptions.map((opt) => (
@@ -84,7 +87,7 @@ export function SNMPv3CredentialFields({
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Password Format</Label>
+            <Label className="text-xs font-medium">{t("credential.passwordFormat")}</Label>
             <Select
               value={value.passwordMode}
               onValueChange={(v) =>
@@ -96,15 +99,15 @@ export function SNMPv3CredentialFields({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="plaintext">
-                  <span className="font-medium">Plaintext</span>
+                  <span className="font-medium">{t("credential.plaintext")}</span>
                   <span className="block text-xs text-muted-foreground">
-                    Min. 8 characters — VyOS encrypts it on commit
+                    {t("credential.plaintextHelp")}
                   </span>
                 </SelectItem>
                 <SelectItem value="encrypted">
-                  <span className="font-medium">Encrypted</span>
+                  <span className="font-medium">{t("credential.encrypted")}</span>
                   <span className="block text-xs text-muted-foreground">
-                    Pre-hashed key (hex digits)
+                    {t("credential.encryptedHelp")}
                   </span>
                 </SelectItem>
               </SelectContent>
@@ -113,7 +116,7 @@ export function SNMPv3CredentialFields({
 
           <div className="space-y-1.5">
             <Label htmlFor={`${idPrefix}-password`} className="text-xs font-medium">
-              {value.passwordMode === "plaintext" ? "Password" : "Encrypted Key"}
+              {value.passwordMode === "plaintext" ? t("credential.password") : t("credential.encryptedKey")}
             </Label>
             <Input
               id={`${idPrefix}-password`}
@@ -121,10 +124,10 @@ export function SNMPv3CredentialFields({
               autoComplete="new-password"
               placeholder={
                 hasExistingPassword
-                  ? "Leave blank to keep current key"
+                  ? t("credential.keepCurrentKey")
                   : value.passwordMode === "plaintext"
-                    ? "Enter password (min. 8 chars)"
-                    : "Enter hex-encoded key"
+                    ? t("credential.passwordPlaceholder")
+                    : t("credential.hexKeyPlaceholder")
               }
               value={value.password}
               onChange={(e) => onChange({ ...value, password: e.target.value })}
@@ -132,7 +135,7 @@ export function SNMPv3CredentialFields({
             />
             {hasExistingPassword && (
               <p className="text-xs text-muted-foreground">
-                A key is already configured. Leave blank to keep it unchanged.
+                {t("credential.keyConfigured")}
               </p>
             )}
           </div>

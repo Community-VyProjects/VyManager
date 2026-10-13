@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { ReachabilityState } from "@/lib/api/system-updates";
 import { cn } from "@/lib/utils";
 
@@ -11,30 +12,26 @@ interface ReachabilityDotProps {
 
 const META: Record<
   ReachabilityState,
-  { dot: string; text: string; label: string; pulse: boolean }
+  { dot: string; text: string; pulse: boolean }
 > = {
   reachable: {
     dot: "bg-green-500",
     text: "text-green-600 dark:text-green-400",
-    label: "Online",
     pulse: false,
   },
   unreachable: {
     dot: "bg-destructive",
     text: "text-destructive",
-    label: "Unreachable",
     pulse: false,
   },
   inactive: {
     dot: "bg-gray-400",
     text: "text-muted-foreground",
-    label: "Inactive",
     pulse: false,
   },
   unknown: {
     dot: "bg-gray-400",
     text: "text-muted-foreground",
-    label: "Checking…",
     pulse: true,
   },
 };
@@ -48,17 +45,19 @@ export function ReachabilityDot({
   showLabel = false,
   className,
 }: ReachabilityDotProps) {
+  const t = useTranslations("sites");
   const m = META[state];
+  const label = t(`reachability.${state}`);
   return (
     <span
       className={cn("inline-flex items-center gap-2", className)}
-      title={`API: ${m.label}`}
+      title={t("reachability.title", { label })}
     >
       <span
         className={cn("h-2 w-2 rounded-full shrink-0", m.dot, m.pulse && "animate-pulse")}
       />
       {showLabel && (
-        <span className={cn("text-xs font-medium", m.text)}>{m.label}</span>
+        <span className={cn("text-xs font-medium", m.text)}>{label}</span>
       )}
     </span>
   );

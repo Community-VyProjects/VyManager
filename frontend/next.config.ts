@@ -1,4 +1,8 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
+
+// Locale is resolved per request from a cookie / Accept-Language (no URL prefixes).
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
   // Keep Turbopack scoped to this app when the repository has multiple lockfiles.
@@ -21,4 +25,4 @@ const nextConfig: NextConfig = {
     : {}),
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

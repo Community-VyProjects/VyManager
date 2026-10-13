@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +23,8 @@ interface Props {
 }
 
 export function DeleteRegistryModal({ open, onOpenChange, registry, onConfirm }: Props) {
+  const t = useTranslations("containerResources");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,7 +34,7 @@ export function DeleteRegistryModal({ open, onOpenChange, registry, onConfirm }:
     try {
       await onConfirm();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to delete registry");
+      setError(err instanceof Error ? err.message : t("deleteRegistry.failed"));
       setLoading(false);
       return;
     }
@@ -47,10 +50,12 @@ export function DeleteRegistryModal({ open, onOpenChange, registry, onConfirm }:
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Registry</AlertDialogTitle>
+          <AlertDialogTitle>{t("deleteRegistry.title")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete registry{" "}
-            <span className="font-mono font-semibold">{registry?.name}</span>? This action cannot be undone.
+            {t.rich("deleteRegistry.confirm", {
+              name: registry?.name ?? "",
+              mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -62,7 +67,7 @@ export function DeleteRegistryModal({ open, onOpenChange, registry, onConfirm }:
         )}
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
             disabled={loading}
@@ -71,10 +76,10 @@ export function DeleteRegistryModal({ open, onOpenChange, registry, onConfirm }:
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting…
+                {t("deleteRegistry.deleting")}
               </>
             ) : (
-              "Delete Registry"
+              t("deleteRegistry.title")
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

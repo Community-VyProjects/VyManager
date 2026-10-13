@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface DeleteBgpNeighborModalProps {
   open: boolean;
@@ -26,6 +27,8 @@ export function DeleteBgpNeighborModal({
   neighborAddress,
   onConfirm,
 }: DeleteBgpNeighborModalProps) {
+  const t = useTranslations("bgp");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
 
   const handleConfirm = async () => {
@@ -41,17 +44,17 @@ export function DeleteBgpNeighborModal({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete BGP Neighbor</AlertDialogTitle>
+          <AlertDialogTitle>{t("deleteNeighbor.title")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete the BGP neighbor{" "}
-            <span className="font-mono font-semibold">{neighborAddress}</span>?
-            This will remove the peering session and all associated address-family
-            configurations. Active BGP sessions will be terminated.
+            {t.rich("deleteNeighbor.description", {
+              address: neighborAddress,
+              mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
             disabled={loading}
@@ -60,10 +63,10 @@ export function DeleteBgpNeighborModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Neighbor"
+              t("deleteNeighbor.confirm")
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

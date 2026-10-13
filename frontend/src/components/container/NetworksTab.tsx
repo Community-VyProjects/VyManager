@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,8 @@ interface Props {
 }
 
 export function NetworksTab({ config, capabilities, hasWritePermission, onReload }: Props) {
+  const t = useTranslations("containerResources");
+  const tc = useTranslations("common");
   const appliance = useSessionStore((s) => s.appliance);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingNetwork, setEditingNetwork] = useState<ContainerNetworkConfig | null>(null);
@@ -62,7 +65,7 @@ export function NetworksTab({ config, capabilities, hasWritePermission, onReload
       {networks.length > 0 && hasWritePermission && (
         <div className="flex justify-end mb-4">
           <Button size="sm" onClick={() => { setEditingNetwork(null); setModalOpen(true); }}>
-            <Plus className="h-4 w-4 mr-2" />Add Network
+            <Plus className="h-4 w-4 mr-2" />{t("networks.addNetwork")}
           </Button>
         </div>
       )}
@@ -71,10 +74,10 @@ export function NetworksTab({ config, capabilities, hasWritePermission, onReload
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Network className="h-12 w-12 text-muted-foreground/30 mb-4" />
-            <p className="text-sm text-muted-foreground mb-4">No container networks configured</p>
+            <p className="text-sm text-muted-foreground mb-4">{t("networks.noNetworks")}</p>
             {hasWritePermission && (
               <Button size="sm" onClick={() => { setEditingNetwork(null); setModalOpen(true); }}>
-                <Plus className="h-4 w-4 mr-2" />Add Network
+                <Plus className="h-4 w-4 mr-2" />{t("networks.addNetwork")}
               </Button>
             )}
           </CardContent>
@@ -85,13 +88,13 @@ export function NetworksTab({ config, capabilities, hasWritePermission, onReload
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Prefixes</TableHead>
-                  <TableHead>Gateways</TableHead>
+                  <TableHead>{tc("name")}</TableHead>
+                  <TableHead>{t("networks.type")}</TableHead>
+                  <TableHead>{t("networks.prefixes")}</TableHead>
+                  <TableHead>{t("networks.gateways")}</TableHead>
                   <TableHead>MTU</TableHead>
-                  <TableHead>Description</TableHead>
-                  {hasWritePermission && <TableHead className="text-right">Actions</TableHead>}
+                  <TableHead>{tc("description")}</TableHead>
+                  {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>

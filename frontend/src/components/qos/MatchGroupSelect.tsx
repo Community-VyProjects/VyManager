@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -20,6 +21,7 @@ interface MatchGroupSelectProps {
 
 /** Pick traffic-match-group references from a dropdown; shows chosen as chips. */
 export function MatchGroupSelect({ label, available, selected, onChange }: MatchGroupSelectProps) {
+  const t = useTranslations("qos");
   const options = available.filter((g) => !selected.includes(g));
 
   return (
@@ -27,7 +29,7 @@ export function MatchGroupSelect({ label, available, selected, onChange }: Match
       <Label className="text-xs font-medium">{label}</Label>
       {available.length === 0 ? (
         <p className="text-[11px] text-muted-foreground">
-          No traffic match groups defined yet. Create one under the Match Groups tab first.
+          {t("matchGroupSelect.none")}
         </p>
       ) : (
         <Select
@@ -37,7 +39,7 @@ export function MatchGroupSelect({ label, available, selected, onChange }: Match
           }}
         >
           <SelectTrigger>
-            <SelectValue placeholder={options.length === 0 ? "All groups added" : "Add a match group"} />
+            <SelectValue placeholder={options.length === 0 ? t("matchGroupSelect.allAdded") : t("matchGroupSelect.add")} />
           </SelectTrigger>
           <SelectContent>
             {options.map((g) => (

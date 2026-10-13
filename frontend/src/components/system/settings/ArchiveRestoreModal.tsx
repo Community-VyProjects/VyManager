@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -114,6 +115,7 @@ function renderValue(value: unknown, depth = 0): React.ReactNode {
 // ---------------------------------------------------------------------------
 
 function DiffPanel({ diff }: { diff: ConfigDiff }) {
+  const t = useTranslations("systemFlowArchive");
   const { added, removed, modified, summary } = diff;
   const hasAdded = summary.added > 0;
   const hasRemoved = summary.removed > 0;
@@ -127,23 +129,23 @@ function DiffPanel({ diff }: { diff: ConfigDiff }) {
         {hasAdded && (
           <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
             <Plus className="h-3 w-3 mr-1" />
-            {summary.added} Added
+            {t("archive.addedBadge", { count: summary.added })}
           </Badge>
         )}
         {hasRemoved && (
           <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">
             <Minus className="h-3 w-3 mr-1" />
-            {summary.removed} Removed
+            {t("archive.removedBadge", { count: summary.removed })}
           </Badge>
         )}
         {hasModified && (
           <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
             <Edit className="h-3 w-3 mr-1" />
-            {summary.modified} Modified
+            {t("archive.modifiedBadge", { count: summary.modified })}
           </Badge>
         )}
         {!hasAdded && !hasRemoved && !hasModified && (
-          <span className="text-sm text-muted-foreground">No differences from current config</span>
+          <span className="text-sm text-muted-foreground">{t("archive.noDifferences")}</span>
         )}
       </div>
 
@@ -151,15 +153,15 @@ function DiffPanel({ diff }: { diff: ConfigDiff }) {
       <Tabs defaultValue={defaultTab} className="flex-1 overflow-hidden flex flex-col">
         <TabsList className="grid w-full grid-cols-4 flex-shrink-0">
           <TabsTrigger value="added" disabled={!hasAdded}>
-            Added ({summary.added})
+            {t("archive.addedTab", { count: summary.added })}
           </TabsTrigger>
           <TabsTrigger value="removed" disabled={!hasRemoved}>
-            Removed ({summary.removed})
+            {t("archive.removedTab", { count: summary.removed })}
           </TabsTrigger>
           <TabsTrigger value="modified" disabled={!hasModified}>
-            Modified ({summary.modified})
+            {t("archive.modifiedTab", { count: summary.modified })}
           </TabsTrigger>
-          <TabsTrigger value="commands">Commands</TabsTrigger>
+          <TabsTrigger value="commands">{t("archive.commands")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="added" className="flex-1 overflow-hidden mt-3">
@@ -209,13 +211,13 @@ function DiffPanel({ diff }: { diff: ConfigDiff }) {
                       <p className="text-xs font-semibold text-yellow-600 break-all">{path}</p>
                       <div className="mt-1 space-y-1">
                         <div>
-                          <span className="text-xs font-semibold text-red-600">Old: </span>
+                          <span className="text-xs font-semibold text-red-600">{t("archive.old")}</span>
                           <span className="text-xs line-through opacity-60">
                             {renderValue((change as { old: unknown; new: unknown }).old)}
                           </span>
                         </div>
                         <div>
-                          <span className="text-xs font-semibold text-green-600">New: </span>
+                          <span className="text-xs font-semibold text-green-600">{t("archive.new")}</span>
                           <span className="text-xs">
                             {renderValue((change as { old: unknown; new: unknown }).new)}
                           </span>
@@ -238,7 +240,7 @@ function DiffPanel({ diff }: { diff: ConfigDiff }) {
                 ...generateCommands(removed, "removed"),
               ];
               return cmds.length === 0 ? (
-                <div className="text-center py-6 text-muted-foreground text-sm">No commands to show</div>
+                <div className="text-center py-6 text-muted-foreground text-sm">{t("archive.noCommands")}</div>
               ) : (
                 <div className="space-y-0.5 pr-2">
                   {cmds.map((cmd, i) => (
@@ -268,6 +270,9 @@ function DiffPanel({ diff }: { diff: ConfigDiff }) {
 // Main component
 // ---------------------------------------------------------------------------
 
+/** Sentinel for the diff-load fallback error, translated at render time. */
+const DIFF_LOAD_FAILED = "__diff_load_failed__";
+
 interface ArchiveRestoreModalProps {
   location: string | null;
   onClose: () => void;
@@ -281,11 +286,13 @@ export function ArchiveRestoreModal({
   onRestored,
   isReadOnly = false,
 }: ArchiveRestoreModalProps) {
+  const t = useTranslations("systemFlowArchive");
+  const tc = useTranslations("common");
   const { toast } = useToast();
 
   const [files, setFiles] = useState<ArchiveFile[]>([]);
   const [filesLoading, setFilesLoading] = useState(false);
-  const [filesError, setFilesError] = useState<string | null>(null);
+  const [filesError, setFilesError] = useState<"archive.noFiles" | "archive.listFailed" | null>(null);
   const [search, setSearch] = useState("");
 
   const [selected, setSelected] = useState<string | null>(null);
@@ -332,12 +339,10 @@ export function ArchiveRestoreModal({
       .then((r) => {
         setFiles(r.files);
         if (r.files.length === 0) {
-          setFilesError(
-            "No backup files found. This protocol may not support directory listing — enter a filename manually below."
-          );
+          setFilesError("archive.noFiles");
         }
       })
-      .catch(() => setFilesError("Failed to list files at this archive location."))
+      .catch(() => setFilesError("archive.listFailed"))
       .finally(() => setFilesLoading(false));
   }, [location]);
 
@@ -363,7 +368,7 @@ export function ArchiveRestoreModal({
       .catch((err: unknown) => {
         if (!token.cancelled) {
           setDiffError(
-            err instanceof Error ? err.message : "Failed to load diff for this backup."
+            err instanceof Error ? err.message : DIFF_LOAD_FAILED
           );
         }
       })
@@ -382,15 +387,15 @@ export function ArchiveRestoreModal({
     try {
       const r = await systemSettingsService.restoreFromArchive(location, activeFilename);
       if (!r.success) {
-        toast.error("Restore failed", r.error ?? "Could not restore configuration");
+        toast.error(t("archive.restoreFailed"), r.error ?? t("archive.restoreFailedDetail"));
       } else {
-        toast.success("Configuration restored successfully");
+        toast.success(t("archive.restored"));
         setShowConfirm(false);
         onClose();
         onRestored();
       }
     } catch {
-      toast.error("Error", "An unexpected error occurred during restore");
+      toast.error(t("error"), t("archive.restoreUnexpected"));
     } finally {
       setRestoring(false);
       setShowConfirm(false);
@@ -413,7 +418,7 @@ export function ArchiveRestoreModal({
           <DialogHeader className="px-6 pt-6 pb-0 flex-shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <FileJson className="h-5 w-5" />
-              Restore from Archive
+              {t("archive.title")}
             </DialogTitle>
             <DialogDescription>{location && maskCredentials(location)}</DialogDescription>
           </DialogHeader>
@@ -427,7 +432,7 @@ export function ArchiveRestoreModal({
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Filter backups..."
+                  placeholder={t("archive.filterPlaceholder")}
                   className="pl-8 text-xs h-8"
                 />
               </div>
@@ -435,19 +440,19 @@ export function ArchiveRestoreModal({
               {filesLoading && (
                 <div className="flex items-center justify-center py-6 text-muted-foreground text-sm gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading...
+                  {tc("loading")}
                 </div>
               )}
 
               {!filesLoading && filesError && files.length === 0 && (
-                <p className="text-xs text-muted-foreground px-1">{filesError}</p>
+                <p className="text-xs text-muted-foreground px-1">{t(filesError)}</p>
               )}
 
               {!filesLoading && files.length > 0 && (
                 <ScrollArea className="flex-1 min-h-0">
                   <div className="space-y-0.5 pr-1">
                     {filteredFiles.length === 0 ? (
-                      <p className="text-xs text-muted-foreground px-2 py-4">No matching files</p>
+                      <p className="text-xs text-muted-foreground px-2 py-4">{t("archive.noMatching")}</p>
                     ) : (
                       filteredFiles.map((f) => (
                         <button
@@ -481,7 +486,7 @@ export function ArchiveRestoreModal({
 
               {/* Manual filename entry */}
               <div className="flex-shrink-0 space-y-1 pt-2 border-t">
-                <p className="text-xs text-muted-foreground">Or enter filename manually</p>
+                <p className="text-xs text-muted-foreground">{t("archive.manualEntry")}</p>
                 <Input
                   value={manualFilename}
                   onChange={(e) => {
@@ -500,10 +505,10 @@ export function ArchiveRestoreModal({
                 <div className="flex flex-col items-center justify-center h-full text-center gap-2">
                   <FileJson className="h-8 w-8 text-muted-foreground/40" />
                   <p className="text-sm text-muted-foreground">
-                    Select a backup to preview changes
+                    {t("archive.selectPrompt")}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    The diff between that backup and your current running config will appear here.
+                    {t("archive.selectHint")}
                   </p>
                 </div>
               )}
@@ -511,15 +516,15 @@ export function ArchiveRestoreModal({
               {activeFilename && diffLoading && (
                 <div className="flex items-center justify-center h-full gap-2 text-muted-foreground">
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  <span className="text-sm">Loading diff…</span>
+                  <span className="text-sm">{t("archive.loadingDiff")}</span>
                 </div>
               )}
 
               {activeFilename && !diffLoading && diffError && (
                 <div className="flex flex-col items-center justify-center h-full text-center gap-2">
-                  <p className="text-sm text-destructive">{diffError}</p>
+                  <p className="text-sm text-destructive">{diffError === DIFF_LOAD_FAILED ? t("archive.diffFailed") : diffError}</p>
                   <p className="text-xs text-muted-foreground">
-                    You can still restore this backup — the diff preview is unavailable for this protocol or file.
+                    {t("archive.diffUnavailableHint")}
                   </p>
                 </div>
               )}
@@ -532,13 +537,13 @@ export function ArchiveRestoreModal({
 
           <DialogFooter className="px-6 py-4 flex-shrink-0 border-t mt-0">
             <Button variant="outline" onClick={onClose} disabled={restoring}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button
               disabled={!activeFilename || diffLoading || isReadOnly}
               onClick={() => setShowConfirm(true)}
             >
-              Restore Selected
+              {t("archive.restoreSelected")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -548,32 +553,32 @@ export function ArchiveRestoreModal({
       <AlertDialog open={showConfirm} onOpenChange={(o) => { if (!o && !restoring) setShowConfirm(false); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Restore</AlertDialogTitle>
+            <AlertDialogTitle>{t("archive.confirmRestore")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will immediately replace your running configuration.
+              {t("archive.confirmDescription")}
             </AlertDialogDescription>
             <div className="space-y-3 mt-3">
               <div className="rounded border px-3 py-2 bg-muted/30">
-                <p className="text-xs text-muted-foreground">Restoring file:</p>
+                <p className="text-xs text-muted-foreground">{t("archive.restoringFile")}</p>
                 <p className="font-mono text-sm font-medium break-all">{activeFilename}</p>
               </div>
               {diff && (diff.summary.added > 0 || diff.summary.removed > 0 || diff.summary.modified > 0) && (
                 <div className="flex items-center gap-2 text-sm">
                   {diff.summary.added > 0 && (
-                    <span className="text-green-600 font-medium">+{diff.summary.added} added</span>
+                    <span className="text-green-600 font-medium">{t("archive.addedInline", { count: diff.summary.added })}</span>
                   )}
                   {diff.summary.removed > 0 && (
-                    <span className="text-red-600 font-medium">-{diff.summary.removed} removed</span>
+                    <span className="text-red-600 font-medium">{t("archive.removedInline", { count: diff.summary.removed })}</span>
                   )}
                   {diff.summary.modified > 0 && (
-                    <span className="text-yellow-600 font-medium">~{diff.summary.modified} modified</span>
+                    <span className="text-yellow-600 font-medium">{t("archive.modifiedInline", { count: diff.summary.modified })}</span>
                   )}
                 </div>
               )}
             </div>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={restoring}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={restoring}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleRestore}
               disabled={restoring}
@@ -582,10 +587,10 @@ export function ArchiveRestoreModal({
               {restoring ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Restoring…
+                  {t("archive.restoring")}
                 </>
               ) : (
-                "Confirm Restore"
+                t("archive.confirmRestore")
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

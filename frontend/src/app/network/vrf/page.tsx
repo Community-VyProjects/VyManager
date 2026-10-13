@@ -17,6 +17,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
@@ -24,6 +25,8 @@ import { vrfService, VrfConfig, VrfCapabilities } from "@/lib/api/vrf";
 import { CreateVrfModal } from "@/components/vrf/CreateVrfModal";
 
 export default function VRFPage() {
+  const t = useTranslations("vrf");
+  const tc = useTranslations("common");
   const { canRead, canWrite, isLoading: permissionsLoading } = usePermissions();
 
   const [config, setConfig] = useState<VrfConfig | null>(null);
@@ -53,11 +56,11 @@ export default function VRFPage() {
         setSelectedVrf(null);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load VRF configuration");
+      setError(err instanceof Error ? err.message : t("page.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [selectedVrf]);
+  }, [selectedVrf, t]);
 
   useEffect(() => {
     if (!permissionsLoading && canRead(FeatureGroup.VRF)) {
@@ -106,9 +109,9 @@ export default function VRFPage() {
         <div className="flex h-full items-center justify-center">
           <div className="text-center max-w-md">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+            <h2 className="text-xl font-semibold mb-2">{t("page.accessDenied")}</h2>
             <p className="text-muted-foreground">
-              You do not have permission to view VRF configuration.
+              {t("page.noPermission")}
             </p>
           </div>
         </div>
@@ -132,9 +135,9 @@ export default function VRFPage() {
         <div className="flex h-full items-center justify-center">
           <div className="text-center max-w-md">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Error Loading Configuration</h2>
+            <h2 className="text-xl font-semibold mb-2">{t("page.errorLoading")}</h2>
             <p className="text-muted-foreground mb-4">{error}</p>
-            <Button onClick={() => loadData(true)}>Retry</Button>
+            <Button onClick={() => loadData(true)}>{tc("retry")}</Button>
           </div>
         </div>
       </AppLayout>
@@ -152,9 +155,9 @@ export default function VRFPage() {
             <div className="flex items-center gap-3 mb-2">
               <Network className="h-6 w-6 text-primary" />
               <div>
-                <h2 className="text-lg font-semibold text-foreground">VRF Instances</h2>
+                <h2 className="text-lg font-semibold text-foreground">{t("page.instancesTitle")}</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Virtual Routing & Forwarding
+                  {t("page.subtitle")}
                 </p>
               </div>
             </div>
@@ -168,9 +171,9 @@ export default function VRFPage() {
               {config && config.instances.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
                   <Network className="h-8 w-8 text-muted-foreground mb-3" />
-                  <p className="text-sm text-muted-foreground mb-1">No VRF instances</p>
+                  <p className="text-sm text-muted-foreground mb-1">{t("page.noInstances")}</p>
                   <p className="text-xs text-muted-foreground">
-                    Create a VRF to get started
+                    {t("page.createToStart")}
                   </p>
                 </div>
               ) : (
@@ -210,7 +213,7 @@ export default function VRFPage() {
                             <div className="flex items-center gap-1.5 flex-shrink-0">
                               {vrf.disabled && (
                                 <Badge variant="outline" className="text-[10px] px-1 py-0">
-                                  off
+                                  {t("page.off")}
                                 </Badge>
                               )}
                               {active && (
@@ -219,11 +222,11 @@ export default function VRFPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            {vrf.table && <span>table {vrf.table}</span>}
+                            {vrf.table && <span>{t("page.table", { table: String(vrf.table) })}</span>}
                             {vrf.table && protocolCount > 0 && <span>&middot;</span>}
                             {protocolCount > 0 && (
                               <span>
-                                {protocolCount} protocol{protocolCount !== 1 ? "s" : ""}
+                                {t("page.protocolCount", { count: protocolCount })}
                               </span>
                             )}
                           </div>
@@ -258,14 +261,14 @@ export default function VRFPage() {
               ) : (
                 <ToggleLeft className="h-4 w-4 text-muted-foreground" />
               )}
-              <span className="text-muted-foreground">Bind to all VRFs</span>
+              <span className="text-muted-foreground">{t("page.bindToAll")}</span>
               {bindingToAll ? (
                 <Badge variant="secondary" className="ml-auto text-[10px]">
-                  applying…
+                  {t("page.applying")}
                 </Badge>
               ) : config?.bind_to_all ? (
                 <Badge variant="secondary" className="ml-auto text-[10px]">
-                  on
+                  {t("on")}
                 </Badge>
               ) : null}
             </button>
@@ -278,7 +281,7 @@ export default function VRFPage() {
                 size="sm"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Create VRF
+                {t("createVrf")}
               </Button>
             )}
           </div>
@@ -300,13 +303,13 @@ export default function VRFPage() {
                 <Network className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h2 className="text-xl font-semibold mb-2">
                   {config?.instances.length === 0
-                    ? "No VRF Instances"
-                    : "Select a VRF"}
+                    ? t("page.noInstancesTitle")
+                    : t("page.selectVrf")}
                 </h2>
                 <p className="text-muted-foreground">
                   {config?.instances.length === 0
-                    ? "Create a VRF instance to begin configuring virtual routing."
-                    : "Choose a VRF from the sidebar to view and manage its configuration."}
+                    ? t("page.noInstancesHint")
+                    : t("page.selectVrfHint")}
                 </p>
               </div>
             </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,8 @@ interface VrfDhcpv6TabProps {
 }
 
 export function VrfDhcpv6Tab({ vrf, capabilities, canWrite, onRefresh }: VrfDhcpv6TabProps) {
+  const t = useTranslations("vrfProtocols");
+  const tc = useTranslations("common");
   const [rawConfigOpen, setRawConfigOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const dhcpv6 = vrf.dhcpv6;
@@ -37,9 +40,10 @@ export function VrfDhcpv6Tab({ vrf, capabilities, canWrite, onRefresh }: VrfDhcp
     <SchemaEditor
       open={editOpen}
       onOpenChange={setEditOpen}
-      title={`DHCPv6 Server Settings — ${vrf.name}`}
+      title={t("dhcpv6.settingsTitle", { vrf: vrf.name })}
       vrfName={vrf.name}
       sections={DHCPV6_SCHEMA}
+      scope="dhcpv6"
       rawConfig={dhcpv6?.raw_config}
       capabilities={capabilities}
       canWrite={canWrite}
@@ -51,12 +55,12 @@ export function VrfDhcpv6Tab({ vrf, capabilities, canWrite, onRefresh }: VrfDhcp
     return (
       <div className="flex flex-col items-center justify-center py-16">
         <Server className="h-12 w-12 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold mb-2">DHCPv6 Server</h3>
-        <p className="text-sm text-muted-foreground mb-4">Not configured</p>
+        <h3 className="text-lg font-semibold mb-2">{t("dhcpv6.server")}</h3>
+        <p className="text-sm text-muted-foreground mb-4">{t("tabs.notConfigured")}</p>
         {canWrite && (
           <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
             <Settings2 className="h-3.5 w-3.5 mr-1.5" />
-            Configure DHCPv6
+            {t("dhcpv6.configure")}
           </Button>
         )}
         {editor}
@@ -79,27 +83,27 @@ export function VrfDhcpv6Tab({ vrf, capabilities, canWrite, onRefresh }: VrfDhcp
       <div className="grid grid-cols-4 gap-4">
         <Card className="border-0 shadow-none bg-muted/50">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Status</p>
+            <p className="text-xs text-muted-foreground mb-1">{tc("status")}</p>
             <Badge variant={dhcpv6.disabled ? "outline" : "secondary"}>
-              {dhcpv6.disabled ? "Disabled" : "Active"}
+              {dhcpv6.disabled ? tc("disabled") : t("tabs.active")}
             </Badge>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-none bg-muted/50">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Shared Networks</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("tabs.sharedNetworks")}</p>
             <p className="text-lg font-semibold">{dhcpv6.shared_networks.length}</p>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-none bg-muted/50">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Subnets</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("tabs.subnets")}</p>
             <p className="text-lg font-semibold">{totalSubnets}</p>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-none bg-muted/50">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Static Mappings</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("tabs.staticMappings")}</p>
             <p className="text-lg font-semibold">{totalMappings}</p>
           </CardContent>
         </Card>
@@ -119,13 +123,13 @@ export function VrfDhcpv6Tab({ vrf, capabilities, canWrite, onRefresh }: VrfDhcp
         {canWrite && (
           <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
             <Settings2 className="h-3.5 w-3.5 mr-1.5" />
-            Edit Settings
+            {t("tabs.editSettings")}
           </Button>
         )}
         {dhcpv6.raw_config && (
           <Button variant="outline" size="sm" onClick={() => setRawConfigOpen(true)}>
             <Code className="h-3.5 w-3.5 mr-1.5" />
-            View Raw Config
+            {t("tabs.viewRawConfig")}
           </Button>
         )}
       </div>
@@ -134,7 +138,7 @@ export function VrfDhcpv6Tab({ vrf, capabilities, canWrite, onRefresh }: VrfDhcp
       <Dialog open={rawConfigOpen} onOpenChange={setRawConfigOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle>DHCPv6 Server Raw Configuration — {vrf.name}</DialogTitle>
+            <DialogTitle>{t("dhcpv6.rawTitle", { vrf: vrf.name })}</DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[60vh]">
             <pre className="text-xs font-mono bg-muted p-4 rounded-lg overflow-x-auto">

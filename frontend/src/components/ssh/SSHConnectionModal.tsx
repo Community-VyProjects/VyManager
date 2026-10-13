@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +49,8 @@ export function SSHConnectionModal({
   capabilities,
   onSuccess,
 }: SSHConnectionModalProps) {
+  const t = useTranslations("ssh");
+  const tc = useTranslations("common");
   const [ports, setPorts] = useState<string[]>(config.ports);
   const [listenAddresses, setListenAddresses] = useState<string[]>(config.listen_addresses);
   const [vrfs, setVrfs] = useState<string[]>(config.vrfs);
@@ -76,7 +79,7 @@ export function SSHConnectionModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -86,32 +89,32 @@ export function SSHConnectionModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Connection Settings</DialogTitle>
+          <DialogTitle>{t("connection.title")}</DialogTitle>
           <DialogDescription>
-            Listening ports, bind addresses, VRFs, and session behaviour
+            {t("connection.description")}
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[65vh] pr-4">
           <div className="space-y-5 py-1">
             <SSHMultiValueField
-              label="Ports"
-              description={`TCP ports the SSH service listens on (default ${capabilities.features.port.default}).`}
-              placeholder="e.g. 22"
+              label={t("content.ports")}
+              description={t("connection.portsHelp", { port: String(capabilities.features.port.default) })}
+              placeholder={t("connection.portsPlaceholder")}
               values={ports}
               onChange={setPorts}
-              validate={(v) => (isPort(v) ? null : "Port must be between 1 and 65535")}
+              validate={(v) => (isPort(v) ? null : t("connection.portRange"))}
             />
 
             <Separator />
 
             <SSHMultiValueField
-              label="Listen Addresses"
-              description="Local IP addresses to bind to. Leave empty to listen on all."
-              placeholder="e.g. 192.0.2.1 or 2001:db8::1"
+              label={t("content.listenAddresses")}
+              description={t("connection.listenHelp")}
+              placeholder={t("connection.listenPlaceholder")}
               values={listenAddresses}
               onChange={setListenAddresses}
-              validate={(v) => (isValidIP(v) ? null : "Enter a valid IPv4 or IPv6 address")}
+              validate={(v) => (isValidIP(v) ? null : t("connection.invalidIp"))}
             />
 
             <Separator />
@@ -120,28 +123,28 @@ export function SSHConnectionModal({
               <div>
                 <Label className="text-sm font-medium">VRFs</Label>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {'VRF instances to run the service in. Use "default" for the default VRF.'}
+                  {t("connection.vrfsHelp")}
                 </p>
               </div>
               <VrfMultiSelect
                 values={vrfs}
                 onChange={setVrfs}
-                placeholder="Select a VRF to add"
-                extraOptions={[{ label: "Default", value: "default" }]}
+                placeholder={t("connection.selectVrf")}
+                extraOptions={[{ label: tc("default"), value: "default" }]}
               />
             </div>
 
             <Separator />
 
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Log Level</Label>
+              <Label className="text-sm font-medium">{t("content.logLevel")}</Label>
               <Select value={loglevel} onValueChange={setLoglevel}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={DEFAULT_LOGLEVEL}>
-                    Default ({capabilities.features.loglevel.default})
+                    {t("content.defaultValue", { value: String(capabilities.features.loglevel.default) })}
                   </SelectItem>
                   {(capabilities.features.loglevel.values ?? []).map((v) => (
                     <SelectItem key={v} value={v}>
@@ -154,17 +157,17 @@ export function SSHConnectionModal({
 
             <div className="space-y-1.5">
               <Label htmlFor="ssh-keepalive" className="text-sm font-medium">
-                Client Keepalive Interval
+                {t("connection.keepaliveInterval")}
               </Label>
               <p className="text-xs text-muted-foreground">
-                Seconds between server-to-client keepalives (1–65535). Empty disables.
+                {t("connection.keepaliveHelp")}
               </p>
               <Input
                 id="ssh-keepalive"
                 type="number"
                 min={1}
                 max={65535}
-                placeholder="e.g. 180"
+                placeholder={t("connection.keepalivePlaceholder")}
                 value={keepalive}
                 onChange={(e) => setKeepalive(e.target.value)}
               />
@@ -173,35 +176,35 @@ export function SSHConnectionModal({
             <Separator />
 
             <div>
-              <Label className="text-sm font-medium">Session Rekey Limits</Label>
+              <Label className="text-sm font-medium">{t("connection.rekeyLimits")}</Label>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Force renegotiation after a data volume and/or time threshold.
+                {t("connection.rekeyHelp")}
               </p>
               <div className="grid grid-cols-2 gap-4 mt-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="rekey-data" className="text-xs font-medium">
-                    Data (MB)
+                    {t("connection.dataMb")}
                   </Label>
                   <Input
                     id="rekey-data"
                     type="number"
                     min={1}
                     max={65535}
-                    placeholder="e.g. 1024"
+                    placeholder={t("connection.dataPlaceholder")}
                     value={rekeyData}
                     onChange={(e) => setRekeyData(e.target.value)}
                   />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="rekey-time" className="text-xs font-medium">
-                    Time (minutes)
+                    {t("connection.timeMinutes")}
                   </Label>
                   <Input
                     id="rekey-time"
                     type="number"
                     min={1}
                     max={65535}
-                    placeholder="e.g. 60"
+                    placeholder={t("connection.timePlaceholder")}
                     value={rekeyTime}
                     onChange={(e) => setRekeyTime(e.target.value)}
                   />
@@ -220,11 +223,11 @@ export function SSHConnectionModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

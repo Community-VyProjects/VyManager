@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -35,27 +36,38 @@ function formatDate(value: string | null): string {
   });
 }
 
-function accessLabel(t: ApiTokenMetadata): string {
+type AccessLabel = {
+  key: "tokens.accessInstances" | "tokens.accessSites" | "tokens.accessAll";
+  count: number;
+};
+
+function accessLabel(t: ApiTokenMetadata): AccessLabel {
   if (t.allowed_instance_ids.length > 0) {
-    return `${t.allowed_instance_ids.length} instance${t.allowed_instance_ids.length === 1 ? "" : "s"}`;
+    return { key: "tokens.accessInstances", count: t.allowed_instance_ids.length };
   }
   if (t.allowed_site_ids.length > 0) {
-    return `${t.allowed_site_ids.length} site${t.allowed_site_ids.length === 1 ? "" : "s"}`;
+    return { key: "tokens.accessSites", count: t.allowed_site_ids.length };
   }
-  return "All";
+  return { key: "tokens.accessAll", count: 0 };
 }
 
-type Status = { label: string; variant: "default" | "secondary" | "destructive" | "outline" };
+type Status = {
+  label: "tokens.statusRevoked" | "tokens.statusExpired" | "tokens.statusActive";
+  variant: "default" | "secondary" | "destructive" | "outline";
+};
 
 function tokenStatus(t: ApiTokenMetadata): Status {
-  if (t.revoked_at) return { label: "Revoked", variant: "destructive" };
+  if (t.revoked_at) return { label: "tokens.statusRevoked", variant: "destructive" };
   if (t.expires_at && new Date(t.expires_at) < new Date()) {
-    return { label: "Expired", variant: "secondary" };
+    return { label: "tokens.statusExpired", variant: "secondary" };
   }
-  return { label: "Active", variant: "default" };
+  return { label: "tokens.statusActive", variant: "default" };
 }
 
 export function ApiTokensPanel() {
+  // `t` is used below for each token row, so the translator gets a distinct name.
+  const tr = useTranslations("admin");
+  const tc = useTranslations("common");
   const [tokens, setTokens] = useState<ApiTokenMetadata[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,11 +79,11 @@ export function ApiTokensPanel() {
     try {
       setTokens(await tokenService.list());
     } catch {
-      setError("Could not load tokens.");
+      setError(tr("tokens.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [tr]);
 
   useEffect(() => {
     load();
@@ -83,7 +95,7 @@ export function ApiTokensPanel() {
       await tokenService.revoke(id);
       await load();
     } catch {
-      setError("Could not revoke token.");
+      setError(tr("tokens.revokeFailed"));
     } finally {
       setRevoking(null);
     }
@@ -95,16 +107,15 @@ export function ApiTokensPanel() {
         <div>
           <h2 className="text-xl font-semibold flex items-center gap-2">
             <KeyRound className="h-5 w-5" />
-            API Tokens
+            {tr("tokens.title")}
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Personal tokens for non-browser clients. A token acts as you and never exceeds your
-            own permissions.
+            {tr("tokens.subtitle")}
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          New token
+          {tr("tokens.new")}
         </Button>
       </div>
 
@@ -119,32 +130,33 @@ export function ApiTokensPanel() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Token</TableHead>
-              <TableHead>Scope</TableHead>
-              <TableHead>Access</TableHead>
-              <TableHead>Last used</TableHead>
-              <TableHead>Expires</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>{tc("name")}</TableHead>
+              <TableHead>{tr("tokens.colToken")}</TableHead>
+              <TableHead>{tr("tokens.colScope")}</TableHead>
+              <TableHead>{tr("tokens.colAccess")}</TableHead>
+              <TableHead>{tr("tokens.colLastUsed")}</TableHead>
+              <TableHead>{tr("tokens.colExpires")}</TableHead>
+              <TableHead>{tc("status")}</TableHead>
+              <TableHead className="text-right">{tc("actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center text-muted-foreground">
-                  Loading…
+                  {tr("tokens.loading")}
                 </TableCell>
               </TableRow>
             ) : tokens.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center text-muted-foreground">
-                  No tokens yet. Create one to get started.
+                  {tr("tokens.empty")}
                 </TableCell>
               </TableRow>
             ) : (
               tokens.map((t) => {
                 const status = tokenStatus(t);
+                const access = accessLabel(t);
                 const revoked = Boolean(t.revoked_at);
                 return (
                   <TableRow key={t.id}>
@@ -154,14 +166,14 @@ export function ApiTokensPanel() {
                     </TableCell>
                     <TableCell>
                       <Badge variant={t.scopes.includes("read") ? "secondary" : "outline"}>
-                        {t.scopes.includes("read") ? "Read-only" : "Full"}
+                        {t.scopes.includes("read") ? tr("tokens.scopeReadOnly") : tr("tokens.scopeFull")}
                       </Badge>
                     </TableCell>
-                    <TableCell>{accessLabel(t)}</TableCell>
+                    <TableCell>{tr(access.key, { count: access.count })}</TableCell>
                     <TableCell>{formatDate(t.last_used_at)}</TableCell>
                     <TableCell>{formatDate(t.expires_at)}</TableCell>
                     <TableCell>
-                      <Badge variant={status.variant}>{status.label}</Badge>
+                      <Badge variant={status.variant}>{tr(status.label)}</Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       {!revoked && (
@@ -173,24 +185,23 @@ export function ApiTokensPanel() {
                               className="text-destructive hover:text-destructive"
                               disabled={revoking === t.id}
                             >
-                              Revoke
+                              {tr("tokens.revoke")}
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Revoke “{t.name}”?</AlertDialogTitle>
+                              <AlertDialogTitle>{tr("tokens.revokeTitle", { name: t.name })}</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Any client using this token will immediately lose access. This
-                                cannot be undone.
+                                {tr("tokens.revokeDescription")}
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={() => handleRevoke(t.id)}
                                 className="bg-destructive text-white hover:bg-destructive/90"
                               >
-                                Revoke
+                                {tr("tokens.revoke")}
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>

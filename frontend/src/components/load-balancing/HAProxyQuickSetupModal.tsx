@@ -10,6 +10,7 @@
  */
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
@@ -80,6 +81,8 @@ interface Props {
 // ============================================================================
 
 export function HAProxyQuickSetupModal({ open, onOpenChange, onSuccess }: Props) {
+  const t = useTranslations("haproxy");
+  const tc = useTranslations("common");
   const [form, setForm] = useState<FormState>(emptyForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -106,9 +109,9 @@ export function HAProxyQuickSetupModal({ open, onOpenChange, onSuccess }: Props)
     setForm((f) => ({ ...f, servers: f.servers.filter((_, i) => i !== idx) }));
 
   const handleSubmit = async () => {
-    if (!form.backendName.trim()) { setError("Backend name is required"); return; }
-    if (!form.serviceName.trim()) { setError("Service name is required"); return; }
-    if (!form.servicePort) { setError("Service port is required"); return; }
+    if (!form.backendName.trim()) { setError(t("backendModal.nameRequired")); return; }
+    if (!form.serviceName.trim()) { setError(t("serviceModal.nameRequired")); return; }
+    if (!form.servicePort) { setError(t("quickSetupModal.servicePortRequired")); return; }
 
     const backend: LBBackend = {
       name: form.backendName.trim(),
@@ -161,7 +164,7 @@ export function HAProxyQuickSetupModal({ open, onOpenChange, onSuccess }: Props)
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Setup failed");
+      setError(err instanceof Error ? err.message : t("quickSetupModal.setupFailed"));
     } finally {
       setLoading(false);
     }
@@ -171,9 +174,9 @@ export function HAProxyQuickSetupModal({ open, onOpenChange, onSuccess }: Props)
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>HAProxy Quick Setup</DialogTitle>
+          <DialogTitle>{t("quickSetupModal.title")}</DialogTitle>
           <DialogDescription>
-            Create a backend pool and frontend service together in one step.
+            {t("quickSetupModal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -181,8 +184,7 @@ export function HAProxyQuickSetupModal({ open, onOpenChange, onSuccess }: Props)
         <div className="flex gap-2.5 rounded-md bg-blue-500/10 border border-blue-500/20 p-3 text-sm text-blue-700 dark:text-blue-400">
           <Info className="h-4 w-4 shrink-0 mt-0.5" />
           <span>
-            VyOS requires a <strong>backend</strong> and a <strong>service</strong> to be configured
-            simultaneously. This wizard creates both in a single commit.
+            {t.rich("quickSetupModal.notice", { strong: (chunks) => <strong>{chunks}</strong> })}
           </span>
         </div>
 
@@ -195,13 +197,13 @@ export function HAProxyQuickSetupModal({ open, onOpenChange, onSuccess }: Props)
               <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500/10">
                 <Database className="h-3.5 w-3.5 text-blue-500" />
               </div>
-              <h3 className="text-sm font-semibold">Backend (Server Pool)</h3>
+              <h3 className="text-sm font-semibold">{t("quickSetupModal.backendSection")}</h3>
             </div>
 
             <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-4">
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                  <Label>Backend Name <span className="text-destructive">*</span></Label>
+                  <Label>{t("quickSetupModal.backendName")} <span className="text-destructive">*</span></Label>
                   <Input
                     value={form.backendName}
                     onChange={(e) => set("backendName", e.target.value)}
@@ -209,7 +211,7 @@ export function HAProxyQuickSetupModal({ open, onOpenChange, onSuccess }: Props)
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Mode</Label>
+                  <Label>{t("mode")}</Label>
                   <Select value={form.backendMode} onValueChange={(v) => set("backendMode", v)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -219,13 +221,13 @@ export function HAProxyQuickSetupModal({ open, onOpenChange, onSuccess }: Props)
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Balance</Label>
+                  <Label>{t("balance")}</Label>
                   <Select value={form.backendBalance} onValueChange={(v) => set("backendBalance", v)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="round-robin">Round Robin</SelectItem>
-                      <SelectItem value="least-conn">Least Connections</SelectItem>
-                      <SelectItem value="source-hash">Source Hash</SelectItem>
+                      <SelectItem value="round-robin">{t("balanceRoundRobin")}</SelectItem>
+                      <SelectItem value="least-conn">{t("balanceLeastConn")}</SelectItem>
+                      <SelectItem value="source-hash">{t("balanceSourceHash")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -234,15 +236,15 @@ export function HAProxyQuickSetupModal({ open, onOpenChange, onSuccess }: Props)
               {/* Servers */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground uppercase tracking-wide">Servers</Label>
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wide">{t("servers")}</Label>
                   <Button type="button" variant="ghost" size="sm" className="h-6 text-xs" onClick={addServer}>
-                    <Plus className="h-3 w-3 mr-1" /> Add Server
+                    <Plus className="h-3 w-3 mr-1" /> {t("addServer")}
                   </Button>
                 </div>
                 {form.servers.map((srv, idx) => (
                   <div key={idx} className="grid grid-cols-[1fr_1fr_80px_auto_auto] gap-2 items-end">
                     <div className="space-y-1">
-                      {idx === 0 && <Label className="text-xs">Name</Label>}
+                      {idx === 0 && <Label className="text-xs">{tc("name")}</Label>}
                       <Input
                         className="h-8 text-sm"
                         value={srv.name}
@@ -251,7 +253,7 @@ export function HAProxyQuickSetupModal({ open, onOpenChange, onSuccess }: Props)
                       />
                     </div>
                     <div className="space-y-1">
-                      {idx === 0 && <Label className="text-xs">Address</Label>}
+                      {idx === 0 && <Label className="text-xs">{t("address")}</Label>}
                       <Input
                         className="h-8 text-sm"
                         value={srv.address}
@@ -260,7 +262,7 @@ export function HAProxyQuickSetupModal({ open, onOpenChange, onSuccess }: Props)
                       />
                     </div>
                     <div className="space-y-1">
-                      {idx === 0 && <Label className="text-xs">Port</Label>}
+                      {idx === 0 && <Label className="text-xs">{t("port")}</Label>}
                       <Input
                         className="h-8 text-sm"
                         value={srv.port}
@@ -269,7 +271,7 @@ export function HAProxyQuickSetupModal({ open, onOpenChange, onSuccess }: Props)
                       />
                     </div>
                     <div className="space-y-1">
-                      {idx === 0 && <Label className="text-xs">Check</Label>}
+                      {idx === 0 && <Label className="text-xs">{t("quickSetupModal.check")}</Label>}
                       <div className="h-8 flex items-center">
                         <Checkbox
                           checked={srv.check}
@@ -304,13 +306,13 @@ export function HAProxyQuickSetupModal({ open, onOpenChange, onSuccess }: Props)
               <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-500/10">
                 <Globe className="h-3.5 w-3.5 text-green-500" />
               </div>
-              <h3 className="text-sm font-semibold">Service (Frontend Listener)</h3>
+              <h3 className="text-sm font-semibold">{t("quickSetupModal.serviceSection")}</h3>
             </div>
 
             <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-4">
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                  <Label>Service Name <span className="text-destructive">*</span></Label>
+                  <Label>{t("quickSetupModal.serviceName")} <span className="text-destructive">*</span></Label>
                   <Input
                     value={form.serviceName}
                     onChange={(e) => set("serviceName", e.target.value)}
@@ -318,7 +320,7 @@ export function HAProxyQuickSetupModal({ open, onOpenChange, onSuccess }: Props)
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Mode</Label>
+                  <Label>{t("mode")}</Label>
                   <Select value={form.serviceMode} onValueChange={(v) => set("serviceMode", v)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -328,7 +330,7 @@ export function HAProxyQuickSetupModal({ open, onOpenChange, onSuccess }: Props)
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Port <span className="text-destructive">*</span></Label>
+                  <Label>{t("port")} <span className="text-destructive">*</span></Label>
                   <Input
                     value={form.servicePort}
                     onChange={(e) => set("servicePort", e.target.value)}
@@ -341,8 +343,8 @@ export function HAProxyQuickSetupModal({ open, onOpenChange, onSuccess }: Props)
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>
-                    Listen Address
-                    <span className="ml-1 text-xs text-muted-foreground">(optional, defaults to all)</span>
+                    {t("quickSetupModal.listenAddress")}
+                    <span className="ml-1 text-xs text-muted-foreground">{t("quickSetupModal.listenAddressHint")}</span>
                   </Label>
                   <Input
                     value={form.listenAddress}
@@ -352,20 +354,23 @@ export function HAProxyQuickSetupModal({ open, onOpenChange, onSuccess }: Props)
                 </div>
                 <div className="space-y-1.5">
                   <Label>
-                    SSL Certificate
-                    <span className="ml-1 text-xs text-muted-foreground">(optional)</span>
+                    {t("quickSetupModal.sslCertificate")}
+                    <span className="ml-1 text-xs text-muted-foreground">{t("quickSetupModal.optionalHint")}</span>
                   </Label>
                   <Input
                     value={form.sslCert}
                     onChange={(e) => set("sslCert", e.target.value)}
-                    placeholder="my-cert (from PKI)"
+                    placeholder={t("quickSetupModal.sslCertPlaceholder")}
                   />
                 </div>
               </div>
 
               <div className="rounded-md bg-muted/50 p-2.5 text-xs text-muted-foreground flex items-center gap-2">
                 <Info className="h-3.5 w-3.5 shrink-0" />
-                This service will automatically route traffic to the <Badge variant="outline" className="text-xs mx-0.5">{form.backendName || "backend"}</Badge> backend.
+                {t.rich("quickSetupModal.autoRoute", {
+                  name: form.backendName || t("quickSetupModal.backendFallback"),
+                  badge: (chunks) => <Badge variant="outline" className="text-xs mx-0.5">{chunks}</Badge>,
+                })}
               </div>
             </div>
           </div>
@@ -380,11 +385,11 @@ export function HAProxyQuickSetupModal({ open, onOpenChange, onSuccess }: Props)
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Create Backend + Service
+            {t("quickSetupModal.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

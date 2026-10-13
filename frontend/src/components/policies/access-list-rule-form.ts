@@ -70,36 +70,48 @@ export function nextRuleNumber(rules: { rule_number: number }[]): number {
   return Math.max(...rules.map((r) => r.rule_number)) + 1;
 }
 
-export function validateAccessListRule(draft: AccessListRuleDraft, listType: string): string | null {
+/** Message keys under `accessList.validation`. */
+export type AccessListRuleError =
+  | "sourceHostAddress"
+  | "sourceNetworkAddress"
+  | "sourceNetworkMask"
+  | "destinationHostAddress"
+  | "destinationNetworkAddress"
+  | "destinationNetworkMask"
+  | "ipv6Cidr"
+  | "ipv6SourceRequired"
+  | "exactMatchWithNetwork";
+
+export function validateAccessListRule(draft: AccessListRuleDraft, listType: string): AccessListRuleError | null {
   if (listType === "ipv4") {
     if (draft.sourceType === "host" && !draft.sourceAddress.trim()) {
-      return "Please enter a source address for host type";
+      return "sourceHostAddress";
     }
     if (draft.sourceType === "network" && !draft.sourceAddress.trim()) {
-      return "Please enter a source address for network type";
+      return "sourceNetworkAddress";
     }
     if (draft.sourceType === "network" && !draft.sourceMask.trim()) {
-      return "Please enter a source mask for network type";
+      return "sourceNetworkMask";
     }
     if (draft.destinationType === "host" && !draft.destinationAddress.trim()) {
-      return "Please enter a destination address for host type";
+      return "destinationHostAddress";
     }
     if (draft.destinationType === "network" && !draft.destinationAddress.trim()) {
-      return "Please enter a destination address for network type";
+      return "destinationNetworkAddress";
     }
     if (draft.destinationType === "network" && !draft.destinationMask.trim()) {
-      return "Please enter a destination mask for network type";
+      return "destinationNetworkMask";
     }
     return null;
   }
   if (draft.sourceNetwork.trim() && !draft.sourceNetwork.includes("/")) {
-    return "IPv6 network must be in CIDR format (e.g., 2001:db8::/32)";
+    return "ipv6Cidr";
   }
   if (!draft.sourceAny && !draft.sourceExactMatch && !draft.sourceNetwork.trim()) {
-    return "Please select at least one source option (Any, Exact Match, or Network)";
+    return "ipv6SourceRequired";
   }
   if (draft.sourceExactMatch && draft.sourceNetwork.trim()) {
-    return "Exact Match and Network cannot be used together";
+    return "exactMatchWithNetwork";
   }
   return null;
 }

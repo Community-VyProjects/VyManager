@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,8 @@ interface EditRouteMapModalProps {
 }
 
 export function EditRouteMapModal({ open, onOpenChange, onSuccess, routeMap }: EditRouteMapModalProps) {
+  const t = useTranslations("routeMap");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [description, setDescription] = useState("");
@@ -44,7 +47,7 @@ export function EditRouteMapModal({ open, onOpenChange, onSuccess, routeMap }: E
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update route-map");
+      setError(err instanceof Error ? err.message : t("edit.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -56,26 +59,26 @@ export function EditRouteMapModal({ open, onOpenChange, onSuccess, routeMap }: E
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit Route Map</DialogTitle>
+          <DialogTitle>{t("edit.title")}</DialogTitle>
           <DialogDescription>
-            Update route-map description and metadata
+            {t("edit.description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Route-Map Name</Label>
+            <Label>{t("edit.nameLabel")}</Label>
             <Input value={routeMap.name} disabled className="bg-muted" />
             <p className="text-xs text-muted-foreground">
-              Name cannot be changed. Delete and recreate to change name.
+              {t("edit.nameHint")}
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{tc("description")}</Label>
             <Textarea
               id="description"
-              placeholder="Optional description for this route-map"
+              placeholder={t("edit.descriptionPlaceholder")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
@@ -84,8 +87,7 @@ export function EditRouteMapModal({ open, onOpenChange, onSuccess, routeMap }: E
 
           <div className="bg-muted/50 border rounded-lg p-3">
             <p className="text-sm text-muted-foreground">
-              This route-map has {routeMap.rules.length} rule{routeMap.rules.length !== 1 ? 's' : ''}.
-              To edit rules, use the rule management options in the main table.
+              {t("edit.rulesInfo", { count: routeMap.rules.length })}
             </p>
           </div>
         </div>
@@ -99,10 +101,10 @@ export function EditRouteMapModal({ open, onOpenChange, onSuccess, routeMap }: E
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Updating..." : "Update Route Map"}
+            {loading ? t("edit.updating") : t("edit.submit")}
           </Button>
         </DialogFooter>
       </DialogContent>

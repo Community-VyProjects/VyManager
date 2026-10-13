@@ -23,6 +23,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { DndContext, type DragStartEvent, type DragEndEvent, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import {
@@ -43,6 +44,8 @@ import { PrefixListRuleRow } from "@/components/policies/PrefixListRuleRow";
 import { PrefixListReorderBanner } from "@/components/policies/PrefixListReorderBanner";
 
 function PrefixListPageInner() {
+  const t = useTranslations("prefixList");
+  const tc = useTranslations("common");
   const searchParams = useSearchParams();
   const [config, setConfig] = useState<PrefixListConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<PrefixListCapabilitiesResponse | null>(null);
@@ -111,7 +114,7 @@ function PrefixListPageInner() {
       }
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to load prefix-list configuration"
+        err instanceof Error ? err.message : t("page.loadFailed")
       );
       console.error("Error fetching prefix-list config:", err);
     } finally {
@@ -212,7 +215,7 @@ function PrefixListPageInner() {
       await fetchConfig(true);
     } catch (err) {
       console.error("Error saving reordered rules:", err);
-      setError(err instanceof Error ? err.message : "Failed to save reordered rules");
+      setError(err instanceof Error ? err.message : t("page.reorderFailed"));
     } finally {
       setSavingReorder(false);
     }
@@ -280,11 +283,11 @@ function PrefixListPageInner() {
         <div className="flex items-center justify-center h-full">
           <div className="text-center space-y-4">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-            <h2 className="text-xl font-semibold text-foreground">Error Loading Prefix Lists</h2>
+            <h2 className="text-xl font-semibold text-foreground">{t("page.errorLoading")}</h2>
             <p className="text-muted-foreground max-w-md">{error}</p>
             <Button onClick={() => fetchConfig(true)} variant="outline">
               <RefreshCw className="h-4 w-4 mr-2" />
-              Retry
+              {tc("retry")}
             </Button>
           </div>
         </div>
@@ -303,9 +306,9 @@ function PrefixListPageInner() {
                 <ListFilter className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-foreground">Prefix Lists</h1>
+                <h1 className="text-lg font-semibold text-foreground">{t("page.title")}</h1>
                 <p className="text-xs text-muted-foreground">
-                  {config?.total_ipv4 || 0} IPv4 · {config?.total_ipv6 || 0} IPv6
+                  {t("page.totals", { ipv4: config?.total_ipv4 || 0, ipv6: config?.total_ipv6 || 0 })}
                 </p>
               </div>
             </div>
@@ -322,7 +325,7 @@ function PrefixListPageInner() {
             <div className="relative mb-4">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search lists..."
+                placeholder={t("page.searchLists")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -335,7 +338,7 @@ function PrefixListPageInner() {
               size="sm"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Create Prefix List
+              {t("page.createList")}
             </Button>
           </div>
 
@@ -347,7 +350,7 @@ function PrefixListPageInner() {
               {filteredLists.length === 0 ? (
                 <div className="px-2 py-8 text-center">
                   <p className="text-sm text-muted-foreground">
-                    {searchQuery ? "No lists match your search" : "No prefix lists configured"}
+                    {searchQuery ? t("page.noListsMatch") : t("page.noListsConfigured")}
                   </p>
                   {!searchQuery && (
                     <Button
@@ -356,7 +359,7 @@ function PrefixListPageInner() {
                       onClick={() => setCreateModalOpen(true)}
                       className="mt-2"
                     >
-                      Create your first prefix list
+                      {t("page.createFirst")}
                     </Button>
                   )}
                 </div>
@@ -441,11 +444,11 @@ function PrefixListPageInner() {
                   <div className="flex items-center gap-3">
                     <Button onClick={() => fetchConfig(true)} variant="outline" size="sm">
                       <RefreshCw className="h-4 w-4 mr-2" />
-                      Refresh
+                      {tc("refresh")}
                     </Button>
                     <Button onClick={() => setAddRuleModalOpen(true)} size="sm">
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Rule
+                      {t("page.addRule")}
                     </Button>
                   </div>
                 </div>
@@ -454,7 +457,7 @@ function PrefixListPageInner() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search rules..."
+                    placeholder={t("page.searchRules")}
                     value={ruleSearchQuery}
                     onChange={(e) => setRuleSearchQuery(e.target.value)}
                     className="pl-10"
@@ -479,17 +482,17 @@ function PrefixListPageInner() {
                     <CardContent className="flex flex-col items-center justify-center py-12">
                       <ListFilter className="h-12 w-12 text-muted-foreground mb-4" />
                       <h3 className="text-lg font-semibold text-foreground mb-2">
-                        {ruleSearchQuery ? "No Rules Match Search" : "No Rules Configured"}
+                        {ruleSearchQuery ? t("page.noRulesMatch") : t("page.noRulesConfigured")}
                       </h3>
                       <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
                         {ruleSearchQuery
-                          ? "Try adjusting your search criteria"
-                          : "Add rules to this prefix list to control route filtering"}
+                          ? t("page.adjustSearch")
+                          : t("page.addRulesHint")}
                       </p>
                       {!ruleSearchQuery && (
                         <Button onClick={() => setAddRuleModalOpen(true)}>
                           <Plus className="h-4 w-4 mr-2" />
-                          Add First Rule
+                          {t("page.addFirstRule")}
                         </Button>
                       )}
                     </CardContent>
@@ -507,13 +510,13 @@ function PrefixListPageInner() {
                           <TableHeader>
                             <TableRow className="hover:bg-transparent">
                               <TableHead className="w-12"></TableHead>
-                              <TableHead>Rule</TableHead>
-                              <TableHead>Action</TableHead>
-                              <TableHead>Description</TableHead>
-                              <TableHead>Prefix</TableHead>
+                              <TableHead>{t("page.colRule")}</TableHead>
+                              <TableHead>{t("page.colAction")}</TableHead>
+                              <TableHead>{tc("description")}</TableHead>
+                              <TableHead>{t("page.colPrefix")}</TableHead>
                               <TableHead>GE</TableHead>
                               <TableHead>LE</TableHead>
-                              <TableHead className="text-right">Actions</TableHead>
+                              <TableHead className="text-right">{tc("actions")}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -543,17 +546,17 @@ function PrefixListPageInner() {
               <div className="text-center space-y-4">
                 <ListFilter className="h-16 w-16 text-muted-foreground mx-auto" />
                 <h2 className="text-xl font-semibold text-foreground">
-                  No Prefix List Selected
+                  {t("page.noSelection")}
                 </h2>
                 <p className="text-muted-foreground max-w-md">
                   {currentLists.length === 0
-                    ? "Create a prefix list to get started"
-                    : "Select a prefix list from the sidebar to view its rules"}
+                    ? t("page.createToStart")
+                    : t("page.selectFromSidebar")}
                 </p>
                 {currentLists.length === 0 && (
                   <Button onClick={() => setCreateModalOpen(true)}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Create Prefix List
+                    {t("page.createList")}
                   </Button>
                 )}
               </div>

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, ListFilter } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useTranslations } from "next-intl";
 import { accessListService, type AccessList } from "@/lib/api/access-list";
 
 interface EditAccessListModalProps {
@@ -17,6 +18,8 @@ interface EditAccessListModalProps {
 }
 
 export function EditAccessListModal({ open, onOpenChange, onSuccess, accessList }: EditAccessListModalProps) {
+  const t = useTranslations("accessList");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [description, setDescription] = useState("");
@@ -48,7 +51,7 @@ export function EditAccessListModal({ open, onOpenChange, onSuccess, accessList 
       handleClose();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update access list");
+      setError(err instanceof Error ? err.message : t("edit.failed"));
     } finally {
       setLoading(false);
     }
@@ -60,9 +63,9 @@ export function EditAccessListModal({ open, onOpenChange, onSuccess, accessList 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Edit Access List</DialogTitle>
+          <DialogTitle>{t("edit.title")}</DialogTitle>
           <DialogDescription>
-            Update the description for this access list
+            {t("edit.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -76,23 +79,23 @@ export function EditAccessListModal({ open, onOpenChange, onSuccess, accessList 
                 {accessList.list_type.toUpperCase()}
               </Badge>
               <Badge variant="secondary">
-                {accessList.rules.length} rule{accessList.rules.length !== 1 ? "s" : ""}
+                {t("ruleCount", { count: accessList.rules.length })}
               </Badge>
             </div>
           </div>
 
           {/* Description Field */}
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{tc("description")}</Label>
             <Input
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter access list description (optional)"
+              placeholder={t("create.descriptionPlaceholder")}
               disabled={loading}
             />
             <p className="text-xs text-muted-foreground">
-              Leave empty to remove the description
+              {t("edit.leaveEmpty")}
             </p>
           </div>
         </div>
@@ -106,10 +109,10 @@ export function EditAccessListModal({ open, onOpenChange, onSuccess, accessList 
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Updating..." : "Update Access List"}
+            {loading ? t("edit.updating") : t("edit.submit")}
           </Button>
         </DialogFooter>
       </DialogContent>

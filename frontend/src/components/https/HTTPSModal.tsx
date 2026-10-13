@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -69,6 +70,8 @@ const EMPTY_CONFIG: HTTPSConfig = {
 };
 
 export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps) {
+  const t = useTranslations("https");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -191,7 +194,7 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
     const secret = newKeySecret.trim();
     if (!id || !secret) return;
     if (keyRows.some((r) => r.id === id)) {
-      setError("API key ID must be unique.");
+      setError(t("modal.errors.keyIdUnique"));
       return;
     }
     setKeyRows((prev) => [...prev, { id, key: secret, key_: nextKeyIndex, revealed: false }]);
@@ -216,22 +219,22 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
   function validate(): string | null {
     if (port) {
       const p = parseInt(port, 10);
-      if (isNaN(p) || p < 1 || p > 65535) return "Port must be between 1 and 65535.";
+      if (isNaN(p) || p < 1 || p > 65535) return t("modal.errors.portRange");
     }
     if (requestBodySizeLimit) {
       const s = parseInt(requestBodySizeLimit, 10);
-      if (isNaN(s) || s < 1 || s > 256) return "Request body size limit must be between 1 and 256 MB.";
+      if (isNaN(s) || s < 1 || s > 256) return t("modal.errors.bodySizeRange");
     }
     if (graphqlEnabled && graphqlExpiration) {
       const e = parseInt(graphqlExpiration, 10);
-      if (isNaN(e) || e < 60 || e > 31536000) return "JWT token expiration must be between 60 and 31,536,000 seconds.";
+      if (isNaN(e) || e < 60 || e > 31536000) return t("modal.errors.expirationRange");
     }
     if (graphqlEnabled && graphqlSecretLength) {
       const s = parseInt(graphqlSecretLength, 10);
-      if (isNaN(s) || s < 16 || s > 65535) return "JWT secret length must be between 16 and 65,535 bytes.";
+      if (isNaN(s) || s < 16 || s > 65535) return t("modal.errors.secretLengthRange");
     }
     const ids = keyRows.map((r) => r.id);
-    if (new Set(ids).size !== ids.length) return "API key IDs must be unique.";
+    if (new Set(ids).size !== ids.length) return t("modal.errors.keyIdsUnique");
     return null;
   }
 
@@ -280,12 +283,12 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
     try {
       const result = await httpsService.saveConfig(payload);
       if (!result.success) {
-        setError(result.error ?? "Configuration failed");
+        setError(result.error ?? t("modal.errors.configurationFailed"));
         return;
       }
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred.");
+      setError(err instanceof Error ? err.message : t("modal.errors.unexpected"));
     } finally {
       setLoading(false);
     }
@@ -295,9 +298,9 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Configure HTTPS</DialogTitle>
+          <DialogTitle>{t("content.configureHttps")}</DialogTitle>
           <DialogDescription>
-            Configure the HTTPS management interface, certificates, and API access.
+            {t("modal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -305,15 +308,15 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
           <TabsList className="grid w-full grid-cols-5 shrink-0">
             <TabsTrigger value="general" className="flex items-center gap-1.5">
               <Network className="h-3.5 w-3.5" />
-              General
+              {t("modal.tabs.general")}
             </TabsTrigger>
             <TabsTrigger value="certificates" className="flex items-center gap-1.5">
               <Shield className="h-3.5 w-3.5" />
-              Certificates
+              {t("content.certificates")}
             </TabsTrigger>
             <TabsTrigger value="keys" className="flex items-center gap-1.5">
               <Key className="h-3.5 w-3.5" />
-              API Keys
+              {t("content.apiKeys")}
             </TabsTrigger>
             <TabsTrigger value="rest" className="flex items-center gap-1.5">
               <Globe className="h-3.5 w-3.5" />
@@ -331,10 +334,10 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
               <div className="space-y-4 py-2">
                 {/* Listen Addresses */}
                 <div className="space-y-2">
-                  <Label>Listen Addresses</Label>
+                  <Label>{t("content.listenAddresses")}</Label>
                   <div className="flex gap-2">
                     <Input
-                      placeholder="e.g. 192.168.1.1"
+                      placeholder={t("modal.listenPlaceholder")}
                       value={listenInput}
                       onChange={(e) => setListenInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addListenAddress())}
@@ -361,10 +364,10 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
 
                 {/* Allowed Client Addresses */}
                 <div className="space-y-2">
-                  <Label>Allowed Client Addresses</Label>
+                  <Label>{t("modal.allowedClientAddresses")}</Label>
                   <div className="flex gap-2">
                     <Input
-                      placeholder="e.g. 10.0.0.0/8"
+                      placeholder={t("modal.allowedClientPlaceholder")}
                       value={allowClientInput}
                       onChange={(e) => setAllowClientInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addAllowClientAddress())}
@@ -391,13 +394,13 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
 
                 {/* Port */}
                 <div className="space-y-2">
-                  <Label htmlFor="port">Port</Label>
+                  <Label htmlFor="port">{t("content.port")}</Label>
                   <Input
                     id="port"
                     type="number"
                     min={1}
                     max={65535}
-                    placeholder="443 (default)"
+                    placeholder={t("content.withDefault", { value: "443" })}
                     value={port}
                     onChange={(e) => setPort(e.target.value)}
                   />
@@ -405,13 +408,13 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
 
                 {/* Request Body Size Limit */}
                 <div className="space-y-2">
-                  <Label htmlFor="body-size">Request Body Size Limit (MB)</Label>
+                  <Label htmlFor="body-size">{t("modal.bodySizeLimitMb")}</Label>
                   <Input
                     id="body-size"
                     type="number"
                     min={1}
                     max={256}
-                    placeholder="1 (default)"
+                    placeholder={t("content.withDefault", { value: "1" })}
                     value={requestBodySizeLimit}
                     onChange={(e) => setRequestBodySizeLimit(e.target.value)}
                   />
@@ -424,12 +427,12 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
                     checked={httpRedirect}
                     onCheckedChange={(v) => setHttpRedirect(!!v)}
                   />
-                  <Label htmlFor="http-redirect">Redirect HTTP to HTTPS</Label>
+                  <Label htmlFor="http-redirect">{t("modal.redirectHttp")}</Label>
                 </div>
 
                 {/* TLS Versions */}
                 <div className="space-y-2">
-                  <Label>TLS Versions</Label>
+                  <Label>{t("content.tlsVersions")}</Label>
                   <div className="flex gap-4">
                     <div className="flex items-center gap-2">
                       <Checkbox
@@ -468,24 +471,24 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
             <ScrollArea className="flex-1 pr-4">
               <div className="space-y-4 py-2">
                 <p className="text-xs text-muted-foreground">
-                  Certificates are managed in the PKI section.
+                  {t("modal.certificatesHelp")}
                 </p>
 
                 {/* Certificate */}
                 <div className="space-y-2">
-                  <Label htmlFor="cert">Certificate</Label>
+                  <Label htmlFor="cert">{t("content.certificate")}</Label>
                   {pkiLoading ? (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Loading PKI data…
+                      {t("modal.loadingPki")}
                     </div>
                   ) : (
                     <Select value={certificate || "none"} onValueChange={(v) => setCertificate(v === "none" ? "" : v)}>
                       <SelectTrigger id="cert">
-                        <SelectValue placeholder="None" />
+                        <SelectValue placeholder={tc("none")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="none">{tc("none")}</SelectItem>
                         {pkiCerts.map((c) => (
                           <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
                         ))}
@@ -496,19 +499,19 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
 
                 {/* CA Certificate */}
                 <div className="space-y-2">
-                  <Label htmlFor="ca-cert">CA Certificate</Label>
+                  <Label htmlFor="ca-cert">{t("content.caCertificate")}</Label>
                   {pkiLoading ? (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Loading PKI data…
+                      {t("modal.loadingPki")}
                     </div>
                   ) : (
                     <Select value={caCertificate || "none"} onValueChange={(v) => setCaCertificate(v === "none" ? "" : v)}>
                       <SelectTrigger id="ca-cert">
-                        <SelectValue placeholder="None" />
+                        <SelectValue placeholder={tc("none")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="none">{tc("none")}</SelectItem>
                         {pkiCAs.map((c) => (
                           <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
                         ))}
@@ -519,19 +522,19 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
 
                 {/* DH Parameters */}
                 <div className="space-y-2">
-                  <Label htmlFor="dh-params">DH Parameters</Label>
+                  <Label htmlFor="dh-params">{t("content.dhParameters")}</Label>
                   {pkiLoading ? (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Loading PKI data…
+                      {t("modal.loadingPki")}
                     </div>
                   ) : (
                     <Select value={dhParams || "none"} onValueChange={(v) => setDhParams(v === "none" ? "" : v)}>
                       <SelectTrigger id="dh-params">
-                        <SelectValue placeholder="None" />
+                        <SelectValue placeholder={tc("none")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="none">{tc("none")}</SelectItem>
                         {pkiDH.map((d) => (
                           <SelectItem key={d.name} value={d.name}>{d.name}</SelectItem>
                         ))}
@@ -548,7 +551,7 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
             <ScrollArea className="flex-1 pr-4">
               <div className="space-y-4 py-2">
                 <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2">
-                  Keys grant full API access — treat them as passwords.
+                  {t("modal.keysWarning")}
                 </p>
 
                 {/* Existing keys */}
@@ -557,8 +560,8 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
                     <table className="w-full text-sm">
                       <thead className="bg-muted/50">
                         <tr>
-                          <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">Key ID</th>
-                          <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">Secret Key</th>
+                          <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">{t("modal.keyId")}</th>
+                          <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">{t("modal.secretKey")}</th>
                           <th className="px-3 py-2 w-16"></th>
                         </tr>
                       </thead>
@@ -600,16 +603,16 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
 
                 {/* Add new key */}
                 <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Add New Key</Label>
+                  <Label className="text-xs text-muted-foreground">{t("modal.addNewKey")}</Label>
                   <div className="flex gap-2">
                     <Input
-                      placeholder="Key ID"
+                      placeholder={t("modal.keyId")}
                       value={newKeyId}
                       onChange={(e) => setNewKeyId(e.target.value)}
                       className="font-mono text-sm"
                     />
                     <Input
-                      placeholder="Secret key"
+                      placeholder={t("modal.secretKeyPlaceholder")}
                       value={newKeySecret}
                       onChange={(e) => setNewKeySecret(e.target.value)}
                       className="font-mono text-sm"
@@ -642,7 +645,7 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
                       if (!v) { setRestDebug(false); setRestStrict(false); }
                     }}
                   />
-                  <Label htmlFor="rest-enabled" className="font-medium cursor-pointer">Enable REST API</Label>
+                  <Label htmlFor="rest-enabled" className="font-medium cursor-pointer">{t("modal.enableRest")}</Label>
                 </div>
 
                 <div className={`space-y-3 pl-3 border-l-2 ${restEnabled ? "border-primary/30" : "border-muted opacity-50"}`}>
@@ -654,8 +657,8 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
                       onCheckedChange={(v) => setRestDebug(!!v)}
                     />
                     <Label htmlFor="rest-debug" className={restEnabled ? "cursor-pointer" : "cursor-not-allowed"}>
-                      Debug Logging
-                      <span className="block text-xs text-muted-foreground font-normal">Log detailed request/response information</span>
+                      {t("modal.debugLogging")}
+                      <span className="block text-xs text-muted-foreground font-normal">{t("modal.debugLoggingHelp")}</span>
                     </Label>
                   </div>
 
@@ -667,8 +670,8 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
                       onCheckedChange={(v) => setRestStrict(!!v)}
                     />
                     <Label htmlFor="rest-strict" className={restEnabled ? "cursor-pointer" : "cursor-not-allowed"}>
-                      Strict Path Checking
-                      <span className="block text-xs text-muted-foreground font-normal">Reject requests with unknown URI path components</span>
+                      {t("modal.strictPath")}
+                      <span className="block text-xs text-muted-foreground font-normal">{t("modal.strictPathHelp")}</span>
                     </Label>
                   </div>
                 </div>
@@ -694,7 +697,7 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
                       }
                     }}
                   />
-                  <Label htmlFor="graphql-enabled" className="font-medium cursor-pointer">Enable GraphQL</Label>
+                  <Label htmlFor="graphql-enabled" className="font-medium cursor-pointer">{t("modal.enableGraphql")}</Label>
                 </div>
 
                 <div className={`space-y-4 pl-3 border-l-2 ${graphqlEnabled ? "border-primary/30" : "border-muted opacity-50"}`}>
@@ -706,13 +709,13 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
                       onCheckedChange={(v) => setGraphqlIntrospection(!!v)}
                     />
                     <Label htmlFor="graphql-introspection" className={graphqlEnabled ? "cursor-pointer" : "cursor-not-allowed"}>
-                      Schema Introspection
-                      <span className="block text-xs text-muted-foreground font-normal">Allow clients to query the API schema</span>
+                      {t("modal.schemaIntrospection")}
+                      <span className="block text-xs text-muted-foreground font-normal">{t("modal.schemaIntrospectionHelp")}</span>
                     </Label>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="graphql-auth-type">Authentication Type</Label>
+                    <Label htmlFor="graphql-auth-type">{t("modal.authType")}</Label>
                     <Select
                       value={graphqlAuthType}
                       onValueChange={setGraphqlAuthType}
@@ -722,8 +725,8 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="key">API Key (default)</SelectItem>
-                        <SelectItem value="token">JWT Token</SelectItem>
+                        <SelectItem value="key">{t("modal.authTypeKey")}</SelectItem>
+                        <SelectItem value="token">{t("modal.authTypeToken")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -731,26 +734,26 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
                   {graphqlAuthType === "token" && graphqlEnabled && (
                     <>
                       <div className="space-y-2">
-                        <Label htmlFor="graphql-expiration">Token Expiration (seconds)</Label>
+                        <Label htmlFor="graphql-expiration">{t("modal.tokenExpiration")}</Label>
                         <Input
                           id="graphql-expiration"
                           type="number"
                           min={60}
                           max={31536000}
-                          placeholder="3600 (default)"
+                          placeholder={t("content.withDefault", { value: "3600" })}
                           value={graphqlExpiration}
                           onChange={(e) => setGraphqlExpiration(e.target.value)}
                           disabled={!graphqlEnabled}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="graphql-secret-length">Secret Length (bytes)</Label>
+                        <Label htmlFor="graphql-secret-length">{t("modal.secretLength")}</Label>
                         <Input
                           id="graphql-secret-length"
                           type="number"
                           min={16}
                           max={65535}
-                          placeholder="32 (default)"
+                          placeholder={t("content.withDefault", { value: "32" })}
                           value={graphqlSecretLength}
                           onChange={(e) => setGraphqlSecretLength(e.target.value)}
                           disabled={!graphqlEnabled}
@@ -760,7 +763,7 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
                   )}
 
                   <div className="space-y-2">
-                    <Label>CORS Allow Origins</Label>
+                    <Label>{t("modal.corsOrigins")}</Label>
                     <div className="flex gap-2">
                       <Input
                         placeholder="https://app.example.com"
@@ -804,11 +807,11 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -76,6 +77,8 @@ import { DHCPv6ServerPrefixDelegationModal } from "./DHCPv6ServerPrefixDelegatio
 import { DHCPv6ServerStaticMappingModal } from "./DHCPv6ServerStaticMappingModal";
 
 export function DHCPv6ServerContent() {
+  const t = useTranslations("dhcpv6Server");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWrite = canWrite(FeatureGroup.DHCPV6_SERVER);
 
@@ -146,7 +149,7 @@ export function DHCPv6ServerContent() {
         setSelectedNetwork(cfg.shared_networks[0].name);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load DHCPv6 server configuration");
+      setError(err instanceof Error ? err.message : t("content.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -261,7 +264,7 @@ export function DHCPv6ServerContent() {
 
     setDeleteLoading(false);
     if (!result.success) {
-      setDeleteError(result.error ?? "Operation failed");
+      setDeleteError(result.error ?? tc("operationFailed"));
       return;
     }
     if (deleteTarget.kind === "network" && deleteTarget.name === selectedNetwork) {
@@ -287,7 +290,7 @@ export function DHCPv6ServerContent() {
 
     setDisableLoading(false);
     if (!result.success) {
-      setDisableError(result.error ?? "Operation failed");
+      setDisableError(result.error ?? tc("operationFailed"));
       return;
     }
     setDisableTarget(null);
@@ -301,7 +304,7 @@ export function DHCPv6ServerContent() {
       <div className="flex items-center justify-center h-full">
         <div className="text-center space-y-4">
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-          <p className="text-muted-foreground">Loading DHCPv6 server configuration...</p>
+          <p className="text-muted-foreground">{t("content.loading")}</p>
         </div>
       </div>
     );
@@ -312,11 +315,11 @@ export function DHCPv6ServerContent() {
       <div className="flex items-center justify-center h-full">
         <div className="text-center space-y-4">
           <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-          <h2 className="text-xl font-semibold">Error Loading DHCPv6 Server</h2>
+          <h2 className="text-xl font-semibold">{t("content.errorTitle")}</h2>
           <p className="text-muted-foreground max-w-md">{error}</p>
           <Button onClick={() => fetchData(true)} variant="outline">
             <RefreshCw className="h-4 w-4 mr-2" />
-            Retry
+            {tc("retry")}
           </Button>
         </div>
       </div>
@@ -336,10 +339,10 @@ export function DHCPv6ServerContent() {
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-lg font-semibold">DHCPv6 Server</h2>
+              <h2 className="text-lg font-semibold">{t("content.title")}</h2>
               {config?.disabled && (
                 <Badge variant="outline" className="mt-1 bg-red-500/10 text-red-500 border-red-500/20 text-xs">
-                  Disabled
+                  {tc("disabled")}
                 </Badge>
               )}
             </div>
@@ -355,7 +358,7 @@ export function DHCPv6ServerContent() {
               onClick={() => setGlobalModalOpen(true)}
             >
               <Settings2 className="h-4 w-4 mr-2" />
-              Global Settings
+              {t("content.globalSettings")}
             </Button>
             {hasWrite && (
               <Button
@@ -364,7 +367,7 @@ export function DHCPv6ServerContent() {
                 onClick={() => { setEditingNetwork(null); setNetworkModalOpen(true); }}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                New Server
+                {t("content.newServer")}
               </Button>
             )}
           </div>
@@ -375,9 +378,9 @@ export function DHCPv6ServerContent() {
             {config?.shared_networks.length === 0 ? (
               <div className="px-3 py-8 text-center">
                 <Server className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">No servers configured</p>
+                <p className="text-sm text-muted-foreground">{t("content.noServersShort")}</p>
                 {hasWrite && (
-                  <p className="text-xs text-muted-foreground mt-1">Click &quot;New Server&quot; to create one</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t("content.noServersHint")}</p>
                 )}
               </div>
             ) : (
@@ -421,7 +424,7 @@ export function DHCPv6ServerContent() {
                               setDisableError(null);
                               setDisableTarget({ kind: "network", name: network.name, currentlyDisabled: !!isDisabled });
                             }}
-                            title={isDisabled ? "Enable network" : "Disable network"}
+                            title={isDisabled ? t("content.enableNetwork") : t("content.disableNetwork")}
                           >
                             {isDisabled
                               ? <Power className="h-4 w-4 text-green-500" />
@@ -435,7 +438,7 @@ export function DHCPv6ServerContent() {
                               setDeleteError(null);
                               setDeleteTarget({ kind: "network", name: network.name });
                             }}
-                            title="Delete network"
+                            title={t("content.deleteNetwork")}
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </button>
@@ -453,15 +456,15 @@ export function DHCPv6ServerContent() {
           <div className="grid grid-cols-3 gap-2 text-xs text-center">
             <div>
               <div className="font-semibold text-sm">{totalNetworks}</div>
-              <div className="text-muted-foreground">Networks</div>
+              <div className="text-muted-foreground">{t("content.stats.networks")}</div>
             </div>
             <div>
               <div className="font-semibold text-sm">{totalSubnets}</div>
-              <div className="text-muted-foreground">Subnets</div>
+              <div className="text-muted-foreground">{t("content.stats.subnets")}</div>
             </div>
             <div>
               <div className="font-semibold text-sm">{totalStatic}</div>
-              <div className="text-muted-foreground">Static</div>
+              <div className="text-muted-foreground">{t("content.stats.static")}</div>
             </div>
           </div>
         </div>
@@ -476,7 +479,7 @@ export function DHCPv6ServerContent() {
               <div className="border-b border-amber-500/30 bg-amber-500/10 px-6 py-3 flex items-center gap-2 text-amber-600 dark:text-amber-400">
                 <AlertCircle className="h-4 w-4 flex-shrink-0" />
                 <span className="text-sm font-medium">
-                  DHCPv6 server is globally disabled — no networks are serving requests.
+                  {t("content.globallyDisabled")}
                 </span>
               </div>
             )}
@@ -491,7 +494,7 @@ export function DHCPv6ServerContent() {
                     <span className="text-foreground font-medium">{currentNetwork.name}</span>
                     {currentNetwork.disabled && (
                       <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20">
-                        Disabled
+                        {tc("disabled")}
                       </Badge>
                     )}
                   </div>
@@ -502,10 +505,10 @@ export function DHCPv6ServerContent() {
                   {(currentNetwork.name_servers.length > 0 || currentNetwork.info_refresh_time != null) && (
                     <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                       {currentNetwork.name_servers.length > 0 && (
-                        <span>Name Servers: {currentNetwork.name_servers.join(", ")}</span>
+                        <span>{t("content.nameServersLine", { servers: currentNetwork.name_servers.join(", ") })}</span>
                       )}
                       {currentNetwork.info_refresh_time != null && (
-                        <span>Refresh: {currentNetwork.info_refresh_time}s</span>
+                        <span>{t("content.refreshLine", { seconds: String(currentNetwork.info_refresh_time) })}</span>
                       )}
                     </div>
                   )}
@@ -518,7 +521,7 @@ export function DHCPv6ServerContent() {
                       onClick={() => { setEditingNetwork(currentNetwork); setNetworkModalOpen(true); }}
                     >
                       <Pencil className="h-4 w-4 mr-1.5" />
-                      Edit Network
+                      {t("content.editNetwork")}
                     </Button>
                   )}
                   {hasWrite && (
@@ -533,8 +536,8 @@ export function DHCPv6ServerContent() {
                       )}
                     >
                       {config?.disabled
-                        ? <><Power className="h-4 w-4 mr-1.5" />Enable DHCPv6</>
-                        : <><PowerOff className="h-4 w-4 mr-1.5" />Disable DHCPv6</>
+                        ? <><Power className="h-4 w-4 mr-1.5" />{t("content.enableDhcpv6")}</>
+                        : <><PowerOff className="h-4 w-4 mr-1.5" />{t("content.disableDhcpv6")}</>
                       }
                     </Button>
                   )}
@@ -548,22 +551,22 @@ export function DHCPv6ServerContent() {
                 <TabsList className="bg-transparent h-12">
                   <TabsTrigger value="subnets" className="data-[state=active]:bg-accent">
                     <Network className="h-4 w-4 mr-2" />
-                    Subnets
+                    {t("content.tabs.subnets")}
                     <Badge variant="secondary" className="ml-2">{currentNetwork.subnets.length}</Badge>
                   </TabsTrigger>
                   <TabsTrigger value="ranges" className="data-[state=active]:bg-accent">
                     <Settings2 className="h-4 w-4 mr-2" />
-                    Address Ranges
+                    {t("content.tabs.ranges")}
                     <Badge variant="secondary" className="ml-2">{getAllRanges().length}</Badge>
                   </TabsTrigger>
                   <TabsTrigger value="delegation" className="data-[state=active]:bg-accent">
                     <Link2 className="h-4 w-4 mr-2" />
-                    Prefix Delegation
+                    {t("content.tabs.delegation")}
                     <Badge variant="secondary" className="ml-2">{getAllPDs().length}</Badge>
                   </TabsTrigger>
                   <TabsTrigger value="static" className="data-[state=active]:bg-accent">
                     <MapPin className="h-4 w-4 mr-2" />
-                    Static Mappings
+                    {t("content.tabs.static")}
                     <Badge variant="secondary" className="ml-2">{getAllMappings().length}</Badge>
                   </TabsTrigger>
                 </TabsList>
@@ -574,12 +577,12 @@ export function DHCPv6ServerContent() {
                 <div className="p-6 h-full flex flex-col">
                   <div className="flex items-center justify-between mb-4">
                     <div className="text-sm text-muted-foreground">
-                      {currentNetwork.subnets.length} subnet{currentNetwork.subnets.length !== 1 ? "s" : ""}
+                      {t("content.subnetCount", { count: currentNetwork.subnets.length })}
                     </div>
                     {hasWrite && (
                       <Button size="sm" onClick={openAddSubnet}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Subnet
+                        {t("subnetModal.addSubnet")}
                       </Button>
                     )}
                   </div>
@@ -588,12 +591,12 @@ export function DHCPv6ServerContent() {
                       {currentNetwork.subnets.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-12">
                           <Network className="h-12 w-12 text-muted-foreground mb-4" />
-                          <h3 className="text-lg font-semibold mb-2">No Subnets</h3>
-                          <p className="text-sm text-muted-foreground mb-4">Add a subnet to this network</p>
+                          <h3 className="text-lg font-semibold mb-2">{t("content.noSubnets")}</h3>
+                          <p className="text-sm text-muted-foreground mb-4">{t("content.noSubnetsHint")}</p>
                           {hasWrite && (
                             <Button onClick={openAddSubnet}>
                               <Plus className="h-4 w-4 mr-2" />
-                              Add Subnet
+                              {t("subnetModal.addSubnet")}
                             </Button>
                           )}
                         </div>
@@ -601,14 +604,14 @@ export function DHCPv6ServerContent() {
                         <Table>
                           <TableHeader>
                             <TableRow className="hover:bg-transparent">
-                              <TableHead>Subnet</TableHead>
+                              <TableHead>{t("subnet")}</TableHead>
                               {caps?.features.subnet_id.supported && <TableHead>ID</TableHead>}
-                              <TableHead>Lease Default</TableHead>
-                              <TableHead>Ranges</TableHead>
+                              <TableHead>{t("content.columns.leaseDefault")}</TableHead>
+                              <TableHead>{t("networkModal.tabs.ranges")}</TableHead>
                               <TableHead>PD</TableHead>
-                              <TableHead>Mappings</TableHead>
-                              <TableHead>Name Servers</TableHead>
-                              <TableHead className="text-right">Actions</TableHead>
+                              <TableHead>{t("content.columns.mappings")}</TableHead>
+                              <TableHead>{t("subnetModal.nameServers")}</TableHead>
+                              <TableHead className="text-right">{tc("actions")}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -624,7 +627,7 @@ export function DHCPv6ServerContent() {
                                 )}
                                 <TableCell>
                                   {subnet.lease_default != null
-                                    ? `${subnet.lease_default}s`
+                                    ? t("content.seconds", { value: String(subnet.lease_default) })
                                     : <span className="text-muted-foreground">—</span>}
                                 </TableCell>
                                 <TableCell>
@@ -683,13 +686,13 @@ export function DHCPv6ServerContent() {
                 <div className="p-6 h-full flex flex-col">
                   <div className="flex items-center gap-4 mb-4">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">Subnet:</span>
+                      <span className="text-sm text-muted-foreground">{t("content.subnetLabel")}</span>
                       <Select value={rangeSubnetFilter} onValueChange={setRangeSubnetFilter}>
                         <SelectTrigger className="w-[220px]">
-                          <SelectValue placeholder="All Subnets" />
+                          <SelectValue placeholder={t("content.allSubnets")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All Subnets</SelectItem>
+                          <SelectItem value="all">{t("content.allSubnets")}</SelectItem>
                           {allSubnetCidrs.map(s => (
                             <SelectItem key={s} value={s}>{s}</SelectItem>
                           ))}
@@ -699,11 +702,11 @@ export function DHCPv6ServerContent() {
                     {hasWrite && (
                       <Button size="sm" onClick={openAddRange} disabled={allSubnetCidrs.length === 0}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Range
+                        {t("range.addRange")}
                       </Button>
                     )}
                     <div className="text-sm text-muted-foreground ml-auto">
-                      {filteredRanges.length} range{filteredRanges.length !== 1 ? "s" : ""}
+                      {t("content.rangeCount", { count: filteredRanges.length })}
                     </div>
                   </div>
                   <Card className="flex-1 overflow-hidden">
@@ -711,20 +714,20 @@ export function DHCPv6ServerContent() {
                       {filteredRanges.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-12">
                           <Settings2 className="h-12 w-12 text-muted-foreground mb-4" />
-                          <h3 className="text-lg font-semibold mb-2">No Address Ranges</h3>
-                          <p className="text-sm text-muted-foreground">No address ranges configured</p>
+                          <h3 className="text-lg font-semibold mb-2">{t("content.noRanges")}</h3>
+                          <p className="text-sm text-muted-foreground">{t("content.noRangesHint")}</p>
                         </div>
                       ) : (
                         <Table>
                           <TableHeader>
                             <TableRow className="hover:bg-transparent">
-                              <TableHead>Subnet</TableHead>
-                              {namedRanges && <TableHead>Range ID</TableHead>}
-                              <TableHead>Start</TableHead>
-                              <TableHead>Stop</TableHead>
-                              <TableHead>Prefix</TableHead>
-                              {classicRanges && <TableHead>Temporary</TableHead>}
-                              <TableHead className="text-right">Actions</TableHead>
+                              <TableHead>{t("subnet")}</TableHead>
+                              {namedRanges && <TableHead>{t("content.columns.rangeId")}</TableHead>}
+                              <TableHead>{t("pd.start")}</TableHead>
+                              <TableHead>{t("pd.stop")}</TableHead>
+                              <TableHead>{t("range.prefix")}</TableHead>
+                              {classicRanges && <TableHead>{t("content.columns.temporary")}</TableHead>}
+                              <TableHead className="text-right">{tc("actions")}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -746,7 +749,7 @@ export function DHCPv6ServerContent() {
                                 {classicRanges && (
                                   <TableCell>
                                     {r.temporary
-                                      ? <Badge variant="secondary">Yes</Badge>
+                                      ? <Badge variant="secondary">{t("content.yes")}</Badge>
                                       : <span className="text-muted-foreground">—</span>}
                                   </TableCell>
                                 )}
@@ -783,13 +786,13 @@ export function DHCPv6ServerContent() {
                 <div className="p-6 h-full flex flex-col">
                   <div className="flex items-center gap-4 mb-4">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">Subnet:</span>
+                      <span className="text-sm text-muted-foreground">{t("content.subnetLabel")}</span>
                       <Select value={pdSubnetFilter} onValueChange={setPdSubnetFilter}>
                         <SelectTrigger className="w-[220px]">
-                          <SelectValue placeholder="All Subnets" />
+                          <SelectValue placeholder={t("content.allSubnets")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All Subnets</SelectItem>
+                          <SelectItem value="all">{t("content.allSubnets")}</SelectItem>
                           {allSubnetCidrs.map(s => (
                             <SelectItem key={s} value={s}>{s}</SelectItem>
                           ))}
@@ -799,11 +802,11 @@ export function DHCPv6ServerContent() {
                     {hasWrite && (
                       <Button size="sm" onClick={openAddPD} disabled={allSubnetCidrs.length === 0}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Delegation
+                        {t("pd.addDelegation")}
                       </Button>
                     )}
                     <div className="text-sm text-muted-foreground ml-auto">
-                      {filteredPDs.length} delegation{filteredPDs.length !== 1 ? "s" : ""}
+                      {t("content.delegationCount", { count: filteredPDs.length })}
                     </div>
                   </div>
                   <Card className="flex-1 overflow-hidden">
@@ -811,20 +814,20 @@ export function DHCPv6ServerContent() {
                       {filteredPDs.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-12">
                           <Link2 className="h-12 w-12 text-muted-foreground mb-4" />
-                          <h3 className="text-lg font-semibold mb-2">No Prefix Delegations</h3>
-                          <p className="text-sm text-muted-foreground">No prefix delegations configured</p>
+                          <h3 className="text-lg font-semibold mb-2">{t("content.noDelegations")}</h3>
+                          <p className="text-sm text-muted-foreground">{t("content.noDelegationsHint")}</p>
                         </div>
                       ) : pdV15 ? (
                         <Table>
                           <TableHeader>
                             <TableRow className="hover:bg-transparent">
-                              <TableHead>Subnet</TableHead>
-                              <TableHead>Prefix</TableHead>
-                              <TableHead>Delegated Len</TableHead>
-                              <TableHead>Prefix Len</TableHead>
-                              <TableHead>Excluded Prefix</TableHead>
-                              <TableHead>Excl. Len</TableHead>
-                              <TableHead className="text-right">Actions</TableHead>
+                              <TableHead>{t("subnet")}</TableHead>
+                              <TableHead>{t("range.prefix")}</TableHead>
+                              <TableHead>{t("content.columns.delegatedLen")}</TableHead>
+                              <TableHead>{t("content.columns.prefixLen")}</TableHead>
+                              <TableHead>{t("content.columns.excludedPrefix")}</TableHead>
+                              <TableHead>{t("content.columns.excludedLen")}</TableHead>
+                              <TableHead className="text-right">{tc("actions")}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -870,11 +873,11 @@ export function DHCPv6ServerContent() {
                         <Table>
                           <TableHeader>
                             <TableRow className="hover:bg-transparent">
-                              <TableHead>Subnet</TableHead>
-                              <TableHead>Start</TableHead>
-                              <TableHead>Stop</TableHead>
-                              <TableHead>Prefix Length</TableHead>
-                              <TableHead className="text-right">Actions</TableHead>
+                              <TableHead>{t("subnet")}</TableHead>
+                              <TableHead>{t("pd.start")}</TableHead>
+                              <TableHead>{t("pd.stop")}</TableHead>
+                              <TableHead>{t("content.columns.prefixLength")}</TableHead>
+                              <TableHead className="text-right">{tc("actions")}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -925,13 +928,13 @@ export function DHCPv6ServerContent() {
                 <div className="p-6 h-full flex flex-col">
                   <div className="flex items-center gap-4 mb-4">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">Subnet:</span>
+                      <span className="text-sm text-muted-foreground">{t("content.subnetLabel")}</span>
                       <Select value={staticSubnetFilter} onValueChange={setStaticSubnetFilter}>
                         <SelectTrigger className="w-[220px]">
-                          <SelectValue placeholder="All Subnets" />
+                          <SelectValue placeholder={t("content.allSubnets")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All Subnets</SelectItem>
+                          <SelectItem value="all">{t("content.allSubnets")}</SelectItem>
                           {allSubnetCidrs.map(s => (
                             <SelectItem key={s} value={s}>{s}</SelectItem>
                           ))}
@@ -941,11 +944,11 @@ export function DHCPv6ServerContent() {
                     {hasWrite && (
                       <Button size="sm" onClick={openAddMapping} disabled={allSubnetCidrs.length === 0}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Mapping
+                        {t("mapping.addMapping")}
                       </Button>
                     )}
                     <div className="text-sm text-muted-foreground ml-auto">
-                      {filteredMappings.length} mapping{filteredMappings.length !== 1 ? "s" : ""}
+                      {t("content.mappingCount", { count: filteredMappings.length })}
                     </div>
                   </div>
                   <Card className="flex-1 overflow-hidden">
@@ -953,23 +956,23 @@ export function DHCPv6ServerContent() {
                       {filteredMappings.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-12">
                           <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
-                          <h3 className="text-lg font-semibold mb-2">No Static Mappings</h3>
-                          <p className="text-sm text-muted-foreground">No static IPv6 mappings configured</p>
+                          <h3 className="text-lg font-semibold mb-2">{t("content.noMappings")}</h3>
+                          <p className="text-sm text-muted-foreground">{t("content.noMappingsHint")}</p>
                         </div>
                       ) : (
                         <Table>
                           <TableHeader>
                             <TableRow className="hover:bg-transparent">
-                              <TableHead>Name</TableHead>
-                              <TableHead>Subnet</TableHead>
+                              <TableHead>{tc("name")}</TableHead>
+                              <TableHead>{t("subnet")}</TableHead>
                               <TableHead>
-                                {caps?.features.static_mapping_mac.supported ? "DUID" : "Client ID"}
+                                {caps?.features.static_mapping_mac.supported ? "DUID" : t("content.columns.clientId")}
                               </TableHead>
                               {caps?.features.static_mapping_mac.supported && <TableHead>MAC</TableHead>}
-                              <TableHead>IPv6 Address</TableHead>
-                              <TableHead>IPv6 Prefix</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead className="text-right">Actions</TableHead>
+                              <TableHead>{t("mapping.ipv6Address")}</TableHead>
+                              <TableHead>{t("mapping.ipv6Prefix")}</TableHead>
+                              <TableHead>{tc("status")}</TableHead>
+                              <TableHead className="text-right">{tc("actions")}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1002,7 +1005,7 @@ export function DHCPv6ServerContent() {
                                         : "bg-green-500/10 text-green-500 border-green-500/20"
                                     )}
                                   >
-                                    {m.disabled ? "Disabled" : "Active"}
+                                    {m.disabled ? tc("disabled") : t("content.active")}
                                   </Badge>
                                 </TableCell>
                                 <TableCell className="text-right">
@@ -1038,14 +1041,14 @@ export function DHCPv6ServerContent() {
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center space-y-4">
               <Server className="h-16 w-16 text-muted-foreground mx-auto" />
-              <h2 className="text-xl font-semibold">No DHCPv6 Servers</h2>
+              <h2 className="text-xl font-semibold">{t("content.noServers")}</h2>
               <p className="text-muted-foreground max-w-md">
-                Get started by creating your first DHCPv6 server to manage IPv6 address allocation.
+                {t("content.noServersDescription")}
               </p>
               {hasWrite && (
                 <Button onClick={() => { setEditingNetwork(null); setNetworkModalOpen(true); }}>
                   <Plus className="h-4 w-4 mr-2" />
-                  New Server
+                  {t("content.newServer")}
                 </Button>
               )}
             </div>
@@ -1061,14 +1064,14 @@ export function DHCPv6ServerContent() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {deleteTarget?.kind === "network" && `Delete Network "${deleteTarget.name}"?`}
-              {deleteTarget?.kind === "subnet" && `Delete Subnet "${deleteTarget.subnetCidr}"?`}
-              {deleteTarget?.kind === "range" && "Delete Address Range?"}
-              {deleteTarget?.kind === "pd" && "Delete Prefix Delegation?"}
-              {deleteTarget?.kind === "mapping" && `Delete Mapping "${deleteTarget.kind === "mapping" ? deleteTarget.mapping.name : ""}"?`}
+              {deleteTarget?.kind === "network" && t("deleteDialog.network", { name: deleteTarget.name })}
+              {deleteTarget?.kind === "subnet" && t("deleteDialog.subnet", { subnet: deleteTarget.subnetCidr })}
+              {deleteTarget?.kind === "range" && t("deleteDialog.range")}
+              {deleteTarget?.kind === "pd" && t("deleteDialog.pd")}
+              {deleteTarget?.kind === "mapping" && t("deleteDialog.mapping", { name: deleteTarget.kind === "mapping" ? deleteTarget.mapping.name : "" })}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone and will remove the configuration from VyOS.
+              {t("deleteDialog.description")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {deleteError && (
@@ -1078,14 +1081,14 @@ export function DHCPv6ServerContent() {
             </div>
           )}
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteLoading}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => { e.preventDefault(); handleDelete(); }}
               disabled={deleteLoading}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Delete
+              {tc("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1099,19 +1102,22 @@ export function DHCPv6ServerContent() {
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>
-              {disableTarget?.currentlyDisabled ? "Enable" : "Disable"}{" "}
               {disableTarget?.kind === "server"
-                ? "DHCPv6 Server"
-                : `Network "${disableTarget?.kind === "network" ? disableTarget.name : ""}"`}
+                ? disableTarget.currentlyDisabled
+                  ? t("toggle.enableServerTitle")
+                  : t("toggle.disableServerTitle")
+                : disableTarget?.currentlyDisabled
+                  ? t("toggle.enableNetworkTitle", { name: disableTarget?.kind === "network" ? disableTarget.name : "" })
+                  : t("toggle.disableNetworkTitle", { name: disableTarget?.kind === "network" ? disableTarget.name : "" })}
             </DialogTitle>
             <DialogDescription>
               {disableTarget?.kind === "server"
                 ? disableTarget.currentlyDisabled
-                  ? "This will enable the DHCPv6 server globally."
-                  : "This will disable the DHCPv6 server globally. No networks will serve requests until re-enabled."
+                  ? t("toggle.enableServerDescription")
+                  : t("toggle.disableServerDescription")
                 : disableTarget?.currentlyDisabled
-                  ? `Enable network "${disableTarget?.kind === "network" ? disableTarget.name : ""}"? It will resume serving DHCPv6 requests.`
-                  : `Disable network "${disableTarget?.kind === "network" ? disableTarget.name : ""}"? It will stop serving DHCPv6 requests.`
+                  ? t("toggle.enableNetworkDescription", { name: disableTarget?.kind === "network" ? disableTarget.name : "" })
+                  : t("toggle.disableNetworkDescription", { name: disableTarget?.kind === "network" ? disableTarget.name : "" })
               }
             </DialogDescription>
           </DialogHeader>
@@ -1127,7 +1133,7 @@ export function DHCPv6ServerContent() {
               onClick={() => { setDisableTarget(null); setDisableError(null); }}
               disabled={disableLoading}
             >
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button
               variant={disableTarget?.currentlyDisabled ? "default" : "destructive"}
@@ -1135,8 +1141,8 @@ export function DHCPv6ServerContent() {
               disabled={disableLoading}
             >
               {disableLoading
-                ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processing...</>
-                : disableTarget?.currentlyDisabled ? "Enable" : "Disable"
+                ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{t("toggle.processing")}</>
+                : disableTarget?.currentlyDisabled ? t("toggle.enable") : t("toggle.disable")
               }
             </Button>
           </DialogFooter>

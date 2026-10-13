@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Area,
   AreaChart,
@@ -52,7 +53,8 @@ function metricKeys(metric: ChartMetric): { rx: string; tx: string } {
   return { rx: "rxRate", tx: "txRate" };
 }
 
-export function PPPoEStatsChart({ points, height = 260, emptyLabel = "Waiting for PPPoE samples...", sessionsOnly = false }: PPPoEStatsChartProps) {
+export function PPPoEStatsChart({ points, height = 260, emptyLabel, sessionsOnly = false }: PPPoEStatsChartProps) {
+  const t = useTranslations("pppoeServer.statsChart");
   const [metric, setMetric] = useState<ChartMetric>(sessionsOnly ? "sessions" : "rate");
   const keys = metricKeys(metric);
   const chartData = points.map((point) => ({
@@ -65,7 +67,7 @@ export function PPPoEStatsChart({ points, height = 260, emptyLabel = "Waiting fo
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           {sessionsOnly ? (
-            <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-cyan-500" /> Active sessions</span>
+            <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-cyan-500" /> {t("activeSessions")}</span>
           ) : (
             <>
               <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-cyan-500" /> RX</span>
@@ -78,17 +80,17 @@ export function PPPoEStatsChart({ points, height = 260, emptyLabel = "Waiting fo
             value={metric}
             onChange={(event) => setMetric(event.target.value as ChartMetric)}
             className="h-8 rounded-md border bg-background px-2 text-xs"
-            aria-label="PPPoE chart metric"
+            aria-label={t("metricLabel")}
           >
-            <option value="rate">Current rate</option>
-            <option value="pps">Packets per second</option>
-            <option value="traffic">Total traffic</option>
+            <option value="rate">{t("currentRate")}</option>
+            <option value="pps">{t("packetsPerSecond")}</option>
+            <option value="traffic">{t("totalTraffic")}</option>
           </select>
         )}
       </div>
       {chartData.length === 0 ? (
         <div className="flex items-center justify-center text-sm text-muted-foreground" style={{ height }}>
-          {emptyLabel}
+          {emptyLabel ?? t("waiting")}
         </div>
       ) : (
         <div style={{ height }}>
@@ -113,7 +115,7 @@ export function PPPoEStatsChart({ points, height = 260, emptyLabel = "Waiting fo
                 domain={[0, 'dataMax']}
               />
               <Tooltip formatter={(value) => formatValue(Number(value), metric)} />
-              <Area type="monotone" dataKey={keys.rx} name={sessionsOnly ? "Active sessions" : "RX"} stroke="#06b6d4" fill="url(#pppoe-rx-fill)" strokeWidth={2} isAnimationActive={false} />
+              <Area type="monotone" dataKey={keys.rx} name={sessionsOnly ? t("activeSessions") : "RX"} stroke="#06b6d4" fill="url(#pppoe-rx-fill)" strokeWidth={2} isAnimationActive={false} />
               {!sessionsOnly && <Area type="monotone" dataKey={keys.tx} name="TX" stroke="#f97316" fill="url(#pppoe-tx-fill)" strokeWidth={2} isAnimationActive={false} />}
             </AreaChart>
           </ResponsiveContainer>

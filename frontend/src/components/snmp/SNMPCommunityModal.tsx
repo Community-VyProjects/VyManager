@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -44,6 +45,8 @@ export function SNMPCommunityModal({
   capabilities,
   onSuccess,
 }: SNMPCommunityModalProps) {
+  const t = useTranslations("snmp");
+  const tc = useTranslations("common");
   const isEdit = existing !== null;
   const comm = capabilities.features.community;
 
@@ -60,11 +63,11 @@ export function SNMPCommunityModal({
   const handleSubmit = async () => {
     const n = name.trim();
     if (!n) {
-      setError("A community name is required");
+      setError(t("community.nameRequired"));
       return;
     }
     if (!isEdit && existingNames.includes(n)) {
-      setError(`Community "${n}" already exists`);
+      setError(t("community.exists", { name: n }));
       return;
     }
     setSubmitting(true);
@@ -79,7 +82,7 @@ export function SNMPCommunityModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -89,19 +92,19 @@ export function SNMPCommunityModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Community" : "Add Community"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("community.editTitle") : t("community.addTitle")}</DialogTitle>
           <DialogDescription>
-            SNMPv1/v2c community string and the clients permitted to use it
+            {t("community.description")}
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[60vh] pr-4">
           <div className="space-y-5 py-1">
             <div className="space-y-1.5">
-              <Label htmlFor="community-name">Community Name</Label>
+              <Label htmlFor="community-name">{t("community.name")}</Label>
               <Input
                 id="community-name"
-                placeholder="e.g. public"
+                placeholder={t("community.namePlaceholder")}
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value);
@@ -113,18 +116,18 @@ export function SNMPCommunityModal({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Authorization</Label>
+              <Label className="text-sm font-medium">{t("content.authorization")}</Label>
               <Select value={authorization} onValueChange={setAuthorization}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={DEFAULT_AUTH}>
-                    Default ({comm.default_authorization === "ro" ? "Read-Only" : "Read-Write"})
+                    {t("community.defaultAuth", { value: comm.default_authorization === "ro" ? t("content.readOnlyAuth") : t("content.readWrite") })}
                   </SelectItem>
                   {comm.authorization_values.map((v) => (
                     <SelectItem key={v} value={v}>
-                      {v === "ro" ? "Read-Only (ro)" : "Read-Write (rw)"}
+                      {v === "ro" ? t("community.readOnlyRo") : t("community.readWriteRw")}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -134,26 +137,26 @@ export function SNMPCommunityModal({
             <Separator />
 
             <SNMPMultiValueField
-              label="Allowed Clients"
-              description="Individual SNMP client IP addresses allowed to use this community"
-              placeholder="e.g. 192.0.2.10"
+              label={t("community.allowedClients")}
+              description={t("community.allowedClientsHelp")}
+              placeholder={t("community.clientPlaceholder")}
               values={clients}
               onChange={setClients}
               validate={(v) =>
-                isValidIP(v) ? null : "Enter a valid IPv4 or IPv6 address"
+                isValidIP(v) ? null : t("validation.invalidIp")
               }
             />
 
             <Separator />
 
             <SNMPMultiValueField
-              label="Allowed Networks"
-              description="Client subnets allowed to use this community (default: 0.0.0.0/0, ::/0)"
-              placeholder="e.g. 192.0.2.0/24"
+              label={t("community.allowedNetworks")}
+              description={t("community.allowedNetworksHelp")}
+              placeholder={t("community.networkPlaceholder")}
               values={networks}
               onChange={setNetworks}
               validate={(v) =>
-                isValidIP(v, true) ? null : "Enter a valid IPv4/IPv6 network in CIDR notation"
+                isValidIP(v, true) ? null : t("validation.invalidCidr")
               }
             />
           </div>
@@ -168,11 +171,11 @@ export function SNMPCommunityModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isEdit ? "Save" : "Add"}
+            {isEdit ? tc("save") : tc("add")}
           </Button>
         </DialogFooter>
       </DialogContent>

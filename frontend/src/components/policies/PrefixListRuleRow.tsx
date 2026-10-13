@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TableRow, TableCell } from "@/components/ui/table";
 import type { PrefixListRule } from "@/lib/api/prefix-list";
+import { useTranslations } from "next-intl";
 
 interface PrefixListRuleRowProps {
   rule: PrefixListRule;
@@ -15,6 +16,8 @@ interface PrefixListRuleRowProps {
 }
 
 export function PrefixListRuleRow({ rule, onEdit, onDelete }: PrefixListRuleRowProps) {
+  const t = useTranslations("prefixList");
+  const tc = useTranslations("common");
   const {
     attributes,
     listeners,
@@ -53,7 +56,7 @@ export function PrefixListRuleRow({ rule, onEdit, onDelete }: PrefixListRuleRowP
               : "capitalize bg-red-500/10 text-red-500 border-red-500/20"
           }
         >
-          {rule.action}
+          {rule.action === "permit" ? t("form.permit") : rule.action === "deny" ? t("form.deny") : rule.action}
         </Badge>
       </TableCell>
       <TableCell>
@@ -97,7 +100,7 @@ export function PrefixListRuleRow({ rule, onEdit, onDelete }: PrefixListRuleRowP
             className="h-8"
           >
             <Pencil className="h-4 w-4 mr-1" />
-            Edit
+            {tc("edit")}
           </Button>
           <Button
             variant="ghost"
@@ -106,7 +109,7 @@ export function PrefixListRuleRow({ rule, onEdit, onDelete }: PrefixListRuleRowP
             className="h-8 text-destructive hover:text-destructive"
           >
             <Trash2 className="h-4 w-4 mr-1" />
-            Delete
+            {tc("delete")}
           </Button>
         </div>
       </TableCell>

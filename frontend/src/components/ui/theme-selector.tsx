@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Palette, Pencil, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -62,6 +63,7 @@ function ThemeCard({
 }
 
 export function ThemeSelector() {
+  const t = useTranslations("sharedUi");
   const { themeId, setThemeId, allThemes, removeCustomTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -97,7 +99,7 @@ export function ThemeSelector() {
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-64 p-3" align="start" side="top">
-          <p className="text-xs font-medium text-muted-foreground mb-2">Theme</p>
+          <p className="text-xs font-medium text-muted-foreground mb-2">{t("theme.title")}</p>
           <div className="grid grid-cols-2 gap-2">
             {allThemes.map((theme) => (
               <ThemeCard
@@ -118,7 +120,7 @@ export function ThemeSelector() {
             onClick={openCreate}
           >
             <Plus className="h-3 w-3" />
-            Create custom theme
+            {t("theme.createCustom")}
           </Button>
         </PopoverContent>
       </Popover>

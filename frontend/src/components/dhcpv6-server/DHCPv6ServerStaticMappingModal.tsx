@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -47,9 +48,11 @@ export function DHCPv6ServerStaticMappingModal({
   onClose,
   onSuccess,
 }: Props) {
+  const t = useTranslations("dhcpv6Server");
+  const tc = useTranslations("common");
   const isEditing = mapping !== null;
   const showMac = caps.features.static_mapping_mac.supported;
-  const duidLabel = showMac ? "DUID" : "Client Identifier";
+  const duidLabel = showMac ? "DUID" : t("mapping.clientIdentifier");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +84,7 @@ export function DHCPv6ServerStaticMappingModal({
   }, [open, mapping]);
 
   async function handleSubmit() {
-    if (!isEditing && !name.trim()) { setError("Mapping name is required"); return; }
+    if (!isEditing && !name.trim()) { setError(t("mapping.errors.nameRequired")); return; }
     setLoading(true);
     setError(null);
 
@@ -94,10 +97,10 @@ export function DHCPv6ServerStaticMappingModal({
       ipv6_prefix: ipv6Prefix.trim() || null,
     };
 
-    if (!selectedSubnet) { setError("Select a subnet"); setLoading(false); return; }
+    if (!selectedSubnet) { setError(t("range.errors.selectSubnet")); setLoading(false); return; }
     const result = await dhcpv6ServerService.saveStaticMapping(netName, selectedSubnet, mapping, updated);
     setLoading(false);
-    if (!result.success) { setError(result.error ?? "Operation failed"); return; }
+    if (!result.success) { setError(result.error ?? tc("operationFailed")); return; }
     onSuccess();
     onClose();
   }
@@ -106,16 +109,16 @@ export function DHCPv6ServerStaticMappingModal({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit Static Mapping" : "Add Static Mapping"}</DialogTitle>
+          <DialogTitle>{isEditing ? t("mapping.editTitle") : t("mapping.addTitle")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-1">
           {!isEditing && availableSubnets && availableSubnets.length > 1 ? (
             <div className="space-y-1.5">
-              <Label>Subnet</Label>
+              <Label>{t("subnet")}</Label>
               <Select value={selectedSubnet} onValueChange={setSelectedSubnet}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select subnet" />
+                  <SelectValue placeholder={t("selectSubnet")} />
                 </SelectTrigger>
                 <SelectContent>
                   {availableSubnets.map(s => (
@@ -126,12 +129,12 @@ export function DHCPv6ServerStaticMappingModal({
             </div>
           ) : (
             <div className="text-xs text-muted-foreground font-mono">
-              Network: {netName}{selectedSubnet ? ` / Subnet: ${selectedSubnet}` : ""}
+              {t("networkLine", { network: netName })}{selectedSubnet ? t("subnetSuffix", { subnet: selectedSubnet }) : ""}
             </div>
           )}
 
           <div className="space-y-1.5">
-            <Label htmlFor="map-name">Mapping Name</Label>
+            <Label htmlFor="map-name">{t("mapping.name")}</Label>
             <Input
               id="map-name"
               placeholder="client1"
@@ -147,14 +150,14 @@ export function DHCPv6ServerStaticMappingModal({
               checked={disabled}
               onCheckedChange={(v) => setDisabled(Boolean(v))}
             />
-            <Label htmlFor="map-disabled" className="cursor-pointer">Disable this mapping</Label>
+            <Label htmlFor="map-disabled" className="cursor-pointer">{t("mapping.disable")}</Label>
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="map-duid">{duidLabel}</Label>
             <Input
               id="map-duid"
-              placeholder="Optional"
+              placeholder={tc("optional")}
               value={duid}
               onChange={(e) => setDuid(e.target.value)}
             />
@@ -162,10 +165,10 @@ export function DHCPv6ServerStaticMappingModal({
 
           {showMac && (
             <div className="space-y-1.5">
-              <Label htmlFor="map-mac">MAC Address</Label>
+              <Label htmlFor="map-mac">{t("mapping.macAddress")}</Label>
               <Input
                 id="map-mac"
-                placeholder="00:11:22:33:44:55 (optional)"
+                placeholder={t("optionalExample", { example: "00:11:22:33:44:55" })}
                 value={mac}
                 onChange={(e) => setMac(e.target.value)}
               />
@@ -173,20 +176,20 @@ export function DHCPv6ServerStaticMappingModal({
           )}
 
           <div className="space-y-1.5">
-            <Label htmlFor="map-addr">IPv6 Address</Label>
+            <Label htmlFor="map-addr">{t("mapping.ipv6Address")}</Label>
             <Input
               id="map-addr"
-              placeholder="2001:db8::1 (optional)"
+              placeholder={t("optionalExample", { example: "2001:db8::1" })}
               value={ipv6Address}
               onChange={(e) => setIpv6Address(e.target.value)}
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="map-prefix">IPv6 Prefix</Label>
+            <Label htmlFor="map-prefix">{t("mapping.ipv6Prefix")}</Label>
             <Input
               id="map-prefix"
-              placeholder="2001:db8::/64 (optional)"
+              placeholder={t("optionalExample", { example: "2001:db8::/64" })}
               value={ipv6Prefix}
               onChange={(e) => setIpv6Prefix(e.target.value)}
             />
@@ -201,10 +204,10 @@ export function DHCPv6ServerStaticMappingModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isEditing ? "Save" : "Add Mapping"}
+            {isEditing ? tc("save") : t("mapping.addMapping")}
           </Button>
         </DialogFooter>
       </DialogContent>

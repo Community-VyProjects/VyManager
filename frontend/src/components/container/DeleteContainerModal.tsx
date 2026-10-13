@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -22,6 +23,8 @@ interface Props {
 }
 
 export function DeleteContainerModal({ open, onOpenChange, container, onConfirm }: Props) {
+  const t = useTranslations("containers");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,7 +34,7 @@ export function DeleteContainerModal({ open, onOpenChange, container, onConfirm 
     try {
       await onConfirm();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to delete container");
+      setError(err instanceof Error ? err.message : t("deleteModal.failed"));
       setLoading(false);
       return;
     }
@@ -47,14 +50,19 @@ export function DeleteContainerModal({ open, onOpenChange, container, onConfirm 
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Container</AlertDialogTitle>
+          <AlertDialogTitle>{t("deleteModal.title")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete container{" "}
-            <span className="font-mono font-semibold">{container?.name}</span>?
+            {t.rich("deleteModal.confirm", {
+              name: container?.name ?? "",
+              mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+            })}
             {container?.image && (
-              <> (image: <span className="font-mono">{container.image}</span>)</>
+              <>{t.rich("deleteModal.image", {
+                image: container.image,
+                mono: (chunks) => <span className="font-mono">{chunks}</span>,
+              })}</>
             )}{" "}
-            This action cannot be undone.
+            {t("deleteModal.irreversible")}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -66,7 +74,7 @@ export function DeleteContainerModal({ open, onOpenChange, container, onConfirm 
         )}
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
           <Button
             onClick={handleConfirm}
             disabled={loading}
@@ -75,10 +83,10 @@ export function DeleteContainerModal({ open, onOpenChange, container, onConfirm 
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting…
+                {t("deleteModal.deleting")}
               </>
             ) : (
-              "Delete Container"
+              t("deleteModal.title")
             )}
           </Button>
         </AlertDialogFooter>

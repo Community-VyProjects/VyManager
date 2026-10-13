@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,7 @@ interface LocalRouteRuleRowProps {
 }
 
 export function LocalRouteRuleRow({ rule, onEdit, onDelete }: LocalRouteRuleRowProps) {
+  const tc = useTranslations("common");
   const {
     attributes,
     listeners,
@@ -52,8 +54,8 @@ export function LocalRouteRuleRow({ rule, onEdit, onDelete }: LocalRouteRuleRowP
       <TableCell>
         {rule.source || rule.source_port ? (
           <span className="font-mono text-sm">
-            {rule.source || "any"}
-            {rule.source_port ? ` port ${rule.source_port}` : ""}
+            {rule.source || tc("shown.any")}
+            {rule.source_port ? ` ${tc("shown.port")} ${rule.source_port}` : ""}
           </span>
         ) : (
           <span className="text-muted-foreground text-sm">—</span>
@@ -64,8 +66,8 @@ export function LocalRouteRuleRow({ rule, onEdit, onDelete }: LocalRouteRuleRowP
       <TableCell>
         {rule.destination || rule.destination_port ? (
           <span className="font-mono text-sm">
-            {rule.destination || "any"}
-            {rule.destination_port ? ` port ${rule.destination_port}` : ""}
+            {rule.destination || tc("shown.any")}
+            {rule.destination_port ? ` ${tc("shown.port")} ${rule.destination_port}` : ""}
           </span>
         ) : (
           <span className="text-muted-foreground text-sm">—</span>

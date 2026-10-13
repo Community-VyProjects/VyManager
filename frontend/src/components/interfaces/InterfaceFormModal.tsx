@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -39,6 +40,8 @@ export function InterfaceFormModal({
   interface: editInterface,
   mode,
 }: InterfaceFormModalProps) {
+  const t = useTranslations("sharedMisc");
+  const tc = useTranslations("common");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<CreateInterfaceRequest>({
     name: "",
@@ -143,12 +146,12 @@ export function InterfaceFormModal({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {mode === "create" ? "Create New Interface" : `Edit Interface: ${editInterface?.name}`}
+            {mode === "create" ? t("interfaceForm.createTitle") : t("interfaceForm.editTitle", { name: editInterface?.name ?? "" })}
           </DialogTitle>
           <DialogDescription>
             {mode === "create"
-              ? "Configure a new network interface for your VyOS router."
-              : "Update the configuration for this network interface."}
+              ? t("interfaceForm.createDescription")
+              : t("interfaceForm.editDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -156,7 +159,7 @@ export function InterfaceFormModal({
           <div className="grid grid-cols-2 gap-4">
             {/* Interface Name */}
             <div className="space-y-2">
-              <Label htmlFor="name">Interface Name *</Label>
+              <Label htmlFor="name">{t("interfaceForm.name")}</Label>
               <Input
                 id="name"
                 value={formData.name}
@@ -169,7 +172,7 @@ export function InterfaceFormModal({
 
             {/* Interface Type */}
             <div className="space-y-2">
-              <Label htmlFor="type">Type *</Label>
+              <Label htmlFor="type">{t("interfaceForm.type")}</Label>
               <Select
                 value={formData.type}
                 onValueChange={(value) =>
@@ -181,10 +184,10 @@ export function InterfaceFormModal({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ethernet">Ethernet</SelectItem>
+                  <SelectItem value="ethernet">{t("interfaceForm.types.ethernet")}</SelectItem>
                   <SelectItem value="wireguard">WireGuard</SelectItem>
-                  <SelectItem value="dummy">Dummy</SelectItem>
-                  <SelectItem value="loopback">Loopback</SelectItem>
+                  <SelectItem value="dummy">{t("interfaceForm.types.dummy")}</SelectItem>
+                  <SelectItem value="loopback">{t("interfaceForm.types.loopback")}</SelectItem>
                   <SelectItem value="pppoe">PPPoE</SelectItem>
                 </SelectContent>
               </Select>
@@ -193,23 +196,23 @@ export function InterfaceFormModal({
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{tc("description")}</Label>
             <Input
               id="description"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="e.g., LAN Interface"
+              placeholder={t("interfaceForm.descriptionPlaceholder")}
             />
           </div>
 
           {/* IP Addresses */}
           <div className="space-y-2">
-            <Label>IP Addresses</Label>
+            <Label>{t("interfaceForm.addresses")}</Label>
             <div className="flex gap-2">
               <Input
                 value={addressInput}
                 onChange={(e) => setAddressInput(e.target.value)}
-                placeholder="e.g., 192.168.1.1/24"
+                placeholder={t("interfaceForm.example", { value: "192.168.1.1/24" })}
                 onKeyPress={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
@@ -257,12 +260,12 @@ export function InterfaceFormModal({
           {/* Hardware ID (for Ethernet) */}
           {formData.type === "ethernet" && (
             <div className="space-y-2">
-              <Label htmlFor="hw-id">Hardware ID (MAC Address)</Label>
+              <Label htmlFor="hw-id">{t("interfaceForm.hwId")}</Label>
               <Input
                 id="hw-id"
                 value={formData["hw-id"]}
                 onChange={(e) => setFormData({ ...formData, "hw-id": e.target.value })}
-                placeholder="e.g., 00:11:22:33:44:55"
+                placeholder={t("interfaceForm.example", { value: "00:11:22:33:44:55" })}
               />
             </div>
           )}
@@ -270,23 +273,23 @@ export function InterfaceFormModal({
           {/* Source Interface (for PPPoE) */}
           {formData.type === "pppoe" && (
             <div className="space-y-2">
-              <Label htmlFor="source-interface">Source Interface</Label>
+              <Label htmlFor="source-interface">{t("interfaceForm.sourceInterface")}</Label>
               <Input
                 id="source-interface"
                 value={formData["source-interface"]}
                 onChange={(e) => setFormData({ ...formData, "source-interface": e.target.value })}
-                placeholder="e.g., eth0"
+                placeholder={t("interfaceForm.example", { value: "eth0" })}
               />
             </div>
           )}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {mode === "create" ? "Create Interface" : "Update Interface"}
+              {mode === "create" ? t("interfaceForm.create") : t("interfaceForm.update")}
             </Button>
           </DialogFooter>
         </form>

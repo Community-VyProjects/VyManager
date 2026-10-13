@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,8 @@ export function DeleteStaticMappingModal({
   subnet,
   mapping,
 }: DeleteStaticMappingModalProps) {
+  const t = useTranslations("dhcpServer");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,7 +52,7 @@ export function DeleteStaticMappingModal({
       onSuccess();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to delete static mapping"
+        err instanceof Error ? err.message : t("deleteMapping.failed")
       );
     } finally {
       setLoading(false);
@@ -62,11 +65,10 @@ export function DeleteStaticMappingModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-destructive">
             <AlertTriangle className="h-5 w-5" />
-            Delete Static Mapping
+            {t("deleteMapping.title")}
           </DialogTitle>
           <DialogDescription>
-            This action cannot be undone. The static mapping will be permanently
-            removed.
+            {t("deleteMapping.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -79,24 +81,24 @@ export function DeleteStaticMappingModal({
             </div>
 
             <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="text-muted-foreground">Network:</div>
+              <div className="text-muted-foreground">{t("networkLabel")}</div>
               <div className="font-medium">{networkName}</div>
 
-              <div className="text-muted-foreground">Subnet:</div>
+              <div className="text-muted-foreground">{t("subnetLabel")}</div>
               <div>
                 <Badge variant="outline">{subnet}</Badge>
               </div>
 
               {mapping.ip_address && (
                 <>
-                  <div className="text-muted-foreground">IP Address:</div>
+                  <div className="text-muted-foreground">{t("ipAddressLabel")}</div>
                   <div className="font-mono">{mapping.ip_address}</div>
                 </>
               )}
 
               {mapping.mac_address && (
                 <>
-                  <div className="text-muted-foreground">MAC Address:</div>
+                  <div className="text-muted-foreground">{t("macAddressLabel")}</div>
                   <div className="font-mono text-xs">{mapping.mac_address}</div>
                 </>
               )}
@@ -114,14 +116,14 @@ export function DeleteStaticMappingModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button
             variant="destructive"
             onClick={handleDelete}
             disabled={loading}
           >
-            {loading ? "Deleting..." : "Delete Mapping"}
+            {loading ? tc("deleting") : t("deleteMapping.confirm")}
           </Button>
         </DialogFooter>
       </DialogContent>

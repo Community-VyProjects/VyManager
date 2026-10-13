@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,6 +46,7 @@ export function TargetSelector({
   instances,
   lockedToId,
 }: TargetSelectorProps) {
+  const t = useTranslations("authentication");
   const [query, setQuery] = useState("");
   const [closedSites, setClosedSites] = useState<string[]>([]);
   const locked = !!lockedToId;
@@ -67,26 +69,26 @@ export function TargetSelector({
 
   return (
     <div className="space-y-2">
-      <Label>Target</Label>
+      <Label>{t("target.label")}</Label>
       <div className="flex gap-2">
-        {(["instance", "site"] as TargetType[]).map((t) => (
+        {(["instance", "site"] as TargetType[]).map((type) => (
           <Button
-            key={t}
+            key={type}
             type="button"
-            variant={targetType === t ? "default" : "outline"}
+            variant={targetType === type ? "default" : "outline"}
             size="sm"
             className="gap-1.5 flex-1"
             disabled={locked}
-            onClick={() => onTargetTypeChange(t)}
+            onClick={() => onTargetTypeChange(type)}
           >
-            {t === "instance" ? <Server className="h-3.5 w-3.5" /> : <Building2 className="h-3.5 w-3.5" />}
-            {t === "instance" ? "Instances" : "Whole sites"}
+            {type === "instance" ? <Server className="h-3.5 w-3.5" /> : <Building2 className="h-3.5 w-3.5" />}
+            {type === "instance" ? t("target.instances") : t("target.wholeSites")}
           </Button>
         ))}
       </div>
       {targetType === "site" && !locked && (
         <p className="text-xs text-muted-foreground">
-          Covers every instance in the site, including ones added later.
+          {t("target.siteHint")}
         </p>
       )}
 
@@ -95,7 +97,7 @@ export function TargetSelector({
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder={`Filter ${targetType === "site" ? "sites" : "instances"}…`}
+          placeholder={targetType === "site" ? t("target.filterSites") : t("target.filterInstances")}
           className="h-7 pl-7 text-xs"
         />
       </div>
@@ -103,7 +105,7 @@ export function TargetSelector({
       <div className="rounded-lg border border-border max-h-64 overflow-y-auto divide-y divide-border">
         {targetType === "site" ? (
           filteredSites.length === 0 ? (
-            <p className="px-3 py-2 text-sm text-muted-foreground">No matching sites</p>
+            <p className="px-3 py-2 text-sm text-muted-foreground">{t("target.noSites")}</p>
           ) : (
             filteredSites.map((s) => (
               <label key={s.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer">
@@ -117,7 +119,7 @@ export function TargetSelector({
             ))
           )
         ) : groupedInstances.length === 0 ? (
-          <p className="px-3 py-2 text-sm text-muted-foreground">No matching instances</p>
+          <p className="px-3 py-2 text-sm text-muted-foreground">{t("target.noInstances")}</p>
         ) : (
           groupedInstances.map(([siteName, list]) => {
             const isOpen = q !== "" || !closedSites.includes(siteName);

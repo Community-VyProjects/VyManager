@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Loader2, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { staticRoutesService, type NeighborProxyArp, type NeighborProxyNd } from "@/lib/api/static-routes";
 
 interface DeleteNeighborProxyModalProps {
@@ -28,6 +29,8 @@ export function DeleteNeighborProxyModal({
   entry,
   proxyType,
 }: DeleteNeighborProxyModalProps) {
+  const t = useTranslations("routingExtras");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,7 +51,7 @@ export function DeleteNeighborProxyModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete neighbor proxy entry");
+      setError(err instanceof Error ? err.message : t("deleteNeighborProxy.failed"));
     } finally {
       setLoading(false);
     }
@@ -66,10 +69,10 @@ export function DeleteNeighborProxyModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Trash2 className="h-5 w-5 text-destructive" />
-            Delete {proxyType === "arp" ? "ARP" : "ND"} Proxy Entry
+            {t("deleteNeighborProxy.title", { type: proxyType === "arp" ? "ARP" : "ND" })}
           </DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete this neighbor proxy entry?
+            {t("deleteNeighborProxy.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -83,19 +86,19 @@ export function DeleteNeighborProxyModal({
 
           <div className="bg-muted/50 rounded-lg p-4 space-y-2">
             <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">Type:</span>
+              <span className="text-sm text-muted-foreground">{t("deleteNeighborProxy.type")}</span>
               <span className="text-sm font-medium">
-                {proxyType === "arp" ? "ARP Proxy (IPv4)" : "ND Proxy (IPv6)"}
+                {proxyType === "arp" ? t("shared.arpProxy") : t("shared.ndProxy")}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">
-                {proxyType === "arp" ? "IPv4 Address:" : "IPv6 Address:"}
+                {proxyType === "arp" ? t("deleteNeighborProxy.ipv4AddressColon") : t("deleteNeighborProxy.ipv6AddressColon")}
               </span>
               <span className="text-sm font-mono">{ipAddress}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">Interface(s):</span>
+              <span className="text-sm text-muted-foreground">{t("deleteNeighborProxy.interfacesColon")}</span>
               <span className="text-sm font-medium">
                 {proxyType === "arp"
                   ? (entry as NeighborProxyArp).interfaces.join(", ")
@@ -107,11 +110,11 @@ export function DeleteNeighborProxyModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Delete
+            {tc("delete")}
           </Button>
         </DialogFooter>
       </DialogContent>

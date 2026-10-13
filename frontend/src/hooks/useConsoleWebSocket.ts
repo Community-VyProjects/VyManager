@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Terminal } from "@xterm/xterm";
+import { useTranslations } from "next-intl";
 import { consoleService } from "@/lib/api/console";
 
 export type ConsoleStatus =
@@ -18,8 +19,10 @@ interface UseConsoleWebSocketResult {
 }
 
 export function useConsoleWebSocket(): UseConsoleWebSocketResult {
+  const t = useTranslations("miscLib");
   const [status, setStatus] = useState<ConsoleStatus>("disconnected");
-  const [error, setError] = useState<string | null>(null);
+  // Server message as-is, or `{ key }` for a built-in message translated on render.
+  const [error, setError] = useState<string | { key: "connectionFailed" } | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const disposeHandlersRef = useRef<(() => void)[]>([]);
 
@@ -75,7 +78,7 @@ export function useConsoleWebSocket(): UseConsoleWebSocketResult {
       };
 
       ws.onerror = () => {
-        setError("WebSocket connection failed");
+        setError({ key: "connectionFailed" });
         setStatus("error");
       };
 
@@ -115,5 +118,10 @@ export function useConsoleWebSocket(): UseConsoleWebSocketResult {
     };
   }, [disconnect]);
 
-  return { status, error, connect, disconnect };
+  return {
+    status,
+    error: error !== null && typeof error === "object" ? t(`console.${error.key}`) : error,
+    connect,
+    disconnect,
+  };
 }

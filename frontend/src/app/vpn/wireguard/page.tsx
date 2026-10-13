@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -49,23 +50,26 @@ import {
 } from "@/lib/api/wireguard";
 
 // Helper function to format handshake time in a human-readable format
-function formatHandshakeTime(seconds: number): string {
+function formatHandshakeTime(
+  seconds: number,
+  t: ReturnType<typeof useTranslations<"wireguard">>
+): string {
   if (seconds < 60) {
-    return `${seconds} second${seconds !== 1 ? 's' : ''} ago`;
+    return t("page.handshake.seconds", { count: seconds });
   } else if (seconds < 3600) {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     if (remainingSeconds === 0) {
-      return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+      return t("page.handshake.minutes", { count: minutes });
     }
-    return `${minutes}m ${remainingSeconds}s ago`;
+    return t("page.handshake.minutesSeconds", { minutes, seconds: remainingSeconds });
   } else {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     if (minutes === 0) {
-      return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+      return t("page.handshake.hours", { count: hours });
     }
-    return `${hours}h ${minutes}m ago`;
+    return t("page.handshake.hoursMinutes", { hours, minutes });
   }
 }
 
@@ -79,6 +83,8 @@ import { QuickSetupWizard } from "@/components/vpn/QuickSetupWizard";
 import { ImportConfigModal } from "@/components/vpn/ImportConfigModal";
 
 export default function WireGuardPage() {
+  const t = useTranslations("wireguard");
+  const tc = useTranslations("common");
   // State
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -129,11 +135,11 @@ export default function WireGuardPage() {
         setSelectedInterface((prev) => prev ?? configData.interfaces[0].name);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load WireGuard configuration");
+      setError(err instanceof Error ? err.message : t("page.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchConfig();
@@ -237,7 +243,7 @@ export default function WireGuardPage() {
         <div className="flex items-center justify-center h-[calc(100vh-200px)]">
           <div className="text-center space-y-4">
             <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-            <p className="text-muted-foreground">Loading WireGuard configuration...</p>
+            <p className="text-muted-foreground">{t("page.loadingConfig")}</p>
           </div>
         </div>
       </AppLayout>
@@ -251,11 +257,11 @@ export default function WireGuardPage() {
         <div className="flex items-center justify-center h-[calc(100vh-200px)]">
           <div className="text-center space-y-4">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-            <p className="text-destructive font-medium">Failed to load configuration</p>
+            <p className="text-destructive font-medium">{t("page.loadFailedTitle")}</p>
             <p className="text-sm text-muted-foreground">{error}</p>
             <Button onClick={() => fetchConfig(true)}>
               <RefreshCw className="h-4 w-4 mr-2" />
-              Retry
+              {tc("retry")}
             </Button>
           </div>
         </div>
@@ -291,13 +297,13 @@ export default function WireGuardPage() {
                 onClick={() => setShowCreateInterface(true)}
               >
                 <Plus className="h-4 w-4 mr-1" />
-                New Tunnel
+                {t("page.newTunnel")}
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => setShowImportConfig(true)}
-                title="Import .conf file"
+                title={t("page.importConfFile")}
               >
                 <Upload className="h-4 w-4" />
               </Button>
@@ -305,7 +311,7 @@ export default function WireGuardPage() {
                 size="sm"
                 variant="outline"
                 onClick={() => setShowQuickSetup(true)}
-                title="Quick Setup Wizard"
+                title={t("page.quickSetupWizard")}
               >
                 <Wand2 className="h-4 w-4" />
               </Button>
@@ -318,9 +324,9 @@ export default function WireGuardPage() {
               {!config?.interfaces.length ? (
                 <div className="text-center py-8 px-4">
                   <Shield className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
-                  <p className="text-sm font-medium text-foreground mb-1">No Tunnels</p>
+                  <p className="text-sm font-medium text-foreground mb-1">{t("page.noTunnels")}</p>
                   <p className="text-xs text-muted-foreground mb-4">
-                    Create your first WireGuard tunnel
+                    {t("page.createFirstTunnel")}
                   </p>
                   <Button
                     size="sm"
@@ -328,7 +334,7 @@ export default function WireGuardPage() {
                     onClick={() => setShowQuickSetup(true)}
                   >
                     <Wand2 className="h-4 w-4 mr-2" />
-                    Quick Setup
+                    {t("page.quickSetup")}
                   </Button>
                 </div>
               ) : (
@@ -362,13 +368,13 @@ export default function WireGuardPage() {
                             {iface.name}
                             {iface.disabled && (
                               <Badge variant="secondary" className="text-[10px] px-1 py-0 bg-gray-500/10 text-gray-500">
-                                Disabled
+                                {tc("disabled")}
                               </Badge>
                             )}
                           </div>
                           <div className="text-xs text-muted-foreground mt-0.5">
-                            {iface.peer_count} peer{iface.peer_count !== 1 ? "s" : ""}
-                            {iface.port && ` | Port ${iface.port}`}
+                            {t("page.peerCount", { count: iface.peer_count })}
+                            {iface.port && ` | ${t("page.port", { port: String(iface.port) })}`}
                           </div>
                         </div>
                         <button
@@ -377,7 +383,7 @@ export default function WireGuardPage() {
                             e.stopPropagation();
                             setDeletingInterface(iface);
                           }}
-                          title="Delete tunnel"
+                          title={t("page.deleteTunnel")}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </button>
@@ -394,12 +400,12 @@ export default function WireGuardPage() {
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-primary" />
-                <span className="text-muted-foreground">Tunnels:</span>
+                <span className="text-muted-foreground">{t("page.tunnelsLabel")}</span>
                 <span className="font-medium">{config?.interfaces.length || 0}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-purple-500" />
-                <span className="text-muted-foreground">Peers:</span>
+                <span className="text-muted-foreground">{t("page.peersLabel")}</span>
                 <span className="font-medium">
                   {config?.interfaces.reduce((sum, i) => sum + i.peer_count, 0) || 0}
                 </span>
@@ -416,18 +422,18 @@ export default function WireGuardPage() {
                 <Shield className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
                 <p className="text-lg font-medium text-foreground mb-2">
                   {config?.interfaces.length
-                    ? "Select a Tunnel"
-                    : "No WireGuard Tunnels"}
+                    ? t("page.selectTunnel")
+                    : t("page.noWireguardTunnels")}
                 </p>
                 <p className="text-sm text-muted-foreground mb-4">
                   {config?.interfaces.length
-                    ? "Choose a tunnel from the sidebar to view details"
-                    : "Create your first WireGuard VPN tunnel to get started"}
+                    ? t("page.chooseTunnel")
+                    : t("page.createFirstVpnTunnel")}
                 </p>
                 {!config?.interfaces.length && (
                   <Button onClick={() => setShowQuickSetup(true)}>
                     <Wand2 className="h-4 w-4 mr-2" />
-                    Quick Setup Wizard
+                    {t("page.quickSetupWizard")}
                   </Button>
                 )}
               </div>
@@ -455,12 +461,12 @@ export default function WireGuardPage() {
                         {currentInterface.disabled && (
                           <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 gap-1">
                             <XCircle className="h-3 w-3" />
-                            Disabled
+                            {tc("disabled")}
                           </Badge>
                         )}
                       </div>
                       <p className="text-muted-foreground mt-1">
-                        {currentInterface.description || "WireGuard VPN Tunnel"}
+                        {currentInterface.description || t("page.defaultDescription")}
                       </p>
                     </div>
                   </div>
@@ -471,7 +477,7 @@ export default function WireGuardPage() {
                       onClick={() => setShowClientConfig(true)}
                     >
                       <QrCode className="h-4 w-4 mr-2" />
-                      Generate Client
+                      {t("page.generateClient")}
                     </Button>
                     <Button
                       variant="outline"
@@ -479,7 +485,7 @@ export default function WireGuardPage() {
                       onClick={() => setEditingInterface(currentInterface)}
                     >
                       <Pencil className="h-4 w-4 mr-2" />
-                      Edit
+                      {tc("edit")}
                     </Button>
                   </div>
                 </div>
@@ -493,8 +499,8 @@ export default function WireGuardPage() {
                         <Globe className="h-5 w-5 text-blue-500" />
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">Listen Port</p>
-                        <p className="font-semibold">{currentInterface.port || "Auto"}</p>
+                        <p className="text-xs text-muted-foreground">{t("page.listenPort")}</p>
+                        <p className="font-semibold">{currentInterface.port || t("page.auto")}</p>
                       </div>
                     </div>
                   </Card>
@@ -506,11 +512,11 @@ export default function WireGuardPage() {
                         <Network className="h-5 w-5 text-green-500" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs text-muted-foreground">Addresses</p>
+                        <p className="text-xs text-muted-foreground">{t("page.addresses")}</p>
                         <p className="font-semibold font-mono text-sm truncate">
                           {currentInterface.addresses.length > 0
                             ? currentInterface.addresses[0]
-                            : "Not set"}
+                            : tc("notSet")}
                         </p>
                       </div>
                     </div>
@@ -523,7 +529,7 @@ export default function WireGuardPage() {
                         <Users className="h-5 w-5 text-purple-500" />
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">Peers</p>
+                        <p className="text-xs text-muted-foreground">{t("page.peers")}</p>
                         <p className="font-semibold">{currentInterface.peer_count}</p>
                       </div>
                     </div>
@@ -536,15 +542,15 @@ export default function WireGuardPage() {
                         <Key className="h-5 w-5 text-amber-500" />
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">Private Key</p>
+                        <p className="text-xs text-muted-foreground">{t("page.privateKey")}</p>
                         <p className="font-semibold">
                           {currentInterface.private_key ? (
                             <Badge variant="secondary" className="bg-green-500/10 text-green-600">
-                              Configured
+                              {t("page.configured")}
                             </Badge>
                           ) : (
                             <Badge variant="secondary" className="bg-red-500/10 text-red-600">
-                              Not Set
+                              {t("page.notSet")}
                             </Badge>
                           )}
                         </p>
@@ -562,11 +568,11 @@ export default function WireGuardPage() {
                           <Key className="h-5 w-5 text-primary" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground mb-1">Public Key (share with peers)</p>
+                          <p className="text-xs text-muted-foreground mb-1">{t("page.publicKeyShare")}</p>
                           {loadingPublicKey ? (
                             <div className="flex items-center gap-2">
                               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                              <span className="text-sm text-muted-foreground">Loading...</span>
+                              <span className="text-sm text-muted-foreground">{tc("loading")}</span>
                             </div>
                           ) : publicKey ? (
                             <div className="flex items-center gap-2">
@@ -576,7 +582,7 @@ export default function WireGuardPage() {
                               <button
                                 onClick={() => copyToClipboard(publicKey, "interface-pk")}
                                 className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted transition-colors"
-                                title="Copy public key"
+                                title={t("page.copyPublicKey")}
                               >
                                 {copiedKey === "interface-pk" ? (
                                   <Check className="h-4 w-4 text-green-500" />
@@ -586,7 +592,7 @@ export default function WireGuardPage() {
                               </button>
                             </div>
                           ) : (
-                            <span className="text-sm text-muted-foreground">Unable to retrieve public key</span>
+                            <span className="text-sm text-muted-foreground">{t("page.unableToRetrievePublicKey")}</span>
                           )}
                         </div>
                       </div>
@@ -599,9 +605,9 @@ export default function WireGuardPage() {
               <div className="flex-1 overflow-hidden flex flex-col">
                 <div className="p-4 border-b flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <h3 className="font-semibold">Peers</h3>
+                    <h3 className="font-semibold">{t("page.peers")}</h3>
                     <Input
-                      placeholder="Search peers..."
+                      placeholder={t("page.searchPeers")}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-64"
@@ -611,14 +617,14 @@ export default function WireGuardPage() {
                       size="sm"
                       onClick={() => fetchStatus()}
                       disabled={loadingStatus}
-                      title="Refresh peer status"
+                      title={t("page.refreshPeerStatus")}
                     >
                       <RefreshCw className={cn("h-4 w-4", loadingStatus && "animate-spin")} />
                     </Button>
                   </div>
                   <Button size="sm" onClick={() => setShowCreatePeer(true)}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Peer
+                    {t("page.addPeer")}
                   </Button>
                 </div>
 
@@ -627,27 +633,27 @@ export default function WireGuardPage() {
                     {filteredPeers.length === 0 ? (
                       <div className="text-center py-12">
                         <Users className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-                        <p className="text-lg font-medium text-foreground mb-2">No Peers</p>
+                        <p className="text-lg font-medium text-foreground mb-2">{t("page.noPeers")}</p>
                         <p className="text-sm text-muted-foreground mb-4">
-                          Add peers to connect devices to this tunnel
+                          {t("page.noPeersHint")}
                         </p>
                         <Button onClick={() => setShowCreatePeer(true)}>
                           <Plus className="h-4 w-4 mr-2" />
-                          Add First Peer
+                          {t("page.addFirstPeer")}
                         </Button>
                       </div>
                     ) : (
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Peer Name</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Connection</TableHead>
-                            <TableHead>Latest Handshake</TableHead>
-                            <TableHead>Public Key</TableHead>
-                            <TableHead>Allowed IPs</TableHead>
-                            <TableHead>Transfer</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
+                            <TableHead>{t("page.table.peerName")}</TableHead>
+                            <TableHead>{tc("status")}</TableHead>
+                            <TableHead>{t("page.table.connection")}</TableHead>
+                            <TableHead>{t("page.table.latestHandshake")}</TableHead>
+                            <TableHead>{t("page.table.publicKey")}</TableHead>
+                            <TableHead>{t("page.table.allowedIps")}</TableHead>
+                            <TableHead>{t("page.table.transfer")}</TableHead>
+                            <TableHead className="text-right">{tc("actions")}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -691,12 +697,12 @@ export default function WireGuardPage() {
                                   {peer.disabled ? (
                                     <Badge variant="secondary" className="bg-red-500/10 text-red-600 gap-1">
                                       <XCircle className="h-3 w-3" />
-                                      Disabled
+                                      {tc("disabled")}
                                     </Badge>
                                   ) : (
                                     <Badge variant="secondary" className="bg-green-500/10 text-green-600 gap-1">
                                       <CheckCircle2 className="h-3 w-3" />
-                                      Enabled
+                                      {tc("enabled")}
                                     </Badge>
                                   )}
                                 </TableCell>
@@ -707,15 +713,15 @@ export default function WireGuardPage() {
                                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                                   ) : connectionStatus === "connected" ? (
                                     <Badge variant="secondary" className="bg-green-500/10 text-green-600">
-                                      Connected
+                                      {t("page.connected")}
                                     </Badge>
                                   ) : connectionStatus === "idle" ? (
                                     <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600">
-                                      Idle
+                                      {t("page.idle")}
                                     </Badge>
                                   ) : (
                                     <Badge variant="secondary" className="bg-gray-500/10 text-gray-500">
-                                      Disconnected
+                                      {t("page.disconnected")}
                                     </Badge>
                                   )}
                                 </TableCell>
@@ -726,10 +732,10 @@ export default function WireGuardPage() {
                                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                                   ) : peerStatus?.latest_handshake_seconds !== null && peerStatus?.latest_handshake_seconds !== undefined ? (
                                     <span className="text-sm text-muted-foreground">
-                                      {formatHandshakeTime(peerStatus.latest_handshake_seconds)}
+                                      {formatHandshakeTime(peerStatus.latest_handshake_seconds, t)}
                                     </span>
                                   ) : (
-                                    <span className="text-sm text-muted-foreground">Never</span>
+                                    <span className="text-sm text-muted-foreground">{t("page.never")}</span>
                                   )}
                                 </TableCell>
 
@@ -737,7 +743,7 @@ export default function WireGuardPage() {
                                 <TableCell>
                                   <div className="flex items-center gap-2">
                                     <code className="text-xs bg-muted px-2 py-1 rounded font-mono max-w-[150px] truncate">
-                                      {peer.public_key || "Not set"}
+                                      {peer.public_key || tc("notSet")}
                                     </code>
                                     {peer.public_key && (
                                       <button
@@ -764,7 +770,7 @@ export default function WireGuardPage() {
                                     ))}
                                     {peer.allowed_ips.length > 2 && (
                                       <Badge variant="secondary" className="text-xs">
-                                        +{peer.allowed_ips.length - 2} more
+                                        {t("page.moreCount", { count: peer.allowed_ips.length - 2 })}
                                       </Badge>
                                     )}
                                   </div>

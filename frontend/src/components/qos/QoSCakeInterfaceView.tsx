@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle2, Network } from "lucide-react";
 import { QoSCakeStats } from "@/lib/api/qos";
@@ -12,6 +13,7 @@ import { formatBitrate } from "@/hooks/useQoSRates";
  * single qdisc, so its "classes" are diffserv tins rather than config classes.
  */
 export function QoSCakeInterfaceView({ cake, live }: { cake: QoSCakeStats; live: number }) {
+  const t = useTranslations("qos");
   const cap = cake.bandwidth ?? cake.capacity_estimate ?? 0;
   const pct = cap > 0 ? Math.min(100, (live / cap) * 100) : 0;
   const color = pct >= 90 ? "bg-red-500" : pct >= 60 ? "bg-amber-500" : "bg-emerald-500";
@@ -37,19 +39,19 @@ export function QoSCakeInterfaceView({ cake, live }: { cake: QoSCakeStats; live:
         {cake.drops > 0 ? (
           <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 shrink-0">
             <AlertTriangle className="h-3.5 w-3.5" />
-            {cake.drops.toLocaleString()} drops
+            {t("cake.drops", { count: cake.drops.toLocaleString() })}
           </span>
         ) : (
           <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 shrink-0">
             <CheckCircle2 className="h-3.5 w-3.5" />
-            no drops
+            {t("cake.noDrops")}
           </span>
         )}
       </div>
 
       {/* Aggregate live bandwidth */}
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-xs text-muted-foreground w-20 shrink-0">Throughput</span>
+        <span className="text-xs text-muted-foreground w-20 shrink-0">{t("cake.throughput")}</span>
         <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
           <div
             className={`h-full rounded-full transition-all duration-700 ease-out ${color}`}
@@ -65,27 +67,27 @@ export function QoSCakeInterfaceView({ cake, live }: { cake: QoSCakeStats; live:
           <table className="w-full text-xs">
             <thead>
               <tr className="text-muted-foreground border-b">
-                <th className="text-left font-medium py-1 pr-2">Tin</th>
-                <th className="text-right font-medium py-1 px-2">Threshold</th>
-                <th className="text-right font-medium py-1 px-2">Bytes</th>
-                <th className="text-right font-medium py-1 px-2">Pkts</th>
-                <th className="text-right font-medium py-1 px-2">Drops</th>
-                <th className="text-right font-medium py-1 pl-2">Marks</th>
+                <th className="text-left font-medium py-1 pr-2">{t("cake.tin")}</th>
+                <th className="text-right font-medium py-1 px-2">{t("cake.threshold")}</th>
+                <th className="text-right font-medium py-1 px-2">{t("cake.bytes")}</th>
+                <th className="text-right font-medium py-1 px-2">{t("cake.pkts")}</th>
+                <th className="text-right font-medium py-1 px-2">{t("cake.dropsHeader")}</th>
+                <th className="text-right font-medium py-1 pl-2">{t("cake.marks")}</th>
               </tr>
             </thead>
             <tbody>
-              {cake.tins.map((t) => (
-                <tr key={t.name} className="border-b last:border-0">
-                  <td className="py-1 pr-2 font-medium">{t.name}</td>
+              {cake.tins.map((tin) => (
+                <tr key={tin.name} className="border-b last:border-0">
+                  <td className="py-1 pr-2 font-medium">{tin.name}</td>
                   <td className="py-1 px-2 text-right tabular-nums text-muted-foreground">
-                    {t.threshold_rate != null ? formatBitrate(t.threshold_rate) : "—"}
+                    {tin.threshold_rate != null ? formatBitrate(tin.threshold_rate) : "—"}
                   </td>
-                  <td className="py-1 px-2 text-right tabular-nums">{formatBytes(t.sent_bytes)}</td>
-                  <td className="py-1 px-2 text-right tabular-nums">{t.sent_packets.toLocaleString()}</td>
-                  <td className={`py-1 px-2 text-right tabular-nums ${t.drops > 0 ? "text-amber-600 dark:text-amber-400" : ""}`}>
-                    {t.drops.toLocaleString()}
+                  <td className="py-1 px-2 text-right tabular-nums">{formatBytes(tin.sent_bytes)}</td>
+                  <td className="py-1 px-2 text-right tabular-nums">{tin.sent_packets.toLocaleString()}</td>
+                  <td className={`py-1 px-2 text-right tabular-nums ${tin.drops > 0 ? "text-amber-600 dark:text-amber-400" : ""}`}>
+                    {tin.drops.toLocaleString()}
                   </td>
-                  <td className="py-1 pl-2 text-right tabular-nums text-muted-foreground">{t.marks.toLocaleString()}</td>
+                  <td className="py-1 pl-2 text-right tabular-nums text-muted-foreground">{tin.marks.toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>

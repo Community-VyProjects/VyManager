@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -88,6 +89,8 @@ export function FailoverRouteModal({
   canWrite,
   onSaved,
 }: FailoverRouteModalProps) {
+  const t = useTranslations("vrf");
+  const tc = useTranslations("common");
   const editing = destination !== null;
   const initial = useMemo(
     () => ({
@@ -152,7 +155,7 @@ export function FailoverRouteModal({
 
   const handleSave = async () => {
     if (!valid) {
-      setError("A destination and at least one next-hop (or DHCP interface) are required.");
+      setError(t("failoverModal.required"));
       return;
     }
     setSaving(true);
@@ -160,13 +163,13 @@ export function FailoverRouteModal({
     try {
       const result = await vrfService.batchConfigure(buildOps());
       if (!result.success) {
-        setError(result.error || "Operation failed");
+        setError(result.error || tc("operationFailed"));
         return;
       }
       onSaved();
       onOpenChange(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Operation failed");
+      setError(e instanceof Error ? e.message : tc("operationFailed"));
     } finally {
       setSaving(false);
     }
@@ -176,13 +179,13 @@ export function FailoverRouteModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[88vh]">
         <DialogHeader>
-          <DialogTitle>{editing ? `Edit Route — ${destination}` : "Add Failover Route"}</DialogTitle>
+          <DialogTitle>{editing ? t("failoverModal.editTitle", { dest: destination ?? "" }) : t("failoverModal.addTitle")}</DialogTitle>
         </DialogHeader>
 
         <ScrollArea className="max-h-[64vh] pr-4">
           <div className="space-y-5">
             <div className="space-y-1.5">
-              <Label className="text-xs">Destination</Label>
+              <Label className="text-xs">{t("destination")}</Label>
               <Input
                 placeholder="10.0.0.0/24"
                 value={dest}
@@ -192,14 +195,14 @@ export function FailoverRouteModal({
             </div>
 
             <HopSection
-              title="Next Hops"
+              title={t("failoverModal.nextHops")}
               addLabel="next-hop"
               hops={nextHops}
               setHops={setNextHops}
               disabled={!canWrite || saving}
             />
             <HopSection
-              title="DHCP Interfaces"
+              title={t("failoverModal.dhcpInterfaces")}
               addLabel="dhcp-interface"
               hops={dhcpInterfaces}
               setHops={setDhcpInterfaces}
@@ -217,11 +220,11 @@ export function FailoverRouteModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSave} disabled={!canWrite || saving}>
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Save Route
+            {t("failoverModal.saveRoute")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -242,6 +245,7 @@ function HopSection({
   setHops: (h: Hop[]) => void;
   disabled: boolean;
 }) {
+  const t = useTranslations("vrf");
   const update = (i: number, patch: Partial<Hop>) =>
     setHops(hops.map((h, idx) => (idx === i ? { ...h, ...patch } : h)));
 
@@ -252,17 +256,17 @@ function HopSection({
         {!disabled && (
           <Button size="sm" variant="outline" onClick={() => setHops([...hops, emptyHop()])}>
             <Plus className="h-3.5 w-3.5 mr-1" />
-            Add {addLabel}
+            {addLabel === "dhcp-interface" ? t("failoverModal.addDhcpInterface") : t("failoverModal.addNextHop")}
           </Button>
         )}
       </div>
-      {hops.length === 0 && <p className="text-xs text-muted-foreground">None.</p>}
+      {hops.length === 0 && <p className="text-xs text-muted-foreground">{t("failoverModal.none")}</p>}
       {hops.map((hop, i) => (
         <div key={i} className="rounded-md border p-3 space-y-3">
           <div className="flex items-center gap-2">
             <Input
               className="h-8 font-mono"
-              placeholder={addLabel === "dhcp-interface" ? "Interface name" : "Next-hop address"}
+              placeholder={addLabel === "dhcp-interface" ? t("failoverModal.interfaceNamePlaceholder") : t("failoverModal.nextHopAddressPlaceholder")}
               value={hop.address}
               disabled={disabled}
               onChange={(e) => update(i, { address: e.target.value })}
@@ -274,18 +278,18 @@ function HopSection({
             )}
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <Field label="Interface" value={hop.interface} disabled={disabled} onChange={(v) => update(i, { interface: v })} />
-            <Field label="Metric" value={hop.metric} disabled={disabled} type="number" onChange={(v) => update(i, { metric: v })} />
+            <Field label={t("interface")} value={hop.interface} disabled={disabled} onChange={(v) => update(i, { interface: v })} />
+            <Field label={t("failoverModal.metric")} value={hop.metric} disabled={disabled} type="number" onChange={(v) => update(i, { metric: v })} />
             <label className="flex items-center gap-2 text-xs mt-5">
               <input type="checkbox" className="h-4 w-4" checked={hop.onlink} disabled={disabled} onChange={(e) => update(i, { onlink: e.target.checked })} />
-              On-link
+              {t("failoverModal.onLink")}
             </label>
           </div>
           <div className="grid grid-cols-4 gap-2">
-            <Field label="Check type" value={hop.checkType} disabled={disabled} onChange={(v) => update(i, { checkType: v })} />
-            <Field label="Check policy" value={hop.checkPolicy} disabled={disabled} onChange={(v) => update(i, { checkPolicy: v })} />
-            <Field label="Check port" value={hop.checkPort} disabled={disabled} type="number" onChange={(v) => update(i, { checkPort: v })} />
-            <Field label="Check timeout" value={hop.checkTimeout} disabled={disabled} type="number" onChange={(v) => update(i, { checkTimeout: v })} />
+            <Field label={t("failoverModal.checkType")} value={hop.checkType} disabled={disabled} onChange={(v) => update(i, { checkType: v })} />
+            <Field label={t("failoverModal.checkPolicy")} value={hop.checkPolicy} disabled={disabled} onChange={(v) => update(i, { checkPolicy: v })} />
+            <Field label={t("failoverModal.checkPort")} value={hop.checkPort} disabled={disabled} type="number" onChange={(v) => update(i, { checkPort: v })} />
+            <Field label={t("failoverModal.checkTimeout")} value={hop.checkTimeout} disabled={disabled} type="number" onChange={(v) => update(i, { checkTimeout: v })} />
           </div>
           <TargetList
             targets={hop.targets}
@@ -307,24 +311,26 @@ function TargetList({
   setTargets: (t: Target[]) => void;
   disabled: boolean;
 }) {
+  const tr = useTranslations("vrf");
+  const tc = useTranslations("common");
   const update = (i: number, patch: Partial<Target>) =>
     setTargets(targets.map((t, idx) => (idx === i ? { ...t, ...patch } : t)));
   return (
     <div className="space-y-1.5 pl-2 border-l">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">Check targets</span>
+        <span className="text-xs text-muted-foreground">{tr("failoverModal.checkTargets")}</span>
         {!disabled && (
           <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setTargets([...targets, { address: "", interface: "", vrf: "" }])}>
             <Plus className="h-3 w-3 mr-1" />
-            Add target
+            {tr("failoverModal.addTarget")}
           </Button>
         )}
       </div>
       {targets.map((t, i) => (
         <div key={i} className="flex items-center gap-2">
-          <Input className="h-7 font-mono" placeholder="Target address" value={t.address} disabled={disabled} onChange={(e) => update(i, { address: e.target.value })} />
-          <Input className="h-7" placeholder="Interface" value={t.interface} disabled={disabled} onChange={(e) => update(i, { interface: e.target.value })} />
-          <VrfSelect className="h-7" placeholder="VRF" value={t.vrf} disabled={disabled} onValueChange={(v) => update(i, { vrf: v })} extraOptions={[{ label: "Default", value: "default" }]} />
+          <Input className="h-7 font-mono" placeholder={tr("failoverModal.targetAddress")} value={t.address} disabled={disabled} onChange={(e) => update(i, { address: e.target.value })} />
+          <Input className="h-7" placeholder={tr("interface")} value={t.interface} disabled={disabled} onChange={(e) => update(i, { interface: e.target.value })} />
+          <VrfSelect className="h-7" placeholder="VRF" value={t.vrf} disabled={disabled} onValueChange={(v) => update(i, { vrf: v })} extraOptions={[{ label: tc("default"), value: "default" }]} />
           {!disabled && (
             <Button size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => setTargets(targets.filter((_, idx) => idx !== i))}>
               <Trash2 className="h-3 w-3" />

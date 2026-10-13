@@ -5,6 +5,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -74,6 +75,7 @@ function getRegexTypeInfo(regex: string | null | undefined): { type: string; lab
 
 // Sortable row component
 function ExtCommunityListRuleRow({ rule, onEdit, onDelete }: { rule: ExtCommunityListRule; onEdit: (rule: ExtCommunityListRule) => void; onDelete: (rule: ExtCommunityListRule) => void }) {
+  const t = useTranslations("bgpLists");
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: rule.rule_number,
   });
@@ -106,13 +108,13 @@ function ExtCommunityListRuleRow({ rule, onEdit, onDelete }: { rule: ExtCommunit
               : "capitalize bg-red-500/10 text-red-500 border-red-500/20"
           }
         >
-          {rule.action}
+          {rule.action === "permit" ? t("shared.permit") : rule.action === "deny" ? t("shared.deny") : rule.action}
         </Badge>
       </TableCell>
       <TableCell>
         {rule.regex ? (
           <code className={cn("text-xs font-mono px-2 py-1 rounded", regexInfo.className)}>
-            {regexInfo.label}: {regexInfo.value}
+            {regexInfo.type === "regex" ? t("shared.regexBadge") : regexInfo.label}: {regexInfo.value}
           </code>
         ) : (
           <span className="text-muted-foreground">—</span>
@@ -133,6 +135,8 @@ function ExtCommunityListRuleRow({ rule, onEdit, onDelete }: { rule: ExtCommunit
 }
 
 export default function BGPExtCommunityPage() {
+  const t = useTranslations("bgpLists");
+  const tc = useTranslations("common");
   const [extcommunityLists, setExtCommunityLists] = useState<ExtCommunityList[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -190,12 +194,12 @@ export default function BGPExtCommunityPage() {
         setSelectedExtCommunityList((prev) => prev ?? config.extcommunity_lists[0].name);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load extcommunity lists");
+      setError(err instanceof Error ? err.message : t("extCommunity.failedToLoad"));
       console.error("Error fetching extcommunity list config:", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchData();
@@ -279,7 +283,7 @@ export default function BGPExtCommunityPage() {
       await fetchData(true);
     } catch (err) {
       console.error("Failed to save rule order:", err);
-      setError(err instanceof Error ? err.message : "Failed to save rule order");
+      setError(err instanceof Error ? err.message : t("shared.failedToSaveOrder"));
     } finally {
       setSavingReorder(false);
     }
@@ -345,11 +349,11 @@ export default function BGPExtCommunityPage() {
         <div className="flex items-center justify-center h-full">
           <div className="text-center space-y-4">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-            <h2 className="text-xl font-semibold text-foreground">Error Loading ExtCommunity Lists</h2>
+            <h2 className="text-xl font-semibold text-foreground">{t("extCommunity.errorLoading")}</h2>
             <p className="text-muted-foreground max-w-md">{error}</p>
             <Button onClick={() => fetchData(true)} variant="outline">
               <RefreshCw className="h-4 w-4 mr-2" />
-              Retry
+              {tc("retry")}
             </Button>
           </div>
         </div>
@@ -368,9 +372,9 @@ export default function BGPExtCommunityPage() {
                 <ListFilter className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-foreground">BGP Extended Community</h1>
+                <h1 className="text-lg font-semibold text-foreground">{t("extCommunity.pageTitle")}</h1>
                 <p className="text-xs text-muted-foreground">
-                  {extcommunityLists.length} {extcommunityLists.length !== 1 ? "lists" : "list"} · {totalRules} rule{totalRules !== 1 ? "s" : ""}
+                  {t("shared.listSummary", { lists: extcommunityLists.length, rules: totalRules })}
                 </p>
               </div>
             </div>
@@ -379,7 +383,7 @@ export default function BGPExtCommunityPage() {
             <div className="relative mb-4">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search lists..."
+                placeholder={t("shared.searchLists")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -392,7 +396,7 @@ export default function BGPExtCommunityPage() {
               size="sm"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Create ExtCommunity List
+              {t("shared.createList", { listType: t("types.extCommunity.title") })}
             </Button>
           </div>
 
@@ -404,7 +408,7 @@ export default function BGPExtCommunityPage() {
               {filteredExtCommunityLists.length === 0 ? (
                 <div className="px-2 py-8 text-center">
                   <p className="text-sm text-muted-foreground">
-                    {searchQuery ? "No extcommunity lists match your search" : "No extcommunity lists configured"}
+                    {searchQuery ? t("extCommunity.noMatch") : t("extCommunity.noneConfigured")}
                   </p>
                   {!searchQuery && (
                     <Button
@@ -413,7 +417,7 @@ export default function BGPExtCommunityPage() {
                       onClick={() => setShowCreateExtCommunityListModal(true)}
                       className="mt-2"
                     >
-                      Create your first extcommunity list
+                      {t("shared.createFirst", { listType: t("types.extCommunity.name") })}
                     </Button>
                   )}
                 </div>
@@ -498,11 +502,11 @@ export default function BGPExtCommunityPage() {
                   <div className="flex items-center gap-3">
                     <Button onClick={() => fetchData(true)} variant="outline" size="sm">
                       <RefreshCw className="h-4 w-4 mr-2" />
-                      Refresh
+                      {tc("refresh")}
                     </Button>
                     <Button onClick={() => setShowCreateRuleModal(true)} size="sm">
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Rule
+                      {t("shared.addRule")}
                     </Button>
                   </div>
                 </div>
@@ -511,7 +515,7 @@ export default function BGPExtCommunityPage() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search rules..."
+                    placeholder={t("shared.searchRules")}
                     value={ruleSearchQuery}
                     onChange={(e) => setRuleSearchQuery(e.target.value)}
                     className="pl-10"
@@ -536,17 +540,17 @@ export default function BGPExtCommunityPage() {
                     <CardContent className="flex flex-col items-center justify-center py-12">
                       <ListFilter className="h-12 w-12 text-muted-foreground mb-4" />
                       <h3 className="text-lg font-semibold text-foreground mb-2">
-                        {ruleSearchQuery ? "No Rules Match Search" : "No Rules Configured"}
+                        {ruleSearchQuery ? t("shared.noRulesMatch") : t("shared.noRulesConfigured")}
                       </h3>
                       <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
                         {ruleSearchQuery
-                          ? "Try adjusting your search criteria"
-                          : "Add rules to this extcommunity list to filter BGP routes"}
+                          ? t("shared.adjustSearch")
+                          : t("shared.addRulesHint", { listType: t("types.extCommunity.name") })}
                       </p>
                       {!ruleSearchQuery && (
                         <Button onClick={() => setShowCreateRuleModal(true)}>
                           <Plus className="h-4 w-4 mr-2" />
-                          Add First Rule
+                          {t("shared.addFirstRule")}
                         </Button>
                       )}
                     </CardContent>
@@ -564,11 +568,11 @@ export default function BGPExtCommunityPage() {
                           <TableHeader>
                             <TableRow className="hover:bg-transparent">
                               <TableHead className="w-12"></TableHead>
-                              <TableHead>Rule #</TableHead>
-                              <TableHead>Description</TableHead>
-                              <TableHead>Action</TableHead>
-                              <TableHead>Pattern</TableHead>
-                              <TableHead className="text-right">Actions</TableHead>
+                              <TableHead>{t("shared.colRule")}</TableHead>
+                              <TableHead>{tc("description")}</TableHead>
+                              <TableHead>{t("shared.colAction")}</TableHead>
+                              <TableHead>{t("shared.colPattern")}</TableHead>
+                              <TableHead className="text-right">{tc("actions")}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -598,17 +602,17 @@ export default function BGPExtCommunityPage() {
               <div className="text-center space-y-4">
                 <ListFilter className="h-16 w-16 text-muted-foreground mx-auto" />
                 <h2 className="text-xl font-semibold text-foreground">
-                  No ExtCommunity List Selected
+                  {t("shared.noneSelected", { listType: t("types.extCommunity.title") })}
                 </h2>
                 <p className="text-muted-foreground max-w-md">
                   {extcommunityLists.length === 0
-                    ? "Create a extcommunity list to get started"
-                    : "Select a extcommunity list from the sidebar to view its rules"}
+                    ? t("extCommunity.createToStart")
+                    : t("extCommunity.selectFromSidebar")}
                 </p>
                 {extcommunityLists.length === 0 && (
                   <Button onClick={() => setShowCreateExtCommunityListModal(true)}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Create ExtCommunity List
+                    {t("shared.createList", { listType: t("types.extCommunity.title") })}
                   </Button>
                 )}
               </div>

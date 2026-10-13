@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
 import { Input } from "@/components/ui/input";
@@ -58,6 +59,7 @@ import { AuthenticationSettings } from "@/components/authentication/Authenticati
 import { OrgManagement } from "@/components/organizations/OrgManagement";
 import { ApiTokensPanel } from "@/components/tokens/ApiTokensPanel";
 import { ThemeSelector } from "@/components/ui/theme-selector";
+import { LanguageSelector } from "@/components/ui/language-selector";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/types/api";
 import { hideSiteInventory } from "@/lib/appliance";
@@ -66,6 +68,7 @@ type NavSection = "sites" | "user-management" | "authentication" | "api-tokens" 
 
 export default function SitesPage() {
   const router = useRouter();
+  const t = useTranslations("sites");
 
   // Auth session
   const { data: session } = useSession();
@@ -165,7 +168,7 @@ export default function SitesPage() {
       ]);
       setSites(sitesData);
     } catch (err) {
-      setError((err as ApiError).message || "Failed to load data");
+      setError((err as ApiError).message || t("page.loadDataFailed"));
     } finally {
       setLoading(false);
       setModeReady(true);
@@ -286,7 +289,7 @@ export default function SitesPage() {
               <div className="flex h-10 w-10 items-center justify-center">
                 <Image
                   src="/vy-icon.png"
-                  alt="VyOS Logo"
+                  alt={t("page.logoAlt")}
                   width={40}
                   height={40}
                   className="object-contain"
@@ -294,8 +297,8 @@ export default function SitesPage() {
                 />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-foreground">Site Manager</h2>
-                <p className="text-xs text-muted-foreground">Manage infrastructure</p>
+                <h2 className="text-lg font-semibold text-foreground">{t("page.title")}</h2>
+                <p className="text-xs text-muted-foreground">{t("page.subtitle")}</p>
               </div>
             </div>
           </div>
@@ -331,7 +334,7 @@ export default function SitesPage() {
                       selectedSection === "sites" ? "text-primary" : "text-muted-foreground"
                     )} />
                   </div>
-                  <span className="font-medium text-sm">Sites</span>
+                  <span className="font-medium text-sm">{t("page.navSites")}</span>
                   {selectedSection === "sites" && (
                     <ChevronRight className="h-4 w-4 text-primary ml-auto" />
                   )}
@@ -358,7 +361,7 @@ export default function SitesPage() {
                       selectedSection === "user-management" ? "text-primary" : "text-muted-foreground"
                     )} />
                   </div>
-                  <span className="font-medium text-sm">User Management</span>
+                  <span className="font-medium text-sm">{t("page.navUserManagement")}</span>
                   {selectedSection === "user-management" && (
                     <ChevronRight className="h-4 w-4 text-primary ml-auto" />
                   )}
@@ -385,7 +388,7 @@ export default function SitesPage() {
                       selectedSection === "authentication" ? "text-primary" : "text-muted-foreground"
                     )} />
                   </div>
-                  <span className="font-medium text-sm">Authentication</span>
+                  <span className="font-medium text-sm">{t("page.navAuthentication")}</span>
                   {selectedSection === "authentication" && (
                     <ChevronRight className="h-4 w-4 text-primary ml-auto" />
                   )}
@@ -412,7 +415,7 @@ export default function SitesPage() {
                       selectedSection === "api-tokens" ? "text-primary" : "text-muted-foreground"
                     )} />
                   </div>
-                  <span className="font-medium text-sm">API Tokens</span>
+                  <span className="font-medium text-sm">{t("page.navApiTokens")}</span>
                   {selectedSection === "api-tokens" && (
                     <ChevronRight className="h-4 w-4 text-primary ml-auto" />
                   )}
@@ -440,7 +443,7 @@ export default function SitesPage() {
                         selectedSection === "organizations" ? "text-primary" : "text-muted-foreground"
                       )} />
                     </div>
-                    <span className="font-medium text-sm">Organizations</span>
+                    <span className="font-medium text-sm">{t("page.navOrganizations")}</span>
                     {selectedSection === "organizations" && (
                       <ChevronRight className="h-4 w-4 text-primary ml-auto" />
                     )}
@@ -451,8 +454,9 @@ export default function SitesPage() {
           </ScrollArea>
 
           {/* Theme Selector */}
-          <div className="border-t border-border p-4 pt-4">
+          <div className="border-t border-border p-4 pt-4 space-y-2">
             <ThemeSelector />
+            <LanguageSelector />
           </div>
 
           {/* User Info & Logout */}
@@ -464,11 +468,11 @@ export default function SitesPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-foreground truncate">
-                    {session?.user?.name || session?.user?.email || "User"}
+                    {session?.user?.name || session?.user?.email || t("page.userFallback")}
                   </p>
                   {(session?.user as { role?: string })?.role === "ADMIN" && (
                     <p className="text-[10px] text-muted-foreground truncate">
-                      System Administrator
+                      {t("page.systemAdministrator")}
                     </p>
                   )}
                 </div>
@@ -480,7 +484,7 @@ export default function SitesPage() {
                 size="sm"
               >
                 <LogOut className="h-3 w-3" />
-                Logout
+                {t("page.logout")}
               </Button>
             </div>
           </div>
@@ -492,9 +496,9 @@ export default function SitesPage() {
             <div className="p-6 pb-4">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-foreground">Sites</h2>
+                  <h2 className="text-lg font-semibold text-foreground">{t("page.sitesHeading")}</h2>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {sites.length} {sites.length === 1 ? "site" : "sites"}
+                    {t("page.siteCount", { count: sites.length })}
                   </p>
                 </div>
                 <Button
@@ -512,7 +516,7 @@ export default function SitesPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search sites..."
+                  placeholder={t("page.searchSites")}
                   className="pl-9"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -528,7 +532,7 @@ export default function SitesPage() {
                 }}
               >
                 <Plus className="h-4 w-4" />
-                Add Site
+                {t("page.addSite")}
               </Button>
 
               {/* Backup & Restore */}
@@ -540,7 +544,7 @@ export default function SitesPage() {
                   onClick={() => setBackupRestoreOpen(true)}
                 >
                   <Download className="h-3 w-3" />
-                  Backup &amp; Restore
+                  {t("page.backupRestore")}
                 </Button>
               </div>
             </div>
@@ -557,13 +561,13 @@ export default function SitesPage() {
                 <div className="p-4">
                   <div className="flex items-center gap-2 text-destructive text-sm">
                     <AlertCircle className="h-4 w-4" />
-                    <span>Failed to load sites</span>
+                    <span>{t("page.loadSitesFailed")}</span>
                   </div>
                 </div>
               ) : filteredSites.length === 0 ? (
                 <div className="p-4 text-center">
                   <p className="text-sm text-muted-foreground">
-                    {searchQuery ? "No sites found" : "No sites yet"}
+                    {searchQuery ? t("page.noSitesFound") : t("page.noSitesYet")}
                   </p>
                 </div>
               ) : (
@@ -639,7 +643,7 @@ export default function SitesPage() {
                                 }}
                               >
                                 <Pencil className="h-4 w-4 mr-2" />
-                                Edit Site
+                                {t("editSite")}
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
@@ -650,7 +654,7 @@ export default function SitesPage() {
                                 className="text-destructive focus:text-destructive"
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />
-                                Delete Site
+                                {t("deleteSite")}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -689,7 +693,7 @@ export default function SitesPage() {
                         onClick={() => setCreateInstanceOpen(true)}
                       >
                         <Plus className="h-4 w-4" />
-                        Add Instance
+                        {t("addInstance")}
                       </Button>
                     )}
                   </div>
@@ -714,7 +718,7 @@ export default function SitesPage() {
                     <div className="relative flex-1 max-w-sm">
                       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
-                        placeholder="Search instances..."
+                        placeholder={t("page.searchInstances")}
                         className="pl-9"
                         value={instanceSearchQuery}
                         onChange={(e) => setInstanceSearchQuery(e.target.value)}
@@ -755,15 +759,15 @@ export default function SitesPage() {
                     <div className="text-center">
                       <Server className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
                       <h3 className="text-lg font-semibold text-foreground mb-2">
-                        No Instances
+                        {t("page.noInstances")}
                       </h3>
                       <p className="text-sm text-muted-foreground mb-6">
-                        No instances configured for this site yet.
+                        {t("page.noInstancesDescription")}
                       </p>
                       {selectedSite.role === "ADMIN" && (
                         <Button onClick={() => setCreateInstanceOpen(true)}>
                           <Plus className="h-4 w-4 mr-2" />
-                          Add First Instance
+                          {t("page.addFirstInstance")}
                         </Button>
                       )}
                     </div>
@@ -773,10 +777,10 @@ export default function SitesPage() {
                     <div className="text-center">
                       <Search className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
                       <h3 className="text-lg font-semibold text-foreground mb-2">
-                        No Instances Found
+                        {t("page.noInstancesFound")}
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        No instances match your search query.
+                        {t("page.noInstancesMatch")}
                       </p>
                     </div>
                   </div>
@@ -833,10 +837,10 @@ export default function SitesPage() {
               <div className="text-center">
                 <Building2 className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-lg font-semibold text-foreground mb-2">
-                  Select a Site
+                  {t("page.selectSite")}
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Choose a site from the list to view its instances
+                  {t("page.selectSiteDescription")}
                 </p>
               </div>
             </div>

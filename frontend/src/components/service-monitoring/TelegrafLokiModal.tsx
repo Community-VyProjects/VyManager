@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,8 @@ interface TelegrafLokiModalProps {
 }
 
 export function TelegrafLokiModal({ open, onOpenChange, original, onSuccess }: TelegrafLokiModalProps) {
+  const t = useTranslations("serviceMonitoring");
+  const tc = useTranslations("common");
   const [url, setUrl] = useState(original?.url ?? "");
   const [port, setPort] = useState(original?.port ? String(original.port) : "");
   const [metricNameLabel, setMetricNameLabel] = useState(original?.metric_name_label ?? "");
@@ -46,7 +49,7 @@ export function TelegrafLokiModal({ open, onOpenChange, original, onSuccess }: T
       });
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -56,7 +59,7 @@ export function TelegrafLokiModal({ open, onOpenChange, original, onSuccess }: T
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Configure Loki Output</DialogTitle>
+          <DialogTitle>{t("telegraf.configureOutput", { name: "Loki" })}</DialogTitle>
         </DialogHeader>
 
         <ScrollArea className="max-h-[60vh] pr-4">
@@ -65,13 +68,13 @@ export function TelegrafLokiModal({ open, onOpenChange, original, onSuccess }: T
               <Label htmlFor="loki-url">URL</Label>
               <Input
                 id="loki-url"
-                placeholder="e.g. https://loki.example.com"
+                placeholder={t("telegraf.loki.urlPlaceholder")}
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="loki-port">Port</Label>
+              <Label htmlFor="loki-port">{t("common.port")}</Label>
               <Input
                 id="loki-port"
                 type="number"
@@ -81,16 +84,16 @@ export function TelegrafLokiModal({ open, onOpenChange, original, onSuccess }: T
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="loki-label">Metric Name Label</Label>
+              <Label htmlFor="loki-label">{t("telegraf.loki.metricNameLabel")}</Label>
               <Input
                 id="loki-label"
-                placeholder="e.g. __name__"
+                placeholder={t("telegraf.loki.metricNameLabelPlaceholder")}
                 value={metricNameLabel}
                 onChange={(e) => setMetricNameLabel(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="loki-username">Username</Label>
+              <Label htmlFor="loki-username">{t("telegraf.username")}</Label>
               <Input
                 id="loki-username"
                 value={username}
@@ -98,7 +101,7 @@ export function TelegrafLokiModal({ open, onOpenChange, original, onSuccess }: T
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="loki-password">Password</Label>
+              <Label htmlFor="loki-password">{t("telegraf.password")}</Label>
               <Input
                 id="loki-password"
                 type="password"
@@ -118,11 +121,11 @@ export function TelegrafLokiModal({ open, onOpenChange, original, onSuccess }: T
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

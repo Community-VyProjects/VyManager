@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { AlertCircle, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface DeleteOspfv3ModalProps {
   open: boolean;
@@ -28,6 +29,8 @@ export function DeleteOspfv3Modal({
   itemName,
   onConfirm,
 }: DeleteOspfv3ModalProps) {
+  const t = useTranslations("ospfv3");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +40,7 @@ export function DeleteOspfv3Modal({
     try {
       await onConfirm();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Delete failed";
+      const message = err instanceof Error ? err.message : t("delete.failed");
       setError(message);
       setLoading(false);
       return;
@@ -49,11 +52,13 @@ export function DeleteOspfv3Modal({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete OSPFv3 {itemType}</AlertDialogTitle>
+          <AlertDialogTitle>{t("delete.title", { itemType })}</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete the OSPFv3 {itemType.toLowerCase()}{" "}
-            <span className="font-mono font-semibold">{itemName}</span>?
-            This action cannot be undone.
+            {t.rich("delete.description", {
+              itemType: itemType.toLowerCase(),
+              name: itemName,
+              mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -65,7 +70,7 @@ export function DeleteOspfv3Modal({
         )}
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
             disabled={loading}
@@ -74,10 +79,10 @@ export function DeleteOspfv3Modal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              `Delete ${itemType}`
+              t("delete.confirm", { itemType })
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

@@ -421,12 +421,15 @@ export function setFromDraft(draft: RouteRuleDraft): Partial<SetActions> {
   return set;
 }
 
-export function validateRouteRuleCreate(draft: RouteRuleDraft): string | null {
-  if (!draft.ruleNumber) return "Rule number is required";
+/** Message keys under `routeRuleModal.errors`. */
+export type RouteRuleValidationError = "ruleNumberRequired";
+
+export function validateRouteRuleCreate(draft: RouteRuleDraft): RouteRuleValidationError | null {
+  if (!draft.ruleNumber) return "ruleNumberRequired";
   return null;
 }
 
-export function validateRouteRuleEdit(): string | null {
+export function validateRouteRuleEdit(): RouteRuleValidationError | null {
   return null;
 }
 

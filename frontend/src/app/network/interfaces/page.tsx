@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, ChevronDown, Shield, Boxes, Waypoints, Link2, GitMerge, Box, Layers, ArrowDownToLine, Repeat, Lock, ArrowLeftRight, Wifi, Signal } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -117,6 +118,8 @@ interface VIFCWithParent extends VIFConfig {
 
 function InterfacesPageInner() {
   const searchParams = useSearchParams();
+  const t = useTranslations("interfaces");
+  const tc = useTranslations("common");
   const [interfaces, setInterfaces] = useState<EthernetInterface[]>([]);
   const [capabilities, setCapabilities] = useState<EthernetCapabilities | null>(null);
   const [wireGuardInterfaces, setWireGuardInterfaces] = useState<WireGuardInterface[]>([]);
@@ -495,7 +498,7 @@ function InterfacesPageInner() {
       setWwanInterfaces(wwanData.interfaces);
       setWwanCapabilities(wwanCapData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load interface data");
+      setError(err instanceof Error ? err.message : t("page.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -503,6 +506,7 @@ function InterfacesPageInner() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount; a language switch re-renders via router.refresh()
   }, []);
 
   useEffect(() => {
@@ -666,6 +670,12 @@ function InterfacesPageInner() {
     else setIsCreateVIFCModalOpen(true);
   };
 
+  const vlanTabMessage = {
+    vif: "vif",
+    "vif-s": "vifS",
+    "vif-c": "vifC",
+  } as const;
+
   const vlanSubTabLabel: Record<VlanSubTab, string> = {
     vif: "VLAN",
     "vif-s": "VIF-S",
@@ -687,8 +697,8 @@ function InterfacesPageInner() {
               <Network className="h-12 w-12 text-muted-foreground/30" />
               <p className="text-muted-foreground">
                 {searchQuery
-                  ? `No ${vlanSubTabLabel[type]}s matching your search`
-                  : `No ${vlanSubTabLabel[type]}s configured`}
+                  ? t(`empty.vlan.noMatch.${vlanTabMessage[type]}`)
+                  : t(`empty.vlan.none.${vlanTabMessage[type]}`)}
               </p>
             </div>
           </CardContent>
@@ -702,15 +712,15 @@ function InterfacesPageInner() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
+                <TableHead>{tc("name")}</TableHead>
                 <TableHead>VLAN ID</TableHead>
-                <TableHead>Parent</TableHead>
+                <TableHead>{t("table.parent")}</TableHead>
                 {type === "vif-c" && <TableHead>S-VLAN</TableHead>}
-                <TableHead>Description</TableHead>
-                <TableHead>Addresses</TableHead>
+                <TableHead>{tc("description")}</TableHead>
+                <TableHead>{t("table.addresses")}</TableHead>
                 <TableHead>VRF</TableHead>
-                <TableHead>Status</TableHead>
-                {extraColumns && <TableHead>Extra</TableHead>}
+                <TableHead>{tc("status")}</TableHead>
+                {extraColumns && <TableHead>{t("table.extra")}</TableHead>}
                 <TableHead className="w-[80px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -767,9 +777,9 @@ function InterfacesPageInner() {
                   </TableCell>
                   <TableCell>
                     {item.disable ? (
-                      <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                      <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">{tc("disabled")}</Badge>
                     ) : (
-                      <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                      <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">{tc("enabled")}</Badge>
                     )}
                   </TableCell>
                   {extraColumns && <TableCell>{extraColumns(item)}</TableCell>}
@@ -813,7 +823,7 @@ function InterfacesPageInner() {
           </Table>
         </div>
         <p className="text-sm text-muted-foreground text-center mt-3">
-          Showing {items.length} {vlanSubTabLabel[type]}{items.length !== 1 ? "s" : ""}
+          {t(`table.showingVlans.${vlanTabMessage[type]}`, { count: items.length })}
         </p>
       </>
     );
@@ -1029,11 +1039,11 @@ function InterfacesPageInner() {
   };
 
   const vppSubTabData: Record<VppSubType, { items: VppAnyConfig[]; label: string }> = {
-    bonding: { items: filterVppIface(vppBonding), label: "Bonding" },
-    bridge: { items: filterVppIface(vppBridge), label: "Bridge" },
+    bonding: { items: filterVppIface(vppBonding), label: t("types.bonding") },
+    bridge: { items: filterVppIface(vppBridge), label: t("types.bridge") },
     gre: { items: filterVppIface(vppGre), label: "GRE" },
     ipip: { items: filterVppIface(vppIpip), label: "IPIP" },
-    loopback: { items: filterVppIface(vppLoopback), label: "Loopback" },
+    loopback: { items: filterVppIface(vppLoopback), label: t("types.loopback") },
     vxlan: { items: filterVppIface(vppVxlanIfaces), label: "VXLAN" },
     xconnect: { items: filterVppIface(vppXconnect), label: "XConnect" },
   };
@@ -1046,9 +1056,9 @@ function InterfacesPageInner() {
           <div className="p-6 pb-4">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-lg font-semibold text-foreground">Interfaces</h2>
+                <h2 className="text-lg font-semibold text-foreground">{t("page.title")}</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalGeneve + totalInput + totalL2tpv3 + totalLoopback + totalMacsec + totalBonding + totalBridge + totalPppoe + totalPseudoEthernet + totalSstpc + totalVirtualEthernet + totalVpp + totalVti + totalWireless + totalWwan} total
+                  {t("page.total", { count: totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalGeneve + totalInput + totalL2tpv3 + totalLoopback + totalMacsec + totalBonding + totalBridge + totalPppoe + totalPseudoEthernet + totalSstpc + totalVirtualEthernet + totalVpp + totalVti + totalWireless + totalWwan })}
                 </p>
               </div>
               <Button
@@ -1075,7 +1085,7 @@ function InterfacesPageInner() {
               <div className="p-4">
                 <div className="flex items-center gap-2 text-destructive text-sm">
                   <AlertCircle className="h-4 w-4" />
-                  <span>Failed to load</span>
+                  <span>{t("page.failedToLoad")}</span>
                 </div>
               </div>
             ) : (
@@ -1103,13 +1113,13 @@ function InterfacesPageInner() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">Bonding</span>
+                        <span className="font-medium text-sm text-foreground">{t("types.bonding")}</span>
                         {selectedType === "bonding" && (
                           <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {totalBonding} {totalBonding === 1 ? "interface" : "interfaces"}
+                        {t("sidebar.interfaceCount", { count: totalBonding })}
                       </span>
                     </div>
                   </div>
@@ -1139,13 +1149,13 @@ function InterfacesPageInner() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">Bridge</span>
+                        <span className="font-medium text-sm text-foreground">{t("types.bridge")}</span>
                         {selectedType === "bridge" && (
                           <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {totalBridge} {totalBridge === 1 ? "interface" : "interfaces"}
+                        {t("sidebar.interfaceCount", { count: totalBridge })}
                       </span>
                     </div>
                   </div>
@@ -1175,13 +1185,13 @@ function InterfacesPageInner() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">Dummy</span>
+                        <span className="font-medium text-sm text-foreground">{t("types.dummy")}</span>
                         {selectedType === "dummy" && (
                           <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {totalDummy} {totalDummy === 1 ? "interface" : "interfaces"}
+                        {t("sidebar.interfaceCount", { count: totalDummy })}
                       </span>
                     </div>
                   </div>
@@ -1211,13 +1221,13 @@ function InterfacesPageInner() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">Ethernet</span>
+                        <span className="font-medium text-sm text-foreground">{t("types.ethernet")}</span>
                         {selectedType === "ethernet" && (
                           <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {totalInterfaces} {totalInterfaces === 1 ? "interface" : "interfaces"}
+                        {t("sidebar.interfaceCount", { count: totalInterfaces })}
                       </span>
                     </div>
                   </div>
@@ -1253,7 +1263,7 @@ function InterfacesPageInner() {
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {totalGeneve} {totalGeneve === 1 ? "interface" : "interfaces"}
+                        {t("sidebar.interfaceCount", { count: totalGeneve })}
                       </span>
                     </div>
                   </div>
@@ -1283,13 +1293,13 @@ function InterfacesPageInner() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">Input</span>
+                        <span className="font-medium text-sm text-foreground">{t("types.input")}</span>
                         {selectedType === "input" && (
                           <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {totalInput} {totalInput === 1 ? "interface" : "interfaces"}
+                        {t("sidebar.interfaceCount", { count: totalInput })}
                       </span>
                     </div>
                   </div>
@@ -1324,7 +1334,7 @@ function InterfacesPageInner() {
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {totalL2tpv3} {totalL2tpv3 === 1 ? "interface" : "interfaces"}
+                        {t("sidebar.interfaceCount", { count: totalL2tpv3 })}
                       </span>
                     </div>
                   </div>
@@ -1353,13 +1363,13 @@ function InterfacesPageInner() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">Loopback</span>
+                        <span className="font-medium text-sm text-foreground">{t("types.loopback")}</span>
                         {selectedType === "loopback" && (
                           <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {totalLoopback} {totalLoopback === 1 ? "interface" : "interfaces"}
+                        {t("sidebar.interfaceCount", { count: totalLoopback })}
                       </span>
                     </div>
                   </div>
@@ -1395,7 +1405,7 @@ function InterfacesPageInner() {
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {totalMacsec} {totalMacsec === 1 ? "interface" : "interfaces"}
+                        {t("sidebar.interfaceCount", { count: totalMacsec })}
                       </span>
                     </div>
                   </div>
@@ -1431,7 +1441,7 @@ function InterfacesPageInner() {
                           )}
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          {totalPppoe} {totalPppoe === 1 ? "interface" : "interfaces"}
+                          {t("sidebar.interfaceCount", { count: totalPppoe })}
                         </span>
                       </div>
                     </div>
@@ -1461,13 +1471,13 @@ function InterfacesPageInner() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="font-medium text-sm text-foreground">Pseudo-Ethernet</span>
+                          <span className="font-medium text-sm text-foreground">{t("types.pseudoEthernet")}</span>
                           {selectedType === "pseudo-ethernet" && (
                             <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
                           )}
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          {totalPseudoEthernet} {totalPseudoEthernet === 1 ? "interface" : "interfaces"}
+                          {t("sidebar.interfaceCount", { count: totalPseudoEthernet })}
                         </span>
                       </div>
                     </div>
@@ -1503,7 +1513,7 @@ function InterfacesPageInner() {
                           )}
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          {totalSstpc} {totalSstpc === 1 ? "interface" : "interfaces"}
+                          {t("sidebar.interfaceCount", { count: totalSstpc })}
                         </span>
                       </div>
                     </div>
@@ -1532,13 +1542,13 @@ function InterfacesPageInner() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">Tunnel</span>
+                        <span className="font-medium text-sm text-foreground">{t("types.tunnel")}</span>
                         {selectedType === "tunnel" && (
                           <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {totalTunnel} {totalTunnel === 1 ? "interface" : "interfaces"}
+                        {t("sidebar.interfaceCount", { count: totalTunnel })}
                       </span>
                     </div>
                   </div>
@@ -1567,13 +1577,13 @@ function InterfacesPageInner() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="font-medium text-sm text-foreground">Virtual Ethernet</span>
+                          <span className="font-medium text-sm text-foreground">{t("types.virtualEthernet")}</span>
                           {selectedType === "virtual-ethernet" && (
                             <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
                           )}
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          {totalVirtualEthernet} {totalVirtualEthernet === 1 ? "interface" : "interfaces"}
+                          {t("sidebar.interfaceCount", { count: totalVirtualEthernet })}
                         </span>
                       </div>
                     </div>
@@ -1608,7 +1618,7 @@ function InterfacesPageInner() {
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {totalVlans} {totalVlans === 1 ? "VLAN" : "VLANs"}
+                        {t("sidebar.vlanCount", { count: totalVlans })}
                       </span>
                     </div>
                   </div>
@@ -1643,7 +1653,7 @@ function InterfacesPageInner() {
                           )}
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          {totalVpp} {totalVpp === 1 ? "interface" : "interfaces"}
+                          {t("sidebar.interfaceCount", { count: totalVpp })}
                         </span>
                       </div>
                     </div>
@@ -1678,7 +1688,7 @@ function InterfacesPageInner() {
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {totalVti} {totalVti === 1 ? "interface" : "interfaces"}
+                        {t("sidebar.interfaceCount", { count: totalVti })}
                       </span>
                     </div>
                   </div>
@@ -1714,7 +1724,7 @@ function InterfacesPageInner() {
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {totalVxlan} {totalVxlan === 1 ? "tunnel" : "tunnels"}
+                        {t("sidebar.tunnelCount", { count: totalVxlan })}
                       </span>
                     </div>
                   </div>
@@ -1750,7 +1760,7 @@ function InterfacesPageInner() {
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {totalWireGuard} {totalWireGuard === 1 ? "tunnel" : "tunnels"}
+                        {t("sidebar.tunnelCount", { count: totalWireGuard })}
                       </span>
                     </div>
                   </div>
@@ -1778,13 +1788,13 @@ function InterfacesPageInner() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">Wireless</span>
+                        <span className="font-medium text-sm text-foreground">{t("types.wireless")}</span>
                         {selectedType === "wireless" && (
                           <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {totalWireless} {totalWireless === 1 ? "interface" : "interfaces"}
+                        {t("sidebar.interfaceCount", { count: totalWireless })}
                       </span>
                     </div>
                   </div>
@@ -1818,7 +1828,7 @@ function InterfacesPageInner() {
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {totalWwan} {totalWwan === 1 ? "interface" : "interfaces"}
+                        {t("sidebar.interfaceCount", { count: totalWwan })}
                       </span>
                     </div>
                   </div>
@@ -1835,50 +1845,50 @@ function InterfacesPageInner() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-foreground">
-                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "l2tpv3" ? "L2TPv3 Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "loopback" ? "Loopback Interface" : selectedType === "macsec" ? "MACsec Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : selectedType === "pppoe" ? "PPPoE Interfaces" : selectedType === "pseudo-ethernet" ? "Pseudo-Ethernet Interfaces" : selectedType === "sstpc" ? "SSTPC Interfaces" : selectedType === "virtual-ethernet" ? "Virtual Ethernet Interfaces" : selectedType === "vpp" ? "VPP Interfaces" : selectedType === "vti" ? "VTI Interfaces" : selectedType === "wireless" ? "Wireless Interfaces" : selectedType === "wwan" ? "WWAN Interfaces" : "WireGuard Interfaces"}
+                  {selectedType === "ethernet" ? t("titles.ethernet") : selectedType === "vlan" ? t("titles.vlan") : selectedType === "vxlan" ? t("titles.vxlan") : selectedType === "tunnel" ? t("titles.tunnel") : selectedType === "l2tpv3" ? t("titles.l2tpv3") : selectedType === "dummy" ? t("titles.dummy") : selectedType === "geneve" ? t("titles.geneve") : selectedType === "input" ? t("titles.input") : selectedType === "loopback" ? t("titles.loopback") : selectedType === "macsec" ? t("titles.macsec") : selectedType === "bonding" ? t("titles.bonding") : selectedType === "bridge" ? t("titles.bridge") : selectedType === "pppoe" ? t("titles.pppoe") : selectedType === "pseudo-ethernet" ? t("titles.pseudoEthernet") : selectedType === "sstpc" ? t("titles.sstpc") : selectedType === "virtual-ethernet" ? t("titles.virtualEthernet") : selectedType === "vpp" ? t("titles.vpp") : selectedType === "vti" ? t("titles.vti") : selectedType === "wireless" ? t("titles.wireless") : selectedType === "wwan" ? t("titles.wwan") : t("titles.wireguard")}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-2">
                   {selectedType === "ethernet"
-                    ? "Physical and virtual ethernet interface configurations"
+                    ? t("descriptions.ethernet")
                     : selectedType === "vlan"
-                      ? "802.1Q VLAN, QinQ Service (VIF-S), and QinQ Customer (VIF-C) sub-interfaces"
+                      ? t("descriptions.vlan")
                       : selectedType === "vxlan"
-                        ? "VXLAN tunnel interfaces for overlay networking"
+                        ? t("descriptions.vxlan")
                         : selectedType === "tunnel"
-                          ? "GRE, IPIP, SIT, ERSPAN and other tunnel interfaces"
+                          ? t("descriptions.tunnel")
                           : selectedType === "l2tpv3"
-                            ? "Layer 2 Tunnel Protocol Version 3 tunnel interfaces"
+                            ? t("descriptions.l2tpv3")
                             : selectedType === "dummy"
-                              ? "Software-only dummy interfaces for testing and routing"
+                              ? t("descriptions.dummy")
                             : selectedType === "geneve"
-                              ? "GENEVE tunnel interfaces for network virtualization encapsulation"
+                              ? t("descriptions.geneve")
                               : selectedType === "input"
-                              ? "Input Functional Block (IFB) interfaces for traffic redirection and shaping"
+                              ? t("descriptions.input")
                               : selectedType === "loopback"
-                              ? "Loopback interface for local address assignment and routing"
+                              ? t("descriptions.loopback")
                               : selectedType === "macsec"
-                              ? "IEEE 802.1AE MACsec interfaces for layer-2 encryption"
+                              ? t("descriptions.macsec")
                               : selectedType === "bonding"
-                              ? "Link aggregation (bonding) interfaces for high availability and throughput"
+                              ? t("descriptions.bonding")
                               : selectedType === "bridge"
-                              ? "Bridge interfaces for layer-2 network bridging"
+                              ? t("descriptions.bridge")
                               : selectedType === "pppoe"
-                                ? "PPP over Ethernet dial-up interfaces — connects to an upstream access concentrator over an Ethernet source"
+                                ? t("descriptions.pppoe")
                                 : selectedType === "pseudo-ethernet"
-                                  ? "MacVLAN pseudo-ethernet interfaces bound to a physical Ethernet port with configurable isolation mode"
+                                  ? t("descriptions.pseudoEthernet")
                                   : selectedType === "sstpc"
-                                    ? "SSTP client interfaces — tunnel PPP over HTTPS to a remote server for VPN connectivity through restrictive firewalls"
+                                    ? t("descriptions.sstpc")
                                     : selectedType === "virtual-ethernet"
-                                      ? "Virtual Ethernet (veth) peer interface pairs — kernel-level point-to-point links connecting network namespaces"
+                                      ? t("descriptions.virtualEthernet")
                                       : selectedType === "vpp"
-                                        ? "VPP (Vector Packet Processing) interfaces — bonding, bridge, GRE, IPIP, loopback, VXLAN, and XConnect types"
+                                        ? t("descriptions.vpp")
                                         : selectedType === "vti"
-                                          ? "Virtual Tunnel Interfaces (VTI) — routable endpoints for IPsec tunnels"
+                                          ? t("descriptions.vti")
                                           : selectedType === "wireless"
-                                            ? "Wireless (802.11) interfaces — access point, station, and monitor mode"
+                                            ? t("descriptions.wireless")
                                             : selectedType === "wwan"
-                                              ? "Wireless WAN (cellular modem) interfaces — connect via APN with LTE/5G modems"
-                                              : "WireGuard tunnel interfaces and status"}
+                                              ? t("descriptions.wwan")
+                                              : t("descriptions.wireguard")}
                 </p>
               </div>
               <Button
@@ -1937,46 +1947,46 @@ function InterfacesPageInner() {
               >
                 <Plus className="h-4 w-4" />
                 {selectedType === "ethernet"
-                  ? "Create Interface"
+                  ? t("create.ethernet")
                   : selectedType === "vlan"
-                    ? `Create ${vlanSubTabLabel[vlanSubTab]}`
+                    ? t("create.vlan", { label: vlanSubTabLabel[vlanSubTab] })
                     : selectedType === "vxlan"
-                      ? "Create VXLAN"
+                      ? t("create.vxlan")
                       : selectedType === "tunnel"
-                        ? "Create Tunnel"
+                        ? t("create.tunnel")
                         : selectedType === "dummy"
-                          ? "Create Dummy"
+                          ? t("create.dummy")
                           : selectedType === "geneve"
-                            ? "Create GENEVE"
+                            ? t("create.geneve")
                             : selectedType === "input"
-                            ? "Create Input"
+                            ? t("create.input")
                             : selectedType === "l2tpv3"
-                            ? "Create L2TPv3"
+                            ? t("create.l2tpv3")
                             : selectedType === "loopback"
-                            ? "Configure Loopback"
+                            ? t("create.loopback")
                             : selectedType === "macsec"
-                            ? "Create MACsec"
+                            ? t("create.macsec")
                             : selectedType === "bonding"
-                            ? "Create Bond"
+                            ? t("create.bonding")
                             : selectedType === "bridge"
-                            ? "Create Bridge"
+                            ? t("create.bridge")
                             : selectedType === "pppoe"
-                              ? "Create PPPoE"
+                              ? t("create.pppoe")
                               : selectedType === "pseudo-ethernet"
-                                ? "Create Pseudo-Ethernet"
+                                ? t("create.pseudoEthernet")
                                 : selectedType === "sstpc"
-                                  ? "Create SSTPC"
+                                  ? t("create.sstpc")
                                   : selectedType === "virtual-ethernet"
-                                    ? "Create Virtual Ethernet"
+                                    ? t("create.virtualEthernet")
                                     : selectedType === "vpp"
-                                      ? "Create VPP Interface"
+                                      ? t("create.vpp")
                                       : selectedType === "vti"
-                                        ? "Create VTI"
+                                        ? t("create.vti")
                                         : selectedType === "wireless"
-                                          ? "Create Wireless"
+                                          ? t("create.wireless")
                                           : selectedType === "wwan"
-                                            ? "Create WWAN"
-                                            : "Manage WireGuard"}
+                                            ? t("create.wwan")
+                                            : t("create.wireguard")}
               </Button>
             </div>
 
@@ -1986,11 +1996,11 @@ function InterfacesPageInner() {
                 <Tabs value={vlanParent} onValueChange={(v) => setVlanParent(v as "ethernet" | "bonding")}>
                   <TabsList>
                     <TabsTrigger value="ethernet" className="gap-1.5">
-                      Ethernet
+                      {t("types.ethernet")}
                       <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-1">{totalEthernetVlans}</Badge>
                     </TabsTrigger>
                     <TabsTrigger value="bonding" className="gap-1.5">
-                      Bonding
+                      {t("types.bonding")}
                       <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-1">{totalBondingVlans}</Badge>
                     </TabsTrigger>
                   </TabsList>
@@ -2002,11 +2012,11 @@ function InterfacesPageInner() {
                       <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-1">{activeVifs.length}</Badge>
                     </TabsTrigger>
                     <TabsTrigger value="vif-s" className="gap-1.5">
-                      VIF-S (QinQ Service)
+                      {t("vlan.tabVifS")}
                       <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-1">{activeVifS.length}</Badge>
                     </TabsTrigger>
                     <TabsTrigger value="vif-c" className="gap-1.5">
-                      VIF-C (QinQ Customer)
+                      {t("vlan.tabVifC")}
                       <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-1">{activeVifC.length}</Badge>
                     </TabsTrigger>
                   </TabsList>
@@ -2020,34 +2030,34 @@ function InterfacesPageInner() {
               <Input
                 placeholder={
                   selectedType === "ethernet"
-                    ? "Search by name, description, IP address, VRF, or MAC..."
+                    ? t("search.ethernet")
                     : selectedType === "vlan"
-                      ? "Search by name, parent, description, IP address, or VRF..."
+                      ? t("search.vlan")
                       : selectedType === "vxlan"
-                        ? "Search by name, description, address, or VNI..."
+                        ? t("search.vxlan")
                         : selectedType === "tunnel"
-                          ? "Search by name, description, address, encapsulation, or remote..."
+                          ? t("search.tunnel")
                           : selectedType === "dummy"
-                            ? "Search by name, description, address, or VRF..."
+                            ? t("search.dummy")
                             : selectedType === "geneve"
-                              ? "Search by name, description, address, remote, or VNI..."
+                              ? t("search.geneve")
                               : selectedType === "input"
-                              ? "Search by name, description, or redirect..."
+                              ? t("search.input")
                               : selectedType === "l2tpv3"
-                              ? "Search by name, description, remote, or address..."
+                              ? t("search.l2tpv3")
                               : selectedType === "loopback"
-                              ? "Search by name, description, or address..."
+                              ? t("search.loopback")
                               : selectedType === "bonding"
-                              ? "Search by name, description, address, mode, or member..."
+                              ? t("search.bonding")
                               : selectedType === "bridge"
-                              ? "Search by name, description, address, or member..."
+                              ? t("search.bridge")
                               : selectedType === "pppoe"
-                                ? "Search by name, source, AC, or username..."
+                                ? t("search.pppoe")
                                 : selectedType === "pseudo-ethernet"
-                                  ? "Search by name, description, source, or address..."
+                                  ? t("search.pseudoEthernet")
                                   : selectedType === "virtual-ethernet"
-                                    ? "Search by name, peer, description, or address..."
-                                    : "Search by name, description, address..."
+                                    ? t("search.virtualEthernet")
+                                    : t("search.default")
                 }
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -2060,17 +2070,17 @@ function InterfacesPageInner() {
           <div className="flex-1 overflow-auto p-6">
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <LoadingSpinner message="Loading interfaces..." size="sm" />
+                <LoadingSpinner message={t("page.loading")} size="sm" />
               </div>
             ) : error ? (
               <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
                 <div className="flex-1">
-                  <h3 className="font-semibold text-destructive">Failed to load interfaces</h3>
+                  <h3 className="font-semibold text-destructive">{t("page.failedToLoadInterfaces")}</h3>
                   <p className="text-sm text-destructive/90 mt-1">{error}</p>
                   <Button variant="outline" size="sm" onClick={loadData} className="mt-3">
                     <RefreshCw className="h-3.5 w-3.5 mr-2" />
-                    Try Again
+                    {t("page.tryAgain")}
                   </Button>
                 </div>
               </div>
@@ -2083,8 +2093,8 @@ function InterfacesPageInner() {
                       <Cable className="h-12 w-12 text-muted-foreground/30" />
                       <p className="text-muted-foreground">
                         {searchQuery
-                          ? "No ethernet interfaces matching your search"
-                          : "No ethernet interfaces configured"}
+                          ? t("empty.ethernet.noMatch")
+                          : t("empty.ethernet.none")}
                       </p>
                     </div>
                   </CardContent>
@@ -2095,14 +2105,14 @@ function InterfacesPageInner() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Addresses</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
+                          <TableHead>{tc("description")}</TableHead>
+                          <TableHead>{t("table.addresses")}</TableHead>
                           <TableHead>VRF</TableHead>
-                          <TableHead>MAC / HW ID</TableHead>
-                          <TableHead>VLANs</TableHead>
-                          <TableHead>Optic</TableHead>
+                          <TableHead>{t("table.macHwId")}</TableHead>
+                          <TableHead>{t("table.vlans")}</TableHead>
+                          <TableHead>{t("table.optic")}</TableHead>
                           <TableHead className="w-[80px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -2121,9 +2131,9 @@ function InterfacesPageInner() {
                               </TableCell>
                               <TableCell>
                                 {iface.disable ? (
-                                  <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                  <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">{tc("disabled")}</Badge>
                                 ) : (
-                                  <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                  <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">{tc("enabled")}</Badge>
                                 )}
                               </TableCell>
                               <TableCell className="text-muted-foreground max-w-[200px] truncate">
@@ -2172,12 +2182,12 @@ function InterfacesPageInner() {
                               </TableCell>
                               <TableCell>
                                 {!opticLabel ? <span className="text-muted-foreground">-</span> : null}
-                                {optic === "none" ? <span className="text-muted-foreground" title="No optical transceiver">{opticLabel}</span> : null}
-                                {optic === "error" ? <Badge variant="outline" className="cursor-pointer" onClick={openOptic} title="Transceiver read failed">{opticLabel}</Badge> : null}
-                                {optic === "absent" ? <Badge variant="outline" className="cursor-pointer border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400" onClick={openOptic} title="No transceiver detected">{opticLabel}</Badge> : null}
-                                {optic === "alarm" ? <Badge variant="destructive" className="cursor-pointer" onClick={openOptic} title="Optic alarm">{opticLabel}</Badge> : null}
-                                {optic === "warning" ? <Badge variant="outline" className="cursor-pointer border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400" onClick={openOptic} title="Optic warning">{opticLabel}</Badge> : null}
-                                {optic === "ok" ? <Badge variant="outline" className="cursor-pointer border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400" onClick={openOptic} title="Optic healthy">{opticLabel}</Badge> : null}
+                                {optic === "none" ? <span className="text-muted-foreground" title={t("optic.noneTitle")}>{t("optic.na")}</span> : null}
+                                {optic === "error" ? <Badge variant="outline" className="cursor-pointer" onClick={openOptic} title={t("optic.errorTitle")}>{t("optic.error")}</Badge> : null}
+                                {optic === "absent" ? <Badge variant="outline" className="cursor-pointer border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400" onClick={openOptic} title={t("optic.absentTitle")}>{t("optic.warning")}</Badge> : null}
+                                {optic === "alarm" ? <Badge variant="destructive" className="cursor-pointer" onClick={openOptic} title={t("optic.alarmTitle")}>{t("optic.alarm")}</Badge> : null}
+                                {optic === "warning" ? <Badge variant="outline" className="cursor-pointer border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400" onClick={openOptic} title={t("optic.warningTitle")}>{t("optic.warning")}</Badge> : null}
+                                {optic === "ok" ? <Badge variant="outline" className="cursor-pointer border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400" onClick={openOptic} title={t("optic.healthyTitle")}>{t("optic.healthy")}</Badge> : null}
                               </TableCell>
                               <TableCell>
                                 <div className="flex gap-1 justify-end">
@@ -2188,7 +2198,7 @@ function InterfacesPageInner() {
                                       onClick={openOptic}
                                       className="h-7 w-7 p-0"
                                       disabled={!canRead(FeatureGroup.ETHERNET) && !canRead(FeatureGroup.INTERFACES)}
-                                      title="View transceiver diagnostics"
+                                      title={t("actions.viewDiagnostics")}
                                     >
                                       <Signal className="h-3.5 w-3.5" />
                                     </Button>
@@ -2220,7 +2230,7 @@ function InterfacesPageInner() {
                     </Table>
                   </div>
                   <p className="text-sm text-muted-foreground text-center mt-3">
-                    Showing {filteredInterfaces.length} of {totalInterfaces} interface{totalInterfaces !== 1 ? "s" : ""}
+                    {t("table.showingInterfaces", { shown: filteredInterfaces.length, total: totalInterfaces })}
                   </p>
                 </>
               )
@@ -2254,7 +2264,7 @@ function InterfacesPageInner() {
                     <div className="flex flex-col items-center gap-2">
                       <Boxes className="h-12 w-12 text-muted-foreground/30" />
                       <p className="text-muted-foreground">
-                        {searchQuery ? "No VXLAN interfaces matching your search" : "No VXLAN interfaces configured"}
+                        {searchQuery ? t("empty.vxlan.noMatch") : t("empty.vxlan.none")}
                       </p>
                     </div>
                   </CardContent>
@@ -2265,13 +2275,13 @@ function InterfacesPageInner() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
                           <TableHead>VNI</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Addresses</TableHead>
-                          <TableHead>Source</TableHead>
-                          <TableHead>Remotes</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead>{tc("description")}</TableHead>
+                          <TableHead>{t("table.addresses")}</TableHead>
+                          <TableHead>{t("table.source")}</TableHead>
+                          <TableHead>{t("table.remotes")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
                           <TableHead className="w-[80px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -2299,9 +2309,9 @@ function InterfacesPageInner() {
                             </TableCell>
                             <TableCell>
                               {vx.disabled ? (
-                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">{tc("disabled")}</Badge>
                               ) : (
-                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">{tc("enabled")}</Badge>
                               )}
                             </TableCell>
                             <TableCell>
@@ -2324,7 +2334,7 @@ function InterfacesPageInner() {
                     </Table>
                   </div>
                   <p className="text-sm text-muted-foreground text-center mt-3">
-                    Showing {filteredVxlan.length} of {totalVxlan} tunnel{totalVxlan !== 1 ? "s" : ""}
+                    {t("table.showingTunnels", { shown: filteredVxlan.length, total: totalVxlan })}
                   </p>
                 </>
               )
@@ -2336,7 +2346,7 @@ function InterfacesPageInner() {
                     <div className="flex flex-col items-center gap-2">
                       <Waypoints className="h-12 w-12 text-muted-foreground/30" />
                       <p className="text-muted-foreground">
-                        {searchQuery ? "No tunnel interfaces matching your search" : "No tunnel interfaces configured"}
+                        {searchQuery ? t("empty.tunnel.noMatch") : t("empty.tunnel.none")}
                       </p>
                     </div>
                   </CardContent>
@@ -2347,13 +2357,13 @@ function InterfacesPageInner() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Encapsulation</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Addresses</TableHead>
-                          <TableHead>Source</TableHead>
-                          <TableHead>Remote</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("table.encapsulation")}</TableHead>
+                          <TableHead>{tc("description")}</TableHead>
+                          <TableHead>{t("table.addresses")}</TableHead>
+                          <TableHead>{t("table.source")}</TableHead>
+                          <TableHead>{t("table.remote")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
                           <TableHead className="w-[80px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -2381,9 +2391,9 @@ function InterfacesPageInner() {
                             <TableCell className="text-sm">{tun.remote || "—"}</TableCell>
                             <TableCell>
                               {tun.disabled ? (
-                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">{tc("disabled")}</Badge>
                               ) : (
-                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">{tc("enabled")}</Badge>
                               )}
                             </TableCell>
                             <TableCell>
@@ -2406,7 +2416,7 @@ function InterfacesPageInner() {
                     </Table>
                   </div>
                   <p className="text-sm text-muted-foreground text-center mt-3">
-                    Showing {filteredTunnel.length} of {totalTunnel} interface{totalTunnel !== 1 ? "s" : ""}
+                    {t("table.showingInterfaces", { shown: filteredTunnel.length, total: totalTunnel })}
                   </p>
                 </>
               )
@@ -2418,7 +2428,7 @@ function InterfacesPageInner() {
                     <div className="flex flex-col items-center gap-2">
                       <Box className="h-12 w-12 text-muted-foreground/30" />
                       <p className="text-muted-foreground">
-                        {searchQuery ? "No dummy interfaces matching your search" : "No dummy interfaces configured"}
+                        {searchQuery ? t("empty.dummy.noMatch") : t("empty.dummy.none")}
                       </p>
                     </div>
                   </CardContent>
@@ -2429,12 +2439,12 @@ function InterfacesPageInner() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Addresses</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{tc("description")}</TableHead>
+                          <TableHead>{t("table.addresses")}</TableHead>
                           <TableHead>MTU</TableHead>
                           <TableHead>VRF</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
                           <TableHead className="w-[80px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -2461,9 +2471,9 @@ function InterfacesPageInner() {
                             </TableCell>
                             <TableCell>
                               {dum.disable ? (
-                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">{tc("disabled")}</Badge>
                               ) : (
-                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">{tc("enabled")}</Badge>
                               )}
                             </TableCell>
                             <TableCell>
@@ -2486,7 +2496,7 @@ function InterfacesPageInner() {
                     </Table>
                   </div>
                   <p className="text-sm text-muted-foreground text-center mt-3">
-                    Showing {filteredDummy.length} of {totalDummy} interface{totalDummy !== 1 ? "s" : ""}
+                    {t("table.showingInterfaces", { shown: filteredDummy.length, total: totalDummy })}
                   </p>
                 </>
               )
@@ -2498,7 +2508,7 @@ function InterfacesPageInner() {
                     <div className="flex flex-col items-center gap-2">
                       <Layers className="h-12 w-12 text-muted-foreground/30" />
                       <p className="text-muted-foreground">
-                        {searchQuery ? "No GENEVE interfaces matching your search" : "No GENEVE interfaces configured"}
+                        {searchQuery ? t("empty.geneve.noMatch") : t("empty.geneve.none")}
                       </p>
                     </div>
                   </CardContent>
@@ -2509,12 +2519,12 @@ function InterfacesPageInner() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Remote</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("table.remote")}</TableHead>
                           <TableHead>VNI</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Addresses</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead>{tc("description")}</TableHead>
+                          <TableHead>{t("table.addresses")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
                           <TableHead className="w-[80px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -2535,9 +2545,9 @@ function InterfacesPageInner() {
                             </TableCell>
                             <TableCell>
                               {gnv.disable ? (
-                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">{tc("disabled")}</Badge>
                               ) : (
-                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">{tc("enabled")}</Badge>
                               )}
                             </TableCell>
                             <TableCell>
@@ -2560,7 +2570,7 @@ function InterfacesPageInner() {
                     </Table>
                   </div>
                   <p className="text-sm text-muted-foreground text-center mt-3">
-                    Showing {filteredGeneve.length} of {totalGeneve} interface{totalGeneve !== 1 ? "s" : ""}
+                    {t("table.showingInterfaces", { shown: filteredGeneve.length, total: totalGeneve })}
                   </p>
                 </>
               )
@@ -2572,7 +2582,7 @@ function InterfacesPageInner() {
                     <div className="flex flex-col items-center gap-2">
                       <Cable className="h-12 w-12 text-muted-foreground/30" />
                       <p className="text-muted-foreground">
-                        {searchQuery ? "No L2TPv3 interfaces matching your search" : "No L2TPv3 interfaces configured"}
+                        {searchQuery ? t("empty.l2tpv3.noMatch") : t("empty.l2tpv3.none")}
                       </p>
                     </div>
                   </CardContent>
@@ -2583,12 +2593,12 @@ function InterfacesPageInner() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Remote</TableHead>
-                          <TableHead>Tunnel ID</TableHead>
-                          <TableHead>Session ID</TableHead>
-                          <TableHead>Encapsulation</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("table.remote")}</TableHead>
+                          <TableHead>{t("table.tunnelId")}</TableHead>
+                          <TableHead>{t("table.sessionId")}</TableHead>
+                          <TableHead>{t("table.encapsulation")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
                           <TableHead className="w-[80px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -2606,9 +2616,9 @@ function InterfacesPageInner() {
                             </TableCell>
                             <TableCell>
                               {iface.disable ? (
-                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">{tc("disabled")}</Badge>
                               ) : (
-                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">{tc("enabled")}</Badge>
                               )}
                             </TableCell>
                             <TableCell>
@@ -2631,7 +2641,7 @@ function InterfacesPageInner() {
                     </Table>
                   </div>
                   <p className="text-sm text-muted-foreground text-center mt-3">
-                    Showing {filteredL2tpv3.length} of {totalL2tpv3} interface{totalL2tpv3 !== 1 ? "s" : ""}
+                    {t("table.showingInterfaces", { shown: filteredL2tpv3.length, total: totalL2tpv3 })}
                   </p>
                 </>
               )
@@ -2643,7 +2653,7 @@ function InterfacesPageInner() {
                     <div className="flex flex-col items-center gap-2">
                       <ArrowDownToLine className="h-12 w-12 text-muted-foreground/30" />
                       <p className="text-muted-foreground">
-                        {searchQuery ? "No input interfaces matching your search" : "No input interfaces configured"}
+                        {searchQuery ? t("empty.input.noMatch") : t("empty.input.none")}
                       </p>
                     </div>
                   </CardContent>
@@ -2654,10 +2664,10 @@ function InterfacesPageInner() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Redirect</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{tc("description")}</TableHead>
+                          <TableHead>{t("table.redirect")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
                           <TableHead className="w-[80px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -2673,9 +2683,9 @@ function InterfacesPageInner() {
                             </TableCell>
                             <TableCell>
                               {ifb.disable ? (
-                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">{tc("disabled")}</Badge>
                               ) : (
-                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">{tc("enabled")}</Badge>
                               )}
                             </TableCell>
                             <TableCell>
@@ -2698,7 +2708,7 @@ function InterfacesPageInner() {
                     </Table>
                   </div>
                   <p className="text-sm text-muted-foreground text-center mt-3">
-                    Showing {filteredInput.length} of {totalInput} interface{totalInput !== 1 ? "s" : ""}
+                    {t("table.showingInterfaces", { shown: filteredInput.length, total: totalInput })}
                   </p>
                 </>
               )
@@ -2710,7 +2720,7 @@ function InterfacesPageInner() {
                     <div className="flex flex-col items-center gap-2">
                       <Repeat className="h-12 w-12 text-muted-foreground/30" />
                       <p className="text-muted-foreground">
-                        {searchQuery ? "No loopback interfaces matching your search" : "No loopback interface configured"}
+                        {searchQuery ? t("empty.loopback.noMatch") : t("empty.loopback.none")}
                       </p>
                     </div>
                   </CardContent>
@@ -2721,10 +2731,10 @@ function InterfacesPageInner() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Addresses</TableHead>
-                          <TableHead>Source Validation</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{tc("description")}</TableHead>
+                          <TableHead>{t("table.addresses")}</TableHead>
+                          <TableHead>{t("table.sourceValidation")}</TableHead>
                           <TableHead className="w-[80px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -2766,7 +2776,7 @@ function InterfacesPageInner() {
                     </Table>
                   </div>
                   <p className="text-sm text-muted-foreground text-center mt-3">
-                    Showing {filteredLoopback.length} of {totalLoopback} interface{totalLoopback !== 1 ? "s" : ""}
+                    {t("table.showingInterfaces", { shown: filteredLoopback.length, total: totalLoopback })}
                   </p>
                 </>
               )
@@ -2778,7 +2788,7 @@ function InterfacesPageInner() {
                     <div className="flex flex-col items-center gap-2">
                       <Lock className="h-12 w-12 text-muted-foreground/30" />
                       <p className="text-muted-foreground">
-                        {searchQuery ? "No MACsec interfaces matching your search" : "No MACsec interfaces configured"}
+                        {searchQuery ? t("empty.macsec.noMatch") : t("empty.macsec.none")}
                       </p>
                     </div>
                   </CardContent>
@@ -2789,12 +2799,12 @@ function InterfacesPageInner() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Source</TableHead>
-                          <TableHead>Cipher</TableHead>
-                          <TableHead>Addresses</TableHead>
-                          <TableHead>Security Mode</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("table.source")}</TableHead>
+                          <TableHead>{t("table.cipher")}</TableHead>
+                          <TableHead>{t("table.addresses")}</TableHead>
+                          <TableHead>{t("table.securityMode")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
                           <TableHead className="w-[80px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -2827,15 +2837,15 @@ function InterfacesPageInner() {
                               <TableCell>
                                 {securityMode ? (
                                   <Badge variant="outline" className={securityMode === "MKA" ? "bg-purple-500/10 text-purple-500 border-purple-500/20 text-xs" : "bg-orange-500/10 text-orange-500 border-orange-500/20 text-xs"}>
-                                    {securityMode}
+                                    {securityMode === "Static" ? t("macsec.static") : securityMode}
                                   </Badge>
                                 ) : <span className="text-muted-foreground">—</span>}
                               </TableCell>
                               <TableCell>
                                 {iface.disabled ? (
-                                  <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                  <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">{tc("disabled")}</Badge>
                                 ) : (
-                                  <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                  <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">{tc("enabled")}</Badge>
                                 )}
                               </TableCell>
                               <TableCell>
@@ -2859,7 +2869,7 @@ function InterfacesPageInner() {
                     </Table>
                   </div>
                   <p className="text-sm text-muted-foreground text-center mt-3">
-                    Showing {filteredMacsec.length} of {totalMacsec} interface{totalMacsec !== 1 ? "s" : ""}
+                    {t("table.showingInterfaces", { shown: filteredMacsec.length, total: totalMacsec })}
                   </p>
                 </>
               )
@@ -2871,7 +2881,7 @@ function InterfacesPageInner() {
                     <div className="flex flex-col items-center gap-2">
                       <Cable className="h-12 w-12 text-muted-foreground/30" />
                       <p className="text-muted-foreground">
-                        {searchQuery ? "No PPPoE interfaces matching your search" : "No PPPoE interfaces configured"}
+                        {searchQuery ? t("empty.pppoe.noMatch") : t("empty.pppoe.none")}
                       </p>
                     </div>
                   </CardContent>
@@ -2882,11 +2892,11 @@ function InterfacesPageInner() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Source</TableHead>
-                          <TableHead>AC / Service</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("table.source")}</TableHead>
+                          <TableHead>{t("table.acService")}</TableHead>
+                          <TableHead>{tc("description")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
                           <TableHead className="w-[80px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -2920,9 +2930,9 @@ function InterfacesPageInner() {
                             </TableCell>
                             <TableCell>
                               {iface.disabled ? (
-                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">{tc("disabled")}</Badge>
                               ) : (
-                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">{tc("enabled")}</Badge>
                               )}
                             </TableCell>
                             <TableCell>
@@ -2945,7 +2955,7 @@ function InterfacesPageInner() {
                     </Table>
                   </div>
                   <p className="text-sm text-muted-foreground text-center mt-3">
-                    Showing {filteredPppoe.length} of {totalPppoe} interface{totalPppoe !== 1 ? "s" : ""}
+                    {t("table.showingInterfaces", { shown: filteredPppoe.length, total: totalPppoe })}
                   </p>
                 </>
               )
@@ -2957,7 +2967,7 @@ function InterfacesPageInner() {
                     <div className="flex flex-col items-center gap-2">
                       <Layers className="h-12 w-12 text-muted-foreground/30" />
                       <p className="text-muted-foreground">
-                        {searchQuery ? "No pseudo-ethernet interfaces matching your search" : "No pseudo-ethernet interfaces configured"}
+                        {searchQuery ? t("empty.pseudoEthernet.noMatch") : t("empty.pseudoEthernet.none")}
                       </p>
                     </div>
                   </CardContent>
@@ -2968,12 +2978,12 @@ function InterfacesPageInner() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Source Interface</TableHead>
-                          <TableHead>Mode</TableHead>
-                          <TableHead>Addresses</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("table.sourceInterface")}</TableHead>
+                          <TableHead>{t("table.mode")}</TableHead>
+                          <TableHead>{t("table.addresses")}</TableHead>
+                          <TableHead>{tc("description")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
                           <TableHead className="w-[80px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -3023,9 +3033,9 @@ function InterfacesPageInner() {
                             </TableCell>
                             <TableCell>
                               {iface.disabled ? (
-                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">{tc("disabled")}</Badge>
                               ) : (
-                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">{tc("enabled")}</Badge>
                               )}
                             </TableCell>
                             <TableCell>
@@ -3048,7 +3058,7 @@ function InterfacesPageInner() {
                     </Table>
                   </div>
                   <p className="text-sm text-muted-foreground text-center mt-3">
-                    Showing {filteredPseudoEthernet.length} of {totalPseudoEthernet} interface{totalPseudoEthernet !== 1 ? "s" : ""}
+                    {t("table.showingInterfaces", { shown: filteredPseudoEthernet.length, total: totalPseudoEthernet })}
                   </p>
                 </>
               )
@@ -3060,7 +3070,7 @@ function InterfacesPageInner() {
                     <div className="flex flex-col items-center gap-2">
                       <Lock className="h-12 w-12 text-muted-foreground/30" />
                       <p className="text-muted-foreground">
-                        {searchQuery ? "No SSTPC interfaces matching your search" : "No SSTPC interfaces configured"}
+                        {searchQuery ? t("empty.sstpc.noMatch") : t("empty.sstpc.none")}
                       </p>
                     </div>
                   </CardContent>
@@ -3071,11 +3081,11 @@ function InterfacesPageInner() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Server</TableHead>
-                          <TableHead>Port</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("table.server")}</TableHead>
+                          <TableHead>{t("table.port")}</TableHead>
+                          <TableHead>{tc("description")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
                           <TableHead className="w-[80px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -3100,9 +3110,9 @@ function InterfacesPageInner() {
                             </TableCell>
                             <TableCell>
                               {iface.disabled ? (
-                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">{tc("disabled")}</Badge>
                               ) : (
-                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">{tc("enabled")}</Badge>
                               )}
                             </TableCell>
                             <TableCell>
@@ -3125,7 +3135,7 @@ function InterfacesPageInner() {
                     </Table>
                   </div>
                   <p className="text-sm text-muted-foreground text-center mt-3">
-                    Showing {filteredSstpc.length} of {totalSstpc} interface{totalSstpc !== 1 ? "s" : ""}
+                    {t("table.showingInterfaces", { shown: filteredSstpc.length, total: totalSstpc })}
                   </p>
                 </>
               )
@@ -3137,7 +3147,7 @@ function InterfacesPageInner() {
                     <div className="flex flex-col items-center gap-2">
                       <ArrowLeftRight className="h-12 w-12 text-muted-foreground/30" />
                       <p className="text-muted-foreground">
-                        {searchQuery ? "No virtual ethernet interfaces matching your search" : "No virtual ethernet interfaces configured"}
+                        {searchQuery ? t("empty.virtualEthernet.noMatch") : t("empty.virtualEthernet.none")}
                       </p>
                     </div>
                   </CardContent>
@@ -3148,13 +3158,13 @@ function InterfacesPageInner() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Peer</TableHead>
-                          <TableHead>Addresses</TableHead>
-                          <TableHead>Namespace</TableHead>
-                          <TableHead>Sub-interfaces</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("table.peer")}</TableHead>
+                          <TableHead>{t("table.addresses")}</TableHead>
+                          <TableHead>{t("table.namespace")}</TableHead>
+                          <TableHead>{t("table.subInterfaces")}</TableHead>
+                          <TableHead>{tc("description")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
                           <TableHead className="w-[80px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -3206,9 +3216,9 @@ function InterfacesPageInner() {
                               </TableCell>
                               <TableCell>
                                 {iface.disabled ? (
-                                  <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                  <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">{tc("disabled")}</Badge>
                                 ) : (
-                                  <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                  <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">{tc("enabled")}</Badge>
                                 )}
                               </TableCell>
                               <TableCell>
@@ -3232,7 +3242,7 @@ function InterfacesPageInner() {
                     </Table>
                   </div>
                   <p className="text-sm text-muted-foreground text-center mt-3">
-                    Showing {filteredVirtualEthernet.length} of {totalVirtualEthernet} interface{totalVirtualEthernet !== 1 ? "s" : ""}
+                    {t("table.showingInterfaces", { shown: filteredVirtualEthernet.length, total: totalVirtualEthernet })}
                   </p>
                 </>
               )
@@ -3243,19 +3253,19 @@ function InterfacesPageInner() {
                 <div className="mb-4">
                   <Tabs value={vppSubTab} onValueChange={(v) => setVppSubTab(v as VppSubType)}>
                     <TabsList>
-                      {(["bonding", "bridge", "gre", "ipip", "loopback", "vxlan", "xconnect"] as VppSubType[]).map((t) => {
+                      {(["bonding", "bridge", "gre", "ipip", "loopback", "vxlan", "xconnect"] as VppSubType[]).map((st) => {
                         const counts: Record<VppSubType, number> = {
                           bonding: vppBonding.length, bridge: vppBridge.length, gre: vppGre.length,
                           ipip: vppIpip.length, loopback: vppLoopback.length, vxlan: vppVxlanIfaces.length, xconnect: vppXconnect.length,
                         };
                         const labels: Record<VppSubType, string> = {
-                          bonding: "Bonding", bridge: "Bridge", gre: "GRE", ipip: "IPIP",
-                          loopback: "Loopback", vxlan: "VXLAN", xconnect: "XConnect",
+                          bonding: t("types.bonding"), bridge: t("types.bridge"), gre: "GRE", ipip: "IPIP",
+                          loopback: t("types.loopback"), vxlan: "VXLAN", xconnect: "XConnect",
                         };
                         return (
-                          <TabsTrigger key={t} value={t} className="gap-1.5">
-                            {labels[t]}
-                            <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-1">{counts[t]}</Badge>
+                          <TabsTrigger key={st} value={st} className="gap-1.5">
+                            {labels[st]}
+                            <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-1">{counts[st]}</Badge>
                           </TabsTrigger>
                         );
                       })}
@@ -3271,7 +3281,7 @@ function InterfacesPageInner() {
                           <div className="flex flex-col items-center gap-2">
                             <Boxes className="h-12 w-12 text-muted-foreground/30" />
                             <p className="text-muted-foreground">
-                              {searchQuery ? `No VPP ${vppSubTabData[vppSubTab].label} interfaces matching your search` : `No VPP ${vppSubTabData[vppSubTab].label} interfaces configured`}
+                              {searchQuery ? t("empty.vpp.noMatch", { label: vppSubTabData[vppSubTab].label }) : t("empty.vpp.none", { label: vppSubTabData[vppSubTab].label })}
                             </p>
                           </div>
                         </CardContent>
@@ -3284,17 +3294,17 @@ function InterfacesPageInner() {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Name</TableHead>
-                              {vppSubTab === "bonding" && <><TableHead>Mode</TableHead><TableHead>Hash Policy</TableHead><TableHead>MAC</TableHead></>}
-                              {vppSubTab === "bridge" && <TableHead>Members</TableHead>}
-                              {(vppSubTab === "gre" || vppSubTab === "ipip" || vppSubTab === "vxlan") && <><TableHead>Remote</TableHead><TableHead>Source</TableHead></>}
-                              {vppSubTab === "gre" && <><TableHead>Tunnel Type</TableHead><TableHead>Key</TableHead></>}
+                              <TableHead>{tc("name")}</TableHead>
+                              {vppSubTab === "bonding" && <><TableHead>{t("table.mode")}</TableHead><TableHead>{t("table.hashPolicy")}</TableHead><TableHead>MAC</TableHead></>}
+                              {vppSubTab === "bridge" && <TableHead>{t("table.members")}</TableHead>}
+                              {(vppSubTab === "gre" || vppSubTab === "ipip" || vppSubTab === "vxlan") && <><TableHead>{t("table.remote")}</TableHead><TableHead>{t("table.source")}</TableHead></>}
+                              {vppSubTab === "gre" && <><TableHead>{t("table.tunnelType")}</TableHead><TableHead>{t("table.key")}</TableHead></>}
                               {vppSubTab === "vxlan" && <TableHead>VNI</TableHead>}
-                              {(vppSubTab === "bonding" || vppSubTab === "gre" || vppSubTab === "ipip" || vppSubTab === "loopback" || vppSubTab === "vxlan") && <TableHead>Addresses</TableHead>}
-                              {vppSubTab === "xconnect" && <TableHead>Members</TableHead>}
+                              {(vppSubTab === "bonding" || vppSubTab === "gre" || vppSubTab === "ipip" || vppSubTab === "loopback" || vppSubTab === "vxlan") && <TableHead>{t("table.addresses")}</TableHead>}
+                              {vppSubTab === "xconnect" && <TableHead>{t("table.members")}</TableHead>}
                               {(vppSubTab === "bonding" || vppSubTab === "gre" || vppSubTab === "ipip" || vppSubTab === "loopback" || vppSubTab === "vxlan") && <TableHead>MTU</TableHead>}
-                              <TableHead>Description</TableHead>
-                              {vppSubTab !== "bridge" && <TableHead>Status</TableHead>}
+                              <TableHead>{tc("description")}</TableHead>
+                              {vppSubTab !== "bridge" && <TableHead>{tc("status")}</TableHead>}
                               <TableHead className="w-[80px]"></TableHead>
                             </TableRow>
                           </TableHeader>
@@ -3324,7 +3334,7 @@ function InterfacesPageInner() {
                                     return (
                                       <TableCell>
                                         {b.members.length > 0 ? (
-                                          <span className="text-sm">{b.members.length} member{b.members.length !== 1 ? "s" : ""}{bviCount > 0 ? ` (${bviCount} BVI)` : ""}</span>
+                                          <span className="text-sm">{t("vpp.memberCount", { count: b.members.length })}{bviCount > 0 ? t("vpp.bviCount", { count: bviCount }) : ""}</span>
                                         ) : <span className="text-muted-foreground">—</span>}
                                       </TableCell>
                                     );
@@ -3387,9 +3397,9 @@ function InterfacesPageInner() {
                                   {vppSubTab !== "bridge" && (
                                     <TableCell>
                                       {isDisabled ? (
-                                        <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                        <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">{tc("disabled")}</Badge>
                                       ) : (
-                                        <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                        <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">{tc("enabled")}</Badge>
                                       )}
                                     </TableCell>
                                   )}
@@ -3414,7 +3424,7 @@ function InterfacesPageInner() {
                         </Table>
                       </div>
                       <p className="text-sm text-muted-foreground text-center mt-3">
-                        Showing {items.length} of {vppSubTabData[vppSubTab].items.length === items.length ? totalVpp : vppSubTabData[vppSubTab].items.length} interface{items.length !== 1 ? "s" : ""}
+                        {t("table.showingVpp", { shown: items.length, total: vppSubTabData[vppSubTab].items.length === items.length ? totalVpp : vppSubTabData[vppSubTab].items.length })}
                       </p>
                     </>
                   );
@@ -3428,7 +3438,7 @@ function InterfacesPageInner() {
                     <div className="flex flex-col items-center gap-2">
                       <Link2 className="h-12 w-12 text-muted-foreground/30" />
                       <p className="text-muted-foreground">
-                        {searchQuery ? "No bonding interfaces matching your search" : "No bonding interfaces configured"}
+                        {searchQuery ? t("empty.bonding.noMatch") : t("empty.bonding.none")}
                       </p>
                     </div>
                   </CardContent>
@@ -3439,12 +3449,12 @@ function InterfacesPageInner() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Mode</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Addresses</TableHead>
-                          <TableHead>Members</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("table.mode")}</TableHead>
+                          <TableHead>{tc("description")}</TableHead>
+                          <TableHead>{t("table.addresses")}</TableHead>
+                          <TableHead>{t("table.members")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
                           <TableHead className="w-[80px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -3478,9 +3488,9 @@ function InterfacesPageInner() {
                             </TableCell>
                             <TableCell>
                               {bond.disable ? (
-                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">{tc("disabled")}</Badge>
                               ) : (
-                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">{tc("enabled")}</Badge>
                               )}
                             </TableCell>
                             <TableCell>
@@ -3503,7 +3513,7 @@ function InterfacesPageInner() {
                     </Table>
                   </div>
                   <p className="text-sm text-muted-foreground text-center mt-3">
-                    Showing {filteredBonding.length} of {totalBonding} interface{totalBonding !== 1 ? "s" : ""}
+                    {t("table.showingInterfaces", { shown: filteredBonding.length, total: totalBonding })}
                   </p>
                 </>
               )
@@ -3515,7 +3525,7 @@ function InterfacesPageInner() {
                     <div className="flex flex-col items-center gap-2">
                       <GitMerge className="h-12 w-12 text-muted-foreground/30" />
                       <p className="text-muted-foreground">
-                        {searchQuery ? "No bridge interfaces matching your search" : "No bridge interfaces configured"}
+                        {searchQuery ? t("empty.bridge.noMatch") : t("empty.bridge.none")}
                       </p>
                     </div>
                   </CardContent>
@@ -3527,12 +3537,12 @@ function InterfacesPageInner() {
                       <TableHeader>
                         <TableRow>
                           <TableHead className="w-8"></TableHead>
-                          <TableHead>Name</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
                           <TableHead>STP</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Addresses</TableHead>
-                          <TableHead>Members</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead>{tc("description")}</TableHead>
+                          <TableHead>{t("table.addresses")}</TableHead>
+                          <TableHead>{t("table.members")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
                           <TableHead className="w-[80px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -3558,14 +3568,14 @@ function InterfacesPageInner() {
                                     <code className="font-semibold font-mono text-foreground">{br.name}</code>
                                     {vifCount > 0 && (
                                       <Badge variant="secondary" className="text-xs px-1.5 py-0 cursor-pointer" onClick={() => toggleBridgeExpand(br.name)}>
-                                        {vifCount} VIF{vifCount !== 1 ? "s" : ""}
+                                        {t("bridge.vifCount", { count: vifCount })}
                                       </Badge>
                                     )}
                                   </div>
                                 </TableCell>
                                 <TableCell>
                                   <Badge variant="outline" className={cn("text-xs", br.stp ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-muted text-muted-foreground")}>
-                                    {br.stp ? "Enabled" : "Disabled"}
+                                    {br.stp ? tc("enabled") : tc("disabled")}
                                   </Badge>
                                 </TableCell>
                                 <TableCell className="text-muted-foreground max-w-[180px] truncate">{br.description || "\u2014"}</TableCell>
@@ -3587,9 +3597,9 @@ function InterfacesPageInner() {
                                 </TableCell>
                                 <TableCell>
                                   {br.disable ? (
-                                    <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                    <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">{tc("disabled")}</Badge>
                                   ) : (
-                                    <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                    <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">{tc("enabled")}</Badge>
                                   )}
                                 </TableCell>
                                 <TableCell>
@@ -3612,10 +3622,10 @@ function InterfacesPageInner() {
                                   <TableCell colSpan={8} className="p-0">
                                     <div className="mx-4 mb-3 mt-1 rounded-lg border bg-muted/30">
                                       <div className="flex items-center justify-between px-4 py-2 border-b">
-                                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">VIF Sub-interfaces ({vifCount})</span>
+                                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("bridge.vifSubInterfaces", { count: vifCount })}</span>
                                         {(canWrite(FeatureGroup.BRIDGE) || canWrite(FeatureGroup.INTERFACES)) && (
                                           <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setCreateVifForBridge(br.name)}>
-                                            <Plus className="h-3 w-3 mr-1" /> Add VIF
+                                            <Plus className="h-3 w-3 mr-1" /> {t("bridge.addVif")}
                                           </Button>
                                         )}
                                       </div>
@@ -3623,11 +3633,11 @@ function InterfacesPageInner() {
                                         <Table>
                                           <TableHeader>
                                             <TableRow className="hover:bg-transparent">
-                                              <TableHead className="h-8 text-xs pl-4">Sub-interface</TableHead>
-                                              <TableHead className="h-8 text-xs">Addresses</TableHead>
-                                              <TableHead className="h-8 text-xs">Description</TableHead>
+                                              <TableHead className="h-8 text-xs pl-4">{t("table.subInterface")}</TableHead>
+                                              <TableHead className="h-8 text-xs">{t("table.addresses")}</TableHead>
+                                              <TableHead className="h-8 text-xs">{tc("description")}</TableHead>
                                               <TableHead className="h-8 text-xs">MTU</TableHead>
-                                              <TableHead className="h-8 text-xs">Status</TableHead>
+                                              <TableHead className="h-8 text-xs">{tc("status")}</TableHead>
                                               <TableHead className="h-8 w-[70px]"></TableHead>
                                             </TableRow>
                                           </TableHeader>
@@ -3650,9 +3660,9 @@ function InterfacesPageInner() {
                                                 <TableCell className="py-2 text-sm font-mono text-muted-foreground">{vif.mtu || "\u2014"}</TableCell>
                                                 <TableCell className="py-2">
                                                   {vif.disable ? (
-                                                    <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                                    <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">{tc("disabled")}</Badge>
                                                   ) : (
-                                                    <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                                    <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">{tc("enabled")}</Badge>
                                                   )}
                                                 </TableCell>
                                                 <TableCell className="py-2 pr-3">
@@ -3674,7 +3684,7 @@ function InterfacesPageInner() {
                                           </TableBody>
                                         </Table>
                                       ) : (
-                                        <p className="text-sm text-muted-foreground px-4 py-3">No VIFs configured on this bridge.</p>
+                                        <p className="text-sm text-muted-foreground px-4 py-3">{t("bridge.noVifs")}</p>
                                       )}
                                     </div>
                                   </TableCell>
@@ -3687,7 +3697,7 @@ function InterfacesPageInner() {
                     </Table>
                   </div>
                   <p className="text-sm text-muted-foreground text-center mt-3">
-                    Showing {filteredBridge.length} of {totalBridge} interface{totalBridge !== 1 ? "s" : ""}
+                    {t("table.showingInterfaces", { shown: filteredBridge.length, total: totalBridge })}
                   </p>
                 </>
               )
@@ -3699,7 +3709,7 @@ function InterfacesPageInner() {
                     <div className="flex flex-col items-center gap-2">
                       <Lock className="h-12 w-12 text-muted-foreground/30" />
                       <p className="text-muted-foreground">
-                        {searchQuery ? "No VTI interfaces matching your search" : "No VTI interfaces configured"}
+                        {searchQuery ? t("empty.vti.noMatch") : t("empty.vti.none")}
                       </p>
                     </div>
                   </CardContent>
@@ -3710,12 +3720,12 @@ function InterfacesPageInner() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Addresses</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{tc("description")}</TableHead>
+                          <TableHead>{t("table.addresses")}</TableHead>
                           <TableHead>MTU</TableHead>
                           <TableHead>VRF</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
                           <TableHead className="w-[80px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -3742,9 +3752,9 @@ function InterfacesPageInner() {
                             </TableCell>
                             <TableCell>
                               {vti.disable ? (
-                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">{tc("disabled")}</Badge>
                               ) : (
-                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">{tc("enabled")}</Badge>
                               )}
                             </TableCell>
                             <TableCell>
@@ -3767,7 +3777,7 @@ function InterfacesPageInner() {
                     </Table>
                   </div>
                   <p className="text-sm text-muted-foreground text-center mt-3">
-                    Showing {filteredVti.length} of {totalVti} interface{totalVti !== 1 ? "s" : ""}
+                    {t("table.showingInterfaces", { shown: filteredVti.length, total: totalVti })}
                   </p>
                 </>
               )
@@ -3779,12 +3789,12 @@ function InterfacesPageInner() {
                     <div className="flex flex-col items-center gap-2">
                       <Wifi className="h-12 w-12 text-muted-foreground/30" />
                       <p className="text-muted-foreground">
-                        {searchQuery ? "No wireless interfaces matching your search" : "No wireless interfaces configured"}
+                        {searchQuery ? t("empty.wireless.noMatch") : t("empty.wireless.none")}
                       </p>
                       {!searchQuery && canWrite(FeatureGroup.INTERFACES) && (
                         <Button variant="outline" size="sm" onClick={() => setIsCreateWirelessModalOpen(true)} className="mt-2 gap-2">
                           <Plus className="h-4 w-4" />
-                          Create Wireless Interface
+                          {t("create.wirelessInterface")}
                         </Button>
                       )}
                     </div>
@@ -3796,14 +3806,14 @@ function InterfacesPageInner() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Mode</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("table.type")}</TableHead>
+                          <TableHead>{t("table.mode")}</TableHead>
                           <TableHead>SSID</TableHead>
-                          <TableHead>Channel</TableHead>
-                          <TableHead>Security</TableHead>
-                          <TableHead>Addresses</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead>{t("table.channel")}</TableHead>
+                          <TableHead>{t("table.security")}</TableHead>
+                          <TableHead>{t("table.addresses")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
                           <TableHead className="w-[80px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -3819,13 +3829,13 @@ function InterfacesPageInner() {
                                 ? <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20 text-xs">WPA</Badge>
                                 : hasWep
                                   ? <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">WEP</Badge>
-                                  : <Badge variant="outline" className="text-xs">Open</Badge>;
+                                  : <Badge variant="outline" className="text-xs">{t("wireless.open")}</Badge>;
                           const typeBadge = iface.wireless_type === "access-point"
                             ? <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-xs">AP</Badge>
                             : iface.wireless_type === "station"
-                              ? <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/20 text-xs">Station</Badge>
+                              ? <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/20 text-xs">{t("wireless.station")}</Badge>
                               : iface.wireless_type === "monitor"
-                                ? <Badge variant="outline" className="text-xs">Monitor</Badge>
+                                ? <Badge variant="outline" className="text-xs">{t("wireless.monitor")}</Badge>
                                 : <span className="text-muted-foreground">—</span>;
                           return (
                             <TableRow key={iface.name} className="group">
@@ -3845,9 +3855,9 @@ function InterfacesPageInner() {
                               </TableCell>
                               <TableCell>
                                 {iface.disable ? (
-                                  <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                  <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">{tc("disabled")}</Badge>
                                 ) : (
-                                  <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                  <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">{tc("enabled")}</Badge>
                                 )}
                               </TableCell>
                               <TableCell>
@@ -3871,7 +3881,7 @@ function InterfacesPageInner() {
                     </Table>
                   </div>
                   <p className="text-sm text-muted-foreground text-center mt-3">
-                    Showing {filteredWireless.length} of {totalWireless} interface{totalWireless !== 1 ? "s" : ""}
+                    {t("table.showingInterfaces", { shown: filteredWireless.length, total: totalWireless })}
                   </p>
                 </>
               )
@@ -3883,12 +3893,12 @@ function InterfacesPageInner() {
                     <div className="flex flex-col items-center gap-2">
                       <Signal className="h-12 w-12 text-muted-foreground/30" />
                       <p className="text-muted-foreground">
-                        {searchQuery ? "No WWAN interfaces matching your search" : "No WWAN interfaces configured"}
+                        {searchQuery ? t("empty.wwan.noMatch") : t("empty.wwan.none")}
                       </p>
                       {!searchQuery && canWrite(FeatureGroup.INTERFACES) && (
                         <Button variant="outline" size="sm" onClick={() => setIsCreateWwanModalOpen(true)} className="mt-2 gap-2">
                           <Plus className="h-4 w-4" />
-                          Create WWAN Interface
+                          {t("create.wwanInterface")}
                         </Button>
                       )}
                     </div>
@@ -3900,10 +3910,10 @@ function InterfacesPageInner() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
+                          <TableHead>{tc("name")}</TableHead>
                           <TableHead>APN</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Addresses</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
+                          <TableHead>{t("table.addresses")}</TableHead>
                           <TableHead>VRF</TableHead>
                           <TableHead className="w-[80px]"></TableHead>
                         </TableRow>
@@ -3919,9 +3929,9 @@ function InterfacesPageInner() {
                             </TableCell>
                             <TableCell>
                               {iface.disable ? (
-                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">{tc("disabled")}</Badge>
                               ) : (
-                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">{tc("enabled")}</Badge>
                               )}
                             </TableCell>
                             <TableCell>
@@ -3959,7 +3969,7 @@ function InterfacesPageInner() {
                     </Table>
                   </div>
                   <p className="text-sm text-muted-foreground text-center mt-3">
-                    Showing {filteredWwan.length} of {totalWwan} interface{totalWwan !== 1 ? "s" : ""}
+                    {t("table.showingInterfaces", { shown: filteredWwan.length, total: totalWwan })}
                   </p>
                 </>
               )
@@ -3969,7 +3979,7 @@ function InterfacesPageInner() {
                   <div className="flex flex-col items-center gap-2">
                     <Shield className="h-12 w-12 text-muted-foreground/30" />
                     <p className="text-muted-foreground">
-                      {searchQuery ? "No WireGuard interfaces matching your search" : "No WireGuard interfaces configured"}
+                      {searchQuery ? t("empty.wireguard.noMatch") : t("empty.wireguard.none")}
                     </p>
                   </div>
                 </CardContent>
@@ -3980,12 +3990,12 @@ function InterfacesPageInner() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead>Addresses</TableHead>
-                        <TableHead>Port</TableHead>
-                        <TableHead>Peers</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>{tc("name")}</TableHead>
+                        <TableHead>{tc("description")}</TableHead>
+                        <TableHead>{t("table.addresses")}</TableHead>
+                        <TableHead>{t("table.port")}</TableHead>
+                        <TableHead>{t("table.peers")}</TableHead>
+                        <TableHead>{tc("status")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -4001,13 +4011,13 @@ function InterfacesPageInner() {
                               </div>
                             ) : <span className="text-muted-foreground">—</span>}
                           </TableCell>
-                          <TableCell>{wg.port || "Auto"}</TableCell>
+                          <TableCell>{wg.port || t("wireguard.auto")}</TableCell>
                           <TableCell><Badge variant="secondary" className="text-xs">{wg.peer_count}</Badge></TableCell>
                           <TableCell>
                             {wg.disabled ? (
-                              <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                              <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">{tc("disabled")}</Badge>
                             ) : (
-                              <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                              <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">{tc("enabled")}</Badge>
                             )}
                           </TableCell>
                         </TableRow>
@@ -4016,7 +4026,7 @@ function InterfacesPageInner() {
                   </Table>
                 </div>
                 <p className="text-sm text-muted-foreground text-center mt-3">
-                  Showing {filteredWireGuard.length} of {totalWireGuard} tunnel{totalWireGuard !== 1 ? "s" : ""}
+                  {t("table.showingTunnels", { shown: filteredWireGuard.length, total: totalWireGuard })}
                 </p>
               </>
             )}

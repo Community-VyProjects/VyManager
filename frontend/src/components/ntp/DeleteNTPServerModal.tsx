@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +28,8 @@ export function DeleteNTPServerModal({
   serverName,
   onSuccess,
 }: DeleteNTPServerModalProps) {
+  const t = useTranslations("ntp");
+  const tc = useTranslations("common");
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,7 +41,7 @@ export function DeleteNTPServerModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
       setDeleting(false);
     }
   };
@@ -47,11 +50,12 @@ export function DeleteNTPServerModal({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Remove NTP Server</AlertDialogTitle>
+          <AlertDialogTitle>{t("delete.title")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Remove server{" "}
-            <span className="font-mono font-medium text-foreground">{serverName}</span>{" "}
-            from the NTP configuration? This cannot be undone.
+            {t.rich("delete.description", {
+              name: serverName,
+              mono: (chunks) => <span className="font-mono font-medium text-foreground">{chunks}</span>,
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -63,7 +67,7 @@ export function DeleteNTPServerModal({
         )}
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={deleting}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => {
               e.preventDefault();
@@ -73,7 +77,7 @@ export function DeleteNTPServerModal({
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             {deleting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Remove
+            {t("delete.remove")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

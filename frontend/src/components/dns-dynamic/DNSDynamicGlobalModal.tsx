@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,8 @@ interface Props {
 }
 
 export function DNSDynamicGlobalModal({ open, onOpenChange, interval, vrf, onSubmit }: Props) {
+  const t = useTranslations("dnsDynamic");
+  const tc = useTranslations("common");
   const [intervalVal, setIntervalVal] = useState("");
   const [vrfVal, setVrfVal] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,7 +43,7 @@ export function DNSDynamicGlobalModal({ open, onOpenChange, interval, vrf, onSub
   const handleSubmit = async () => {
     const parsedInterval = intervalVal ? parseInt(intervalVal, 10) : null;
     if (intervalVal && (isNaN(parsedInterval!) || parsedInterval! < 60 || parsedInterval! > 3600)) {
-      setError("Interval must be between 60 and 3600 seconds");
+      setError(t("global.intervalRange"));
       return;
     }
     setLoading(true);
@@ -49,7 +52,7 @@ export function DNSDynamicGlobalModal({ open, onOpenChange, interval, vrf, onSub
       await onSubmit(parsedInterval, vrfVal.trim() || null);
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -59,32 +62,32 @@ export function DNSDynamicGlobalModal({ open, onOpenChange, interval, vrf, onSub
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Global DDNS Settings</DialogTitle>
-          <DialogDescription>Configure global Dynamic DNS service settings.</DialogDescription>
+          <DialogTitle>{t("global.title")}</DialogTitle>
+          <DialogDescription>{t("global.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="ddns-interval">Check Interval (seconds)</Label>
+            <Label htmlFor="ddns-interval">{t("global.interval")}</Label>
             <Input
               id="ddns-interval"
               type="number"
               value={intervalVal}
               onChange={(e) => setIntervalVal(e.target.value)}
-              placeholder="300 (default)"
+              placeholder={t("defaultValue", { value: "300" })}
               min={60}
               max={3600}
             />
-            <p className="text-xs text-muted-foreground">How often to check for IP changes (60–3600 s).</p>
+            <p className="text-xs text-muted-foreground">{t("global.intervalHelp")}</p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="ddns-vrf">VRF (optional)</Label>
+            <Label htmlFor="ddns-vrf">{t("global.vrfOptional")}</Label>
             <VrfSelect
               id="ddns-vrf"
               value={vrfVal}
               onValueChange={setVrfVal}
               className="font-mono"
-              extraOptions={[{ label: "Default", value: "default" }]}
+              extraOptions={[{ label: tc("default"), value: "default" }]}
             />
           </div>
         </div>
@@ -97,9 +100,9 @@ export function DNSDynamicGlobalModal({ open, onOpenChange, interval, vrf, onSub
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save"}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("saving")}</> : tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

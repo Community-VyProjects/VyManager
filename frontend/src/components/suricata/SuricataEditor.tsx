@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -20,7 +21,6 @@ import type { InterfaceName } from "@/lib/api/show";
 import {
   displayedLogTypes,
   EVE_TYPE_GROUPS,
-  GROUP_PURPOSE,
   groupPreview,
   isAddress,
   mergeMissingStandardGroups,
@@ -35,6 +35,50 @@ import {
 import { GroupDialog } from "./GroupDialog";
 import { InterfacePicker, IssueList } from "./SuricataFields";
 
+const PURPOSE_KEYS = {
+  "home-net": "purposeHomeNet",
+  "external-net": "purposeExternalNet",
+  "http-servers": "purposeHttpServers",
+  "smtp-servers": "purposeSmtpServers",
+  "sql-servers": "purposeSqlServers",
+  "dns-servers": "purposeDnsServers",
+  "telnet-servers": "purposeTelnetServers",
+  "aim-servers": "purposeAimServers",
+  "dc-servers": "purposeDcServers",
+  "dnp3-server": "purposeDnp3Server",
+  "dnp3-client": "purposeDnp3Client",
+  "modbus-client": "purposeModbusClient",
+  "modbus-server": "purposeModbusServer",
+  "enip-client": "purposeEnipClient",
+  "enip-server": "purposeEnipServer",
+  "http-ports": "purposeHttpPorts",
+  "shellcode-ports": "purposeShellcodePorts",
+  "oracle-ports": "purposeOraclePorts",
+  "ssh-ports": "purposeSshPorts",
+  "dnp3-ports": "purposeDnp3Ports",
+  "modbus-ports": "purposeModbusPorts",
+  "file-data-ports": "purposeFileDataPorts",
+  "ftp-ports": "purposeFtpPorts",
+  "geneve-ports": "purposeGenevePorts",
+  "vxlan-ports": "purposeVxlanPorts",
+  "teredo-ports": "purposeTeredoPorts",
+} as const;
+
+const EVE_TITLE_KEYS = {
+  Alerts: "eveAlerts",
+  Connections: "eveConnections",
+  Applications: "eveApplications",
+} as const;
+
+const EVE_LABEL_KEYS = {
+  alert: "eveRuleMatches",
+  drop: "eveDropped",
+  anomaly: "eveAnomaly",
+  files: "eveFiles",
+  flow: "eveFlow",
+  netflow: "eveNetflow",
+} as const;
+
 export function SuricataEditor({
   draft,
   onChange,
@@ -48,6 +92,8 @@ export function SuricataEditor({
   hasWrite: boolean;
   saving: boolean;
 }) {
+  const t = useTranslations("suricata");
+  const tc = useTranslations("common");
   const [dialog, setDialog] = useState<{ kind: "address" | "port"; group: SuricataGroup | null } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ kind: "address" | "port"; name: string } | null>(null);
   const [prefix, setPrefix] = useState("");
@@ -82,7 +128,7 @@ export function SuricataEditor({
     const usedBy = referrers(draft[key], name);
     if (usedBy.length > 0) {
       setDeleteTarget(null);
-      setActionError(`${name} is still used by ${usedBy.join(", ")}. Edit those groups first.`);
+      setActionError(t("groupStillUsed", { name, groups: usedBy.join(", ") }));
       return;
     }
     setActionError(null);
@@ -94,11 +140,11 @@ export function SuricataEditor({
     const value = prefix.trim();
     if (!home) return;
     if (!isAddress(value)) {
-      setPrefixError("Use an address or a network prefix. A prefix must be the network address.");
+      setPrefixError(t("prefixMustBeNetwork"));
       return;
     }
     if (home.members.some((member) => member.value === value && !member.exclude)) {
-      setPrefixError("That entry is already in your network.");
+      setPrefixError(t("entryAlreadyInNetwork"));
       return;
     }
     updateGroup("address", {
@@ -129,12 +175,12 @@ export function SuricataEditor({
           disabled={disabled}
           onClick={() => onChange(mergeMissingStandardGroups(draft))}
         >
-          Add the missing standard groups
+          {t("addMissingStandardGroups")}
         </Button>
       ) : null}
 
       <section id="interfaces" className="space-y-3">
-        <h2 className="text-lg font-semibold">Interfaces</h2>
+        <h2 className="text-lg font-semibold">{t("interfaces")}</h2>
         <InterfacePicker
           available={interfaces}
           selected={draft.interfaces}
@@ -144,16 +190,16 @@ export function SuricataEditor({
       </section>
 
       <section id="network" className="space-y-3">
-        <h2 className="text-lg font-semibold">Your network</h2>
+        <h2 className="text-lg font-semibold">{t("yourNetwork")}</h2>
         {home ? (
           <div className="space-y-3 rounded-md border p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="font-medium">$HOME_NET</p>
-                <p className="text-sm text-muted-foreground">{GROUP_PURPOSE["home-net"]}</p>
+                <p className="text-sm text-muted-foreground">{purposeOf("home-net", t)}</p>
               </div>
               <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={() => setDialog({ kind: "address", group: home })}>
-                Advanced
+                {t("advanced")}
               </Button>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -168,11 +214,11 @@ export function SuricataEditor({
                     members: home.members.filter((item) => item.value !== member.value || item.exclude),
                   })}
                 >
-                  {member.value} <span className="text-muted-foreground">remove</span>
+                  {member.value} <span className="text-muted-foreground">{t("removeInline")}</span>
                 </button>
               ))}
               {home.members.filter((member) => member.exclude).map((member) => (
-                <span key={`x-${member.value}`} className="rounded-full border px-3 py-1 text-sm">not {member.value}</span>
+                <span key={`x-${member.value}`} className="rounded-full border px-3 py-1 text-sm">{t("notPrefix")}{member.value}</span>
               ))}
             </div>
             <div className="flex gap-2">
@@ -184,7 +230,7 @@ export function SuricataEditor({
                 }}
                 placeholder="10.1.0.0/16"
                 disabled={disabled}
-                aria-label="Add to your network"
+                aria-label={t("addToYourNetwork")}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
                     event.preventDefault();
@@ -193,21 +239,21 @@ export function SuricataEditor({
                 }}
               />
               <Button type="button" variant="outline" disabled={disabled || !prefix.trim()} onClick={addHomePrefix}>
-                Add
+                {tc("add")}
               </Button>
             </div>
             {prefixError ? <p className="text-sm text-destructive">{prefixError}</p> : null}
             <p className="text-sm text-muted-foreground">
               {externalIsDefault
-                ? "$EXTERNAL_NET is everything that is not your network."
+                ? t("externalNetDefault")
                 : external
-                  ? `$EXTERNAL_NET is customized: ${groupPreview(external)}`
-                  : "$EXTERNAL_NET is not defined. Rules for outside addresses will not match."}
+                  ? t("externalNetCustom", { preview: groupPreview(external) })
+                  : t("externalNetMissing")}
             </p>
           </div>
         ) : (
           <div className="rounded-md border p-4 text-sm">
-            <p>Your network is not defined. Rules look for $HOME_NET.</p>
+            <p>{t("homeNetMissing")}</p>
             <Button
               type="button"
               className="mt-3"
@@ -216,7 +262,7 @@ export function SuricataEditor({
               disabled={disabled}
               onClick={() => onChange(mergeMissingStandardGroups(draft))}
             >
-              Add your network and the standard groups
+              {t("addNetworkAndStandard")}
             </Button>
           </div>
         )}
@@ -225,19 +271,21 @@ export function SuricataEditor({
       <section id="variables" className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold">Rule variables</h2>
+            <h2 className="text-lg font-semibold">{t("ruleVariables")}</h2>
             <p className="text-sm text-muted-foreground">
-              {draft.address_groups.length} address groups and {draft.port_groups.length} port groups. Downloaded rules match these names. Renaming a standard group stops those rules from matching.
+              {t("variableSummary", {
+                addressCount: draft.address_groups.length,
+                portCount: draft.port_groups.length,
+              })}
             </p>
           </div>
           <Button type="button" variant="outline" size="sm" onClick={() => setShowVariables(!showVariables)}>
-            {showVariables ? "Hide" : "Show"}
+            {showVariables ? t("hide") : t("show")}
           </Button>
         </div>
         {showVariables ? (
           <div className="space-y-4">
             <GroupTable
-              title="Address groups"
               kind="address"
               groups={draft.address_groups}
               disabled={disabled}
@@ -246,7 +294,6 @@ export function SuricataEditor({
               onAdd={() => setDialog({ kind: "address", group: null })}
             />
             <GroupTable
-              title="Port groups"
               kind="port"
               groups={draft.port_groups}
               disabled={disabled}
@@ -259,14 +306,14 @@ export function SuricataEditor({
       </section>
 
       <section id="logging" className="space-y-3">
-        <h2 className="text-lg font-semibold">Logging</h2>
+        <h2 className="text-lg font-semibold">{t("logging")}</h2>
         <label className="flex items-center gap-2 text-sm">
           <Checkbox
             checked={draft.log.enabled}
             disabled={disabled}
             onCheckedChange={(checked) => onChange(setLoggingEnabled(draft, checked === true))}
           />
-          Record events
+          {t("recordEvents")}
         </label>
         {draft.log.enabled ? (
           <div className="space-y-4 rounded-md border p-4">
@@ -282,7 +329,7 @@ export function SuricataEditor({
                     onChange({ ...draft, log: { ...draft.log, filetype: "regular" } });
                   }}
                 />
-                File
+                {t("file")}
               </label>
               <label className="flex items-center gap-2">
                 <input
@@ -297,7 +344,7 @@ export function SuricataEditor({
             </div>
             {(draft.log.filetype || "regular") === "regular" ? (
               <div className="space-y-1">
-                <Label htmlFor="suricata-filename">File name</Label>
+                <Label htmlFor="suricata-filename">{t("fileName")}</Label>
                 <Input
                   id="suricata-filename"
                   value={draft.log.filename || ""}
@@ -306,50 +353,59 @@ export function SuricataEditor({
                   placeholder="eve.json"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Leave this blank to use eve.json. A bare name is written under /var/log/suricata/. An absolute path is used as-is.
+                  {t("fileNameHint")}
                 </p>
               </div>
             ) : null}
             <div className="flex flex-wrap gap-2">
               <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={() => onChange({ ...draft, log: { ...draft.log, ...withLogTypes(draft.log, ["alert"]) } })}>
-                Alerts only
+                {t("alertsOnly")}
               </Button>
               <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={() => onChange({ ...draft, log: { ...draft.log, ...withLogTypes(draft.log, ["alert", "drop", "anomaly"]) } })}>
-                Alerts and problems
+                {t("alertsAndProblems")}
               </Button>
               <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={() => onChange({ ...draft, log: { ...draft.log, ...withLogTypes(draft.log, ["alert", "drop", "flow", "http", "dns", "tls"]) } })}>
-                Alerts, flows, and web
+                {t("alertsFlowsWeb")}
               </Button>
             </div>
-            {EVE_TYPE_GROUPS.map((group) => (
-              <div key={group.title}>
-                <p className="mb-2 text-sm font-medium">{group.title}</p>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {group.types.map((eventType) => (
-                    <label key={eventType.id} className="flex items-center gap-2 text-sm">
-                      <Checkbox
-                        checked={logTypes.includes(eventType.id)}
-                        disabled={disabled}
-                        onCheckedChange={(checked) => toggleLogType(eventType.id, checked === true)}
-                      />
-                      {eventType.label}
-                    </label>
-                  ))}
+            {EVE_TYPE_GROUPS.map((group) => {
+              const titleKey = EVE_TITLE_KEYS[group.title as keyof typeof EVE_TITLE_KEYS];
+              return (
+                <div key={group.title}>
+                  <p className="mb-2 text-sm font-medium">{titleKey ? t(titleKey) : group.title}</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {group.types.map((eventType) => {
+                      const labelKey = EVE_LABEL_KEYS[eventType.id as keyof typeof EVE_LABEL_KEYS];
+                      return (
+                        <label key={eventType.id} className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={logTypes.includes(eventType.id)}
+                            disabled={disabled}
+                            onCheckedChange={(checked) => toggleLogType(eventType.id, checked === true)}
+                          />
+                          {labelKey ? t(labelKey) : eventType.label}
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">Logging is off. Suricata can still inspect traffic, but matches will not be recorded here.</p>
+          <p className="text-sm text-muted-foreground">{t("loggingOff")}</p>
         )}
       </section>
 
       <section id="rules" className="space-y-2 rounded-md border p-4">
-        <h2 className="text-lg font-semibold">Detection rules</h2>
+        <h2 className="text-lg font-semibold">{t("detectionRules")}</h2>
         <p className="text-sm text-muted-foreground">
-          Rules are not edited on this page. After this configuration is saved, the router downloads them with <span className="font-mono">update suricata</span>. That command is not available through the device API, so run it from the router CLI, or schedule <span className="font-mono">/usr/libexec/vyos/op_mode/update_suricata.sh</span> under{" "}
-          <Link className="underline" href="/system/settings?tab=scheduler">System Settings, Task Scheduler</Link>.
-          The download also restarts Suricata. It does nothing until this service is saved.
+          {t.rich("rulesBody", {
+            mono: (chunks) => <span className="font-mono">{chunks}</span>,
+            scheduler: (chunks) => (
+              <Link className="underline" href="/system/settings?tab=scheduler">{chunks}</Link>
+            ),
+          })}
         </p>
       </section>
 
@@ -370,19 +426,19 @@ export function SuricataEditor({
       <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {deleteTarget?.name}?</AlertDialogTitle>
+            <AlertDialogTitle>{t("deleteNamed", { name: deleteTarget?.name ?? "" })}</AlertDialogTitle>
             <AlertDialogDescription>
-              Rules that use ${deleteTarget ? variableName(deleteTarget.name) : ""} will stop matching. This is not saved until you save the page.
+              {t("deleteGroupDescription", { variable: `$${deleteTarget ? variableName(deleteTarget.name) : ""}` })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (deleteTarget) removeGroup(deleteTarget.kind, deleteTarget.name);
               }}
             >
-              Delete
+              {tc("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -392,7 +448,6 @@ export function SuricataEditor({
 }
 
 function GroupTable({
-  title,
   kind,
   groups,
   disabled,
@@ -400,7 +455,6 @@ function GroupTable({
   onDelete,
   onAdd,
 }: {
-  title: string;
   kind: "address" | "port";
   groups: SuricataGroup[];
   disabled: boolean;
@@ -408,21 +462,23 @@ function GroupTable({
   onDelete: (name: string) => void;
   onAdd: () => void;
 }) {
+  const t = useTranslations("suricata");
+  const tc = useTranslations("common");
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="font-medium">{title}</h3>
+        <h3 className="font-medium">{kind === "address" ? t("addressGroups") : t("portGroups")}</h3>
         <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={onAdd}>
-          Add {kind} group
+          {kind === "address" ? t("addAddressGroup") : t("addPortGroup")}
         </Button>
       </div>
       <div className="overflow-auto rounded-md border">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left">
             <tr>
-              <th className="px-3 py-2 font-medium">Variable</th>
-              <th className="px-3 py-2 font-medium">Used for</th>
-              <th className="px-3 py-2 font-medium">Contents</th>
+              <th className="px-3 py-2 font-medium">{t("variable")}</th>
+              <th className="px-3 py-2 font-medium">{t("usedFor")}</th>
+              <th className="px-3 py-2 font-medium">{t("contents")}</th>
               <th className="px-3 py-2 font-medium" />
             </tr>
           </thead>
@@ -430,14 +486,14 @@ function GroupTable({
             {groups.map((group) => (
               <tr key={group.name} className="border-t">
                 <td className="px-3 py-2 font-mono">${variableName(group.name)}</td>
-                <td className="px-3 py-2 text-muted-foreground">{GROUP_PURPOSE[group.name] ?? "Custom group."}</td>
+                <td className="px-3 py-2 text-muted-foreground">{purposeOf(group.name, t)}</td>
                 <td className="px-3 py-2 font-mono text-xs">{groupPreview(group)}</td>
                 <td className="px-3 py-2 text-right whitespace-nowrap">
                   <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => onEdit(group)}>
-                    Edit
+                    {tc("edit")}
                   </Button>
                   <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => onDelete(group.name)}>
-                    Delete
+                    {tc("delete")}
                   </Button>
                 </td>
               </tr>
@@ -447,4 +503,9 @@ function GroupTable({
       </div>
     </div>
   );
+}
+
+function purposeOf(name: string, t: ReturnType<typeof useTranslations<"suricata">>) {
+  const key = PURPOSE_KEYS[name as keyof typeof PURPOSE_KEYS];
+  return key ? t(key) : t("customGroup");
 }

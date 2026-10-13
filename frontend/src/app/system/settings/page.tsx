@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from "react";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Server, Users, FileText, Shield, Map, Settings2, Network, Clock, Activity } from "lucide-react";
@@ -27,6 +28,7 @@ import { TaskSchedulerPanel } from "@/components/system/settings/TaskSchedulerPa
 import { FlowAccountingPanel } from "@/components/system/settings/FlowAccountingPanel";
 
 function SystemSettingsPageInner() {
+  const t = useTranslations("systemGeneral");
   const searchParams = useSearchParams();
   const [config, setConfig] = useState<SystemConfig | null>(null);
   const [capabilities, setCapabilities] = useState<SystemCapabilities | null>(null);
@@ -48,7 +50,7 @@ function SystemSettingsPageInner() {
         setConfig(cfg);
         setCapabilities(caps);
       })
-      .catch(() => setError("Failed to load system configuration."))
+      .catch(() => setError("loadFailed"))
       .finally(() => setLoading(false));
   };
 
@@ -71,25 +73,25 @@ function SystemSettingsPageInner() {
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Server className="h-8 w-8" />
-            System Settings
+            {t("page.title")}
           </h1>
           <p className="text-muted-foreground mt-2">
-            Manage VyOS system configuration — hostname, users, syslog, conntrack, and more.
+            {t("page.subtitle")}
           </p>
           {isReadOnly && (
             <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
-              You have read-only access to system settings.
+              {t("page.readOnly")}
             </p>
           )}
         </div>
 
         {loading && (
-          <p className="text-sm text-muted-foreground">Loading system configuration…</p>
+          <p className="text-sm text-muted-foreground">{t("page.loading")}</p>
         )}
 
         {error && !loading && (
           <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
-            {error}
+            {t("page.loadFailed")}
           </div>
         )}
 
@@ -98,39 +100,39 @@ function SystemSettingsPageInner() {
             <TabsList className="flex flex-wrap gap-1 h-auto">
               <TabsTrigger value="general" className="flex items-center gap-2">
                 <Settings2 className="h-4 w-4" />
-                General
+                {t("page.tabs.general")}
               </TabsTrigger>
               <TabsTrigger value="users" className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
-                Users &amp; Login
+                {t("page.tabs.users")}
               </TabsTrigger>
               <TabsTrigger value="syslog" className="flex items-center gap-2">
                 <FileText className="h-4 w-4" />
-                Syslog
+                {t("page.tabs.syslog")}
               </TabsTrigger>
               <TabsTrigger value="conntrack" className="flex items-center gap-2">
                 <Shield className="h-4 w-4" />
-                Conntrack
+                {t("page.tabs.conntrack")}
               </TabsTrigger>
               <TabsTrigger value="hostmap" className="flex items-center gap-2">
                 <Map className="h-4 w-4" />
-                Host Mapping
+                {t("page.tabs.hostmap")}
               </TabsTrigger>
               <TabsTrigger value="ipsettings" className="flex items-center gap-2">
                 <Network className="h-4 w-4" />
-                IP Settings
+                {t("page.tabs.ipSettings")}
               </TabsTrigger>
               <TabsTrigger value="scheduler" className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                Scheduler
+                {t("page.tabs.scheduler")}
               </TabsTrigger>
               <TabsTrigger value="flowaccounting" className="flex items-center gap-2">
                 <Activity className="h-4 w-4" />
-                Flow Accounting
+                {t("page.tabs.flowAccounting")}
               </TabsTrigger>
               <TabsTrigger value="advanced" className="flex items-center gap-2">
                 <Settings2 className="h-4 w-4" />
-                Advanced
+                {t("page.tabs.advanced")}
               </TabsTrigger>
             </TabsList>
 

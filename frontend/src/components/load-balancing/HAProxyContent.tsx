@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,8 @@ function DeleteDialog({
   description: string;
   onConfirm: () => Promise<void>;
 }) {
+  const t = useTranslations("haproxy");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,7 +59,7 @@ function DeleteDialog({
       await onConfirm();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed");
+      setError(err instanceof Error ? err.message : t("deleteFailed"));
     } finally {
       setLoading(false);
     }
@@ -76,10 +79,10 @@ function DeleteDialog({
           </div>
         )}
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button variant="destructive" onClick={handleConfirm} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Delete
+            {tc("delete")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -92,6 +95,8 @@ function DeleteDialog({
 // ============================================================================
 
 export function HAProxyContent() {
+  const t = useTranslations("haproxy");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const canEdit = canWrite(FeatureGroup.LOAD_BALANCING);
 
@@ -123,11 +128,11 @@ export function HAProxyContent() {
       setConfig(cfg);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load configuration");
+      setError(err instanceof Error ? err.message : t("failedToLoad"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -169,7 +174,7 @@ export function HAProxyContent() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">HAProxy</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Reverse proxy and load balancing with HAProxy
+            {t("content.subtitle")}
             {capabilities && (
               <span className="ml-2">
                 <Badge variant="outline" className="text-xs">{capabilities.rp_key}</Badge>
@@ -179,7 +184,7 @@ export function HAProxyContent() {
         </div>
         <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
           <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-          Refresh
+          {tc("refresh")}
         </Button>
       </div>
 
@@ -195,16 +200,15 @@ export function HAProxyContent() {
         <div className="flex items-start gap-3 rounded-lg border border-blue-500/30 bg-blue-500/5 p-4">
           <Info className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-blue-700 dark:text-blue-400">Getting started with HAProxy</p>
+            <p className="text-sm font-medium text-blue-700 dark:text-blue-400">{t("content.gettingStartedTitle")}</p>
             <p className="text-xs text-blue-600/80 dark:text-blue-400/80 mt-0.5">
-              VyOS requires a <strong>backend</strong> and a <strong>service</strong> to be configured
-              at the same time. Use Quick Setup to create both in one step.
+              {t.rich("content.gettingStartedBody", { strong: (chunks) => <strong>{chunks}</strong> })}
             </p>
           </div>
           {canEdit && (
             <Button size="sm" onClick={() => setQuickSetupOpen(true)} className="shrink-0">
               <Zap className="h-3.5 w-3.5 mr-1.5" />
-              Quick Setup
+              {t("quickSetup")}
             </Button>
           )}
         </div>
@@ -215,11 +219,11 @@ export function HAProxyContent() {
         <div className="flex items-start gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-4">
           <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">Incomplete configuration</p>
+            <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">{t("content.incompleteTitle")}</p>
             <p className="text-xs text-yellow-600/80 dark:text-yellow-400/80 mt-0.5">
               {backends.length === 0
-                ? "You have services but no backends. VyOS will reject commits until at least one backend is added."
-                : "You have backends but no services. VyOS will reject commits until at least one service is added."}
+                ? t("content.incompleteNoBackends")
+                : t("content.incompleteNoServices")}
             </p>
           </div>
         </div>
@@ -235,7 +239,7 @@ export function HAProxyContent() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{backends.length}</p>
-                <p className="text-xs text-muted-foreground">Backends</p>
+                <p className="text-xs text-muted-foreground">{t("backends")}</p>
               </div>
             </div>
           </CardContent>
@@ -248,7 +252,7 @@ export function HAProxyContent() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{services.length}</p>
-                <p className="text-xs text-muted-foreground">Services</p>
+                <p className="text-xs text-muted-foreground">{t("services")}</p>
               </div>
             </div>
           </CardContent>
@@ -263,7 +267,7 @@ export function HAProxyContent() {
                 <p className="text-2xl font-bold">
                   {backends.reduce((sum, b) => sum + b.servers.length, 0)}
                 </p>
-                <p className="text-xs text-muted-foreground">Total Servers</p>
+                <p className="text-xs text-muted-foreground">{t("content.totalServers")}</p>
               </div>
             </div>
           </CardContent>
@@ -274,11 +278,11 @@ export function HAProxyContent() {
       <Tabs defaultValue="backends">
         <TabsList>
           <TabsTrigger value="backends">
-            Backends
+            {t("backends")}
             <Badge variant="secondary" className="ml-2 text-xs">{backends.length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="services">
-            Services
+            {t("services")}
             <Badge variant="secondary" className="ml-2 text-xs">{services.length}</Badge>
           </TabsTrigger>
         </TabsList>
@@ -293,14 +297,14 @@ export function HAProxyContent() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
                   className="pl-9 h-8 text-sm"
-                  placeholder="Search backends…"
+                  placeholder={t("content.searchBackends")}
                   value={backendSearch}
                   onChange={(e) => setBackendSearch(e.target.value)}
                 />
               </div>
               {canEdit && (
                 <Button size="sm" onClick={() => setBackendModalOpen(true)}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Backend
+                  <Plus className="h-3.5 w-3.5 mr-1" /> {t("content.addBackend")}
                 </Button>
               )}
             </div>
@@ -310,22 +314,22 @@ export function HAProxyContent() {
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-3">
                   <Database className="h-5 w-5 text-muted-foreground" />
                 </div>
-                <p className="text-sm font-medium">No backends configured</p>
+                <p className="text-sm font-medium">{t("content.noBackends")}</p>
                 <p className="text-xs text-muted-foreground mt-1 mb-4">
                   {services.length === 0
-                    ? "Use Quick Setup to create a backend and service together (required by VyOS)."
-                    : "Backends define server pools for load balancing."}
+                    ? t("content.useQuickSetupHint")
+                    : t("content.noBackendsHint")}
                 </p>
                 {canEdit && (
                   <div className="flex gap-2">
                     {services.length === 0 && (
                       <Button size="sm" onClick={() => setQuickSetupOpen(true)}>
-                        <Zap className="h-3.5 w-3.5 mr-1" /> Quick Setup
+                        <Zap className="h-3.5 w-3.5 mr-1" /> {t("quickSetup")}
                       </Button>
                     )}
                     <Button size="sm" variant="outline" onClick={() => setBackendModalOpen(true)}>
                       <Plus className="h-3.5 w-3.5 mr-1" />
-                      {services.length === 0 ? "Backend Only" : "Add First Backend"}
+                      {services.length === 0 ? t("content.backendOnly") : t("content.addFirstBackend")}
                     </Button>
                   </div>
                 )}
@@ -335,13 +339,13 @@ export function HAProxyContent() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Mode</TableHead>
-                      <TableHead>Balance</TableHead>
-                      <TableHead>Servers</TableHead>
-                      <TableHead>Health</TableHead>
+                      <TableHead>{tc("name")}</TableHead>
+                      <TableHead>{t("mode")}</TableHead>
+                      <TableHead>{t("balance")}</TableHead>
+                      <TableHead>{t("servers")}</TableHead>
+                      <TableHead>{t("content.health")}</TableHead>
                       <TableHead>SSL</TableHead>
-                      <TableHead>Rules</TableHead>
+                      <TableHead>{t("rules")}</TableHead>
                       <TableHead className="w-20" />
                     </TableRow>
                   </TableHeader>
@@ -390,7 +394,7 @@ export function HAProxyContent() {
                           {backend.rules.length > 0 ? (
                             <Link href={`/load-balancing/haproxy/backend/${encodeURIComponent(backend.name)}#rules`}>
                               <Badge variant="secondary" className="text-xs cursor-pointer hover:bg-secondary/80">
-                                {backend.rules.length} rule{backend.rules.length !== 1 ? "s" : ""}
+                                {t("content.ruleCount", { count: backend.rules.length })}
                               </Badge>
                             </Link>
                           ) : (
@@ -432,14 +436,14 @@ export function HAProxyContent() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
                   className="pl-9 h-8 text-sm"
-                  placeholder="Search services…"
+                  placeholder={t("content.searchServices")}
                   value={serviceSearch}
                   onChange={(e) => setServiceSearch(e.target.value)}
                 />
               </div>
               {canEdit && (
                 <Button size="sm" onClick={() => setServiceModalOpen(true)}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Service
+                  <Plus className="h-3.5 w-3.5 mr-1" /> {t("content.addService")}
                 </Button>
               )}
             </div>
@@ -449,22 +453,22 @@ export function HAProxyContent() {
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-3">
                   <Globe className="h-5 w-5 text-muted-foreground" />
                 </div>
-                <p className="text-sm font-medium">No services configured</p>
+                <p className="text-sm font-medium">{t("content.noServices")}</p>
                 <p className="text-xs text-muted-foreground mt-1 mb-4">
                   {backends.length === 0
-                    ? "Use Quick Setup to create a backend and service together (required by VyOS)."
-                    : "Services are the frontends that accept incoming traffic."}
+                    ? t("content.useQuickSetupHint")
+                    : t("content.noServicesHint")}
                 </p>
                 {canEdit && (
                   <div className="flex gap-2">
                     {backends.length === 0 && (
                       <Button size="sm" onClick={() => setQuickSetupOpen(true)}>
-                        <Zap className="h-3.5 w-3.5 mr-1" /> Quick Setup
+                        <Zap className="h-3.5 w-3.5 mr-1" /> {t("quickSetup")}
                       </Button>
                     )}
                     <Button size="sm" variant="outline" onClick={() => setServiceModalOpen(true)}>
                       <Plus className="h-3.5 w-3.5 mr-1" />
-                      {backends.length === 0 ? "Service Only" : "Add First Service"}
+                      {backends.length === 0 ? t("content.serviceOnly") : t("content.addFirstService")}
                     </Button>
                   </div>
                 )}
@@ -474,12 +478,12 @@ export function HAProxyContent() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Mode</TableHead>
-                      <TableHead>Port</TableHead>
-                      <TableHead>Backends</TableHead>
+                      <TableHead>{tc("name")}</TableHead>
+                      <TableHead>{t("mode")}</TableHead>
+                      <TableHead>{t("port")}</TableHead>
+                      <TableHead>{t("backends")}</TableHead>
                       <TableHead>SSL</TableHead>
-                      <TableHead>Rules</TableHead>
+                      <TableHead>{t("rules")}</TableHead>
                       <TableHead className="w-20" />
                     </TableRow>
                   </TableHeader>
@@ -524,7 +528,7 @@ export function HAProxyContent() {
                             <div className="flex items-center gap-1">
                               <Shield className="h-3.5 w-3.5 text-green-500" />
                               {svc.redirect_http_to_https && (
-                                <Badge variant="outline" className="text-xs">redirect</Badge>
+                                <Badge variant="outline" className="text-xs">{t("content.redirectBadge")}</Badge>
                               )}
                             </div>
                           ) : (
@@ -535,7 +539,7 @@ export function HAProxyContent() {
                           {svc.rules.length > 0 ? (
                             <Link href={`/load-balancing/haproxy/service/${encodeURIComponent(svc.name)}#rules`}>
                               <Badge variant="secondary" className="text-xs cursor-pointer hover:bg-secondary/80">
-                                {svc.rules.length} rule{svc.rules.length !== 1 ? "s" : ""}
+                                {t("content.ruleCount", { count: svc.rules.length })}
                               </Badge>
                             </Link>
                           ) : (
@@ -595,11 +599,11 @@ export function HAProxyContent() {
       <DeleteDialog
         open={!!deleteBackendTarget}
         onOpenChange={(o) => !o && setDeleteBackendTarget(null)}
-        title={`Delete backend "${deleteBackendTarget?.name}"?`}
+        title={t("content.deleteBackendTitle", { name: String(deleteBackendTarget?.name) })}
         description={
           backends.length === 1 && services.length > 0
-            ? "Warning: this is your last backend. VyOS will reject any subsequent changes until you add a new backend alongside the existing service."
-            : "This will remove the backend and all its server and rule configurations. This action cannot be undone."
+            ? t("content.deleteLastBackendWarning")
+            : t("content.deleteBackendDescription")
         }
         onConfirm={async () => {
           await lbService.deleteBackend(deleteBackendTarget!.name);
@@ -611,11 +615,11 @@ export function HAProxyContent() {
       <DeleteDialog
         open={!!deleteServiceTarget}
         onOpenChange={(o) => !o && setDeleteServiceTarget(null)}
-        title={`Delete service "${deleteServiceTarget?.name}"?`}
+        title={t("content.deleteServiceTitle", { name: String(deleteServiceTarget?.name) })}
         description={
           services.length === 1 && backends.length > 0
-            ? "Warning: this is your last service. VyOS will reject any subsequent changes until you add a new service alongside the existing backend."
-            : "This will remove the service and all its routing rules. This action cannot be undone."
+            ? t("content.deleteLastServiceWarning")
+            : t("content.deleteServiceDescription")
         }
         onConfirm={async () => {
           await lbService.deleteService(deleteServiceTarget!.name);

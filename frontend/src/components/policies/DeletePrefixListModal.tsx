@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { AlertCircle, ListFilter } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useTranslations } from "next-intl";
 import { prefixListService, type PrefixList } from "@/lib/api/prefix-list";
 
 interface DeletePrefixListModalProps {
@@ -15,6 +16,8 @@ interface DeletePrefixListModalProps {
 }
 
 export function DeletePrefixListModal({ open, onOpenChange, onSuccess, prefixList }: DeletePrefixListModalProps) {
+  const t = useTranslations("prefixList");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,7 +37,7 @@ export function DeletePrefixListModal({ open, onOpenChange, onSuccess, prefixLis
       handleClose();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete prefix list");
+      setError(err instanceof Error ? err.message : t("delete.failed"));
     } finally {
       setLoading(false);
     }
@@ -46,9 +49,9 @@ export function DeletePrefixListModal({ open, onOpenChange, onSuccess, prefixLis
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Delete Prefix List</DialogTitle>
+          <DialogTitle>{t("delete.title")}</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete this prefix list? This action cannot be undone.
+            {t("delete.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -64,7 +67,7 @@ export function DeletePrefixListModal({ open, onOpenChange, onSuccess, prefixLis
                     {prefixList.list_type.toUpperCase()}
                   </Badge>
                   <Badge variant="secondary">
-                    {prefixList.rules.length} rule{prefixList.rules.length !== 1 ? "s" : ""}
+                    {t("ruleCount", { count: prefixList.rules.length })}
                   </Badge>
                 </div>
                 {prefixList.description && (
@@ -79,10 +82,10 @@ export function DeletePrefixListModal({ open, onOpenChange, onSuccess, prefixLis
             <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
             <div className="space-y-1">
               <p className="text-sm font-medium text-destructive">
-                This will permanently delete the prefix list and all its rules
+                {t("delete.warning")}
               </p>
               <p className="text-sm text-muted-foreground">
-                Any route filtering configured with this prefix list will be affected.
+                {t("delete.warningDetail")}
               </p>
             </div>
           </div>
@@ -97,10 +100,10 @@ export function DeletePrefixListModal({ open, onOpenChange, onSuccess, prefixLis
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
-            {loading ? "Deleting..." : "Delete Prefix List"}
+            {loading ? tc("deleting") : t("delete.submit")}
           </Button>
         </DialogFooter>
       </DialogContent>

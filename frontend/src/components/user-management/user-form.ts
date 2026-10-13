@@ -49,23 +49,42 @@ export function userDraftFrom(user: UserListItem): UserDraft {
   };
 }
 
-export function validateUserShared(draft: UserDraft): string | null {
-  if (!draft.email.trim()) return "Email is required";
+/** Message keys (namespace `userManagement`) returned by the validators. */
+export type UserFormError =
+  | "form.emailRequired"
+  | "form.passwordTooShort"
+  | "form.passwordMismatch";
+
+export function validateUserShared(draft: UserDraft): UserFormError | null {
+  if (!draft.email.trim()) return "form.emailRequired";
   if (draft.password) {
-    if (draft.password.length < 8) return "Password must be at least 8 characters";
-    if (draft.password !== draft.confirmPassword) return "Passwords do not match";
+    if (draft.password.length < 8) return "form.passwordTooShort";
+    if (draft.password !== draft.confirmPassword) return "form.passwordMismatch";
   }
   return null;
 }
 
-export function validateUserCreate(draft: UserDraft): string | null {
+export function validateUserCreate(draft: UserDraft): UserFormError | null {
   const shared = validateUserShared(draft);
   if (shared) return shared;
   if (!draft.password || draft.password.length < 8) {
-    return "Password must be at least 8 characters";
+    return "form.passwordTooShort";
   }
-  if (draft.password !== draft.confirmPassword) return "Passwords do not match";
+  if (draft.password !== draft.confirmPassword) return "form.passwordMismatch";
   return null;
+}
+
+/** Display-label message key for a site/instance role value (the value itself is never translated). */
+export type RoleValueKey = "roleValues.ADMIN" | "roleValues.OPERATOR" | "roleValues.VIEWER";
+
+const ROLE_VALUE_KEYS: Record<string, RoleValueKey> = {
+  ADMIN: "roleValues.ADMIN",
+  OPERATOR: "roleValues.OPERATOR",
+  VIEWER: "roleValues.VIEWER",
+};
+
+export function roleValueKey(role: string): RoleValueKey | null {
+  return ROLE_VALUE_KEYS[role] ?? null;
 }
 
 export function buildUserCreate(draft: UserDraft): CreateUserRequest {

@@ -142,12 +142,12 @@ describe("dhcp server form", () => {
     const draft = serverDraftFrom("LAN", stored);
     draft.defaultRouter = "";
     assert.equal(
-      validateServerShared(draft, stored.subnet),
-      "Default router (gateway) is required",
+      validateServerShared(draft, stored.subnet)?.key,
+      "subnetForm.errors.defaultRouterRequired",
     );
     const create = filledCreate();
     create.networkName = "";
-    assert.equal(validateServerCreate(create), "Network name is required");
+    assert.equal(validateServerCreate(create)?.key, "subnetForm.errors.networkNameRequired");
     assert.equal(validateServerShared(serverDraftFrom("LAN", stored), stored.subnet), null);
   });
 

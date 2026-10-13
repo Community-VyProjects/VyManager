@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { InProgress } from "@/components/layout/InProgress";
 import { BabelContent } from "@/components/babel/BabelContent";
@@ -25,17 +26,18 @@ import { FeatureGroup } from "@/lib/api/user-management";
 type ProtocolType = "bgp" | "ospf" | "ospfv3" | "isis" | "openfabric" | "rip" | "ripng" | "babel";
 
 const allProtocols = [
-  { id: "bgp" as ProtocolType, name: "BGP", description: "Border Gateway Protocol", permission: FeatureGroup.BGP },
-  { id: "ospf" as ProtocolType, name: "OSPF", description: "Open Shortest Path First", permission: FeatureGroup.OSPF },
-  { id: "ospfv3" as ProtocolType, name: "OSPFv3", description: "OSPF for IPv6", permission: FeatureGroup.OSPFV3 },
-  { id: "isis" as ProtocolType, name: "IS-IS", description: "Intermediate System to Intermediate System", permission: FeatureGroup.ISIS },
-  { id: "openfabric" as ProtocolType, name: "OpenFabric", description: "OpenFabric Protocol", permission: FeatureGroup.OPENFABRIC },
-  { id: "rip" as ProtocolType, name: "RIP", description: "Routing Information Protocol", permission: FeatureGroup.RIP },
-  { id: "ripng" as ProtocolType, name: "RIPng", description: "RIP Next Generation", permission: FeatureGroup.RIPNG },
-  { id: "babel" as ProtocolType, name: "Babel", description: "Babel Routing Protocol", permission: FeatureGroup.BABEL },
+  { id: "bgp" as ProtocolType, permission: FeatureGroup.BGP },
+  { id: "ospf" as ProtocolType, permission: FeatureGroup.OSPF },
+  { id: "ospfv3" as ProtocolType, permission: FeatureGroup.OSPFV3 },
+  { id: "isis" as ProtocolType, permission: FeatureGroup.ISIS },
+  { id: "openfabric" as ProtocolType, permission: FeatureGroup.OPENFABRIC },
+  { id: "rip" as ProtocolType, permission: FeatureGroup.RIP },
+  { id: "ripng" as ProtocolType, permission: FeatureGroup.RIPNG },
+  { id: "babel" as ProtocolType, permission: FeatureGroup.BABEL },
 ];
 
 function UnicastProtocolsPageInner() {
+  const t = useTranslations("routingPages");
   const searchParams = useSearchParams();
   const { canRead, isLoading } = usePermissions();
 
@@ -73,9 +75,9 @@ function UnicastProtocolsPageInner() {
             <div className="flex items-center gap-3 mb-2">
               <Network className="h-6 w-6 text-primary" />
               <div>
-                <h2 className="text-lg font-semibold text-foreground">Unicast Protocols</h2>
+                <h2 className="text-lg font-semibold text-foreground">{t("unicast.title")}</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Dynamic routing protocols
+                  {t("unicast.subtitle")}
                 </p>
               </div>
             </div>
@@ -88,11 +90,11 @@ function UnicastProtocolsPageInner() {
             <div className="space-y-1 py-3">
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
-                  <p className="text-sm text-muted-foreground">Loading protocols...</p>
+                  <p className="text-sm text-muted-foreground">{t("unicast.loading")}</p>
                 </div>
               ) : protocols.length === 0 ? (
                 <div className="flex items-center justify-center py-8">
-                  <p className="text-sm text-muted-foreground">No accessible protocols</p>
+                  <p className="text-sm text-muted-foreground">{t("unicast.empty")}</p>
                 </div>
               ) : (
                 protocols.map((protocol) => (
@@ -122,14 +124,14 @@ function UnicastProtocolsPageInner() {
                           "font-medium text-sm",
                           selectedProtocol === protocol.id ? "text-foreground" : "text-foreground"
                         )}>
-                          {protocol.name}
+                          {t(`unicast.items.${protocol.id}.name`)}
                         </span>
                         {selectedProtocol === protocol.id && (
                           <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {protocol.description}
+                        {t(`unicast.items.${protocol.id}.description`)}
                       </span>
                     </div>
                   </div>
@@ -160,7 +162,7 @@ function UnicastProtocolsPageInner() {
             <RipngContent />
           ) : selectedProtocol === null ? (
             <div className="flex items-center justify-center h-full">
-              <p className="text-sm text-muted-foreground">Loading protocols...</p>
+              <p className="text-sm text-muted-foreground">{t("unicast.loading")}</p>
             </div>
           ) : (
             <InProgress />

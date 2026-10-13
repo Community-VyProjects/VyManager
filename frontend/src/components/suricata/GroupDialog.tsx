@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,8 @@ export function GroupDialog({
   onOpenChange: (open: boolean) => void;
   onSave: (group: SuricataGroup) => void;
 }) {
+  const t = useTranslations("suricata");
+  const tc = useTranslations("common");
   const editing = initial !== null;
   const [nameInput, setNameInput] = useState(initial?.name ?? "");
   const [members, setMembers] = useState<SuricataMember[]>(initial?.members ?? []);
@@ -50,19 +53,16 @@ export function GroupDialog({
   const [error, setError] = useState<string | null>(null);
 
   const name = editing ? initial.name : slugGroupName(nameInput);
-  const noun = kind === "address" ? "address or prefix" : "port or range";
   const check = kind === "address" ? isAddress : isPort;
 
   function addMember() {
     const value = entry.trim();
     if (!check(value)) {
-      setError(kind === "address"
-        ? "Use an address or network prefix, such as 10.1.0.0/16. A prefix must be the network address, not a host inside it."
-        : "Use a port from 1 to 65535, or a range such as 1000-1005.");
+      setError(kind === "address" ? t("addressEntryError") : t("portEntryError"));
       return;
     }
     if (members.some((item) => item.value === value && item.exclude === excludeEntry)) {
-      setError("That entry is already in the group.");
+      setError(t("entryAlreadyInGroup"));
       return;
     }
     setMembers([...members, { value, exclude: excludeEntry }]);
@@ -73,15 +73,15 @@ export function GroupDialog({
 
   function addRef() {
     if (!isGroupName(refName)) {
-      setError("Choose another group.");
+      setError(t("chooseAnotherGroup"));
       return;
     }
     if (refName === name) {
-      setError("A group cannot include itself.");
+      setError(t("groupCannotIncludeItself"));
       return;
     }
     if (refs.some((item) => item.value === refName && item.exclude === excludeRef)) {
-      setError("That group is already included.");
+      setError(t("groupAlreadyIncluded"));
       return;
     }
     setRefs([...refs, { value: refName, exclude: excludeRef }]);
@@ -92,11 +92,11 @@ export function GroupDialog({
 
   function save() {
     if (!isGroupName(name)) {
-      setError("Name the group with lowercase letters, digits, and hyphens. Rules will see it as a variable.");
+      setError(t("invalidGroupName"));
       return;
     }
     if (!editing && others.includes(name)) {
-      setError("A group with that name already exists.");
+      setError(t("groupNameExists"));
       return;
     }
     onSave({ name, members, groups: refs });
@@ -109,17 +109,23 @@ export function GroupDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>{editing ? `Edit ${initial.name}` : `New ${kind} group`}</DialogTitle>
+          <DialogTitle>
+            {editing
+              ? t("editNamed", { name: initial.name })
+              : kind === "address"
+                ? t("newAddressGroup")
+                : t("newPortGroup")}
+          </DialogTitle>
           <DialogDescription>
             {name
-              ? `Detection rules see this as $${variableName(name)}.`
-              : "The name becomes the variable rules match against."}
+              ? t("rulesSeeVariable", { variable: `$${variableName(name)}` })
+              : t("nameBecomesVariable")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-1">
-            <Label htmlFor="suricata-group-name">Name</Label>
+            <Label htmlFor="suricata-group-name">{tc("name")}</Label>
             <Input
               id="suricata-group-name"
               value={editing ? initial.name : nameInput}
@@ -128,12 +134,12 @@ export function GroupDialog({
               placeholder="web-servers"
             />
             {!editing && nameInput && name !== nameInput.trim() ? (
-              <p className="text-xs text-muted-foreground">Saved as {name || "(empty)"}.</p>
+              <p className="text-xs text-muted-foreground">{t("savedAs", { name: name || t("emptyName") })}</p>
             ) : null}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="suricata-group-entry">{kind === "address" ? "Addresses" : "Ports"}</Label>
+            <Label htmlFor="suricata-group-entry">{kind === "address" ? t("addresses") : t("ports")}</Label>
             <MemberList
               items={members}
               nested={false}
@@ -144,7 +150,7 @@ export function GroupDialog({
                 id="suricata-group-entry"
                 value={entry}
                 onChange={(event) => setEntry(event.target.value)}
-                placeholder={noun}
+                placeholder={kind === "address" ? t("addressOrPrefix") : t("portOrRange")}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
                     event.preventDefault();
@@ -153,17 +159,17 @@ export function GroupDialog({
                 }}
               />
               <Button type="button" variant="outline" onClick={addMember} disabled={!entry.trim()}>
-                Add
+                {tc("add")}
               </Button>
             </div>
             <label className="flex items-center gap-2 text-sm">
               <Checkbox checked={excludeEntry} onCheckedChange={(checked) => setExcludeEntry(checked === true)} />
-              Exclude this {kind === "address" ? "address" : "port"} instead of including it
+              {kind === "address" ? t("excludeThisAddress") : t("excludeThisPort")}
             </label>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="suricata-group-ref">Include another group</Label>
+            <Label htmlFor="suricata-group-ref">{t("includeAnotherGroup")}</Label>
             <MemberList items={refs} nested onChange={setRefs} />
             <div className="flex gap-2">
               <select
@@ -172,31 +178,31 @@ export function GroupDialog({
                 value={refName}
                 onChange={(event) => setRefName(event.target.value)}
               >
-                <option value="">Choose a group</option>
+                <option value="">{t("chooseAGroup")}</option>
                 {others.filter((item) => item !== name).map((item) => (
                   <option key={item} value={item}>${variableName(item)}</option>
                 ))}
               </select>
               <Button type="button" variant="outline" onClick={addRef} disabled={!refName}>
-                Add
+                {tc("add")}
               </Button>
             </div>
             <label className="flex items-center gap-2 text-sm">
               <Checkbox checked={excludeRef} onCheckedChange={(checked) => setExcludeRef(checked === true)} />
-              Exclude that group
+              {t("excludeThatGroup")}
             </label>
           </div>
 
-          <p className="rounded-md bg-muted px-3 py-2 font-mono text-xs">{name ? groupPreview(draft) : "Name the group to see the variable."}</p>
+          <p className="rounded-md bg-muted px-3 py-2 font-mono text-xs">{name ? groupPreview(draft) : t("nameGroupToPreview")}</p>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </div>
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button type="button" onClick={save}>
-            Done
+            {t("done")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -213,13 +219,14 @@ function MemberList({
   nested: boolean;
   onChange: (items: SuricataMember[]) => void;
 }) {
+  const t = useTranslations("suricata");
   if (items.length === 0) return null;
   return (
     <ul className="space-y-1">
       {items.map((item) => (
         <li key={`${item.exclude}-${item.value}`} className="flex items-center justify-between rounded-md border px-3 py-1.5 text-sm">
           <span className="font-mono">
-            {item.exclude ? "not " : ""}
+            {item.exclude ? t("notPrefix") : ""}
             {nested ? `$${variableName(item.value)}` : item.value}
           </span>
           <Button
@@ -228,7 +235,7 @@ function MemberList({
             size="sm"
             onClick={() => onChange(items.filter((candidate) => candidate !== item))}
           >
-            Remove
+            {t("remove")}
           </Button>
         </li>
       ))}

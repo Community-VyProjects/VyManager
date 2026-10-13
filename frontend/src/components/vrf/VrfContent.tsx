@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +48,8 @@ export function VrfContent({
   onRefresh,
   onVrfDeleted,
 }: VrfContentProps) {
+  const t = useTranslations("vrf");
+  const tc = useTranslations("common");
   const [activeTab, setActiveTab] = useState("settings");
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -79,7 +82,7 @@ export function VrfContent({
                 <h1 className="text-xl font-semibold">{vrf.name}</h1>
                 {vrf.disabled && (
                   <Badge variant="outline" className="text-xs">
-                    Disabled
+                    {tc("disabled")}
                   </Badge>
                 )}
               </div>
@@ -96,7 +99,7 @@ export function VrfContent({
               disabled={refreshing}
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-              Refresh
+              {tc("refresh")}
             </Button>
             {canWrite && (
               <Button
@@ -106,7 +109,7 @@ export function VrfContent({
                 className="text-destructive hover:text-destructive"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                Delete
+                {tc("delete")}
               </Button>
             )}
           </div>
@@ -120,7 +123,7 @@ export function VrfContent({
                 <Layers className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <p className="text-lg font-semibold">{vrf.table ?? "—"}</p>
-                  <p className="text-[11px] text-muted-foreground">Table ID</p>
+                  <p className="text-[11px] text-muted-foreground">{t("tableId")}</p>
                 </div>
               </div>
             </CardContent>
@@ -131,7 +134,7 @@ export function VrfContent({
                 <Route className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <p className="text-lg font-semibold">{routeCount}</p>
-                  <p className="text-[11px] text-muted-foreground">Static Routes</p>
+                  <p className="text-[11px] text-muted-foreground">{t("staticRoutesTitle")}</p>
                 </div>
               </div>
             </CardContent>
@@ -142,7 +145,7 @@ export function VrfContent({
                 <Globe className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <p className="text-lg font-semibold">{protocolCount}</p>
-                  <p className="text-[11px] text-muted-foreground">Protocols</p>
+                  <p className="text-[11px] text-muted-foreground">{t("content.protocols")}</p>
                 </div>
               </div>
             </CardContent>
@@ -153,7 +156,7 @@ export function VrfContent({
                 <Server className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <p className="text-lg font-semibold">{serviceCount}</p>
-                  <p className="text-[11px] text-muted-foreground">Services</p>
+                  <p className="text-[11px] text-muted-foreground">{t("content.services")}</p>
                 </div>
               </div>
             </CardContent>
@@ -176,7 +179,7 @@ export function VrfContent({
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4"
                 >
                   <Settings className="h-3.5 w-3.5 mr-1.5" />
-                  Settings
+                  {t("content.settings")}
                 </TabsTrigger>
 
                 <TabsTrigger
@@ -184,7 +187,7 @@ export function VrfContent({
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4"
                 >
                   <Route className="h-3.5 w-3.5 mr-1.5" />
-                  Static Routes
+                  {t("staticRoutesTitle")}
                   {routeCount > 0 && (
                     <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
                       {routeCount}
@@ -199,7 +202,7 @@ export function VrfContent({
                   OSPF
                   {vrf.ospf?.configured && (
                     <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
-                      on
+                      {t("on")}
                     </Badge>
                   )}
                 </TabsTrigger>
@@ -211,7 +214,7 @@ export function VrfContent({
                   OSPFv3
                   {vrf.ospfv3?.configured && (
                     <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
-                      on
+                      {t("on")}
                     </Badge>
                   )}
                 </TabsTrigger>
@@ -223,7 +226,7 @@ export function VrfContent({
                   IS-IS
                   {vrf.isis?.configured && (
                     <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
-                      on
+                      {t("on")}
                     </Badge>
                   )}
                 </TabsTrigger>
@@ -235,7 +238,7 @@ export function VrfContent({
                   BGP
                   {vrf.bgp?.configured && (
                     <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
-                      on
+                      {t("on")}
                     </Badge>
                   )}
                 </TabsTrigger>
@@ -259,7 +262,7 @@ export function VrfContent({
                     value="failover"
                     className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4"
                   >
-                    Failover
+                    {t("content.failover")}
                     {vrf.failover && vrf.failover.routes.length > 0 && (
                       <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
                         {vrf.failover.routes.length}
@@ -276,7 +279,7 @@ export function VrfContent({
                     DHCP
                     {vrf.dhcp?.configured && (
                       <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
-                        on
+                        {t("on")}
                       </Badge>
                     )}
                   </TabsTrigger>
@@ -290,7 +293,7 @@ export function VrfContent({
                     DHCPv6
                     {vrf.dhcpv6?.configured && (
                       <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
-                        on
+                        {t("on")}
                       </Badge>
                     )}
                   </TabsTrigger>

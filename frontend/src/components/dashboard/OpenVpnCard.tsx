@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +44,7 @@ function StateBadge({ state }: { state: string | null }) {
 }
 
 function ClientRow({ client }: { client: OpenVpnTunnel["clients"][number] }) {
+  const t = useTranslations("dashboard");
   const remote = client.remote_host
     ? `${client.remote_host}${client.remote_port ? `:${client.remote_port}` : ""}`
     : null;
@@ -57,11 +59,11 @@ function ClientRow({ client }: { client: OpenVpnTunnel["clients"][number] }) {
           <span className="font-mono"> → {client.tunnel}</span>
         )}
       </div>
-      <span className="flex items-center gap-0.5 shrink-0 tabular-nums" title="received">
+      <span className="flex items-center gap-0.5 shrink-0 tabular-nums" title={t("traffic.received")}>
         <ArrowDown className="h-3 w-3 text-blue-500" />
         {client.rx_bytes || "0"}
       </span>
-      <span className="flex items-center gap-0.5 shrink-0 tabular-nums" title="sent">
+      <span className="flex items-center gap-0.5 shrink-0 tabular-nums" title={t("traffic.sent")}>
         <ArrowUp className="h-3 w-3 text-orange-500" />
         {client.tx_bytes || "0"}
       </span>
@@ -70,6 +72,7 @@ function ClientRow({ client }: { client: OpenVpnTunnel["clients"][number] }) {
 }
 
 function TunnelGroup({ title, tunnels }: { title: string; tunnels: OpenVpnTunnel[] }) {
+  const tr = useTranslations("dashboard");
   if (tunnels.length === 0) return null;
   return (
     <div className="border-b last:border-0">
@@ -92,7 +95,7 @@ function TunnelGroup({ title, tunnels }: { title: string; tunnels: OpenVpnTunnel
               <div className="flex-1" />
               {t.mode === "server" && (
                 <span className="text-[11px] text-muted-foreground shrink-0">
-                  {t.clients.length} {t.clients.length === 1 ? "client" : "clients"}
+                  {tr("openVpn.clients", { count: t.clients.length })}
                 </span>
               )}
               {t.mode !== "server" && t.clients[0]?.online_since && t.clients[0].online_since !== "N/A" && (
@@ -113,6 +116,7 @@ function TunnelGroup({ title, tunnels }: { title: string; tunnels: OpenVpnTunnel
 }
 
 export function OpenVpnCard({ onRemove, span = 1, onSpanChange, height, onHeightChange }: OpenVpnCardProps) {
+  const t = useTranslations("dashboard");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const { status: sseStatus, data: sseData } = useDashboardData();
   // Snapshot the stream so "Paused" freezes the displayed status.
@@ -140,10 +144,10 @@ export function OpenVpnCard({ onRemove, span = 1, onSpanChange, height, onHeight
             variant={autoRefresh ? "default" : "outline"}
             size="sm"
             onClick={() => setAutoRefresh((v) => !v)}
-            title={autoRefresh ? `Live via dashboard stream (${sseStatus})` : "Paused"}
+            title={autoRefresh ? t("stream.liveVia", { status: sseStatus }) : t("stream.paused")}
           >
             <RefreshCw className={`h-4 w-4 mr-1 ${autoRefresh && sseStatus === "connected" ? "animate-spin" : ""}`} />
-            {autoRefresh ? "Live" : "Paused"}
+            {autoRefresh ? t("stream.live") : t("stream.paused")}
           </Button>
           {onSpanChange && (
             <CardSizeMenu
@@ -163,16 +167,16 @@ export function OpenVpnCard({ onRemove, span = 1, onSpanChange, height, onHeight
 
       <CardContent className="flex flex-col flex-1 min-h-0 p-0">
         {loading ? (
-          <div className="px-4 py-6 text-center text-muted-foreground text-sm">Loading…</div>
+          <div className="px-4 py-6 text-center text-muted-foreground text-sm">{t("stream.loading")}</div>
         ) : total === 0 ? (
           <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-muted-foreground">
-            No OpenVPN tunnels configured.
+            {t("openVpn.noTunnels")}
           </div>
         ) : (
           <div className="flex-1 min-h-0 overflow-y-auto">
-            <TunnelGroup title="Servers" tunnels={status!.servers} />
-            <TunnelGroup title="Clients" tunnels={status!.clients} />
-            <TunnelGroup title="Site-to-Site" tunnels={status!.site_to_site} />
+            <TunnelGroup title={t("openVpn.groupServers")} tunnels={status!.servers} />
+            <TunnelGroup title={t("openVpn.groupClients")} tunnels={status!.clients} />
+            <TunnelGroup title={t("openVpn.groupSiteToSite")} tunnels={status!.site_to_site} />
           </div>
         )}
       </CardContent>

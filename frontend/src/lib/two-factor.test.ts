@@ -21,6 +21,7 @@ describe("interpretSignInResult", () => {
     assert.deepEqual(interpretSignInResult({ error: {} }), {
       kind: "error",
       message: "Login failed",
+      messageKey: "twoFactor.loginFailed",
     });
   });
 

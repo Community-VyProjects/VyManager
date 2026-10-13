@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface DeleteBgpPeerGroupModalProps {
   open: boolean;
@@ -28,6 +29,8 @@ export function DeleteBgpPeerGroupModal({
   memberCount,
   onConfirm,
 }: DeleteBgpPeerGroupModalProps) {
+  const t = useTranslations("bgp");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
 
   const handleConfirm = async () => {
@@ -43,22 +46,26 @@ export function DeleteBgpPeerGroupModal({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete BGP Peer Group</AlertDialogTitle>
+          <AlertDialogTitle>{t("deletePeerGroup.title")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete the peer group{" "}
-            <span className="font-mono font-semibold">{peerGroupName}</span>?
+            {t.rich("deletePeerGroup.description", {
+              name: peerGroupName,
+              mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+            })}
             {memberCount > 0 && (
               <>
-                {" "}This peer group is currently referenced by{" "}
-                <span className="font-semibold">{memberCount}</span> neighbor{memberCount !== 1 ? "s" : ""}.
-                Those neighbors will lose their peer group association.
+                {" "}
+                {t.rich("deletePeerGroup.membersWarning", {
+                  count: memberCount,
+                  b: (chunks) => <span className="font-semibold">{chunks}</span>,
+                })}
               </>
             )}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
             disabled={loading}
@@ -67,10 +74,10 @@ export function DeleteBgpPeerGroupModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Peer Group"
+              t("deletePeerGroup.confirm")
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

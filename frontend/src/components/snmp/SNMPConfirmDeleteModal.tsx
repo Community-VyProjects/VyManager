@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +36,8 @@ export function SNMPConfirmDeleteModal({
   onConfirm,
   onSuccess,
 }: SNMPConfirmDeleteModalProps) {
+  const t = useTranslations("snmp");
+  const tc = useTranslations("common");
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,7 +49,7 @@ export function SNMPConfirmDeleteModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
       setDeleting(false);
     }
   };
@@ -57,9 +60,13 @@ export function SNMPConfirmDeleteModal({
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>
-            Remove{" "}
-            <span className="font-mono font-medium text-foreground">{itemName}</span>
-            {description ? ` ${description}` : ""}? This cannot be undone.
+            {t.rich("confirmDelete.message", {
+              name: itemName,
+              description: description ? ` ${description}` : "",
+              item: (chunks) => (
+                <span className="font-mono font-medium text-foreground">{chunks}</span>
+              ),
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -71,7 +78,7 @@ export function SNMPConfirmDeleteModal({
         )}
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={deleting}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => {
               e.preventDefault();
@@ -81,7 +88,7 @@ export function SNMPConfirmDeleteModal({
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             {deleting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Remove
+            {t("confirmDelete.remove")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

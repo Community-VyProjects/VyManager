@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -34,15 +35,17 @@ interface NetworkEventModalProps {
   onSuccess: () => void;
 }
 
-const EVENT_LABELS: Record<string, string> = {
-  addr: "Address",
-  link: "Link",
-  neigh: "Neighbor",
-  route: "Route",
-  rule: "Policy Rule",
+const EVENT_LABELS: Record<string, "networkEvent.events.addr" | "networkEvent.events.link" | "networkEvent.events.neigh" | "networkEvent.events.route" | "networkEvent.events.rule"> = {
+  addr: "networkEvent.events.addr",
+  link: "networkEvent.events.link",
+  neigh: "networkEvent.events.neigh",
+  route: "networkEvent.events.route",
+  rule: "networkEvent.events.rule",
 };
 
 export function NetworkEventModal({ open, onOpenChange, original, caps, onSuccess }: NetworkEventModalProps) {
+  const t = useTranslations("serviceMonitoring");
+  const tc = useTranslations("common");
   const [logLevel, setLogLevel] = useState(original?.log_level ?? "");
   const [queueSize, setQueueSize] = useState(original?.queue_size ? String(original.queue_size) : "");
   const [events, setEvents] = useState<string[]>(original?.events ?? []);
@@ -69,7 +72,7 @@ export function NetworkEventModal({ open, onOpenChange, original, caps, onSucces
       });
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -80,16 +83,16 @@ export function NetworkEventModal({ open, onOpenChange, original, caps, onSucces
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {original ? "Edit" : "Configure"} Network Event Logging
+            {original ? t("networkEvent.editTitle") : t("networkEvent.configureTitle")}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-5 py-1">
           <div className="space-y-2">
-            <Label>Log Level</Label>
+            <Label>{t("networkEvent.logLevel")}</Label>
             <Select value={logLevel} onValueChange={setLogLevel}>
               <SelectTrigger>
-                <SelectValue placeholder="Default" />
+                <SelectValue placeholder={tc("default")} />
               </SelectTrigger>
               <SelectContent>
                 {logLevelValues.map((l) => (
@@ -100,7 +103,7 @@ export function NetworkEventModal({ open, onOpenChange, original, caps, onSucces
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="ne-queue">Queue Size</Label>
+            <Label htmlFor="ne-queue">{t("networkEvent.queueSize")}</Label>
             <Input
               id="ne-queue"
               type="number"
@@ -109,11 +112,11 @@ export function NetworkEventModal({ open, onOpenChange, original, caps, onSucces
               value={queueSize}
               onChange={(e) => setQueueSize(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">Minimum {caps.features.network_event.queue_size.min}</p>
+            <p className="text-xs text-muted-foreground">{t("networkEvent.minimum", { min: String(caps.features.network_event.queue_size.min) })}</p>
           </div>
 
           <div className="space-y-3">
-            <Label className="text-sm font-medium">Event Types</Label>
+            <Label className="text-sm font-medium">{t("networkEvent.eventTypes")}</Label>
             <div className="grid grid-cols-2 gap-2">
               {eventTypes.map((event) => (
                 <div key={event} className="flex items-center gap-2">
@@ -123,7 +126,7 @@ export function NetworkEventModal({ open, onOpenChange, original, caps, onSucces
                     onCheckedChange={() => toggleEvent(event)}
                   />
                   <Label htmlFor={`event-${event}`} className="cursor-pointer text-sm">
-                    {EVENT_LABELS[event] ?? event}
+                    {EVENT_LABELS[event] ? t(EVENT_LABELS[event]) : event}
                   </Label>
                 </div>
               ))}
@@ -140,11 +143,11 @@ export function NetworkEventModal({ open, onOpenChange, original, caps, onSucces
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

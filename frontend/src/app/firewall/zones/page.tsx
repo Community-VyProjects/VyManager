@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect, useCallback, type CSSProperties, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { firewallZonesService, resolveChainName } from "@/lib/api/firewall-zones";
 import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
 import { firewallIPv4Service } from "@/lib/api/firewall-ipv4";
@@ -103,6 +104,8 @@ function SortableRuleRow({
   groups: FirewallGroup[];
   counter?: { packets: number; bytes: number } | null;
 }) {
+  const t = useTranslations("firewallZones");
+  const tc = useTranslations("common");
   const {
     attributes,
     listeners,
@@ -126,10 +129,10 @@ function SortableRuleRow({
   type PortObj = { port?: string | null; group?: Record<string, string> | null } | null | undefined;
 
   function renderAddr(obj: AddrObj) {
-    if (!obj) return <span className="text-muted-foreground">Any</span>;
+    if (!obj) return <span className="text-muted-foreground">{t("table.any")}</span>;
     const nonPortGroups = obj.group ? Object.entries(obj.group).filter(([k]) => k !== "port-group") : [];
     const hasContent = obj.address || nonPortGroups.length > 0 || (obj.geoip?.country_code?.length ?? 0) > 0 || obj.mac_address;
-    if (!hasContent) return <span className="text-muted-foreground">Any</span>;
+    if (!hasContent) return <span className="text-muted-foreground">{t("table.any")}</span>;
     return (
       <div className="flex flex-col gap-1">
         {obj.address && (
@@ -151,7 +154,7 @@ function SortableRuleRow({
               </TooltipTrigger>
               <TooltipContent>
                 <div className="max-w-xs">
-                  <p className="font-semibold text-xs mb-2">{inverted ? `NOT ${displayName}` : displayName}</p>
+                  <p className="font-semibold text-xs mb-2">{inverted ? t("table.notGroup", { name: displayName }) : displayName}</p>
                   {members.length > 0 ? (
                     <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
                       {members.map((m, i) => (
@@ -159,7 +162,7 @@ function SortableRuleRow({
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-muted-foreground">No members</p>
+                    <p className="text-xs text-muted-foreground">{t("table.noMembers")}</p>
                   )}
                 </div>
               </TooltipContent>
@@ -182,12 +185,12 @@ function SortableRuleRow({
                 {obj.geoip!.inverse_match && "!"}
                 {obj.geoip!.country_code!.length === 1
                   ? obj.geoip!.country_code![0].toUpperCase()
-                  : `Countries (${obj.geoip!.country_code!.length})`}
+                  : t("table.countriesCount", { count: obj.geoip!.country_code!.length })}
               </Badge>
             </TooltipTrigger>
             <TooltipContent>
               <div className="max-w-xs">
-                <p className="font-semibold text-xs mb-2">{obj.geoip!.inverse_match ? "Excluded Countries" : "Countries"}</p>
+                <p className="font-semibold text-xs mb-2">{obj.geoip!.inverse_match ? t("table.excludedCountries") : t("table.countries")}</p>
                 <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
                   {obj.geoip!.country_code!.map((c, i) => (
                     <code key={i} className="text-xs font-mono px-1.5 py-0.5 rounded bg-muted/60 whitespace-nowrap">{c.toUpperCase()}</code>
@@ -202,7 +205,7 @@ function SortableRuleRow({
   }
 
   function renderPort(obj: PortObj) {
-    if (!obj) return <span className="text-muted-foreground">Any</span>;
+    if (!obj) return <span className="text-muted-foreground">{t("table.any")}</span>;
     if (obj.port) return <span className="font-mono text-xs">{obj.port}</span>;
     if (obj.group?.["port-group"]) {
       const name = obj.group["port-group"];
@@ -218,7 +221,7 @@ function SortableRuleRow({
           </TooltipTrigger>
           <TooltipContent>
             <div className="max-w-xs">
-              <p className="font-semibold text-xs mb-2">{inverted ? `NOT ${displayName}` : displayName}</p>
+              <p className="font-semibold text-xs mb-2">{inverted ? t("table.notGroup", { name: displayName }) : displayName}</p>
               {members.length > 0 ? (
                 <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
                   {members.map((m, i) => (
@@ -226,14 +229,14 @@ function SortableRuleRow({
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground">No ports</p>
+                <p className="text-xs text-muted-foreground">{t("table.noPorts")}</p>
               )}
             </div>
           </TooltipContent>
         </Tooltip>
       );
     }
-    return <span className="text-muted-foreground">Any</span>;
+    return <span className="text-muted-foreground">{t("table.any")}</span>;
   }
 
   return (
@@ -267,7 +270,7 @@ function SortableRuleRow({
                 <TooltipTrigger asChild>
                   <Ban className="h-3 w-3 text-muted-foreground" />
                 </TooltipTrigger>
-                <TooltipContent>Disabled</TooltipContent>
+                <TooltipContent>{tc("disabled")}</TooltipContent>
               </Tooltip>
             )}
           </span>
@@ -280,11 +283,11 @@ function SortableRuleRow({
             <TooltipContent>
               {counter ? (
                 <div className="text-xs tabular-nums">
-                  <div>{counter.packets.toLocaleString()} packets</div>
-                  <div>{counter.bytes.toLocaleString()} bytes</div>
+                  <div>{t("table.packets", { count: counter.packets.toLocaleString() })}</div>
+                  <div>{t("table.bytes", { count: counter.bytes.toLocaleString() })}</div>
                 </div>
               ) : (
-                <span className="text-xs">No live counters</span>
+                <span className="text-xs">{t("table.noLiveCounters")}</span>
               )}
             </TooltipContent>
           </Tooltip>
@@ -314,7 +317,7 @@ function SortableRuleRow({
         <Badge variant="secondary" className="text-[10px]">{row.ipVersion}</Badge>
       </TableCell>
 
-      <TableCell className="font-mono">{row.rule.protocol ?? "Any"}</TableCell>
+      <TableCell className="font-mono">{row.rule.protocol ?? t("table.any")}</TableCell>
 
       <TableCell>
         <Badge variant="outline" className="font-mono text-[10px]">{row.sourceZone}</Badge>
@@ -358,7 +361,8 @@ function getCellInfo(
   destZone: string,
   zones: FirewallZone[],
   ipv4Config: FirewallConfigResponse | null,
-  ipv6Config: FirewallConfigResponse | null
+  ipv6Config: FirewallConfigResponse | null,
+  labels: { intraZone: string; defaultAction: (action: string) => string }
 ): { bgClass: string; textClass: string; label: string; count: number } {
   const ACCEPT = { bgClass: "bg-green-800", textClass: "text-green-50" };
   const DROP = { bgClass: "bg-red-800/40", textClass: "text-white" };
@@ -371,12 +375,12 @@ function getCellInfo(
     if (!zoneObj || zoneObj.local_zone) return { ...MUTED, label: "—", count: 0 };
     const intra = zoneObj.intra_zone_filtering;
     if (!intra || (!intra.firewall_name && !intra.firewall_ipv6_name)) {
-      return { ...MUTED, label: "Intra-zone", count: 0 };
+      return { ...MUTED, label: labels.intraZone, count: 0 };
     }
     const ipv4Chain = ipv4Config?.custom_chains.find((c) => c.name === intra.firewall_name);
     const ipv6Chain = ipv6Config?.custom_chains.find((c) => c.name === intra.firewall_ipv6_name);
     const count = (ipv4Chain?.rules.length ?? 0) + (ipv6Chain?.rules.length ?? 0);
-    const label = intra.firewall_name ?? intra.firewall_ipv6_name ?? "Intra-zone";
+    const label = intra.firewall_name ?? intra.firewall_ipv6_name ?? labels.intraZone;
     const action = ipv4Chain?.default_action ?? ipv6Chain?.default_action;
     if (action === "accept") return { ...ACCEPT, label, count };
     if (action === "drop") return { ...DROP, label, count };
@@ -389,8 +393,8 @@ function getCellInfo(
 
   if (!fromEntry || (!fromEntry.firewall_name && !fromEntry.firewall_ipv6_name)) {
     const action = destZoneObj?.default_action ?? "drop";
-    if (action === "reject") return { ...REJECT, label: `Default: ${action}`, count: 0 };
-    return { ...DROP, label: `Default: ${action}`, count: 0 };
+    if (action === "reject") return { ...REJECT, label: labels.defaultAction(action), count: 0 };
+    return { ...DROP, label: labels.defaultAction(action), count: 0 };
   }
 
   const ipv4Chain = ipv4Config?.custom_chains.find((c) => c.name === fromEntry.firewall_name);
@@ -411,6 +415,8 @@ function getCellInfo(
 // ============================================================================
 
 export default function FirewallZonesPage() {
+  const t = useTranslations("firewallZones");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const canEdit = canWrite(FeatureGroup.FIREWALL_ZONES);
 
@@ -495,11 +501,11 @@ export default function FirewallZonesPage() {
         ...groupsData.remote_groups,
       ]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load firewall zones");
+      setError(err instanceof Error ? err.message : t("page.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -786,7 +792,7 @@ export default function FirewallZonesPage() {
       setReorderedRows([]);
       await loadData(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save rule order");
+      setError(err instanceof Error ? err.message : t("page.saveOrderFailed"));
     } finally {
       setSavingReorder(false);
     }
@@ -937,10 +943,10 @@ export default function FirewallZonesPage() {
                 <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
                 <Badge variant="outline" className="font-mono text-[10px]">{row.destZone}</Badge>
                 {intra && (
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wide">intra-zone</span>
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wide">{t("table.intraZoneTag")}</span>
                 )}
                 <span className="ml-auto text-[11px] text-muted-foreground">
-                  {count} rule{count !== 1 ? "s" : ""}
+                  {t("table.ruleCount", { count })}
                 </span>
               </div>
             </TableCell>
@@ -999,12 +1005,12 @@ export default function FirewallZonesPage() {
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-semibold">Firewall Zones</h1>
-              <p className="text-sm text-muted-foreground mt-1">Manage zone-based firewall policies</p>
+              <h1 className="text-2xl font-semibold">{t("page.title")}</h1>
+              <p className="text-sm text-muted-foreground mt-1">{t("page.subtitle")}</p>
             </div>
             <Button variant="outline" size="sm" onClick={() => loadData(true)} className="gap-2">
               <RefreshCw className="h-4 w-4" />
-              Refresh
+              {tc("refresh")}
             </Button>
           </div>
 
@@ -1013,7 +1019,7 @@ export default function FirewallZonesPage() {
             <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-3">
               <Shield className="h-4 w-4 text-amber-500 shrink-0" />
               <p className="text-sm text-amber-700 dark:text-amber-400">
-                You have read-only access to Firewall Zones. Contact an administrator to make changes.
+                {t("page.readOnly")}
               </p>
             </div>
           )}
@@ -1034,15 +1040,15 @@ export default function FirewallZonesPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-48">Zone Name</TableHead>
-                    <TableHead>Networks / Interfaces</TableHead>
+                    <TableHead className="w-48">{t("zoneTable.zoneName")}</TableHead>
+                    <TableHead>{t("zoneTable.networks")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {zones.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={2} className="text-center py-8 text-muted-foreground">
-                        No zones configured
+                        {t("zoneTable.empty")}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -1062,7 +1068,7 @@ export default function FirewallZonesPage() {
                                 <TooltipTrigger asChild>
                                   <Lock className="h-4 w-4 text-blue-500 shrink-0" />
                                 </TooltipTrigger>
-                                <TooltipContent>Local Zone</TooltipContent>
+                                <TooltipContent>{t("zoneTable.localZone")}</TooltipContent>
                               </Tooltip>
                             )}
                             <span className="font-mono font-medium">{zone.name}</span>
@@ -1079,9 +1085,9 @@ export default function FirewallZonesPage() {
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
                             {zone.local_zone ? (
-                              <Badge variant="outline" className="text-blue-600 border-blue-300">Router (local)</Badge>
+                              <Badge variant="outline" className="text-blue-600 border-blue-300">{t("zoneTable.routerLocal")}</Badge>
                             ) : zone.interfaces.length === 0 && zone.vrfs.length === 0 ? (
-                              <span className="text-xs text-muted-foreground">No members</span>
+                              <span className="text-xs text-muted-foreground">{t("table.noMembers")}</span>
                             ) : (
                               <>
                                 {[...zone.interfaces, ...zone.vrfs].slice(0, 4).map((iface) => (
@@ -1089,7 +1095,7 @@ export default function FirewallZonesPage() {
                                 ))}
                                 {zone.interfaces.length + zone.vrfs.length > 4 && (
                                   <Badge variant="secondary" className="text-xs">
-                                    +{zone.interfaces.length + zone.vrfs.length - 4} more
+                                    {t("zoneTable.more", { count: zone.interfaces.length + zone.vrfs.length - 4 })}
                                   </Badge>
                                 )}
                               </>
@@ -1104,16 +1110,16 @@ export default function FirewallZonesPage() {
 
               <div className="flex items-center gap-3 px-4 py-3 border-t bg-muted/20">
                 {canEdit && (
-                  <Button size="sm" onClick={() => setCreateOpen(true)}>Create Zone</Button>
+                  <Button size="sm" onClick={() => setCreateOpen(true)}>{t("zoneTable.createZone")}</Button>
                 )}
                 {canEdit && selectedZone && (
                   <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-                    Manage: {selectedZone.name}
+                    {t("zoneTable.manage", { name: selectedZone.name })}
                   </Button>
                 )}
                 {!selectedZone && (
                   <span className="text-xs text-muted-foreground">
-                    {canEdit ? "Select a zone to manage it" : "Click a zone to view details"}
+                    {canEdit ? t("zoneTable.selectToManage") : t("zoneTable.clickToView")}
                   </span>
                 )}
               </div>
@@ -1126,7 +1132,7 @@ export default function FirewallZonesPage() {
           {zones.length > 0 && (
             <Card>
               <CardContent className="p-4 space-y-3">
-                <p className="text-sm font-medium">Zone Policy Matrix</p>
+                <p className="text-sm font-medium">{t("matrix.title")}</p>
 
                 <div className="overflow-x-auto">
                   <div className="flex items-stretch gap-0 inline-flex">
@@ -1135,7 +1141,7 @@ export default function FirewallZonesPage() {
                         className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest select-none"
                         style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
                       >
-                        Source
+                        {t("matrix.source")}
                       </span>
                     </div>
 
@@ -1153,14 +1159,14 @@ export default function FirewallZonesPage() {
                                     : "bg-muted/50 text-muted-foreground hover:bg-muted"
                                 )}
                               >
-                                All Policies ({totalAllRules})
+                                {t("matrix.allPolicies", { count: totalAllRules })}
                               </button>
                             </th>
                             <th
                               colSpan={zones.length}
                               className="border border-border py-1 text-center text-[10px] font-semibold uppercase tracking-widest text-muted-foreground bg-muted/20"
                             >
-                              Destination
+                              {t("matrix.destination")}
                             </th>
                           </tr>
                           <tr>
@@ -1182,7 +1188,10 @@ export default function FirewallZonesPage() {
                                 {srcZone.name}
                               </td>
                               {zones.map((dstZone) => {
-                                const cell = getCellInfo(srcZone.name, dstZone.name, zones, ipv4Config, ipv6Config);
+                                const cell = getCellInfo(srcZone.name, dstZone.name, zones, ipv4Config, ipv6Config, {
+                                  intraZone: t("matrix.intraZone"),
+                                  defaultAction: (action) => t("matrix.defaultAction", { action }),
+                                });
                                 const isLocalSelf = srcZone.name === dstZone.name && srcZone.local_zone;
                                 const isSelected =
                                   selectedPair !== "all" &&
@@ -1232,17 +1241,17 @@ export default function FirewallZonesPage() {
           ================================================================ */}
           {isReordering && (
             <div className="flex items-center gap-4 bg-card border-2 border-primary rounded-lg px-5 py-3 shadow-sm">
-              <p className="text-sm font-semibold">Reorder Pending</p>
+              <p className="text-sm font-semibold">{t("reorder.pending")}</p>
               <div className="h-8 w-px bg-border" />
               <div className="flex items-center gap-2 ml-auto">
                 <Button variant="outline" size="sm" onClick={handleCancelReorder} disabled={savingReorder} className="gap-1.5">
-                  Cancel
+                  {tc("cancel")}
                 </Button>
                 <Button size="sm" onClick={handleSaveReorder} disabled={savingReorder} className="gap-1.5">
                   {savingReorder ? (
-                    <><RefreshCw className="h-3.5 w-3.5 animate-spin" />Saving...</>
+                    <><RefreshCw className="h-3.5 w-3.5 animate-spin" />{tc("saving")}</>
                   ) : (
-                    <>Save Order</>
+                    <>{t("reorder.saveOrder")}</>
                   )}
                 </Button>
               </div>
@@ -1280,7 +1289,7 @@ export default function FirewallZonesPage() {
                 {canEdit && !isReordering && (
                   <Button size="sm" className="h-7 text-xs gap-1" onClick={openCreatePanel}>
                     <Plus className="h-3.5 w-3.5" />
-                    New Rule
+                    {t("toolbar.newRule")}
                   </Button>
                 )}
 
@@ -1293,7 +1302,7 @@ export default function FirewallZonesPage() {
                     onClick={() => openCreateSeparator(null)}
                   >
                     <Plus className="h-3.5 w-3.5" />
-                    Add Separator
+                    {t("toolbar.addSeparator")}
                   </Button>
                 )}
 
@@ -1304,7 +1313,7 @@ export default function FirewallZonesPage() {
                     <Input
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search rules..."
+                      placeholder={t("toolbar.searchPlaceholder")}
                       className="pl-7 h-7 text-xs"
                     />
                   </div>
@@ -1343,13 +1352,13 @@ export default function FirewallZonesPage() {
                           onClick={handleEnterReorder}
                         >
                           <ArrowUpDown className="h-3.5 w-3.5" />
-                          Reorder
+                          {t("toolbar.reorder")}
                         </Button>
                       </span>
                     </TooltipTrigger>
                     {!canReorder && (
                       <TooltipContent side="bottom" className="text-xs max-w-48 text-center">
-                        Select a specific zone pair in the matrix to reorder rules
+                        {t("toolbar.reorderHint")}
                       </TooltipContent>
                     )}
                   </Tooltip>
@@ -1358,7 +1367,7 @@ export default function FirewallZonesPage() {
                 {/* Reorder mode label */}
                 {isReordering && (
                   <span className="text-xs text-muted-foreground ml-auto">
-                    Drag rows to reorder — changes apply on save
+                    {t("toolbar.dragHint")}
                   </span>
                 )}
               </div>
@@ -1375,16 +1384,16 @@ export default function FirewallZonesPage() {
                     <TableRow className="text-xs">
                       <TableHead className="w-8" />
                       <TableHead className="w-8"><span className="pl-4">#</span></TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Action</TableHead>
+                      <TableHead>{tc("description")}</TableHead>
+                      <TableHead>{t("table.action")}</TableHead>
                       <TableHead>IP</TableHead>
-                      <TableHead>Protocol</TableHead>
-                      <TableHead>Src. Zone</TableHead>
-                      <TableHead>Source</TableHead>
-                      <TableHead>Src. Port</TableHead>
-                      <TableHead>Dst. Zone</TableHead>
-                      <TableHead>Destination</TableHead>
-                      <TableHead>Dst. Port</TableHead>
+                      <TableHead>{t("table.protocol")}</TableHead>
+                      <TableHead>{t("table.srcZone")}</TableHead>
+                      <TableHead>{t("table.source")}</TableHead>
+                      <TableHead>{t("table.srcPort")}</TableHead>
+                      <TableHead>{t("table.dstZone")}</TableHead>
+                      <TableHead>{t("table.destination")}</TableHead>
+                      <TableHead>{t("table.dstPort")}</TableHead>
                       <TableHead className="w-12" />
                     </TableRow>
                   </TableHeader>
@@ -1394,12 +1403,14 @@ export default function FirewallZonesPage() {
                         <TableCell colSpan={12} className="text-center py-8 text-muted-foreground text-sm">
                           {selectedPair !== "all" ? (
                             <span className="inline-flex items-center gap-1">
-                              No firewall rules for {selectedPair.source}
-                              <ArrowRight className="h-3 w-3 shrink-0" />
-                              {selectedPair.dest}
+                              {t.rich("table.emptyPair", {
+                                source: selectedPair.source,
+                                dest: selectedPair.dest,
+                                arrow: () => <ArrowRight className="h-3 w-3 shrink-0" />,
+                              })}
                             </span>
                           ) : (
-                            "No firewall rules found for any zone pair"
+                            t("table.emptyAll")
                           )}
                         </TableCell>
                       </TableRow>
@@ -1434,7 +1445,7 @@ export default function FirewallZonesPage() {
                     if (!row) return null;
                     return (
                       <div className="bg-background border rounded text-xs px-3 py-2 shadow-lg font-mono opacity-90">
-                        Rule #{row.rule.rule_number}
+                        {t("table.ruleNumber", { number: String(row.rule.rule_number) })}
                         {row.rule.description ? ` — ${row.rule.description}` : ""}
                       </div>
                     );
@@ -1444,17 +1455,17 @@ export default function FirewallZonesPage() {
 
               {displayRows.length > 0 && (
                 <div className="flex items-center px-4 py-2 border-t text-xs text-muted-foreground">
-                  {displayRows.length} rule{displayRows.length !== 1 ? "s" : ""}
+                  {t("table.ruleCount", { count: displayRows.length })}
                   {selectedPair !== "all" && (
                     <span className="inline-flex items-center gap-1">
-                      <span className="ml-1">for</span>
+                      <span className="ml-1">{t("table.for")}</span>
                       {selectedPair.source}
                       <ArrowRight className="h-3 w-3 shrink-0" />
                       {selectedPair.dest}
                     </span>
                   )}
                   {isReordering && (
-                    <span className="ml-2 text-primary font-medium">• reorder mode</span>
+                    <span className="ml-2 text-primary font-medium">{t("table.reorderMode")}</span>
                   )}
                 </div>
               )}

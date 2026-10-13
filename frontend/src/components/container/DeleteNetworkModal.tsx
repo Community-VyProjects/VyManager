@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +23,8 @@ interface Props {
 }
 
 export function DeleteNetworkModal({ open, onOpenChange, network, onConfirm }: Props) {
+  const t = useTranslations("containerResources");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,7 +34,7 @@ export function DeleteNetworkModal({ open, onOpenChange, network, onConfirm }: P
     try {
       await onConfirm();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to delete network");
+      setError(err instanceof Error ? err.message : t("deleteNetwork.failed"));
       setLoading(false);
       return;
     }
@@ -47,10 +50,12 @@ export function DeleteNetworkModal({ open, onOpenChange, network, onConfirm }: P
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Network</AlertDialogTitle>
+          <AlertDialogTitle>{t("deleteNetwork.title")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete network{" "}
-            <span className="font-mono font-semibold">{network?.name}</span>? This action cannot be undone.
+            {t.rich("deleteNetwork.confirm", {
+              name: network?.name ?? "",
+              mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -62,7 +67,7 @@ export function DeleteNetworkModal({ open, onOpenChange, network, onConfirm }: P
         )}
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
             disabled={loading}
@@ -71,10 +76,10 @@ export function DeleteNetworkModal({ open, onOpenChange, network, onConfirm }: P
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting…
+                {t("deleteNetwork.deleting")}
               </>
             ) : (
-              "Delete Network"
+              t("deleteNetwork.title")
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

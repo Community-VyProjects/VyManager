@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, KeyboardEvent } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +43,8 @@ export function TelegrafPrometheusClientModal({
   caps,
   onSuccess,
 }: TelegrafPrometheusClientModalProps) {
+  const t = useTranslations("serviceMonitoring");
+  const tc = useTranslations("common");
   const [port, setPort] = useState(original?.port ? String(original.port) : "");
   const [listenAddress, setListenAddress] = useState(original?.listen_address ?? "");
   const [metricVersion, setMetricVersion] = useState(
@@ -84,7 +87,7 @@ export function TelegrafPrometheusClientModal({
       });
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -94,13 +97,13 @@ export function TelegrafPrometheusClientModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Configure Prometheus Client Output</DialogTitle>
+          <DialogTitle>{t("telegraf.configureOutput", { name: "Prometheus Client" })}</DialogTitle>
         </DialogHeader>
 
         <ScrollArea className="max-h-[65vh] pr-4">
           <div className="space-y-4 py-1">
             <div className="space-y-2">
-              <Label htmlFor="prom-port">Port</Label>
+              <Label htmlFor="prom-port">{t("common.port")}</Label>
               <Input
                 id="prom-port"
                 type="number"
@@ -110,33 +113,33 @@ export function TelegrafPrometheusClientModal({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="prom-listen">Listen Address</Label>
+              <Label htmlFor="prom-listen">{t("telegraf.promClient.listenAddress")}</Label>
               <Input
                 id="prom-listen"
-                placeholder="e.g. 0.0.0.0"
+                placeholder={t("exporter.listenPlaceholder")}
                 value={listenAddress}
                 onChange={(e) => setListenAddress(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label>Metric Version</Label>
+              <Label>{t("telegraf.promClient.metricVersion")}</Label>
               <Select value={metricVersion} onValueChange={setMetricVersion}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select version" />
+                  <SelectValue placeholder={t("telegraf.promClient.selectVersion")} />
                 </SelectTrigger>
                 <SelectContent>
                   {metricVersionValues.map((v) => (
-                    <SelectItem key={v} value={String(v)}>Version {v}</SelectItem>
+                    <SelectItem key={v} value={String(v)}>{t("telegraf.promClient.version", { version: String(v) })}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Allow From</Label>
+              <Label>{t("telegraf.promClient.allowFrom")}</Label>
               <div className="flex gap-2">
                 <Input
                   ref={inputRef}
-                  placeholder="e.g. 192.168.0.0/24"
+                  placeholder={t("telegraf.promClient.allowFromPlaceholder")}
                   value={allowInput}
                   onChange={(e) => setAllowInput(e.target.value)}
                   onKeyDown={handleKeyDown}
@@ -163,7 +166,7 @@ export function TelegrafPrometheusClientModal({
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="prom-username">Username</Label>
+              <Label htmlFor="prom-username">{t("telegraf.username")}</Label>
               <Input
                 id="prom-username"
                 value={username}
@@ -171,7 +174,7 @@ export function TelegrafPrometheusClientModal({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="prom-password">Password</Label>
+              <Label htmlFor="prom-password">{t("telegraf.password")}</Label>
               <Input
                 id="prom-password"
                 type="password"
@@ -191,11 +194,11 @@ export function TelegrafPrometheusClientModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

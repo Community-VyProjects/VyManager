@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertCircle, Check, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 
 interface RouteMapReorderBannerProps {
@@ -16,6 +17,8 @@ export function RouteMapReorderBanner({
   saving,
   count,
 }: RouteMapReorderBannerProps) {
+  const t = useTranslations("routeMap");
+  const tc = useTranslations("common");
   return (
     <div className="bg-primary/10 border-y border-primary/20 px-6 py-3">
       <div className="flex items-center justify-between">
@@ -23,10 +26,10 @@ export function RouteMapReorderBanner({
           <AlertCircle className="h-5 w-5 text-primary" />
           <div>
             <p className="text-sm font-medium text-foreground">
-              Reorder in Progress
+              {t("reorder.title")}
             </p>
             <p className="text-xs text-muted-foreground">
-              {count} rule{count !== 1 ? "s" : ""} will be renumbered sequentially
+              {t("reorder.renumber", { count })}
             </p>
           </div>
         </div>
@@ -38,11 +41,11 @@ export function RouteMapReorderBanner({
             disabled={saving}
           >
             <X className="h-4 w-4 mr-2" />
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button size="sm" onClick={onSave} disabled={saving}>
             <Check className="h-4 w-4 mr-2" />
-            {saving ? "Saving..." : "Save Order"}
+            {saving ? tc("saving") : t("reorder.saveOrder")}
           </Button>
         </div>
       </div>

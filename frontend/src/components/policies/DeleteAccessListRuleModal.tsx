@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useTranslations } from "next-intl";
 import { accessListService, type AccessListRule } from "@/lib/api/access-list";
 
 interface DeleteAccessListRuleModalProps {
@@ -24,6 +25,8 @@ export function DeleteAccessListRuleModal({
   listNumber,
   listType,
 }: DeleteAccessListRuleModalProps) {
+  const t = useTranslations("accessList");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,7 +46,7 @@ export function DeleteAccessListRuleModal({
       handleClose();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete rule");
+      setError(err instanceof Error ? err.message : t("deleteRule.failed"));
     } finally {
       setLoading(false);
     }
@@ -83,9 +86,9 @@ export function DeleteAccessListRuleModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Delete Access List Rule</DialogTitle>
+          <DialogTitle>{t("deleteRule.title")}</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete this rule? This action cannot be undone.
+            {t("deleteRule.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -96,7 +99,7 @@ export function DeleteAccessListRuleModal({
               <div className="space-y-2 flex-1">
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="font-mono">
-                    Rule {rule.rule_number}
+                    {t("deleteRule.ruleBadge", { number: String(rule.rule_number) })}
                   </Badge>
                   <Badge
                     variant="outline"
@@ -106,7 +109,7 @@ export function DeleteAccessListRuleModal({
                         : "capitalize bg-red-500/10 text-red-500 border-red-500/20"
                     }
                   >
-                    {rule.action}
+                    {rule.action === "permit" ? t("form.permit") : rule.action === "deny" ? t("form.deny") : rule.action}
                   </Badge>
                 </div>
                 {rule.description && (
@@ -114,11 +117,11 @@ export function DeleteAccessListRuleModal({
                 )}
                 <div className="space-y-1 text-sm">
                   <div className="flex gap-2">
-                    <span className="text-muted-foreground min-w-24">Source:</span>
+                    <span className="text-muted-foreground min-w-24">{t("deleteRule.sourceLabel")}</span>
                     <span className="font-mono">{formatSource()}</span>
                   </div>
                   <div className="flex gap-2">
-                    <span className="text-muted-foreground min-w-24">Destination:</span>
+                    <span className="text-muted-foreground min-w-24">{t("deleteRule.destinationLabel")}</span>
                     <span className="font-mono">{formatDestination()}</span>
                   </div>
                 </div>
@@ -131,10 +134,10 @@ export function DeleteAccessListRuleModal({
             <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
             <div className="space-y-1">
               <p className="text-sm font-medium text-destructive">
-                This will permanently delete the rule
+                {t("deleteRule.warning")}
               </p>
               <p className="text-sm text-muted-foreground">
-                Traffic filtering configured in this rule will be removed.
+                {t("deleteRule.warningDetail")}
               </p>
             </div>
           </div>
@@ -149,10 +152,10 @@ export function DeleteAccessListRuleModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
-            {loading ? "Deleting..." : "Delete Rule"}
+            {loading ? tc("deleting") : t("deleteRule.submit")}
           </Button>
         </DialogFooter>
       </DialogContent>

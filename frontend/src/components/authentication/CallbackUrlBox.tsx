@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Copy, Check } from "lucide-react";
 
 interface CallbackUrlBoxProps {
@@ -8,6 +9,7 @@ interface CallbackUrlBoxProps {
 }
 
 export function CallbackUrlBox({ providerId }: CallbackUrlBoxProps) {
+  const t = useTranslations("authentication");
   const [copied, setCopied] = useState(false);
 
   const baseUrl =
@@ -26,10 +28,10 @@ export function CallbackUrlBox({ providerId }: CallbackUrlBoxProps) {
   return (
     <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-1.5">
       <p className="text-xs font-medium text-foreground">
-        Redirect / Callback URL
+        {t("callback.title")}
       </p>
       <p className="text-xs text-muted-foreground leading-relaxed">
-        Register this URL as an allowed redirect URI in your OAuth provider before saving.
+        {t("callback.help")}
       </p>
       <div className="flex items-center gap-2 mt-2">
         <code className="flex-1 rounded-md bg-background border border-border px-3 py-2 text-xs font-mono text-foreground break-all select-all">
@@ -39,7 +41,7 @@ export function CallbackUrlBox({ providerId }: CallbackUrlBoxProps) {
           type="button"
           onClick={handleCopy}
           className="shrink-0 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          title="Copy to clipboard"
+          title={t("callback.copy")}
         >
           {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
         </button>

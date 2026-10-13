@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, KeyboardEvent } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -42,33 +43,14 @@ function isValidIPOrCIDR(value: string): boolean {
 }
 
 // "default" is a UI sentinel meaning "delete the leap-second node" (let VyOS use its default)
-const LEAP_SECOND_OPTIONS: { value: string; label: string; description: string }[] = [
-  {
-    value: "default",
-    label: "Default",
-    description: "Use UTC timezone database (VyOS default behaviour)",
-  },
-  {
-    value: "timezone",
-    label: "Timezone",
-    description: "Explicitly set: use UTC timezone database to determine leap second",
-  },
-  {
-    value: "ignore",
-    label: "Ignore",
-    description: "No correction is applied to the clock",
-  },
-  {
-    value: "smear",
-    label: "Smear",
-    description: "Correct time gradually by slewing instead of stepping",
-  },
-  {
-    value: "system",
-    label: "System",
-    description: "Kernel steps the system clock forward or backward",
-  },
-];
+// Labels/descriptions are translated at render time via leapSecond.<value> / leapSecond.<value>Desc
+const LEAP_SECOND_OPTIONS = [
+  { value: "default" },
+  { value: "timezone" },
+  { value: "ignore" },
+  { value: "smear" },
+  { value: "system" },
+] as const;
 
 interface MultiValueFieldProps {
   label: string;
@@ -89,6 +71,7 @@ function MultiValueField({
   onRemove,
   validate,
 }: MultiValueFieldProps) {
+  const t = useTranslations("ntp");
   const [input, setInput] = useState("");
   const [fieldError, setFieldError] = useState<string | null>(null);
 
@@ -103,7 +86,7 @@ function MultiValueField({
       }
     }
     if (values.includes(val)) {
-      setFieldError("Already added");
+      setFieldError(t("settings.alreadyAdded"));
       return;
     }
     onAdd(val);
@@ -173,6 +156,7 @@ function TimestampFilterField({
   onAdd,
   onRemove,
 }: TimestampFilterFieldProps) {
+  const t = useTranslations("ntp");
   const [iface, setIface] = useState("");
   const [filter, setFilter] = useState(filterOptions[0] ?? "all");
   const [fieldError, setFieldError] = useState<string | null>(null);
@@ -180,7 +164,7 @@ function TimestampFilterField({
   const handleAdd = () => {
     const name = iface.trim();
     if (!name) {
-      setFieldError("Enter an interface name");
+      setFieldError(t("settings.enterInterface"));
       return;
     }
     onAdd(name, filter);
@@ -192,14 +176,14 @@ function TimestampFilterField({
   return (
     <div className="space-y-2">
       <div>
-        <Label className="text-sm font-medium">Interface Receive Filters</Label>
+        <Label className="text-sm font-medium">{t("settings.receiveFilters")}</Label>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Select which inbound packets each NIC hardware-timestamps. This device supports it.
+          {t("settings.receiveFiltersHint")}
         </p>
       </div>
       <div className="flex gap-2">
         <Input
-          placeholder="e.g. eth0"
+          placeholder={t("settings.ifacePlaceholder")}
           value={iface}
           onChange={(e) => {
             setIface(e.target.value);
@@ -226,16 +210,16 @@ function TimestampFilterField({
       {fieldError && <p className="text-xs text-destructive">{fieldError}</p>}
       {values.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {values.map((t) => (
+          {values.map((ts) => (
             <Badge
-              key={t.interface}
+              key={ts.interface}
               variant="secondary"
               className="font-mono gap-1 pr-1"
             >
-              {t.interface}: {t.receive_filter}
+              {ts.interface}: {ts.receive_filter}
               <button
                 type="button"
-                onClick={() => onRemove(t.interface)}
+                onClick={() => onRemove(ts.interface)}
                 className="ml-1 rounded-sm hover:bg-muted-foreground/20 p-0.5"
               >
                 <X className="h-3 w-3" />
@@ -255,6 +239,8 @@ export function NTPGlobalSettingsModal({
   capabilities,
   onSuccess,
 }: NTPGlobalSettingsModalProps) {
+  const t = useTranslations("ntp");
+  const tc = useTranslations("common");
   const [listenAddresses, setListenAddresses] = useState<string[]>(
     config.listen_addresses
   );
@@ -293,7 +279,7 @@ export function NTPGlobalSettingsModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -303,50 +289,50 @@ export function NTPGlobalSettingsModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit NTP Settings</DialogTitle>
+          <DialogTitle>{t("settings.title")}</DialogTitle>
           <DialogDescription>
-            Configure listen addresses, client restrictions, and global NTP behaviour
+            {t("settings.description")}
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[65vh] pr-4">
           <div className="space-y-6 py-1">
             <MultiValueField
-              label="Listen Addresses"
-              description="Local IP addresses to bind the NTP service to. Leave empty to listen on all interfaces."
-              placeholder="e.g. 192.168.1.1 or 2001:db8::1"
+              label={t("settings.listenAddresses")}
+              description={t("settings.listenAddressesHint")}
+              placeholder={t("settings.listenAddressesPlaceholder")}
               values={listenAddresses}
               onAdd={(v) => setListenAddresses((prev) => [...prev, v])}
               onRemove={(v) =>
                 setListenAddresses((prev) => prev.filter((a) => a !== v))
               }
               validate={(v) =>
-                isValidIPOrCIDR(v) ? null : "Enter a valid IPv4 or IPv6 address"
+                isValidIPOrCIDR(v) ? null : t("settings.invalidAddress")
               }
             />
 
             <Separator />
 
             <MultiValueField
-              label="Allow Clients"
-              description="Restrict NTP service to specific client addresses or subnets. Leave empty to allow all clients."
-              placeholder="e.g. 10.0.0.0/8 or 192.168.1.0/24"
+              label={t("settings.allowClients")}
+              description={t("settings.allowClientsHint")}
+              placeholder={t("settings.allowClientsPlaceholder")}
               values={allowClients}
               onAdd={(v) => setAllowClients((prev) => [...prev, v])}
               onRemove={(v) =>
                 setAllowClients((prev) => prev.filter((a) => a !== v))
               }
               validate={(v) =>
-                isValidIPOrCIDR(v) ? null : "Enter a valid IPv4/IPv6 address or CIDR"
+                isValidIPOrCIDR(v) ? null : t("settings.invalidAddressOrCidr")
               }
             />
 
             <Separator />
 
             <MultiValueField
-              label="Interfaces"
-              description="Listen for NTP on specific network interfaces only. Leave empty for all interfaces."
-              placeholder="e.g. eth0 or bond0"
+              label={t("settings.interfaces")}
+              description={t("settings.interfacesHint")}
+              placeholder={t("settings.interfacesPlaceholder")}
               values={interfaces}
               onAdd={(v) => setInterfaces((prev) => [...prev, v])}
               onRemove={(v) => setInterfaces((prev) => prev.filter((i) => i !== v))}
@@ -356,9 +342,9 @@ export function NTPGlobalSettingsModal({
 
             {/* Leap second */}
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Leap Second Handling</Label>
+              <Label className="text-sm font-medium">{t("settings.leapSecond")}</Label>
               <p className="text-xs text-muted-foreground">
-                How the system clock behaves when a leap second is inserted
+                {t("settings.leapSecondHint")}
               </p>
               <Select value={leapSecond} onValueChange={setLeapSecond}>
                 <SelectTrigger>
@@ -367,9 +353,9 @@ export function NTPGlobalSettingsModal({
                 <SelectContent>
                   {LEAP_SECOND_OPTIONS.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
-                      <span className="font-medium">{opt.label}</span>
+                      <span className="font-medium">{t(`leapSecond.${opt.value}`)}</span>
                       <span className="block text-xs text-muted-foreground">
-                        {opt.description}
+                        {t(`leapSecond.${opt.value}Desc`)}
                       </span>
                     </SelectItem>
                   ))}
@@ -382,17 +368,17 @@ export function NTPGlobalSettingsModal({
             {/* VRF */}
             <div className="space-y-1.5">
               <Label htmlFor="ntp-vrf" className="text-sm font-medium">
-                VRF Instance
+                {t("settings.vrf")}
               </Label>
               <p className="text-xs text-muted-foreground">
-                Bind the NTP service to a specific VRF. Leave empty to use the default routing table.
+                {t("settings.vrfHint")}
               </p>
               <VrfSelect
                 id="ntp-vrf"
-                placeholder="Default routing table"
+                placeholder={t("settings.vrfPlaceholder")}
                 value={vrf}
                 onValueChange={setVrf}
-                extraOptions={[{ label: "Default", value: "default" }]}
+                extraOptions={[{ label: tc("default"), value: "default" }]}
               />
             </div>
 
@@ -428,11 +414,11 @@ export function NTPGlobalSettingsModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

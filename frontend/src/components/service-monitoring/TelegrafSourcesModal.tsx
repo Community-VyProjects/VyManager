@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -27,13 +28,13 @@ interface TelegrafSourcesModalProps {
   onSuccess: () => void;
 }
 
-const SOURCE_LABELS: Record<string, string> = {
-  all: "All",
-  "hardware-utilization": "Hardware Utilization",
-  logs: "Logs",
-  network: "Network",
-  system: "System",
-  telegraf: "Telegraf",
+const SOURCE_LABELS: Record<string, "telegraf.sources.all" | "telegraf.sources.hardwareUtilization" | "telegraf.sources.logs" | "telegraf.sources.network" | "telegraf.sources.system" | "telegraf.sources.telegraf"> = {
+  all: "telegraf.sources.all",
+  "hardware-utilization": "telegraf.sources.hardwareUtilization",
+  logs: "telegraf.sources.logs",
+  network: "telegraf.sources.network",
+  system: "telegraf.sources.system",
+  telegraf: "telegraf.sources.telegraf",
 };
 
 export function TelegrafSourcesModal({
@@ -43,6 +44,8 @@ export function TelegrafSourcesModal({
   caps,
   onSuccess,
 }: TelegrafSourcesModalProps) {
+  const t = useTranslations("serviceMonitoring");
+  const tc = useTranslations("common");
   const [sources, setSources] = useState<string[]>(config?.sources ?? []);
   const [vrf, setVrf] = useState(config?.vrf ?? "");
   const [submitting, setSubmitting] = useState(false);
@@ -61,7 +64,7 @@ export function TelegrafSourcesModal({
       await serviceMonitoringService.saveTelegrafSources(config, sources, vrf);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -73,12 +76,12 @@ export function TelegrafSourcesModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Telegraf General Settings</DialogTitle>
+          <DialogTitle>{t("telegraf.generalSettingsTitle")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-5 py-1">
           <div className="space-y-3">
-            <Label className="text-sm font-medium">Sources</Label>
+            <Label className="text-sm font-medium">{t("telegraf.sourcesLabel")}</Label>
             <div className="grid grid-cols-2 gap-2">
               {sourceValues.map((source) => (
                 <div key={source} className="flex items-center gap-2">
@@ -88,7 +91,7 @@ export function TelegrafSourcesModal({
                     onCheckedChange={() => toggleSource(source)}
                   />
                   <Label htmlFor={`source-${source}`} className="cursor-pointer text-sm">
-                    {SOURCE_LABELS[source] ?? source}
+                    {SOURCE_LABELS[source] ? t(SOURCE_LABELS[source]) : source}
                   </Label>
                 </div>
               ))}
@@ -101,7 +104,7 @@ export function TelegrafSourcesModal({
               id="telegraf-vrf"
               value={vrf}
               onValueChange={setVrf}
-              extraOptions={[{ label: "Default", value: "default" }]}
+              extraOptions={[{ label: tc("default"), value: "default" }]}
             />
           </div>
         </div>
@@ -115,11 +118,11 @@ export function TelegrafSourcesModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

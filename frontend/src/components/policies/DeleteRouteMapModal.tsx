@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, AlertTriangle } from "lucide-react";
@@ -15,6 +16,8 @@ interface DeleteRouteMapModalProps {
 }
 
 export function DeleteRouteMapModal({ open, onOpenChange, onSuccess, routeMap }: DeleteRouteMapModalProps) {
+  const t = useTranslations("routeMap");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,7 +32,7 @@ export function DeleteRouteMapModal({ open, onOpenChange, onSuccess, routeMap }:
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete route-map");
+      setError(err instanceof Error ? err.message : t("delete.deleteFailed"));
     } finally {
       setLoading(false);
     }
@@ -41,9 +44,9 @@ export function DeleteRouteMapModal({ open, onOpenChange, onSuccess, routeMap }:
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete Route Map</DialogTitle>
+          <DialogTitle>{t("delete.title")}</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete this route-map? This action cannot be undone.
+            {t("delete.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -51,11 +54,11 @@ export function DeleteRouteMapModal({ open, onOpenChange, onSuccess, routeMap }:
           <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="text-sm font-medium text-destructive">
-              Deleting route-map: {routeMap.name}
+              {t("delete.deleting", { name: routeMap.name })}
             </p>
             {routeMap.rules.length > 0 && (
               <p className="text-sm text-muted-foreground mt-1">
-                This will delete {routeMap.rules.length} rule{routeMap.rules.length !== 1 ? 's' : ''}
+                {t("delete.willDelete", { count: routeMap.rules.length })}
               </p>
             )}
           </div>
@@ -70,10 +73,10 @@ export function DeleteRouteMapModal({ open, onOpenChange, onSuccess, routeMap }:
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
-            {loading ? "Deleting..." : "Delete Route Map"}
+            {loading ? tc("deleting") : t("delete.submit")}
           </Button>
         </DialogFooter>
       </DialogContent>

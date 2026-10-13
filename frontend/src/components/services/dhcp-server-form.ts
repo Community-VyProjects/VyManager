@@ -199,106 +199,136 @@ function isValidIPRange(start: string, stop: string, subnet: string): boolean {
   return ipToNumber(start) <= ipToNumber(stop);
 }
 
+/** Message key (in the dhcpServer namespace) for a server-modal validation error. */
+export type ServerFormError =
+  | { key: "subnetForm.errors.networkNameRequired" }
+  | { key: "subnetForm.errors.selectExistingNetwork" }
+  | { key: "subnetForm.errors.subnetRequired" }
+  | { key: "subnetForm.errors.subnetInvalid" }
+  | { key: "subnetForm.errors.defaultRouterRequired" }
+  | { key: "subnetForm.errors.defaultRouterInvalid" }
+  | { key: "subnetForm.errors.defaultRouterOutside" }
+  | { key: "subnetForm.errors.nameServerRequired" }
+  | { key: "subnetForm.errors.nameServerInvalid"; values: { value: string } }
+  | { key: "subnetForm.errors.domainNameRequired" }
+  | { key: "subnetForm.errors.domainNameInvalid" }
+  | { key: "subnetForm.errors.domainSearchInvalid"; values: { value: string } }
+  | { key: "subnetForm.errors.leaseRequired" }
+  | { key: "subnetForm.errors.leasePositive" }
+  | { key: "subnetForm.errors.rangeRequired" }
+  | { key: "subnetForm.errors.rangeInvalid"; values: { start: string; stop: string } }
+  | { key: "subnetForm.errors.excludeInvalid"; values: { value: string } }
+  | { key: "subnetForm.errors.excludeOutside"; values: { value: string } }
+  | { key: "subnetForm.errors.timeServerInvalid"; values: { value: string } }
+  | { key: "subnetForm.errors.ntpServerInvalid"; values: { value: string } }
+  | { key: "subnetForm.errors.winsServerInvalid"; values: { value: string } };
+
+function serverError(
+  key: Exclude<ServerFormError, { values: unknown }>["key"],
+): ServerFormError {
+  return { key };
+}
+
 function filled(values: string[]): string[] {
   return values.map((value) => value.trim()).filter(Boolean);
 }
 
-export function validateServerShared(draft: ServerDraft, subnetCidr: string): string | null {
+export function validateServerShared(draft: ServerDraft, subnetCidr: string): ServerFormError | null {
   if (!draft.defaultRouter.trim()) {
-    return "Default router (gateway) is required";
+    return serverError("subnetForm.errors.defaultRouterRequired");
   }
   if (!isValidIPv4(draft.defaultRouter.trim())) {
-    return "Invalid default router IP address";
+    return serverError("subnetForm.errors.defaultRouterInvalid");
   }
   if (!isIPInSubnet(draft.defaultRouter.trim(), subnetCidr)) {
-    return "Default router must be within the subnet";
+    return serverError("subnetForm.errors.defaultRouterOutside");
   }
 
   const nameServers = filled(draft.nameServers);
   if (nameServers.length === 0) {
-    return "At least one name server is required";
+    return serverError("subnetForm.errors.nameServerRequired");
   }
   for (const ns of nameServers) {
     if (!isValidIPv4(ns)) {
-      return `Invalid name server IP address: ${ns}`;
+      return { key: "subnetForm.errors.nameServerInvalid", values: { value: ns } };
     }
   }
 
   if (!draft.domainName.trim()) {
-    return "Domain name is required";
+    return serverError("subnetForm.errors.domainNameRequired");
   }
   if (!isValidDomain(draft.domainName.trim())) {
-    return "Invalid domain name format";
+    return serverError("subnetForm.errors.domainNameInvalid");
   }
 
   for (const ds of filled(draft.domainSearch)) {
     if (!isValidDomain(ds)) {
-      return `Invalid domain search format: ${ds}`;
+      return { key: "subnetForm.errors.domainSearchInvalid", values: { value: ds } };
     }
   }
 
   if (!draft.lease.trim()) {
-    return "Lease time is required";
+    return serverError("subnetForm.errors.leaseRequired");
   }
   const leaseNum = parseInt(draft.lease, 10);
   if (isNaN(leaseNum) || leaseNum <= 0) {
-    return "Lease time must be a positive number";
+    return serverError("subnetForm.errors.leasePositive");
   }
 
   const ranges = draft.ranges.filter((range) => (range.start ?? "").trim() && (range.stop ?? "").trim());
   if (ranges.length === 0) {
-    return "At least one DHCP range with start and stop addresses is required";
+    return serverError("subnetForm.errors.rangeRequired");
   }
   for (const range of ranges) {
     const start = (range.start ?? "").trim();
     const stop = (range.stop ?? "").trim();
     if (!isValidIPRange(start, stop, subnetCidr)) {
-      return `Invalid DHCP range: ${start} - ${stop}. Both IPs must be valid, within subnet, and start must be <= stop`;
+      return { key: "subnetForm.errors.rangeInvalid", values: { start, stop } };
     }
   }
 
   for (const exclude of filled(draft.excludes)) {
     if (!isValidIPv4(exclude)) {
-      return `Invalid exclude IP address: ${exclude}`;
+      return { key: "subnetForm.errors.excludeInvalid", values: { value: exclude } };
     }
     if (!isIPInSubnet(exclude, subnetCidr)) {
-      return `Exclude address ${exclude} must be within the subnet`;
+      return { key: "subnetForm.errors.excludeOutside", values: { value: exclude } };
     }
   }
 
   for (const ts of filled(draft.timeServers)) {
     if (!isValidIPv4(ts)) {
-      return `Invalid time server IP address: ${ts}`;
+      return { key: "subnetForm.errors.timeServerInvalid", values: { value: ts } };
     }
   }
   for (const ntp of filled(draft.ntpServers)) {
     if (!isValidIPv4(ntp)) {
-      return `Invalid NTP server IP address: ${ntp}. NTP servers must be IP addresses, not hostnames`;
+      return { key: "subnetForm.errors.ntpServerInvalid", values: { value: ntp } };
     }
   }
   for (const wins of filled(draft.winsServers)) {
     if (!isValidIPv4(wins)) {
-      return `Invalid WINS server IP address: ${wins}`;
+      return { key: "subnetForm.errors.winsServerInvalid", values: { value: wins } };
     }
   }
 
   return null;
 }
 
-export function validateServerCreate(draft: ServerDraft): string | null {
+export function validateServerCreate(draft: ServerDraft): ServerFormError | null {
   if (draft.mode === "new") {
     if (!draft.networkName.trim()) {
-      return "Network name is required";
+      return serverError("subnetForm.errors.networkNameRequired");
     }
   } else if (!draft.selectedNetwork) {
-    return "Please select an existing network";
+    return serverError("subnetForm.errors.selectExistingNetwork");
   }
 
   if (!draft.subnet.trim()) {
-    return "Subnet is required";
+    return serverError("subnetForm.errors.subnetRequired");
   }
   if (!isValidCIDR(draft.subnet.trim())) {
-    return "Invalid subnet CIDR format. Use format like 192.168.1.0/24";
+    return serverError("subnetForm.errors.subnetInvalid");
   }
   return validateServerShared(draft, draft.subnet.trim());
 }

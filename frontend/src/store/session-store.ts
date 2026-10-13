@@ -20,6 +20,10 @@ interface SessionState {
   // Error state
   error: string | null;
 
+  // `miscLib` message key when `error` is a built-in fallback (not a backend
+  // message); UI should show t(errorKey) instead of the English `error`.
+  errorKey: SessionErrorKey | null;
+
   appliance: boolean;
 
   // Actions
@@ -30,6 +34,27 @@ interface SessionState {
   clearError: () => void;
 }
 
+export type SessionErrorKey =
+  | "session.connectRouterFailed"
+  | "session.loadFailed"
+  | "session.connectInstanceFailed"
+  | "session.disconnectFailed";
+
+const SESSION_FALLBACKS: Record<SessionErrorKey, string> = {
+  "session.connectRouterFailed": "Failed to connect to this router",
+  "session.loadFailed": "Failed to load session",
+  "session.connectInstanceFailed": "Failed to connect to instance",
+  "session.disconnectFailed": "Failed to disconnect",
+};
+
+/** Backend message if present, otherwise the English fallback plus its key. */
+function sessionError(error: unknown, key: SessionErrorKey) {
+  const message = (error as ApiError).message;
+  return message
+    ? { error: message, errorKey: null }
+    : { error: SESSION_FALLBACKS[key], errorKey: key };
+}
+
 function apiStatus(error: unknown): number | undefined {
   return (error as ApiError).status;
 }
@@ -38,6 +63,7 @@ export const useSessionStore = create<SessionState>((set) => ({
   activeSession: null,
   isLoading: false,
   error: null,
+  errorKey: null,
   appliance: false,
 
   /**
@@ -47,7 +73,7 @@ export const useSessionStore = create<SessionState>((set) => ({
    * (404 means not appliance).
    */
   loadSession: async () => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, errorKey: null });
     try {
       const [statusResult, sessionResult] = await Promise.allSettled([
         sessionService.getOnboardingStatus(),
@@ -72,7 +98,7 @@ export const useSessionStore = create<SessionState>((set) => ({
             set({
               activeSession: null,
               isLoading: false,
-              error: (error as ApiError).message || "Failed to connect to this router",
+              ...sessionError(error, "session.connectRouterFailed"),
               appliance: true,
             });
             return;
@@ -80,10 +106,10 @@ export const useSessionStore = create<SessionState>((set) => ({
         }
       }
 
-      set({ activeSession: session, isLoading: false, appliance, error: null });
+      set({ activeSession: session, isLoading: false, appliance, error: null, errorKey: null });
     } catch (error) {
       set({
-        error: (error as ApiError).message || "Failed to load session",
+        ...sessionError(error, "session.loadFailed"),
         isLoading: false,
       });
     }
@@ -93,14 +119,14 @@ export const useSessionStore = create<SessionState>((set) => ({
    * Connect to a VyOS instance
    */
   connectToInstance: async (instanceId: string) => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, errorKey: null });
     try {
       await sessionService.connect(instanceId);
       const session = await sessionService.getCurrentSession();
       set({ activeSession: session, isLoading: false });
     } catch (error) {
       set({
-        error: (error as ApiError).message || "Failed to connect to instance",
+        ...sessionError(error, "session.connectInstanceFailed"),
         isLoading: false,
       });
       throw error;
@@ -108,14 +134,14 @@ export const useSessionStore = create<SessionState>((set) => ({
   },
 
   connectLocal: async () => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, errorKey: null });
     try {
       await sessionService.connectLocal();
       const session = await sessionService.getCurrentSession();
       set({ activeSession: session, isLoading: false, appliance: true });
     } catch (error) {
       set({
-        error: (error as ApiError).message || "Failed to connect to this router",
+        ...sessionError(error, "session.connectRouterFailed"),
         isLoading: false,
       });
       throw error;
@@ -126,13 +152,13 @@ export const useSessionStore = create<SessionState>((set) => ({
    * Disconnect from the current instance
    */
   disconnectFromInstance: async () => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, errorKey: null });
     try {
       await sessionService.disconnect();
       set({ activeSession: null, isLoading: false });
     } catch (error) {
       set({
-        error: (error as ApiError).message || "Failed to disconnect",
+        ...sessionError(error, "session.disconnectFailed"),
         isLoading: false,
       });
       throw error;
@@ -143,6 +169,6 @@ export const useSessionStore = create<SessionState>((set) => ({
    * Clear error state
    */
   clearError: () => {
-    set({ error: null });
+    set({ error: null, errorKey: null });
   },
 }));

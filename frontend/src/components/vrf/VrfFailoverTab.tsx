@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,8 @@ interface VrfFailoverTabProps {
 type Raw = Record<string, unknown>;
 
 export function VrfFailoverTab({ vrf, canWrite, onRefresh }: VrfFailoverTabProps) {
+  const t = useTranslations("vrf");
+  const tc = useTranslations("common");
   const failover = vrf.failover;
   const routes = failover?.routes ?? [];
   const routeRawMap = (failover?.raw_config?.route ?? {}) as Raw;
@@ -55,10 +58,10 @@ export function VrfFailoverTab({ vrf, canWrite, onRefresh }: VrfFailoverTabProps
       const r = await vrfService.batchConfigure([
         { op: "delete_vrf_failover_route", value: `${vrf.name},${dest}` },
       ]);
-      if (!r.success) setError(r.error || "Delete failed");
+      if (!r.success) setError(r.error || t("failover.deleteFailed"));
       else onRefresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Delete failed");
+      setError(e instanceof Error ? e.message : t("failover.deleteFailed"));
     } finally {
       setBusy(false);
     }
@@ -69,12 +72,12 @@ export function VrfFailoverTab({ vrf, canWrite, onRefresh }: VrfFailoverTabProps
       <Card>
         <CardHeader className="pb-3 flex flex-row items-center justify-between">
           <CardTitle className="text-base">
-            Failover Routes {routes.length > 0 && <Badge variant="secondary" className="ml-1">{routes.length}</Badge>}
+            {t("failover.title")} {routes.length > 0 && <Badge variant="secondary" className="ml-1">{routes.length}</Badge>}
           </CardTitle>
           {canWrite && (
             <Button size="sm" variant="outline" onClick={openAdd} disabled={busy}>
               <Plus className="h-3.5 w-3.5 mr-1" />
-              Add Route
+              {t("addRoute")}
             </Button>
           )}
         </CardHeader>
@@ -85,7 +88,7 @@ export function VrfFailoverTab({ vrf, canWrite, onRefresh }: VrfFailoverTabProps
             </pre>
           )}
           {routes.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-2">No failover routes configured.</p>
+            <p className="text-sm text-muted-foreground py-2">{t("failover.noRoutes")}</p>
           ) : (
             <div className="space-y-1.5">
               {routes.map((route) => (
@@ -93,14 +96,14 @@ export function VrfFailoverTab({ vrf, canWrite, onRefresh }: VrfFailoverTabProps
                   <div className="flex items-center gap-3">
                     <span className="font-mono text-sm">{route.destination}</span>
                     <span className="text-xs text-muted-foreground">
-                      {route.next_hops.length} next-hop{route.next_hops.length !== 1 ? "s" : ""}
-                      {route.dhcp_interfaces.length > 0 && `, ${route.dhcp_interfaces.length} dhcp-iface`}
+                      {t("failover.nextHopCount", { count: route.next_hops.length })}
+                      {route.dhcp_interfaces.length > 0 && `, ${t("failover.dhcpIfaceCount", { count: route.dhcp_interfaces.length })}`}
                     </span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Button size="sm" variant="ghost" onClick={() => openEdit(route.destination)} disabled={busy}>
                       <Pencil className="h-3.5 w-3.5 mr-1" />
-                      Edit
+                      {tc("edit")}
                     </Button>
                     {canWrite && (
                       <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(route.destination)} disabled={busy}>
@@ -119,7 +122,7 @@ export function VrfFailoverTab({ vrf, canWrite, onRefresh }: VrfFailoverTabProps
         <div className="flex justify-end">
           <Button variant="outline" size="sm" onClick={() => setRawOpen(true)}>
             <Code className="h-3.5 w-3.5 mr-1.5" />
-            View Raw Config
+            {t("failover.viewRawConfig")}
           </Button>
         </div>
       )}
@@ -137,7 +140,7 @@ export function VrfFailoverTab({ vrf, canWrite, onRefresh }: VrfFailoverTabProps
       <Dialog open={rawOpen} onOpenChange={setRawOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle>Failover Raw Configuration — {vrf.name}</DialogTitle>
+            <DialogTitle>{t("failover.rawTitle", { name: vrf.name })}</DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[60vh]">
             <pre className="text-xs font-mono bg-muted p-4 rounded-lg overflow-x-auto">

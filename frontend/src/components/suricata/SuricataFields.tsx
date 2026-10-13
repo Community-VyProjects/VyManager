@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -45,6 +46,8 @@ export function InterfacePicker({
   onChange: (names: string[]) => void;
   disabled?: boolean;
 }) {
+  const t = useTranslations("suricata");
+  const tc = useTranslations("common");
   const [query, setQuery] = useState("");
   const [custom, setCustom] = useState("");
   const [customError, setCustomError] = useState<string | null>(null);
@@ -66,7 +69,7 @@ export function InterfacePicker({
   function addCustom() {
     const name = custom.trim();
     if (!isSuricataInterfaceName(name)) {
-      setCustomError("Use a router interface name such as eth0, eth0.10, or bond0.");
+      setCustomError(t("interfaceNameError"));
       return;
     }
     setCustomError(null);
@@ -79,13 +82,13 @@ export function InterfacePicker({
       <Input
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder="Filter interfaces"
+        placeholder={t("filterInterfaces")}
         disabled={disabled}
-        aria-label="Filter interfaces"
+        aria-label={t("filterInterfaces")}
       />
       <div className="max-h-52 overflow-auto rounded-md border">
         {shown.length === 0 ? (
-          <p className="p-3 text-sm text-muted-foreground">No interfaces match.</p>
+          <p className="p-3 text-sm text-muted-foreground">{t("noInterfacesMatch")}</p>
         ) : (
           shown.map((name) => {
             const id = `suricata-iface-${name}`;
@@ -114,9 +117,9 @@ export function InterfacePicker({
             setCustom(event.target.value);
             setCustomError(null);
           }}
-          placeholder="Other interface name"
+          placeholder={t("otherInterfaceName")}
           disabled={disabled}
-          aria-label="Other interface name"
+          aria-label={t("otherInterfaceName")}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.preventDefault();
@@ -125,15 +128,15 @@ export function InterfacePicker({
           }}
         />
         <Button type="button" variant="outline" disabled={disabled || !custom.trim()} onClick={addCustom}>
-          Add
+          {tc("add")}
         </Button>
       </div>
       {customError ? <p className="text-sm text-destructive">{customError}</p> : null}
       <p className="text-sm text-muted-foreground">
         <Label className="font-normal text-muted-foreground">
-          {selected.length === 0 ? "None selected." : `Watching ${selected.length}.`}
+          {selected.length === 0 ? t("noneSelected") : t("watchingCount", { count: selected.length })}
         </Label>{" "}
-        Traffic on these interfaces is inspected. This does not block it.
+        {t("inspectedNotBlocked")}
       </p>
     </div>
   );

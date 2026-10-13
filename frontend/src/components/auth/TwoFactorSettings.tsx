@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ import { authClient, useSession } from "@/lib/auth-client";
 import { totpSecretFromUri } from "@/lib/two-factor";
 
 export function TwoFactorSettings() {
+  const t = useTranslations("twoFactor");
   const { data: session, refetch } = useSession();
   const enabled = Boolean(
     (session?.user as { twoFactorEnabled?: boolean } | undefined)?.twoFactorEnabled,
@@ -37,12 +39,12 @@ export function TwoFactorSettings() {
     try {
       const res = await fetch("/api/auth/trust-device", { method: "POST" });
       if (!res.ok) {
-        setError("Could not clear the trusted-device cookie");
+        setError(t("settings.clearTrustFailed"));
         return;
       }
       setTrustCleared(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not clear the trusted-device cookie");
+      setError(err instanceof Error ? err.message : t("settings.clearTrustFailed"));
     } finally {
       setBusy(false);
     }
@@ -55,14 +57,14 @@ export function TwoFactorSettings() {
     try {
       const result = await authClient.twoFactor.enable({ password });
       if (result.error) {
-        setError(result.error.message || "Could not start enrollment");
+        setError(result.error.message || t("enroll.startFailed"));
         return;
       }
       setTotpURI(result.data?.totpURI ?? "");
       setBackupCodes(result.data?.backupCodes ?? []);
       setCode("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not start enrollment");
+      setError(err instanceof Error ? err.message : t("enroll.startFailed"));
     } finally {
       setBusy(false);
     }
@@ -75,7 +77,7 @@ export function TwoFactorSettings() {
     try {
       const result = await authClient.twoFactor.verifyTotp({ code: code.trim() });
       if (result.error) {
-        setError(result.error.message || "Invalid authenticator code");
+        setError(result.error.message || t("enroll.invalidCode"));
         return;
       }
       setPassword("");
@@ -83,7 +85,7 @@ export function TwoFactorSettings() {
       setTotpURI("");
       await refetch();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Invalid authenticator code");
+      setError(err instanceof Error ? err.message : t("enroll.invalidCode"));
     } finally {
       setBusy(false);
     }
@@ -96,7 +98,7 @@ export function TwoFactorSettings() {
     try {
       const result = await authClient.twoFactor.disable({ password });
       if (result.error) {
-        setError(result.error.message || "Could not disable two-factor");
+        setError(result.error.message || t("settings.disableFailed"));
         return;
       }
       setPassword("");
@@ -104,7 +106,7 @@ export function TwoFactorSettings() {
       setTotpURI("");
       await refetch();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not disable two-factor");
+      setError(err instanceof Error ? err.message : t("settings.disableFailed"));
     } finally {
       setBusy(false);
     }
@@ -117,13 +119,13 @@ export function TwoFactorSettings() {
     try {
       const result = await authClient.twoFactor.generateBackupCodes({ password });
       if (result.error) {
-        setError(result.error.message || "Could not generate backup codes");
+        setError(result.error.message || t("settings.backupFailed"));
         return;
       }
       setBackupCodes(result.data?.backupCodes ?? []);
       setPassword("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not generate backup codes");
+      setError(err instanceof Error ? err.message : t("settings.backupFailed"));
     } finally {
       setBusy(false);
     }
@@ -134,17 +136,17 @@ export function TwoFactorSettings() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Shield className="h-5 w-5" />
-          Two-factor authentication
+          {t("settings.title")}
         </CardTitle>
         <CardDescription>
           {enabled
-            ? "Sign-in with email and password requires an authenticator code, email code (if mail is configured), or a backup code."
-            : "Add an authenticator app. Email one-time codes are offered at sign-in when SMTP is configured."}
+            ? t("settings.descriptionEnabled")
+            : t("settings.descriptionDisabled")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Status: {enabled ? "On" : "Off"}
+          {t("settings.status", { status: enabled ? t("settings.on") : t("settings.off") })}
         </p>
 
         {error && <p className="text-sm text-destructive">{error}</p>}
@@ -152,19 +154,19 @@ export function TwoFactorSettings() {
         {totpURI && (
           <div className="space-y-3 rounded-lg border border-border/50 p-4">
             <p className="text-sm">
-              Scan this with your authenticator app, then enter a code to finish.
+              {t("settings.scanToFinish")}
             </p>
             <div className="bg-white p-3 w-fit rounded-md">
               <QRCodeSVG value={totpURI} size={192} level="M" />
             </div>
             {secret && (
               <p className="text-xs font-mono break-all text-muted-foreground">
-                Secret: {secret}
+                {t("enroll.secret", { secret })}
               </p>
             )}
             {backupCodes.length > 0 && (
               <div className="space-y-1">
-                <p className="text-sm font-medium">Backup codes (save these now)</p>
+                <p className="text-sm font-medium">{t("settings.backupCodesSave")}</p>
                 <ul className="grid grid-cols-2 gap-1 font-mono text-xs">
                   {backupCodes.map((c) => (
                     <li key={c}>{c}</li>
@@ -173,7 +175,7 @@ export function TwoFactorSettings() {
               </div>
             )}
             <form onSubmit={verifyEnrollment} className="space-y-2">
-              <Label htmlFor="enroll-code">Authenticator code</Label>
+              <Label htmlFor="enroll-code">{t("enroll.authenticatorCode")}</Label>
               <Input
                 id="enroll-code"
                 inputMode="numeric"
@@ -184,7 +186,7 @@ export function TwoFactorSettings() {
                 disabled={busy}
               />
               <Button type="submit" disabled={busy || !code.trim()}>
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm and enable"}
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("settings.confirmEnable")}
               </Button>
             </form>
           </div>
@@ -192,7 +194,7 @@ export function TwoFactorSettings() {
 
         {!enabled && !totpURI && (
           <form onSubmit={enable} className="space-y-2 max-w-sm">
-            <Label htmlFor="enable-2fa-password">Password</Label>
+            <Label htmlFor="enable-2fa-password">{t("enroll.password")}</Label>
             <Input
               id="enable-2fa-password"
               type="password"
@@ -202,7 +204,7 @@ export function TwoFactorSettings() {
               disabled={busy}
             />
             <Button type="submit" disabled={busy || !password}>
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enable authenticator"}
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("settings.enableAuthenticator")}
             </Button>
           </form>
         )}
@@ -210,7 +212,7 @@ export function TwoFactorSettings() {
         {enabled && (
           <div className="space-y-4 max-w-sm">
             <form onSubmit={regenerate} className="space-y-2">
-              <Label htmlFor="regen-2fa-password">Password</Label>
+              <Label htmlFor="regen-2fa-password">{t("enroll.password")}</Label>
               <Input
                 id="regen-2fa-password"
                 type="password"
@@ -221,7 +223,7 @@ export function TwoFactorSettings() {
               />
               <div className="flex flex-wrap gap-2">
                 <Button type="submit" variant="outline" disabled={busy || !password}>
-                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "New backup codes"}
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("settings.newBackupCodes")}
                 </Button>
                 <Button
                   type="button"
@@ -232,7 +234,7 @@ export function TwoFactorSettings() {
                     void disable(e);
                   }}
                 >
-                  Disable
+                  {t("settings.disable")}
                 </Button>
               </div>
             </form>
@@ -249,11 +251,11 @@ export function TwoFactorSettings() {
               disabled={busy}
               onClick={() => void forgetTrustedDevice()}
             >
-              Require a code on this browser next time
+              {t("settings.requireCodeNextTime")}
             </Button>
             {trustCleared && (
               <p className="text-xs text-muted-foreground">
-                This browser will ask for a second factor on the next sign-in.
+                {t("settings.trustCleared")}
               </p>
             )}
           </div>

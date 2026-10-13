@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Card,
   CardContent,
@@ -43,6 +44,8 @@ interface Props {
 }
 
 export function HostMappingPanel({ config, isReadOnly, onRefresh }: Props) {
+  const t = useTranslations("systemGeneral");
+  const tc = useTranslations("common");
   const { toast } = useToast();
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -54,13 +57,13 @@ export function HostMappingPanel({ config, isReadOnly, onRefresh }: Props) {
     try {
       const result = await systemSettingsService.deleteStaticHost(deleteTarget);
       if (!result.success) {
-        toast.error("Delete failed", result.error ?? "Failed to delete host mapping");
+        toast.error(t("hostMap.deleteFailed"), result.error ?? t("hostMap.deleteFailedDetail"));
       } else {
-        toast.success("Host mapping removed");
+        toast.success(t("hostMap.removed"));
         onRefresh();
       }
     } catch {
-      toast.error("Delete failed", "An unexpected error occurred");
+      toast.error(t("hostMap.deleteFailed"), t("unexpectedError"));
     } finally {
       setDeleting(false);
       setDeleteTarget(null);
@@ -74,16 +77,16 @@ export function HostMappingPanel({ config, isReadOnly, onRefresh }: Props) {
           <div>
             <CardTitle className="flex items-center gap-2">
               <MapPin className="h-5 w-5" />
-              Static Host Mapping
+              {t("hostMap.title")}
             </CardTitle>
             <CardDescription>
-              Map hostnames to static IP addresses for local DNS resolution.
+              {t("hostMap.description")}
             </CardDescription>
           </div>
           {!isReadOnly && (
             <Button size="sm" onClick={() => setModalOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              Add Mapping
+              {t("hostMap.addMapping")}
             </Button>
           )}
         </div>
@@ -92,10 +95,10 @@ export function HostMappingPanel({ config, isReadOnly, onRefresh }: Props) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Hostname</TableHead>
-              <TableHead>IP Address</TableHead>
-              <TableHead>Aliases</TableHead>
-              {!isReadOnly && <TableHead className="text-right">Actions</TableHead>}
+              <TableHead>{t("general.hostname")}</TableHead>
+              <TableHead>{t("hostMap.ipAddress")}</TableHead>
+              <TableHead>{t("hostMap.aliases")}</TableHead>
+              {!isReadOnly && <TableHead className="text-right">{tc("actions")}</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -105,7 +108,7 @@ export function HostMappingPanel({ config, isReadOnly, onRefresh }: Props) {
                   colSpan={isReadOnly ? 3 : 4}
                   className="text-center text-muted-foreground py-6"
                 >
-                  No host mappings configured
+                  {t("hostMap.empty")}
                 </TableCell>
               </TableRow>
             ) : (
@@ -131,7 +134,7 @@ export function HostMappingPanel({ config, isReadOnly, onRefresh }: Props) {
                         </Badge>
                       ))}
                       {entry.aliases.length === 0 && (
-                        <span className="text-muted-foreground text-xs">None</span>
+                        <span className="text-muted-foreground text-xs">{tc("none")}</span>
                       )}
                     </div>
                   </TableCell>
@@ -166,19 +169,19 @@ export function HostMappingPanel({ config, isReadOnly, onRefresh }: Props) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Host Mapping</AlertDialogTitle>
+            <AlertDialogTitle>{t("hostMap.removeTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Remove the static mapping for <strong>{deleteTarget}</strong>?
+              {t.rich("hostMap.removeConfirm", { name: deleteTarget ?? "", strong: (chunks) => <strong>{chunks}</strong> })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting ? "Removing…" : "Remove"}
+              {deleting ? t("hostMap.removing") : t("hostMap.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

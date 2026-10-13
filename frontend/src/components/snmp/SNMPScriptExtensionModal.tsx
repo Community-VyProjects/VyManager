@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,8 @@ export function SNMPScriptExtensionModal({
   existingNames,
   onSuccess,
 }: SNMPScriptExtensionModalProps) {
+  const t = useTranslations("snmp");
+  const tc = useTranslations("common");
   const isEdit = existing !== null;
   const [name, setName] = useState(existing?.name ?? "");
   const [script, setScript] = useState(existing?.script ?? "");
@@ -40,11 +43,11 @@ export function SNMPScriptExtensionModal({
   const handleSubmit = async () => {
     const n = name.trim();
     if (!n) {
-      setError("An extension name is required");
+      setError(t("extension.nameRequired"));
       return;
     }
     if (!isEdit && existingNames.includes(n)) {
-      setError(`Extension "${n}" already exists`);
+      setError(t("extension.exists", { name: n }));
       return;
     }
     setSubmitting(true);
@@ -54,7 +57,7 @@ export function SNMPScriptExtensionModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -65,19 +68,19 @@ export function SNMPScriptExtensionModal({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? "Edit Script Extension" : "Add Script Extension"}
+            {isEdit ? t("extension.editTitle") : t("extension.addTitle")}
           </DialogTitle>
           <DialogDescription>
-            Extend the SNMP agent with a custom script
+            {t("extension.description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-1">
           <div className="space-y-1.5">
-            <Label htmlFor="ext-name">Extension Name</Label>
+            <Label htmlFor="ext-name">{t("extension.name")}</Label>
             <Input
               id="ext-name"
-              placeholder="e.g. my-extension"
+              placeholder={t("extension.namePlaceholder")}
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
@@ -88,16 +91,18 @@ export function SNMPScriptExtensionModal({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="ext-script">Script</Label>
+            <Label htmlFor="ext-script">{t("content.script")}</Label>
             <Input
               id="ext-script"
-              placeholder="e.g. my-script.sh"
+              placeholder={t("extension.scriptPlaceholder")}
               value={script}
               onChange={(e) => setScript(e.target.value)}
               className="font-mono"
             />
             <p className="text-xs text-muted-foreground">
-              Script name/path located under <span className="font-mono">/config/user-data</span>.
+              {t.rich("extension.scriptHelp", {
+                code: (chunks) => <span className="font-mono">{chunks}</span>,
+              })}
             </p>
           </div>
         </div>
@@ -111,11 +116,11 @@ export function SNMPScriptExtensionModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isEdit ? "Save" : "Add"}
+            {isEdit ? tc("save") : tc("add")}
           </Button>
         </DialogFooter>
       </DialogContent>

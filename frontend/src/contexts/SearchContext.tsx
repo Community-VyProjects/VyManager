@@ -8,11 +8,13 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
+import { useLocale, useMessages } from "next-intl";
 import { useSessionStore } from "@/store/session-store";
-import { navigationSearchIndex } from "@/lib/search/navigation-index";
+import { buildNavigationIndex } from "@/lib/search/navigation-index";
 import { buildDynamicSearchIndex } from "@/lib/search/indexers";
 import { searchIndex, getIndexFacets } from "@/lib/search/engine";
 import { dedupeSearchResults } from "@/lib/search/dedupe";
+import { createSearchI18n, type SearchI18n } from "@/lib/search/i18n";
 import type { SearchResult, SearchFilters, ScoredSearchResult } from "@/lib/search/types";
 
 export type { SearchResult, SearchEntityKind, SearchFilters } from "@/lib/search/types";
@@ -33,6 +35,8 @@ function applyFavorites(results: SearchResult[], favoriteIds: Set<string>): Sear
 }
 
 interface SearchContextType {
+  /** Translations the index was built with (kind labels etc. for display) */
+  i18n: SearchI18n;
   isIndexing: boolean;
   indexReady: boolean;
   facets: ReturnType<typeof getIndexFacets>;
@@ -46,6 +50,17 @@ interface SearchContextType {
 const SearchContext = createContext<SearchContextType | undefined>(undefined);
 
 export function SearchProvider({ children }: { children: React.ReactNode }) {
+  const locale = useLocale();
+  const messages = useMessages();
+  // Build per locale only: the messages object is re-created on every router.refresh(),
+  // which must not trigger a full re-index (it refetches every config section).
+  const i18n = useMemo(
+    () => createSearchI18n(locale, { searchIndex: messages.searchIndex, navigation: messages.navigation }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- messages only change together with the locale
+    [locale]
+  );
+  const navigationSearchIndex = useMemo(() => buildNavigationIndex(i18n), [i18n]);
+
   const [indexedData, setIndexedData] = useState<SearchResult[]>(navigationSearchIndex);
   const [isIndexing, setIsIndexing] = useState(false);
   const [indexReady, setIndexReady] = useState(false);
@@ -73,7 +88,7 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
 
     setIsIndexing(true);
     try {
-      const dynamic = await buildDynamicSearchIndex();
+      const dynamic = await buildDynamicSearchIndex(i18n);
       const combined = dedupeSearchResults([...navigationSearchIndex, ...dynamic]);
       setIndexedData(applyFavorites(combined, favSet));
     } catch (error) {
@@ -83,7 +98,7 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
       setIsIndexing(false);
       setIndexReady(true);
     }
-  }, [instanceId]); // Stable string — only changes when instance actually changes
+  }, [instanceId, i18n, navigationSearchIndex]); // Stable: instance id string + per-locale index
 
   useEffect(() => {
     setIndexReady(false);
@@ -112,6 +127,7 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
   return (
     <SearchContext.Provider
       value={{
+        i18n,
         isIndexing,
         indexReady,
         facets,

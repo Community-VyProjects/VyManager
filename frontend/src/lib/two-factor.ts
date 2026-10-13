@@ -1,7 +1,12 @@
 export type TwoFactorMethod = "totp" | "otp" | "backup";
 
+/** Key in the `miscLib` messages for a built-in (non-backend) error. */
+export type TwoFactorMessageKey = "twoFactor.loginFailed";
+
 export type SignInOutcome =
-  | { kind: "error"; message: string }
+  // `message` stays English for existing callers; when `messageKey` is set, the
+  // message is the built-in fallback and callers should show t(messageKey).
+  | { kind: "error"; message: string; messageKey?: TwoFactorMessageKey }
   | { kind: "twoFactor"; methods: string[] }
   | { kind: "session" };
 
@@ -10,7 +15,8 @@ export function interpretSignInResult(result: {
   data?: unknown;
 }): SignInOutcome {
   if (result.error) {
-    return { kind: "error", message: result.error.message || "Login failed" };
+    if (result.error.message) return { kind: "error", message: result.error.message };
+    return { kind: "error", message: "Login failed", messageKey: "twoFactor.loginFailed" };
   }
   const data =
     result.data && typeof result.data === "object"

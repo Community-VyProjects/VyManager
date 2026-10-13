@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Loader2, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { staticRoutesService, type MulticastRoute } from "@/lib/api/static-routes";
 
 interface DeleteMrouteModalProps {
@@ -26,6 +27,8 @@ export function DeleteMrouteModal({
   onSuccess,
   route,
 }: DeleteMrouteModalProps) {
+  const t = useTranslations("routingExtras");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,7 +43,7 @@ export function DeleteMrouteModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete multicast route");
+      setError(err instanceof Error ? err.message : t("deleteMroute.failed"));
     } finally {
       setLoading(false);
     }
@@ -54,10 +57,10 @@ export function DeleteMrouteModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Trash2 className="h-5 w-5 text-destructive" />
-            Delete Multicast Route
+            {t("deleteMroute.title")}
           </DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete this multicast route?
+            {t("deleteMroute.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -71,18 +74,18 @@ export function DeleteMrouteModal({
 
           <div className="bg-muted/50 rounded-lg p-4 space-y-2">
             <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">Prefix:</span>
+              <span className="text-sm text-muted-foreground">{t("deleteMroute.prefix")}</span>
               <span className="text-sm font-mono">{route.prefix}</span>
             </div>
             {route.next_hops.length > 0 && (
               <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Next Hops:</span>
+                <span className="text-sm text-muted-foreground">{t("deleteMroute.nextHops")}</span>
                 <span className="text-sm font-mono">{route.next_hops.length}</span>
               </div>
             )}
             {route.interfaces.length > 0 && (
               <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Interfaces:</span>
+                <span className="text-sm text-muted-foreground">{t("deleteMroute.interfaces")}</span>
                 <span className="text-sm font-mono">{route.interfaces.length}</span>
               </div>
             )}
@@ -91,11 +94,11 @@ export function DeleteMrouteModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Delete
+            {tc("delete")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -43,13 +44,15 @@ function isValidIPv4(value: string): boolean {
 }
 
 const RELAY_AGENTS_POLICIES = [
-  { value: "append", label: "Append", description: "Append own relay options to packet" },
-  { value: "replace", label: "Replace", description: "Replace existing agent option field" },
-  { value: "forward", label: "Forward", description: "Forward packet unchanged" },
-  { value: "discard", label: "Discard", description: "Discard packet" },
-];
+  { value: "append", label: "Append" },
+  { value: "replace", label: "Replace" },
+  { value: "forward", label: "Forward" },
+  { value: "discard", label: "Discard" },
+] as const;
 
 export function DHCPRelayModal({ open, onClose, onSuccess, config }: DHCPRelayModalProps) {
+  const t = useTranslations("dhcpRelay");
+  const tc = useTranslations("common");
   const [servers, setServers] = useState<string[]>([]);
   const [serverInput, setServerInput] = useState("");
 
@@ -136,11 +139,11 @@ export function DHCPRelayModal({ open, onClose, onSuccess, config }: DHCPRelayMo
     const trimmed = serverInput.trim();
     if (!trimmed) return;
     if (!isValidIPv4(trimmed)) {
-      setError("Server address must be a valid IPv4 address (e.g. 10.0.0.1)");
+      setError(t("modal.errors.serverInvalid"));
       return;
     }
     if (servers.includes(trimmed)) {
-      setError("That server address is already in the list");
+      setError(t("modal.errors.serverDuplicate"));
       return;
     }
     setServers([...servers, trimmed]);
@@ -190,18 +193,18 @@ export function DHCPRelayModal({ open, onClose, onSuccess, config }: DHCPRelayMo
 
   const validate = (): string | null => {
     if (servers.length === 0) {
-      return "At least one DHCP server address is required";
+      return t("modal.errors.serverRequired");
     }
     if (hopCount !== "") {
       const n = parseInt(hopCount, 10);
       if (isNaN(n) || n < 1 || n > 255) {
-        return "Hop count must be an integer between 1 and 255";
+        return t("modal.errors.hopCountRange");
       }
     }
     if (maxSize !== "") {
       const n = parseInt(maxSize, 10);
       if (isNaN(n) || n < 64 || n > 1400) {
-        return "Max packet size must be an integer between 64 and 1400";
+        return t("modal.errors.maxSizeRange");
       }
     }
     return null;
@@ -234,7 +237,7 @@ export function DHCPRelayModal({ open, onClose, onSuccess, config }: DHCPRelayMo
 
     const result = await dhcpRelayService.configure(payload);
     if (!result.success) {
-      setError(result.error ?? "Configuration failed");
+      setError(result.error ?? t("modal.errors.configFailed"));
       setLoading(false);
       return;
     }
@@ -259,12 +262,12 @@ export function DHCPRelayModal({ open, onClose, onSuccess, config }: DHCPRelayMo
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? "Edit DHCP Relay Configuration" : "Configure DHCP Relay"}
+            {isEditing ? t("modal.editTitle") : t("content.configureRelay")}
           </DialogTitle>
           <DialogDescription>
             {isEditing
-              ? "Modify the DHCP relay service settings."
-              : "Set up the DHCP relay agent to forward client requests to a centralized server."}
+              ? t("modal.editDescription")
+              : t("modal.createDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -279,7 +282,7 @@ export function DHCPRelayModal({ open, onClose, onSuccess, config }: DHCPRelayMo
                 onCheckedChange={(checked) => setDisabled(checked === true)}
               />
               <Label htmlFor="dhcpr-disabled" className="cursor-pointer">
-                Disable DHCP Relay service
+                {t("modal.disableService")}
               </Label>
             </div>
 
@@ -288,9 +291,9 @@ export function DHCPRelayModal({ open, onClose, onSuccess, config }: DHCPRelayMo
             {/* ---- DHCP Servers ---- */}
             <div className="space-y-3">
               <div>
-                <Label className="text-sm font-semibold">DHCP Servers</Label>
+                <Label className="text-sm font-semibold">{t("content.dhcpServers")}</Label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  IPv4 addresses of the DHCP servers to relay requests to. At least one is required.
+                  {t("modal.serversHelp")}
                 </p>
               </div>
 
@@ -315,7 +318,7 @@ export function DHCPRelayModal({ open, onClose, onSuccess, config }: DHCPRelayMo
                   value={serverInput}
                   onChange={(e) => setServerInput(e.target.value)}
                   onKeyDown={handleServerInputKeyDown}
-                  placeholder="e.g. 10.0.0.1"
+                  placeholder={t("modal.examplePlaceholder", { example: "10.0.0.1" })}
                   className="font-mono flex-1"
                 />
                 <Button
@@ -334,8 +337,8 @@ export function DHCPRelayModal({ open, onClose, onSuccess, config }: DHCPRelayMo
 
             {/* ---- Listen Interfaces ---- */}
             <InterfaceSection
-              label="Listen Interfaces"
-              description="Interfaces the relay agent listens on for client DHCP requests."
+              label={t("content.listenInterfaces")}
+              description={t("modal.listenHelp")}
               items={listenInterfaces}
               onRemove={removeListenInterface}
               selected={selectedListenInterface}
@@ -349,8 +352,8 @@ export function DHCPRelayModal({ open, onClose, onSuccess, config }: DHCPRelayMo
 
             {/* ---- Upstream Interfaces ---- */}
             <InterfaceSection
-              label="Upstream Interfaces"
-              description="Interfaces used to forward DHCP requests to the server."
+              label={t("content.upstreamInterfaces")}
+              description={t("modal.upstreamHelp")}
               items={upstreamInterfaces}
               onRemove={removeUpstreamInterface}
               selected={selectedUpstreamInterface}
@@ -364,8 +367,8 @@ export function DHCPRelayModal({ open, onClose, onSuccess, config }: DHCPRelayMo
 
             {/* ---- Broadcast Interfaces (optional) ---- */}
             <InterfaceSection
-              label="Broadcast Interfaces"
-              description="Optional — combined listen/upstream interface for broadcast environments."
+              label={t("content.broadcastInterfaces")}
+              description={t("modal.broadcastHelp")}
               items={interfaces}
               onRemove={removeInterface}
               selected={selectedInterface}
@@ -381,14 +384,14 @@ export function DHCPRelayModal({ open, onClose, onSuccess, config }: DHCPRelayMo
             {/* ---- Relay Options ---- */}
             <div className="space-y-4">
               <div>
-                <Label className="text-sm font-semibold">Relay Options</Label>
+                <Label className="text-sm font-semibold">{t("content.relayOptions")}</Label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Advanced tuning — leave blank to use VyOS defaults.
+                  {t("modal.relayOptionsHelp")}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="dhcpr-hop-count">Hop Count</Label>
+                <Label htmlFor="dhcpr-hop-count">{t("content.hopCount")}</Label>
                 <Input
                   id="dhcpr-hop-count"
                   type="number"
@@ -396,16 +399,16 @@ export function DHCPRelayModal({ open, onClose, onSuccess, config }: DHCPRelayMo
                   onChange={(e) => setHopCount(e.target.value)}
                   min={1}
                   max={255}
-                  placeholder="10 (default)"
+                  placeholder={t("modal.defaultValue", { value: "10" })}
                   className="font-mono"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Discard packets that have reached this hop count (1–255).
+                  {t("modal.hopCountHelp")}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="dhcpr-max-size">Max Packet Size</Label>
+                <Label htmlFor="dhcpr-max-size">{t("content.maxPacketSize")}</Label>
                 <Input
                   id="dhcpr-max-size"
                   type="number"
@@ -413,31 +416,31 @@ export function DHCPRelayModal({ open, onClose, onSuccess, config }: DHCPRelayMo
                   onChange={(e) => setMaxSize(e.target.value)}
                   min={64}
                   max={1400}
-                  placeholder="576 (default)"
+                  placeholder={t("modal.defaultValue", { value: "576" })}
                   className="font-mono"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Maximum packet size sent to the DHCP server in bytes (64–1400).
+                  {t("modal.maxSizeHelp")}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="dhcpr-relay-agents-policy">Relay Agents Policy</Label>
+                <Label htmlFor="dhcpr-relay-agents-policy">{t("content.relayAgentsPolicy")}</Label>
                 <Select value={relayAgentsPackets} onValueChange={setRelayAgentsPackets}>
                   <SelectTrigger id="dhcpr-relay-agents-policy">
-                    <SelectValue placeholder="forward (default)" />
+                    <SelectValue placeholder={t("modal.defaultValue", { value: "forward" })} />
                   </SelectTrigger>
                   <SelectContent>
                     {RELAY_AGENTS_POLICIES.map((p) => (
                       <SelectItem key={p.value} value={p.value}>
                         <span className="font-mono">{p.label}</span>
-                        <span className="text-muted-foreground ml-2 text-xs">— {p.description}</span>
+                        <span className="text-muted-foreground ml-2 text-xs">— {t(`modal.policies.${p.value}`)}</span>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  How to handle incoming packets that already contain relay agent options.
+                  {t("modal.relayAgentsPolicyHelp")}
                 </p>
               </div>
             </div>
@@ -453,16 +456,16 @@ export function DHCPRelayModal({ open, onClose, onSuccess, config }: DHCPRelayMo
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
+                {tc("saving")}
               </>
             ) : (
-              "Save Configuration"
+              t("modal.saveConfiguration")
             )}
           </Button>
         </DialogFooter>
@@ -498,13 +501,14 @@ function InterfaceSection({
   loading,
   optional = false,
 }: InterfaceSectionProps) {
+  const t = useTranslations("dhcpRelay");
   return (
     <div className="space-y-3">
       <div>
         <Label className="text-sm font-semibold">
           {label}
           {optional && (
-            <span className="ml-2 text-xs font-normal text-muted-foreground">(optional)</span>
+            <span className="ml-2 text-xs font-normal text-muted-foreground">{t("modal.optionalSuffix")}</span>
           )}
         </Label>
         <p className="text-xs text-muted-foreground mt-1">{description}</p>
@@ -533,8 +537,8 @@ function InterfaceSection({
           interfaces={available}
           disabled={loading}
           className="flex-1"
-          placeholder="Select interface to add"
-          emptyText="No additional interfaces available"
+          placeholder={t("modal.selectInterface")}
+          emptyText={t("modal.noInterfaces")}
         />
         <Button
           variant="outline"

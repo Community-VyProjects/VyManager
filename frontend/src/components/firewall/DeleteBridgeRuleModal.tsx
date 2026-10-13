@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,8 @@ export function DeleteBridgeRuleModal({
   rule,
   onSuccess,
 }: DeleteBridgeRuleModalProps) {
+  const t = useTranslations("firewallBridge");
+  const tc = useTranslations("common");
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,10 +47,10 @@ export function DeleteBridgeRuleModal({
       if (response.success) {
         onSuccess();
       } else {
-        setError(response.error || "Failed to delete rule");
+        setError(response.error || t("deleteRule.deleteFailed"));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete rule");
+      setError(err instanceof Error ? err.message : t("deleteRule.deleteFailed"));
     } finally {
       setDeleting(false);
     }
@@ -59,10 +62,10 @@ export function DeleteBridgeRuleModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            Delete Bridge Firewall Rule
+            {t("deleteRule.title")}
           </DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete this rule? This action cannot be undone.
+            {t("deleteRule.confirm")}
           </DialogDescription>
         </DialogHeader>
 
@@ -75,20 +78,20 @@ export function DeleteBridgeRuleModal({
 
         <div className="bg-muted/50 rounded-md p-4 space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Rule Number:</span>
+            <span className="text-muted-foreground">{t("deleteRule.ruleNumber")}</span>
             <span className="font-mono">{rule.rule_number}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Chain:</span>
+            <span className="text-muted-foreground">{t("deleteRule.chain")}</span>
             <span className="font-medium">{chain}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Action:</span>
+            <span className="text-muted-foreground">{t("deleteRule.action")}</span>
             <span className="font-medium">{rule.action || "—"}</span>
           </div>
           {rule.description && (
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Description:</span>
+              <span className="text-muted-foreground">{t("deleteRule.description")}</span>
               <span className="truncate max-w-[200px]">{rule.description}</span>
             </div>
           )}
@@ -96,16 +99,16 @@ export function DeleteBridgeRuleModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={deleting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
             {deleting ? (
               <>
                 <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Rule"
+              t("deleteRule.deleteRule")
             )}
           </Button>
         </DialogFooter>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,8 @@ export function NAT64RuleDialog({
   nextRuleNumber,
   onSuccess,
 }: NAT64RuleDialogProps) {
+  const t = useTranslations("nat64");
+  const tc = useTranslations("common");
   const isEditing = !!rule;
   const [description, setDescription] = useState("");
   const [sourcePrefix, setSourcePrefix] = useState("");
@@ -79,7 +82,7 @@ export function NAT64RuleDialog({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSaving(false);
     }
@@ -90,34 +93,34 @@ export function NAT64RuleDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? `Edit Rule ${rule.rule_number}` : "Create NAT64 Rule"}
+            {isEditing ? t("ruleDialog.editTitle", { number: String(rule.rule_number) }) : t("ruleDialog.createTitle")}
           </DialogTitle>
           <DialogDescription>
-            Configure an IPv6-to-IPv4 source NAT64 translation rule.
+            {t("ruleDialog.description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label>Rule Number</Label>
+            <Label>{t("ruleDialog.ruleNumber")}</Label>
             <div className="flex items-center h-10 px-3 rounded-md border bg-muted/50 font-mono text-sm">
               {isEditing ? rule.rule_number : nextRuleNumber}
-              <span className="ml-2 text-muted-foreground text-xs">(auto-assigned)</span>
+              <span className="ml-2 text-muted-foreground text-xs">{t("ruleDialog.autoAssigned")}</span>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="nat64-rule-desc">Description</Label>
+            <Label htmlFor="nat64-rule-desc">{tc("description")}</Label>
             <Input
               id="nat64-rule-desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="IPv6 to IPv4 translation"
+              placeholder={t("ruleDialog.descriptionPlaceholder")}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="nat64-rule-prefix">Source Prefix</Label>
+            <Label htmlFor="nat64-rule-prefix">{t("ruleDialog.sourcePrefix")}</Label>
             <Input
               id="nat64-rule-prefix"
               value={sourcePrefix}
@@ -128,12 +131,12 @@ export function NAT64RuleDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="nat64-rule-mark">Match Mark</Label>
+            <Label htmlFor="nat64-rule-mark">{t("ruleDialog.matchMark")}</Label>
             <Input
               id="nat64-rule-mark"
               value={matchMark}
               onChange={(e) => setMatchMark(e.target.value)}
-              placeholder="Optional firewall mark"
+              placeholder={t("ruleDialog.matchMarkPlaceholder")}
               className="font-mono"
             />
           </div>
@@ -145,7 +148,7 @@ export function NAT64RuleDialog({
               onCheckedChange={(checked) => setDisable(checked === true)}
             />
             <Label htmlFor="nat64-rule-disable" className="cursor-pointer">
-              Disable rule
+              {t("ruleDialog.disableRule")}
             </Label>
           </div>
         </div>
@@ -159,10 +162,10 @@ export function NAT64RuleDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save"}
+            {saving ? tc("saving") : tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

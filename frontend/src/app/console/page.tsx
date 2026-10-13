@@ -1,16 +1,16 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Loader2, RefreshCw, Terminal, TriangleAlert } from "lucide-react";
+import { AlertCircle, Loader2, RefreshCw, Terminal } from "lucide-react";
 import { consoleService, type ConsoleStatus } from "@/lib/api/console";
 import { ConsoleTerminal } from "@/components/console/ConsoleTerminal";
 import { SSHNotConfigured } from "@/components/console/SSHNotConfigured";
 import type { ConsoleStatus as WsStatus } from "@/hooks/useConsoleWebSocket";
 import { cn } from "@/lib/utils";
-import Link from "next/link";
 
 const STATUS_COLORS: Record<WsStatus, string> = {
   disconnected: "bg-gray-400",
@@ -19,14 +19,16 @@ const STATUS_COLORS: Record<WsStatus, string> = {
   error: "bg-red-400",
 };
 
-const STATUS_LABELS: Record<WsStatus, string> = {
-  disconnected: "Disconnected",
-  connecting: "Connecting...",
-  connected: "Connected",
-  error: "Error",
-};
+const STATUS_LABEL_KEYS = {
+  disconnected: "status.disconnected",
+  connecting: "status.connecting",
+  connected: "status.connected",
+  error: "status.error",
+} as const satisfies Record<WsStatus, string>;
 
 export default function ConsolePage() {
+  const t = useTranslations("console");
+  const tc = useTranslations("common");
   const [sshStatus, setSshStatus] = useState<ConsoleStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -55,13 +57,14 @@ export default function ConsolePage() {
         const data = await consoleService.getStatus();
         setSshStatus(data);
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "Failed to load console status";
+        const msg = err instanceof Error ? err.message : t("loadFailed");
         setLoadError(msg);
       } finally {
         setLoading(false);
       }
     };
     load();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount; a language switch re-renders via router.refresh()
   }, []);
 
   return (
@@ -74,9 +77,9 @@ export default function ConsolePage() {
               <Terminal className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-xl font-semibold">SSH Console</h1>
+              <h1 className="text-xl font-semibold">{t("title")}</h1>
               <p className="text-sm text-muted-foreground">
-                Interactive shell session on the active VyOS device
+                {t("subtitle")}
               </p>
             </div>
           </div>
@@ -88,7 +91,7 @@ export default function ConsolePage() {
                 <span
                   className={cn("h-2 w-2 rounded-full", STATUS_COLORS[wsStatus])}
                 />
-                <span>{STATUS_LABELS[wsStatus]}</span>
+                <span>{t(STATUS_LABEL_KEYS[wsStatus])}</span>
               </div>
             )}
 
@@ -97,7 +100,7 @@ export default function ConsolePage() {
               wsStatus === "disconnected" || wsStatus === "error" ? (
                 <Button size="sm" onClick={handleReconnect} variant="outline">
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  {wsStatus === "error" ? "Retry" : "Connect"}
+                  {wsStatus === "error" ? tc("retry") : t("connect")}
                 </Button>
               ) : (
                 <Button
@@ -106,7 +109,7 @@ export default function ConsolePage() {
                   variant="outline"
                   disabled={wsStatus === "connecting"}
                 >
-                  Disconnect
+                  {t("disconnect")}
                 </Button>
               )
             )}

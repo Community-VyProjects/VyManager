@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useTranslations } from "next-intl";
 import { X, Flame, RefreshCw } from "lucide-react";
 import { CardSizeMenu } from "@/components/dashboard/CardSizeMenu";
 import { useDashboardData } from "@/contexts/DashboardDataContext";
@@ -34,6 +35,8 @@ function actionClass(action: string): string {
 }
 
 function HitRow({ hit, rank }: { hit: FirewallHit; rank: number }) {
+  const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   return (
     <div className="flex items-center gap-2 px-3 py-2 text-sm border-b last:border-0">
       <span className="w-4 text-[11px] tabular-nums text-muted-foreground shrink-0">{rank}</span>
@@ -44,7 +47,7 @@ function HitRow({ hit, rank }: { hit: FirewallHit; rank: number }) {
         {chainLabel(hit)}
       </span>
       <span className="font-mono text-xs text-muted-foreground shrink-0">
-        {hit.rule === "default" ? "default" : `#${hit.rule}`}
+        {hit.rule === "default" ? tc("shown.default") : `#${hit.rule}`}
       </span>
       <Badge variant="outline" className={cn("text-[10px] h-4 px-1 uppercase shrink-0", actionClass(hit.action))}>
         {hit.action}
@@ -53,7 +56,7 @@ function HitRow({ hit, rank }: { hit: FirewallHit; rank: number }) {
       <span className="text-[11px] tabular-nums text-muted-foreground shrink-0" title={`${formatNumber(hit.bytes)} bytes`}>
         {formatBytes(hit.bytes)}
       </span>
-      <span className="text-xs tabular-nums font-medium shrink-0 w-[5.5rem] text-right" title="packets">
+      <span className="text-xs tabular-nums font-medium shrink-0 w-[5.5rem] text-right" title={t("firewallHits.packetsTitle")}>
         {formatNumber(hit.packets)}
       </span>
     </div>
@@ -67,6 +70,7 @@ export function FirewallHitsCard({
   height,
   onHeightChange,
 }: FirewallHitsCardProps) {
+  const t = useTranslations("dashboard");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const { status: sseStatus, data: sseData } = useDashboardData();
   const [snapshot, setSnapshot] = useState<FirewallHitsData | null>(null);
@@ -84,10 +88,12 @@ export function FirewallHitsCard({
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <Flame className="h-5 w-5 text-primary shrink-0" />
-          <CardTitle className="text-lg font-medium truncate">Firewall Hits</CardTitle>
+          <CardTitle className="text-lg font-medium truncate">{t("firewallHits.title")}</CardTitle>
           {status && status.total > 0 && (
             <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-medium shrink-0">
-              {hits.length}{status.total > hits.length ? ` of ${status.total}` : ""}
+              {status.total > hits.length
+                ? t("firewallHits.ofTotal", { shown: hits.length, total: status.total })
+                : hits.length}
             </Badge>
           )}
         </div>
@@ -96,10 +102,10 @@ export function FirewallHitsCard({
             variant={autoRefresh ? "default" : "outline"}
             size="sm"
             onClick={() => setAutoRefresh((v) => !v)}
-            title={autoRefresh ? `Live via dashboard stream (${sseStatus})` : "Paused"}
+            title={autoRefresh ? t("stream.liveVia", { status: sseStatus }) : t("stream.paused")}
           >
             <RefreshCw className={`h-4 w-4 mr-1 ${autoRefresh && sseStatus === "connected" ? "animate-spin" : ""}`} />
-            {autoRefresh ? "Live" : "Paused"}
+            {autoRefresh ? t("stream.live") : t("stream.paused")}
           </Button>
           {onSpanChange && (
             <CardSizeMenu
@@ -118,17 +124,17 @@ export function FirewallHitsCard({
       </CardHeader>
       <CardContent className="flex flex-col flex-1 min-h-0 p-0">
         {loading ? (
-          <div className="px-4 py-6 text-center text-muted-foreground text-sm">Loading…</div>
+          <div className="px-4 py-6 text-center text-muted-foreground text-sm">{t("stream.loading")}</div>
         ) : hits.length === 0 ? (
           <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-muted-foreground">
-            No firewall hits yet.
+            {t("firewallHits.none")}
           </div>
         ) : (
           <div className="flex-1 min-h-0 overflow-y-auto">
             <div className="flex items-center gap-2 px-3 py-1 text-[10px] uppercase tracking-wide text-muted-foreground border-b bg-muted/30 sticky top-0">
               <span className="w-4">#</span>
-              <span className="flex-1">Rule</span>
-              <span className="w-[5.5rem] text-right">Packets</span>
+              <span className="flex-1">{t("firewallHits.rule")}</span>
+              <span className="w-[5.5rem] text-right">{t("firewallHits.packets")}</span>
             </div>
             {hits.map((hit, index) => (
               <HitRow key={`${hit.family}-${hit.custom}-${hit.chain}-${hit.rule}`} hit={hit} rank={index + 1} />

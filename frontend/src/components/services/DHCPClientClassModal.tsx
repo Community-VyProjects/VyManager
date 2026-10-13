@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Plus, Trash2 } from "lucide-react";
 import {
   Dialog,
@@ -44,6 +45,8 @@ export function DHCPClientClassModal({
   onSuccess,
   classes,
 }: DHCPClientClassModalProps) {
+  const t = useTranslations("dhcpServer");
+  const tc = useTranslations("common");
   const [rows, setRows] = useState<DHCPClientClass[]>([]);
   const [draft, setDraft] = useState<Draft>(emptyDraft());
   const [loading, setLoading] = useState(false);
@@ -98,14 +101,14 @@ export function DHCPClientClassModal({
         network_name: "_global",
         operations: [{ op: "delete_client_class", value: name }],
       });
-      const saveError = failedSaveMessage(result, "Failed to delete client class");
+      const saveError = failedSaveMessage(result, t("clientClass.deleteFailed"));
       if (saveError) {
         setError(saveError);
         return;
       }
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete client class");
+      setError(err instanceof Error ? err.message : t("clientClass.deleteFailed"));
     } finally {
       setLoading(false);
     }
@@ -115,14 +118,14 @@ export function DHCPClientClassModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
-          <DialogTitle>Client classes</DialogTitle>
+          <DialogTitle>{t("clientClass.title")}</DialogTitle>
           <DialogDescription>
-            Match relay-agent information before a subnet or range assigns an address
+            {t("clientClass.description")}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           {rows.length === 0 && (
-            <p className="text-sm text-muted-foreground">No client classes</p>
+            <p className="text-sm text-muted-foreground">{t("clientClass.none")}</p>
           )}
           {rows.map((item) => (
             <div key={item.name} className="flex items-center justify-between gap-2 rounded border px-3 py-2">
@@ -141,9 +144,9 @@ export function DHCPClientClassModal({
               >
                 <p className="font-medium">{item.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {[item.circuit_id && `circuit ${item.circuit_id}`, item.remote_id && `remote ${item.remote_id}`]
+                  {[item.circuit_id && t("clientClass.circuit", { id: item.circuit_id }), item.remote_id && t("clientClass.remote", { id: item.remote_id })]
                     .filter(Boolean)
-                    .join(" · ") || "No relay match"}
+                    .join(" · ") || t("clientClass.noRelayMatch")}
                 </p>
               </button>
               <Button type="button" variant="ghost" size="icon" onClick={() => removeClass(item.name)} disabled={loading}>
@@ -153,7 +156,7 @@ export function DHCPClientClassModal({
           ))}
           <div className="space-y-3 border-t pt-3">
             <div>
-              <Label htmlFor="class-name">Class name</Label>
+              <Label htmlFor="class-name">{t("clientClass.className")}</Label>
               <Input
                 id="class-name"
                 value={draft.name}
@@ -166,10 +169,10 @@ export function DHCPClientClassModal({
                 checked={draft.disable}
                 onCheckedChange={(value) => setDraft({ ...draft, disable: value === true })}
               />
-              <Label htmlFor="class-disable">Disable</Label>
+              <Label htmlFor="class-disable">{t("clientClass.disable")}</Label>
             </div>
             <div>
-              <Label htmlFor="class-circuit">Relay circuit-id</Label>
+              <Label htmlFor="class-circuit">{t("clientClass.circuitId")}</Label>
               <Input
                 id="class-circuit"
                 value={draft.circuitId}
@@ -177,7 +180,7 @@ export function DHCPClientClassModal({
               />
             </div>
             <div>
-              <Label htmlFor="class-remote">Relay remote-id</Label>
+              <Label htmlFor="class-remote">{t("clientClass.remoteId")}</Label>
               <Input
                 id="class-remote"
                 value={draft.remoteId}
@@ -190,10 +193,10 @@ export function DHCPClientClassModal({
         <DialogFooter>
           <Button variant="outline" onClick={() => setDraft(emptyDraft())} disabled={loading}>
             <Plus className="h-4 w-4 mr-2" />
-            New
+            {t("clientClass.new")}
           </Button>
           <Button onClick={saveDraft} disabled={loading || !draft.name.trim()}>
-            {loading ? "Saving..." : "Save class"}
+            {loading ? tc("saving") : t("clientClass.save")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { RebootModal } from "@/components/system/RebootModal";
 import { PoweroffModal } from "@/components/system/PoweroffModal";
@@ -9,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Power, PowerOff, Settings as SettingsIcon } from "lucide-react";
 
 export default function SettingsPage() {
+  const t = useTranslations("settings");
   const [rebootModalOpen, setRebootModalOpen] = useState(false);
   const [poweroffModalOpen, setPoweroffModalOpen] = useState(false);
 
@@ -29,26 +31,26 @@ export default function SettingsPage() {
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <SettingsIcon className="h-8 w-8" />
-            Settings
+            {t("title")}
           </h1>
           <p className="text-muted-foreground mt-2">
-            Manage system power and configuration settings
+            {t("description")}
           </p>
         </div>
 
         {/* Power Management Section */}
         <div>
-          <h2 className="text-xl font-semibold mb-4">Power Management</h2>
+          <h2 className="text-xl font-semibold mb-4">{t("powerManagement")}</h2>
           <div className="grid gap-4 md:grid-cols-2">
             {/* Reboot Card */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Power className="h-5 w-5 text-orange-500" />
-                  Reboot System
+                  {t("rebootTitle")}
                 </CardTitle>
                 <CardDescription>
-                  Restart the VyOS system to apply changes or troubleshoot issues
+                  {t("rebootDescription")}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -58,7 +60,7 @@ export default function SettingsPage() {
                   onClick={() => setRebootModalOpen(true)}
                 >
                   <Power className="h-4 w-4 mr-2" />
-                  Schedule Reboot
+                  {t("scheduleReboot")}
                 </Button>
               </CardContent>
             </Card>
@@ -68,10 +70,10 @@ export default function SettingsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <PowerOff className="h-5 w-5 text-red-500" />
-                  Poweroff System
+                  {t("poweroffTitle")}
                 </CardTitle>
                 <CardDescription>
-                  Completely shut down the VyOS system (requires manual power-on)
+                  {t("poweroffDescription")}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -81,7 +83,7 @@ export default function SettingsPage() {
                   onClick={() => setPoweroffModalOpen(true)}
                 >
                   <PowerOff className="h-4 w-4 mr-2" />
-                  Schedule Poweroff
+                  {t("schedulePoweroff")}
                 </Button>
               </CardContent>
             </Card>

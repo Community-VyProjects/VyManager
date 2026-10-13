@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { AlertTriangle, CheckCircle2, CircleAlert, Loader2, RefreshCw, XCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -8,15 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ethernetService } from "@/lib/api/ethernet";
 import type { TransceiverStatus } from "@/lib/api/types/ethernet";
-import { opticReadError, opticSeverity } from "@/lib/optic-status";
+import { opticSeverity } from "@/lib/optic-status";
 
-const measurementLabels: Record<string, string> = {
-  temperature: "Temperature",
-  voltage: "Voltage",
-  laser_bias: "Laser bias",
-  tx_power: "TX optical power",
-  rx_power: "RX optical power",
-};
+const measurementKeys = ["temperature", "voltage", "laser_bias", "tx_power", "rx_power"] as const;
+type MeasurementKey = (typeof measurementKeys)[number];
+const isMeasurementKey = (key: string): key is MeasurementKey =>
+  (measurementKeys as readonly string[]).includes(key);
 
 export function TransceiverDiagnosticsDialog({
   interfaceName,
@@ -27,6 +25,8 @@ export function TransceiverDiagnosticsDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const t = useTranslations("ethernet");
+  const tc = useTranslations("common");
   const [status, setStatus] = useState<TransceiverStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +38,7 @@ export function TransceiverDiagnosticsDialog({
     try {
       setStatus(await ethernetService.getTransceiver(interfaceName));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load diagnostics");
+      setError(err instanceof Error ? err.message : t("transceiver.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -62,7 +62,8 @@ export function TransceiverDiagnosticsDialog({
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Unable to load diagnostics");
+          // "" = no backend message; the translated fallback is resolved at render time
+          setError(err instanceof Error ? err.message : "");
         }
       })
       .finally(() => {
@@ -81,37 +82,37 @@ export function TransceiverDiagnosticsDialog({
         <DialogHeader>
           <div className="flex items-center justify-between gap-4 pr-8">
             <div>
-              <DialogTitle className="font-mono">{interfaceName} transceiver</DialogTitle>
-              <DialogDescription>Live digital optical monitoring diagnostics</DialogDescription>
+              <DialogTitle className="font-mono">{t("transceiver.title", { name: interfaceName ?? "" })}</DialogTitle>
+              <DialogDescription>{t("transceiver.description")}</DialogDescription>
             </div>
             <Button variant="outline" size="sm" onClick={() => void refresh()} disabled={loading}>
-              <RefreshCw className={loading ? "animate-spin" : ""} /> Refresh
+              <RefreshCw className={loading ? "animate-spin" : ""} /> {tc("refresh")}
             </Button>
           </div>
         </DialogHeader>
 
-        {loading && !status ? <div className="flex items-center gap-2 py-8 text-muted-foreground"><Loader2 className="animate-spin" /> Reading transceiver...</div> : null}
-        {error ? <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"><XCircle className="size-4" />{error}</div> : null}
+        {loading && !status ? <div className="flex items-center gap-2 py-8 text-muted-foreground"><Loader2 className="animate-spin" /> {t("transceiver.reading")}</div> : null}
+        {error !== null ? <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"><XCircle className="size-4" />{error || t("transceiver.loadFailed")}</div> : null}
         {status ? (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
-              {currentSeverity === "ok" ? <Badge className="bg-green-600"><CheckCircle2 /> Healthy</Badge> : null}
-              {currentSeverity === "warning" || currentSeverity === "absent" ? <Badge className="bg-yellow-600"><AlertTriangle /> Warning</Badge> : null}
-              {currentSeverity === "alarm" ? <Badge variant="destructive"><CircleAlert /> Alarm</Badge> : null}
-              {currentSeverity === "none" ? <span className="text-sm text-muted-foreground">No optical transceiver</span> : null}
-              {currentSeverity === "absent" ? <span className="text-sm text-muted-foreground">No transceiver detected</span> : null}
-              {currentSeverity === "error" ? <Badge variant="outline">Error</Badge> : null}
+              {currentSeverity === "ok" ? <Badge className="bg-green-600"><CheckCircle2 /> {t("transceiver.healthy")}</Badge> : null}
+              {currentSeverity === "warning" || currentSeverity === "absent" ? <Badge className="bg-yellow-600"><AlertTriangle /> {t("transceiver.warning")}</Badge> : null}
+              {currentSeverity === "alarm" ? <Badge variant="destructive"><CircleAlert /> {t("transceiver.alarm")}</Badge> : null}
+              {currentSeverity === "none" ? <span className="text-sm text-muted-foreground">{t("transceiver.noOptical")}</span> : null}
+              {currentSeverity === "absent" ? <span className="text-sm text-muted-foreground">{t("transceiver.notDetected")}</span> : null}
+              {currentSeverity === "error" ? <Badge variant="outline">{t("transceiver.error")}</Badge> : null}
             </div>
-            {currentSeverity === "error" ? <pre className="whitespace-pre-wrap rounded-md border bg-muted/40 p-3 text-sm">{opticReadError(status)}</pre> : null}
+            {currentSeverity === "error" ? <pre className="whitespace-pre-wrap rounded-md border bg-muted/40 p-3 text-sm">{status.raw?.trim() || t("transceiver.unableToRead")}</pre> : null}
             {currentSeverity === "ok" || currentSeverity === "warning" || currentSeverity === "alarm" ? (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {[["Type", status.transceiver], ["Vendor", status.vendor], ["Part number", status.part_number], ["Serial number", status.serial_number]].map(([label, value]) => (
+                {[[t("transceiver.type"), status.transceiver], [t("transceiver.vendor"), status.vendor], [t("transceiver.partNumber"), status.part_number], [t("transceiver.serialNumber"), status.serial_number]].map(([label, value]) => (
                   <Card key={label}><CardContent className="p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 font-medium break-words">{value || "-"}</p></CardContent></Card>
                 ))}
               </div>
             ) : null}
-            {Object.keys(status.measurements).length > 0 ? <div><h3 className="mb-2 text-sm font-semibold">Live measurements</h3><div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{Object.entries(status.measurements).map(([key, measurement]) => <Card key={key}><CardContent className="p-3"><p className="text-xs text-muted-foreground">{measurementLabels[key] || key}</p><p className="mt-1 font-mono font-medium">{measurement.value || "-"}</p></CardContent></Card>)}</div></div> : null}
-            {status.alarms.length || status.warnings.length ? <div className="space-y-1 text-sm">{status.alarms.map((item) => <p key={`a-${item}`} className="text-destructive">Alarm: {item}</p>)}{status.warnings.map((item) => <p key={`w-${item}`} className="text-yellow-700 dark:text-yellow-400">Warning: {item}</p>)}</div> : null}
+            {Object.keys(status.measurements).length > 0 ? <div><h3 className="mb-2 text-sm font-semibold">{t("transceiver.liveMeasurements")}</h3><div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{Object.entries(status.measurements).map(([key, measurement]) => <Card key={key}><CardContent className="p-3"><p className="text-xs text-muted-foreground">{isMeasurementKey(key) ? t(`transceiver.measurements.${key}`) : key}</p><p className="mt-1 font-mono font-medium">{measurement.value || "-"}</p></CardContent></Card>)}</div></div> : null}
+            {status.alarms.length || status.warnings.length ? <div className="space-y-1 text-sm">{status.alarms.map((item) => <p key={`a-${item}`} className="text-destructive">{t("transceiver.alarmItem", { item })}</p>)}{status.warnings.map((item) => <p key={`w-${item}`} className="text-yellow-700 dark:text-yellow-400">{t("transceiver.warningItem", { item })}</p>)}</div> : null}
           </div>
         ) : null}
       </DialogContent>

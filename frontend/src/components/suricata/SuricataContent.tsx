@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { RefreshCw, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,8 @@ import { SuricataEditor } from "./SuricataEditor";
 import { SuricataSetup } from "./SuricataSetup";
 
 export function SuricataContent() {
+  const t = useTranslations("suricata");
+  const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWrite = canWrite(FeatureGroup.SURICATA);
   const searchParams = useSearchParams();
@@ -120,7 +123,7 @@ export function SuricataContent() {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4">
         <p className="text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => void load(true)}>Retry</Button>
+        <Button variant="outline" onClick={() => void load(true)}>{tc("retry")}</Button>
       </div>
     );
   }
@@ -139,11 +142,11 @@ export function SuricataContent() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold">Suricata</h1>
-                {!hasWrite ? <Badge variant="secondary">Read only</Badge> : null}
+                <h1 className="text-2xl font-bold">{t("title")}</h1>
+                {!hasWrite ? <Badge variant="secondary">{tc("readOnly")}</Badge> : null}
               </div>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                Inspect traffic and record matches. Tell Suricata which addresses are yours, then download rules.
+                {t("subtitle")}
               </p>
             </div>
           </div>
@@ -154,12 +157,12 @@ export function SuricataContent() {
                 disabled={saving || saveBlocked.length > 0}
                 onClick={() => draft && original && save(draft, original)}
               >
-                {saving ? "Saving..." : "Save"}
+                {saving ? tc("saving") : tc("save")}
               </Button>
             ) : null}
             {supported && original?.configured && hasWrite && dirty ? (
               <Button size="sm" variant="outline" disabled={saving} onClick={() => original && setDraft(editorDraft(cloneConfig(original)))}>
-                Discard
+                {t("discard")}
               </Button>
             ) : null}
             <Button
@@ -172,7 +175,7 @@ export function SuricataContent() {
               disabled={saving}
             >
               <RefreshCw className="mr-2 h-4 w-4" />
-              Refresh
+              {tc("refresh")}
             </Button>
           </div>
         </div>
@@ -185,9 +188,9 @@ export function SuricataContent() {
       <div className="flex-1 space-y-6 overflow-auto p-6">
         {!supported ? (
           <div className="mx-auto max-w-2xl rounded-md border p-6">
-            <h2 className="text-lg font-semibold">This device does not include Suricata</h2>
+            <h2 className="text-lg font-semibold">{t("unsupportedTitle")}</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Intrusion detection is not available on the connected router. Switch to a device that includes it to configure watched interfaces, your network, and logging.
+              {t("unsupportedBody")}
             </p>
           </div>
         ) : !original?.configured ? (
@@ -209,10 +212,10 @@ export function SuricataContent() {
             {hasWrite ? (
               <div className="border-t pt-6">
                 <Button type="button" variant="outline" disabled={saving} onClick={() => setConfirmRemove(true)}>
-                  Remove Suricata
+                  {t("removeSuricata")}
                 </Button>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Stops inspection and deletes the interfaces, groups, and logging configured here. Downloaded rules are left on the router.
+                  {t("removeSuricataHelp")}
                 </p>
               </div>
             ) : null}
@@ -223,29 +226,29 @@ export function SuricataContent() {
       <AlertDialog open={confirmRemove} onOpenChange={setConfirmRemove}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Suricata?</AlertDialogTitle>
+            <AlertDialogTitle>{t("removeSuricataTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              The router will stop inspecting traffic. This does not delete rules that were already downloaded.
+              {t("removeSuricataDescription")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void remove()}>Remove</AlertDialogAction>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void remove()}>{t("remove")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
       <AlertDialog open={confirmRefresh} onOpenChange={setConfirmRefresh}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+            <AlertDialogTitle>{t("discardUnsavedTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Refresh reloads Suricata from the router and drops the edits on this page.
+              {t("discardUnsavedDescription")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep editing</AlertDialogCancel>
+            <AlertDialogCancel>{t("keepEditing")}</AlertDialogCancel>
             <AlertDialogAction onClick={() => { setConfirmRefresh(false); void load(true); }}>
-              Refresh
+              {tc("refresh")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

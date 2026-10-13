@@ -1,6 +1,11 @@
 import { createSearchResult, buildHref } from "./utils";
 import { humanizeToken } from "./labels";
 import type { SearchEntityKind, SearchResult } from "./types";
+import { englishSearchI18n, type SearchI18n } from "./i18n";
+
+// Labels below are built in English (they double as translation ids) and are
+// translated with i18n.label() where they are displayed. Values from the
+// router config (names, descriptions, addresses) are never translated.
 
 // Keys the generic walker skips entirely — arrays like "interfaces" and "rules" are
 // handled by curated indexers (firewall-indexer, network-indexer, etc.) which produce
@@ -252,9 +257,15 @@ function isScalarField(key: string, value: unknown): boolean {
   return false;
 }
 
-function buildFieldTypeLabel(value: unknown): string {
-  if (typeof value === "boolean") return "Toggle";
-  return "Setting";
+/** Page titles come from navigation or from fixed labels such as "System Settings" */
+function pageLabel(title: string, i18n: SearchI18n): string {
+  const label = i18n.label(title);
+  return label !== title ? label : i18n.nav(title);
+}
+
+function buildFieldTypeLabel(value: unknown, i18n: SearchI18n): string {
+  if (typeof value === "boolean") return i18n.t("uiFields.types.toggle");
+  return i18n.t("uiFields.types.input");
 }
 
 export interface ConfigWalkOptions {
@@ -279,21 +290,23 @@ function contextSegments(path: string[], sourceId: string): string[] {
     .map(humanize);
 }
 
-function extractTitle(obj: Record<string, unknown>): string | null {
+/** `raw` is locale-independent (used for ids); `title` is what is displayed */
+function extractTitle(obj: Record<string, unknown>, i18n: SearchI18n): { raw: string; title: string } | null {
+  const same = (value: string) => ({ raw: value, title: value });
   for (const key of NAME_KEYS) {
     const v = obj[key];
-    if (typeof v === "string" && v.trim()) return v.trim();
-    if (typeof v === "number") return String(v);
+    if (typeof v === "string" && v.trim()) return same(v.trim());
+    if (typeof v === "number") return same(String(v));
   }
   if (typeof obj.rule_number === "number") {
     return obj.description && typeof obj.description === "string"
-      ? obj.description
-      : `Rule ${obj.rule_number}`;
+      ? same(obj.description)
+      : { raw: `Rule ${obj.rule_number}`, title: i18n.t("rule", { number: String(obj.rule_number) }) };
   }
-  if (typeof obj.destination === "string") return obj.destination;
-  if (typeof obj.subnet === "string") return obj.subnet;
+  if (typeof obj.destination === "string") return same(obj.destination);
+  if (typeof obj.subnet === "string") return same(obj.subnet);
   if (typeof obj.description === "string" && obj.description.trim()) {
-    return obj.description.trim();
+    return same(obj.description.trim());
   }
   return null;
 }
@@ -309,7 +322,7 @@ function formatScalarLabel(key: string): string {
   return humanize(key);
 }
 
-function buildEntityDescription(obj: Record<string, unknown>): string {
+function buildEntityDescription(obj: Record<string, unknown>, i18n: SearchI18n): string {
   const parts: string[] = [];
   const usedDescription =
     typeof obj.description === "string" && obj.description.trim()
@@ -325,15 +338,15 @@ function buildEntityDescription(obj: Record<string, unknown>): string {
     const v = obj[key];
     if (v == null || v === "") continue;
     if (typeof v === "string" || typeof v === "number") {
-      const label = formatScalarLabel(key);
-      const text = `${label}: ${v}`;
+      const label = i18n.label(formatScalarLabel(key));
+      const text = i18n.t("walker.scalar", { label, value: String(v) });
       if (!parts.includes(text) && text !== usedDescription) parts.push(text);
     }
   }
 
   for (const [key, v] of Object.entries(obj)) {
     if (!BOOLEAN_TRUE_LABELS[key] || v !== true) continue;
-    const label = BOOLEAN_TRUE_LABELS[key];
+    const label = i18n.label(BOOLEAN_TRUE_LABELS[key]);
     if (!parts.includes(label)) parts.push(label);
   }
 
@@ -366,14 +379,14 @@ function inferKind(path: string[]): SearchEntityKind {
   return "config-entity";
 }
 
-function inferTypeLabel(path: string[], sourceId: string): string {
+function inferTypeLabel(path: string[], sourceId: string, i18n: SearchI18n): string {
   const segments = contextSegments(path, sourceId);
   const last = segments[segments.length - 1];
-  if (!last) return "Configuration";
+  if (!last) return i18n.t("kinds.configuration");
   if (last.endsWith("s")) {
-    return last.slice(0, -1);
+    return i18n.label(last.slice(0, -1));
   }
-  return last;
+  return i18n.label(last);
 }
 
 function shouldEmitEntity(path: string[], obj: Record<string, unknown>, title: string): boolean {
@@ -397,13 +410,14 @@ function walkValue(
   path: string[],
   options: ConfigWalkOptions,
   results: SearchResult[],
-  depth: number
+  depth: number,
+  i18n: SearchI18n
 ): void {
   if (depth > 14 || value == null) return;
 
   if (Array.isArray(value)) {
     value.forEach((item, i) => {
-      walkValue(item, [...path, String(i)], options, results, depth + 1);
+      walkValue(item, [...path, String(i)], options, results, depth + 1, i18n);
     });
     return;
   }
@@ -412,19 +426,20 @@ function walkValue(
 
   const obj = value as Record<string, unknown>;
   const lastKey = path[path.length - 1] ?? "";
+  const feature = i18n.nav(options.feature);
 
   if (shouldEmitSettingsSection(path, lastKey) && !Array.isArray(obj)) {
-    const label = SETTINGS_SEGMENT_LABELS[lastKey] ?? humanize(lastKey);
-    const ctx = contextSegments(path, options.sourceId);
+    const label = i18n.label(SETTINGS_SEGMENT_LABELS[lastKey] ?? humanize(lastKey));
+    const ctx = contextSegments(path, options.sourceId).map(i18n.label);
     const contextPath = ctx.join(" · ");
-    const subcategory = [options.feature, contextPath, label].filter(Boolean).join(" · ");
+    const subcategory = [feature, contextPath, label].filter(Boolean).join(" · ");
 
     results.push(
       createSearchResult({
         id: `cfg-${options.sourceId}-settings-${slugPath(path)}`,
         title: label,
         subtitle: subcategory,
-        description: buildEntityDescription(obj) || label,
+        description: buildEntityDescription(obj, i18n) || label,
         kind: "section",
         typeLabel: label,
         feature: options.feature,
@@ -436,14 +451,15 @@ function walkValue(
     );
   }
 
-  const title = extractTitle(obj);
-  if (title && shouldEmitEntity(path, obj, title)) {
-    const ctx = contextSegments(path, options.sourceId);
-    const parentLabel = ctx.length ? ctx.join(" · ") : options.feature;
-    const subcategory = `${options.feature} · ${parentLabel}`;
-    const typeLabel = inferTypeLabel(path, options.sourceId);
-    const description = buildEntityDescription(obj) || parentLabel;
-    const id = `cfg-${options.sourceId}-${slugPath(path)}-${title}`.replace(/[^a-zA-Z0-9_-]/g, "_");
+  const extracted = extractTitle(obj, i18n);
+  if (extracted && shouldEmitEntity(path, obj, extracted.raw)) {
+    const { title } = extracted;
+    const ctx = contextSegments(path, options.sourceId).map(i18n.label);
+    const parentLabel = ctx.length ? ctx.join(" · ") : feature;
+    const subcategory = `${feature} · ${parentLabel}`;
+    const typeLabel = inferTypeLabel(path, options.sourceId, i18n);
+    const description = buildEntityDescription(obj, i18n) || parentLabel;
+    const id = `cfg-${options.sourceId}-${slugPath(path)}-${extracted.raw}`.replace(/[^a-zA-Z0-9_-]/g, "_");
 
     results.push(
       createSearchResult({
@@ -467,32 +483,32 @@ function walkValue(
 
     if (isScalarField(key, child)) {
       const fieldPath = [...path, key];
-      const fieldTitle = formulaicFieldTitle(path, key);
-      const sectionLabel = findSectionLabel(path, key);
-      const pageTitle = pageTitleFromHrefBase(options.hrefBase);
+      const fieldTitle = i18n.label(formulaicFieldTitle(path, key));
+      const sectionLabel = i18n.label(findSectionLabel(path, key));
+      const pageTitle = pageLabel(pageTitleFromHrefBase(options.hrefBase), i18n);
       const hrefParams = { ...options.hrefParams?.(fieldPath), field: fieldIdFromPath(path, key) };
       const fieldId = `cfg-${options.sourceId}-field-${slugPath(fieldPath)}`;
-      const subcategory = `${options.feature} · ${sectionLabel}`;
+      const subcategory = `${feature} · ${sectionLabel}`;
 
       results.push(
         createSearchResult({
           id: `${fieldId}`,
           title: fieldTitle,
           subtitle: subcategory,
-          description: `${fieldTitle} setting from ${sectionLabel} in ${pageTitle}`,
+          description: i18n.t("walker.fieldDescription", { field: fieldTitle, section: sectionLabel, page: pageTitle }),
           kind: "ui-field",
-          typeLabel: buildFieldTypeLabel(child),
+          typeLabel: buildFieldTypeLabel(child, i18n),
           feature: options.feature,
           category: options.feature,
           subcategory,
           href: buildHref(options.hrefBase, hrefParams),
-          keywords: [fieldTitle, sectionLabel, pageTitle, options.feature, options.sourceId, key, ...contextSegments(path, options.sourceId)],
+          keywords: [fieldTitle, sectionLabel, pageTitle, feature, options.sourceId, key, ...contextSegments(path, options.sourceId).map(i18n.label)],
           data: { path: fieldPath, value: child },
         })
       );
     }
 
-    walkValue(child, [...path, key], options, results, depth + 1);
+    walkValue(child, [...path, key], options, results, depth + 1, i18n);
   }
 }
 
@@ -508,9 +524,13 @@ export function unwrapConfigPayload(data: unknown): unknown {
   return o;
 }
 
-export function walkConfig(data: unknown, options: ConfigWalkOptions): SearchResult[] {
+export function walkConfig(
+  data: unknown,
+  options: ConfigWalkOptions,
+  i18n: SearchI18n = englishSearchI18n
+): SearchResult[] {
   const results: SearchResult[] = [];
   const payload = unwrapConfigPayload(data);
-  walkValue(payload, [], options, results, 0);
+  walkValue(payload, [], options, results, 0, i18n);
   return results;
 }

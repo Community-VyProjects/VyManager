@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, AlertTriangle } from "lucide-react";
@@ -21,6 +22,8 @@ export function DeleteRouteMapRuleModal({
   routeMapName,
   rule,
 }: DeleteRouteMapRuleModalProps) {
+  const t = useTranslations("routeMap");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,7 +38,7 @@ export function DeleteRouteMapRuleModal({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete rule");
+      setError(err instanceof Error ? err.message : t("deleteRule.deleteFailed"));
     } finally {
       setLoading(false);
     }
@@ -47,9 +50,9 @@ export function DeleteRouteMapRuleModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete Rule</DialogTitle>
+          <DialogTitle>{t("deleteRule.title")}</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete this rule? This action cannot be undone.
+            {t("deleteRule.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -57,7 +60,7 @@ export function DeleteRouteMapRuleModal({
           <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="text-sm font-medium text-destructive">
-              Deleting rule {rule.rule_number} from route-map: {routeMapName}
+              {t("deleteRule.deleting", { number: String(rule.rule_number), name: routeMapName })}
             </p>
             {rule.description && (
               <p className="text-sm text-muted-foreground mt-1">
@@ -76,10 +79,10 @@ export function DeleteRouteMapRuleModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
-            {loading ? "Deleting..." : "Delete Rule"}
+            {loading ? tc("deleting") : t("deleteRule.submit")}
           </Button>
         </DialogFooter>
       </DialogContent>

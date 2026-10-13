@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +30,8 @@ export function DeleteNdpProxyInterfaceModal({
   prefixCount,
   onSuccess,
 }: DeleteNdpProxyInterfaceModalProps) {
+  const t = useTranslations("ndpProxy");
+  const tc = useTranslations("common");
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,7 +43,7 @@ export function DeleteNdpProxyInterfaceModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
       setDeleting(false);
     }
   };
@@ -49,15 +52,19 @@ export function DeleteNdpProxyInterfaceModal({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Remove NDP Proxy Interface</AlertDialogTitle>
+          <AlertDialogTitle>{t("delete.title")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Remove NDP proxy configuration for{" "}
-            <span className="font-mono font-semibold">{interfaceName}</span>?
+            {t.rich("delete.description", {
+              name: interfaceName,
+              mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+            })}
             {prefixCount > 0 && (
               <>
-                {" "}This will also remove{" "}
-                <span className="font-semibold">{prefixCount}</span>{" "}
-                {prefixCount === 1 ? "prefix" : "prefixes"}.
+                {" "}
+                {t.rich("delete.alsoRemove", {
+                  count: prefixCount,
+                  b: (chunks) => <span className="font-semibold">{chunks}</span>,
+                })}
               </>
             )}
           </AlertDialogDescription>
@@ -71,7 +78,7 @@ export function DeleteNdpProxyInterfaceModal({
         )}
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={deleting}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => {
               e.preventDefault();
@@ -81,7 +88,7 @@ export function DeleteNdpProxyInterfaceModal({
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             {deleting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Remove
+            {t("delete.remove")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

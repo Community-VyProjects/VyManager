@@ -7,6 +7,7 @@ import { AlertCircle, Network, ArrowRight, Shield } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { staticRoutesService } from "@/lib/api/static-routes";
 import type { StaticRoute } from "@/lib/api/static-routes";
+import { useTranslations } from "next-intl";
 
 interface DeleteStaticRouteModalProps {
   open: boolean;
@@ -16,6 +17,8 @@ interface DeleteStaticRouteModalProps {
 }
 
 export function DeleteStaticRouteModal({ open, onOpenChange, onSuccess, route }: DeleteStaticRouteModalProps) {
+  const t = useTranslations("staticRoutes");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,7 +38,7 @@ export function DeleteStaticRouteModal({ open, onOpenChange, onSuccess, route }:
       handleClose();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete route");
+      setError(err instanceof Error ? err.message : t("deleteModal.failed"));
     } finally {
       setLoading(false);
     }
@@ -50,9 +53,9 @@ export function DeleteStaticRouteModal({ open, onOpenChange, onSuccess, route }:
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Delete Static Route</DialogTitle>
+          <DialogTitle>{t("deleteModal.title")}</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete this route? This action cannot be undone.
+            {t("deleteModal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -83,10 +86,10 @@ export function DeleteStaticRouteModal({ open, onOpenChange, onSuccess, route }:
               {route.blackhole && (
                 <div className="flex items-center gap-2">
                   <Shield className="h-4 w-4 text-red-500" />
-                  <span className="text-sm font-medium text-red-500">Blackhole Route</span>
+                  <span className="text-sm font-medium text-red-500">{t("deleteModal.blackholeRoute")}</span>
                   {route.blackhole_distance && (
                     <Badge variant="outline" className="text-xs">
-                      Distance: {route.blackhole_distance}
+                      {t("deleteModal.distance", { distance: String(route.blackhole_distance) })}
                     </Badge>
                   )}
                 </div>
@@ -94,14 +97,14 @@ export function DeleteStaticRouteModal({ open, onOpenChange, onSuccess, route }:
 
               {hasNextHops && !route.blackhole && (
                 <div className="space-y-1">
-                  <span className="text-xs font-medium text-muted-foreground">Next-Hops:</span>
+                  <span className="text-xs font-medium text-muted-foreground">{t("deleteModal.nextHops")}</span>
                   <div className="flex flex-wrap gap-1">
                     {route.next_hops.map((nh, idx) => (
                       <Badge key={idx} variant="secondary" className="text-xs font-mono">
                         <ArrowRight className="h-3 w-3 mr-1" />
                         {nh.address}
-                        {nh.distance && ` (dist: ${nh.distance})`}
-                        {nh.disable && " (disabled)"}
+                        {nh.distance && t("deleteModal.distSuffix", { distance: String(nh.distance) })}
+                        {nh.disable && t("routes.disabledSuffix")}
                       </Badge>
                     ))}
                   </div>
@@ -110,13 +113,13 @@ export function DeleteStaticRouteModal({ open, onOpenChange, onSuccess, route }:
 
               {hasInterfaces && !route.blackhole && (
                 <div className="space-y-1">
-                  <span className="text-xs font-medium text-muted-foreground">Interfaces:</span>
+                  <span className="text-xs font-medium text-muted-foreground">{t("deleteModal.interfaces")}</span>
                   <div className="flex flex-wrap gap-1">
                     {route.interfaces.map((iface, idx) => (
                       <Badge key={idx} variant="outline" className="text-xs">
                         {iface.interface}
-                        {iface.distance && ` (dist: ${iface.distance})`}
-                        {iface.disable && " (disabled)"}
+                        {iface.distance && t("deleteModal.distSuffix", { distance: String(iface.distance) })}
+                        {iface.disable && t("routes.disabledSuffix")}
                       </Badge>
                     ))}
                   </div>
@@ -125,7 +128,7 @@ export function DeleteStaticRouteModal({ open, onOpenChange, onSuccess, route }:
 
               {route.dhcp_interfaces && route.dhcp_interfaces.length > 0 && (
                 <div className="space-y-1">
-                  <span className="text-xs font-medium text-muted-foreground">DHCP Interface(s):</span>
+                  <span className="text-xs font-medium text-muted-foreground">{t("deleteModal.dhcpInterfaces")}</span>
                   <div className="flex flex-wrap gap-1">
                     {route.dhcp_interfaces.map((iface, idx) => (
                       <Badge key={idx} variant="outline" className="text-xs">
@@ -143,11 +146,10 @@ export function DeleteStaticRouteModal({ open, onOpenChange, onSuccess, route }:
             <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
             <div className="space-y-1">
               <p className="text-sm font-medium text-destructive">
-                This will permanently delete the route
+                {t("deleteModal.warningTitle")}
               </p>
               <p className="text-sm text-muted-foreground">
-                Traffic destined for {route.destination} will no longer use this route.
-                Make sure you have alternative routing configured if needed.
+                {t("deleteModal.warningBody", { destination: route.destination })}
               </p>
             </div>
           </div>
@@ -162,10 +164,10 @@ export function DeleteStaticRouteModal({ open, onOpenChange, onSuccess, route }:
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
-            {loading ? "Deleting..." : "Delete Route"}
+            {loading ? tc("deleting") : t("deleteModal.deleteRoute")}
           </Button>
         </DialogFooter>
       </DialogContent>

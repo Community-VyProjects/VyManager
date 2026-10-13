@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,8 @@ import { Plus, Pencil, Trash2, Layers, Loader2 } from "lucide-react";
 import { vrfService, VrfCapabilities } from "@/lib/api/vrf";
 import { EntityGroupSpec } from "./types";
 import { SchemaEditor } from "./SchemaEditor";
+import { groupScope } from "./messageKeys";
+import { useSchemaText } from "./useSchemaText";
 
 type Raw = Record<string, unknown> | null | undefined;
 
@@ -56,6 +59,10 @@ export function EntityListEditor({
   canWrite,
   onRefresh,
 }: EntityListEditorProps) {
+  const t = useTranslations("vrfProtocols");
+  const tc = useTranslations("common");
+  const st = useSchemaText();
+  const groupLabel = st.group(group, "label", group.label);
   const entities = entityMap(rawParent, group.rawKey);
   const ids = Object.keys(entities).sort();
 
@@ -76,10 +83,10 @@ export function EntityListEditor({
       const result = await vrfService.batchConfigure([
         { op: `delete_${group.createOp}`, value: [...prefix, id].join(",") },
       ]);
-      if (!result.success) setError(result.error || "Delete failed");
+      if (!result.success) setError(result.error || t("entityList.deleteFailed"));
       else onRefresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Delete failed");
+      setError(e instanceof Error ? e.message : t("entityList.deleteFailed"));
     } finally {
       setBusy(false);
     }
@@ -94,13 +101,13 @@ export function EntityListEditor({
         { op: `set_${group.createOp}`, value: [...prefix, id].join(",") },
       ]);
       if (!result.success) {
-        setError(result.error || "Create failed");
+        setError(result.error || t("entityList.createFailed"));
       } else {
         onRefresh();
         if (group.schema.length > 0) setEditId(id);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Create failed");
+      setError(e instanceof Error ? e.message : t("entityList.createFailed"));
     } finally {
       setBusy(false);
     }
@@ -119,17 +126,17 @@ export function EntityListEditor({
     <Card>
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
         <CardTitle className="text-base">
-          {pluralLabel} {ids.length > 0 && <Badge variant="secondary" className="ml-1">{ids.length}</Badge>}
+          {st.group(group, "plural", pluralLabel)} {ids.length > 0 && <Badge variant="secondary" className="ml-1">{ids.length}</Badge>}
         </CardTitle>
         {canWrite && group.fixedIds && unusedFixed.length > 0 && (
           <div className="flex items-center gap-2">
             <Select onValueChange={handleAddFixed} disabled={busy}>
               <SelectTrigger className="h-8 w-[200px]">
-                <SelectValue placeholder={`Add ${group.label}…`} />
+                <SelectValue placeholder={st.group(group, "add", `Add ${group.label}…`)} />
               </SelectTrigger>
               <SelectContent>
                 {unusedFixed.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  <SelectItem key={o.value} value={o.value}>{st.option(o)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -139,7 +146,11 @@ export function EntityListEditor({
           <div className="flex items-center gap-2">
             <Input
               className="h-8 w-[180px]"
-              placeholder={group.idPlaceholder || `New ${group.label.toLowerCase()}`}
+              placeholder={
+                group.idPlaceholder
+                  ? st.group(group, "idPlaceholder", group.idPlaceholder)
+                  : st.group(group, "newItem", `New ${group.label.toLowerCase()}`)
+              }
               value={newId}
               disabled={busy}
               onChange={(e) => setNewId(e.target.value)}
@@ -147,7 +158,7 @@ export function EntityListEditor({
             />
             <Button size="sm" variant="outline" onClick={addFreeForm} disabled={busy || !newId.trim()}>
               <Plus className="h-3.5 w-3.5 mr-1" />
-              Add
+              {tc("add")}
             </Button>
           </div>
         )}
@@ -159,7 +170,7 @@ export function EntityListEditor({
           </pre>
         )}
         {ids.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-2">No {pluralLabel.toLowerCase()} configured.</p>
+          <p className="text-sm text-muted-foreground py-2">{st.group(group, "empty", `No ${pluralLabel.toLowerCase()} configured.`)}</p>
         ) : (
           <div className="space-y-1.5">
             {ids.map((id) => (
@@ -169,13 +180,13 @@ export function EntityListEditor({
                   {group.schema.length > 0 && (
                   <Button size="sm" variant="ghost" onClick={() => setEditId(id)} disabled={busy}>
                     <Pencil className="h-3.5 w-3.5 mr-1" />
-                    Edit
+                    {tc("edit")}
                   </Button>
                   )}
                   {(group.children || []).map((cg, idx) => (
                     <Button key={cg.label + idx} size="sm" variant="ghost" onClick={() => setChildCtx({ id, index: idx })} disabled={busy}>
                       <Layers className="h-3.5 w-3.5 mr-1" />
-                      {cg.pluralLabel ?? `${cg.label}s`}
+                      {st.group(cg, "plural", cg.pluralLabel ?? `${cg.label}s`)}
                     </Button>
                   ))}
                   {canWrite && (
@@ -195,9 +206,10 @@ export function EntityListEditor({
         <SchemaEditor
           open
           onOpenChange={(o) => !o && setEditId(null)}
-          title={`${group.label} ${editId} — ${vrfName}`}
+          title={t("entityList.editTitle", { label: groupLabel, id: editId, vrf: vrfName })}
           vrfName={vrfName}
           sections={group.schema}
+          scope={groupScope(group)}
           rawConfig={entities[editId]}
           contextArgs={[...baseCtx, editId]}
           capabilities={capabilities}
@@ -212,7 +224,15 @@ export function EntityListEditor({
           <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
-                {group.children[childCtx.index].pluralLabel ?? `${group.children[childCtx.index].label}s`} — {group.label} {childCtx.id}
+                {t("entityList.childTitle", {
+                  plural: st.group(
+                    group.children[childCtx.index],
+                    "plural",
+                    group.children[childCtx.index].pluralLabel ?? `${group.children[childCtx.index].label}s`
+                  ),
+                  label: groupLabel,
+                  id: childCtx.id,
+                })}
               </DialogTitle>
             </DialogHeader>
             <EntityListEditor

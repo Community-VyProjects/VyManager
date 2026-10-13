@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Users, Server, Shield } from "lucide-react";
 import { UsersTab } from "./UsersTab";
 import { InstancesTab } from "./InstancesTab";
@@ -12,6 +13,7 @@ import { hideSiteInventory } from "@/lib/appliance";
 type UserManagementTab = "users" | "two-factor" | "instances";
 
 export function UserManagement() {
+  const t = useTranslations("userManagement");
   const { appliance } = useSessionStore();
   const showInstances = !hideSiteInventory(appliance);
   const [selectedTab, setSelectedTab] = useState<UserManagementTab>("users");
@@ -20,9 +22,9 @@ export function UserManagement() {
     <div className="space-y-4">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-foreground">User Management</h2>
+        <h2 className="text-2xl font-bold text-foreground">{t("title")}</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Manage users, two-factor, and instance access permissions
+          {t("subtitle")}
         </p>
       </div>
 
@@ -41,7 +43,7 @@ export function UserManagement() {
             `}
           >
             <Users className="h-4 w-4" />
-            <span>Users</span>
+            <span>{t("tabs.users")}</span>
           </button>
 
           <button
@@ -56,7 +58,7 @@ export function UserManagement() {
             `}
           >
             <Shield className="h-4 w-4" />
-            <span>Two-factor</span>
+            <span>{t("tabs.twoFactor")}</span>
           </button>
 
           {showInstances && (
@@ -72,7 +74,7 @@ export function UserManagement() {
             `}
           >
             <Server className="h-4 w-4" />
-            <span>Instances</span>
+            <span>{t("tabs.instances")}</span>
           </button>
           )}
         </div>

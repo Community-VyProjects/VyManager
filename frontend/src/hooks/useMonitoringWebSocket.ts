@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { monitoringService, MonitoringMessage } from "@/lib/api/monitoring";
+
+/** Server text shown as-is, or a built-in `miscLib.monitoring.*` message translated on render. */
+type HookMessage =
+  | { text: string }
+  | { key: "unknownError" | "sessionEnded" | "connectionError" };
 
 export type MonitoringStatus = "disconnected" | "connecting" | "ready" | "running" | "stopping";
 
@@ -18,10 +24,11 @@ interface UseMonitoringWebSocketReturn {
 const MAX_LINES = 5000;
 
 export function useMonitoringWebSocket(): UseMonitoringWebSocketReturn {
+  const t = useTranslations("miscLib");
   const [status, setStatus] = useState<MonitoringStatus>("disconnected");
   const [output, setOutput] = useState<string[]>([]);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<HookMessage | null>(null);
+  const [error, setError] = useState<HookMessage | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   // Buffer for partial lines that arrive mid-chunk
   const lineBufferRef = useRef<string>("");
@@ -85,18 +92,18 @@ export function useMonitoringWebSocket(): UseMonitoringWebSocketReturn {
               break;
 
             case "status":
-              setStatusMessage(msg.data || null);
+              setStatusMessage(msg.data ? { text: msg.data } : null);
               break;
 
             case "error":
-              setError(msg.data || "Unknown error");
+              setError(msg.data ? { text: msg.data } : { key: "unknownError" });
               setStatus("disconnected");
               cleanup();
               break;
 
             case "stopped":
               setStatus("disconnected");
-              setStatusMessage("Session ended");
+              setStatusMessage({ key: "sessionEnded" });
               cleanup();
               break;
           }
@@ -113,7 +120,7 @@ export function useMonitoringWebSocket(): UseMonitoringWebSocketReturn {
       };
 
       ws.onerror = () => {
-        setError("WebSocket connection error");
+        setError({ key: "connectionError" });
         setStatus("disconnected");
         cleanup();
       };
@@ -140,5 +147,16 @@ export function useMonitoringWebSocket(): UseMonitoringWebSocketReturn {
     setStatusMessage(null);
   }, []);
 
-  return { status, output, statusMessage, error, start, stop, clear };
+  const render = (m: HookMessage | null): string | null =>
+    m === null ? null : "text" in m ? m.text : t(`monitoring.${m.key}`);
+
+  return {
+    status,
+    output,
+    statusMessage: render(statusMessage),
+    error: render(error),
+    start,
+    stop,
+    clear,
+  };
 }

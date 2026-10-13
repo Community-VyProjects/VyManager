@@ -1,0 +1,23 @@
+{
+  "trigger": "Search everything…",
+  "placeholder": "Search pages, rules, interfaces, NAT, BGP, HAProxy…",
+  "filter": "Filter",
+  "all": "All",
+  "allTypes": "All types",
+  "columnsLabel": "Columns:",
+  "columns": {
+    "title": "Title",
+    "context": "Context",
+    "kind": "Kind",
+    "description": "Description"
+  },
+  "buildingIndex": "Building search index…",
+  "noResults": "No results found",
+  "startTyping": "Start typing to find what you are looking for",
+  "starred": "Starred",
+  "addFavorite": "Add favorite",
+  "removeFavorite": "Remove favorite",
+  "toOpen": "K to open",
+  "resultCount": "{count, plural, one {# result} other {# results}} · ",
+  "shortcuts": "↑↓ navigate · Enter open · ★ save"
+}

@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle } from "lucide-react";
 import { routeService, PolicyRoute } from "@/lib/api/route";
 import { ApiError } from "@/lib/types/api";
+import { useTranslations } from "next-intl";
 
 interface EditRoutePolicyModalProps {
   open: boolean;
@@ -23,6 +24,8 @@ export function EditRoutePolicyModal({
   onSuccess,
   policy,
 }: EditRoutePolicyModalProps) {
+  const t = useTranslations("routePolicy.editPolicy");
+  const tc = useTranslations("common");
   const [description, setDescription] = useState("");
   const [defaultLog, setDefaultLog] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -49,7 +52,7 @@ export function EditRoutePolicyModal({
       handleClose();
       onSuccess();
     } catch (err) {
-      setError((err as ApiError).message || "Failed to update policy");
+      setError((err as ApiError).message || t("updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -64,9 +67,9 @@ export function EditRoutePolicyModal({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit Policy: {policy.name}</DialogTitle>
+          <DialogTitle>{t("title", { name: policy.name })}</DialogTitle>
           <DialogDescription>
-            Update policy configuration
+            {t("description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -79,10 +82,10 @@ export function EditRoutePolicyModal({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{tc("description")}</Label>
             <Input
               id="description"
-              placeholder="Policy description"
+              placeholder={t("descriptionPlaceholder")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={loading}
@@ -97,17 +100,17 @@ export function EditRoutePolicyModal({
               disabled={loading}
             />
             <Label htmlFor="defaultLog" className="text-sm font-normal cursor-pointer">
-              Enable default logging for unmatched packets
+              {t("defaultLog")}
             </Label>
           </div>
         </div>
 
         <div className="flex justify-end gap-2 mt-4">
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Updating..." : "Update Policy"}
+            {loading ? t("updating") : t("submit")}
           </Button>
         </div>
       </DialogContent>

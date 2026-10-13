@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -33,6 +34,11 @@ export function DeleteConfirmModal({
   onDelete,
   warning,
 }: DeleteConfirmModalProps) {
+  const t = useTranslations("l2tp");
+  // English sentences use the type in lower case; other languages keep it as given
+  // (lower-casing would break acronyms such as "IKE 组").
+  const typeInSentence = useLocale().startsWith("en") ? itemType.toLowerCase() : itemType;
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,10 +51,10 @@ export function DeleteConfirmModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || `Failed to delete ${itemType.toLowerCase()}`);
+        setError(result.error || t("deleteModal.failed", { type: typeInSentence }));
       }
     } catch (err) {
-      setError((err as ApiError).message || `Failed to delete ${itemType.toLowerCase()}`);
+      setError((err as ApiError).message || t("deleteModal.failed", { type: typeInSentence }));
     } finally {
       setLoading(false);
     }
@@ -60,12 +66,11 @@ export function DeleteConfirmModal({
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            Delete {itemType}: {itemName}
+            {t("deleteModal.title", { type: itemType, name: itemName })}
           </AlertDialogTitle>
           <AlertDialogDescription className="space-y-2">
             <p>
-              Are you sure you want to delete this {itemType.toLowerCase()}? This
-              action cannot be undone.
+              {t("deleteModal.confirm", { type: typeInSentence })}
             </p>
             {warning && (
               <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 mt-2">
@@ -83,16 +88,16 @@ export function DeleteConfirmModal({
 
         <AlertDialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              `Delete ${itemType}`
+              t("deleteModal.deleteButton", { type: itemType })
             )}
           </Button>
         </AlertDialogFooter>

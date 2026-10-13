@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -30,8 +31,10 @@ export function SshOutputModal({
   success,
   output,
   error,
-  busyLabel = "Running command, please wait…",
+  busyLabel,
 }: Props) {
+  const t = useTranslations("containers");
+  const tc = useTranslations("common");
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
@@ -43,28 +46,28 @@ export function SshOutputModal({
           {loading && (
             <div className="flex items-center gap-3 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin shrink-0" />
-              <span className="text-sm">{busyLabel}</span>
+              <span className="text-sm">{busyLabel ?? t("sshOutput.running")}</span>
             </div>
           )}
 
           {!loading && success === true && (
             <div className="flex items-start gap-2 rounded-lg bg-green-500/10 border border-green-500/20 p-3">
               <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
-              <p className="text-sm text-green-700 dark:text-green-400 font-medium">Command completed successfully.</p>
+              <p className="text-sm text-green-700 dark:text-green-400 font-medium">{t("sshOutput.success")}</p>
             </div>
           )}
 
           {!loading && success === false && (
             <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3">
               <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-              <p className="text-sm text-destructive whitespace-pre-wrap">{error || "Command failed."}</p>
+              <p className="text-sm text-destructive whitespace-pre-wrap">{error || t("sshOutput.failed")}</p>
             </div>
           )}
 
           {(output || (!loading && error)) && (
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground font-medium">
-                {loading ? "Progress" : "Output"}
+                {loading ? t("sshOutput.progress") : t("sshOutput.output")}
               </p>
               <ScrollArea className="h-[50vh] rounded-md border bg-muted/50">
                 <pre className="p-3 text-xs font-mono whitespace-pre-wrap break-all">
@@ -77,7 +80,7 @@ export function SshOutputModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            {loading ? "Please wait…" : "Close"}
+            {loading ? t("sshOutput.pleaseWait") : tc("close")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -62,6 +63,8 @@ export function RangeModal({
   capabilities,
   existing,
 }: RangeModalProps) {
+  const t = useTranslations("dhcpServer");
+  const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
   const rangeLeaves = capabilities?.catalog?.range ?? NO_LEAVES;
   const [draft, setDraft] = useState<RangeDraft>(emptyRangeDraft());
@@ -106,7 +109,7 @@ export function RangeModal({
       ? validateRangeShared(draft)
       : validateRangeCreate(draft);
     if (validationError) {
-      setError(validationError);
+      setError(t(validationError));
       return;
     }
 
@@ -150,7 +153,7 @@ export function RangeModal({
     } catch (err) {
       setError(
         (err as ApiError).message ||
-          (isEdit ? "Failed to update range" : "Failed to create range"),
+          (isEdit ? t("range.updateFailed") : t("range.createFailed")),
       );
     } finally {
       setLoading(false);
@@ -163,12 +166,12 @@ export function RangeModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isEdit ? <Pencil className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
-            {isEdit ? "Edit DHCP Range" : "Add DHCP Range"}
+            {isEdit ? t("range.editTitle") : t("range.addTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Modify the IP address range for DHCP allocation"
-              : "Create a new IP address range for DHCP allocation"}
+              ? t("range.editDescription")
+              : t("range.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -176,20 +179,20 @@ export function RangeModal({
           <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg p-3">
             <Network className="h-4 w-4" />
             <span>
-              Network:{" "}
+              {t("networkLabel")}{" "}
               <span className="font-medium text-foreground">{network.name}</span>
             </span>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="subnet">Subnet</Label>
+            <Label htmlFor="subnet">{t("subnet")}</Label>
             <Select
               value={lockedSubnet.value}
               onValueChange={(value) => patch({ subnet: value })}
               disabled={lockedSubnet.disabled}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select a subnet" />
+                <SelectValue placeholder={t("selectSubnet")} />
               </SelectTrigger>
               <SelectContent>
                 {network.subnets.map((subnet) => (
@@ -201,14 +204,14 @@ export function RangeModal({
             </Select>
             <p className="text-xs text-muted-foreground">
               {isEdit
-                ? "The subnet cannot be changed"
-                : "Select the subnet where this range will be created"}
+                ? t("subnetLocked")
+                : t("range.subnetHelp")}
             </p>
           </div>
 
           {isEdit && existing && (
             <div className="space-y-2">
-              <Label>Range ID</Label>
+              <Label>{t("range.rangeId")}</Label>
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="font-mono">
                   {existing.range.range_id}
@@ -218,30 +221,30 @@ export function RangeModal({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="start-ip">Start IP Address</Label>
+            <Label htmlFor="start-ip">{t("range.startIp")}</Label>
             <Input
               id="start-ip"
-              placeholder="e.g., 192.168.1.100"
+              placeholder={t("examplePlaceholder", { example: "192.168.1.100" })}
               value={draft.startIp}
               onChange={(e) => patch({ startIp: e.target.value })}
               className="font-mono"
             />
             <p className="text-xs text-muted-foreground">
-              The first IP address in the range
+              {t("range.startIpHelp")}
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="stop-ip">Stop IP Address</Label>
+            <Label htmlFor="stop-ip">{t("range.stopIp")}</Label>
             <Input
               id="stop-ip"
-              placeholder="e.g., 192.168.1.200"
+              placeholder={t("examplePlaceholder", { example: "192.168.1.200" })}
               value={draft.stopIp}
               onChange={(e) => patch({ stopIp: e.target.value })}
               className="font-mono"
             />
             <p className="text-xs text-muted-foreground">
-              The last IP address in the range
+              {t("range.stopIpHelp")}
             </p>
           </div>
 
@@ -264,16 +267,16 @@ export function RangeModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading
               ? isEdit
-                ? "Saving..."
-                : "Creating..."
+                ? tc("saving")
+                : tc("creating")
               : isEdit
-                ? "Save Changes"
-                : "Create Range"}
+                ? tc("saveChanges")
+                : t("range.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

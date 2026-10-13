@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,8 @@ export function NdpProxyGlobalModal({
   config,
   onSuccess,
 }: NdpProxyGlobalModalProps) {
+  const t = useTranslations("ndpProxy");
+  const tc = useTranslations("common");
   const [routeRefresh, setRouteRefresh] = useState(
     config.route_refresh !== null ? String(config.route_refresh) : ""
   );
@@ -39,8 +42,8 @@ export function NdpProxyGlobalModal({
     const trimmed = routeRefresh.trim();
     if (trimmed === "") return null;
     const val = parseInt(trimmed, 10);
-    if (isNaN(val) || String(val) !== trimmed) return "Must be a whole number";
-    if (val < 10000 || val > 120000) return "Value must be between 10000 and 120000 ms";
+    if (isNaN(val) || String(val) !== trimmed) return t("global.wholeNumber");
+    if (val < 10000 || val > 120000) return t("global.outOfRange");
     return null;
   };
 
@@ -57,7 +60,7 @@ export function NdpProxyGlobalModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -67,19 +70,19 @@ export function NdpProxyGlobalModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit Global Settings</DialogTitle>
+          <DialogTitle>{t("global.title")}</DialogTitle>
           <DialogDescription>
-            Configure global NDP proxy service settings
+            {t("global.description")}
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[60vh] pr-4">
           <div className="space-y-4 py-1">
             <div className="space-y-1.5">
-              <Label htmlFor="route-refresh">Route Refresh Interval (ms)</Label>
+              <Label htmlFor="route-refresh">{t("global.routeRefresh")}</Label>
               <Input
                 id="route-refresh"
-                placeholder="30000 (default)"
+                placeholder={t("global.routeRefreshPlaceholder")}
                 value={routeRefresh}
                 onChange={(e) => {
                   setRouteRefresh(e.target.value);
@@ -87,7 +90,7 @@ export function NdpProxyGlobalModal({
                 }}
               />
               <p className="text-xs text-muted-foreground">
-                How often to refresh IPv6 routes. Leave empty to use the default (30000 ms). Valid range: 10000–120000 ms.
+                {t("global.routeRefreshHint")}
               </p>
             </div>
           </div>
@@ -102,11 +105,11 @@ export function NdpProxyGlobalModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

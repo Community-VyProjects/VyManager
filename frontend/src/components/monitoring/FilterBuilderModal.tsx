@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -44,52 +45,55 @@ interface Condition {
 }
 
 interface AttributeDef {
-  label: string;
   type: "select" | "ip" | "port";
   operators: string[];
   placeholder?: string;
+  /** For IP attributes: [host example, network example], shown as "<host> or <network>". */
+  examples?: [string, string];
 }
+
+// Operator values are used by buildBPF; only their labels are translated.
+const OPERATOR_KEYS: Record<string, "is" | "isNot" | "inNetwork" | "equals" | "doesNotEqual"> = {
+  "is": "is",
+  "is not": "isNot",
+  "in network": "inNetwork",
+  "equals": "equals",
+  "does not equal": "doesNotEqual",
+};
 
 // ── Attribute definitions ──────────────────────────────────────────────────────
 
 const ATTRIBUTES: Record<AttributeKey, AttributeDef> = {
   protocol: {
-    label: "Protocol",
     type: "select",
     operators: ["is", "is not"],
   },
   src_host: {
-    label: "Source IP",
     type: "ip",
     operators: ["is", "is not", "in network"],
-    placeholder: "10.0.0.1 or 10.0.0.0/24",
+    examples: ["10.0.0.1", "10.0.0.0/24"],
   },
   dst_host: {
-    label: "Destination IP",
     type: "ip",
     operators: ["is", "is not", "in network"],
-    placeholder: "8.8.8.8 or 0.0.0.0/0",
+    examples: ["8.8.8.8", "0.0.0.0/0"],
   },
   host: {
-    label: "Any IP",
     type: "ip",
     operators: ["is", "is not", "in network"],
-    placeholder: "10.0.0.1 or 10.0.0.0/24",
+    examples: ["10.0.0.1", "10.0.0.0/24"],
   },
   src_port: {
-    label: "Source Port",
     type: "port",
     operators: ["equals", "does not equal"],
     placeholder: "443",
   },
   dst_port: {
-    label: "Destination Port",
     type: "port",
     operators: ["equals", "does not equal"],
     placeholder: "80",
   },
   port: {
-    label: "Any Port",
     type: "port",
     operators: ["equals", "does not equal"],
     placeholder: "53",
@@ -156,14 +160,12 @@ function buildBPF(conditions: Condition[]): string {
 // ── Quick templates ────────────────────────────────────────────────────────────
 
 const QUICK_TEMPLATES: Array<{
-  label: string;
-  description: string;
+  id: "web" | "dns" | "icmp" | "excludeArp";
   icon: React.ElementType;
   conditions: Omit<Condition, "id">[];
 }> = [
   {
-    label: "Web Traffic",
-    description: "HTTP & HTTPS",
+    id: "web",
     icon: Globe,
     conditions: [
       { connector: "AND", attribute: "protocol", operator: "is", value: "tcp" },
@@ -172,8 +174,7 @@ const QUICK_TEMPLATES: Array<{
     ],
   },
   {
-    label: "DNS",
-    description: "UDP port 53",
+    id: "dns",
     icon: Search,
     conditions: [
       { connector: "AND", attribute: "protocol", operator: "is", value: "udp" },
@@ -181,8 +182,7 @@ const QUICK_TEMPLATES: Array<{
     ],
   },
   {
-    label: "ICMP / Ping",
-    description: "Ping & traceroute",
+    id: "icmp",
     icon: Activity,
     conditions: [
       {
@@ -195,8 +195,7 @@ const QUICK_TEMPLATES: Array<{
     ],
   },
   {
-    label: "Exclude ARP",
-    description: "Suppress ARP noise",
+    id: "excludeArp",
     icon: Ban,
     conditions: [
       {
@@ -236,6 +235,8 @@ export function FilterBuilderModal({
   onOpenChange,
   onApply,
 }: FilterBuilderModalProps) {
+  const t = useTranslations("monitoring");
+  const tc = useTranslations("common");
   const [conditions, setConditions] = useState<Condition[]>([makeCondition()]);
 
   const bpf = useMemo(() => buildBPF(conditions), [conditions]);
@@ -289,9 +290,9 @@ export function FilterBuilderModal({
               <SlidersHorizontal className="h-4 w-4 text-primary" />
             </div>
             <div>
-              <DialogTitle>Build Filter</DialogTitle>
+              <DialogTitle>{t("filter.title")}</DialogTitle>
               <DialogDescription>
-                Construct a BPF capture filter using conditions
+                {t("filter.description")}
               </DialogDescription>
             </div>
           </div>
@@ -301,24 +302,24 @@ export function FilterBuilderModal({
           {/* Quick Templates */}
           <div className="space-y-2">
             <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-              Quick Templates
+              {t("filter.quickTemplates")}
             </p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {QUICK_TEMPLATES.map((t) => {
-                const Icon = t.icon;
+              {QUICK_TEMPLATES.map((tpl) => {
+                const Icon = tpl.icon;
                 return (
                   <button
-                    key={t.label}
-                    onClick={() => applyTemplate(t)}
+                    key={tpl.id}
+                    onClick={() => applyTemplate(tpl)}
                     className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2.5 text-left transition-colors hover:bg-muted/40 hover:border-primary/30 group"
                   >
                     <Icon className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0 group-hover:text-primary transition-colors" />
                     <div className="min-w-0">
                       <p className="text-xs font-medium leading-tight truncate">
-                        {t.label}
+                        {t(`filter.templates.${tpl.id}.label`)}
                       </p>
                       <p className="text-[10px] text-muted-foreground leading-tight truncate mt-0.5">
-                        {t.description}
+                        {t(`filter.templates.${tpl.id}.description`)}
                       </p>
                     </div>
                   </button>
@@ -333,7 +334,7 @@ export function FilterBuilderModal({
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                Conditions
+                {t("filter.conditions")}
               </p>
               <Button
                 variant="outline"
@@ -342,7 +343,7 @@ export function FilterBuilderModal({
                 onClick={addCondition}
               >
                 <Plus className="h-3 w-3" />
-                Add Condition
+                {t("filter.addCondition")}
               </Button>
             </div>
 
@@ -355,7 +356,7 @@ export function FilterBuilderModal({
                     {i === 0 ? (
                       <div className="w-[76px] flex-shrink-0 flex justify-end pr-1">
                         <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                          where
+                          {t("filter.where")}
                         </span>
                       </div>
                     ) : (
@@ -393,7 +394,7 @@ export function FilterBuilderModal({
                         {(Object.keys(ATTRIBUTES) as AttributeKey[]).map(
                           (k) => (
                             <SelectItem key={k} value={k}>
-                              {ATTRIBUTES[k].label}
+                              {t(`filter.attributes.${k}`)}
                             </SelectItem>
                           )
                         )}
@@ -413,7 +414,7 @@ export function FilterBuilderModal({
                       <SelectContent>
                         {attrDef.operators.map((op) => (
                           <SelectItem key={op} value={op}>
-                            {op}
+                            {OPERATOR_KEYS[op] ? t(`filter.operators.${OPERATOR_KEYS[op]}`) : op}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -429,7 +430,7 @@ export function FilterBuilderModal({
                           }
                         >
                           <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Select protocol…" />
+                            <SelectValue placeholder={t("filter.selectProtocol")} />
                           </SelectTrigger>
                           <SelectContent>
                             {PROTOCOLS.map((p) => (
@@ -445,7 +446,11 @@ export function FilterBuilderModal({
                           onChange={(e) =>
                             updateCondition(cond.id, { value: e.target.value })
                           }
-                          placeholder={attrDef.placeholder}
+                          placeholder={
+                            attrDef.examples
+                              ? t("filter.ipPlaceholder", { host: attrDef.examples[0], network: attrDef.examples[1] })
+                              : attrDef.placeholder
+                          }
                           type={attrDef.type === "port" ? "number" : "text"}
                           className="h-8 text-xs font-mono"
                         />
@@ -456,7 +461,7 @@ export function FilterBuilderModal({
                     <button
                       onClick={() => removeCondition(cond.id)}
                       className="flex-shrink-0 p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                      title="Remove condition"
+                      title={t("filter.removeCondition")}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -470,14 +475,14 @@ export function FilterBuilderModal({
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                Filter Expression
+                {t("filter.filterExpression")}
               </p>
               {bpf && (
                 <Badge
                   variant="outline"
                   className="text-[10px] font-normal text-muted-foreground"
                 >
-                  tcpdump BPF syntax
+                  {t("filter.bpfSyntax")}
                 </Badge>
               )}
             </div>
@@ -487,18 +492,18 @@ export function FilterBuilderModal({
                 !bpf && "text-muted-foreground italic"
               )}
             >
-              {bpf || "No conditions — will capture all traffic on the interface"}
+              {bpf || t("filter.noConditions")}
             </div>
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleApply}>
             <Zap className="h-4 w-4 mr-2" />
-            Apply Filter
+            {t("filter.apply")}
           </Button>
         </DialogFooter>
       </DialogContent>

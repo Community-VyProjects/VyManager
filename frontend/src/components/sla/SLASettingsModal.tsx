@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,8 @@ export function SLASettingsModal({
   config,
   onSuccess,
 }: SLASettingsModalProps) {
+  const t = useTranslations("sla");
+  const tc = useTranslations("common");
   const [owampEnabled, setOwampEnabled] = useState(config.owamp_server.enabled);
   const [owampPort, setOwampPort] = useState(
     config.owamp_server.port !== null ? String(config.owamp_server.port) : ""
@@ -47,7 +50,7 @@ export function SLASettingsModal({
     if (!value) return null;
     const n = Number(value);
     if (!Number.isInteger(n) || n < 1 || n > 65535) {
-      return "Port must be a number between 1 and 65535";
+      return t("settings.portRange");
     }
     return null;
   };
@@ -71,7 +74,7 @@ export function SLASettingsModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setApiError(err instanceof Error ? err.message : "Operation failed");
+      setApiError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -81,9 +84,9 @@ export function SLASettingsModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>SLA Settings</DialogTitle>
+          <DialogTitle>{t("settings.title")}</DialogTitle>
           <DialogDescription>
-            Configure OWAMP and TWAMP measurement server settings
+            {t("settings.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -102,9 +105,9 @@ export function SLASettingsModal({
                   }}
                 />
                 <Label htmlFor="owamp-enabled" className="cursor-pointer leading-tight">
-                  <span className="font-medium">Enable OWAMP Server</span>
+                  <span className="font-medium">{t("settings.enableOwamp")}</span>
                   <span className="block text-xs text-muted-foreground mt-0.5">
-                    One-Way Active Measurement Protocol — measures one-way delay and packet loss
+                    {t("settings.owampHint")}
                   </span>
                 </Label>
               </div>
@@ -114,14 +117,14 @@ export function SLASettingsModal({
                   htmlFor="owamp-port"
                   className={!owampEnabled ? "text-muted-foreground" : ""}
                 >
-                  Port
+                  {t("settings.port")}
                 </Label>
                 <Input
                   id="owamp-port"
                   type="number"
                   min={1}
                   max={65535}
-                  placeholder="861 (default)"
+                  placeholder={t("settings.portPlaceholder", { port: "861" })}
                   value={owampPort}
                   onChange={(e) => {
                     setOwampPort(e.target.value);
@@ -134,7 +137,7 @@ export function SLASettingsModal({
                 )}
                 {!owampPortError && (
                   <p className="text-xs text-muted-foreground">
-                    Leave blank to use the default port (861)
+                    {t("settings.portHint", { port: "861" })}
                   </p>
                 )}
               </div>
@@ -155,9 +158,9 @@ export function SLASettingsModal({
                   }}
                 />
                 <Label htmlFor="twamp-enabled" className="cursor-pointer leading-tight">
-                  <span className="font-medium">Enable TWAMP Server</span>
+                  <span className="font-medium">{t("settings.enableTwamp")}</span>
                   <span className="block text-xs text-muted-foreground mt-0.5">
-                    Two-Way Active Measurement Protocol — measures round-trip delay and packet loss
+                    {t("settings.twampHint")}
                   </span>
                 </Label>
               </div>
@@ -167,14 +170,14 @@ export function SLASettingsModal({
                   htmlFor="twamp-port"
                   className={!twampEnabled ? "text-muted-foreground" : ""}
                 >
-                  Port
+                  {t("settings.port")}
                 </Label>
                 <Input
                   id="twamp-port"
                   type="number"
                   min={1}
                   max={65535}
-                  placeholder="862 (default)"
+                  placeholder={t("settings.portPlaceholder", { port: "862" })}
                   value={twampPort}
                   onChange={(e) => {
                     setTwampPort(e.target.value);
@@ -187,7 +190,7 @@ export function SLASettingsModal({
                 )}
                 {!twampPortError && (
                   <p className="text-xs text-muted-foreground">
-                    Leave blank to use the default port (862)
+                    {t("settings.portHint", { port: "862" })}
                   </p>
                 )}
               </div>
@@ -208,11 +211,11 @@ export function SLASettingsModal({
             onClick={() => onOpenChange(false)}
             disabled={submitting}
           >
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting || hasPortError}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

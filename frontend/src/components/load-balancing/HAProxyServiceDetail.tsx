@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,12 +46,13 @@ function ruleMatchSummary(rule: LBServiceRule): string {
   return parts.join("  ·  ") || "—";
 }
 
-function ruleActionSummary(rule: LBServiceRule): { label: string; variant: "default" | "secondary" | "outline" } {
+// label null = no action (translated at render time)
+function ruleActionSummary(rule: LBServiceRule): { label: string | null; variant: "default" | "secondary" | "outline" } {
   if (rule.set.backend)
     return { label: `→ ${rule.set.backend}`, variant: "secondary" };
   if (rule.set.redirect_location)
     return { label: `↪ ${rule.set.redirect_location}`, variant: "outline" };
-  return { label: "No action", variant: "outline" };
+  return { label: null, variant: "outline" };
 }
 
 // ============================================================================
@@ -65,6 +67,8 @@ function DeleteRuleDialog({
   ruleId: string;
   onConfirm: () => Promise<void>;
 }) {
+  const t = useTranslations("haproxy");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,8 +78,8 @@ function DeleteRuleDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Delete Rule {ruleId}?</DialogTitle>
-          <DialogDescription>This will permanently remove this routing rule.</DialogDescription>
+          <DialogTitle>{t("deleteRuleTitle", { id: ruleId })}</DialogTitle>
+          <DialogDescription>{t("deleteRuleDescription")}</DialogDescription>
         </DialogHeader>
         {error && (
           <div className="flex gap-2 rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
@@ -84,16 +88,16 @@ function DeleteRuleDialog({
           </div>
         )}
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button variant="destructive" disabled={loading} onClick={async () => {
             setLoading(true);
             setError(null);
             try { await onConfirm(); onOpenChange(false); }
-            catch (err) { setError(err instanceof Error ? err.message : "Delete failed"); }
+            catch (err) { setError(err instanceof Error ? err.message : t("deleteFailed")); }
             finally { setLoading(false); }
           }}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Delete
+            {tc("delete")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -108,6 +112,8 @@ function DeleteRuleDialog({
 interface Props { serviceName: string }
 
 export function HAProxyServiceDetail({ serviceName }: Props) {
+  const t = useTranslations("haproxy");
+  const tc = useTranslations("common");
   const router = useRouter();
   const { canWrite } = usePermissions();
   const canEdit = canWrite(FeatureGroup.LOAD_BALANCING);
@@ -134,11 +140,11 @@ export function HAProxyServiceDetail({ serviceName }: Props) {
       setConfig(cfg);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load configuration");
+      setError(err instanceof Error ? err.message : t("failedToLoad"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -169,7 +175,7 @@ export function HAProxyServiceDetail({ serviceName }: Props) {
         </Button>
         <div className="flex gap-2 rounded-md bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive">
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-          Service &quot;{serviceName}&quot; not found.
+          {t("serviceDetail.notFound", { name: serviceName })}
         </div>
       </div>
     );
@@ -204,7 +210,7 @@ export function HAProxyServiceDetail({ serviceName }: Props) {
           </div>
           <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
             <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
+            {tc("refresh")}
           </Button>
         </div>
       </div>
@@ -218,9 +224,9 @@ export function HAProxyServiceDetail({ serviceName }: Props) {
 
       <Tabs defaultValue="config">
         <TabsList>
-          <TabsTrigger value="config">Configuration</TabsTrigger>
+          <TabsTrigger value="config">{t("configuration")}</TabsTrigger>
           <TabsTrigger value="rules">
-            Rules
+            {t("rules")}
             {rules.length > 0 && (
               <Badge variant="secondary" className="ml-2 text-xs">{rules.length}</Badge>
             )}
@@ -234,13 +240,13 @@ export function HAProxyServiceDetail({ serviceName }: Props) {
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Card>
               <CardContent className="pt-4 pb-3">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Mode</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">{t("mode")}</p>
                 <p className="font-semibold">{service.mode ?? "—"}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-4 pb-3">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Port</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">{t("port")}</p>
                 <p className="font-semibold font-mono">{service.port ?? "—"}</p>
               </CardContent>
             </Card>
@@ -248,14 +254,14 @@ export function HAProxyServiceDetail({ serviceName }: Props) {
               <CardContent className="pt-4 pb-3">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SSL</p>
                 <p className="font-semibold">
-                  {service.ssl ? `${service.ssl.certificates.length} cert(s)` : "None"}
+                  {service.ssl ? t("serviceDetail.certCount", { count: service.ssl.certificates.length }) : tc("none")}
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-4 pb-3">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">HTTP→HTTPS</p>
-                <p className="font-semibold">{service.redirect_http_to_https ? "Yes" : "No"}</p>
+                <p className="font-semibold">{service.redirect_http_to_https ? t("yes") : t("no")}</p>
               </CardContent>
             </Card>
           </div>
@@ -263,42 +269,42 @@ export function HAProxyServiceDetail({ serviceName }: Props) {
           <Card>
             <CardContent className="pt-4 pb-4 space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold">Service Details</p>
+                <p className="text-sm font-semibold">{t("serviceDetail.details")}</p>
                 {canEdit && (
                   <Button size="sm" variant="outline" onClick={() => setEditConfigOpen(true)}>
-                    <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit Configuration
+                    <Pencil className="h-3.5 w-3.5 mr-1.5" /> {t("editConfiguration")}
                   </Button>
                 )}
               </div>
 
               <div className="space-y-2 text-sm">
                 <div className="flex gap-8">
-                  <div className="w-36 text-muted-foreground shrink-0">Listen Addresses</div>
+                  <div className="w-36 text-muted-foreground shrink-0">{t("serviceDetail.listenAddresses")}</div>
                   <div>
                     {service.listen_addresses.length > 0
                       ? service.listen_addresses.map((la) => (
                           <Badge key={la.address} variant="secondary" className="text-xs font-mono mr-1">{la.address}</Badge>
                         ))
-                      : <span className="text-muted-foreground">All interfaces</span>
+                      : <span className="text-muted-foreground">{t("serviceDetail.allInterfaces")}</span>
                     }
                   </div>
                 </div>
 
                 <div className="flex gap-8">
-                  <div className="w-36 text-muted-foreground shrink-0">Backends</div>
+                  <div className="w-36 text-muted-foreground shrink-0">{t("backends")}</div>
                   <div>
                     {service.backends.length > 0
                       ? service.backends.map((be) => (
                           <Badge key={be} variant="outline" className="text-xs mr-1">{be}</Badge>
                         ))
-                      : <span className="text-muted-foreground">None</span>
+                      : <span className="text-muted-foreground">{tc("none")}</span>
                     }
                   </div>
                 </div>
 
                 {service.ssl && (
                   <div className="flex gap-8">
-                    <div className="w-36 text-muted-foreground shrink-0">SSL Certificates</div>
+                    <div className="w-36 text-muted-foreground shrink-0">{t("serviceDetail.sslCertificates")}</div>
                     <div>
                       {service.ssl.certificates.map((c) => (
                         <Badge key={c} variant="secondary" className="text-xs mr-1">{c}</Badge>
@@ -309,8 +315,8 @@ export function HAProxyServiceDetail({ serviceName }: Props) {
 
                 {service.http_compression && (
                   <div className="flex gap-8">
-                    <div className="w-36 text-muted-foreground shrink-0">Compression</div>
-                    <div className="text-sm">{service.http_compression.algorithm ?? "enabled"}</div>
+                    <div className="w-36 text-muted-foreground shrink-0">{t("serviceDetail.compression")}</div>
+                    <div className="text-sm">{service.http_compression.algorithm ?? t("serviceDetail.compressionEnabled")}</div>
                   </div>
                 )}
               </div>
@@ -325,28 +331,27 @@ export function HAProxyServiceDetail({ serviceName }: Props) {
           <div className="rounded-lg border border-border bg-card">
             <div className="flex items-center justify-between p-4 border-b border-border">
               <div>
-                <p className="text-sm font-semibold">Routing Rules</p>
+                <p className="text-sm font-semibold">{t("routingRules")}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Rules are evaluated in order. The first matching rule wins.
+                  {t("rulesEvaluatedInOrder")}
                 </p>
               </div>
               {canEdit && (
                 <Button size="sm" onClick={() => { setEditRule(null); setRuleModalOpen(true); }}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Rule
+                  <Plus className="h-3.5 w-3.5 mr-1" /> {t("addRule")}
                 </Button>
               )}
             </div>
 
             {rules.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-14 text-center">
-                <p className="text-sm font-medium">No routing rules</p>
+                <p className="text-sm font-medium">{t("noRoutingRules")}</p>
                 <p className="text-xs text-muted-foreground mt-1 mb-4">
-                  All traffic is load-balanced across the configured backends.
-                  Add rules to route by domain, URL path, or SSL condition.
+                  {t("serviceDetail.noRulesHint")}
                 </p>
                 {canEdit && (
                   <Button size="sm" onClick={() => { setEditRule(null); setRuleModalOpen(true); }}>
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Add First Rule
+                    <Plus className="h-3.5 w-3.5 mr-1" /> {t("addFirstRule")}
                   </Button>
                 )}
               </div>
@@ -354,9 +359,9 @@ export function HAProxyServiceDetail({ serviceName }: Props) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-20">Rule ID</TableHead>
-                    <TableHead>Match Conditions</TableHead>
-                    <TableHead className="w-56">Action</TableHead>
+                    <TableHead className="w-20">{t("ruleId")}</TableHead>
+                    <TableHead>{t("matchConditions")}</TableHead>
+                    <TableHead className="w-56">{t("action")}</TableHead>
                     {canEdit && <TableHead className="w-20" />}
                   </TableRow>
                 </TableHeader>
@@ -373,7 +378,7 @@ export function HAProxyServiceDetail({ serviceName }: Props) {
                         </TableCell>
                         <TableCell>
                           <Badge variant={action.variant} className="text-xs font-mono">
-                            {action.label}
+                            {action.label ?? t("noAction")}
                           </Badge>
                         </TableCell>
                         {canEdit && (

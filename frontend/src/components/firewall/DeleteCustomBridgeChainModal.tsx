@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,8 @@ export function DeleteCustomBridgeChainModal({
   chain,
   onSuccess,
 }: DeleteCustomBridgeChainModalProps) {
+  const t = useTranslations("firewallBridge");
+  const tc = useTranslations("common");
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,10 +42,10 @@ export function DeleteCustomBridgeChainModal({
       if (response.success) {
         onSuccess();
       } else {
-        setError(response.error || "Failed to delete custom chain");
+        setError(response.error || t("deleteChain.deleteFailed"));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete custom chain");
+      setError(err instanceof Error ? err.message : t("deleteChain.deleteFailed"));
     } finally {
       setDeleting(false);
     }
@@ -54,10 +57,10 @@ export function DeleteCustomBridgeChainModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            Delete Custom Chain
+            {t("deleteChain.title")}
           </DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete this custom chain? All rules in this chain will also be deleted. This action cannot be undone.
+            {t("deleteChain.confirm")}
           </DialogDescription>
         </DialogHeader>
 
@@ -70,22 +73,22 @@ export function DeleteCustomBridgeChainModal({
 
         <div className="bg-muted/50 rounded-md p-4 space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Chain Name:</span>
+            <span className="text-muted-foreground">{t("deleteChain.chainName")}</span>
             <span className="font-medium">{chain.name}</span>
           </div>
           {chain.description && (
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Description:</span>
+              <span className="text-muted-foreground">{t("deleteChain.description")}</span>
               <span className="truncate max-w-[200px]">{chain.description}</span>
             </div>
           )}
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Rules:</span>
+            <span className="text-muted-foreground">{t("deleteChain.rules")}</span>
             <span className="font-medium">{chain.rule_count}</span>
           </div>
           {chain.default_action && (
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Default Action:</span>
+              <span className="text-muted-foreground">{t("deleteChain.defaultAction")}</span>
               <span className="font-medium">{chain.default_action}</span>
             </div>
           )}
@@ -93,16 +96,16 @@ export function DeleteCustomBridgeChainModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={deleting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
             {deleting ? (
               <>
                 <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Chain"
+              t("deleteChain.deleteChain")
             )}
           </Button>
         </DialogFooter>

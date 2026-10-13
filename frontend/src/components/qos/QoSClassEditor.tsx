@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2 } from "lucide-react";
 import { ClassDraft, MatchDraft, emptyMatchDraft } from "@/lib/api/qos";
 import { FieldDef } from "@/lib/qos-schema";
-import { QoSFieldForm } from "./QoSFieldForm";
+import { QoSFieldForm, useQoSSchemaText } from "./QoSFieldForm";
 import { QoSMatchRuleEditor } from "./QoSMatchRuleEditor";
 import { MatchGroupSelect } from "./MatchGroupSelect";
 
@@ -36,6 +37,8 @@ export function QoSClassEditor({
   availableMatchGroups,
   idPrefix,
 }: QoSClassEditorProps) {
+  const t = useTranslations("qos");
+  const st = useQoSSchemaText();
   const setValue = (key: string, value: string) => {
     const values = { ...draft.values };
     if (value === "") delete values[key];
@@ -51,18 +54,18 @@ export function QoSClassEditor({
     <div className="space-y-4 rounded-md border border-border p-3">
       <div className="flex items-center justify-between gap-2">
         {isDefault ? (
-          <p className="text-sm font-semibold">Default Class</p>
+          <p className="text-sm font-semibold">{t("classEditor.defaultClass")}</p>
         ) : (
           <div className="flex-1 space-y-1">
-            <Label htmlFor={`${idPrefix}-id`} className="text-xs font-medium">Class ID</Label>
+            <Label htmlFor={`${idPrefix}-id`} className="text-xs font-medium">{t("classEditor.classId")}</Label>
             <Input
               id={`${idPrefix}-id`}
-              placeholder="e.g. 30"
+              placeholder={t("example", { value: "30" })}
               value={draft.classId}
               onChange={(e) => onChange({ ...draft, classId: e.target.value })}
               className="font-mono max-w-[160px]"
             />
-            {classIdHelp && <p className="text-[11px] text-muted-foreground">{classIdHelp}</p>}
+            {classIdHelp && <p className="text-[11px] text-muted-foreground">{st(classIdHelp)}</p>}
           </div>
         )}
         {onRemove && (
@@ -94,7 +97,7 @@ export function QoSClassEditor({
           {/* Match groups (1.5 only) */}
           {matchGroupSupported && (
             <MatchGroupSelect
-              label="Match Groups"
+              label={t("matchGroups")}
               available={availableMatchGroups}
               selected={draft.matchGroups}
               onChange={(matchGroups) => onChange({ ...draft, matchGroups })}
@@ -104,7 +107,7 @@ export function QoSClassEditor({
           {/* Match rules */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium">Match Rules</Label>
+              <Label className="text-xs font-medium">{t("matchRules")}</Label>
               <Button
                 type="button"
                 size="sm"
@@ -114,7 +117,7 @@ export function QoSClassEditor({
                 }
               >
                 <Plus className="h-4 w-4 mr-1" />
-                Add Match
+                {t("addMatch")}
               </Button>
             </div>
             {draft.matches.map((m, i) => (

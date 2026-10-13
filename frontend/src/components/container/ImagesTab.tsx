@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,8 @@ function imagesMatch(pulled: string, configured: string): boolean {
 }
 
 export function ImagesTab({ config, hasWritePermission }: Props) {
+  const t = useTranslations("containerResources");
+  const tc = useTranslations("common");
   const appliance = useSessionStore((s) => s.appliance);
   const [pulledImages, setPulledImages] = useState<string[]>([]);
   const [imagesLoading, setImagesLoading] = useState(true);
@@ -107,7 +110,7 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
-              Pulled Images
+              {t("images.pulledImages")}
               {!imagesLoading && (
                 <Badge variant="outline" className="font-normal">{pulledImages.length}</Badge>
               )}
@@ -115,12 +118,12 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
             <div className="flex items-center gap-2">
               {hasWritePermission && (
                 <Button size="sm" onClick={() => setAddModalOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />Add Image
+                  <Plus className="h-4 w-4 mr-2" />{t("images.addImage")}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={loadImages} disabled={imagesLoading}>
                 <RefreshCw className={`h-4 w-4 mr-2 ${imagesLoading ? "animate-spin" : ""}`} />
-                Refresh
+                {tc("refresh")}
               </Button>
             </div>
           </div>
@@ -128,21 +131,21 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
         <CardContent className="p-0">
           {imagesLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground px-6 py-8">
-              <Loader2 className="h-4 w-4 animate-spin" />Loading…
+              <Loader2 className="h-4 w-4 animate-spin" />{t("images.loading")}
             </div>
           ) : pulledImages.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
               <ImageIcon className="h-12 w-12 text-muted-foreground/30 mb-4" />
-              <p className="text-sm text-muted-foreground">No images found on this device</p>
+              <p className="text-sm text-muted-foreground">{t("images.noImages")}</p>
             </div>
           ) : (
             <ScrollArea>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Image</TableHead>
-                    <TableHead>Used By</TableHead>
-                    {hasWritePermission && <TableHead className="text-right">Actions</TableHead>}
+                    <TableHead>{t("images.image")}</TableHead>
+                    <TableHead>{t("images.usedBy")}</TableHead>
+                    {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -172,8 +175,8 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
                             <div className="flex items-center justify-end gap-1">
                               <Button
                                 variant="ghost" size="icon" className="h-8 w-8"
-                                title="Update image"
-                                onClick={() => runSsh(`Update Image — ${img}`, () => containerService.updateImageRef(img))}
+                                title={t("images.updateImage")}
+                                onClick={() => runSsh(t("images.updateImageTitle", { image: img }), () => containerService.updateImageRef(img))}
                               >
                                 <RefreshCw className="h-4 w-4" />
                               </Button>
@@ -181,10 +184,10 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
                                 variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
                                 title={
                                   stackImage
-                                    ? "Cannot delete the VyManager stack image"
+                                    ? t("images.cannotDeleteStack")
                                     : inUse
-                                      ? `Cannot delete: in use by ${users.join(", ")}`
-                                      : "Delete image"
+                                      ? t("images.cannotDeleteInUse", { containers: users.join(", ") })
+                                      : t("images.deleteImageTooltip")
                                 }
                                 disabled={deleteBlocked}
                                 onClick={() => setDeleteConfirm(img)}
@@ -207,7 +210,7 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
       <AddImageModal
         open={addModalOpen}
         onOpenChange={setAddModalOpen}
-        onSubmit={ref => runSsh(`Add Image — ${ref}`, () => containerService.pullImage(ref))}
+        onSubmit={ref => runSsh(t("images.addImageTitle", { image: ref }), () => containerService.pullImage(ref))}
       />
 
       <SshOutputModal
@@ -223,24 +226,25 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
       <AlertDialog open={deleteConfirm !== null} onOpenChange={open => { if (!open) setDeleteConfirm(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Image</AlertDialogTitle>
+            <AlertDialogTitle>{t("images.deleteImage")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete{" "}
-              <span className="font-mono font-semibold">{deleteConfirm}</span>?
-              This action cannot be undone.
+              {t.rich("images.deleteConfirm", {
+                image: deleteConfirm ?? "",
+                mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => {
                 const img = deleteConfirm!;
                 setDeleteConfirm(null);
-                runSsh(`Delete Image — ${img}`, () => containerService.deleteImageRef(img));
+                runSsh(t("images.deleteImageTitle", { image: img }), () => containerService.deleteImageRef(img));
               }}
             >
-              Delete Image
+              {t("images.deleteImage")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

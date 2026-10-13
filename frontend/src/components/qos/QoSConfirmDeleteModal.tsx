@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +34,8 @@ export function QoSConfirmDeleteModal({
   onConfirm,
   onSuccess,
 }: QoSConfirmDeleteModalProps) {
+  const t = useTranslations("qos");
+  const tc = useTranslations("common");
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,7 +47,7 @@ export function QoSConfirmDeleteModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
       setDeleting(false);
     }
   };
@@ -55,9 +58,11 @@ export function QoSConfirmDeleteModal({
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>
-            Remove{" "}
-            <span className="font-mono font-medium text-foreground">{itemName}</span>
-            {description ? ` ${description}` : ""}? This cannot be undone.
+            {t.rich("confirmDelete.body", {
+              name: itemName,
+              description: description ? ` ${description}` : "",
+              item: (chunks) => <span className="font-mono font-medium text-foreground">{chunks}</span>,
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -69,7 +74,7 @@ export function QoSConfirmDeleteModal({
         )}
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={deleting}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => {
               e.preventDefault();
@@ -79,7 +84,7 @@ export function QoSConfirmDeleteModal({
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             {deleting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Remove
+            {t("remove")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

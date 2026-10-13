@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Trash2 } from "lucide-react";
 import { MatchDraft } from "@/lib/api/qos";
 import { MATCH_GROUPS } from "@/lib/qos-schema";
-import { QoSFieldForm } from "./QoSFieldForm";
+import { QoSFieldForm, useQoSSchemaText } from "./QoSFieldForm";
 
 interface QoSMatchRuleEditorProps {
   rule: MatchDraft;
@@ -19,6 +20,8 @@ interface QoSMatchRuleEditorProps {
 
 /** Editor for a single match rule (shared by class matches and traffic-match-groups). */
 export function QoSMatchRuleEditor({ rule, onChange, onRemove, dscpNames, idPrefix }: QoSMatchRuleEditorProps) {
+  const t = useTranslations("qos");
+  const st = useQoSSchemaText();
   const setValue = (key: string, value: string) => {
     const values = { ...rule.values };
     if (value === "") delete values[key];
@@ -35,10 +38,10 @@ export function QoSMatchRuleEditor({ rule, onChange, onRemove, dscpNames, idPref
     <div className="space-y-4 rounded-md border border-border p-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex-1 space-y-1">
-          <Label htmlFor={`${idPrefix}-name`} className="text-xs font-medium">Rule Name</Label>
+          <Label htmlFor={`${idPrefix}-name`} className="text-xs font-medium">{t("matchRule.ruleName")}</Label>
           <Input
             id={`${idPrefix}-name`}
-            placeholder="e.g. web-traffic"
+            placeholder={t("example", { value: "web-traffic" })}
             value={rule.name}
             onChange={(e) => onChange({ ...rule, name: e.target.value })}
             className="font-mono"
@@ -57,7 +60,7 @@ export function QoSMatchRuleEditor({ rule, onChange, onRemove, dscpNames, idPref
 
       {MATCH_GROUPS.map((group) => (
         <div key={group.id} className="space-y-2">
-          <p className="text-xs font-semibold text-muted-foreground">{group.label}</p>
+          <p className="text-xs font-semibold text-muted-foreground">{st(group.label)}</p>
           <QoSFieldForm
             fields={group.fields}
             values={rule.values}

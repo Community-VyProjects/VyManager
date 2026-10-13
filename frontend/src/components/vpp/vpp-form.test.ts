@@ -141,41 +141,47 @@ describe("vppDraftFrom", () => {
 
 describe("validateVppCreate", () => {
   it("requires a sub-type", () => {
-    assert.equal(
+    assert.deepEqual(
       validateVppCreate(emptyVppDraft("vppbond0"), null, []),
-      "Please select an interface type.",
+      { key: "selectType" },
     );
   });
 
   it("rejects a name that does not match the sub-type pattern", () => {
     const err = validateVppCreate(emptyVppDraft("eth0"), "bonding", []);
-    assert.ok(err && err.startsWith("Interface name must match pattern"));
+    assert.deepEqual(err, {
+      key: "namePattern",
+      values: { pattern: "/^vppbond\\d+$/", example: "vppbond0" },
+    });
   });
 
   it("rejects the reserved vppbr0 bridge name", () => {
     const err = validateVppCreate(emptyVppDraft("vppbr0"), "bridge", []);
-    assert.ok(err && err.startsWith("Interface name must match pattern"));
+    assert.equal(err?.key, "namePattern");
     assert.equal(validateVppCreate(emptyVppDraft("vppbr1"), "bridge", []), null);
   });
 
   it("rejects a name already in use", () => {
-    assert.equal(
+    assert.deepEqual(
       validateVppCreate(emptyVppDraft("vpplo0"), "loopback", ["vpplo0"]),
-      "Interface 'vpplo0' already exists.",
+      { key: "nameExists", values: { name: "vpplo0" } },
     );
   });
 
   it("rejects an out-of-range MTU", () => {
     const draft = { ...emptyVppDraft("vpplo0"), mtu: "20" };
-    assert.equal(validateVppCreate(draft, "loopback", []), "MTU must be between 68 and 16000.");
+    assert.deepEqual(validateVppCreate(draft, "loopback", []), { key: "mtuRange" });
   });
 
   it("requires both tunnel endpoints for GRE", () => {
     const draft = emptyVppDraft("vppgre0");
-    assert.equal(validateVppCreate(draft, "gre", []), "Remote IP is required for GRE.");
-    assert.equal(
+    assert.deepEqual(validateVppCreate(draft, "gre", []), {
+      key: "remoteRequired",
+      values: { type: "GRE" },
+    });
+    assert.deepEqual(
       validateVppCreate({ ...draft, greRemote: "10.0.0.1" }, "gre", []),
-      "Source address is required for GRE.",
+      { key: "sourceRequired", values: { type: "GRE" } },
     );
   });
 
@@ -185,10 +191,10 @@ describe("validateVppCreate", () => {
       vxlanRemote: "10.0.0.1",
       vxlanSource: "10.0.0.2",
     };
-    assert.equal(validateVppCreate(draft, "vxlan", []), "VNI is required for VXLAN.");
-    assert.equal(
+    assert.deepEqual(validateVppCreate(draft, "vxlan", []), { key: "vniRequired" });
+    assert.deepEqual(
       validateVppCreate({ ...draft, vxlanVni: "16777215" }, "vxlan", []),
-      "VNI must be between 0 and 16777214.",
+      { key: "vniRange" },
     );
     assert.equal(validateVppCreate({ ...draft, vxlanVni: "100" }, "vxlan", []), null);
   });
@@ -204,18 +210,21 @@ describe("validateVppEdit", () => {
 
   it("still rejects an out-of-range MTU", () => {
     const draft = { ...vppDraftFrom(storedBonding, "bonding"), mtu: "99999" };
-    assert.equal(validateVppEdit(draft, "bonding"), "MTU must be between 68 and 16000.");
+    assert.deepEqual(validateVppEdit(draft, "bonding"), { key: "mtuRange" });
   });
 
   it("still rejects an out-of-range VXLAN VNI", () => {
     const draft = { ...vppDraftFrom(storedVxlan, "vxlan"), vxlanVni: "-1" };
-    assert.equal(validateVppEdit(draft, "vxlan"), "VNI must be between 0 and 16777214.");
+    assert.deepEqual(validateVppEdit(draft, "vxlan"), { key: "vniRange" });
   });
 
   it("saves an existing tunnel only once its endpoints are set", () => {
     const bare: VppGreConfig = { ...storedGre, remote: null, source_address: null };
     const draft = { ...vppDraftFrom(bare, "gre"), description: "renamed" };
-    assert.equal(validateVppEdit(draft, "gre"), "Remote IP is required for GRE.");
+    assert.deepEqual(validateVppEdit(draft, "gre"), {
+      key: "remoteRequired",
+      values: { type: "GRE" },
+    });
 
     const filled = { ...draft, greRemote: "10.0.0.1", greSource: "10.0.0.2" };
     assert.equal(validateVppEdit(filled, "gre"), null);
@@ -223,7 +232,10 @@ describe("validateVppEdit", () => {
 
   it("refuses to clear a required endpoint instead of dropping the change", () => {
     const draft = { ...vppDraftFrom(storedVxlan, "vxlan"), vxlanRemote: "" };
-    assert.equal(validateVppEdit(draft, "vxlan"), "Remote IP is required for VXLAN.");
+    assert.deepEqual(validateVppEdit(draft, "vxlan"), {
+      key: "remoteRequired",
+      values: { type: "VXLAN" },
+    });
   });
 });
 

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, AlertTriangle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { natService } from "@/lib/api/nat";
 import type { SourceNATRule, DestinationNATRule, StaticNATRule } from "@/lib/api/nat";
 
@@ -16,6 +17,8 @@ interface DeleteNATModalProps {
 }
 
 export function DeleteNATModal({ open, onOpenChange, rule, ruleType, onSuccess }: DeleteNATModalProps) {
+  const t = useTranslations("nat");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +39,7 @@ export function DeleteNATModal({ open, onOpenChange, rule, ruleType, onSuccess }
       handleClose();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete NAT rule");
+      setError(err instanceof Error ? err.message : t("deleteModal.failed"));
     } finally {
       setLoading(false);
     }
@@ -45,11 +48,11 @@ export function DeleteNATModal({ open, onOpenChange, rule, ruleType, onSuccess }
   const getRuleTypeLabel = () => {
     switch (ruleType) {
       case "source":
-        return "Source NAT";
+        return t("types.source");
       case "destination":
-        return "Destination NAT";
+        return t("types.destination");
       case "static":
-        return "Static NAT";
+        return t("types.static");
     }
   };
 
@@ -59,14 +62,14 @@ export function DeleteNATModal({ open, onOpenChange, rule, ruleType, onSuccess }
     const details = [];
 
     details.push({
-      label: "Rule Number",
+      label: t("fields.ruleNumber"),
       value: rule.rule_number.toString(),
       mono: true,
     });
 
     if (rule.description) {
       details.push({
-        label: "Description",
+        label: tc("description"),
         value: rule.description,
         mono: false,
       });
@@ -78,7 +81,7 @@ export function DeleteNATModal({ open, onOpenChange, rule, ruleType, onSuccess }
       // Source
       if (r.source?.address) {
         details.push({
-          label: "Source Address",
+          label: t("fields.sourceAddress"),
           value: r.source.address,
           mono: true,
         });
@@ -87,14 +90,14 @@ export function DeleteNATModal({ open, onOpenChange, rule, ruleType, onSuccess }
         const groupType = Object.keys(r.source.group)[0];
         const groupName = r.source.group[groupType];
         details.push({
-          label: "Source Group",
+          label: t("fields.sourceGroup"),
           value: `${groupType}: ${groupName}`,
           mono: true,
         });
       }
       if (r.source?.port) {
         details.push({
-          label: "Source Port",
+          label: t("fields.sourcePort"),
           value: r.source.port,
           mono: true,
         });
@@ -103,7 +106,7 @@ export function DeleteNATModal({ open, onOpenChange, rule, ruleType, onSuccess }
       // Destination
       if (r.destination?.address) {
         details.push({
-          label: "Destination Address",
+          label: t("fields.destinationAddress"),
           value: r.destination.address,
           mono: true,
         });
@@ -112,14 +115,14 @@ export function DeleteNATModal({ open, onOpenChange, rule, ruleType, onSuccess }
         const groupType = Object.keys(r.destination.group)[0];
         const groupName = r.destination.group[groupType];
         details.push({
-          label: "Destination Group",
+          label: t("fields.destinationGroup"),
           value: `${groupType}: ${groupName}`,
           mono: true,
         });
       }
       if (r.destination?.port) {
         details.push({
-          label: "Destination Port",
+          label: t("fields.destinationPort"),
           value: r.destination.port,
           mono: true,
         });
@@ -132,7 +135,7 @@ export function DeleteNATModal({ open, onOpenChange, rule, ruleType, onSuccess }
           const ifaceType = Object.keys(sourceRule.outbound_interface)[0];
           const ifaceValue = sourceRule.outbound_interface[ifaceType];
           details.push({
-            label: "Outbound Interface",
+            label: t("fields.outboundInterface"),
             value: `${ifaceType}: ${ifaceValue}`,
             mono: true,
           });
@@ -143,7 +146,7 @@ export function DeleteNATModal({ open, onOpenChange, rule, ruleType, onSuccess }
           const ifaceType = Object.keys(destRule.inbound_interface)[0];
           const ifaceValue = destRule.inbound_interface[ifaceType];
           details.push({
-            label: "Inbound Interface",
+            label: t("fields.inboundInterface"),
             value: `${ifaceType}: ${ifaceValue}`,
             mono: true,
           });
@@ -153,7 +156,7 @@ export function DeleteNATModal({ open, onOpenChange, rule, ruleType, onSuccess }
       // Protocol
       if (r.protocol) {
         details.push({
-          label: "Protocol",
+          label: t("fields.protocol"),
           value: r.protocol,
           mono: true,
         });
@@ -162,7 +165,7 @@ export function DeleteNATModal({ open, onOpenChange, rule, ruleType, onSuccess }
       // Translation
       if (r.translation?.address) {
         details.push({
-          label: "Translation Address",
+          label: t("fields.translationAddress"),
           value: r.translation.address,
           mono: true,
         });
@@ -171,7 +174,7 @@ export function DeleteNATModal({ open, onOpenChange, rule, ruleType, onSuccess }
         const destRule = r as DestinationNATRule;
         if (destRule.translation?.port) {
           details.push({
-            label: "Translation Port",
+            label: t("fields.translationPort"),
             value: destRule.translation.port,
             mono: true,
           });
@@ -180,12 +183,12 @@ export function DeleteNATModal({ open, onOpenChange, rule, ruleType, onSuccess }
 
       // Flags
       const flags = [];
-      if (r.disable) flags.push("Disabled");
-      if (r.exclude) flags.push("Excluded");
-      if (r.log) flags.push("Logging");
+      if (r.disable) flags.push(tc("disabled"));
+      if (r.exclude) flags.push(t("deleteModal.excluded"));
+      if (r.log) flags.push(t("deleteModal.logging"));
       if (flags.length > 0) {
         details.push({
-          label: "Flags",
+          label: t("fields.flags"),
           value: flags.join(", "),
           mono: false,
         });
@@ -196,7 +199,7 @@ export function DeleteNATModal({ open, onOpenChange, rule, ruleType, onSuccess }
 
       if (staticRule.destination?.address) {
         details.push({
-          label: "Destination Address",
+          label: t("fields.destinationAddress"),
           value: staticRule.destination.address,
           mono: true,
         });
@@ -204,7 +207,7 @@ export function DeleteNATModal({ open, onOpenChange, rule, ruleType, onSuccess }
 
       if (staticRule.inbound_interface) {
         details.push({
-          label: "Inbound Interface",
+          label: t("fields.inboundInterface"),
           value: staticRule.inbound_interface,
           mono: true,
         });
@@ -212,7 +215,7 @@ export function DeleteNATModal({ open, onOpenChange, rule, ruleType, onSuccess }
 
       if (staticRule.translation?.address) {
         details.push({
-          label: "Translation Address",
+          label: t("fields.translationAddress"),
           value: staticRule.translation.address,
           mono: true,
         });
@@ -232,10 +235,10 @@ export function DeleteNATModal({ open, onOpenChange, rule, ruleType, onSuccess }
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-destructive">
             <AlertTriangle className="h-5 w-5" />
-            Delete {getRuleTypeLabel()} Rule
+            {t("deleteModal.title", { type: getRuleTypeLabel() })}
           </DialogTitle>
           <DialogDescription>
-            Permanently remove this NAT rule. This action cannot be undone.
+            {t("deleteModal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -253,7 +256,7 @@ export function DeleteNATModal({ open, onOpenChange, rule, ruleType, onSuccess }
           {/* Rule Details */}
           <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 space-y-3">
             <p className="text-sm text-foreground">
-              Are you sure you want to delete this {getRuleTypeLabel()} rule?
+              {t("deleteModal.confirm", { type: getRuleTypeLabel() })}
             </p>
 
             <div className="space-y-2 text-sm">
@@ -273,17 +276,17 @@ export function DeleteNATModal({ open, onOpenChange, rule, ruleType, onSuccess }
           {/* Warning Message */}
           <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
             <p className="text-sm text-yellow-600 dark:text-yellow-500">
-              <strong>Warning:</strong> This action cannot be undone. Deleting this NAT rule may affect network traffic routing and translation.
+              {t.rich("deleteModal.warning", { strong: (chunks) => <strong>{chunks}</strong> })}
             </p>
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
-            {loading ? "Deleting..." : "Delete Rule"}
+            {loading ? tc("deleting") : t("deleteModal.deleteRule")}
           </Button>
         </DialogFooter>
       </DialogContent>

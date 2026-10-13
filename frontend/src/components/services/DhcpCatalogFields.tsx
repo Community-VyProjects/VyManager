@@ -1,6 +1,7 @@
 "use client";
 
 import { Plus, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -43,6 +44,7 @@ export function DhcpCatalogFields({
   onChange,
   idPrefix = "dhcp-opt",
 }: DhcpCatalogFieldsProps) {
+  const tc = useTranslations("common");
   if (leaves.length === 0) return null;
   return (
     <div className="space-y-4">
@@ -87,10 +89,10 @@ export function DhcpCatalogFields({
                   onValueChange={(value) => onChange(leaf.token, value === NONE ? "" : value)}
                 >
                   <SelectTrigger id={id}>
-                    <SelectValue placeholder="Not set" />
+                    <SelectValue placeholder={tc("notSet")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>Not set</SelectItem>
+                    <SelectItem value={NONE}>{tc("notSet")}</SelectItem>
                     {leaf.choices.map((choice) => (
                       <SelectItem key={choice} value={choice}>{choice}</SelectItem>
                     ))}
@@ -127,6 +129,7 @@ function MultiField({
   values: string[];
   onChange: (next: string[]) => void;
 }) {
+  const t = useTranslations("dhcpServer");
   const rows = values.length === 0 ? [""] : values;
   return (
     <div>
@@ -153,7 +156,7 @@ function MultiField({
         ))}
         <Button type="button" variant="outline" size="sm" onClick={() => onChange([...rows, ""])}>
           <Plus className="h-4 w-4 mr-2" />
-          Add {leaf.label}
+          {t("catalog.addItem", { label: leaf.label })}
         </Button>
       </div>
       <p className="text-xs text-muted-foreground mt-1">{leaf.help}</p>
@@ -170,6 +173,7 @@ function RouteField({
   values: DhcpRoute[];
   onChange: (next: DhcpRoute[]) => void;
 }) {
+  const t = useTranslations("dhcpServer");
   const rows = values.length === 0 ? [{ prefix: "", next_hop: "" }] : values;
   const update = (index: number, patch: Partial<DhcpRoute>) => {
     const next = rows.map((row, item) => (item === index ? { ...row, ...patch } : row));
@@ -208,7 +212,7 @@ function RouteField({
           onClick={() => onChange([...rows, { prefix: "", next_hop: "" }])}
         >
           <Plus className="h-4 w-4 mr-2" />
-          Add route
+          {t("catalog.addRoute")}
         </Button>
       </div>
       <p className="text-xs text-muted-foreground mt-1">{leaf.help}</p>

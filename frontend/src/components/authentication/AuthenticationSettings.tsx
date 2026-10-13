@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
   Loader2,
@@ -19,7 +20,7 @@ import {
   OAuthProviderConfig,
   WELL_KNOWN_PROVIDERS,
 } from "@/lib/api/oauth";
-import { ProviderIcon } from "./ProviderIcon";
+import { ProviderIcon, useProviderDescription } from "./ProviderIcon";
 import { AddProviderModal } from "./AddProviderModal";
 import { ConfigureProviderModal } from "./ConfigureProviderModal";
 import { RoleMappingManager } from "./RoleMappingManager";
@@ -36,6 +37,9 @@ import {
 import { cn } from "@/lib/utils";
 
 export function AuthenticationSettings() {
+  const t = useTranslations("authentication");
+  const tc = useTranslations("common");
+  const describe = useProviderDescription();
   const [configs, setConfigs] = useState<OAuthProviderConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,11 +56,11 @@ export function AuthenticationSettings() {
     try {
       setConfigs(await oauthConfigService.listProviders());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load providers");
+      setError(err instanceof Error ? err.message : t("loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { loadConfigs(); }, [loadConfigs]);
 
@@ -91,7 +95,7 @@ export function AuthenticationSettings() {
     ? (getProviderMeta(editProvider.providerId) ?? {
         providerId: editProvider.providerId,
         displayName: editProvider.displayName,
-        description: "Custom provider",
+        description: t("customProvider"),
         defaultScopes: editProvider.scopes ?? "openid email profile",
         iconKey: "custom",
       })
@@ -112,10 +116,9 @@ export function AuthenticationSettings() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-foreground">Authentication</h2>
+          <h2 className="text-2xl font-bold text-foreground">{t("title")}</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Configure OAuth / OpenID Connect providers for single sign-on.
-            Changes take effect immediately.
+            {t("subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -130,7 +133,7 @@ export function AuthenticationSettings() {
           </Button>
           <Button onClick={() => setAddOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" />
-            Add Provider
+            {t("addProvider")}
           </Button>
         </div>
       </div>
@@ -154,13 +157,13 @@ export function AuthenticationSettings() {
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted mb-4">
             <KeyRound className="h-7 w-7 text-muted-foreground" />
           </div>
-          <h3 className="text-base font-semibold text-foreground mb-1">No providers configured</h3>
+          <h3 className="text-base font-semibold text-foreground mb-1">{t("emptyTitle")}</h3>
           <p className="text-sm text-muted-foreground mb-6 max-w-xs">
-            Add an OAuth provider to let users sign in with their existing accounts.
+            {t("emptyDescription")}
           </p>
           <Button onClick={() => setAddOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" />
-            Add Provider
+            {t("addProvider")}
           </Button>
         </div>
       ) : (
@@ -185,12 +188,12 @@ export function AuthenticationSettings() {
                   {provider.enabled ? (
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-green-500/15 px-2.5 py-0.5 text-xs font-medium text-green-600 dark:text-green-400">
                       <CheckCircle2 className="h-3 w-3" />
-                      Enabled
+                      {tc("enabled")}
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
                       <XCircle className="h-3 w-3" />
-                      Disabled
+                      {tc("disabled")}
                     </span>
                   )}
                 </div>
@@ -204,7 +207,7 @@ export function AuthenticationSettings() {
                     <p className="font-semibold text-foreground text-sm">{provider.displayName}</p>
                     {meta && (
                       <p className="text-xs text-muted-foreground leading-tight mt-0.5">
-                        {meta.description}
+                        {describe(meta)}
                       </p>
                     )}
                   </div>
@@ -219,7 +222,7 @@ export function AuthenticationSettings() {
                     onClick={() => setEditProvider(provider)}
                   >
                     <Settings className="h-3.5 w-3.5" />
-                    Edit
+                    {tc("edit")}
                   </Button>
 
                   <Button
@@ -232,9 +235,9 @@ export function AuthenticationSettings() {
                     {isToggling ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : provider.enabled ? (
-                      "Disable"
+                      t("disable")
                     ) : (
-                      "Enable"
+                      t("enable")
                     )}
                   </Button>
 
@@ -243,7 +246,7 @@ export function AuthenticationSettings() {
                     variant="ghost"
                     className="px-2 text-muted-foreground hover:text-foreground"
                     onClick={() => setRoleMappingProvider(provider)}
-                    title="Role mapping"
+                    title={t("roleMappingTooltip")}
                   >
                     <Users className="h-3.5 w-3.5" />
                   </Button>
@@ -286,20 +289,21 @@ export function AuthenticationSettings() {
       <AlertDialog open={!!deleteProvider} onOpenChange={(open) => { if (!open) setDeleteProvider(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove provider?</AlertDialogTitle>
+            <AlertDialogTitle>{t("removeTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete the <strong>{deleteProvider?.displayName}</strong> OAuth
-              configuration. Users who signed in with this provider will keep their accounts
-              but won&apos;t be able to use it to log in again.
+              {t.rich("removeDescription", {
+                name: deleteProvider?.displayName ?? "",
+                strong: (chunks) => <strong>{chunks}</strong>,
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Remove
+              {t("remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

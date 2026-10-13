@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useCallback } from "react";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -31,6 +32,9 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 
 function RoutePageInner() {
+  const t = useTranslations("routePolicy.page");
+  const tr = useTranslations("routePolicy.ruleRow");
+  const tc = useTranslations("common");
   const searchParams = useSearchParams();
   const [ipv4Policies, setIpv4Policies] = useState<PolicyRoute[]>([]);
   const [ipv6Policies, setIpv6Policies] = useState<PolicyRoute[]>([]);
@@ -102,7 +106,7 @@ function RoutePageInner() {
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load route policies");
+      setError(err instanceof Error ? err.message : t("loadFailed"));
       console.error("Error fetching route config:", err);
     } finally {
       setLoading(false);
@@ -191,7 +195,7 @@ function RoutePageInner() {
       await fetchData(true);
     } catch (err) {
       console.error("Failed to save rule order:", err);
-      setError(err instanceof Error ? err.message : "Failed to save rule order");
+      setError(err instanceof Error ? err.message : t("saveOrderFailed"));
     } finally {
       setSavingReorder(false);
     }
@@ -306,11 +310,11 @@ function RoutePageInner() {
         <div className="flex items-center justify-center h-full">
           <div className="text-center space-y-4">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-            <h2 className="text-xl font-semibold text-foreground">Error Loading Route Policies</h2>
+            <h2 className="text-xl font-semibold text-foreground">{t("errorTitle")}</h2>
             <p className="text-muted-foreground max-w-md">{error}</p>
             <Button onClick={() => fetchData(true)} variant="outline">
               <RefreshCw className="h-4 w-4 mr-2" />
-              Retry
+              {tc("retry")}
             </Button>
           </div>
         </div>
@@ -329,9 +333,9 @@ function RoutePageInner() {
                 <RouteIcon className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-foreground">Policy Route</h1>
+                <h1 className="text-lg font-semibold text-foreground">{t("title")}</h1>
                 <p className="text-xs text-muted-foreground">
-                  {policies.length} {policies.length !== 1 ? "policies" : "policy"} · {totalRules} rule{totalRules !== 1 ? "s" : ""}
+                  {t("summary", { policies: policies.length, rules: totalRules })}
                 </p>
               </div>
             </div>
@@ -348,7 +352,7 @@ function RoutePageInner() {
             <div className="relative mb-4">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search policies..."
+                placeholder={t("searchPolicies")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -361,7 +365,7 @@ function RoutePageInner() {
               size="sm"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Create Policy
+              {t("createPolicy")}
             </Button>
           </div>
 
@@ -373,7 +377,7 @@ function RoutePageInner() {
               {filteredPolicies.length === 0 ? (
                 <div className="px-2 py-8 text-center">
                   <p className="text-sm text-muted-foreground">
-                    {searchQuery ? "No policies match your search" : `No ${selectedPolicyType === "route" ? "IPv4" : "IPv6"} policies configured`}
+                    {searchQuery ? t("noPoliciesMatch") : t("noPoliciesConfigured", { family: selectedPolicyType === "route" ? "IPv4" : "IPv6" })}
                   </p>
                   {!searchQuery && (
                     <Button
@@ -382,7 +386,7 @@ function RoutePageInner() {
                       onClick={() => setShowCreatePolicyModal(true)}
                       className="mt-2"
                     >
-                      Create your first policy
+                      {t("createFirstPolicy")}
                     </Button>
                   )}
                 </div>
@@ -467,11 +471,11 @@ function RoutePageInner() {
                   <div className="flex items-center gap-3">
                     <Button onClick={() => fetchData(true)} variant="outline" size="sm">
                       <RefreshCw className="h-4 w-4 mr-2" />
-                      Refresh
+                      {tc("refresh")}
                     </Button>
                     <Button onClick={() => setShowCreateRuleModal(true)} size="sm">
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Rule
+                      {t("addRule")}
                     </Button>
                   </div>
                 </div>
@@ -480,7 +484,7 @@ function RoutePageInner() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search rules..."
+                    placeholder={t("searchRules")}
                     value={ruleSearchQuery}
                     onChange={(e) => setRuleSearchQuery(e.target.value)}
                     className="pl-10"
@@ -495,7 +499,7 @@ function RoutePageInner() {
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <Network className="h-4 w-4 text-muted-foreground" />
-                        <h3 className="font-semibold text-sm">Applied Interfaces</h3>
+                        <h3 className="font-semibold text-sm">{t("appliedInterfaces")}</h3>
                         <Badge variant="secondary" className="text-xs">
                           {policyInterfaces.length}
                         </Badge>
@@ -507,14 +511,14 @@ function RoutePageInner() {
                         disabled={!selectedPolicyName}
                       >
                         <Network className="h-4 w-4 mr-2" />
-                        Manage Interfaces
+                        {t("manageInterfaces")}
                       </Button>
                     </div>
 
                     {policyInterfaces.length === 0 ? (
                       <div className="text-center py-4">
                         <p className="text-sm text-muted-foreground">
-                          No interfaces configured. Click &quot;Manage Interfaces&quot; to assign interfaces.
+                          {t("noInterfaces")}
                         </p>
                       </div>
                     ) : (
@@ -553,17 +557,17 @@ function RoutePageInner() {
                     <CardContent className="flex flex-col items-center justify-center py-12">
                       <RouteIcon className="h-12 w-12 text-muted-foreground mb-4" />
                       <h3 className="text-lg font-semibold text-foreground mb-2">
-                        {ruleSearchQuery ? "No Rules Match Search" : "No Rules Configured"}
+                        {ruleSearchQuery ? t("noRulesMatch") : t("noRules")}
                       </h3>
                       <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
                         {ruleSearchQuery
-                          ? "Try adjusting your search criteria"
-                          : "Add rules to this policy to control routing behavior"}
+                          ? t("adjustSearch")
+                          : t("addRulesHint")}
                       </p>
                       {!ruleSearchQuery && (
                         <Button onClick={() => setShowCreateRuleModal(true)}>
                           <Plus className="h-4 w-4 mr-2" />
-                          Add First Rule
+                          {t("addFirstRule")}
                         </Button>
                       )}
                     </CardContent>
@@ -581,12 +585,12 @@ function RoutePageInner() {
                           <TableHeader>
                             <TableRow className="hover:bg-transparent">
                               <TableHead className="w-12"></TableHead>
-                              <TableHead>Rule #</TableHead>
-                              <TableHead>Description</TableHead>
-                              <TableHead>Match Conditions</TableHead>
-                              <TableHead>Set Actions</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead className="text-right">Actions</TableHead>
+                              <TableHead>{t("ruleNumber")}</TableHead>
+                              <TableHead>{tc("description")}</TableHead>
+                              <TableHead>{t("matchConditions")}</TableHead>
+                              <TableHead>{t("setActions")}</TableHead>
+                              <TableHead>{tc("status")}</TableHead>
+                              <TableHead className="text-right">{tc("actions")}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -634,7 +638,7 @@ function RoutePageInner() {
                                   <TableCell>
                                     {matchCount > 0 ? (
                                       <Badge variant="secondary" className="text-xs">
-                                        {matchCount} condition{matchCount !== 1 ? "s" : ""}
+                                        {tr("conditions", { count: matchCount })}
                                       </Badge>
                                     ) : (
                                       <span className="text-muted-foreground text-sm">—</span>
@@ -643,9 +647,9 @@ function RoutePageInner() {
                                   <TableCell></TableCell>
                                   <TableCell>
                                     {draggedRule.disable ? (
-                                      <Badge variant="outline" className="bg-gray-500/10 text-gray-500 border-gray-500/20">Disabled</Badge>
+                                      <Badge variant="outline" className="bg-gray-500/10 text-gray-500 border-gray-500/20">{tc("disabled")}</Badge>
                                     ) : (
-                                      <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">Enabled</Badge>
+                                      <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">{tc("enabled")}</Badge>
                                     )}
                                   </TableCell>
                                   <TableCell></TableCell>
@@ -665,17 +669,17 @@ function RoutePageInner() {
               <div className="text-center space-y-4">
                 <RouteIcon className="h-16 w-16 text-muted-foreground mx-auto" />
                 <h2 className="text-xl font-semibold text-foreground">
-                  No Policy Selected
+                  {t("noPolicySelected")}
                 </h2>
                 <p className="text-muted-foreground max-w-md">
                   {policies.length === 0
-                    ? "Create a policy to get started"
-                    : "Select a policy from the sidebar to view its rules"}
+                    ? t("createToStart")
+                    : t("selectFromSidebar")}
                 </p>
                 {policies.length === 0 && (
                   <Button onClick={() => setShowCreatePolicyModal(true)}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Create Policy
+                    {t("createPolicy")}
                   </Button>
                 )}
               </div>

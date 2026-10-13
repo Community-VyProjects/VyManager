@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -274,6 +275,7 @@ const COUNTRIES = [
 ];
 
 export function CountryMultiSelect({ value, onChange, label, id }: CountryMultiSelectProps) {
+  const t = useTranslations("firewallCommon");
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -324,8 +326,8 @@ export function CountryMultiSelect({ value, onChange, label, id }: CountryMultiS
           >
             <span className="truncate">
               {normalizedValue.length === 0
-                ? "Select countries..."
-                : `${normalizedValue.length} ${normalizedValue.length === 1 ? "country" : "countries"} selected`}
+                ? t("countrySelect.placeholder")
+                : t("countrySelect.selected", { count: normalizedValue.length })}
             </span>
             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
@@ -335,7 +337,7 @@ export function CountryMultiSelect({ value, onChange, label, id }: CountryMultiS
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search countries..."
+                placeholder={t("countrySelect.searchPlaceholder")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-8"
@@ -361,7 +363,7 @@ export function CountryMultiSelect({ value, onChange, label, id }: CountryMultiS
               ))
             ) : (
               <div className="p-4 text-center text-sm text-muted-foreground">
-                No countries found
+                {t("countrySelect.noResults")}
               </div>
             )}
           </div>

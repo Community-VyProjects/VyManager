@@ -1,8 +1,10 @@
 "use client";
 
 import { Construction, Sparkles, Zap } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export function InProgress() {
+  const t = useTranslations("sharedUi");
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
       <div className="text-center space-y-6 max-w-md">
@@ -17,10 +19,10 @@ export function InProgress() {
         {/* Title */}
         <div className="space-y-2">
           <h2 className="text-3xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary bg-clip-text text-transparent">
-            In Progress
+            {t("inProgress.title")}
           </h2>
           <p className="text-muted-foreground text-lg">
-            We&apos;re building something amazing
+            {t("inProgress.subtitle")}
           </p>
         </div>
 
@@ -28,12 +30,12 @@ export function InProgress() {
         <div className="flex items-center justify-center gap-4 pt-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Sparkles className="h-4 w-4 text-yellow-500" />
-            <span>Coming Soon</span>
+            <span>{t("inProgress.comingSoon")}</span>
           </div>
           <div className="w-px h-4 bg-border"></div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Zap className="h-4 w-4 text-blue-500" />
-            <span>In Development</span>
+            <span>{t("inProgress.inDevelopment")}</span>
           </div>
         </div>
 

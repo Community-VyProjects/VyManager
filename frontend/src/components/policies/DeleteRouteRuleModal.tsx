@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { AlertCircle, AlertTriangle } from "lucide-react";
 import { routeService, PolicyRouteRule } from "@/lib/api/route";
 import { ApiError } from "@/lib/types/api";
+import { useTranslations } from "next-intl";
 
 interface DeleteRouteRuleModalProps {
   open: boolean;
@@ -24,6 +25,8 @@ export function DeleteRouteRuleModal({
   policyName,
   rule,
 }: DeleteRouteRuleModalProps) {
+  const t = useTranslations("routePolicy.deleteRule");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +40,7 @@ export function DeleteRouteRuleModal({
       handleClose();
       onSuccess();
     } catch (err) {
-      setError((err as ApiError).message || "Failed to delete rule");
+      setError((err as ApiError).message || t("deleteFailed"));
     } finally {
       setLoading(false);
     }
@@ -52,9 +55,9 @@ export function DeleteRouteRuleModal({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete Rule {rule?.rule_number}</DialogTitle>
+          <DialogTitle>{t("title", { number: String(rule?.rule_number ?? "") })}</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete this rule from policy {policyName}?
+            {t("description", { policyName })}
           </DialogDescription>
         </DialogHeader>
 
@@ -69,10 +72,13 @@ export function DeleteRouteRuleModal({
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="font-semibold text-yellow-900 dark:text-yellow-100">Warning</p>
+              <p className="font-semibold text-yellow-900 dark:text-yellow-100">{t("warning")}</p>
               <p className="text-sm text-yellow-800 dark:text-yellow-200 mt-1">
-                This will permanently delete rule <span className="font-mono">{rule?.rule_number}</span> from policy <span className="font-mono">{policyName}</span>.
-                This action cannot be undone.
+                {t.rich("warningText", {
+                  mono: (chunks) => <span className="font-mono">{chunks}</span>,
+                  number: String(rule?.rule_number ?? ""),
+                  policyName,
+                })}
               </p>
             </div>
           </div>
@@ -80,10 +86,10 @@ export function DeleteRouteRuleModal({
 
         <div className="flex justify-end gap-2 mt-4">
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
-            {loading ? "Deleting..." : "Delete Rule"}
+            {loading ? tc("deleting") : t("submit")}
           </Button>
         </div>
       </DialogContent>

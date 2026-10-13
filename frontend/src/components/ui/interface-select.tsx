@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Select,
   SelectContent,
@@ -50,13 +51,14 @@ export function InterfaceSelect({
   onValueChange,
   interfaces,
   filter,
-  placeholder = "Select an interface",
+  placeholder,
   disabled,
   id,
   className,
-  emptyText = "No interfaces available",
+  emptyText,
   noneOption,
 }: InterfaceSelectProps) {
+  const t = useTranslations("sharedUi");
   const provided = interfaces !== undefined;
   const [fetched, setFetched] = useState<InterfaceName[]>([]);
   const [loading, setLoading] = useState(false);
@@ -88,12 +90,12 @@ export function InterfaceSelect({
   return (
     <Select value={value} onValueChange={onValueChange} disabled={disabled}>
       <SelectTrigger id={id} className={className}>
-        <SelectValue placeholder={loading ? "Loading interfaces..." : placeholder} />
+        <SelectValue placeholder={loading ? t("interfaceSelect.loading") : (placeholder ?? t("interfaceSelect.placeholder"))} />
       </SelectTrigger>
       <SelectContent>
         {noneOption && <SelectItem value={noneOption.value}>{noneOption.label}</SelectItem>}
         {list.length === 0 && !noneOption ? (
-          <div className="px-2 py-1.5 text-sm text-muted-foreground">{emptyText}</div>
+          <div className="px-2 py-1.5 text-sm text-muted-foreground">{emptyText ?? t("interfaceSelect.empty")}</div>
         ) : (
           list.map((iface) => (
             <SelectItem key={iface.name} value={iface.name}>

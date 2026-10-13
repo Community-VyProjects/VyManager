@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,8 @@ interface SshState {
 }
 
 export function ContainersTab({ config, capabilities, hasWritePermission, onReload }: Props) {
+  const t = useTranslations("containers");
+  const tc = useTranslations("common");
   const appliance = useSessionStore((s) => s.appliance);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingContainer, setEditingContainer] = useState<ContainerInstance | null>(null);
@@ -127,7 +130,7 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
       const show = (loading: boolean, extra?: { success?: boolean | null; error?: string | null }) => {
         setSsh({
           open: true,
-          title: "Update VyManager",
+          title: t("tab.updateVyManager"),
           loading,
           success: extra?.success ?? (loading ? null : true),
           output: lines.join("\n") || null,
@@ -137,17 +140,17 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
       show(true);
       try {
         for (const c of stackContainers) {
-          lines.push(`Pulling ${c.name}…`);
+          lines.push(t("tab.pulling", { name: c.name }));
           show(true);
           const pulled = await containerService.updateImage(c.name);
           if (!pulled.success) {
             show(false, {
               success: false,
-              error: pulled.error || `Pull failed for ${c.name}`,
+              error: pulled.error || t("tab.pullFailed", { name: c.name }),
             });
             return;
           }
-          lines[lines.length - 1] = `Pulled ${c.name}`;
+          lines[lines.length - 1] = t("tab.pulled", { name: c.name });
           show(true);
         }
 
@@ -155,14 +158,14 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
           (a, b) => stackRestartOrder(a.name) - stackRestartOrder(b.name),
         );
         for (const c of restartOrder) {
-          lines.push(`Restarting ${c.name}…`);
+          lines.push(t("tab.restarting", { name: c.name }));
           show(true);
           try {
             const restarted = await containerService.restartContainer(c.name);
             if (!restarted.success && !isDisconnectError({ message: restarted.error || "" })) {
               show(false, {
                 success: false,
-                error: restarted.error || `Restart failed for ${c.name}`,
+                error: restarted.error || t("tab.restartFailed", { name: c.name }),
               });
               return;
             }
@@ -170,20 +173,20 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
             if (!isDisconnectError(err)) throw err;
           }
           if (c.name !== "vymanager-frontend") {
-            lines.push("Waiting for the API…");
+            lines.push(t("tab.waitingApi"));
             show(true);
             const up = await waitForBackend();
             lines[lines.length - 1] = up
-              ? "API is back"
-              : "API not answering yet; continuing";
+              ? t("tab.apiBack")
+              : t("tab.apiNotAnswering");
             show(true);
           } else {
-            lines.push("Waiting for the UI…");
+            lines.push(t("tab.waitingUi"));
             show(true);
             const up = await waitForUi();
             lines[lines.length - 1] = up
-              ? "UI is back"
-              : "UI not answering yet; refresh in a few seconds";
+              ? t("tab.uiBack")
+              : t("tab.uiNotAnswering");
             show(true);
             if (!up) {
               show(false, { success: true });
@@ -191,19 +194,19 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
             }
           }
         }
-        lines.push("Reloading…");
+        lines.push(t("tab.reloading"));
         show(true);
         window.location.reload();
       } catch (err: unknown) {
         if (isDisconnectError(err)) {
-          lines.push("Waiting for the UI…");
+          lines.push(t("tab.waitingUi"));
           show(true);
           const up = await waitForUi();
           if (up) {
             window.location.reload();
             return;
           }
-          lines.push("Refresh the page in a few seconds");
+          lines.push(t("tab.refreshSoon"));
           show(false, { success: true });
           return;
         }
@@ -218,17 +221,17 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
         <div className="flex justify-end mb-4 gap-2">
           {stackContainers.length > 0 && (
             <Button size="sm" variant="outline" onClick={handleUpdateStack}>
-              <RefreshCw className="h-4 w-4 mr-2" />Update VyManager
+              <RefreshCw className="h-4 w-4 mr-2" />{t("tab.updateVyManager")}
             </Button>
           )}
           <Button size="sm" onClick={() => openModal(null)}>
-            <Plus className="h-4 w-4 mr-2" />Add Container
+            <Plus className="h-4 w-4 mr-2" />{t("tab.addContainer")}
           </Button>
         </div>
       )}
       {stackContainers.length > 0 && (
         <p className="text-sm text-muted-foreground mb-4">
-          The VyManager stack cannot be deleted or edited here. Pull and restart, or re-run the installer. This page may disconnect during an update.
+          {t("tab.stackNotice")}
         </p>
       )}
 
@@ -236,10 +239,10 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Box className="h-12 w-12 text-muted-foreground/30 mb-4" />
-            <p className="text-sm text-muted-foreground mb-4">No containers configured</p>
+            <p className="text-sm text-muted-foreground mb-4">{t("tab.noContainers")}</p>
             {hasWritePermission && (
               <Button size="sm" onClick={() => openModal(null)}>
-                <Plus className="h-4 w-4 mr-2" />Add Container
+                <Plus className="h-4 w-4 mr-2" />{t("tab.addContainer")}
               </Button>
             )}
           </CardContent>
@@ -250,12 +253,12 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Image</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Networks</TableHead>
-                  <TableHead>Ports</TableHead>
-                  {hasWritePermission && <TableHead className="text-right">Actions</TableHead>}
+                  <TableHead>{tc("name")}</TableHead>
+                  <TableHead>{t("tab.image")}</TableHead>
+                  <TableHead>{tc("status")}</TableHead>
+                  <TableHead>{t("tab.networks")}</TableHead>
+                  <TableHead>{t("tab.ports")}</TableHead>
+                  {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -272,11 +275,11 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
                     <TableCell>
                       <div className="flex flex-wrap items-center gap-2">
                         {c.disabled
-                          ? <Badge variant="secondary" className="bg-muted text-muted-foreground">Disabled</Badge>
-                          : <Badge variant="secondary" className="bg-green-500/10 text-green-600">Active</Badge>}
+                          ? <Badge variant="secondary" className="bg-muted text-muted-foreground">{tc("disabled")}</Badge>
+                          : <Badge variant="secondary" className="bg-green-500/10 text-green-600">{t("tab.active")}</Badge>}
                         {c.update_status?.available && (
                           <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300">
-                            Update available
+                            {t("tab.updateAvailable")}
                           </Badge>
                         )}
                       </div>
@@ -311,29 +314,29 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
                           {(() => { const app = getCatalogApp(c); return app?.installConfig?.editableFiles?.length ? (
-                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit Files" onClick={() => setFilesContainer(c)}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title={t("tab.editFiles")} onClick={() => setFilesContainer(c)}>
                               <FolderOpen className="h-4 w-4" />
                             </Button>
                           ) : null; })()}
                           {!isProtectedStackContainer(appliance, c.name) && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit" onClick={() => openModal(c)}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title={tc("edit")} onClick={() => openModal(c)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
                           )}
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Pull image" onClick={() => runSsh(`Pull Image — ${c.name}`, () => containerService.addImage(c.name))}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" title={t("tab.pullImage")} onClick={() => runSsh(t("tab.pullImageTitle", { name: c.name }), () => containerService.addImage(c.name))}>
                             <Download className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Update image" onClick={() => runSsh(`Update Image — ${c.name}`, () => containerService.updateImage(c.name))}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" title={t("tab.updateImage")} onClick={() => runSsh(t("tab.updateImageTitle", { name: c.name }), () => containerService.updateImage(c.name))}>
                             <RefreshCw className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Restart" onClick={() => runSsh(`Restart Container — ${c.name}`, () => containerService.restartContainer(c.name))}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" title={t("tab.restart")} onClick={() => runSsh(t("tab.restartTitle", { name: c.name }), () => containerService.restartContainer(c.name))}>
                             <RotateCw className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title="View Logs" onClick={() => runSsh(`Logs — ${c.name}`, () => containerService.getContainerLog(c.name))}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" title={t("tab.viewLogs")} onClick={() => runSsh(t("tab.logsTitle", { name: c.name }), () => containerService.getContainerLog(c.name))}>
                             <ScrollText className="h-4 w-4" />
                           </Button>
                           {!isProtectedStackContainer(appliance, c.name) && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title="Delete" onClick={() => setDeletingContainer(c)}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title={tc("delete")} onClick={() => setDeletingContainer(c)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           )}
@@ -383,7 +386,7 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
         success={ssh.success}
         output={ssh.output}
         error={ssh.error}
-        busyLabel="Update in progress..."
+        busyLabel={t("tab.updateInProgress")}
       />
 
       {ssh.loading && (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +37,8 @@ export function ActiveSessionWarningModal({
   onContinue,
   onCancel,
 }: ActiveSessionWarningModalProps) {
+  const t = useTranslations("twoFactor");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,7 +49,7 @@ export function ActiveSessionWarningModal({
       await onContinue();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to revoke other sessions");
+      setError(err instanceof Error ? err.message : t("activeSession.revokeFailed"));
     } finally {
       setLoading(false);
     }
@@ -58,15 +61,15 @@ export function ActiveSessionWarningModal({
   };
 
   const formatUserAgent = (userAgent?: string | null): string => {
-    if (!userAgent) return "Unknown device";
+    if (!userAgent) return t("activeSession.unknownDevice");
 
     // Simple user agent parsing
-    if (userAgent.includes("Chrome")) return "Chrome Browser";
-    if (userAgent.includes("Firefox")) return "Firefox Browser";
-    if (userAgent.includes("Safari") && !userAgent.includes("Chrome")) return "Safari Browser";
-    if (userAgent.includes("Edge")) return "Edge Browser";
+    if (userAgent.includes("Chrome")) return t("activeSession.browser", { name: "Chrome" });
+    if (userAgent.includes("Firefox")) return t("activeSession.browser", { name: "Firefox" });
+    if (userAgent.includes("Safari") && !userAgent.includes("Chrome")) return t("activeSession.browser", { name: "Safari" });
+    if (userAgent.includes("Edge")) return t("activeSession.browser", { name: "Edge" });
 
-    return "Web Browser";
+    return t("activeSession.webBrowser");
   };
 
   const formatDate = (dateString: string): string => {
@@ -77,10 +80,10 @@ export function ActiveSessionWarningModal({
     const diffHours = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHours / 24);
 
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? "s" : ""} ago`;
-    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
-    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+    if (diffMins < 1) return t("activeSession.justNow");
+    if (diffMins < 60) return t("activeSession.minutesAgo", { count: diffMins });
+    if (diffHours < 24) return t("activeSession.hoursAgo", { count: diffHours });
+    if (diffDays < 7) return t("activeSession.daysAgo", { count: diffDays });
 
     return date.toLocaleDateString();
   };
@@ -89,10 +92,9 @@ export function ActiveSessionWarningModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Active Session Detected</DialogTitle>
+          <DialogTitle>{t("activeSession.title")}</DialogTitle>
           <DialogDescription>
-            You&apos;re already signed in on {sessions.length > 1 ? "other devices" : "another device"}.
-            Do you want to sign out of {sessions.length > 1 ? "those sessions" : "that session"} and continue here?
+            {t("activeSession.description", { count: sessions.length })}
           </DialogDescription>
         </DialogHeader>
 
@@ -103,11 +105,10 @@ export function ActiveSessionWarningModal({
               <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">
-                  Security Notice
+                  {t("activeSession.securityNotice")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Continuing will sign you out of your other active {sessions.length > 1 ? "sessions" : "session"}.
-                  This action cannot be undone.
+                  {t("activeSession.securityText", { count: sessions.length })}
                 </p>
               </div>
             </div>
@@ -115,7 +116,7 @@ export function ActiveSessionWarningModal({
 
           {/* Active Sessions List */}
           <div className="space-y-2">
-            <p className="text-sm font-medium">Active {sessions.length > 1 ? "Sessions" : "Session"}:</p>
+            <p className="text-sm font-medium">{t("activeSession.listTitle", { count: sessions.length })}</p>
             {sessions.map((session) => (
               <div
                 key={session.token}
@@ -129,9 +130,9 @@ export function ActiveSessionWarningModal({
                     </p>
                     <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
                       {session.ip_address && (
-                        <p className="truncate">IP: {session.ip_address}</p>
+                        <p className="truncate">{t("activeSession.ip", { ip: session.ip_address })}</p>
                       )}
-                      <p>Signed in {formatDate(session.created_at)}</p>
+                      <p>{t("activeSession.signedIn", { when: formatDate(session.created_at) })}</p>
                     </div>
                   </div>
                 </div>
@@ -145,7 +146,7 @@ export function ActiveSessionWarningModal({
               <div className="flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-destructive">Error</p>
+                  <p className="text-sm font-medium text-destructive">{t("activeSession.error")}</p>
                   <p className="text-sm text-destructive mt-1">{error}</p>
                 </div>
               </div>
@@ -155,16 +156,16 @@ export function ActiveSessionWarningModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleCancel} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleContinue} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Signing out other {sessions.length > 1 ? "sessions" : "session"}...
+                {t("activeSession.signingOut", { count: sessions.length })}
               </>
             ) : (
-              <>Continue & Sign Out Other {sessions.length > 1 ? "Sessions" : "Session"}</>
+              <>{t("activeSession.continue", { count: sessions.length })}</>
             )}
           </Button>
         </DialogFooter>

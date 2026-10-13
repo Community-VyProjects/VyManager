@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -34,10 +35,10 @@ interface SNMPv3GroupModalProps {
 
 const DEFAULT = "__default__";
 
-const SECLEVEL_LABELS: Record<string, string> = {
-  noauth: "No Auth, No Privacy (noAuthNoPriv)",
-  auth: "Auth, No Privacy (authNoPriv)",
-  priv: "Auth + Privacy (authPriv)",
+const SECLEVEL_LABELS: Record<string, "group.seclevelNoauth" | "group.seclevelAuth" | "group.seclevelPriv"> = {
+  noauth: "group.seclevelNoauth",
+  auth: "group.seclevelAuth",
+  priv: "group.seclevelPriv",
 };
 
 export function SNMPv3GroupModal({
@@ -49,6 +50,8 @@ export function SNMPv3GroupModal({
   capabilities,
   onSuccess,
 }: SNMPv3GroupModalProps) {
+  const t = useTranslations("snmp");
+  const tc = useTranslations("common");
   const isEdit = existing !== null;
   const v3 = capabilities.features.v3;
 
@@ -63,11 +66,11 @@ export function SNMPv3GroupModal({
   const handleSubmit = async () => {
     const n = name.trim();
     if (!n) {
-      setError("A group name is required");
+      setError(t("group.nameRequired"));
       return;
     }
     if (!isEdit && existingNames.includes(n)) {
-      setError(`Group "${n}" already exists`);
+      setError(t("group.exists", { name: n }));
       return;
     }
     setSubmitting(true);
@@ -82,7 +85,7 @@ export function SNMPv3GroupModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -92,18 +95,18 @@ export function SNMPv3GroupModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Group" : "Add Group"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("group.editTitle") : t("group.addTitle")}</DialogTitle>
           <DialogDescription>
-            An SNMPv3 group binds a security level and access mode to a view
+            {t("group.description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-1">
           <div className="space-y-1.5">
-            <Label htmlFor="group-name">Group Name</Label>
+            <Label htmlFor="group-name">{t("group.name")}</Label>
             <Input
               id="group-name"
-              placeholder="e.g. readers"
+              placeholder={t("group.namePlaceholder")}
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
@@ -115,16 +118,16 @@ export function SNMPv3GroupModal({
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-sm font-medium">Access Mode</Label>
+            <Label className="text-sm font-medium">{t("group.accessMode")}</Label>
             <Select value={mode} onValueChange={setMode}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={DEFAULT}>Default (Read-Only)</SelectItem>
+                <SelectItem value={DEFAULT}>{t("group.defaultReadOnly")}</SelectItem>
                 {v3.mode_values.map((m) => (
                   <SelectItem key={m} value={m}>
-                    {m === "ro" ? "Read-Only (ro)" : "Read-Write (rw)"}
+                    {m === "ro" ? t("community.readOnlyRo") : t("community.readWriteRw")}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -132,16 +135,16 @@ export function SNMPv3GroupModal({
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-sm font-medium">Security Level</Label>
+            <Label className="text-sm font-medium">{t("content.securityLevel")}</Label>
             <Select value={seclevel} onValueChange={setSeclevel}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={DEFAULT}>Default (Auth, No Privacy)</SelectItem>
+                <SelectItem value={DEFAULT}>{t("group.defaultSeclevel")}</SelectItem>
                 {v3.seclevel_values.map((s) => (
                   <SelectItem key={s} value={s}>
-                    {SECLEVEL_LABELS[s] ?? s}
+                    {SECLEVEL_LABELS[s] ? t(SECLEVEL_LABELS[s]) : s}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -149,17 +152,17 @@ export function SNMPv3GroupModal({
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-sm font-medium">View</Label>
+            <Label className="text-sm font-medium">{t("content.view")}</Label>
             {viewNames.length > 0 ? (
               <Select
                 value={view === "" ? DEFAULT : view}
                 onValueChange={(v) => setView(v === DEFAULT ? "" : v)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a view" />
+                  <SelectValue placeholder={t("group.selectView")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={DEFAULT}>None</SelectItem>
+                  <SelectItem value={DEFAULT}>{tc("none")}</SelectItem>
                   {viewNames.map((vn) => (
                     <SelectItem key={vn} value={vn}>
                       {vn}
@@ -169,14 +172,14 @@ export function SNMPv3GroupModal({
               </Select>
             ) : (
               <Input
-                placeholder="View name"
+                placeholder={t("group.viewNamePlaceholder")}
                 value={view}
                 onChange={(e) => setView(e.target.value)}
                 className="font-mono"
               />
             )}
             <p className="text-xs text-muted-foreground">
-              The view that defines which OIDs this group can access.
+              {t("group.viewHelp")}
             </p>
           </div>
         </div>
@@ -190,11 +193,11 @@ export function SNMPv3GroupModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isEdit ? "Save" : "Add"}
+            {isEdit ? tc("save") : tc("add")}
           </Button>
         </DialogFooter>
       </DialogContent>

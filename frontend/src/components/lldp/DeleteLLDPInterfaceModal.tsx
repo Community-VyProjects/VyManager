@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +28,8 @@ export function DeleteLLDPInterfaceModal({
   interfaceName,
   onSuccess,
 }: DeleteLLDPInterfaceModalProps) {
+  const t = useTranslations("lldp");
+  const tc = useTranslations("common");
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,7 +41,7 @@ export function DeleteLLDPInterfaceModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
       setDeleting(false);
     }
   };
@@ -47,11 +50,12 @@ export function DeleteLLDPInterfaceModal({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Remove Interface Override</AlertDialogTitle>
+          <AlertDialogTitle>{t("delete.title")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Remove LLDP configuration override for{" "}
-            <span className="font-mono font-semibold">{interfaceName}</span>? The
-            interface will revert to default LLDP behaviour.
+            {t.rich("delete.description", {
+              name: interfaceName,
+              mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -63,7 +67,7 @@ export function DeleteLLDPInterfaceModal({
         )}
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={deleting}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => {
               e.preventDefault();
@@ -73,7 +77,7 @@ export function DeleteLLDPInterfaceModal({
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             {deleting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Remove
+            {t("delete.remove")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

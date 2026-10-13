@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,6 +14,7 @@ import {
 import { Loader2, AlertCircle, AlertTriangle } from "lucide-react";
 import { userManagementService, UserListItem } from "@/lib/api/user-management";
 import { ApiError } from "@/lib/types/api";
+import { roleValueKey } from "./user-form";
 
 interface DeleteUserModalProps {
   open: boolean;
@@ -22,6 +24,9 @@ interface DeleteUserModalProps {
 }
 
 export function DeleteUserModal({ open, onOpenChange, user, onSuccess }: DeleteUserModalProps) {
+  const t = useTranslations("userManagement");
+  const tc = useTranslations("common");
+  const roleKey = roleValueKey(user.site_role);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,7 +44,7 @@ export function DeleteUserModal({ open, onOpenChange, user, onSuccess }: DeleteU
       handleClose();
       onSuccess();
     } catch (err) {
-      setError((err as ApiError).message || "Failed to delete user");
+      setError((err as ApiError).message || t("deleteUser.failed"));
     } finally {
       setLoading(false);
     }
@@ -49,9 +54,9 @@ export function DeleteUserModal({ open, onOpenChange, user, onSuccess }: DeleteU
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete User</DialogTitle>
+          <DialogTitle>{t("deleteUser.title")}</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete this user? This action cannot be undone.
+            {t("deleteUser.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -60,14 +65,14 @@ export function DeleteUserModal({ open, onOpenChange, user, onSuccess }: DeleteU
           <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
             <div className="flex-1 text-sm">
-              <p className="font-medium text-destructive mb-1">Warning</p>
+              <p className="font-medium text-destructive mb-1">{t("deleteUser.warning")}</p>
               <p className="text-muted-foreground">
-                Deleting this user will remove:
+                {t("deleteUser.willRemove")}
               </p>
               <ul className="list-disc list-inside mt-2 space-y-1 text-muted-foreground">
-                <li>All instance access ({user.instance_count} {user.instance_count === 1 ? "instance" : "instances"})</li>
-                <li>Site role: {user.site_role}</li>
-                <li>User authentication and account data</li>
+                <li>{t("deleteUser.instanceAccess", { count: user.instance_count })}</li>
+                <li>{t("deleteUser.siteRole", { role: roleKey ? t(roleKey) : user.site_role })}</li>
+                <li>{t("deleteUser.accountData")}</li>
               </ul>
             </div>
           </div>
@@ -75,13 +80,13 @@ export function DeleteUserModal({ open, onOpenChange, user, onSuccess }: DeleteU
           {/* User info */}
           <div className="border border-border rounded-lg p-4 space-y-2">
             <div className="flex items-start justify-between">
-              <span className="text-sm font-medium text-muted-foreground">Name:</span>
+              <span className="text-sm font-medium text-muted-foreground">{t("deleteUser.nameLabel")}</span>
               <span className="text-sm text-foreground font-medium">
-                {user.name || "Unnamed User"}
+                {user.name || t("unnamedUser")}
               </span>
             </div>
             <div className="flex items-start justify-between">
-              <span className="text-sm font-medium text-muted-foreground">Email:</span>
+              <span className="text-sm font-medium text-muted-foreground">{t("deleteUser.emailLabel")}</span>
               <span className="text-sm text-foreground">{user.email}</span>
             </div>
           </div>
@@ -102,7 +107,7 @@ export function DeleteUserModal({ open, onOpenChange, user, onSuccess }: DeleteU
             onClick={handleClose}
             disabled={loading}
           >
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button
             type="button"
@@ -111,7 +116,7 @@ export function DeleteUserModal({ open, onOpenChange, user, onSuccess }: DeleteU
             disabled={loading}
           >
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {loading ? "Deleting..." : "Delete User"}
+            {loading ? tc("deleting") : t("deleteUser.confirm")}
           </Button>
         </DialogFooter>
       </DialogContent>

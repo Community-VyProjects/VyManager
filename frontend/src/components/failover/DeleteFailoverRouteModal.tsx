@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface DeleteFailoverRouteModalProps {
   open: boolean;
@@ -26,6 +27,8 @@ export function DeleteFailoverRouteModal({
   destination,
   onConfirm,
 }: DeleteFailoverRouteModalProps) {
+  const t = useTranslations("failover");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
 
   const handleConfirm = async () => {
@@ -41,17 +44,17 @@ export function DeleteFailoverRouteModal({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Failover Route</AlertDialogTitle>
+          <AlertDialogTitle>{t("deleteModal.title")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete the failover route for{" "}
-            <span className="font-mono font-semibold">{destination}</span>?
-            This will remove all next-hops, DHCP interfaces, and health checks
-            associated with this route.
+            {t.rich("deleteModal.description", {
+              destination,
+              mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
             disabled={loading}
@@ -60,10 +63,10 @@ export function DeleteFailoverRouteModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Route"
+              t("deleteModal.deleteRoute")
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

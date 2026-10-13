@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ export function TwoFactorEnrollForm({
   password?: string;
   onDone: () => void | Promise<void>;
 }) {
+  const t = useTranslations("twoFactor");
   const [password, setPassword] = useState(initialPassword ?? "");
   const [code, setCode] = useState("");
   const [totpURI, setTotpURI] = useState("");
@@ -31,14 +33,14 @@ export function TwoFactorEnrollForm({
     try {
       const result = await authClient.twoFactor.enable({ password });
       if (result.error) {
-        setError(result.error.message || "Could not start enrollment");
+        setError(result.error.message || t("enroll.startFailed"));
         return;
       }
       setTotpURI(result.data?.totpURI ?? "");
       setBackupCodes(result.data?.backupCodes ?? []);
       setCode("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not start enrollment");
+      setError(err instanceof Error ? err.message : t("enroll.startFailed"));
     } finally {
       setBusy(false);
     }
@@ -51,12 +53,12 @@ export function TwoFactorEnrollForm({
     try {
       const result = await authClient.twoFactor.verifyTotp({ code: code.trim() });
       if (result.error) {
-        setError(result.error.message || "Invalid authenticator code");
+        setError(result.error.message || t("enroll.invalidCode"));
         return;
       }
       await onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Invalid authenticator code");
+      setError(err instanceof Error ? err.message : t("enroll.invalidCode"));
     } finally {
       setBusy(false);
     }
@@ -69,7 +71,7 @@ export function TwoFactorEnrollForm({
         <form onSubmit={start} className="space-y-2">
           {!initialPassword && (
             <>
-              <Label htmlFor="enroll-password">Password</Label>
+              <Label htmlFor="enroll-password">{t("enroll.password")}</Label>
               <Input
                 id="enroll-password"
                 type="password"
@@ -81,17 +83,17 @@ export function TwoFactorEnrollForm({
             </>
           )}
           <Button type="submit" className="w-full" disabled={busy || !password}>
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Set up authenticator"}
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("enroll.setUp")}
           </Button>
         </form>
       ) : (
         <div className="space-y-3">
-          <p className="text-sm">Scan this with your authenticator app, save the backup codes, then enter a code.</p>
+          <p className="text-sm">{t("enroll.scanWithBackup")}</p>
           <div className="bg-white p-3 w-fit rounded-md mx-auto">
             <QRCodeSVG value={totpURI} size={192} level="M" />
           </div>
           {secret && (
-            <p className="text-xs font-mono break-all text-muted-foreground">Secret: {secret}</p>
+            <p className="text-xs font-mono break-all text-muted-foreground">{t("enroll.secret", { secret })}</p>
           )}
           {backupCodes.length > 0 && (
             <ul className="grid grid-cols-2 gap-1 font-mono text-xs">
@@ -101,7 +103,7 @@ export function TwoFactorEnrollForm({
             </ul>
           )}
           <form onSubmit={confirm} className="space-y-2">
-            <Label htmlFor="forced-enroll-code">Authenticator code</Label>
+            <Label htmlFor="forced-enroll-code">{t("enroll.authenticatorCode")}</Label>
             <Input
               id="forced-enroll-code"
               inputMode="numeric"
@@ -112,7 +114,7 @@ export function TwoFactorEnrollForm({
               disabled={busy}
             />
             <Button type="submit" className="w-full" disabled={busy || !code.trim()}>
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm and continue"}
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("enroll.confirmContinue")}
             </Button>
           </form>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import {
   Table,
   TableBody,
@@ -228,6 +229,7 @@ export function TrafficTable({
   filter,
   onClear,
 }: TrafficTableProps) {
+  const t = useTranslations("monitoring");
   const [entries, setEntries] = useState<TrafficEntry[]>([]);
   const [search, setSearch] = useState("");
   const [protoFilter, setProtoFilter] = useState<string | null>(null);
@@ -393,7 +395,7 @@ export function TrafficTable({
         {/* Stats */}
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-xs text-muted-foreground">
-            {entries.length.toLocaleString()} pkts
+            {t("traffic.packets", { count: entries.length })}
           </span>
           {displayProtos.map((proto) => (
             <button
@@ -411,7 +413,7 @@ export function TrafficTable({
           ))}
           {paused && bufferedCount > 0 && (
             <Badge variant="secondary" className="text-[10px]">
-              +{bufferedCount} buffered
+              {t("traffic.buffered", { count: bufferedCount })}
             </Badge>
           )}
         </div>
@@ -423,7 +425,7 @@ export function TrafficTable({
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Filter rows…"
+              placeholder={t("traffic.filterRows")}
               className="h-7 pl-6 pr-2 text-xs w-40"
             />
             {search && (
@@ -442,9 +444,9 @@ export function TrafficTable({
             onClick={paused ? handleResume : () => setPaused(true)}
           >
             {paused ? (
-              <><Play className="h-3 w-3 mr-1" />Resume</>
+              <><Play className="h-3 w-3 mr-1" />{t("traffic.resume")}</>
             ) : (
-              <><Pause className="h-3 w-3 mr-1" />Pause</>
+              <><Pause className="h-3 w-3 mr-1" />{t("traffic.pause")}</>
             )}
           </Button>
           <Button
@@ -453,7 +455,7 @@ export function TrafficTable({
             className="h-7 px-2"
             onClick={exportPcap}
             disabled={entries.length === 0}
-            title="Export PCAP"
+            title={t("traffic.exportPcap")}
           >
             <Download className="h-3.5 w-3.5" />
           </Button>
@@ -463,7 +465,7 @@ export function TrafficTable({
             className="h-7 px-2 text-muted-foreground"
             onClick={handleClear}
             disabled={entries.length === 0}
-            title="Clear"
+            title={t("table.clear")}
           >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
@@ -480,14 +482,14 @@ export function TrafficTable({
         <Table className="table-fixed">
           <TableHeader className="sticky top-0 z-10 bg-card">
             <TableRow className="hover:bg-transparent border-b">
-              <TableHead className="w-[110px] text-xs py-2">Time</TableHead>
-              <TableHead className="w-[70px] text-xs py-2">Protocol</TableHead>
-              <TableHead className="w-[130px] text-xs py-2">Src IP</TableHead>
-              <TableHead className="w-[62px] text-xs py-2">Src Port</TableHead>
-              <TableHead className="w-[130px] text-xs py-2">Dst IP</TableHead>
-              <TableHead className="w-[62px] text-xs py-2">Dst Port</TableHead>
-              <TableHead className="w-[54px] text-xs py-2">Flags</TableHead>
-              <TableHead className="w-[50px] text-xs py-2 text-right">Bytes</TableHead>
+              <TableHead className="w-[110px] text-xs py-2">{t("traffic.time")}</TableHead>
+              <TableHead className="w-[70px] text-xs py-2">{t("traffic.protocol")}</TableHead>
+              <TableHead className="w-[130px] text-xs py-2">{t("traffic.srcIp")}</TableHead>
+              <TableHead className="w-[62px] text-xs py-2">{t("traffic.srcPort")}</TableHead>
+              <TableHead className="w-[130px] text-xs py-2">{t("traffic.dstIp")}</TableHead>
+              <TableHead className="w-[62px] text-xs py-2">{t("traffic.dstPort")}</TableHead>
+              <TableHead className="w-[54px] text-xs py-2">{t("traffic.flags")}</TableHead>
+              <TableHead className="w-[50px] text-xs py-2 text-right">{t("traffic.bytes")}</TableHead>
               <TableHead className="w-[24px] py-2" />
             </TableRow>
           </TableHeader>
@@ -496,10 +498,10 @@ export function TrafficTable({
               <TableRow>
                 <TableCell colSpan={9} className="py-16 text-center text-muted-foreground text-sm">
                   {isRunning
-                    ? "Waiting for packets…"
+                    ? t("traffic.waiting")
                     : entries.length > 0
-                    ? "No packets match the current filter"
-                    : "Start monitoring to capture traffic"}
+                    ? t("traffic.noMatch")
+                    : t("traffic.empty")}
                 </TableCell>
               </TableRow>
             ) : (
@@ -576,7 +578,7 @@ export function TrafficTable({
       {selectedEntry && (
         <div className="border-t bg-muted/20">
           <div className="flex items-center justify-between px-4 py-2 border-b border-border/50">
-            <span className="text-xs font-medium text-muted-foreground">Packet Details</span>
+            <span className="text-xs font-medium text-muted-foreground">{t("traffic.packetDetails")}</span>
             <button
               onClick={() => setSelectedEntry(null)}
               className="text-muted-foreground hover:text-foreground"
@@ -586,15 +588,15 @@ export function TrafficTable({
           </div>
           <div className="p-4 grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3">
             {[
-              { label: "Timestamp", value: selectedEntry.timestamp },
-              { label: "Network Protocol", value: selectedEntry.networkProto },
-              { label: "Transport Protocol", value: selectedEntry.proto },
-              { label: "Source IP", value: selectedEntry.srcIp || "—" },
-              { label: "Source Port", value: selectedEntry.srcPort || "—" },
-              { label: "Destination IP", value: selectedEntry.dstIp || "—" },
-              { label: "Destination Port", value: selectedEntry.dstPort || "—" },
-              { label: "TCP Flags", value: selectedEntry.flags || "—" },
-              { label: "Length (bytes)", value: selectedEntry.length || "—" },
+              { label: t("table.timestamp"), value: selectedEntry.timestamp },
+              { label: t("traffic.networkProtocol"), value: selectedEntry.networkProto },
+              { label: t("traffic.transportProtocol"), value: selectedEntry.proto },
+              { label: t("traffic.sourceIp"), value: selectedEntry.srcIp || "—" },
+              { label: t("traffic.sourcePort"), value: selectedEntry.srcPort || "—" },
+              { label: t("traffic.destinationIp"), value: selectedEntry.dstIp || "—" },
+              { label: t("traffic.destinationPort"), value: selectedEntry.dstPort || "—" },
+              { label: t("traffic.tcpFlags"), value: selectedEntry.flags || "—" },
+              { label: t("traffic.lengthBytes"), value: selectedEntry.length || "—" },
             ].map(({ label, value }) => (
               <div key={label} className="space-y-0.5">
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
@@ -605,7 +607,7 @@ export function TrafficTable({
             ))}
             <div className="col-span-2 sm:col-span-3 space-y-0.5 pt-1">
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-                Info
+                {t("traffic.info")}
               </p>
               <p className="text-xs font-mono text-muted-foreground break-all">
                 {selectedEntry.info || "—"}
@@ -613,7 +615,7 @@ export function TrafficTable({
             </div>
             <div className="col-span-2 sm:col-span-3 space-y-0.5 pt-1 border-t border-border/50">
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-                Raw Line
+                {t("table.rawLine")}
               </p>
               <p className="text-[11px] font-mono text-muted-foreground break-all bg-muted/50 rounded p-2">
                 {selectedEntry.raw}
@@ -633,7 +635,7 @@ export function TrafficTable({
           >
             <div className="px-2 py-1 mb-1">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">
-                Value
+                {t("table.value")}
               </p>
               <p className="text-xs font-mono truncate max-w-[200px]">
                 {contextMenu.value}
@@ -645,14 +647,14 @@ export function TrafficTable({
               onClick={() => addToFilter(contextMenu.value)}
             >
               <Search className="h-3.5 w-3.5 text-muted-foreground" />
-              Add to filter
+              {t("table.addToFilter")}
             </button>
             <button
               className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-muted transition-colors text-left"
               onClick={() => copyToClipboard(contextMenu.value)}
             >
               <Download className="h-3.5 w-3.5 text-muted-foreground" />
-              Copy value
+              {t("table.copyValue")}
             </button>
           </div>
         </>

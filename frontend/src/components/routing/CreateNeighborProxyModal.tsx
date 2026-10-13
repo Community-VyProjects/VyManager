@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { staticRoutesService } from "@/lib/api/static-routes";
 import { showService, InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
@@ -29,6 +30,8 @@ export function CreateNeighborProxyModal({
   onOpenChange,
   onSuccess,
 }: CreateNeighborProxyModalProps) {
+  const t = useTranslations("routingExtras");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
@@ -66,11 +69,11 @@ export function CreateNeighborProxyModal({
 
     // Validation
     if (!ipAddress) {
-      setError("IP address is required");
+      setError(t("neighborProxyModal.ipRequired"));
       return;
     }
     if (!interfaceName) {
-      setError("Interface is required");
+      setError(t("neighborProxyModal.interfaceRequired"));
       return;
     }
 
@@ -78,14 +81,14 @@ export function CreateNeighborProxyModal({
     if (proxyType === "arp") {
       const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
       if (!ipv4Regex.test(ipAddress)) {
-        setError("Invalid IPv4 address format");
+        setError(t("neighborProxyModal.invalidIpv4"));
         return;
       }
     } else {
       // Basic IPv6 validation
       const ipv6Regex = /^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$/;
       if (!ipv6Regex.test(ipAddress)) {
-        setError("Invalid IPv6 address format");
+        setError(t("neighborProxyModal.invalidIpv6"));
         return;
       }
     }
@@ -101,7 +104,7 @@ export function CreateNeighborProxyModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create neighbor proxy entry");
+      setError(err instanceof Error ? err.message : t("neighborProxyModal.createFailed"));
     } finally {
       setLoading(false);
     }
@@ -111,9 +114,9 @@ export function CreateNeighborProxyModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Create Neighbor Proxy Entry</DialogTitle>
+          <DialogTitle>{t("neighborProxyModal.title")}</DialogTitle>
           <DialogDescription>
-            Add a neighbor proxy entry for ARP (IPv4) or ND (IPv6)
+            {t("neighborProxyModal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -127,13 +130,13 @@ export function CreateNeighborProxyModal({
 
           <Tabs value={proxyType} onValueChange={(v) => setProxyType(v as "arp" | "nd")}>
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="arp">ARP Proxy (IPv4)</TabsTrigger>
-              <TabsTrigger value="nd">ND Proxy (IPv6)</TabsTrigger>
+              <TabsTrigger value="arp">{t("shared.arpProxy")}</TabsTrigger>
+              <TabsTrigger value="nd">{t("shared.ndProxy")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="arp" className="space-y-4 mt-4">
               <div className="space-y-2">
-                <Label htmlFor="ipv4-address">IPv4 Address</Label>
+                <Label htmlFor="ipv4-address">{t("neighborProxyModal.ipv4Address")}</Label>
                 <Input
                   id="ipv4-address"
                   placeholder="192.168.1.100"
@@ -145,7 +148,7 @@ export function CreateNeighborProxyModal({
 
             <TabsContent value="nd" className="space-y-4 mt-4">
               <div className="space-y-2">
-                <Label htmlFor="ipv6-address">IPv6 Address</Label>
+                <Label htmlFor="ipv6-address">{t("neighborProxyModal.ipv6Address")}</Label>
                 <Input
                   id="ipv6-address"
                   placeholder="2001:db8::1"
@@ -157,23 +160,23 @@ export function CreateNeighborProxyModal({
           </Tabs>
 
           <div className="space-y-2">
-            <Label htmlFor="interface">Interface</Label>
+            <Label htmlFor="interface">{t("shared.interface")}</Label>
             <InterfaceSelect
               value={interfaceName}
               onValueChange={setInterfaceName}
               interfaces={availableInterfaces}
-              placeholder="Select interface..."
+              placeholder={t("shared.selectInterface")}
             />
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Create Entry
+            {t("shared.createEntry")}
           </Button>
         </DialogFooter>
       </DialogContent>

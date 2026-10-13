@@ -104,22 +104,36 @@ const validateIPv6 = (value: string): boolean => {
   return value.includes(":");
 };
 
+/** Message key (under `localRoute.validation`) plus its values. */
+export type LocalRouteError =
+  | {
+      key:
+        | "tableRequired"
+        | "tableRange"
+        | "vrfRequired"
+        | "matchRequired"
+        | "fwmarkRange"
+        | "sourcePortRange"
+        | "destinationPortRange";
+    }
+  | { key: "invalidSource" | "invalidDestination"; values: { type: string } };
+
 export function validateLocalRoute(
   draft: LocalRouteDraft,
   ruleType: "ipv4" | "ipv6",
-): string | null {
+): LocalRouteError | null {
   if (draft.routingType === "table") {
     if (!draft.table) {
-      return "Table is required. Please enter 'main' or a table number (1-200).";
+      return { key: "tableRequired" };
     }
     if (draft.table !== "main") {
       const tableNum = parseInt(draft.table, 10);
       if (isNaN(tableNum) || tableNum < 1 || tableNum > 200) {
-        return "Table must be 'main' or a number between 1-200";
+        return { key: "tableRange" };
       }
     }
   } else if (!draft.vrf) {
-    return "VRF is required. Please enter a VRF name or 'default'.";
+    return { key: "vrfRequired" };
   }
 
   const iface = ifaceValue(draft.inboundInterface);
@@ -132,33 +146,33 @@ export function validateLocalRoute(
     !draft.sourcePort &&
     !draft.destinationPort
   ) {
-    return "At least one matching criterion is required (source, destination, interface, protocol, port, or fwmark)";
+    return { key: "matchRequired" };
   }
 
   if (draft.source) {
     const isValid = ruleType === "ipv4" ? validateIPv4(draft.source) : validateIPv6(draft.source);
-    if (!isValid) return `Invalid ${ruleType.toUpperCase()} source address format`;
+    if (!isValid) return { key: "invalidSource", values: { type: ruleType.toUpperCase() } };
   }
   if (draft.destination) {
     const isValid = ruleType === "ipv4" ? validateIPv4(draft.destination) : validateIPv6(draft.destination);
-    if (!isValid) return `Invalid ${ruleType.toUpperCase()} destination address format`;
+    if (!isValid) return { key: "invalidDestination", values: { type: ruleType.toUpperCase() } };
   }
   if (draft.fwmark) {
     const mark = parseInt(draft.fwmark, 10);
     if (isNaN(mark) || mark < 1 || mark > 2147483647) {
-      return "Fwmark must be a number between 1 and 2147483647";
+      return { key: "fwmarkRange" };
     }
   }
   if (draft.sourcePort) {
     const port = parseInt(draft.sourcePort, 10);
     if (isNaN(port) || port < 1 || port > 65535) {
-      return "Source port must be a number between 1 and 65535";
+      return { key: "sourcePortRange" };
     }
   }
   if (draft.destinationPort) {
     const port = parseInt(draft.destinationPort, 10);
     if (isNaN(port) || port < 1 || port > 65535) {
-      return "Destination port must be a number between 1 and 65535";
+      return { key: "destinationPortRange" };
     }
   }
   return null;

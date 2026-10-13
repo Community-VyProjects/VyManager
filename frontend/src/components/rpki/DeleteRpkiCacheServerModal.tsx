@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +27,8 @@ export function DeleteRpkiCacheServerModal({
   serverAddress,
   onConfirm,
 }: DeleteRpkiCacheServerModalProps) {
+  const t = useTranslations("rpki");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
 
   const handleConfirm = async () => {
@@ -41,16 +44,17 @@ export function DeleteRpkiCacheServerModal({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete RPKI Cache Server</AlertDialogTitle>
+          <AlertDialogTitle>{t("delete.title")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Remove cache server{" "}
-            <span className="font-mono font-semibold">{serverAddress}</span>?
-            This will affect BGP route origin validation.
+            {t.rich("delete.description", {
+              address: serverAddress,
+              mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
             disabled={loading}
@@ -59,10 +63,10 @@ export function DeleteRpkiCacheServerModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Server"
+              t("delete.confirm")
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

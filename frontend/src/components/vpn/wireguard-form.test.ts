@@ -72,7 +72,7 @@ describe("validateInterfaceCreate", () => {
     const draft = { ...emptyInterfaceDraft, name: "wg0", privateKey: "KEY" };
     assert.equal(
       validateInterfaceCreate(draft, ["wg0"]),
-      "Interface wg0 already exists",
+      "interfaceExists",
     );
   });
 
@@ -80,7 +80,7 @@ describe("validateInterfaceCreate", () => {
     const draft = { ...emptyInterfaceDraft, name: "tun0", privateKey: "KEY" };
     assert.equal(
       validateInterfaceCreate(draft, []),
-      "Interface name must be in format 'wg0', 'wg1', etc.",
+      "interfaceNameFormat",
     );
   });
 
@@ -88,7 +88,7 @@ describe("validateInterfaceCreate", () => {
     const draft = { ...emptyInterfaceDraft, name: "wg1" };
     assert.equal(
       validateInterfaceCreate(draft, []),
-      "Private key is required. Use 'Generate Key' to create one.",
+      "privateKeyRequired",
     );
   });
 
@@ -213,7 +213,7 @@ describe("validatePeer", () => {
         isCreate: true,
         existingPeerNames: ["laptop", "phone"],
       }),
-      "Peer 'laptop' already exists on this interface",
+      "peerExists",
     );
   });
 
@@ -221,11 +221,11 @@ describe("validatePeer", () => {
     const base = { ...emptyPeerDraft, publicKey: "K", allowedIps: "10.0.0.2/32" };
     assert.equal(
       validatePeer(base, { isCreate: true, existingPeerNames: [] }),
-      "Peer name is required",
+      "peerNameRequired",
     );
     assert.equal(
       validatePeer({ ...base, name: "my laptop" }, { isCreate: true, existingPeerNames: [] }),
-      "Peer name cannot contain spaces",
+      "peerNameSpaces",
     );
   });
 
@@ -235,11 +235,11 @@ describe("validatePeer", () => {
     for (const isCreate of [true, false]) {
       assert.equal(
         validatePeer(noKey, { isCreate, existingPeerNames: [] }),
-        "Public key is required",
+        "publicKeyRequired",
       );
       assert.equal(
         validatePeer(noIps, { isCreate, existingPeerNames: [] }),
-        "At least one allowed IP is required",
+        "allowedIpsRequired",
       );
     }
   });

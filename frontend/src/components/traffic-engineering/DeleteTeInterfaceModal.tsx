@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +27,8 @@ export function DeleteTeInterfaceModal({
   interfaceName,
   onConfirm,
 }: DeleteTeInterfaceModalProps) {
+  const t = useTranslations("trafficEngineering");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
 
   const handleConfirm = async () => {
@@ -41,16 +44,17 @@ export function DeleteTeInterfaceModal({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Interface Configuration</AlertDialogTitle>
+          <AlertDialogTitle>{t("deleteInterface.title")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Remove Traffic Engineering parameters for interface{" "}
-            <span className="font-mono font-semibold">{interfaceName}</span>? All TE settings for
-            this interface will be cleared.
+            {t.rich("deleteInterface.description", {
+              name: interfaceName,
+              mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
             disabled={loading}
@@ -59,10 +63,10 @@ export function DeleteTeInterfaceModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Interface Config"
+              t("deleteInterface.confirm")
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

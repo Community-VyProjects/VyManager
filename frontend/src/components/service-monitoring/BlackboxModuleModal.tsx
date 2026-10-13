@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +47,8 @@ export function BlackboxModuleModal({
   caps,
   onSuccess,
 }: BlackboxModuleModalProps) {
+  const t = useTranslations("serviceMonitoring");
+  const tc = useTranslations("common");
   const isEdit = !!original;
   const [name, setName] = useState(original?.name ?? "");
   const [preferredIpProtocol, setPreferredIpProtocol] = useState(
@@ -72,8 +75,8 @@ export function BlackboxModuleModal({
   const dnsQueryTypes = caps.features.prometheus.exporters.blackbox_exporter.dns_query_types;
 
   const validateName = () => {
-    if (!name.trim()) return "Module name is required";
-    if (!isEdit && existingNames.includes(name.trim())) return "A module with this name already exists";
+    if (!name.trim()) return t("blackbox.nameRequired");
+    if (!isEdit && existingNames.includes(name.trim())) return t("blackbox.nameExists");
     return null;
   };
 
@@ -108,7 +111,7 @@ export function BlackboxModuleModal({
       }
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -119,16 +122,16 @@ export function BlackboxModuleModal({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? "Edit" : "Add"} {moduleType.toUpperCase()} Module
+            {isEdit ? t("blackbox.editTitle", { type: moduleType.toUpperCase() }) : t("blackbox.addTitle", { type: moduleType.toUpperCase() })}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-1">
           <div className="space-y-2">
-            <Label htmlFor="mod-name">Module Name</Label>
+            <Label htmlFor="mod-name">{t("blackbox.moduleName")}</Label>
             <Input
               id="mod-name"
-              placeholder="e.g. ping-ipv4"
+              placeholder={t("blackbox.namePlaceholder")}
               value={name}
               onChange={(e) => setName(e.target.value)}
               readOnly={isEdit}
@@ -137,10 +140,10 @@ export function BlackboxModuleModal({
           </div>
 
           <div className="space-y-2">
-            <Label>Preferred IP Protocol</Label>
+            <Label>{t("blackbox.preferredIpProtocol")}</Label>
             <Select value={preferredIpProtocol} onValueChange={setPreferredIpProtocol}>
               <SelectTrigger>
-                <SelectValue placeholder="Default" />
+                <SelectValue placeholder={tc("default")} />
               </SelectTrigger>
               <SelectContent>
                 {ipProtocolValues.map((v) => (
@@ -157,12 +160,12 @@ export function BlackboxModuleModal({
               onCheckedChange={(c) => setIpProtocolFallback(!!c)}
             />
             <Label htmlFor="fallback" className="cursor-pointer">
-              Allow IP protocol fallback
+              {t("blackbox.ipProtocolFallback")}
             </Label>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="mod-timeout">Timeout (seconds)</Label>
+            <Label htmlFor="mod-timeout">{t("blackbox.timeoutSeconds")}</Label>
             <Input
               id="mod-timeout"
               type="number"
@@ -177,23 +180,23 @@ export function BlackboxModuleModal({
           {moduleType === "dns" && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="dns-query">Query Name (FQDN)</Label>
+                <Label htmlFor="dns-query">{t("blackbox.queryNameFqdn")}</Label>
                 <Input
                   id="dns-query"
-                  placeholder="e.g. example.com"
+                  placeholder={t("blackbox.queryNamePlaceholder")}
                   value={queryName}
                   onChange={(e) => setQueryName(e.target.value)}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Query Type</Label>
+                <Label>{t("blackbox.queryType")}</Label>
                 <Select value={queryType} onValueChange={setQueryType}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Default" />
+                    <SelectValue placeholder={tc("default")} />
                   </SelectTrigger>
                   <SelectContent>
-                    {dnsQueryTypes.map((t) => (
-                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    {dnsQueryTypes.map((qt) => (
+                      <SelectItem key={qt} value={qt}>{qt}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -211,11 +214,11 @@ export function BlackboxModuleModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

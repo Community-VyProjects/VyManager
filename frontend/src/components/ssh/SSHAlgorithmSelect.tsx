@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ export function SSHAlgorithmSelect({
   selected,
   onChange,
 }: SSHAlgorithmSelectProps) {
+  const t = useTranslations("ssh");
   const toggle = (value: string) => {
     onChange(
       selected.includes(value)
@@ -49,7 +51,7 @@ export function SSHAlgorithmSelect({
             className="h-7 text-xs"
             onClick={() => onChange([])}
           >
-            Clear ({selected.length})
+            {t("algorithms.clear", { count: selected.length })}
           </Button>
         )}
       </div>
@@ -71,7 +73,7 @@ export function SSHAlgorithmSelect({
       </div>
       {selected.length === 0 && (
         <p className="text-xs text-muted-foreground">
-          None selected — VyOS defaults apply.
+          {t("algorithms.noneSelected")}
         </p>
       )}
     </div>

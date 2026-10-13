@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -52,6 +53,8 @@ export function SNMPv3TrapTargetModal({
   capabilities,
   onSuccess,
 }: SNMPv3TrapTargetModalProps) {
+  const t = useTranslations("snmp");
+  const tc = useTranslations("common");
   const isEdit = existing !== null;
   const v3 = capabilities.features.v3;
 
@@ -83,19 +86,19 @@ export function SNMPv3TrapTargetModal({
   const handleSubmit = async () => {
     const addr = address.trim();
     if (!addr) {
-      setError("A target IP address is required");
+      setError(t("trap.addressRequired"));
       return;
     }
     if (!isValidIP(addr)) {
-      setError("Enter a valid IPv4 or IPv6 address");
+      setError(t("validation.invalidIp"));
       return;
     }
     if (!isEdit && existingAddresses.includes(addr)) {
-      setError(`Trap target "${addr}" already exists`);
+      setError(t("trap.exists", { address: addr }));
       return;
     }
     if (privacyEnabled && !authEnabled) {
-      setError("Privacy requires authentication to be enabled");
+      setError(t("validation.privacyRequiresAuth"));
       return;
     }
     setSubmitting(true);
@@ -115,7 +118,7 @@ export function SNMPv3TrapTargetModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -126,20 +129,20 @@ export function SNMPv3TrapTargetModal({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? "Edit SNMPv3 Trap Target" : "Add SNMPv3 Trap Target"}
+            {isEdit ? t("v3Trap.editTitle") : t("v3Trap.addTitle")}
           </DialogTitle>
           <DialogDescription>
-            Send authenticated inform/trap notifications to a target
+            {t("v3Trap.description")}
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[65vh] pr-4">
           <div className="space-y-5 py-1">
             <div className="space-y-1.5">
-              <Label htmlFor="v3trap-address">Target Address</Label>
+              <Label htmlFor="v3trap-address">{t("trap.targetAddress")}</Label>
               <Input
                 id="v3trap-address"
-                placeholder="e.g. 192.0.2.50"
+                placeholder={t("trap.addressPlaceholder")}
                 value={address}
                 onChange={(e) => {
                   setAddress(e.target.value);
@@ -151,17 +154,17 @@ export function SNMPv3TrapTargetModal({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium">User</Label>
+              <Label className="text-sm font-medium">{t("content.user")}</Label>
               {userNames.length > 0 ? (
                 <Select
                   value={user === "" ? DEFAULT : user}
                   onValueChange={(v) => setUser(v === DEFAULT ? "" : v)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a user" />
+                    <SelectValue placeholder={t("v3Trap.selectUser")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={DEFAULT}>None</SelectItem>
+                    <SelectItem value={DEFAULT}>{tc("none")}</SelectItem>
                     {userNames.map((u) => (
                       <SelectItem key={u} value={u}>
                         {u}
@@ -171,7 +174,7 @@ export function SNMPv3TrapTargetModal({
                 </Select>
               ) : (
                 <Input
-                  placeholder="Username for authentication"
+                  placeholder={t("v3Trap.usernamePlaceholder")}
                   value={user}
                   onChange={(e) => setUser(e.target.value)}
                   className="font-mono"
@@ -181,29 +184,29 @@ export function SNMPv3TrapTargetModal({
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium">Type</Label>
+                <Label className="text-sm font-medium">{t("content.type")}</Label>
                 <Select value={type} onValueChange={setType}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={DEFAULT}>Default (Inform)</SelectItem>
-                    {v3.trap_type_values.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t === "inform" ? "Inform" : "Trap"}
+                    <SelectItem value={DEFAULT}>{t("v3Trap.defaultInform")}</SelectItem>
+                    {v3.trap_type_values.map((tv) => (
+                      <SelectItem key={tv} value={tv}>
+                        {tv === "inform" ? t("v3Trap.inform") : t("v3Trap.trap")}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium">Protocol</Label>
+                <Label className="text-sm font-medium">{t("content.protocol")}</Label>
                 <Select value={protocol} onValueChange={setProtocol}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={DEFAULT}>Default (UDP)</SelectItem>
+                    <SelectItem value={DEFAULT}>{t("general.defaultValue", { value: "UDP" })}</SelectItem>
                     {v3.trap_protocol_values.map((p) => (
                       <SelectItem key={p} value={p}>
                         {p.toUpperCase()}
@@ -214,7 +217,7 @@ export function SNMPv3TrapTargetModal({
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="v3trap-port" className="text-sm font-medium">
-                  Port
+                  {t("content.port")}
                 </Label>
                 <Input
                   id="v3trap-port"
@@ -231,8 +234,8 @@ export function SNMPv3TrapTargetModal({
             <Separator />
 
             <SNMPv3CredentialFields
-              title="Authentication"
-              description="Verify message integrity and origin"
+              title={t("credential.authTitle")}
+              description={t("credential.authDescription")}
               typeOptions={v3.auth_types}
               enabled={authEnabled}
               onEnabledChange={setAuthEnabled}
@@ -243,8 +246,8 @@ export function SNMPv3TrapTargetModal({
             />
 
             <SNMPv3CredentialFields
-              title="Privacy (Encryption)"
-              description="Encrypt message contents (requires authentication)"
+              title={t("credential.privacyTitle")}
+              description={t("credential.privacyDescription")}
               typeOptions={v3.privacy_types}
               enabled={privacyEnabled}
               onEnabledChange={setPrivacyEnabled}
@@ -265,11 +268,11 @@ export function SNMPv3TrapTargetModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isEdit ? "Save" : "Add"}
+            {isEdit ? tc("save") : tc("add")}
           </Button>
         </DialogFooter>
       </DialogContent>

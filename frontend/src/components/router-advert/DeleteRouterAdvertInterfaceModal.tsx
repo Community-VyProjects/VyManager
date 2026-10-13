@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +34,8 @@ export function DeleteRouterAdvertInterfaceModal({
   nat64Count,
   onSuccess,
 }: DeleteRouterAdvertInterfaceModalProps) {
+  const t = useTranslations("routerAdvert");
+  const tc = useTranslations("common");
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,27 +47,29 @@ export function DeleteRouterAdvertInterfaceModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
       setDeleting(false);
     }
   };
 
   const counts: string[] = [];
-  if (prefixCount > 0) counts.push(`${prefixCount} ${prefixCount === 1 ? "prefix" : "prefixes"}`);
-  if (routeCount > 0) counts.push(`${routeCount} ${routeCount === 1 ? "route" : "routes"}`);
-  if (nat64Count > 0) counts.push(`${nat64Count} NAT64 ${nat64Count === 1 ? "prefix" : "prefixes"}`);
+  if (prefixCount > 0) counts.push(t("delete.prefixCount", { count: prefixCount }));
+  if (routeCount > 0) counts.push(t("delete.routeCount", { count: routeCount }));
+  if (nat64Count > 0) counts.push(t("delete.nat64Count", { count: nat64Count }));
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Remove Router Advertisement Interface</AlertDialogTitle>
+          <AlertDialogTitle>{t("delete.title")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Remove router advertisement configuration for{" "}
-            <span className="font-mono font-semibold">{interfaceName}</span>?
+            {t.rich("delete.description", {
+              name: interfaceName,
+              mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+            })}
             {counts.length > 0 && (
               <>
-                {" "}This will also remove {counts.join(", ")}.
+                {" "}{t("delete.alsoRemove", { items: counts.join(t("delete.separator")) })}
               </>
             )}
           </AlertDialogDescription>
@@ -78,7 +83,7 @@ export function DeleteRouterAdvertInterfaceModal({
         )}
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={deleting}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => {
               e.preventDefault();
@@ -88,7 +93,7 @@ export function DeleteRouterAdvertInterfaceModal({
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             {deleting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Remove
+            {t("delete.remove")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

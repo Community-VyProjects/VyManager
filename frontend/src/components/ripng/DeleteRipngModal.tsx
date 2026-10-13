@@ -12,11 +12,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface DeleteRipngModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  itemType: string;
+  itemType: "interface" | "redistribution" | "interfaceFilter";
   itemName: string;
   onConfirm: () => Promise<void>;
 }
@@ -28,6 +29,8 @@ export function DeleteRipngModal({
   itemName,
   onConfirm,
 }: DeleteRipngModalProps) {
+  const t = useTranslations("ripng");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
 
   const handleConfirm = async () => {
@@ -43,16 +46,18 @@ export function DeleteRipngModal({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete RIPng {itemType}</AlertDialogTitle>
+          <AlertDialogTitle>{t("deleteModal.title", { type: itemType })}</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete the RIPng {itemType.toLowerCase()}{" "}
-            <span className="font-mono font-semibold">{itemName}</span>?
-            This action cannot be undone.
+            {t.rich("deleteModal.description", {
+              type: itemType,
+              name: itemName,
+              mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
             disabled={loading}
@@ -61,10 +66,10 @@ export function DeleteRipngModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              `Delete ${itemType}`
+              t("deleteModal.confirm", { type: itemType })
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

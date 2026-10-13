@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -29,6 +30,8 @@ export function DeletePeerModal({
   interfaceName,
   peerData,
 }: DeletePeerModalProps) {
+  const t = useTranslations("wireguard");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,10 +48,10 @@ export function DeletePeerModal({
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to delete peer");
+        setError(result.error || t("deletePeer.failed"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to delete peer");
+      setError((err as ApiError).message || t("deletePeer.failed"));
     } finally {
       setLoading(false);
     }
@@ -62,21 +65,20 @@ export function DeletePeerModal({
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            Delete Peer: {peerData.name}
+            {t("deletePeer.title", { name: peerData.name })}
           </AlertDialogTitle>
           <AlertDialogDescription className="space-y-2">
             <p>
-              Are you sure you want to delete this peer from {interfaceName}? This
-              action cannot be undone.
+              {t("deletePeer.confirm", { interface: interfaceName })}
             </p>
             <div className="rounded-lg bg-muted p-3 mt-2 space-y-1 text-sm">
               <p>
-                <span className="font-medium">Allowed IPs:</span>{" "}
-                {peerData.allowed_ips.join(", ") || "None"}
+                <span className="font-medium">{t("deletePeer.allowedIps")}</span>{" "}
+                {peerData.allowed_ips.join(", ") || tc("none")}
               </p>
               {peerData.address && (
                 <p>
-                  <span className="font-medium">Endpoint:</span> {peerData.address}
+                  <span className="font-medium">{t("deletePeer.endpoint")}</span> {peerData.address}
                   {peerData.port ? `:${peerData.port}` : ""}
                 </p>
               )}
@@ -96,16 +98,16 @@ export function DeletePeerModal({
             onClick={() => onOpenChange(false)}
             disabled={loading}
           >
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {tc("deleting")}
               </>
             ) : (
-              "Delete Peer"
+              t("deletePeer.submit")
             )}
           </Button>
         </AlertDialogFooter>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,8 @@ interface PoweroffModalProps {
 }
 
 export function PoweroffModal({ open, onOpenChange, onSuccess }: PoweroffModalProps) {
+  const t = useTranslations("power");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [action, setAction] = useState<"now" | "at" | "in">("now");
@@ -33,14 +36,14 @@ export function PoweroffModal({ open, onOpenChange, onSuccess }: PoweroffModalPr
 
       if (action === "at") {
         if (!timeValue.trim()) {
-          setError("Please enter a time (HH:MM)");
+          setError(t("modal.enterTime"));
           setLoading(false);
           return;
         }
         value = timeValue;
       } else if (action === "in") {
         if (!minutesValue.trim()) {
-          setError("Please enter number of minutes");
+          setError(t("modal.enterMinutes"));
           setLoading(false);
           return;
         }
@@ -52,7 +55,7 @@ export function PoweroffModal({ open, onOpenChange, onSuccess }: PoweroffModalPr
       handleClose();
       onSuccess();
     } catch (err) {
-      setError((err as ApiError).message || "Failed to execute poweroff");
+      setError((err as ApiError).message || t("poweroff.failed"));
     } finally {
       setLoading(false);
     }
@@ -72,10 +75,10 @@ export function PoweroffModal({ open, onOpenChange, onSuccess }: PoweroffModalPr
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <PowerOff className="h-5 w-5 text-red-500" />
-            Poweroff System
+            {t("poweroff.title")}
           </DialogTitle>
           <DialogDescription>
-            Schedule or immediately power off the VyOS system. The system will shut down completely and require manual power-on to restart.
+            {t("poweroff.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -92,26 +95,26 @@ export function PoweroffModal({ open, onOpenChange, onSuccess }: PoweroffModalPr
 
           {/* Poweroff Options */}
           <div className="space-y-4">
-            <Label>Poweroff Options</Label>
+            <Label>{t("poweroff.options")}</Label>
             <RadioGroup value={action} onValueChange={(value) => setAction(value as "now" | "at" | "in")}>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="now" id="now" />
                 <Label htmlFor="now" className="font-normal cursor-pointer">
-                  Poweroff now (immediately without confirmation)
+                  {t("poweroff.now")}
                 </Label>
               </div>
 
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="at" id="at" />
                 <Label htmlFor="at" className="font-normal cursor-pointer">
-                  Poweroff at specific time
+                  {t("poweroff.at")}
                 </Label>
               </div>
 
               {action === "at" && (
                 <div className="ml-6 mt-2">
                   <Label htmlFor="time" className="text-sm text-muted-foreground">
-                    Time (HH:MM)
+                    {t("modal.timeLabel")}
                   </Label>
                   <Input
                     id="time"
@@ -121,7 +124,7 @@ export function PoweroffModal({ open, onOpenChange, onSuccess }: PoweroffModalPr
                     className="mt-1"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    24-hour format. Hours: 00-23 (e.g., 19:30, 00:00 for midnight)
+                    {t("modal.timeHint")}
                   </p>
                 </div>
               )}
@@ -129,14 +132,14 @@ export function PoweroffModal({ open, onOpenChange, onSuccess }: PoweroffModalPr
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="in" id="in" />
                 <Label htmlFor="in" className="font-normal cursor-pointer">
-                  Poweroff in X minutes
+                  {t("poweroff.in")}
                 </Label>
               </div>
 
               {action === "in" && (
                 <div className="ml-6 mt-2">
                   <Label htmlFor="minutes" className="text-sm text-muted-foreground">
-                    Minutes
+                    {t("modal.minutesLabel")}
                   </Label>
                   <Input
                     id="minutes"
@@ -157,11 +160,11 @@ export function PoweroffModal({ open, onOpenChange, onSuccess }: PoweroffModalPr
             <div className="flex items-start gap-2">
               <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
               <div className="text-sm text-red-800 dark:text-red-200">
-                <p className="font-medium">Critical Warning</p>
+                <p className="font-medium">{t("poweroff.warning")}</p>
                 <p className="mt-1">
                   {action === "now"
-                    ? "The system will power off immediately. All connections will be lost and the system will require manual power-on."
-                    : "The system will power off at the scheduled time. All connections will be lost and the system will require manual power-on."}
+                    ? t("poweroff.warningNow")
+                    : t("poweroff.warningScheduled")}
                 </p>
               </div>
             </div>
@@ -170,10 +173,10 @@ export function PoweroffModal({ open, onOpenChange, onSuccess }: PoweroffModalPr
           {/* Actions */}
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button type="submit" variant="destructive" disabled={loading}>
-              {loading ? "Scheduling..." : action === "now" ? "Poweroff Now" : "Schedule Poweroff"}
+              {loading ? t("modal.scheduling") : action === "now" ? t("poweroff.submitNow") : t("poweroff.submitSchedule")}
             </Button>
           </div>
         </form>

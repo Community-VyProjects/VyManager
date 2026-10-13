@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -37,6 +38,8 @@ interface InstanceWithSite {
 }
 
 export function InstancesTab() {
+  const t = useTranslations("userManagement");
+  const tc = useTranslations("common");
   const [sites, setSites] = useState<Site[]>([]);
   const [instances, setInstances] = useState<InstanceWithSite[]>([]);
   const [filteredInstances, setFilteredInstances] = useState<InstanceWithSite[]>([]);
@@ -50,6 +53,7 @@ export function InstancesTab() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount; a language switch re-renders via router.refresh()
   }, []);
 
   useEffect(() => {
@@ -90,7 +94,7 @@ export function InstancesTab() {
               description: instance.description ?? null,
               host: instance.host,
               port: instance.port,
-              vyosVersion: instance.vyos_version || "Unknown",
+              vyosVersion: instance.vyos_version || t("instances.unknownVersion"),
               siteId: site.id,
               siteName: site.name,
               isActive: instance.is_active,
@@ -103,7 +107,7 @@ export function InstancesTab() {
       setInstances(allInstances);
       setFilteredInstances(allInstances);
     } catch (err) {
-      setError((err as ApiError).message || "Failed to load sites");
+      setError((err as ApiError).message || t("instances.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -138,11 +142,11 @@ export function InstancesTab() {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <AlertCircle className="h-12 w-12 text-destructive mb-4" />
-        <h3 className="text-lg font-semibold text-foreground mb-2">Error Loading Instances</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-2">{t("instances.errorTitle")}</h3>
         <p className="text-sm text-muted-foreground mb-4">{error}</p>
         <Button onClick={loadData} variant="outline" size="sm">
           <RefreshCw className="h-4 w-4 mr-2" />
-          Retry
+          {tc("retry")}
         </Button>
       </div>
     );
@@ -154,14 +158,14 @@ export function InstancesTab() {
         {/* Header with actions */}
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-foreground">Instance Access Overview</h3>
+            <h3 className="text-lg font-semibold text-foreground">{t("instances.overviewTitle")}</h3>
             <p className="text-sm text-muted-foreground">
-              {instances.length} {instances.length === 1 ? "instance" : "instances"} across {sites.length} {sites.length === 1 ? "site" : "sites"}
+              {t("instances.summary", { instances: instances.length, sites: sites.length })}
             </p>
           </div>
           <Button onClick={loadData} variant="outline" size="sm">
             <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+            {tc("refresh")}
           </Button>
         </div>
 
@@ -169,7 +173,7 @@ export function InstancesTab() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search instances by name, site, host..."
+            placeholder={t("instances.searchPlaceholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -181,7 +185,7 @@ export function InstancesTab() {
           <div className="text-center py-12 border border-dashed border-border rounded-lg">
             <Server className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
             <p className="text-sm text-muted-foreground">
-              {searchQuery ? "No instances found matching your search" : "No instances configured"}
+              {searchQuery ? t("instances.noMatches") : t("instances.empty")}
             </p>
           </div>
         ) : (
@@ -193,7 +197,7 @@ export function InstancesTab() {
                   <Building2 className="h-4 w-4 text-muted-foreground" />
                   <h4 className="text-sm font-semibold text-foreground">{siteName}</h4>
                   <span className="text-xs text-muted-foreground">
-                    ({instances.length} {instances.length === 1 ? "instance" : "instances"})
+                    ({t("instances.instanceCount", { count: instances.length })})
                   </span>
                 </div>
 
@@ -202,10 +206,10 @@ export function InstancesTab() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Instance</TableHead>
-                        <TableHead>Host</TableHead>
-                        <TableHead>Version</TableHead>
-                        <TableHead className="text-center">Status</TableHead>
+                        <TableHead>{t("instances.colInstance")}</TableHead>
+                        <TableHead>{t("instances.colHost")}</TableHead>
+                        <TableHead>{t("instances.colVersion")}</TableHead>
+                        <TableHead className="text-center">{tc("status")}</TableHead>
                         <TableHead className="w-[120px]"></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -243,12 +247,12 @@ export function InstancesTab() {
                             {instance.isActive ? (
                               <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 text-xs font-medium">
                                 <div className="h-1.5 w-1.5 rounded-full bg-green-600"></div>
-                                Active
+                                {t("instances.active")}
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
                                 <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground"></div>
-                                Inactive
+                                {t("instances.inactive")}
                               </span>
                             )}
                           </TableCell>
@@ -259,7 +263,7 @@ export function InstancesTab() {
                               onClick={() => handleViewAccess(instance)}
                             >
                               <Eye className="h-4 w-4 mr-1.5" />
-                              View Access
+                              {t("instances.viewAccess")}
                             </Button>
                           </TableCell>
                         </TableRow>

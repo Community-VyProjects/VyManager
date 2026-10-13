@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,8 @@ export function SSHAlgorithmsModal({
   capabilities,
   onSuccess,
 }: SSHAlgorithmsModalProps) {
+  const t = useTranslations("ssh");
+  const tc = useTranslations("common");
   const f = capabilities.features;
 
   const [ciphers, setCiphers] = useState<string[]>(config.ciphers);
@@ -58,7 +61,7 @@ export function SSHAlgorithmsModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -68,18 +71,17 @@ export function SSHAlgorithmsModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Cryptographic Algorithms</DialogTitle>
+          <DialogTitle>{t("content.cryptoAlgorithms")}</DialogTitle>
           <DialogDescription>
-            Restrict the algorithms offered by the SSH server. Leaving a list
-            empty keeps the secure VyOS defaults.
+            {t("algorithms.description")}
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[65vh] pr-4">
           <div className="space-y-5 py-1">
             <SSHAlgorithmSelect
-              label="Ciphers"
-              description="Symmetric encryption algorithms"
+              label={t("content.ciphers")}
+              description={t("algorithms.ciphersHelp")}
               options={f.cipher.values ?? []}
               selected={ciphers}
               onChange={setCiphers}
@@ -87,31 +89,31 @@ export function SSHAlgorithmsModal({
             <Separator />
             <SSHAlgorithmSelect
               label="MACs"
-              description="Message authentication code algorithms"
+              description={t("algorithms.macsHelp")}
               options={f.mac.values ?? []}
               selected={macs}
               onChange={setMacs}
             />
             <Separator />
             <SSHAlgorithmSelect
-              label="Key Exchange"
-              description="Key exchange (KEX) algorithms"
+              label={t("content.keyExchange")}
+              description={t("algorithms.kexHelp")}
               options={f.key_exchange.values ?? []}
               selected={keyExchanges}
               onChange={setKeyExchanges}
             />
             <Separator />
             <SSHAlgorithmSelect
-              label="Host Key Algorithms"
-              description="Host key signature algorithms"
+              label={t("content.hostKeyAlgorithms")}
+              description={t("algorithms.hostKeyHelp")}
               options={f.hostkey_algorithm.values ?? []}
               selected={hostkeyAlgorithms}
               onChange={setHostkeyAlgorithms}
             />
             <Separator />
             <SSHAlgorithmSelect
-              label="Public Key Algorithms"
-              description="Accepted public-key signature algorithms"
+              label={t("content.pubkeyAlgorithms")}
+              description={t("algorithms.pubkeyHelp")}
               options={f.pubkey_accepted_algorithm.values ?? []}
               selected={pubkeyAlgorithms}
               onChange={setPubkeyAlgorithms}
@@ -128,11 +130,11 @@ export function SSHAlgorithmsModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,8 @@ export function SSHAuthenticationModal({
   capabilities,
   onSuccess,
 }: SSHAuthenticationModalProps) {
+  const t = useTranslations("ssh");
+  const tc = useTranslations("common");
   const fidoSupported = capabilities.features.fido.supported;
   const caSupported = capabilities.features.trusted_user_ca.supported;
 
@@ -71,7 +74,7 @@ export function SSHAuthenticationModal({
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -81,9 +84,9 @@ export function SSHAuthenticationModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Authentication &amp; Access</DialogTitle>
+          <DialogTitle>{t("content.authAccess")}</DialogTitle>
           <DialogDescription>
-            Control how clients authenticate and which users may connect
+            {t("auth.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -96,9 +99,9 @@ export function SSHAuthenticationModal({
                 onCheckedChange={(c) => setDisablePassword(!!c)}
               />
               <Label htmlFor="disable-password" className="cursor-pointer leading-tight">
-                <span className="font-medium">Disable password authentication</span>
+                <span className="font-medium">{t("auth.disablePassword")}</span>
                 <span className="block text-xs text-muted-foreground mt-0.5">
-                  Require public-key (or other) authentication; reject passwords
+                  {t("auth.disablePasswordHelp")}
                 </span>
               </Label>
             </div>
@@ -106,28 +109,28 @@ export function SSHAuthenticationModal({
             <Separator />
 
             <div className="space-y-4">
-              <p className="text-sm font-medium">Access Control</p>
+              <p className="text-sm font-medium">{t("auth.accessControl")}</p>
               <SSHMultiValueField
-                label="Allow Users"
-                placeholder="e.g. alice"
+                label={t("content.allowUsers")}
+                placeholder={t("auth.allowUsersPlaceholder")}
                 values={allowUsers}
                 onChange={setAllowUsers}
               />
               <SSHMultiValueField
-                label="Allow Groups"
-                placeholder="e.g. admins"
+                label={t("content.allowGroups")}
+                placeholder={t("auth.allowGroupsPlaceholder")}
                 values={allowGroups}
                 onChange={setAllowGroups}
               />
               <SSHMultiValueField
-                label="Deny Users"
-                placeholder="e.g. guest"
+                label={t("content.denyUsers")}
+                placeholder={t("auth.denyUsersPlaceholder")}
                 values={denyUsers}
                 onChange={setDenyUsers}
               />
               <SSHMultiValueField
-                label="Deny Groups"
-                placeholder="e.g. contractors"
+                label={t("content.denyGroups")}
+                placeholder={t("auth.denyGroupsPlaceholder")}
                 values={denyGroups}
                 onChange={setDenyGroups}
               />
@@ -138,14 +141,14 @@ export function SSHAuthenticationModal({
                 <Separator />
                 <div className="space-y-1.5">
                   <Label htmlFor="trusted-ca" className="text-sm font-medium">
-                    Trusted User CA
+                    {t("content.trustedUserCa")}
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    OpenSSH certificate name from the PKI subsystem used to verify user certificates.
+                    {t("auth.trustedCaHelp")}
                   </p>
                   <Input
                     id="trusted-ca"
-                    placeholder="e.g. my-ssh-ca"
+                    placeholder={t("auth.trustedCaPlaceholder")}
                     value={trustedCa}
                     onChange={(e) => setTrustedCa(e.target.value)}
                     className="font-mono"
@@ -158,7 +161,7 @@ export function SSHAuthenticationModal({
               <>
                 <Separator />
                 <div className="space-y-3">
-                  <p className="text-sm font-medium">FIDO2 Security Keys</p>
+                  <p className="text-sm font-medium">{t("auth.fidoKeys")}</p>
                   <div className="flex items-start gap-3">
                     <Checkbox
                       id="fido-pin"
@@ -166,9 +169,9 @@ export function SSHAuthenticationModal({
                       onCheckedChange={(c) => setPinRequired(!!c)}
                     />
                     <Label htmlFor="fido-pin" className="cursor-pointer leading-tight">
-                      <span className="font-medium">Require PIN</span>
+                      <span className="font-medium">{t("auth.requirePin")}</span>
                       <span className="block text-xs text-muted-foreground mt-0.5">
-                        FIDO2 keys must attest the user was verified (e.g. via a PIN)
+                        {t("auth.requirePinHelp")}
                       </span>
                     </Label>
                   </div>
@@ -179,9 +182,9 @@ export function SSHAuthenticationModal({
                       onCheckedChange={(c) => setTouchRequired(!!c)}
                     />
                     <Label htmlFor="fido-touch" className="cursor-pointer leading-tight">
-                      <span className="font-medium">Require Touch</span>
+                      <span className="font-medium">{t("auth.requireTouch")}</span>
                       <span className="block text-xs text-muted-foreground mt-0.5">
-                        FIDO2 keys must attest the user is physically present
+                        {t("auth.requireTouchHelp")}
                       </span>
                     </Label>
                   </div>
@@ -200,11 +203,11 @@ export function SSHAuthenticationModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

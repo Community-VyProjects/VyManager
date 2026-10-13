@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Network } from "lucide-react";
 import {
   Dialog,
@@ -38,6 +39,8 @@ export function DHCPNetworkOptionsModal({
   network,
   capabilities,
 }: DHCPNetworkOptionsModalProps) {
+  const t = useTranslations("dhcpServer");
+  const tc = useTranslations("common");
   const leaves = capabilities?.catalog?.shared_network ?? NO_LEAVES;
   const [catalogDraft, setCatalogDraft] = useState<CatalogDraft>({});
   const [catalogOriginal, setCatalogOriginal] = useState<CatalogDraft>({});
@@ -71,7 +74,7 @@ export function DHCPNetworkOptionsModal({
         network_name: network.name,
         operations,
       });
-      const saveError = failedSaveMessage(result, "Failed to save network options");
+      const saveError = failedSaveMessage(result, t("networkOptions.saveFailed"));
       if (saveError) {
         setError(saveError);
         return;
@@ -79,7 +82,7 @@ export function DHCPNetworkOptionsModal({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save network options");
+      setError(err instanceof Error ? err.message : t("networkOptions.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -91,17 +94,17 @@ export function DHCPNetworkOptionsModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Network className="h-5 w-5" />
-            {network.name} options
+            {t("networkOptions.title", { name: network.name })}
           </DialogTitle>
           <DialogDescription>
-            Shared-network leaves this device supports that are not already set elsewhere
+            {t("networkOptions.description")}
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="flex-1 pr-3">
           <div className="space-y-4 py-2">
             {leaves.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No extra shared-network options on this device.
+                {t("networkOptions.none")}
               </p>
             ) : (
               <DhcpCatalogFields
@@ -118,10 +121,10 @@ export function DHCPNetworkOptionsModal({
         </ScrollArea>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading || leaves.length === 0}>
-            {loading ? "Saving..." : "Save"}
+            {loading ? tc("saving") : tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>
