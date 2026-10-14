@@ -1208,13 +1208,17 @@ export function FirewallRuleModal({
 
       // Update rule
       const service = protocol === "ipv4" ? firewallIPv4Service : firewallIPv6Service;
-      await service.updateRule(
+      const response = await service.updateRule(
         existing.chain,
         existing.rule_number,
         existing.is_custom_chain,
         config,
         existing
       );
+      if (!response.success) {
+        setError(response.error || tc("operationFailed"));
+        return;
+      }
 
       handleClose();
       onSuccess();
@@ -1580,7 +1584,11 @@ export function FirewallRuleModal({
 
       // Create rule
       const service = protocol === "ipv4" ? firewallIPv4Service : firewallIPv6Service;
-      await service.createRule(chain, ruleNumber, isCustomChain, config);
+      const response = await service.createRule(chain, ruleNumber, isCustomChain, config);
+      if (!response.success) {
+        setError(response.error || tc("operationFailed"));
+        return;
+      }
 
       handleClose();
       onSuccess();
