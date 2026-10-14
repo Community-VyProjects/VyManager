@@ -664,6 +664,17 @@ function InterfacesPageInner() {
   const filteredVifS = filterVlan(activeVifS);
   const filteredVifC = filterVlan(activeVifC);
 
+  const pppoeSourceInterfaces = [
+    ...interfaces.map((iface) => iface.name),
+    ...allVifs.map((vif) => vif.fullName),
+    ...allVifS.map((vif) => vif.fullName),
+    ...allVifC.map((vif) => vif.fullName),
+    ...bondingInterfaces.map((iface) => iface.name),
+    ...bondVifs.map((vif) => vif.fullName),
+    ...bondVifS.map((vif) => vif.fullName),
+    ...bondVifC.map((vif) => vif.fullName),
+  ].filter((name, index, names) => names.indexOf(name) === index);
+
   const handleCreateVlan = () => {
     if (vlanSubTab === "vif") setIsCreateVLANModalOpen(true);
     else if (vlanSubTab === "vif-s") setIsCreateVIFSModalOpen(true);
@@ -4423,7 +4434,7 @@ function InterfacesPageInner() {
         }}
         capabilities={pppoeCapabilities}
         existingInterfaces={pppoeInterfaces.map((i) => i.name)}
-        availableEthernet={interfaces.map((i) => i.name)}
+        availableEthernet={pppoeSourceInterfaces}
         existing={editingPppoe}
       />
       <DeletePppoeModal
