@@ -191,8 +191,17 @@ export function useColumnVisibility(
   const [heldEdit, setHeldEdit] = useState<ColumnLayout | null>(null);
   const [heldReset, setHeldReset] = useState(false);
   const [flushEdit, setFlushEdit] = useState<ColumnLayout | null>(null);
-  const [flushReset, setFlushReset] = useState(false);
+  const [resetNonce, setResetNonce] = useState(0);
   const [paintedUser, setPaintedUser] = useState<string | null>(null);
+  if (!userId && paintedUser) {
+    layoutPainters.delete(browserLayoutKey(paintedUser, storageKey));
+    setPaintedUser(null);
+    const defaults = defaultColumnLayout(columns);
+    setVisibleColumns(new Set(defaults.visible));
+    setColumnOrder(defaults.order);
+    setHeldEdit(null);
+    setHeldReset(false);
+  }
   if (userId && userId !== paintedUser) {
     if (paintedUser) {
       layoutPainters.delete(browserLayoutKey(paintedUser, storageKey));
@@ -214,7 +223,7 @@ export function useColumnVisibility(
     if (heldEdit) setHeldEdit(null);
     if (heldReset) {
       setHeldReset(false);
-      setFlushReset(true);
+      setResetNonce((nonce) => nonce + 1);
     } else if (heldEdit) {
       setFlushEdit(next);
     }
@@ -240,10 +249,10 @@ export function useColumnVisibility(
     );
   }, [flushEdit, userId, browserKey, storageKey, columns]);
 
-  const sentReset = useRef(false);
+  const sentReset = useRef(0);
   useLayoutEffect(() => {
-    if (!flushReset || sentReset.current || !userId || !browserKey) return;
-    sentReset.current = true;
+    if (!resetNonce || sentReset.current === resetNonce || !userId || !browserKey) return;
+    sentReset.current = resetNonce;
     removeItem(browserKey);
     removeItem(orderStorageKey(browserKey));
     removeItem(unsyncedStorageKey(browserKey));
@@ -256,7 +265,7 @@ export function useColumnVisibility(
       { kind: "delete" },
       transportFor(storageKey, browserKey, userId, columns),
     );
-  }, [flushReset, userId, browserKey, storageKey, columns]);
+  }, [resetNonce, userId, browserKey, storageKey, columns]);
 
   useLayoutEffect(() => {
     if (!browserKey) return;

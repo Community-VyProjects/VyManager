@@ -857,6 +857,14 @@ describe("useColumnVisibility", () => {
 
   it("saves an edit made before the session user is known", async () => {
     window.localStorage.clear();
+    window.localStorage.setItem(
+      "alice:firewall-policies-columns",
+      JSON.stringify(["action", "log"]),
+    );
+    window.localStorage.setItem(
+      "vymanager-column-layout-owner:firewall-policies-columns",
+      "alice",
+    );
     const urls: string[] = [];
     globalThis.fetch = (async (url: string, init?: { method?: string }) => {
       if ((init?.method ?? "GET") === "PUT") urls.push(String(url));
@@ -889,6 +897,7 @@ describe("useColumnVisibility", () => {
     await React.act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
+    assert.equal(seen.api?.isVisible("log"), false);
     await React.act(async () => {
       seen.api?.toggleColumn("log");
     });
@@ -905,6 +914,124 @@ describe("useColumnVisibility", () => {
       JSON.stringify(["action", "log"]),
     );
     assert.ok(urls.some((url) => url.includes("asUser=alice")));
+    root.unmount();
+  });
+
+  it("drops the previous account's columns when the session user is gone", async () => {
+    window.localStorage.clear();
+    window.localStorage.setItem(
+      "alice:firewall-policies-columns",
+      JSON.stringify(["action", "log"]),
+    );
+    const methods: string[] = [];
+    globalThis.fetch = (async (_url: string, init?: { method?: string }) => {
+      methods.push(init?.method ?? "GET");
+      return new Response(JSON.stringify({ layouts: {}, exists: false, revisions: {} }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+
+    const React = await import("react");
+    const { createRoot } = await import("react-dom/client");
+    const { useColumnVisibility } = await import("./useColumnVisibility");
+    const rootEl = document.getElementById("root");
+    assert.ok(rootEl);
+    const root = createRoot(rootEl);
+    const seen = { api: null as { isVisible: (id: string) => boolean; toggleColumn: (id: string) => void } | null };
+    const user = { id: "alice" as string | undefined };
+
+    function Harness() {
+      const value = useColumnVisibility("firewall-policies-columns", COLUMNS, user.id);
+      React.useEffect(() => {
+        seen.api = value;
+      });
+      return null;
+    }
+
+    await React.act(async () => {
+      root.render(React.createElement(Harness));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(seen.api?.isVisible("log"), true);
+    user.id = undefined;
+    await React.act(async () => {
+      root.render(React.createElement(Harness));
+    });
+    assert.equal(seen.api?.isVisible("log"), false);
+    await React.act(async () => {
+      seen.api?.toggleColumn("log");
+    });
+    user.id = "bob";
+    methods.length = 0;
+    await React.act(async () => {
+      root.render(React.createElement(Harness));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(seen.api?.isVisible("log"), true);
+    assert.equal(
+      window.localStorage.getItem("bob:firewall-policies-columns"),
+      JSON.stringify(["action", "log"]),
+    );
+    assert.equal(window.localStorage.getItem("alice:firewall-policies-columns"), JSON.stringify(["action", "log"]));
+    assert.ok(methods.includes("PUT"));
+    assert.equal(methods.includes("DELETE"), false);
+    root.unmount();
+  });
+
+  it("sends a second reset after the session user returns", async () => {
+    window.localStorage.clear();
+    const methods: string[] = [];
+    globalThis.fetch = (async (_url: string, init?: { method?: string }) => {
+      methods.push(init?.method ?? "GET");
+      return new Response(JSON.stringify({ layouts: {}, exists: false, revisions: {} }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+
+    const React = await import("react");
+    const { createRoot } = await import("react-dom/client");
+    const { useColumnVisibility } = await import("./useColumnVisibility");
+    const rootEl = document.getElementById("root");
+    assert.ok(rootEl);
+    const root = createRoot(rootEl);
+    const seen = { api: null as { resetToDefault: () => void } | null };
+    const user = { id: undefined as string | undefined };
+
+    function Harness() {
+      const value = useColumnVisibility("firewall-policies-columns", COLUMNS, user.id);
+      React.useEffect(() => {
+        seen.api = value;
+      });
+      return null;
+    }
+
+    await React.act(async () => {
+      root.render(React.createElement(Harness));
+    });
+    await React.act(async () => {
+      seen.api?.resetToDefault();
+    });
+    user.id = "alice";
+    await React.act(async () => {
+      root.render(React.createElement(Harness));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(methods.filter((method) => method === "DELETE").length, 1);
+    user.id = undefined;
+    await React.act(async () => {
+      root.render(React.createElement(Harness));
+    });
+    await React.act(async () => {
+      seen.api?.resetToDefault();
+    });
+    user.id = "alice";
+    await React.act(async () => {
+      root.render(React.createElement(Harness));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(methods.filter((method) => method === "DELETE").length, 2);
     root.unmount();
   });
 });

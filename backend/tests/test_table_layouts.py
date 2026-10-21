@@ -101,7 +101,7 @@ def test_stale_save_does_not_write():
     from datetime import datetime
 
     conn = _Conn(row={
-        "layouts": {"firewall-policies-columns": POLICIES},
+        "layouts": {"firewall-policies-columns": {**POLICIES, "updatedAt": "t1"}},
         "updatedAt": datetime(2026, 1, 1),
     })
     client, conn = _build("alice", conn=conn)
@@ -200,6 +200,31 @@ def test_malformed_stored_key_is_omitted():
     resp = client.get("/user/table-layouts")
     assert resp.status_code == 200
     assert list(resp.json()["layouts"]) == ["firewall-policies-columns"]
+
+
+def test_malformed_stored_key_can_be_replaced_and_deleted():
+    broken = {
+        "layouts": {
+            "firewall-policies-columns": {"visible": "nope", "order": [], "updatedAt": "t-bad"},
+        },
+        "updatedAt": None,
+    }
+    replaced = {
+        "layouts": {"firewall-policies-columns": {**POLICIES, "updatedAt": "t2"}},
+        "updatedAt": None,
+    }
+    conn = _Script([broken, replaced])
+    client, conn = _build("alice", conn=conn)
+    saved = client.put("/user/table-layouts/firewall-policies-columns", json=POLICIES)
+    assert saved.status_code == 200, saved.text
+    assert any("layouts->$2 = $4::jsonb" in sql for sql in conn.sql)
+
+    cleared = {"layouts": {}, "updatedAt": None}
+    conn = _Script([broken, cleared])
+    client, conn = _build("alice", conn=conn)
+    deleted = client.delete("/user/table-layouts/firewall-policies-columns")
+    assert deleted.status_code == 200, deleted.text
+    assert any("layouts - $2" in sql for sql in conn.sql)
 
 
 def test_backup_lists_layouts_after_users():

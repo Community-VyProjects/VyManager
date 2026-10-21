@@ -134,6 +134,11 @@ def _revisions(raw) -> Dict[str, str]:
     return found
 
 
+def _shown_to_client(raw, key: str) -> bool:
+    """A key the read omitted has no revision the client can send back."""
+    return key in _parse_layouts(raw) and _key_revision(raw, key) is not None
+
+
 def _conflict(raw, updated_at) -> dict:
     return {
         "layouts": {key: layout.model_dump() for key, layout in _parse_layouts(raw).items()},
@@ -269,12 +274,13 @@ async def save_table_layout(
         else:
             layouts = _as_layout_dict(existing["layouts"]) or {}
             stored = _key_revision(layouts, key)
-            if key in layouts and not (stored and stored == claimed):
+            shown = _shown_to_client(existing["layouts"], key)
+            if shown and stored != claimed:
                 raise HTTPException(
                     status_code=409,
                     detail=_conflict(existing["layouts"], existing["updatedAt"]),
                 )
-            if key in layouts:
+            if shown:
                 row = await conn.fetchrow(
                     """
                     UPDATE user_table_layouts
@@ -287,6 +293,20 @@ async def save_table_layout(
                     key,
                     layout_json,
                     claimed,
+                )
+            elif key in layouts:
+                row = await conn.fetchrow(
+                    """
+                    UPDATE user_table_layouts
+                    SET layouts = layouts || jsonb_build_object($2::text, $3::jsonb),
+                        "updatedAt" = NOW()
+                    WHERE "userId" = $1 AND layouts->$2 = $4::jsonb
+                    RETURNING layouts, "updatedAt"
+                    """,
+                    user_id,
+                    key,
+                    layout_json,
+                    json.dumps(layouts[key]),
                 )
             else:
                 row = await conn.fetchrow(
@@ -342,6 +362,32 @@ async def delete_table_layout(
         layouts = _as_layout_dict(existing["layouts"]) or {}
         if key not in layouts:
             return _response(existing["layouts"], exists=True, updated_at=existing["updatedAt"])
+        if not _shown_to_client(existing["layouts"], key):
+            row = await conn.fetchrow(
+                """
+                UPDATE user_table_layouts
+                SET layouts = layouts - $2,
+                    "updatedAt" = NOW()
+                WHERE "userId" = $1 AND layouts->$2 = $3::jsonb
+                RETURNING layouts, "updatedAt"
+                """,
+                user_id,
+                key,
+                json.dumps(layouts[key]),
+            )
+            if row is None:
+                raced = await conn.fetchrow(
+                    'SELECT layouts, "updatedAt" FROM user_table_layouts WHERE "userId" = $1',
+                    user_id,
+                )
+                raise HTTPException(
+                    status_code=409,
+                    detail=_conflict(
+                        raced["layouts"] if raced else None,
+                        raced["updatedAt"] if raced else None,
+                    ),
+                )
+            return _response(row["layouts"], exists=True, updated_at=row["updatedAt"])
         stored = _key_revision(existing["layouts"], key)
         if not (stored and stored == basedOn):
             raise HTTPException(

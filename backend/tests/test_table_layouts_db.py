@@ -114,3 +114,48 @@ def test_postgres_merge_isolates_users_and_deletes_one_table():
     again = alice.get("/user/table-layouts")
     assert again.json()["layouts"]["firewall-bridge-columns"] == BRIDGE
     assert "firewall-policies-columns" not in again.json()["layouts"]
+
+
+def test_postgres_replaces_a_malformed_key_the_client_cannot_address():
+    import asyncio
+    import json
+    import uuid
+
+    async def plant():
+        conn = await asyncpg.connect(os.environ["DATABASE_URL"])
+        try:
+            await conn.execute(
+                """
+                INSERT INTO user_table_layouts (id, "userId", layouts, "updatedAt")
+                VALUES ($1, $2, $3::jsonb, NOW())
+                """,
+                str(uuid.uuid4()),
+                "layout-test-malformed",
+                json.dumps({
+                    "firewall-policies-columns": {
+                        "visible": "nope",
+                        "order": [],
+                        "updatedAt": "t-bad",
+                    },
+                    "firewall-bridge-columns": {**BRIDGE, "updatedAt": "t-bridge"},
+                    "pppoe-session-columns": {"visible": "nope", "updatedAt": "t-bad"},
+                }),
+            )
+        finally:
+            await conn.close()
+
+    asyncio.run(_prepare())
+    asyncio.run(plant())
+    alice = _client("layout-test-malformed")
+    saved = alice.put("/user/table-layouts/firewall-policies-columns", json=POLICIES)
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["layouts"]["firewall-policies-columns"]["visible"] == ["action", "protocol"]
+    assert saved.json()["layouts"]["firewall-bridge-columns"]["visible"] == ["action"]
+    removed = alice.delete("/user/table-layouts/pppoe-session-columns")
+    assert removed.status_code == 200, removed.text
+    assert "pppoe-session-columns" not in removed.json()["layouts"]
+    assert "firewall-policies-columns" in removed.json()["layouts"]
+    deleted = alice.delete("/user/table-layouts/firewall-bridge-columns")
+    assert deleted.status_code == 409
+    planted = alice.get("/user/table-layouts")
+    assert "firewall-bridge-columns" in planted.json()["layouts"]
