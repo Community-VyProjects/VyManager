@@ -35,6 +35,10 @@ export function unsyncedStorageKey(storageKey: string): string {
   return storageKey + UNSYNCED_SUFFIX;
 }
 
+export function browserLayoutKey(userId: string, storageKey: string): string {
+  return `${userId}:${storageKey}`;
+}
+
 export function orderStorageKey(storageKey: string): string {
   return storageKey + ORDER_SUFFIX;
 }
@@ -104,6 +108,8 @@ export interface HydrationPlan {
   deleteRemote: boolean;
   clearUnsynced: boolean;
   clearTombstone: boolean;
+  /** Drop this user's browser copy. An empty account must not keep another person's columns on screen. */
+  clearLocal: boolean;
 }
 
 const EMPTY_PLAN: HydrationPlan = {
@@ -113,9 +119,11 @@ const EMPTY_PLAN: HydrationPlan = {
   deleteRemote: false,
   clearUnsynced: false,
   clearTombstone: false,
+  clearLocal: false,
 };
 
 export function planTableLayoutHydration(input: {
+  userId: string;
   storageKey: string;
   columns: ColumnDef[];
   remoteLayouts: Record<string, ColumnLayout> | null;
@@ -123,14 +131,17 @@ export function planTableLayoutHydration(input: {
   dirty: boolean;
   readItem: (key: string) => string | null;
 }): HydrationPlan {
-  const local = localColumnLayout(input.storageKey, input.columns, input.readItem);
+  // Browser markers are per account. An unscoped key belongs to whoever used
+  // this computer last, so it is never read and never uploaded.
+  const browserKey = browserLayoutKey(input.userId, input.storageKey);
+  const local = localColumnLayout(browserKey, input.columns, input.readItem);
   if (input.fetchFailed) {
     return { ...EMPTY_PLAN, paint: local };
   }
   if (input.dirty) return EMPTY_PLAN;
 
-  const tombstone = input.readItem(clearedStorageKey(input.storageKey)) === "1";
-  const unsynced = input.readItem(unsyncedStorageKey(input.storageKey)) === "1";
+  const tombstone = input.readItem(clearedStorageKey(browserKey)) === "1";
+  const unsynced = input.readItem(unsyncedStorageKey(browserKey)) === "1";
   const remote = input.remoteLayouts?.[input.storageKey];
   const remotePresent = remote !== undefined;
 
@@ -140,6 +151,7 @@ export function planTableLayoutHydration(input: {
       paint: defaultColumnLayout(input.columns),
       deleteRemote: remotePresent,
       clearTombstone: !remotePresent,
+      clearLocal: true,
     };
   }
   if (unsynced && local) {
@@ -154,10 +166,11 @@ export function planTableLayoutHydration(input: {
       clearTombstone: true,
     };
   }
-  if (local) {
-    return { ...EMPTY_PLAN, paint: local, save: local };
-  }
-  return EMPTY_PLAN;
+  return {
+    ...EMPTY_PLAN,
+    paint: defaultColumnLayout(input.columns),
+    clearLocal: local !== null,
+  };
 }
 
 export function isColumnLayout(value: unknown): value is ColumnLayout {
@@ -199,8 +212,8 @@ export type LayoutWrite =
   | { kind: "delete" };
 
 export interface LayoutTransport {
-  save: (key: string, layout: ColumnLayout) => Promise<void>;
-  remove: (key: string) => Promise<void>;
+  save: (layout: ColumnLayout) => Promise<void>;
+  remove: () => Promise<void>;
 }
 
 type WriteState = { latest: LayoutWrite | null; pumping: boolean };
@@ -217,8 +230,8 @@ async function pumpLayoutWrites(
       const op = state.latest;
       state.latest = null;
       try {
-        if (op.kind === "delete") await transport.remove(key);
-        else await transport.save(key, op.layout);
+        if (op.kind === "delete") await transport.remove();
+        else await transport.save(op.layout);
       } catch {
         return;
       }
@@ -247,6 +260,7 @@ export function enqueueTableLayoutWrite(
 }
 
 export interface HydrateArgs {
+  userId: string;
   storageKey: string;
   columns: () => ColumnDef[];
   readItem: (key: string) => string | null;
@@ -271,7 +285,8 @@ export function cacheColumnLayout(
  * when an edit landed during the read and already painted itself.
  */
 export async function hydrateTableLayout(args: HydrateArgs): Promise<ColumnLayout | null> {
-  const start = layoutEpoch(args.storageKey);
+  const scope = browserLayoutKey(args.userId, args.storageKey);
+  const start = layoutEpoch(scope);
   let fetchFailed = false;
   let remoteLayouts: Record<string, ColumnLayout> | null = null;
   try {
@@ -280,9 +295,15 @@ export async function hydrateTableLayout(args: HydrateArgs): Promise<ColumnLayou
   } catch {
     fetchFailed = true;
   }
-  if (layoutEpoch(args.storageKey) !== start) return null;
+  if (layoutEpoch(scope) !== start) return null;
+
+  if (!fetchFailed) {
+    args.removeItem(args.storageKey);
+    args.removeItem(orderStorageKey(args.storageKey));
+  }
 
   const plan = planTableLayoutHydration({
+    userId: args.userId,
     storageKey: args.storageKey,
     columns: args.columns(),
     remoteLayouts,
@@ -290,11 +311,15 @@ export async function hydrateTableLayout(args: HydrateArgs): Promise<ColumnLayou
     dirty: false,
     readItem: args.readItem,
   });
-  if (plan.cacheLocal && plan.paint) {
-    cacheColumnLayout(args.storageKey, plan.paint, args.writeItem);
+  if (plan.clearLocal) {
+    args.removeItem(scope);
+    args.removeItem(orderStorageKey(scope));
   }
-  if (plan.clearUnsynced) args.removeItem(unsyncedStorageKey(args.storageKey));
-  if (plan.clearTombstone) args.removeItem(clearedStorageKey(args.storageKey));
+  if (plan.cacheLocal && plan.paint) {
+    cacheColumnLayout(scope, plan.paint, args.writeItem);
+  }
+  if (plan.clearUnsynced) args.removeItem(unsyncedStorageKey(scope));
+  if (plan.clearTombstone) args.removeItem(clearedStorageKey(scope));
   if (plan.save) args.enqueueSave(plan.save);
   if (plan.deleteRemote) args.enqueueDelete();
   return plan.paint;

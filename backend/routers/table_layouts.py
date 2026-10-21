@@ -19,6 +19,7 @@ import uuid
 
 import asyncpg
 
+from fastapi_permissions import reject_read_only_token
 from org_scope import org_conn_self
 
 logger = logging.getLogger(__name__)
@@ -128,6 +129,7 @@ async def save_table_layout(
 ):
     """Merge one table into the account row. Other tables on the row stay."""
     user_id = _require_user_id(request)
+    reject_read_only_token(request)
     key = _require_key(key)
     layout_json = json.dumps({"visible": body.visible, "order": body.order})
     try:
@@ -159,6 +161,7 @@ async def delete_table_layout(
 ):
     """Remove one table. Reset to Default calls this so the other computer follows."""
     user_id = _require_user_id(request)
+    reject_read_only_token(request)
     key = _require_key(key)
     try:
         row = await conn.fetchrow(

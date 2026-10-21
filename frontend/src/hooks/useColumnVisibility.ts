@@ -2,15 +2,16 @@
 
 import { useLayoutEffect, useState } from "react";
 import { arrayMove } from "@dnd-kit/sortable";
+import { useSession } from "@/lib/auth-client";
 import { tableLayoutService } from "@/lib/api/table-layouts";
 import {
+  browserLayoutKey,
   bumpLayoutEpoch,
   cacheColumnLayout,
   clearedStorageKey,
   defaultColumnLayout,
   enqueueTableLayoutWrite,
   hydrateTableLayout,
-  localColumnLayout,
   orderStorageKey,
   unsyncedStorageKey,
   type ColumnDef,
@@ -44,42 +45,47 @@ function removeItem(key: string) {
   }
 }
 
-function transportFor() {
+function transportFor(serverKey: string, browserKey: string) {
   return {
-    save: async (key: string, layout: ColumnLayout) => {
+    save: async (layout: ColumnLayout) => {
       try {
-        await tableLayoutService.save(key, layout);
-        removeItem(unsyncedStorageKey(key));
+        await tableLayoutService.save(serverKey, layout);
+        removeItem(unsyncedStorageKey(browserKey));
       } catch (error) {
-        writeItem(unsyncedStorageKey(key), "1");
+        writeItem(unsyncedStorageKey(browserKey), "1");
         throw error;
       }
     },
-    remove: async (key: string) => {
-      await tableLayoutService.remove(key);
-      removeItem(clearedStorageKey(key));
+    remove: async () => {
+      await tableLayoutService.remove(serverKey);
+      removeItem(clearedStorageKey(browserKey));
     },
   };
 }
 
 export function useColumnVisibility(storageKey: string, columns: ColumnDef[]) {
-  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => {
-    const local = localColumnLayout(storageKey, columns, readItem);
-    return new Set((local ?? defaultColumnLayout(columns)).visible);
-  });
-  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
-    const local = localColumnLayout(storageKey, columns, readItem);
-    return (local ?? defaultColumnLayout(columns)).order;
-  });
+  const { data: session } = useSession();
+  const userId = session?.user?.id ?? null;
+  const browserKey = userId ? browserLayoutKey(userId, storageKey) : null;
+
+  // Do not paint an unscoped browser cache. On a shared computer that cache
+  // belongs to whoever used the machine last, not to the signed-in user.
+  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(
+    () => new Set(defaultColumnLayout(columns).visible),
+  );
+  const [columnOrder, setColumnOrder] = useState<string[]>(
+    () => defaultColumnLayout(columns).order,
+  );
 
   // Paint before the browser frame so a server-rendered default set does not
-  // flash over the account layout (or this browser's cache, if the read fails).
-  // Callers pass a stable column list (module constant or useMemo), so this
-  // does not re-fetch on every render.
+  // flash over the account layout (or this user's cache, if the read fails).
+  // Callers pass a stable column list (module constant or useMemo).
   useLayoutEffect(() => {
+    if (!userId || !browserKey) return;
     let cancelled = false;
-    const transport = transportFor();
+    const transport = transportFor(storageKey, browserKey);
     void hydrateTableLayout({
+      userId,
       storageKey,
       columns: () => columns,
       readItem,
@@ -87,9 +93,9 @@ export function useColumnVisibility(storageKey: string, columns: ColumnDef[]) {
       removeItem,
       getLayouts: () => tableLayoutService.get(),
       enqueueSave: (layout) =>
-        enqueueTableLayoutWrite(storageKey, { kind: "save", layout }, transport),
+        enqueueTableLayoutWrite(browserKey, { kind: "save", layout }, transport),
       enqueueDelete: () =>
-        enqueueTableLayoutWrite(storageKey, { kind: "delete" }, transport),
+        enqueueTableLayoutWrite(browserKey, { kind: "delete" }, transport),
     }).then((layout) => {
       if (cancelled || !layout) return;
       setVisibleColumns(new Set(layout.visible));
@@ -98,14 +104,19 @@ export function useColumnVisibility(storageKey: string, columns: ColumnDef[]) {
     return () => {
       cancelled = true;
     };
-  }, [storageKey, columns]);
+  }, [storageKey, columns, userId, browserKey]);
 
   const publish = (visible: string[], order: string[]) => {
+    if (!userId || !browserKey) return;
     const layout = { visible, order };
-    cacheColumnLayout(storageKey, layout, writeItem);
-    removeItem(clearedStorageKey(storageKey));
-    bumpLayoutEpoch(storageKey);
-    enqueueTableLayoutWrite(storageKey, { kind: "save", layout }, transportFor());
+    cacheColumnLayout(browserKey, layout, writeItem);
+    removeItem(clearedStorageKey(browserKey));
+    bumpLayoutEpoch(browserKey);
+    enqueueTableLayoutWrite(
+      browserKey,
+      { kind: "save", layout },
+      transportFor(storageKey, browserKey),
+    );
   };
 
   const toggleColumn = (id: string) => {
@@ -119,7 +130,11 @@ export function useColumnVisibility(storageKey: string, columns: ColumnDef[]) {
   const isVisible = (id: string) => visibleColumns.has(id);
 
   const reorderColumns = (activeId: string, overId: string) => {
-    const next = arrayMove(columnOrder, columnOrder.indexOf(activeId), columnOrder.indexOf(overId));
+    const next = arrayMove(
+      columnOrder,
+      columnOrder.indexOf(activeId),
+      columnOrder.indexOf(overId),
+    );
     setColumnOrder(next);
     publish([...visibleColumns], next);
   };
@@ -136,12 +151,13 @@ export function useColumnVisibility(storageKey: string, columns: ColumnDef[]) {
     const defaults = defaultColumnLayout(columns);
     setVisibleColumns(new Set(defaults.visible));
     setColumnOrder(defaults.order);
-    removeItem(storageKey);
-    removeItem(orderStorageKey(storageKey));
-    removeItem(unsyncedStorageKey(storageKey));
-    writeItem(clearedStorageKey(storageKey), "1");
-    bumpLayoutEpoch(storageKey);
-    enqueueTableLayoutWrite(storageKey, { kind: "delete" }, transportFor());
+    if (!userId || !browserKey) return;
+    removeItem(browserKey);
+    removeItem(orderStorageKey(browserKey));
+    removeItem(unsyncedStorageKey(browserKey));
+    writeItem(clearedStorageKey(browserKey), "1");
+    bumpLayoutEpoch(browserKey);
+    enqueueTableLayoutWrite(browserKey, { kind: "delete" }, transportFor(storageKey, browserKey));
   };
 
   return {

@@ -1,68 +1,35 @@
-"""Column layouts follow the signed-in user, not the browser."""
+"""Column layout HTTP behavior that does not need a database.
 
-import json
-from pathlib import Path
+Merge, delete, and user isolation run against Postgres in
+test_table_layouts_db.py. This file does not reimplement that SQL.
+"""
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import routers.table_layouts as table_layouts
 
-ROUTER = Path(__file__).resolve().parents[1] / "routers" / "table_layouts.py"
-
 POLICIES = {
     "visible": ["action", "protocol"],
     "order": ["action", "protocol", "log"],
 }
-BRIDGE = {
-    "visible": ["action"],
-    "order": ["action", "log"],
-}
-
-
-class _Store:
-    def __init__(self):
-        self.rows = {}
-        self.sql = []
-        self.fail = False
 
 
 class _Conn:
-    def __init__(self, store: _Store):
-        self.store = store
+    def __init__(self, fail=False, row=None):
+        self.fail = fail
+        self.row = row
+        self.calls = 0
 
     async def fetchrow(self, sql, *args):
-        self.store.sql.append(sql)
-        if self.store.fail:
+        self.calls += 1
+        if self.fail:
             raise RuntimeError("database unavailable")
-        folded = " ".join(sql.split()).lower()
-        if "insert into" in folded:
-            assert "on conflict" in folded
-            assert "||" in folded
-            assert "jsonb_build_object" in folded
-            _record_id, user_id, key, layout_json = args
-            layouts = self.store.rows.setdefault(user_id, {})
-            layouts[key] = json.loads(layout_json)
-            return {"layouts": dict(layouts)}
-        if "layouts -" in folded:
-            user_id, key = args
-            layouts = self.store.rows.get(user_id)
-            if layouts is None:
-                return None
-            layouts.pop(key, None)
-            return {"layouts": dict(layouts)}
-        if folded.startswith("select"):
-            user_id = args[0]
-            layouts = self.store.rows.get(user_id)
-            if layouts is None:
-                return None
-            return {"layouts": dict(layouts)}
-        raise AssertionError(f"unexpected SQL: {sql}")
+        return self.row
 
 
-def _build(user_id, store=None, instance=False):
-    store = store or _Store()
-    conn = _Conn(store)
+def _build(user_id, conn=None, scopes=None):
+    conn = conn or _Conn()
 
     async def _override():
         yield conn
@@ -76,98 +43,41 @@ def _build(user_id, store=None, instance=False):
             request.state.user = {"id": user_id, "email": f"{user_id}@example.com"}
         else:
             request.state.user = None
-        if instance:
-            request.state.instance = {"id": "inst-1"}
+        if scopes is not None:
+            request.state.api_token_scopes = scopes
         return await call_next(request)
 
     app.include_router(table_layouts.router)
-    return TestClient(app), store
-
-
-def test_router_does_not_create_tables():
-    source = ROUTER.read_text()
-    assert "CREATE TABLE" not in source
-    assert 'prefix="/user"' in source
-    assert "require_permission" not in source
-    assert "require_active_instance" not in source
+    return TestClient(app), conn
 
 
 def test_get_without_a_user_is_401():
-    client, _store = _build(None)
+    client, conn = _build(None)
     resp = client.get("/user/table-layouts")
     assert resp.status_code == 401
     assert resp.json()["detail"] == "Not authenticated"
+    assert conn.calls == 0
 
 
 def test_missing_row_is_empty_not_an_error():
-    client, _store = _build("u1")
+    client, _conn = _build("u1")
     resp = client.get("/user/table-layouts")
     assert resp.status_code == 200
     assert resp.json() == {"layouts": {}, "exists": False}
 
 
-def test_layout_follows_the_session_user_not_another_account():
-    store = _Store()
-    alice, _ = _build("alice", store)
-    bob, _ = _build("bob", store)
-
-    saved = alice.put("/user/table-layouts/firewall-policies-columns", json=POLICIES)
-    assert saved.status_code == 200, saved.text
-    assert saved.json()["layouts"]["firewall-policies-columns"] == POLICIES
-
-    bob_view = bob.get("/user/table-layouts")
-    assert bob_view.status_code == 200
-    assert bob_view.json() == {"layouts": {}, "exists": False}
-    assert "alice" in store.rows
-    assert "bob" not in store.rows
-
-
 def test_body_cannot_name_the_owner():
-    client, store = _build("alice")
+    client, conn = _build("alice")
     resp = client.put(
         "/user/table-layouts/firewall-policies-columns",
         json={**POLICIES, "userId": "bob"},
     )
     assert resp.status_code == 422
-    assert store.rows == {}
-
-
-def test_saving_one_table_does_not_erase_another():
-    client, store = _build("alice")
-    first = client.put("/user/table-layouts/firewall-policies-columns", json=POLICIES)
-    assert first.status_code == 200, first.text
-    second = client.put("/user/table-layouts/firewall-bridge-columns", json=BRIDGE)
-    assert second.status_code == 200, second.text
-
-    layouts = second.json()["layouts"]
-    assert layouts["firewall-policies-columns"] == POLICIES
-    assert layouts["firewall-bridge-columns"] == BRIDGE
-    assert set(store.rows["alice"]) == {
-        "firewall-policies-columns",
-        "firewall-bridge-columns",
-    }
-
-
-def test_reset_deletes_one_table_and_leaves_the_other():
-    client, _store = _build("alice")
-    assert client.put("/user/table-layouts/firewall-policies-columns", json=POLICIES).status_code == 200
-    assert client.put("/user/table-layouts/firewall-bridge-columns", json=BRIDGE).status_code == 200
-
-    deleted = client.delete("/user/table-layouts/firewall-policies-columns")
-    assert deleted.status_code == 200, deleted.text
-    assert "firewall-policies-columns" not in deleted.json()["layouts"]
-    assert deleted.json()["layouts"]["firewall-bridge-columns"] == BRIDGE
-
-
-def test_save_does_not_require_an_active_instance():
-    client, store = _build("alice", instance=False)
-    resp = client.put("/user/table-layouts/firewall-policies-columns", json=POLICIES)
-    assert resp.status_code == 200, resp.text
-    assert store.rows["alice"]["firewall-policies-columns"] == POLICIES
+    assert conn.calls == 0
 
 
 def test_invalid_key_and_incoherent_columns_are_422():
-    client, store = _build("alice")
+    client, conn = _build("alice")
     bad_key = client.put("/user/table-layouts/Firewall_Policies", json=POLICIES)
     assert bad_key.status_code == 422
     incoherent = client.put(
@@ -175,12 +85,28 @@ def test_invalid_key_and_incoherent_columns_are_422():
         json={"visible": ["missing"], "order": ["action"]},
     )
     assert incoherent.status_code == 422
-    assert store.rows == {}
+    assert conn.calls == 0
+
+
+def test_read_only_token_cannot_write_or_delete():
+    client, conn = _build("alice", scopes=["read"])
+    saved = client.put("/user/table-layouts/firewall-policies-columns", json=POLICIES)
+    assert saved.status_code == 403
+    assert "read-only" in saved.json()["detail"]
+    deleted = client.delete("/user/table-layouts/firewall-policies-columns")
+    assert deleted.status_code == 403
+    assert conn.calls == 0
+
+
+def test_read_only_token_can_read():
+    client, _conn = _build("alice", scopes=["read"])
+    resp = client.get("/user/table-layouts")
+    assert resp.status_code == 200
+    assert resp.json()["exists"] is False
 
 
 def test_database_error_is_500_without_the_exception_text():
-    client, store = _build("alice")
-    store.fail = True
+    client, _conn = _build("alice", conn=_Conn(fail=True))
     resp = client.get("/user/table-layouts")
     assert resp.status_code == 500
     assert resp.json() == {"detail": "Unable to read table layouts"}
@@ -190,13 +116,14 @@ def test_database_error_is_500_without_the_exception_text():
 
 
 def test_malformed_stored_key_is_omitted():
-    store = _Store()
-    store.rows["alice"] = {
-        "firewall-policies-columns": POLICIES,
-        "not a key": {"visible": ["action"], "order": ["action"]},
-        "firewall-bridge-columns": {"visible": "nope", "order": []},
-    }
-    client, _store = _build("alice", store)
+    conn = _Conn(row={
+        "layouts": {
+            "firewall-policies-columns": POLICIES,
+            "not a key": {"visible": ["action"], "order": ["action"]},
+            "firewall-bridge-columns": {"visible": "nope", "order": []},
+        }
+    })
+    client, _conn = _build("alice", conn=conn)
     resp = client.get("/user/table-layouts")
     assert resp.status_code == 200
     assert list(resp.json()["layouts"]) == ["firewall-policies-columns"]
