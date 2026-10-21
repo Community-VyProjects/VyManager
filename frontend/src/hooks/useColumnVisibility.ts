@@ -81,23 +81,37 @@ function transportFor(
   };
   return {
     save: async (layout: ColumnLayout) => {
-      try {
-        const saved = await tableLayoutService.save(serverKey, layout, basedOn());
+      const remember = (saved: { revisions?: Record<string, string> }) => {
         removeItem(unsyncedStorageKey(browserKey));
         writeItem(publishedStorageKey(browserKey), "1");
         const revision = saved.revisions?.[serverKey];
         if (revision) writeItem(basedOnStorageKey(browserKey), revision);
+      };
+      try {
+        remember(await tableLayoutService.save(serverKey, layout, basedOn()));
       } catch (error) {
         const action = writeFailureAction((error as { status?: number }).status);
         if (action === "retry") {
           writeItem(unsyncedStorageKey(browserKey), "1");
           throw error;
         }
-        if (action === "server-wins") {
+        if (action !== "server-wins") {
+          removeItem(unsyncedStorageKey(browserKey));
+          return;
+        }
+        if (conflictPayload(error)?.layouts[serverKey]) {
           applyConflict(error);
           return;
         }
-        removeItem(unsyncedStorageKey(browserKey));
+        try {
+          remember(await tableLayoutService.save(serverKey, layout, null));
+        } catch (retryError) {
+          if (conflictPayload(retryError)?.layouts[serverKey]) {
+            applyConflict(retryError);
+            return;
+          }
+          writeItem(unsyncedStorageKey(browserKey), "1");
+        }
       }
     },
     remove: async () => {

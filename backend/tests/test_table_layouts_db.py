@@ -84,6 +84,15 @@ def test_postgres_merge_isolates_users_and_deletes_one_table():
     assert layouts["firewall-bridge-columns"] == BRIDGE
     assert second.json()["revisions"]["firewall-policies-columns"] == policies_rev
 
+    changed = alice.put(
+        "/user/table-layouts/firewall-policies-columns",
+        json={**POLICIES, "visible": ["action"], "basedOn": policies_rev},
+    )
+    assert changed.status_code == 200, changed.text
+    assert changed.json()["layouts"]["firewall-policies-columns"]["visible"] == ["action"]
+    policies_rev = changed.json()["revisions"]["firewall-policies-columns"]
+    assert policies_rev
+
     bob_view = bob.get("/user/table-layouts")
     assert bob_view.status_code == 200
     assert bob_view.json()["exists"] is False

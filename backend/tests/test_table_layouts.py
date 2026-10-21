@@ -107,6 +107,46 @@ def test_stale_save_does_not_write():
     assert conn.calls == 0
 
 
+class _Script:
+    def __init__(self, rows):
+        self.rows = list(rows)
+        self.calls = 0
+        self.sql = []
+
+    async def fetchrow(self, sql, *args):
+        self.calls += 1
+        self.sql.append(sql)
+        if not self.rows:
+            return None
+        return self.rows.pop(0)
+
+
+def test_insert_race_on_a_different_table_merges_instead_of_409():
+    bridge = {
+        "layouts": {
+            "firewall-bridge-columns": {
+                "visible": ["action"],
+                "order": ["action"],
+                "updatedAt": "t1",
+            }
+        },
+        "updatedAt": None,
+    }
+    merged = {
+        "layouts": {
+            "firewall-bridge-columns": bridge["layouts"]["firewall-bridge-columns"],
+            "firewall-policies-columns": {**POLICIES, "updatedAt": "t2"},
+        },
+        "updatedAt": None,
+    }
+    conn = _Script([None, None, bridge, merged])
+    client, conn = _build("alice", conn=conn)
+    resp = client.put("/user/table-layouts/firewall-policies-columns", json=POLICIES)
+    assert resp.status_code == 200, resp.text
+    assert "firewall-policies-columns" in resp.json()["layouts"]
+    assert any("NOT (layouts ?" in sql for sql in conn.sql)
+
+
 def test_read_only_token_cannot_write_or_delete():
     client, conn = _build("alice", scopes=["read"])
     saved = client.put("/user/table-layouts/firewall-policies-columns", json=POLICIES)

@@ -228,7 +228,7 @@ export function planTableLayoutHydration(input: {
     };
   }
   if (local && !published) {
-    return { ...EMPTY_PLAN, paint: local, save: local };
+    return { ...EMPTY_PLAN, paint: local };
   }
   return {
     ...EMPTY_PLAN,

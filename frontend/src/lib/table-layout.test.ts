@@ -250,7 +250,7 @@ describe("claimUnscopedBrowserLayout", () => {
       },
     });
     assert.deepEqual(painted?.visible, LOCAL.visible);
-    assert.deepEqual(saves, ["save"]);
+    assert.deepEqual(saves, []);
     assert.equal(
       store.readItem(browserLayoutKey("alice", KEY)),
       JSON.stringify(LOCAL.visible),

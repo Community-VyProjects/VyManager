@@ -235,10 +235,32 @@ async def save_table_layout(
                     'SELECT layouts, "updatedAt" FROM user_table_layouts WHERE "userId" = $1',
                     user_id,
                 )
-                raise HTTPException(
-                    status_code=409,
-                    detail=_conflict(raced["layouts"] if raced else None, raced["updatedAt"] if raced else None),
-                )
+                raced_layouts = _as_layout_dict(raced["layouts"]) if raced else None
+                if raced is not None and key not in (raced_layouts or {}):
+                    row = await conn.fetchrow(
+                        """
+                        UPDATE user_table_layouts
+                        SET layouts = layouts || jsonb_build_object($2::text, $3::jsonb),
+                            "updatedAt" = NOW()
+                        WHERE "userId" = $1 AND NOT (layouts ? $2)
+                        RETURNING layouts, "updatedAt"
+                        """,
+                        user_id,
+                        key,
+                        layout_json,
+                    )
+                if row is None:
+                    current = await conn.fetchrow(
+                        'SELECT layouts, "updatedAt" FROM user_table_layouts WHERE "userId" = $1',
+                        user_id,
+                    )
+                    raise HTTPException(
+                        status_code=409,
+                        detail=_conflict(
+                            current["layouts"] if current else None,
+                            current["updatedAt"] if current else None,
+                        ),
+                    )
         else:
             layouts = _as_layout_dict(existing["layouts"]) or {}
             stored = _key_revision(layouts, key)
