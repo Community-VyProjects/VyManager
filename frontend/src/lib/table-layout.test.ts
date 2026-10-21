@@ -434,6 +434,32 @@ describe("hydrateTableLayout", () => {
     assert.equal(store.readItem(scope + "-published"), null);
   });
 
+  it("does not apply a stale read when another tab stored a revision during it", async () => {
+    const store = memory();
+    const scope = browserLayoutKey("alice", KEY);
+    seedLocal(store, scope, LOCAL);
+    const painted = await hydrateTableLayout({
+      userId: "alice",
+      storageKey: KEY,
+      columns: () => COLUMNS,
+      readItem: store.readItem,
+      writeItem: store.writeItem,
+      removeItem: store.removeItem,
+      getLayouts: async () => {
+        store.writeItem(scope + "-based-on", "2026-10-21T18:00:00.000000Z");
+        return { exists: false, layouts: {} };
+      },
+      enqueueSave: () => {
+        throw new Error("must not save");
+      },
+      enqueueDelete: () => {
+        throw new Error("must not delete");
+      },
+    });
+    assert.equal(painted, null);
+    assert.equal(store.readItem(scope), JSON.stringify(LOCAL.visible));
+  });
+
   it("caches the account layout under this user, not an unscoped key", async () => {
     const store = memory();
     seedLocal(store, KEY, LOCAL);

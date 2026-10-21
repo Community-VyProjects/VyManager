@@ -451,4 +451,46 @@ describe("useColumnVisibility", () => {
     assert.equal(seen.api?.isVisible("log"), true);
     root.unmount();
   });
+
+  it("does not keep the previous user's columns when the signed-in user changes", async () => {
+    window.localStorage.clear();
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ layouts: {}, exists: false, revisions: {} }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })) as typeof fetch;
+    const React = await import("react");
+    const { createRoot } = await import("react-dom/client");
+    const { useColumnVisibility } = await import("./useColumnVisibility");
+    const rootEl = document.getElementById("root");
+    assert.ok(rootEl);
+    const root = createRoot(rootEl);
+    const seen = { api: null as { isVisible: (id: string) => boolean; toggleColumn: (id: string) => void } | null };
+    const user = { id: "alice" };
+
+    function Harness() {
+      const value = useColumnVisibility("firewall-policies-columns", COLUMNS, user.id);
+      React.useEffect(() => {
+        seen.api = value;
+      });
+      return null;
+    }
+
+    await React.act(async () => {
+      root.render(React.createElement(Harness));
+    });
+    await React.act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await React.act(async () => {
+      seen.api?.toggleColumn("log");
+    });
+    assert.equal(seen.api?.isVisible("log"), true);
+    user.id = "bob";
+    await React.act(async () => {
+      root.render(React.createElement(Harness));
+    });
+    assert.equal(seen.api?.isVisible("log"), false);
+    root.unmount();
+  });
 });

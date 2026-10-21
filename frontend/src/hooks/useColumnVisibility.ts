@@ -182,11 +182,10 @@ export function useColumnVisibility(
       writeItem,
       removeItem,
     );
-    const local = localColumnLayout(browserLayoutKey(userId, storageKey), columns, readItem);
-    if (local) {
-      setVisibleColumns(new Set(local.visible));
-      setColumnOrder(local.order);
-    }
+    const local = localColumnLayout(browserLayoutKey(userId, storageKey), columns, readItem)
+      ?? defaultColumnLayout(columns);
+    setVisibleColumns(new Set(local.visible));
+    setColumnOrder(local.order);
   }
 
   const paintServer = useCallback((layout: ColumnLayout | null) => {

@@ -400,7 +400,6 @@ export function cacheColumnLayout(
 export async function hydrateTableLayout(args: HydrateArgs): Promise<ColumnLayout | null> {
   const scope = browserLayoutKey(args.userId, args.storageKey);
   const start = layoutEpoch(scope);
-  const writeInFlightAtStart = layoutWritePending(scope);
   const revisionAtStart = args.readItem(basedOnStorageKey(scope));
   let fetchFailed = false;
   let remoteLayouts: Record<string, ColumnLayout> | null = null;
@@ -416,11 +415,12 @@ export async function hydrateTableLayout(args: HydrateArgs): Promise<ColumnLayou
   if (layoutWritePending(scope)) return null;
   const revisionNow = args.readItem(basedOnStorageKey(scope));
   const remoteRevision = payloadRevisions(payload)[args.storageKey] ?? null;
-  // A read that started during a save or reset, and returns after it finishes,
-  // did not see that write unless the revision moved to what we stored, or
-  // past it. An empty first-save read and a reset read that still has the old
-  // revision are that case. A restore has no write in flight, so it paints.
-  if (writeInFlightAtStart && revisionNow !== revisionAtStart) {
+  // A read that returns after the stored revision changed did not see that write
+  // unless the revision moved to what is stored now, or past it. The write may
+  // be this tab's queue or another tab sharing this browser. An empty first-save
+  // read and a reset read that still has the old revision are that case. A
+  // restore does not change the stored revision during the read, so it paints.
+  if (revisionNow !== revisionAtStart) {
     const readSawWrite =
       (revisionNow !== null && remoteRevision === revisionNow) ||
       (revisionNow === null && remoteRevision === null);
