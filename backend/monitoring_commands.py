@@ -57,16 +57,18 @@ COMMANDS: Dict[str, MonitoringCommand] = {
         template="monitor log",
         params={},
     ),
+    # `monitor protocol <name>` is an incomplete debug-toggle parent on 1.4
+    # and 1.5. The streaming leaf tails the daemon journal.
     "monitor_protocol_bgp": MonitoringCommand(
         name="monitor_protocol_bgp",
-        description="Monitor BGP protocol messages",
-        template="monitor protocol bgp",
+        description="BGP protocol logs",
+        template="monitor log protocol bgp",
         params={},
     ),
     "monitor_protocol_ospf": MonitoringCommand(
         name="monitor_protocol_ospf",
-        description="Monitor OSPF protocol messages",
-        template="monitor protocol ospf",
+        description="OSPF protocol logs",
+        template="monitor log protocol ospf",
         params={},
     ),
     "show_log_tail": MonitoringCommand(

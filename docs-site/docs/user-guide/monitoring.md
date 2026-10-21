@@ -17,9 +17,8 @@ In Site Manager, edit the instance and open its SSH section. VyManager generates
 Live command output streamed over a WebSocket. Pick a command from the list the backend offers and press Start:
 
 - **Traffic capture** (`monitor traffic`) — choose an interface and optionally a BPF filter; a filter-builder dialog composes expressions from protocol/host/port conditions. Output is parsed into a packet table with protocol badges, source/destination, TCP flags and sizes. You can pause with buffering, inspect a packet's raw line, add fields to the filter from a context menu, and export the capture as a PCAP file assembled in the browser.
-- **Logs** (`monitor log`, tail variants, VPN/OpenVPN/L2TP logs) — severity-colored log viewer with severity filter and search.
+- **Logs** (`monitor log`, tail variants, VPN/OpenVPN/L2TP logs, BGP and OSPF protocol logs) — severity-colored log viewer with severity filter and search.
 - **Conntrack events** — NEW/UPDATE/DESTROY connection events with protocol badges.
-- **BGP / OSPF protocol monitors** — raw terminal output.
 
 Stop ends the command; output is capped to a few thousand lines client-side.
 
