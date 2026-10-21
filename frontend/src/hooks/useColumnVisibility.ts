@@ -107,7 +107,7 @@ function transportFor(serverKey: string, browserKey: string, userId: string, col
         remember(await tableLayoutService.save(serverKey, layout, basedOn(), userId));
       } catch (error) {
         const status = (error as { status?: number }).status;
-        if (status === 403) {
+        if (status === 401 || status === 403) {
           writeItem(unsyncedStorageKey(browserKey), "1");
           removeItem(savingStorageKey(browserKey));
           dropPendingLayoutWrites(browserKey);
@@ -152,7 +152,7 @@ function transportFor(serverKey: string, browserKey: string, userId: string, col
         removeItem(basedOnStorageKey(browserKey));
       } catch (error) {
         const status = (error as { status?: number }).status;
-        if (status === 403) {
+        if (status === 401 || status === 403) {
           dropPendingLayoutWrites(browserKey);
           return;
         }
@@ -193,9 +193,7 @@ export function useColumnVisibility(
   const [paintedUser, setPaintedUser] = useState<string | null>(null);
   if (userId && userId !== paintedUser) {
     if (paintedUser) {
-      const previousKey = browserLayoutKey(paintedUser, storageKey);
-      layoutPainters.delete(previousKey);
-      dropPendingLayoutWrites(previousKey);
+      layoutPainters.delete(browserLayoutKey(paintedUser, storageKey));
     }
     setPaintedUser(userId);
     claimUnscopedBrowserLayout(
