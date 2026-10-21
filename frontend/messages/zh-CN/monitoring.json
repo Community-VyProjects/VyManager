@@ -161,9 +161,5 @@
     "markConfigured": "我已配置密钥",
     "regenerating": "正在重新生成...",
     "regenerate": "重新生成密钥"
-  },
-  "terminal": {
-    "lines": "{count} 行",
-    "waiting": "正在等待输出..."
   }
 }

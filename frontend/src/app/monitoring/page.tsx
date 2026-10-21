@@ -33,7 +33,6 @@ import {
 import { monitoringService, MonitoringCommand, MonitoringStatus } from "@/lib/api/monitoring";
 import { sessionService, ActiveSession } from "@/lib/api/session";
 import { useMonitoringWebSocket } from "@/hooks/useMonitoringWebSocket";
-import { MonitoringTerminal } from "@/components/monitoring/MonitoringTerminal";
 import { TrafficTable } from "@/components/monitoring/TrafficTable";
 import { LogTable } from "@/components/monitoring/LogTable";
 import { ConntrackTable } from "@/components/monitoring/ConntrackTable";
@@ -49,6 +48,8 @@ const TABLE_COMMANDS = {
   show_log_vpn_ipsec: "log",
   show_log_openvpn: "log",
   show_log_l2tp: "log",
+  monitor_protocol_bgp: "log",
+  monitor_protocol_ospf: "log",
   monitor_conntrack: "conntrack",
 } as const;
 
@@ -171,10 +172,6 @@ function MonitoringPageInner() {
 
   const currentCommandDef = commands.find((c) => c.name === selectedCommand);
   const tableView = activeCommand ? getTableView(activeCommand) : null;
-  const isTerminalCommand =
-    activeCommand &&
-    (activeCommand === "monitor_protocol_bgp" ||
-      activeCommand === "monitor_protocol_ospf");
 
   // Status label
   const statusLabel =
@@ -469,11 +466,6 @@ function MonitoringPageInner() {
                     isRunning={isRunning}
                     onClear={handleClear}
                   />
-                )}
-                {isTerminalCommand && (
-                  <Card className="overflow-hidden">
-                    <MonitoringTerminal output={output} onClear={handleClear} />
-                  </Card>
                 )}
               </>
             ) : (

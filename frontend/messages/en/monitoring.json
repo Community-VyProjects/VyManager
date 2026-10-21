@@ -161,9 +161,5 @@
     "markConfigured": "I've Configured the Key",
     "regenerating": "Regenerating...",
     "regenerate": "Regenerate Key"
-  },
-  "terminal": {
-    "lines": "{count, plural, one {# line} other {# lines}}",
-    "waiting": "Waiting for output..."
   }
 }
