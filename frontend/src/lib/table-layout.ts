@@ -33,10 +33,24 @@ export function clearedStorageKey(storageKey: string): string {
   return storageKey + CLEARED_SUFFIX;
 }
 
-const PUBLISHED_SUFFIX = "-published";
+const SAVING_SUFFIX = "-saving";
+const SAVING_MS = 30_000;
+
+export function savingStorageKey(storageKey: string): string {
+  return storageKey + SAVING_SUFFIX;
+}
+
+export function layoutSaveInFlight(
+  storageKey: string,
+  readItem: (key: string) => string | null,
+  now = Date.now(),
+): boolean {
+  const started = Number(readItem(savingStorageKey(storageKey)));
+  return Number.isFinite(started) && now - started < SAVING_MS;
+}
 
 export function publishedStorageKey(storageKey: string): string {
-  return storageKey + PUBLISHED_SUFFIX;
+  return storageKey + "-published";
 }
 
 export function unsyncedStorageKey(storageKey: string): string {
@@ -415,6 +429,7 @@ export async function hydrateTableLayout(args: HydrateArgs): Promise<ColumnLayou
   }
   if (layoutEpoch(scope) !== start) return null;
   if (layoutWritePending(scope)) return null;
+  if (layoutSaveInFlight(scope, args.readItem)) return null;
   if (
     args.readItem(scope) !== localAtStart ||
     args.readItem(orderStorageKey(scope)) !== orderAtStart

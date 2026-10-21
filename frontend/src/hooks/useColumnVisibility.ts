@@ -21,6 +21,7 @@ import {
   normalizeColumnLayout,
   orderStorageKey,
   publishedStorageKey,
+  savingStorageKey,
   unsyncedStorageKey,
   writeFailureAction,
   type ColumnDef,
@@ -74,6 +75,7 @@ function transportFor(
     const conflict = conflictPayload(error);
     const remote = conflict?.layouts[serverKey];
     removeItem(unsyncedStorageKey(browserKey));
+    removeItem(savingStorageKey(browserKey));
     removeItem(clearedStorageKey(browserKey));
     // A hydrate that started before this conflict must not paint over the account layout.
     // The painter is whoever is mounted now, not the instance that started the save.
@@ -99,6 +101,7 @@ function transportFor(
     save: async (layout: ColumnLayout) => {
       const remember = (saved: { revisions?: Record<string, string> }) => {
         removeItem(unsyncedStorageKey(browserKey));
+        removeItem(savingStorageKey(browserKey));
         writeItem(publishedStorageKey(browserKey), "1");
         const revision = saved.revisions?.[serverKey];
         if (revision) writeItem(basedOnStorageKey(browserKey), revision);
@@ -109,14 +112,21 @@ function transportFor(
         const action = writeFailureAction((error as { status?: number }).status);
         if (action === "retry") {
           writeItem(unsyncedStorageKey(browserKey), "1");
+          removeItem(savingStorageKey(browserKey));
           throw error;
         }
         if (action !== "server-wins") {
           removeItem(unsyncedStorageKey(browserKey));
+          removeItem(savingStorageKey(browserKey));
           return;
         }
         if (conflictPayload(error)?.layouts[serverKey]) {
           applyConflict(error);
+          return;
+        }
+        if (!layoutPainters.has(browserKey)) {
+          writeItem(unsyncedStorageKey(browserKey), "1");
+          removeItem(savingStorageKey(browserKey));
           return;
         }
         try {
@@ -127,6 +137,7 @@ function transportFor(
             return;
           }
           writeItem(unsyncedStorageKey(browserKey), "1");
+          removeItem(savingStorageKey(browserKey));
         }
       }
     },
@@ -172,6 +183,11 @@ export function useColumnVisibility(
 
   const [paintedUser, setPaintedUser] = useState<string | null>(null);
   if (userId && userId !== paintedUser) {
+    if (paintedUser) {
+      const previousKey = browserLayoutKey(paintedUser, storageKey);
+      layoutPainters.delete(previousKey);
+      dropPendingLayoutWrites(previousKey);
+    }
     setPaintedUser(userId);
     claimUnscopedBrowserLayout(
       userId,
@@ -231,6 +247,7 @@ export function useColumnVisibility(
     if (!userId || !browserKey) return;
     const layout = { visible, order };
     cacheColumnLayout(browserKey, layout, writeItem);
+    writeItem(savingStorageKey(browserKey), String(Date.now()));
     removeItem(clearedStorageKey(browserKey));
     bumpLayoutEpoch(browserKey);
     enqueueTableLayoutWrite(
@@ -272,6 +289,7 @@ export function useColumnVisibility(
     removeItem(browserKey);
     removeItem(orderStorageKey(browserKey));
     removeItem(unsyncedStorageKey(browserKey));
+    removeItem(savingStorageKey(browserKey));
     removeItem(publishedStorageKey(browserKey));
     writeItem(clearedStorageKey(browserKey), "1");
     bumpLayoutEpoch(browserKey);
