@@ -54,6 +54,16 @@ function removeItem(key: string) {
   }
 }
 
+const layoutPainters = new Map<string, (layout: ColumnLayout | null) => void>();
+
+function bindLayoutPainter(key: string, painter: (layout: ColumnLayout | null) => void) {
+  layoutPainters.set(key, painter);
+}
+
+function unbindLayoutPainter(key: string, painter: (layout: ColumnLayout | null) => void) {
+  if (layoutPainters.get(key) === painter) layoutPainters.delete(key);
+}
+
 function transportFor(
   serverKey: string,
   browserKey: string,
@@ -66,22 +76,25 @@ function transportFor(
     const remote = conflict?.layouts[serverKey];
     removeItem(unsyncedStorageKey(browserKey));
     removeItem(clearedStorageKey(browserKey));
+    // A hydrate that started before this conflict must not paint over the account layout.
+    // The painter is whoever is mounted now, not the instance that started the save.
     bumpLayoutEpoch(browserKey);
     dropPendingLayoutWrites(browserKey);
+    const paint = layoutPainters.get(browserKey) ?? onServer;
     if (remote) {
       const layout = normalizeColumnLayout(remote, columns);
       cacheColumnLayout(browserKey, layout, writeItem);
       writeItem(publishedStorageKey(browserKey), "1");
       const revision = conflict?.revisions?.[serverKey];
       if (revision) writeItem(basedOnStorageKey(browserKey), revision);
-      onServer(layout);
+      paint(layout);
       return;
     }
     removeItem(browserKey);
     removeItem(orderStorageKey(browserKey));
     removeItem(publishedStorageKey(browserKey));
     removeItem(basedOnStorageKey(browserKey));
-    onServer(null);
+    paint(null);
   };
   return {
     save: async (layout: ColumnLayout) => {
@@ -181,6 +194,12 @@ export function useColumnVisibility(
     setVisibleColumns(new Set(next.visible));
     setColumnOrder(next.order);
   }, [columns]);
+
+  useLayoutEffect(() => {
+    if (!browserKey) return;
+    bindLayoutPainter(browserKey, paintServer);
+    return () => unbindLayoutPainter(browserKey, paintServer);
+  }, [browserKey, paintServer]);
 
   useLayoutEffect(() => {
     if (!userId || !browserKey) return;
