@@ -17,6 +17,8 @@
     "empty": "No Dynamic DNS entries configured",
     "emptyHelp": "Add an entry to start updating DNS records automatically.",
     "server": "Server",
+    "resolvedIp": "Resolved IP",
+    "statusUnavailable": "Unavailable",
     "deleteTitle": "Delete DDNS Entry",
     "deleteConfirm": "Remove DDNS entry <mono>{name}</mono>?"
   },

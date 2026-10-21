@@ -23,6 +23,19 @@ export interface DynamicNameEntry {
   zone?: string | null;
 }
 
+export interface DynamicDnsHostStatus {
+  host: string;
+  ipv4?: string | null;
+  ipv6?: string | null;
+  status_ipv4?: string | null;
+  status_ipv6?: string | null;
+}
+
+export interface DynamicDnsStatus {
+  available: boolean;
+  hosts: DynamicDnsHostStatus[];
+}
+
 export interface DNSDynamicConfig {
   interval?: number | null;
   vrf?: string | null;
@@ -59,6 +72,10 @@ class DNSDynamicService {
     return apiClient.get<DNSDynamicConfig>("/vyos/dns-dynamic/config", {
       refresh: refresh.toString(),
     });
+  }
+
+  async getStatus(): Promise<DynamicDnsStatus> {
+    return apiClient.get<DynamicDnsStatus>("/vyos/dns-dynamic/status");
   }
 
   private async batch(operations: BatchOperation[]): Promise<VyOSResponse> {
