@@ -47,13 +47,18 @@ export function browserLayoutKey(userId: string, storageKey: string): string {
   return `${userId}:${storageKey}`;
 }
 
-const BROWSER_OWNER_KEY = "vymanager-column-layout-owner";
+const BROWSER_OWNER_PREFIX = "vymanager-column-layout-owner:";
+
+function browserOwnerKey(storageKey: string): string {
+  return BROWSER_OWNER_PREFIX + storageKey;
+}
 
 /**
  * A layout saved before it followed the account lives in an unscoped key.
  * Give it to this user for paint on this browser. Do not upload it: on a
  * shared computer the next account must not receive the previous person's
- * columns. A different user leaves the unscoped keys alone.
+ * columns. The owner is per table, so claiming one table does not claim the
+ * others. A different user leaves that table's unscoped keys alone.
  */
 export function claimUnscopedBrowserLayout(
   userId: string,
@@ -63,11 +68,12 @@ export function claimUnscopedBrowserLayout(
   writeItem: (key: string, value: string) => void,
   removeItem: (key: string) => void,
 ): void {
-  const owner = readItem(BROWSER_OWNER_KEY);
+  const ownerKey = browserOwnerKey(storageKey);
+  const owner = readItem(ownerKey);
   if (owner && owner !== userId) return;
   const browserKey = browserLayoutKey(userId, storageKey);
   if (localColumnLayout(browserKey, columns, readItem)) {
-    if (!owner) writeItem(BROWSER_OWNER_KEY, userId);
+    if (!owner) writeItem(ownerKey, userId);
     return;
   }
   const legacy = localColumnLayout(storageKey, columns, readItem);
@@ -75,7 +81,7 @@ export function claimUnscopedBrowserLayout(
   cacheColumnLayout(browserKey, legacy, writeItem);
   removeItem(storageKey);
   removeItem(orderStorageKey(storageKey));
-  writeItem(BROWSER_OWNER_KEY, userId);
+  writeItem(ownerKey, userId);
 }
 
 export function orderStorageKey(storageKey: string): string {
@@ -316,6 +322,12 @@ export interface LayoutTransport {
 type WriteState = { latest: LayoutWrite | null; pumping: boolean };
 
 const writeStates = new Map<string, WriteState>();
+
+/** Drop a save or reset that was queued behind a request the account rejected. */
+export function dropPendingLayoutWrites(key: string): void {
+  const state = writeStates.get(key);
+  if (state) state.latest = null;
+}
 
 async function pumpLayoutWrites(
   key: string,

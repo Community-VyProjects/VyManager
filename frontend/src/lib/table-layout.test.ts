@@ -5,6 +5,7 @@ import {
   bumpLayoutEpoch,
   claimUnscopedBrowserLayout,
   clearedStorageKey,
+  dropPendingLayoutWrites,
   enqueueTableLayoutWrite,
   hydrateTableLayout,
   layoutEpoch,
@@ -222,6 +223,17 @@ describe("claimUnscopedBrowserLayout", () => {
     assert.equal(store.readItem(browserLayoutKey("bob", KEY)), null);
   });
 
+  it("claiming one table does not keep another table's old layout from the next account", () => {
+    const store = memory();
+    const other = "pppoe-session-columns";
+    seedLocal(store, other, LOCAL);
+    seedLocal(store, KEY, LOCAL);
+    claimUnscopedBrowserLayout("bob", other, COLUMNS, store.readItem, store.writeItem, store.removeItem);
+    claimUnscopedBrowserLayout("alice", KEY, COLUMNS, store.readItem, store.writeItem, store.removeItem);
+    assert.equal(store.readItem(browserLayoutKey("alice", KEY)), JSON.stringify(LOCAL.visible));
+    assert.equal(store.readItem(browserLayoutKey("bob", other)), JSON.stringify(LOCAL.visible));
+  });
+
   it("survives the empty-account read that follows the claim", async () => {
     const store = memory();
     seedLocal(store, KEY, LOCAL);
@@ -363,5 +375,35 @@ describe("enqueueTableLayoutWrite", () => {
     release();
     await new Promise((resolve) => setTimeout(resolve, 0));
     assert.deepEqual(calls, ["protocol", "delete"]);
+  });
+
+  it("does not send a save that was queued behind a rejected write", async () => {
+    const key = "alice:firewall-policies-columns-drop";
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const calls: string[] = [];
+    enqueueTableLayoutWrite(key, { kind: "save", layout: LOCAL }, {
+      save: async () => {
+        calls.push("first");
+        await gate;
+        dropPendingLayoutWrites(key);
+      },
+      remove: async () => {
+        calls.push("delete");
+      },
+    });
+    enqueueTableLayoutWrite(key, { kind: "save", layout: REMOTE }, {
+      save: async () => {
+        calls.push("second");
+      },
+      remove: async () => {
+        calls.push("delete");
+      },
+    });
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.deepEqual(calls, ["first"]);
   });
 });

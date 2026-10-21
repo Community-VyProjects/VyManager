@@ -13,6 +13,7 @@ import {
   clearedStorageKey,
   conflictPayload,
   defaultColumnLayout,
+  dropPendingLayoutWrites,
   enqueueTableLayoutWrite,
   hydrateTableLayout,
   layoutEpoch,
@@ -64,6 +65,7 @@ function transportFor(
     removeItem(unsyncedStorageKey(browserKey));
     removeItem(clearedStorageKey(browserKey));
     bumpLayoutEpoch(browserKey);
+    dropPendingLayoutWrites(browserKey);
     if (remote) {
       const layout = { visible: remote.visible, order: remote.order };
       cacheColumnLayout(browserKey, layout, writeItem);
