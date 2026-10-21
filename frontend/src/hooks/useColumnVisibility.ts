@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { arrayMove } from "@dnd-kit/sortable";
 import { useSession } from "@/lib/auth-client";
 import { tableLayoutService } from "@/lib/api/table-layouts";
 import {
   basedOnStorageKey,
   browserLayoutKey,
+  browserOwnerId,
   bumpLayoutEpoch,
   cacheColumnLayout,
   claimUnscopedBrowserLayout,
@@ -17,6 +18,7 @@ import {
   enqueueTableLayoutWrite,
   hydrateTableLayout,
   layoutEpoch,
+  layoutWhileSessionPending,
   layoutWriteQueued,
   localColumnLayout,
   normalizeColumnLayout,
@@ -176,7 +178,7 @@ export function useColumnVisibility(
   const browserKey = userId ? browserLayoutKey(userId, storageKey) : null;
   const cached = userId
     ? localColumnLayout(browserLayoutKey(userId, storageKey), columns, readItem)
-    : null;
+    : layoutWhileSessionPending(storageKey, columns, readItem);
 
   // This user's browser copy, read synchronously. The account row may replace
   // it after the read. Do not read an unscoped key here: that belongs to
@@ -188,6 +190,8 @@ export function useColumnVisibility(
     () => (cached ?? defaultColumnLayout(columns)).order,
   );
 
+  const [heldEdit, setHeldEdit] = useState<ColumnLayout | null>(null);
+  const [flushEdit, setFlushEdit] = useState<ColumnLayout | null>(null);
   const [paintedUser, setPaintedUser] = useState<string | null>(null);
   if (userId && userId !== paintedUser) {
     if (paintedUser) {
@@ -202,10 +206,14 @@ export function useColumnVisibility(
       writeItem,
       removeItem,
     );
+    const owner = browserOwnerId(storageKey, readItem);
     const local = localColumnLayout(browserLayoutKey(userId, storageKey), columns, readItem)
       ?? defaultColumnLayout(columns);
-    setVisibleColumns(new Set(local.visible));
-    setColumnOrder(local.order);
+    const next = heldEdit && (!owner || owner === userId) ? heldEdit : local;
+    setVisibleColumns(new Set(next.visible));
+    setColumnOrder(next.order);
+    if (heldEdit) setHeldEdit(null);
+    if (heldEdit && (!owner || owner === userId)) setFlushEdit(next);
   }
 
   const paintServer = useCallback((layout: ColumnLayout | null) => {
@@ -213,6 +221,20 @@ export function useColumnVisibility(
     setVisibleColumns(new Set(next.visible));
     setColumnOrder(next.order);
   }, [columns]);
+
+  const sentHeldEdit = useRef<ColumnLayout | null>(null);
+  useLayoutEffect(() => {
+    if (!flushEdit || flushEdit === sentHeldEdit.current || !userId || !browserKey) return;
+    sentHeldEdit.current = flushEdit;
+    cacheColumnLayout(browserKey, flushEdit, writeItem);
+    writeItem(savingStorageKey(browserKey), String(Date.now()));
+    bumpLayoutEpoch(browserKey);
+    enqueueTableLayoutWrite(
+      browserKey,
+      { kind: "save", layout: flushEdit },
+      transportFor(storageKey, browserKey, userId, columns),
+    );
+  }, [flushEdit, userId, browserKey, storageKey, columns]);
 
   useLayoutEffect(() => {
     if (!browserKey) return;
@@ -255,8 +277,11 @@ export function useColumnVisibility(
   }, [storageKey, columns, userId, browserKey, paintServer]);
 
   const publish = (visible: string[], order: string[]) => {
-    if (!userId || !browserKey) return;
     const layout = { visible, order };
+    if (!userId || !browserKey) {
+      setHeldEdit(layout);
+      return;
+    }
     cacheColumnLayout(browserKey, layout, writeItem);
     writeItem(savingStorageKey(browserKey), String(Date.now()));
     removeItem(clearedStorageKey(browserKey));
