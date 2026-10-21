@@ -39,6 +39,37 @@ export function browserLayoutKey(userId: string, storageKey: string): string {
   return `${userId}:${storageKey}`;
 }
 
+const BROWSER_OWNER_KEY = "vymanager-column-layout-owner";
+
+/**
+ * A layout saved before it followed the account lives in an unscoped key.
+ * Give it to this user for paint on this browser. Do not upload it: on a
+ * shared computer the next account must not receive the previous person's
+ * columns. A different user leaves the unscoped keys alone.
+ */
+export function claimUnscopedBrowserLayout(
+  userId: string,
+  storageKey: string,
+  columns: ColumnDef[],
+  readItem: (key: string) => string | null,
+  writeItem: (key: string, value: string) => void,
+  removeItem: (key: string) => void,
+): void {
+  const owner = readItem(BROWSER_OWNER_KEY);
+  if (owner && owner !== userId) return;
+  const browserKey = browserLayoutKey(userId, storageKey);
+  if (localColumnLayout(browserKey, columns, readItem)) {
+    if (!owner) writeItem(BROWSER_OWNER_KEY, userId);
+    return;
+  }
+  const legacy = localColumnLayout(storageKey, columns, readItem);
+  if (!legacy) return;
+  cacheColumnLayout(browserKey, legacy, writeItem);
+  removeItem(storageKey);
+  removeItem(orderStorageKey(storageKey));
+  writeItem(BROWSER_OWNER_KEY, userId);
+}
+
 export function orderStorageKey(storageKey: string): string {
   return storageKey + ORDER_SUFFIX;
 }
@@ -296,11 +327,6 @@ export async function hydrateTableLayout(args: HydrateArgs): Promise<ColumnLayou
     fetchFailed = true;
   }
   if (layoutEpoch(scope) !== start) return null;
-
-  if (!fetchFailed) {
-    args.removeItem(args.storageKey);
-    args.removeItem(orderStorageKey(args.storageKey));
-  }
 
   const plan = planTableLayoutHydration({
     userId: args.userId,

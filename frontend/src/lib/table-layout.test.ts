@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   browserLayoutKey,
   bumpLayoutEpoch,
+  claimUnscopedBrowserLayout,
   clearedStorageKey,
   enqueueTableLayoutWrite,
   hydrateTableLayout,
@@ -46,11 +47,7 @@ function memory() {
   };
 }
 
-function seedLocal(
-  store: ReturnType<typeof memory>,
-  key: string,
-  layout: ColumnLayout,
-) {
+function seedLocal(store: ReturnType<typeof memory>, key: string, layout: ColumnLayout) {
   store.writeItem(key, JSON.stringify(layout.visible));
   store.writeItem(key + "-order", JSON.stringify(layout.order));
 }
@@ -149,6 +146,35 @@ describe("planTableLayoutHydration", () => {
   });
 });
 
+describe("claimUnscopedBrowserLayout", () => {
+  it("keeps a pre-account layout on this browser for the account that opens it, without uploading", () => {
+    const store = memory();
+    seedLocal(store, KEY, LOCAL);
+    claimUnscopedBrowserLayout(
+      "alice",
+      KEY,
+      COLUMNS,
+      store.readItem,
+      store.writeItem,
+      store.removeItem,
+    );
+    assert.equal(store.readItem(KEY), null);
+    assert.equal(
+      store.readItem(browserLayoutKey("alice", KEY)),
+      JSON.stringify(LOCAL.visible),
+    );
+    claimUnscopedBrowserLayout(
+      "bob",
+      KEY,
+      COLUMNS,
+      store.readItem,
+      store.writeItem,
+      store.removeItem,
+    );
+    assert.equal(store.readItem(browserLayoutKey("bob", KEY)), null);
+  });
+});
+
 describe("hydrateTableLayout", () => {
   it("drops a stale response when this user edits during the read", async () => {
     const store = memory();
@@ -205,7 +231,7 @@ describe("hydrateTableLayout", () => {
       store.readItem(browserLayoutKey("bob", KEY)),
       JSON.stringify(["action", "log"]),
     );
-    assert.equal(store.readItem(KEY), null);
+    assert.equal(store.readItem(KEY), JSON.stringify(LOCAL.visible));
   });
 });
 

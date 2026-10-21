@@ -8,10 +8,12 @@ import {
   browserLayoutKey,
   bumpLayoutEpoch,
   cacheColumnLayout,
+  claimUnscopedBrowserLayout,
   clearedStorageKey,
   defaultColumnLayout,
   enqueueTableLayoutWrite,
   hydrateTableLayout,
+  localColumnLayout,
   orderStorageKey,
   unsyncedStorageKey,
   type ColumnDef,
@@ -67,19 +69,38 @@ export function useColumnVisibility(storageKey: string, columns: ColumnDef[]) {
   const { data: session } = useSession();
   const userId = session?.user?.id ?? null;
   const browserKey = userId ? browserLayoutKey(userId, storageKey) : null;
+  const cached = userId
+    ? localColumnLayout(browserLayoutKey(userId, storageKey), columns, readItem)
+    : null;
 
-  // Do not paint an unscoped browser cache. On a shared computer that cache
-  // belongs to whoever used the machine last, not to the signed-in user.
+  // This user's browser copy, read synchronously. The account row may replace
+  // it after the read. Do not read an unscoped key here: that belongs to
+  // whoever used this computer last.
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(
-    () => new Set(defaultColumnLayout(columns).visible),
+    () => new Set((cached ?? defaultColumnLayout(columns)).visible),
   );
   const [columnOrder, setColumnOrder] = useState<string[]>(
-    () => defaultColumnLayout(columns).order,
+    () => (cached ?? defaultColumnLayout(columns)).order,
   );
 
-  // Paint before the browser frame so a server-rendered default set does not
-  // flash over the account layout (or this user's cache, if the read fails).
-  // Callers pass a stable column list (module constant or useMemo).
+  const [paintedUser, setPaintedUser] = useState<string | null>(null);
+  if (userId && userId !== paintedUser) {
+    setPaintedUser(userId);
+    claimUnscopedBrowserLayout(
+      userId,
+      storageKey,
+      columns,
+      readItem,
+      writeItem,
+      removeItem,
+    );
+    const local = localColumnLayout(browserLayoutKey(userId, storageKey), columns, readItem);
+    if (local) {
+      setVisibleColumns(new Set(local.visible));
+      setColumnOrder(local.order);
+    }
+  }
+
   useLayoutEffect(() => {
     if (!userId || !browserKey) return;
     let cancelled = false;
@@ -130,22 +151,18 @@ export function useColumnVisibility(storageKey: string, columns: ColumnDef[]) {
   const isVisible = (id: string) => visibleColumns.has(id);
 
   const reorderColumns = (activeId: string, overId: string) => {
-    const next = arrayMove(
-      columnOrder,
-      columnOrder.indexOf(activeId),
-      columnOrder.indexOf(overId),
-    );
+    const next = arrayMove(columnOrder, columnOrder.indexOf(activeId), columnOrder.indexOf(overId));
     setColumnOrder(next);
     publish([...visibleColumns], next);
   };
 
   const orderedColumns = columnOrder
-    .map((id) => columns.find((column) => column.id === id))
+    .map((id) => columns.find((c) => c.id === id))
     .filter(Boolean) as ColumnDef[];
 
-  const visibleOrderedColumns = orderedColumns.filter((column) =>
-    visibleColumns.has(column.id),
-  );
+  const visibleOrderedColumns = orderedColumns.filter((c) => visibleColumns.has(c.id));
+
+  const visibleColumnCount = visibleColumns.size;
 
   const resetToDefault = () => {
     const defaults = defaultColumnLayout(columns);
@@ -164,7 +181,7 @@ export function useColumnVisibility(storageKey: string, columns: ColumnDef[]) {
     visibleColumns,
     toggleColumn,
     isVisible,
-    visibleColumnCount: visibleColumns.size,
+    visibleColumnCount,
     orderedColumns,
     visibleOrderedColumns,
     reorderColumns,
