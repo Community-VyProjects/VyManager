@@ -5,6 +5,7 @@ API endpoints for managing VyOS Dynamic DNS (ddclient) configuration.
 Endpoints:
   GET  /vyos/dns-dynamic/capabilities  — version-aware feature flags
   GET  /vyos/dns-dynamic/config        — normalized dynamic DNS configuration
+  GET  /vyos/dns-dynamic/status        — resolved addresses from the ddclient cache
   POST /vyos/dns-dynamic/batch         — atomic set/delete operations
 """
 
@@ -14,6 +15,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.dns_dynamic import DNSDynamicBatchBuilder
+from dns_dynamic_status import DynamicDnsStatusResponse, fetch_dynamic_dns_status
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import inspect
@@ -126,6 +128,24 @@ async def get_dns_dynamic_config(http_request: Request, refresh: bool = False):
         )
     except Exception:
         logger.exception("Unhandled error in get_dns_dynamic_config")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/status", response_model=DynamicDnsStatusResponse)
+async def get_dns_dynamic_status(request: Request):
+    """Resolved addresses from the ddclient cache (``ShowDynamicStatusDns``).
+
+    A missed read returns ``available: false`` and an empty host list. The
+    page keeps the last sample. An unconfigured service is an empty cache.
+    """
+    await require_read_permission(request, FeatureGroup.DNS_DYNAMIC)
+    try:
+        service = get_session_vyos_service(request)
+        return await fetch_dynamic_dns_status(service)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in get_dns_dynamic_status")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

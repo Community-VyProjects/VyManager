@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -38,7 +38,9 @@ import {
   dnsDynamicService,
   DNSDynamicConfig,
   DynamicNameEntry,
+  DynamicDnsHostStatus,
 } from "@/lib/api/dns-dynamic";
+import { resolvedAddresses } from "@/lib/dns-dynamic-status";
 import { DNSDynamicGlobalModal } from "./DNSDynamicGlobalModal";
 import { DNSDynamicEntryModal } from "./DNSDynamicEntryModal";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -51,6 +53,10 @@ export function DNSDynamicContent() {
   const hasWritePermission = canWrite(FeatureGroup.DNS_DYNAMIC);
 
   const [config, setConfig] = useState<DNSDynamicConfig | null>(null);
+  const [hosts, setHosts] = useState<DynamicDnsHostStatus[]>([]);
+  const [statusUnavailable, setStatusUnavailable] = useState(false);
+  const [statusPending, setStatusPending] = useState(true);
+  const statusSeen = useRef(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,21 +79,75 @@ export function DNSDynamicContent() {
     }
   }, [t]);
 
+  const loadStatus = useCallback(async () => {
+    try {
+      const status = await dnsDynamicService.getStatus();
+      if (!status.available) {
+        if (!statusSeen.current) setStatusUnavailable(true);
+        return;
+      }
+      statusSeen.current = true;
+      setHosts(status.hosts);
+      setStatusUnavailable(false);
+    } catch {
+      if (!statusSeen.current) setStatusUnavailable(true);
+    } finally {
+      setStatusPending(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadData();
-  }, [loadData]);
+    loadStatus();
+  }, [loadData, loadStatus]);
 
   const withAction = async (fn: () => Promise<void>) => {
     setActionLoading(true);
     setError(null);
     try {
       await fn();
-      await loadData(true);
+      await Promise.all([loadData(true), loadStatus()]);
     } catch (err) {
       setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const renderResolvedIp = (entry: DynamicNameEntry) => {
+    const rows = resolvedAddresses(entry.hostnames, hosts);
+    if (statusPending && rows.length === 0 && !statusUnavailable) {
+      return <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />;
+    }
+    if (rows.length === 0) {
+      return (
+        <span className="text-muted-foreground">
+          {statusUnavailable ? t("content.statusUnavailable") : "—"}
+        </span>
+      );
+    }
+    const showHost = new Set(rows.map((row) => row.host.toLowerCase())).size > 1;
+    const groups: { host: string; rows: typeof rows }[] = [];
+    for (const row of rows) {
+      const last = groups[groups.length - 1];
+      if (last && last.host === row.host) last.rows.push(row);
+      else groups.push({ host: row.host, rows: [row] });
+    }
+    return (
+      <div className="flex flex-col gap-1">
+        {groups.map((group) => (
+          <div key={group.host} className="font-mono text-xs">
+            {showHost && <div className="text-muted-foreground">{group.host}</div>}
+            {group.rows.map((row) => (
+              <div key={row.ip}>
+                {row.ip}
+                {row.status ? <span className="text-muted-foreground"> {row.status}</span> : null}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
   };
 
   if (loading) {
@@ -102,7 +162,7 @@ export function DNSDynamicContent() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => loadData()}>{tc("retry")}</Button>
+        <Button variant="outline" onClick={() => { loadData(); loadStatus(); }}>{tc("retry")}</Button>
       </div>
     );
   }
@@ -146,7 +206,7 @@ export function DNSDynamicContent() {
                   </Button>
                 </>
               )}
-              <Button variant="outline" size="sm" onClick={() => loadData(true)}>
+              <Button variant="outline" size="sm" onClick={() => { loadData(true); loadStatus(); }}>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 {tc("refresh")}
               </Button>
@@ -205,6 +265,7 @@ export function DNSDynamicContent() {
                       <TableHead>{t("protocol")}</TableHead>
                       <TableHead>{t("content.server")}</TableHead>
                       <TableHead>{t("hostnames")}</TableHead>
+                      <TableHead>{t("content.resolvedIp")}</TableHead>
                       <TableHead>{t("ipVersion")}</TableHead>
                       {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                     </TableRow>
@@ -229,6 +290,7 @@ export function DNSDynamicContent() {
                             </div>
                           )}
                         </TableCell>
+                        <TableCell>{renderResolvedIp(e)}</TableCell>
                         <TableCell>
                           {e.ip_version ? (
                             <Badge variant="outline" className="text-xs">{e.ip_version}</Badge>
@@ -276,7 +338,7 @@ export function DNSDynamicContent() {
         vrf={config?.vrf ?? null}
         onSubmit={async (interval, vrf) => {
           await dnsDynamicService.saveGlobalSettings(interval, vrf);
-          await loadData(true);
+          await Promise.all([loadData(true), loadStatus()]);
         }}
       />
 
@@ -286,7 +348,7 @@ export function DNSDynamicContent() {
         entry={editingEntry}
         onSubmit={async (name, fields) => {
           await dnsDynamicService.saveEntry(name, fields);
-          await loadData(true);
+          await Promise.all([loadData(true), loadStatus()]);
         }}
       />
 

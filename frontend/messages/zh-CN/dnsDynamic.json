@@ -17,6 +17,8 @@
     "empty": "未配置动态 DNS 条目",
     "emptyHelp": "添加条目即可开始自动更新 DNS 记录。",
     "server": "服务器",
+    "resolvedIp": "已解析 IP",
+    "statusUnavailable": "不可用",
     "deleteTitle": "删除 DDNS 条目",
     "deleteConfirm": "确定移除 DDNS 条目 <mono>{name}</mono> 吗？"
   },
