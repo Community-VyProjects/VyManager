@@ -400,6 +400,7 @@ export function cacheColumnLayout(
 export async function hydrateTableLayout(args: HydrateArgs): Promise<ColumnLayout | null> {
   const scope = browserLayoutKey(args.userId, args.storageKey);
   const start = layoutEpoch(scope);
+  const writeInFlightAtStart = layoutWritePending(scope);
   let fetchFailed = false;
   let remoteLayouts: Record<string, ColumnLayout> | null = null;
   let payload: unknown = null;
@@ -414,7 +415,16 @@ export async function hydrateTableLayout(args: HydrateArgs): Promise<ColumnLayou
   if (layoutWritePending(scope)) return null;
   const seenRevision = args.readItem(basedOnStorageKey(scope));
   const remoteRevision = payloadRevisions(payload)[args.storageKey] ?? null;
-  if (seenRevision && remoteRevision && remoteRevision < seenRevision) return null;
+  // A read that started during our save can return the revision we just replaced.
+  // A restore also moves the revision backwards, and that one must be painted.
+  if (
+    writeInFlightAtStart &&
+    seenRevision &&
+    remoteRevision &&
+    remoteRevision < seenRevision
+  ) {
+    return null;
+  }
 
   const plan = planTableLayoutHydration({
     userId: args.userId,

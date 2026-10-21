@@ -325,7 +325,7 @@ describe("hydrateTableLayout", () => {
     assert.equal(store.readItem(scope), JSON.stringify(LOCAL.visible));
   });
 
-  it("does not paint a read older than a save this browser already accepted", async () => {
+  it("paints a restored account layout whose revision is older than this browser's", async () => {
     const store = memory();
     const scope = browserLayoutKey("alice", KEY);
     seedLocal(store, scope, LOCAL);
@@ -343,14 +343,14 @@ describe("hydrateTableLayout", () => {
         revisions: { [KEY]: "2026-10-21T17:00:00.000000Z" },
       }),
       enqueueSave: () => {
-        throw new Error("must not save over an accepted write");
+        throw new Error("must not upload over a restored layout");
       },
       enqueueDelete: () => {
-        throw new Error("must not delete over an accepted write");
+        throw new Error("must not delete a restored layout");
       },
     });
-    assert.equal(painted, null);
-    assert.equal(store.readItem(scope), JSON.stringify(LOCAL.visible));
+    assert.deepEqual(painted?.visible, ["action", "log"]);
+    assert.equal(store.readItem(scope + "-based-on"), "2026-10-21T17:00:00.000000Z");
   });
 
   it("caches the account layout under this user, not an unscoped key", async () => {
