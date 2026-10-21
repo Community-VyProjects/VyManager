@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useState } from "react";
 import { arrayMove } from "@dnd-kit/sortable";
 import { useSession } from "@/lib/auth-client";
 import { tableLayoutService } from "@/lib/api/table-layouts";
@@ -188,10 +188,6 @@ export function useColumnVisibility(
     () => (cached ?? defaultColumnLayout(columns)).order,
   );
 
-  const [heldEdit, setHeldEdit] = useState<ColumnLayout | null>(null);
-  const [heldReset, setHeldReset] = useState(false);
-  const [flushEdit, setFlushEdit] = useState<ColumnLayout | null>(null);
-  const [resetNonce, setResetNonce] = useState(0);
   const [paintedUser, setPaintedUser] = useState<string | null>(null);
   if (!userId && paintedUser) {
     layoutPainters.delete(browserLayoutKey(paintedUser, storageKey));
@@ -199,8 +195,6 @@ export function useColumnVisibility(
     const defaults = defaultColumnLayout(columns);
     setVisibleColumns(new Set(defaults.visible));
     setColumnOrder(defaults.order);
-    setHeldEdit(null);
-    setHeldReset(false);
   }
   if (userId && userId !== paintedUser) {
     if (paintedUser) {
@@ -217,16 +211,8 @@ export function useColumnVisibility(
     );
     const local = localColumnLayout(browserLayoutKey(userId, storageKey), columns, readItem)
       ?? defaultColumnLayout(columns);
-    const next = heldReset ? defaultColumnLayout(columns) : heldEdit ?? local;
-    setVisibleColumns(new Set(next.visible));
-    setColumnOrder(next.order);
-    if (heldEdit) setHeldEdit(null);
-    if (heldReset) {
-      setHeldReset(false);
-      setResetNonce((nonce) => nonce + 1);
-    } else if (heldEdit) {
-      setFlushEdit(next);
-    }
+    setVisibleColumns(new Set(local.visible));
+    setColumnOrder(local.order);
   }
 
   const paintServer = useCallback((layout: ColumnLayout | null) => {
@@ -234,38 +220,6 @@ export function useColumnVisibility(
     setVisibleColumns(new Set(next.visible));
     setColumnOrder(next.order);
   }, [columns]);
-
-  const sentHeldEdit = useRef<ColumnLayout | null>(null);
-  useLayoutEffect(() => {
-    if (!flushEdit || flushEdit === sentHeldEdit.current || !userId || !browserKey) return;
-    sentHeldEdit.current = flushEdit;
-    cacheColumnLayout(browserKey, flushEdit, writeItem);
-    writeItem(savingStorageKey(browserKey), String(Date.now()));
-    bumpLayoutEpoch(browserKey);
-    enqueueTableLayoutWrite(
-      browserKey,
-      { kind: "save", layout: flushEdit },
-      transportFor(storageKey, browserKey, userId, columns),
-    );
-  }, [flushEdit, userId, browserKey, storageKey, columns]);
-
-  const sentReset = useRef(0);
-  useLayoutEffect(() => {
-    if (!resetNonce || sentReset.current === resetNonce || !userId || !browserKey) return;
-    sentReset.current = resetNonce;
-    removeItem(browserKey);
-    removeItem(orderStorageKey(browserKey));
-    removeItem(unsyncedStorageKey(browserKey));
-    removeItem(savingStorageKey(browserKey));
-    removeItem(publishedStorageKey(browserKey));
-    writeItem(clearedStorageKey(browserKey), "1");
-    bumpLayoutEpoch(browserKey);
-    enqueueTableLayoutWrite(
-      browserKey,
-      { kind: "delete" },
-      transportFor(storageKey, browserKey, userId, columns),
-    );
-  }, [resetNonce, userId, browserKey, storageKey, columns]);
 
   useLayoutEffect(() => {
     if (!browserKey) return;
@@ -308,11 +262,8 @@ export function useColumnVisibility(
   }, [storageKey, columns, userId, browserKey, paintServer]);
 
   const publish = (visible: string[], order: string[]) => {
+    if (!userId || !browserKey) return;
     const layout = { visible, order };
-    if (!userId || !browserKey) {
-      setHeldEdit(layout);
-      return;
-    }
     cacheColumnLayout(browserKey, layout, writeItem);
     writeItem(savingStorageKey(browserKey), String(Date.now()));
     removeItem(clearedStorageKey(browserKey));
@@ -325,6 +276,7 @@ export function useColumnVisibility(
   };
 
   const toggleColumn = (id: string) => {
+    if (!userId || !browserKey) return;
     const next = new Set(visibleColumns);
     if (next.has(id)) next.delete(id);
     else next.add(id);
@@ -335,6 +287,7 @@ export function useColumnVisibility(
   const isVisible = (id: string) => visibleColumns.has(id);
 
   const reorderColumns = (activeId: string, overId: string) => {
+    if (!userId || !browserKey) return;
     const next = arrayMove(columnOrder, columnOrder.indexOf(activeId), columnOrder.indexOf(overId));
     setColumnOrder(next);
     publish([...visibleColumns], next);
@@ -349,14 +302,10 @@ export function useColumnVisibility(
   const visibleColumnCount = visibleColumns.size;
 
   const resetToDefault = () => {
+    if (!userId || !browserKey) return;
     const defaults = defaultColumnLayout(columns);
     setVisibleColumns(new Set(defaults.visible));
     setColumnOrder(defaults.order);
-    setHeldEdit(null);
-    if (!userId || !browserKey) {
-      setHeldReset(true);
-      return;
-    }
     removeItem(browserKey);
     removeItem(orderStorageKey(browserKey));
     removeItem(unsyncedStorageKey(browserKey));
