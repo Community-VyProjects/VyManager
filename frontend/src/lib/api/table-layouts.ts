@@ -6,8 +6,14 @@ import { apiClient } from "./client";
 import type { ColumnLayout, TableLayoutsPayload } from "@/lib/table-layout";
 
 class TableLayoutService {
-  get(): Promise<TableLayoutsPayload> {
-    return apiClient.get<TableLayoutsPayload>("/user/table-layouts");
+  get(userId: string): Promise<TableLayoutsPayload> {
+    const query = new URLSearchParams({ asUser: userId });
+    return apiClient.get<TableLayoutsPayload>(`/user/table-layouts?${query.toString()}`).then((payload) => {
+      if (payload.userId !== userId) {
+        throw Object.assign(new Error("Signed-in user changed"), { status: 403 });
+      }
+      return payload;
+    });
   }
 
   save(key: string, layout: ColumnLayout, basedOn: string | null, userId: string): Promise<TableLayoutsPayload> {

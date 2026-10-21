@@ -19,6 +19,7 @@ export interface ColumnLayout {
 }
 
 export interface TableLayoutsPayload {
+  userId?: string;
   exists: boolean;
   layouts: Record<string, ColumnLayout>;
   revisions?: Record<string, string>;

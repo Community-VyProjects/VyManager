@@ -993,6 +993,7 @@ describe("useColumnVisibility", () => {
         });
       }
       return new Response(JSON.stringify({
+        userId: "alice",
         layouts: {
           "firewall-policies-columns": { visible: ["action", "log"], order: ["action", "log"] },
         },
@@ -1038,5 +1039,42 @@ describe("useColumnVisibility", () => {
     assert.match(deletes[1], /basedOn=t1/);
     assert.equal(seen.api?.isVisible("log"), false);
     again.unmount();
+  });
+
+  it("does not cache another account's layout under this user", async () => {
+    window.localStorage.clear();
+    globalThis.fetch = (async () => new Response(JSON.stringify({
+      userId: "bob",
+      layouts: {
+        "firewall-policies-columns": { visible: ["action", "log"], order: ["action", "log"] },
+      },
+      revisions: { "firewall-policies-columns": "t-bob" },
+      exists: true,
+    }), { status: 200, headers: { "Content-Type": "application/json" } })) as typeof fetch;
+
+    const React = await import("react");
+    const { createRoot } = await import("react-dom/client");
+    const { useColumnVisibility } = await import("./useColumnVisibility");
+    const rootEl = document.getElementById("root");
+    assert.ok(rootEl);
+    const root = createRoot(rootEl);
+    const seen = { api: null as { isVisible: (id: string) => boolean } | null };
+
+    function Harness() {
+      const value = useColumnVisibility("firewall-policies-columns", COLUMNS, "alice");
+      React.useEffect(() => {
+        seen.api = value;
+      });
+      return null;
+    }
+
+    await React.act(async () => {
+      root.render(React.createElement(Harness));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(seen.api?.isVisible("log"), false);
+    assert.equal(window.localStorage.getItem("alice:firewall-policies-columns"), null);
+    assert.equal(window.localStorage.getItem("alice:firewall-policies-columns-based-on"), null);
+    root.unmount();
   });
 });

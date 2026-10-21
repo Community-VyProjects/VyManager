@@ -241,7 +241,7 @@ export function useColumnVisibility(
       readItem,
       writeItem,
       removeItem,
-      getLayouts: () => tableLayoutService.get(),
+      getLayouts: () => tableLayoutService.get(userId),
       enqueueSave: (layout) => {
         if (cancelled) return;
         enqueueTableLayoutWrite(browserKey, { kind: "save", layout }, transport);

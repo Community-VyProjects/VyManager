@@ -67,6 +67,7 @@ class SaveTableLayoutBody(ColumnLayoutBody):
 
 
 class TableLayoutsResponse(BaseModel):
+    userId: str
     layouts: Dict[str, ColumnLayoutBody]
     revisions: Dict[str, str] = {}
     exists: bool
@@ -171,8 +172,9 @@ def _parse_layouts(raw) -> Dict[str, ColumnLayoutBody]:
     return parsed
 
 
-def _response(raw, exists: bool, updated_at=None) -> TableLayoutsResponse:
+def _response(raw, exists: bool, updated_at, user_id: str) -> TableLayoutsResponse:
     return TableLayoutsResponse(
+        userId=user_id,
         layouts=_parse_layouts(raw),
         revisions=_revisions(raw),
         exists=exists,
@@ -183,10 +185,13 @@ def _response(raw, exists: bool, updated_at=None) -> TableLayoutsResponse:
 @router.get("/table-layouts", response_model=TableLayoutsResponse)
 async def get_table_layouts(
     request: Request,
+    asUser: Optional[str] = None,
     conn: asyncpg.Connection = Depends(org_conn_self),
 ):
     """The signed-in user's layouts. Missing row is an empty set, not an error."""
     user_id = _require_user_id(request)
+    if asUser is not None and asUser != user_id:
+        raise HTTPException(status_code=403, detail="Signed-in user changed")
     try:
         row = await conn.fetchrow(
             'SELECT layouts, "updatedAt" FROM user_table_layouts WHERE "userId" = $1',
@@ -196,8 +201,8 @@ async def get_table_layouts(
         logger.exception("Unable to read table layouts")
         raise HTTPException(status_code=500, detail="Unable to read table layouts")
     if row is None:
-        return TableLayoutsResponse(layouts={}, exists=False, updatedAt=None)
-    return _response(row["layouts"], exists=True, updated_at=row["updatedAt"])
+        return TableLayoutsResponse(userId=user_id, layouts={}, exists=False, updatedAt=None)
+    return _response(row["layouts"], exists=True, updated_at=row["updatedAt"], user_id=user_id)
 
 
 @router.put("/table-layouts/{key}", response_model=TableLayoutsResponse)
@@ -335,7 +340,7 @@ async def save_table_layout(
     except Exception:
         logger.exception("Unable to save table layout")
         raise HTTPException(status_code=500, detail="Unable to save table layout")
-    return _response(row["layouts"], exists=True, updated_at=row["updatedAt"])
+    return _response(row["layouts"], exists=True, updated_at=row["updatedAt"], user_id=user_id)
 
 
 @router.delete("/table-layouts/{key}", response_model=TableLayoutsResponse)
@@ -358,10 +363,10 @@ async def delete_table_layout(
             user_id,
         )
         if existing is None:
-            return TableLayoutsResponse(layouts={}, exists=False, updatedAt=None)
+            return TableLayoutsResponse(userId=user_id, layouts={}, exists=False, updatedAt=None)
         layouts = _as_layout_dict(existing["layouts"]) or {}
         if key not in layouts:
-            return _response(existing["layouts"], exists=True, updated_at=existing["updatedAt"])
+            return _response(existing["layouts"], exists=True, updated_at=existing["updatedAt"], user_id=user_id)
         if not _shown_to_client(existing["layouts"], key):
             row = await conn.fetchrow(
                 """
@@ -387,7 +392,7 @@ async def delete_table_layout(
                         raced["updatedAt"] if raced else None,
                     ),
                 )
-            return _response(row["layouts"], exists=True, updated_at=row["updatedAt"])
+            return _response(row["layouts"], exists=True, updated_at=row["updatedAt"], user_id=user_id)
         stored = _key_revision(existing["layouts"], key)
         if not (stored and stored == basedOn):
             raise HTTPException(
@@ -423,4 +428,4 @@ async def delete_table_layout(
     except Exception:
         logger.exception("Unable to delete table layout")
         raise HTTPException(status_code=500, detail="Unable to delete table layout")
-    return _response(row["layouts"], exists=True, updated_at=row["updatedAt"])
+    return _response(row["layouts"], exists=True, updated_at=row["updatedAt"], user_id=user_id)

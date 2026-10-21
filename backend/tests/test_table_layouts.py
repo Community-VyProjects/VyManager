@@ -59,12 +59,21 @@ def test_get_without_a_user_is_401():
     assert conn.calls == 0
 
 
+def test_read_for_a_different_user_is_403():
+    client, conn = _build("alice")
+    resp = client.get("/user/table-layouts?asUser=bob")
+    assert resp.status_code == 403
+    assert resp.json()["detail"] == "Signed-in user changed"
+    assert conn.calls == 0
+
+
 def test_missing_row_is_empty_not_an_error():
     client, _conn = _build("u1")
     resp = client.get("/user/table-layouts")
     assert resp.status_code == 200
     assert resp.json()["layouts"] == {}
     assert resp.json()["exists"] is False
+    assert resp.json()["userId"] == "u1"
 
 
 def test_body_cannot_name_the_owner():
