@@ -567,4 +567,68 @@ describe("useColumnVisibility", () => {
     assert.equal(seen.api?.isVisible("log"), false);
     root.unmount();
   });
+
+  it("does not send a save queued by the previous user after that table unmounts", async () => {
+    window.localStorage.clear();
+    let putCount = 0;
+    let releasePut = () => {};
+    let markStarted = () => {};
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    globalThis.fetch = (async (_url: string, init?: { method?: string }) => {
+      if ((init?.method ?? "GET") === "PUT") {
+        putCount += 1;
+        markStarted();
+        await new Promise<void>((resolve) => {
+          releasePut = resolve;
+        });
+        return new Response(
+          JSON.stringify({ layouts: {}, exists: false, revisions: { "firewall-policies-columns": "t1" } }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response(JSON.stringify({ layouts: {}, exists: false, revisions: {} }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+
+    const React = await import("react");
+    const { createRoot } = await import("react-dom/client");
+    const { useColumnVisibility } = await import("./useColumnVisibility");
+    const rootEl = document.getElementById("root");
+    assert.ok(rootEl);
+    const root = createRoot(rootEl);
+    const seen = { api: null as { toggleColumn: (id: string) => void } | null };
+
+    function Harness() {
+      const value = useColumnVisibility("firewall-policies-columns", COLUMNS, "alice");
+      React.useEffect(() => {
+        seen.api = value;
+      });
+      return null;
+    }
+
+    await React.act(async () => {
+      root.render(React.createElement(Harness));
+    });
+    await React.act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await React.act(async () => {
+      seen.api?.toggleColumn("log");
+    });
+    await started;
+    await React.act(async () => {
+      seen.api?.toggleColumn("log");
+      root.render(null);
+    });
+    await React.act(async () => {
+      releasePut();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(putCount, 1);
+    root.unmount();
+  });
 });

@@ -17,6 +17,7 @@ import {
   enqueueTableLayoutWrite,
   hydrateTableLayout,
   layoutEpoch,
+  layoutWriteQueued,
   localColumnLayout,
   normalizeColumnLayout,
   orderStorageKey,
@@ -101,7 +102,7 @@ function transportFor(
     save: async (layout: ColumnLayout) => {
       const remember = (saved: { revisions?: Record<string, string> }) => {
         removeItem(unsyncedStorageKey(browserKey));
-        removeItem(savingStorageKey(browserKey));
+        if (!layoutWriteQueued(browserKey)) removeItem(savingStorageKey(browserKey));
         writeItem(publishedStorageKey(browserKey), "1");
         const revision = saved.revisions?.[serverKey];
         if (revision) writeItem(basedOnStorageKey(browserKey), revision);
@@ -212,7 +213,10 @@ export function useColumnVisibility(
   useLayoutEffect(() => {
     if (!browserKey) return;
     bindLayoutPainter(browserKey, paintServer);
-    return () => unbindLayoutPainter(browserKey, paintServer);
+    return () => {
+      unbindLayoutPainter(browserKey, paintServer);
+      dropPendingLayoutWrites(browserKey);
+    };
   }, [browserKey, paintServer]);
 
   useLayoutEffect(() => {
@@ -228,10 +232,14 @@ export function useColumnVisibility(
       writeItem,
       removeItem,
       getLayouts: () => tableLayoutService.get(),
-      enqueueSave: (layout) =>
-        enqueueTableLayoutWrite(browserKey, { kind: "save", layout }, transport),
-      enqueueDelete: () =>
-        enqueueTableLayoutWrite(browserKey, { kind: "delete" }, transport),
+      enqueueSave: (layout) => {
+        if (cancelled) return;
+        enqueueTableLayoutWrite(browserKey, { kind: "save", layout }, transport);
+      },
+      enqueueDelete: () => {
+        if (cancelled) return;
+        enqueueTableLayoutWrite(browserKey, { kind: "delete" }, transport);
+      },
     }).then((layout) => {
       if (cancelled || !layout) return;
       if (layoutEpoch(browserKey) !== seenEpoch) return;

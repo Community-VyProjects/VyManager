@@ -7,6 +7,7 @@ import {
   clearedStorageKey,
   dropPendingLayoutWrites,
   enqueueTableLayoutWrite,
+  layoutWriteQueued,
   hydrateTableLayout,
   layoutEpoch,
   planTableLayoutHydration,
@@ -650,5 +651,26 @@ describe("enqueueTableLayoutWrite", () => {
     release();
     await new Promise((resolve) => setTimeout(resolve, 0));
     assert.deepEqual(calls, ["old", "new-delete"]);
+  });
+
+  it("still has a queued write after the in-flight save returns", async () => {
+    const key = "alice:firewall-policies-columns-queued";
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    enqueueTableLayoutWrite(key, { kind: "save", layout: LOCAL }, {
+      save: async () => {
+        await gate;
+      },
+      remove: async () => {},
+    });
+    enqueueTableLayoutWrite(key, { kind: "save", layout: REMOTE }, {
+      save: async () => {},
+      remove: async () => {},
+    });
+    assert.equal(layoutWriteQueued(key), true);
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 0));
   });
 });

@@ -345,6 +345,11 @@ export function layoutWritePending(key: string): boolean {
   return Boolean(state && (state.pumping || state.latest));
 }
 
+/** A later save is waiting behind the one in flight. */
+export function layoutWriteQueued(key: string): boolean {
+  return Boolean(writeStates.get(key)?.latest);
+}
+
 /** Drop a save or reset that was queued behind a request the account rejected. */
 export function dropPendingLayoutWrites(key: string): void {
   const state = writeStates.get(key);
