@@ -200,12 +200,17 @@ async def save_table_layout(
     key: str,
     body: SaveTableLayoutBody,
     request: Request,
+    asUser: Optional[str] = None,
+    basedOn: Optional[str] = None,
     conn: asyncpg.Connection = Depends(org_conn_self),
 ):
     """Merge one table into the account row. Other tables on the row stay."""
     user_id = _require_user_id(request)
+    if asUser is not None and asUser != user_id:
+        raise HTTPException(status_code=403, detail="Signed-in user changed")
     reject_read_only_token(request)
     key = _require_key(key)
+    claimed = basedOn or body.basedOn
     revision = _revision_now()
     layout_json = json.dumps({
         "visible": body.visible,
@@ -264,7 +269,7 @@ async def save_table_layout(
         else:
             layouts = _as_layout_dict(existing["layouts"]) or {}
             stored = _key_revision(layouts, key)
-            if key in layouts and not (stored and stored == body.basedOn):
+            if key in layouts and not (stored and stored == claimed):
                 raise HTTPException(
                     status_code=409,
                     detail=_conflict(existing["layouts"], existing["updatedAt"]),
@@ -281,7 +286,7 @@ async def save_table_layout(
                     user_id,
                     key,
                     layout_json,
-                    body.basedOn,
+                    claimed,
                 )
             else:
                 row = await conn.fetchrow(
@@ -318,10 +323,13 @@ async def delete_table_layout(
     key: str,
     request: Request,
     basedOn: Optional[str] = None,
+    asUser: Optional[str] = None,
     conn: asyncpg.Connection = Depends(org_conn_self),
 ):
     """Remove one table. Reset to Default calls this so the other computer follows."""
     user_id = _require_user_id(request)
+    if asUser is not None and asUser != user_id:
+        raise HTTPException(status_code=403, detail="Signed-in user changed")
     reject_read_only_token(request)
     key = _require_key(key)
     try:

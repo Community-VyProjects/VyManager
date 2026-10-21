@@ -84,6 +84,19 @@ def test_unknown_key_is_422():
     assert conn.calls == 0
 
 
+def test_write_for_a_different_user_is_403():
+    client, conn = _build("alice")
+    saved = client.put(
+        "/user/table-layouts/firewall-policies-columns?asUser=bob",
+        json=POLICIES,
+    )
+    assert saved.status_code == 403
+    assert conn.calls == 0
+    deleted = client.delete("/user/table-layouts/firewall-policies-columns?asUser=bob")
+    assert deleted.status_code == 403
+    assert conn.calls == 0
+
+
 def test_stale_save_does_not_write():
     from datetime import datetime
 

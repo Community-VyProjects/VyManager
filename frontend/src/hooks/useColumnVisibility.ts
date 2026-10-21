@@ -66,11 +66,7 @@ function unbindLayoutPainter(key: string, painter: (layout: ColumnLayout | null)
   if (layoutPainters.get(key) === painter) layoutPainters.delete(key);
 }
 
-function transportFor(
-  serverKey: string,
-  browserKey: string,
-  columns: ColumnDef[],
-) {
+function transportFor(serverKey: string, browserKey: string, userId: string, columns: ColumnDef[]) {
   const basedOn = () => readItem(basedOnStorageKey(browserKey));
   const applyConflict = (error: unknown) => {
     const conflict = conflictPayload(error);
@@ -108,9 +104,16 @@ function transportFor(
         if (revision) writeItem(basedOnStorageKey(browserKey), revision);
       };
       try {
-        remember(await tableLayoutService.save(serverKey, layout, basedOn()));
+        remember(await tableLayoutService.save(serverKey, layout, basedOn(), userId));
       } catch (error) {
-        const action = writeFailureAction((error as { status?: number }).status);
+        const status = (error as { status?: number }).status;
+        if (status === 403) {
+          writeItem(unsyncedStorageKey(browserKey), "1");
+          removeItem(savingStorageKey(browserKey));
+          dropPendingLayoutWrites(browserKey);
+          return;
+        }
+        const action = writeFailureAction(status);
         if (action === "retry") {
           writeItem(unsyncedStorageKey(browserKey), "1");
           removeItem(savingStorageKey(browserKey));
@@ -131,7 +134,7 @@ function transportFor(
           return;
         }
         try {
-          remember(await tableLayoutService.save(serverKey, layout, null));
+          remember(await tableLayoutService.save(serverKey, layout, null, userId));
         } catch (retryError) {
           if (conflictPayload(retryError)?.layouts[serverKey]) {
             applyConflict(retryError);
@@ -144,7 +147,7 @@ function transportFor(
     },
     remove: async () => {
       try {
-        await tableLayoutService.remove(serverKey, basedOn());
+        await tableLayoutService.remove(serverKey, basedOn(), userId);
         removeItem(clearedStorageKey(browserKey));
         removeItem(basedOnStorageKey(browserKey));
       } catch (error) {
@@ -215,7 +218,6 @@ export function useColumnVisibility(
     bindLayoutPainter(browserKey, paintServer);
     return () => {
       unbindLayoutPainter(browserKey, paintServer);
-      dropPendingLayoutWrites(browserKey);
     };
   }, [browserKey, paintServer]);
 
@@ -223,7 +225,7 @@ export function useColumnVisibility(
     if (!userId || !browserKey) return;
     let cancelled = false;
     const seenEpoch = layoutEpoch(browserKey);
-    const transport = transportFor(storageKey, browserKey, columns);
+    const transport = transportFor(storageKey, browserKey, userId, columns);
     void hydrateTableLayout({
       userId,
       storageKey,
@@ -261,7 +263,7 @@ export function useColumnVisibility(
     enqueueTableLayoutWrite(
       browserKey,
       { kind: "save", layout },
-      transportFor(storageKey, browserKey, columns),
+      transportFor(storageKey, browserKey, userId, columns),
     );
   };
 
@@ -301,7 +303,7 @@ export function useColumnVisibility(
     removeItem(publishedStorageKey(browserKey));
     writeItem(clearedStorageKey(browserKey), "1");
     bumpLayoutEpoch(browserKey);
-    enqueueTableLayoutWrite(browserKey, { kind: "delete" }, transportFor(storageKey, browserKey, columns));
+    enqueueTableLayoutWrite(browserKey, { kind: "delete" }, transportFor(storageKey, browserKey, userId, columns));
   };
 
   return {

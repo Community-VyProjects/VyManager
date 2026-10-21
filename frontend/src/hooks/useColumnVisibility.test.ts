@@ -568,21 +568,23 @@ describe("useColumnVisibility", () => {
     root.unmount();
   });
 
-  it("does not send a save queued by the previous user after that table unmounts", async () => {
+  it("keeps sending the same user's queued save after the table unmounts", async () => {
     window.localStorage.clear();
-    let putCount = 0;
+    const urls: string[] = [];
     let releasePut = () => {};
     let markStarted = () => {};
     const started = new Promise<void>((resolve) => {
       markStarted = resolve;
     });
-    globalThis.fetch = (async (_url: string, init?: { method?: string }) => {
+    globalThis.fetch = (async (url: string, init?: { method?: string }) => {
       if ((init?.method ?? "GET") === "PUT") {
-        putCount += 1;
-        markStarted();
-        await new Promise<void>((resolve) => {
-          releasePut = resolve;
-        });
+        urls.push(String(url));
+        if (urls.length === 1) {
+          markStarted();
+          await new Promise<void>((resolve) => {
+            releasePut = resolve;
+          });
+        }
         return new Response(
           JSON.stringify({ layouts: {}, exists: false, revisions: { "firewall-policies-columns": "t1" } }),
           { status: 200, headers: { "Content-Type": "application/json" } },
@@ -628,7 +630,70 @@ describe("useColumnVisibility", () => {
       releasePut();
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
-    assert.equal(putCount, 1);
+    assert.equal(urls.length, 2);
+    assert.ok(urls.every((url) => url.includes("asUser=alice")));
+    root.unmount();
+  });
+
+  it("keeps the save marker while a later save is still queued", async () => {
+    window.localStorage.clear();
+    const releases: Array<() => void> = [];
+    globalThis.fetch = (async (_url: string, init?: { method?: string }) => {
+      if ((init?.method ?? "GET") === "PUT") {
+        await new Promise<void>((resolve) => {
+          releases.push(resolve);
+        });
+        return new Response(
+          JSON.stringify({
+            layouts: {},
+            exists: true,
+            revisions: { "firewall-policies-columns": "2026-10-21T18:00:00.000000Z" },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response(JSON.stringify({ layouts: {}, exists: false, revisions: {} }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+
+    const React = await import("react");
+    const { createRoot } = await import("react-dom/client");
+    const { useColumnVisibility } = await import("./useColumnVisibility");
+    const rootEl = document.getElementById("root");
+    assert.ok(rootEl);
+    const root = createRoot(rootEl);
+    const seen = { api: null as { toggleColumn: (id: string) => void } | null };
+
+    function Harness() {
+      const value = useColumnVisibility("firewall-policies-columns", COLUMNS, "alice");
+      React.useEffect(() => {
+        seen.api = value;
+      });
+      return null;
+    }
+
+    await React.act(async () => {
+      root.render(React.createElement(Harness));
+    });
+    await React.act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await React.act(async () => {
+      seen.api?.toggleColumn("log");
+      seen.api?.toggleColumn("log");
+    });
+    await React.act(async () => {
+      releases[0]?.();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(window.localStorage.getItem("alice:firewall-policies-columns-saving") === null, false);
+    await React.act(async () => {
+      releases[1]?.();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(window.localStorage.getItem("alice:firewall-policies-columns-saving"), null);
     root.unmount();
   });
 });
