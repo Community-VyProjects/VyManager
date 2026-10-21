@@ -401,6 +401,7 @@ export async function hydrateTableLayout(args: HydrateArgs): Promise<ColumnLayou
   const scope = browserLayoutKey(args.userId, args.storageKey);
   const start = layoutEpoch(scope);
   const writeInFlightAtStart = layoutWritePending(scope);
+  const revisionAtStart = args.readItem(basedOnStorageKey(scope));
   let fetchFailed = false;
   let remoteLayouts: Record<string, ColumnLayout> | null = null;
   let payload: unknown = null;
@@ -413,17 +414,21 @@ export async function hydrateTableLayout(args: HydrateArgs): Promise<ColumnLayou
   }
   if (layoutEpoch(scope) !== start) return null;
   if (layoutWritePending(scope)) return null;
-  const seenRevision = args.readItem(basedOnStorageKey(scope));
+  const revisionNow = args.readItem(basedOnStorageKey(scope));
   const remoteRevision = payloadRevisions(payload)[args.storageKey] ?? null;
-  // A read that started during our save can return the revision we just replaced.
-  // A restore also moves the revision backwards, and that one must be painted.
-  if (
-    writeInFlightAtStart &&
-    seenRevision &&
-    remoteRevision &&
-    remoteRevision < seenRevision
-  ) {
-    return null;
+  // A read that started during a save or reset, and returns after it finishes,
+  // did not see that write unless the revision moved to what we stored, or
+  // past it. An empty first-save read and a reset read that still has the old
+  // revision are that case. A restore has no write in flight, so it paints.
+  if (writeInFlightAtStart && revisionNow !== revisionAtStart) {
+    const readSawWrite =
+      (revisionNow !== null && remoteRevision === revisionNow) ||
+      (revisionNow === null && remoteRevision === null);
+    const readIsNewer =
+      remoteRevision !== null &&
+      (revisionAtStart === null || remoteRevision > revisionAtStart) &&
+      (revisionNow === null || remoteRevision > revisionNow);
+    if (!readSawWrite && !readIsNewer) return null;
   }
 
   const plan = planTableLayoutHydration({

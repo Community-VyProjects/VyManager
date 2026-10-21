@@ -353,6 +353,87 @@ describe("hydrateTableLayout", () => {
     assert.equal(store.readItem(scope + "-based-on"), "2026-10-21T17:00:00.000000Z");
   });
 
+  it("does not wipe a first save when the read returns empty after the save", async () => {
+    const store = memory();
+    const scope = browserLayoutKey("alice", KEY);
+    seedLocal(store, scope, LOCAL);
+    let finishSave = () => {};
+    const saveDone = new Promise<void>((resolve) => {
+      finishSave = resolve;
+    });
+    enqueueTableLayoutWrite(scope, { kind: "save", layout: LOCAL }, {
+      save: async () => {
+        await saveDone;
+        store.writeItem(scope + "-based-on", "2026-10-21T18:00:00.000000Z");
+      },
+      remove: async () => {},
+    });
+    const painted = await hydrateTableLayout({
+      userId: "alice",
+      storageKey: KEY,
+      columns: () => COLUMNS,
+      readItem: store.readItem,
+      writeItem: store.writeItem,
+      removeItem: store.removeItem,
+      getLayouts: async () => {
+        finishSave();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        return { exists: false, layouts: {} };
+      },
+      enqueueSave: () => {
+        throw new Error("must not save again");
+      },
+      enqueueDelete: () => {
+        throw new Error("must not delete");
+      },
+    });
+    assert.equal(painted, null);
+    assert.equal(store.readItem(scope), JSON.stringify(LOCAL.visible));
+  });
+
+  it("does not paint the layout a reset already deleted when the read is late", async () => {
+    const store = memory();
+    const scope = browserLayoutKey("alice", KEY);
+    seedLocal(store, scope, LOCAL);
+    store.writeItem(scope + "-based-on", "2026-10-21T17:00:00.000000Z");
+    let finishDelete = () => {};
+    const deleteDone = new Promise<void>((resolve) => {
+      finishDelete = resolve;
+    });
+    enqueueTableLayoutWrite(scope, { kind: "delete" }, {
+      save: async () => {},
+      remove: async () => {
+        await deleteDone;
+        store.removeItem(scope + "-based-on");
+      },
+    });
+    const painted = await hydrateTableLayout({
+      userId: "alice",
+      storageKey: KEY,
+      columns: () => COLUMNS,
+      readItem: store.readItem,
+      writeItem: store.writeItem,
+      removeItem: store.removeItem,
+      getLayouts: async () => {
+        finishDelete();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        return {
+          exists: true,
+          layouts: { [KEY]: LOCAL },
+          revisions: { [KEY]: "2026-10-21T17:00:00.000000Z" },
+        };
+      },
+      enqueueSave: () => {
+        throw new Error("must not save a deleted layout");
+      },
+      enqueueDelete: () => {
+        throw new Error("must not delete again");
+      },
+    });
+    assert.equal(painted, null);
+    assert.equal(store.readItem(scope + "-published"), null);
+  });
+
   it("caches the account layout under this user, not an unscoped key", async () => {
     const store = memory();
     seedLocal(store, KEY, LOCAL);
