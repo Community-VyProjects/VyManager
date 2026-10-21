@@ -493,4 +493,78 @@ describe("useColumnVisibility", () => {
     assert.equal(seen.api?.isVisible("log"), false);
     root.unmount();
   });
+
+  it("does not paint the previous user's rejected save into the new account", async () => {
+    window.localStorage.clear();
+    let releasePut = () => {};
+    let markStarted = () => {};
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    globalThis.fetch = (async (_url: string, init?: { method?: string }) => {
+      if ((init?.method ?? "GET") === "PUT") {
+        markStarted();
+        await new Promise<void>((resolve) => {
+          releasePut = resolve;
+        });
+        return new Response(
+          JSON.stringify({
+            detail: {
+              exists: true,
+              layouts: {
+                "firewall-policies-columns": {
+                  visible: ["action", "log"],
+                  order: ["action", "log"],
+                },
+              },
+              revisions: { "firewall-policies-columns": "t9" },
+            },
+          }),
+          { status: 409, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response(JSON.stringify({ layouts: {}, exists: false, revisions: {} }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+
+    const React = await import("react");
+    const { createRoot } = await import("react-dom/client");
+    const { useColumnVisibility } = await import("./useColumnVisibility");
+    const rootEl = document.getElementById("root");
+    assert.ok(rootEl);
+    const root = createRoot(rootEl);
+    const seen = { api: null as { isVisible: (id: string) => boolean; toggleColumn: (id: string) => void } | null };
+    const user = { id: "alice" };
+
+    function Harness() {
+      const value = useColumnVisibility("firewall-policies-columns", COLUMNS, user.id);
+      React.useEffect(() => {
+        seen.api = value;
+      });
+      return null;
+    }
+
+    await React.act(async () => {
+      root.render(React.createElement(Harness));
+    });
+    await React.act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await React.act(async () => {
+      seen.api?.toggleColumn("log");
+    });
+    await started;
+    user.id = "bob";
+    await React.act(async () => {
+      root.render(React.createElement(Harness));
+    });
+    await React.act(async () => {
+      releasePut();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(seen.api?.isVisible("log"), false);
+    root.unmount();
+  });
 });

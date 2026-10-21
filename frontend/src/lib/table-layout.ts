@@ -401,6 +401,8 @@ export async function hydrateTableLayout(args: HydrateArgs): Promise<ColumnLayou
   const scope = browserLayoutKey(args.userId, args.storageKey);
   const start = layoutEpoch(scope);
   const revisionAtStart = args.readItem(basedOnStorageKey(scope));
+  const localAtStart = args.readItem(scope);
+  const orderAtStart = args.readItem(orderStorageKey(scope));
   let fetchFailed = false;
   let remoteLayouts: Record<string, ColumnLayout> | null = null;
   let payload: unknown = null;
@@ -413,6 +415,12 @@ export async function hydrateTableLayout(args: HydrateArgs): Promise<ColumnLayou
   }
   if (layoutEpoch(scope) !== start) return null;
   if (layoutWritePending(scope)) return null;
+  if (
+    args.readItem(scope) !== localAtStart ||
+    args.readItem(orderStorageKey(scope)) !== orderAtStart
+  ) {
+    return null;
+  }
   const revisionNow = args.readItem(basedOnStorageKey(scope));
   const remoteRevision = payloadRevisions(payload)[args.storageKey] ?? null;
   // A read that returns after the stored revision changed did not see that write

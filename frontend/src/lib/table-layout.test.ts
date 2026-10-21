@@ -460,6 +460,36 @@ describe("hydrateTableLayout", () => {
     assert.equal(store.readItem(scope), JSON.stringify(LOCAL.visible));
   });
 
+  it("does not overwrite a layout another tab wrote before its save returned", async () => {
+    const store = memory();
+    const scope = browserLayoutKey("alice", KEY);
+    seedLocal(store, scope, LOCAL);
+    const painted = await hydrateTableLayout({
+      userId: "alice",
+      storageKey: KEY,
+      columns: () => COLUMNS,
+      readItem: store.readItem,
+      writeItem: store.writeItem,
+      removeItem: store.removeItem,
+      getLayouts: async () => {
+        store.writeItem(scope, JSON.stringify(["log"]));
+        return {
+          exists: true,
+          layouts: { [KEY]: REMOTE },
+          revisions: { [KEY]: "2026-10-21T17:00:00.000000Z" },
+        };
+      },
+      enqueueSave: () => {
+        throw new Error("must not save");
+      },
+      enqueueDelete: () => {
+        throw new Error("must not delete");
+      },
+    });
+    assert.equal(painted, null);
+    assert.equal(store.readItem(scope), JSON.stringify(["log"]));
+  });
+
   it("caches the account layout under this user, not an unscoped key", async () => {
     const store = memory();
     seedLocal(store, KEY, LOCAL);

@@ -68,7 +68,6 @@ function transportFor(
   serverKey: string,
   browserKey: string,
   columns: ColumnDef[],
-  onServer: (layout: ColumnLayout | null) => void,
 ) {
   const basedOn = () => readItem(basedOnStorageKey(browserKey));
   const applyConflict = (error: unknown) => {
@@ -80,21 +79,21 @@ function transportFor(
     // The painter is whoever is mounted now, not the instance that started the save.
     bumpLayoutEpoch(browserKey);
     dropPendingLayoutWrites(browserKey);
-    const paint = layoutPainters.get(browserKey) ?? onServer;
+    const paint = layoutPainters.get(browserKey);
     if (remote) {
       const layout = normalizeColumnLayout(remote, columns);
       cacheColumnLayout(browserKey, layout, writeItem);
       writeItem(publishedStorageKey(browserKey), "1");
       const revision = conflict?.revisions?.[serverKey];
       if (revision) writeItem(basedOnStorageKey(browserKey), revision);
-      paint(layout);
+      paint?.(layout);
       return;
     }
     removeItem(browserKey);
     removeItem(orderStorageKey(browserKey));
     removeItem(publishedStorageKey(browserKey));
     removeItem(basedOnStorageKey(browserKey));
-    paint(null);
+    paint?.(null);
   };
   return {
     save: async (layout: ColumnLayout) => {
@@ -204,7 +203,7 @@ export function useColumnVisibility(
     if (!userId || !browserKey) return;
     let cancelled = false;
     const seenEpoch = layoutEpoch(browserKey);
-    const transport = transportFor(storageKey, browserKey, columns, paintServer);
+    const transport = transportFor(storageKey, browserKey, columns);
     void hydrateTableLayout({
       userId,
       storageKey,
@@ -237,7 +236,7 @@ export function useColumnVisibility(
     enqueueTableLayoutWrite(
       browserKey,
       { kind: "save", layout },
-      transportFor(storageKey, browserKey, columns, paintServer),
+      transportFor(storageKey, browserKey, columns),
     );
   };
 
@@ -276,7 +275,7 @@ export function useColumnVisibility(
     removeItem(publishedStorageKey(browserKey));
     writeItem(clearedStorageKey(browserKey), "1");
     bumpLayoutEpoch(browserKey);
-    enqueueTableLayoutWrite(browserKey, { kind: "delete" }, transportFor(storageKey, browserKey, columns, paintServer));
+    enqueueTableLayoutWrite(browserKey, { kind: "delete" }, transportFor(storageKey, browserKey, columns));
   };
 
   return {
