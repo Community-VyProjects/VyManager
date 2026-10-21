@@ -151,7 +151,12 @@ function transportFor(serverKey: string, browserKey: string, userId: string, col
         removeItem(clearedStorageKey(browserKey));
         removeItem(basedOnStorageKey(browserKey));
       } catch (error) {
-        const action = writeFailureAction((error as { status?: number }).status);
+        const status = (error as { status?: number }).status;
+        if (status === 403) {
+          dropPendingLayoutWrites(browserKey);
+          return;
+        }
+        const action = writeFailureAction(status);
         if (action === "retry") throw error;
         if (action === "server-wins") {
           applyConflict(error);

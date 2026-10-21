@@ -696,4 +696,49 @@ describe("useColumnVisibility", () => {
     assert.equal(window.localStorage.getItem("alice:firewall-policies-columns-saving"), null);
     root.unmount();
   });
+
+  it("keeps the reset marker when the session user changed", async () => {
+    window.localStorage.clear();
+    globalThis.fetch = (async (_url: string, init?: { method?: string }) => {
+      if ((init?.method ?? "GET") === "DELETE") {
+        return new Response(JSON.stringify({ detail: "Signed-in user changed" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ layouts: {}, exists: false, revisions: {} }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+
+    const React = await import("react");
+    const { createRoot } = await import("react-dom/client");
+    const { useColumnVisibility } = await import("./useColumnVisibility");
+    const rootEl = document.getElementById("root");
+    assert.ok(rootEl);
+    const root = createRoot(rootEl);
+    const seen = { api: null as { resetToDefault: () => void } | null };
+
+    function Harness() {
+      const value = useColumnVisibility("firewall-policies-columns", COLUMNS, "alice");
+      React.useEffect(() => {
+        seen.api = value;
+      });
+      return null;
+    }
+
+    await React.act(async () => {
+      root.render(React.createElement(Harness));
+    });
+    await React.act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await React.act(async () => {
+      seen.api?.resetToDefault();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(window.localStorage.getItem("alice:firewall-policies-columns-cleared"), "1");
+    root.unmount();
+  });
 });
