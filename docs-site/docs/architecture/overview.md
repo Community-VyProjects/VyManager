@@ -51,7 +51,7 @@ PostgreSQL 16. The schema is defined once, in `frontend/prisma/schema.prisma`; t
 | `user_instance_roles`, `user_feature_permissions` | RBAC grants |
 | `api_tokens` | Personal access tokens (hashed) |
 | `audit_logs` | Config-mutating API calls |
-| `dashboard_layouts`, `firewall_separators`, `scheduled_power_actions` | UI and scheduling state |
+| `dashboard_layouts`, `user_table_layouts`, `firewall_separators`, `scheduled_power_actions` | UI and scheduling state |
 | `oauth_providers`, `oauth_role_mappings` | External OAuth login configuration |
 
 No VyOS configuration is stored in the database. VyManager reads the running configuration from the router on demand and caches it in memory per instance; the router remains the source of truth.

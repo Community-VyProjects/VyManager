@@ -1,104 +1,154 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { arrayMove } from "@dnd-kit/sortable";
+import { tableLayoutService } from "@/lib/api/table-layouts";
+import {
+  bumpLayoutEpoch,
+  cacheColumnLayout,
+  clearedStorageKey,
+  defaultColumnLayout,
+  enqueueTableLayoutWrite,
+  hydrateTableLayout,
+  localColumnLayout,
+  orderStorageKey,
+  unsyncedStorageKey,
+  type ColumnDef,
+  type ColumnLayout,
+} from "@/lib/table-layout";
 
-export interface ColumnDef {
-  id: string;
-  label: string;
-  defaultVisible?: boolean;
+export type { ColumnDef };
+
+function readItem(key: string): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
 }
 
-function readStorage<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
+function writeItem(key: string, value: string) {
   try {
-    const raw = localStorage.getItem(key);
-    if (raw) return JSON.parse(raw) as T;
+    window.localStorage.setItem(key, value);
+  } catch {
+    // ignore quota and private-mode failures; the account row is the other copy
+  }
+}
+
+function removeItem(key: string) {
+  try {
+    window.localStorage.removeItem(key);
   } catch {
     // ignore
   }
-  return fallback;
 }
 
-function writeStorage(key: string, value: unknown) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // ignore
-  }
+function transportFor() {
+  return {
+    save: async (key: string, layout: ColumnLayout) => {
+      try {
+        await tableLayoutService.save(key, layout);
+        removeItem(unsyncedStorageKey(key));
+      } catch (error) {
+        writeItem(unsyncedStorageKey(key), "1");
+        throw error;
+      }
+    },
+    remove: async (key: string) => {
+      await tableLayoutService.remove(key);
+      removeItem(clearedStorageKey(key));
+    },
+  };
 }
 
 export function useColumnVisibility(storageKey: string, columns: ColumnDef[]) {
-  const defaultIds = columns.map((c) => c.id);
-
-  // --- Visibility ---
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => {
-    const saved = readStorage<string[] | null>(storageKey, null);
-    return new Set(
-      columns
-        .filter((c) => (saved !== null ? saved.includes(c.id) : c.defaultVisible !== false))
-        .map((c) => c.id)
-    );
+    const local = localColumnLayout(storageKey, columns, readItem);
+    return new Set((local ?? defaultColumnLayout(columns)).visible);
+  });
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
+    const local = localColumnLayout(storageKey, columns, readItem);
+    return (local ?? defaultColumnLayout(columns)).order;
   });
 
-  const toggleColumn = (id: string) => {
-    setVisibleColumns((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) { next.delete(id); } else { next.add(id); }
-      writeStorage(storageKey, [...next]);
-      return next;
+  // Paint before the browser frame so a server-rendered default set does not
+  // flash over the account layout (or this browser's cache, if the read fails).
+  // Callers pass a stable column list (module constant or useMemo), so this
+  // does not re-fetch on every render.
+  useLayoutEffect(() => {
+    let cancelled = false;
+    const transport = transportFor();
+    void hydrateTableLayout({
+      storageKey,
+      columns: () => columns,
+      readItem,
+      writeItem,
+      removeItem,
+      getLayouts: () => tableLayoutService.get(),
+      enqueueSave: (layout) =>
+        enqueueTableLayoutWrite(storageKey, { kind: "save", layout }, transport),
+      enqueueDelete: () =>
+        enqueueTableLayoutWrite(storageKey, { kind: "delete" }, transport),
+    }).then((layout) => {
+      if (cancelled || !layout) return;
+      setVisibleColumns(new Set(layout.visible));
+      setColumnOrder(layout.order);
     });
+    return () => {
+      cancelled = true;
+    };
+  }, [storageKey, columns]);
+
+  const publish = (visible: string[], order: string[]) => {
+    const layout = { visible, order };
+    cacheColumnLayout(storageKey, layout, writeItem);
+    removeItem(clearedStorageKey(storageKey));
+    bumpLayoutEpoch(storageKey);
+    enqueueTableLayoutWrite(storageKey, { kind: "save", layout }, transportFor());
+  };
+
+  const toggleColumn = (id: string) => {
+    const next = new Set(visibleColumns);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setVisibleColumns(next);
+    publish([...next], columnOrder);
   };
 
   const isVisible = (id: string) => visibleColumns.has(id);
 
-  // --- Order ---
-  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
-    const saved = readStorage<string[] | null>(storageKey + "-order", null);
-    if (!saved) return defaultIds;
-    // Merge: keep saved order, append any new columns not yet in saved order
-    const extra = defaultIds.filter((id) => !saved.includes(id));
-    return [...saved.filter((id) => defaultIds.includes(id)), ...extra];
-  });
-
   const reorderColumns = (activeId: string, overId: string) => {
-    setColumnOrder((prev) => {
-      const next = arrayMove(prev, prev.indexOf(activeId), prev.indexOf(overId));
-      writeStorage(storageKey + "-order", next);
-      return next;
-    });
+    const next = arrayMove(columnOrder, columnOrder.indexOf(activeId), columnOrder.indexOf(overId));
+    setColumnOrder(next);
+    publish([...visibleColumns], next);
   };
 
-  // Columns in user order
   const orderedColumns = columnOrder
-    .map((id) => columns.find((c) => c.id === id))
+    .map((id) => columns.find((column) => column.id === id))
     .filter(Boolean) as ColumnDef[];
 
-  // Only visible columns, in user order
-  const visibleOrderedColumns = orderedColumns.filter((c) => visibleColumns.has(c.id));
-
-  const visibleColumnCount = visibleColumns.size;
+  const visibleOrderedColumns = orderedColumns.filter((column) =>
+    visibleColumns.has(column.id),
+  );
 
   const resetToDefault = () => {
-    const defaultVisible = new Set(
-      columns.filter((c) => c.defaultVisible !== false).map((c) => c.id)
-    );
-    const defaultOrder = columns.map((c) => c.id);
-    setVisibleColumns(defaultVisible);
-    setColumnOrder(defaultOrder);
-    try {
-      localStorage.removeItem(storageKey);
-      localStorage.removeItem(storageKey + "-order");
-    } catch {
-      // ignore
-    }
+    const defaults = defaultColumnLayout(columns);
+    setVisibleColumns(new Set(defaults.visible));
+    setColumnOrder(defaults.order);
+    removeItem(storageKey);
+    removeItem(orderStorageKey(storageKey));
+    removeItem(unsyncedStorageKey(storageKey));
+    writeItem(clearedStorageKey(storageKey), "1");
+    bumpLayoutEpoch(storageKey);
+    enqueueTableLayoutWrite(storageKey, { kind: "delete" }, transportFor());
   };
 
   return {
     visibleColumns,
     toggleColumn,
     isVisible,
-    visibleColumnCount,
+    visibleColumnCount: visibleColumns.size,
     orderedColumns,
     visibleOrderedColumns,
     reorderColumns,
