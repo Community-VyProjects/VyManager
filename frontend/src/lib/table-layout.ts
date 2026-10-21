@@ -319,7 +319,9 @@ export interface LayoutTransport {
   remove: () => Promise<void>;
 }
 
-type WriteState = { latest: LayoutWrite | null; pumping: boolean };
+type QueuedWrite = { op: LayoutWrite; transport: LayoutTransport };
+
+type WriteState = { latest: QueuedWrite | null; pumping: boolean };
 
 const writeStates = new Map<string, WriteState>();
 
@@ -329,18 +331,14 @@ export function dropPendingLayoutWrites(key: string): void {
   if (state) state.latest = null;
 }
 
-async function pumpLayoutWrites(
-  key: string,
-  state: WriteState,
-  transport: LayoutTransport,
-): Promise<void> {
+async function pumpLayoutWrites(key: string, state: WriteState): Promise<void> {
   try {
     while (state.latest) {
-      const op = state.latest;
+      const queued = state.latest;
       state.latest = null;
       try {
-        if (op.kind === "delete") await transport.remove();
-        else await transport.save(op.layout);
+        if (queued.op.kind === "delete") await queued.transport.remove();
+        else await queued.transport.save(queued.op.layout);
       } catch {
         return;
       }
@@ -349,12 +347,12 @@ async function pumpLayoutWrites(
     state.pumping = false;
     if (state.latest) {
       state.pumping = true;
-      void pumpLayoutWrites(key, state, transport);
+      void pumpLayoutWrites(key, state);
     }
   }
 }
 
-/** Last write wins while a request is in flight. A later delete replaces a save that has not started. */
+/** Last write wins while a request is in flight. A later delete replaces a save that has not started. The transport is the one queued with that write, not the one that started the pump. */
 export function enqueueTableLayoutWrite(
   key: string,
   op: LayoutWrite,
@@ -362,10 +360,10 @@ export function enqueueTableLayoutWrite(
 ): void {
   const state = writeStates.get(key) ?? { latest: null, pumping: false };
   writeStates.set(key, state);
-  state.latest = op;
+  state.latest = { op, transport };
   if (state.pumping) return;
   state.pumping = true;
-  void pumpLayoutWrites(key, state, transport);
+  void pumpLayoutWrites(key, state);
 }
 
 export interface HydrateArgs {

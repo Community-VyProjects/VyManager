@@ -406,4 +406,33 @@ describe("enqueueTableLayoutWrite", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     assert.deepEqual(calls, ["first"]);
   });
+
+  it("sends a queued write through the transport that queued it", async () => {
+    const key = "alice:firewall-policies-columns-remount";
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const calls: string[] = [];
+    enqueueTableLayoutWrite(key, { kind: "save", layout: LOCAL }, {
+      save: async () => {
+        calls.push("old");
+        await gate;
+      },
+      remove: async () => {
+        calls.push("old-delete");
+      },
+    });
+    enqueueTableLayoutWrite(key, { kind: "delete" }, {
+      save: async () => {
+        calls.push("new-save");
+      },
+      remove: async () => {
+        calls.push("new-delete");
+      },
+    });
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.deepEqual(calls, ["old", "new-delete"]);
+  });
 });
