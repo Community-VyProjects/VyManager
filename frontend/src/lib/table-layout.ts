@@ -325,6 +325,12 @@ type WriteState = { latest: QueuedWrite | null; pumping: boolean };
 
 const writeStates = new Map<string, WriteState>();
 
+/** A save or reset is still in flight or queued. A read must not paint over it. */
+export function layoutWritePending(key: string): boolean {
+  const state = writeStates.get(key);
+  return Boolean(state && (state.pumping || state.latest));
+}
+
 /** Drop a save or reset that was queued behind a request the account rejected. */
 export function dropPendingLayoutWrites(key: string): void {
   const state = writeStates.get(key);
@@ -405,6 +411,10 @@ export async function hydrateTableLayout(args: HydrateArgs): Promise<ColumnLayou
     fetchFailed = true;
   }
   if (layoutEpoch(scope) !== start) return null;
+  if (layoutWritePending(scope)) return null;
+  const seenRevision = args.readItem(basedOnStorageKey(scope));
+  const remoteRevision = payloadRevisions(payload)[args.storageKey] ?? null;
+  if (seenRevision && remoteRevision && remoteRevision < seenRevision) return null;
 
   const plan = planTableLayoutHydration({
     userId: args.userId,

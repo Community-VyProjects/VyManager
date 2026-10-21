@@ -363,4 +363,92 @@ describe("useColumnVisibility", () => {
     assert.equal(seen.api?.isVisible("log"), false);
     root.unmount();
   });
+
+  it("does not let a read that starts during a save paint the old account layout", async () => {
+    window.localStorage.clear();
+    let releasePut = () => {};
+    let markStarted = () => {};
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    let gets = 0;
+    globalThis.fetch = (async (_url: string, init?: { method?: string }) => {
+      const method = init?.method ?? "GET";
+      if (method === "PUT") {
+        markStarted();
+        await new Promise<void>((resolve) => {
+          releasePut = resolve;
+        });
+        return new Response(
+          JSON.stringify({
+            exists: true,
+            layouts: {
+              "firewall-policies-columns": {
+                visible: ["action", "log"],
+                order: ["action", "log"],
+              },
+            },
+            revisions: { "firewall-policies-columns": "2026-10-21T18:00:00.000000Z" },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      gets += 1;
+      return new Response(
+        JSON.stringify({
+          exists: true,
+          layouts: {
+            "firewall-policies-columns": {
+              visible: ["action"],
+              order: ["action", "log"],
+            },
+          },
+          revisions: { "firewall-policies-columns": "2026-10-21T17:00:00.000000Z" },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }) as typeof fetch;
+
+    const React = await import("react");
+    const { createRoot } = await import("react-dom/client");
+    const { useColumnVisibility } = await import("./useColumnVisibility");
+    const rootEl = document.getElementById("root");
+    assert.ok(rootEl);
+    const root = createRoot(rootEl);
+    const seen = { api: null as { toggleColumn: (id: string) => void; isVisible: (id: string) => boolean } | null };
+
+    function Harness() {
+      const value = useColumnVisibility("firewall-policies-columns", COLUMNS, "alice");
+      React.useEffect(() => {
+        seen.api = value;
+      });
+      return null;
+    }
+
+    await React.act(async () => {
+      root.render(React.createElement(Harness));
+    });
+    await React.act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await React.act(async () => {
+      seen.api?.toggleColumn("log");
+    });
+    await started;
+    await React.act(async () => {
+      root.render(null);
+    });
+    await React.act(async () => {
+      root.render(React.createElement(Harness));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.ok(gets >= 2);
+    assert.equal(seen.api?.isVisible("log"), true);
+    await React.act(async () => {
+      releasePut();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(seen.api?.isVisible("log"), true);
+    root.unmount();
+  });
 });

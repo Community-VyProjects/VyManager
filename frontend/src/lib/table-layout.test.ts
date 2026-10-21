@@ -325,6 +325,34 @@ describe("hydrateTableLayout", () => {
     assert.equal(store.readItem(scope), JSON.stringify(LOCAL.visible));
   });
 
+  it("does not paint a read older than a save this browser already accepted", async () => {
+    const store = memory();
+    const scope = browserLayoutKey("alice", KEY);
+    seedLocal(store, scope, LOCAL);
+    store.writeItem(scope + "-based-on", "2026-10-21T18:00:00.000000Z");
+    const painted = await hydrateTableLayout({
+      userId: "alice",
+      storageKey: KEY,
+      columns: () => COLUMNS,
+      readItem: store.readItem,
+      writeItem: store.writeItem,
+      removeItem: store.removeItem,
+      getLayouts: async () => ({
+        exists: true,
+        layouts: { [KEY]: REMOTE },
+        revisions: { [KEY]: "2026-10-21T17:00:00.000000Z" },
+      }),
+      enqueueSave: () => {
+        throw new Error("must not save over an accepted write");
+      },
+      enqueueDelete: () => {
+        throw new Error("must not delete over an accepted write");
+      },
+    });
+    assert.equal(painted, null);
+    assert.equal(store.readItem(scope), JSON.stringify(LOCAL.visible));
+  });
+
   it("caches the account layout under this user, not an unscoped key", async () => {
     const store = memory();
     seedLocal(store, KEY, LOCAL);
