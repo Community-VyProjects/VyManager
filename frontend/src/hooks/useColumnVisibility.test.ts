@@ -979,4 +979,64 @@ describe("useColumnVisibility", () => {
     assert.equal(methods.slice(writes).includes("DELETE"), false);
     root.unmount();
   });
+
+  it("retries a refused reset with the revision it was based on", async () => {
+    window.localStorage.clear();
+    const deletes: string[] = [];
+    globalThis.fetch = (async (url: string, init?: { method?: string }) => {
+      const method = init?.method ?? "GET";
+      if (method === "DELETE") {
+        deletes.push(String(url));
+        return new Response(JSON.stringify({ detail: "Not authenticated" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({
+        layouts: {
+          "firewall-policies-columns": { visible: ["action", "log"], order: ["action", "log"] },
+        },
+        revisions: { "firewall-policies-columns": "t1" },
+        exists: true,
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }) as typeof fetch;
+
+    const React = await import("react");
+    const { createRoot } = await import("react-dom/client");
+    const { useColumnVisibility } = await import("./useColumnVisibility");
+    const rootEl = document.getElementById("root");
+    assert.ok(rootEl);
+    const root = createRoot(rootEl);
+    const seen = { api: null as { isVisible: (id: string) => boolean; resetToDefault: () => void } | null };
+
+    function Harness() {
+      const value = useColumnVisibility("firewall-policies-columns", COLUMNS, "alice");
+      React.useEffect(() => {
+        seen.api = value;
+      });
+      return null;
+    }
+
+    await React.act(async () => {
+      root.render(React.createElement(Harness));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(window.localStorage.getItem("alice:firewall-policies-columns-based-on"), "t1");
+    await React.act(async () => {
+      seen.api?.resetToDefault();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(deletes.length, 1);
+    assert.equal(seen.api?.isVisible("log"), false);
+    root.unmount();
+    const again = createRoot(rootEl);
+    await React.act(async () => {
+      again.render(React.createElement(Harness));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(deletes.length, 2);
+    assert.match(deletes[1], /basedOn=t1/);
+    assert.equal(seen.api?.isVisible("log"), false);
+    again.unmount();
+  });
 });

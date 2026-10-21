@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   browserLayoutKey,
+  basedOnStorageKey,
   bumpLayoutEpoch,
   claimUnscopedBrowserLayout,
   clearedStorageKey,
@@ -292,6 +293,35 @@ describe("hydrateTableLayout", () => {
     });
     assert.deepEqual(painted?.visible, ["action", "protocol"]);
     assert.equal(store.readItem(scope), null);
+  });
+
+  it("keeps the revision for a reset that still has to be deleted", async () => {
+    const store = memory();
+    const scope = browserLayoutKey("alice", KEY);
+    store.writeItem(clearedStorageKey(scope), "1");
+    store.writeItem(basedOnStorageKey(scope), "t1");
+    let seen: string | null = "missing";
+    await hydrateTableLayout({
+      userId: "alice",
+      storageKey: KEY,
+      columns: () => COLUMNS,
+      readItem: store.readItem,
+      writeItem: store.writeItem,
+      removeItem: store.removeItem,
+      getLayouts: async () => ({
+        exists: true,
+        layouts: { [KEY]: REMOTE },
+        revisions: { [KEY]: "t1" },
+      }),
+      enqueueSave: () => {
+        throw new Error("must not save over a reset");
+      },
+      enqueueDelete: () => {
+        seen = store.readItem(basedOnStorageKey(scope));
+      },
+    });
+    assert.equal(seen, "t1");
+    assert.equal(store.readItem(clearedStorageKey(scope)), "1");
   });
 
   it("drops a stale response when this user edits during the read", async () => {

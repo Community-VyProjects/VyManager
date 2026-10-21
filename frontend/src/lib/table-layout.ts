@@ -470,7 +470,8 @@ export async function hydrateTableLayout(args: HydrateArgs): Promise<ColumnLayou
     args.removeItem(scope);
     args.removeItem(orderStorageKey(scope));
     args.removeItem(publishedStorageKey(scope));
-    args.removeItem(basedOnStorageKey(scope));
+    // The retried delete still has to name the revision. Success clears it.
+    if (!plan.deleteRemote) args.removeItem(basedOnStorageKey(scope));
   }
   if (plan.cacheLocal && plan.paint) {
     cacheColumnLayout(scope, plan.paint, args.writeItem);
