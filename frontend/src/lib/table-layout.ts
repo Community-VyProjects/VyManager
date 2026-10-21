@@ -63,24 +63,6 @@ export function browserLayoutKey(userId: string, storageKey: string): string {
 
 const BROWSER_OWNER_PREFIX = "vymanager-column-layout-owner:";
 
-export function browserOwnerId(
-  storageKey: string,
-  readItem: (key: string) => string | null,
-): string | null {
-  return readItem(BROWSER_OWNER_PREFIX + storageKey);
-}
-
-/** Paint cache for the account that last used this table, before the session answers. */
-export function layoutWhileSessionPending(
-  storageKey: string,
-  columns: ColumnDef[],
-  readItem: (key: string) => string | null,
-): ColumnLayout | null {
-  const owner = browserOwnerId(storageKey, readItem);
-  if (!owner) return null;
-  return localColumnLayout(browserLayoutKey(owner, storageKey), columns, readItem);
-}
-
 /**
  * A layout saved before it followed the account lives in an unscoped key.
  * Give it to this user for paint on this browser. Do not upload it: on a

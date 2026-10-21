@@ -7,7 +7,6 @@ import { tableLayoutService } from "@/lib/api/table-layouts";
 import {
   basedOnStorageKey,
   browserLayoutKey,
-  browserOwnerId,
   bumpLayoutEpoch,
   cacheColumnLayout,
   claimUnscopedBrowserLayout,
@@ -18,7 +17,6 @@ import {
   enqueueTableLayoutWrite,
   hydrateTableLayout,
   layoutEpoch,
-  layoutWhileSessionPending,
   layoutWriteQueued,
   localColumnLayout,
   normalizeColumnLayout,
@@ -178,7 +176,7 @@ export function useColumnVisibility(
   const browserKey = userId ? browserLayoutKey(userId, storageKey) : null;
   const cached = userId
     ? localColumnLayout(browserLayoutKey(userId, storageKey), columns, readItem)
-    : layoutWhileSessionPending(storageKey, columns, readItem);
+    : null;
 
   // This user's browser copy, read synchronously. The account row may replace
   // it after the read. Do not read an unscoped key here: that belongs to
@@ -191,7 +189,9 @@ export function useColumnVisibility(
   );
 
   const [heldEdit, setHeldEdit] = useState<ColumnLayout | null>(null);
+  const [heldReset, setHeldReset] = useState(false);
   const [flushEdit, setFlushEdit] = useState<ColumnLayout | null>(null);
+  const [flushReset, setFlushReset] = useState(false);
   const [paintedUser, setPaintedUser] = useState<string | null>(null);
   if (userId && userId !== paintedUser) {
     if (paintedUser) {
@@ -206,14 +206,18 @@ export function useColumnVisibility(
       writeItem,
       removeItem,
     );
-    const owner = browserOwnerId(storageKey, readItem);
     const local = localColumnLayout(browserLayoutKey(userId, storageKey), columns, readItem)
       ?? defaultColumnLayout(columns);
-    const next = heldEdit && (!owner || owner === userId) ? heldEdit : local;
+    const next = heldReset ? defaultColumnLayout(columns) : heldEdit ?? local;
     setVisibleColumns(new Set(next.visible));
     setColumnOrder(next.order);
     if (heldEdit) setHeldEdit(null);
-    if (heldEdit && (!owner || owner === userId)) setFlushEdit(next);
+    if (heldReset) {
+      setHeldReset(false);
+      setFlushReset(true);
+    } else if (heldEdit) {
+      setFlushEdit(next);
+    }
   }
 
   const paintServer = useCallback((layout: ColumnLayout | null) => {
@@ -235,6 +239,24 @@ export function useColumnVisibility(
       transportFor(storageKey, browserKey, userId, columns),
     );
   }, [flushEdit, userId, browserKey, storageKey, columns]);
+
+  const sentReset = useRef(false);
+  useLayoutEffect(() => {
+    if (!flushReset || sentReset.current || !userId || !browserKey) return;
+    sentReset.current = true;
+    removeItem(browserKey);
+    removeItem(orderStorageKey(browserKey));
+    removeItem(unsyncedStorageKey(browserKey));
+    removeItem(savingStorageKey(browserKey));
+    removeItem(publishedStorageKey(browserKey));
+    writeItem(clearedStorageKey(browserKey), "1");
+    bumpLayoutEpoch(browserKey);
+    enqueueTableLayoutWrite(
+      browserKey,
+      { kind: "delete" },
+      transportFor(storageKey, browserKey, userId, columns),
+    );
+  }, [flushReset, userId, browserKey, storageKey, columns]);
 
   useLayoutEffect(() => {
     if (!browserKey) return;
@@ -321,7 +343,11 @@ export function useColumnVisibility(
     const defaults = defaultColumnLayout(columns);
     setVisibleColumns(new Set(defaults.visible));
     setColumnOrder(defaults.order);
-    if (!userId || !browserKey) return;
+    setHeldEdit(null);
+    if (!userId || !browserKey) {
+      setHeldReset(true);
+      return;
+    }
     removeItem(browserKey);
     removeItem(orderStorageKey(browserKey));
     removeItem(unsyncedStorageKey(browserKey));
