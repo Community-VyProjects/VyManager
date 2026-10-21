@@ -319,8 +319,11 @@ async def fetch_accel_ppp_sessions(service, protocol: str = "pppoe") -> Optional
             mtus = parse_interface_mtus((iface_node.get("data") or {}).get("result"))
             apply_interface_mtus(sessions, mtus)
         return sessions
-    except Exception:
-        logger.exception("ShowSessionsAccelppp fetch failed")
+    except Exception as exc:
+        if isinstance(exc, httpx.TimeoutException):
+            logger.warning("ShowSessionsAccelppp fetch timed out")
+        else:
+            logger.exception("ShowSessionsAccelppp fetch failed")
         return None
 
 

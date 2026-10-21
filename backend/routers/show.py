@@ -248,6 +248,26 @@ def _build_gql_wg_status_payload(api_key: str, iface_names: List[str]) -> dict:
     return {"query": "{ " + " ".join(fields) + " }"}
 
 
+def _is_live_timeout(exc: BaseException) -> bool:
+    """True when this error, or the one it wraps, is an HTTP timeout."""
+    current: BaseException | None = exc
+    for _ in range(5):
+        if current is None:
+            return False
+        if isinstance(current, httpx.TimeoutException):
+            return True
+        current = current.__cause__
+    return False
+
+
+def _log_live_gql_failure(label: str, exc: BaseException) -> None:
+    """A missed live poll is expected. Timeouts are not exceptions."""
+    if _is_live_timeout(exc):
+        logger.warning("%s timed out", label)
+        return
+    logger.exception("%s failed", label)
+
+
 async def _fetch_graphql_dashboard(service, include_wireguard: bool, cake_targets: Optional[list] = None, include_vrrp: bool = False, include_bgp: bool = False, include_ipsec: bool = False) -> Optional[dict]:
     """
     Fire a single GraphQL POST for the full dashboard data.
@@ -272,8 +292,8 @@ async def _fetch_graphql_dashboard(service, include_wireguard: bool, cake_target
             # breaking the rest of the dashboard data.
             logger.warning("GraphQL response has field errors: %s", body["errors"])
         return body.get("data")
-    except Exception:
-        logger.exception("GraphQL dashboard fetch failed")
+    except Exception as exc:
+        _log_live_gql_failure("GraphQL dashboard fetch", exc)
         return None
 
 
@@ -296,7 +316,11 @@ def _build_fast_gql_payload(api_key: str, cake_targets: Optional[list] = None) -
 
 
 async def _fetch_graphql_fast(service, cake_targets: Optional[list] = None) -> Optional[dict]:
-    """Fire a minimal GraphQL POST for interface counters + QoS."""
+    """Fire a minimal GraphQL POST for interface counters + QoS.
+
+    A timeout returns None. The broadcaster keeps the last snapshot instead of
+    erroring the interface card.
+    """
     api_key = str(service.config.apikey)
     url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
     payload = _build_fast_gql_payload(api_key, cake_targets)
@@ -310,8 +334,8 @@ async def _fetch_graphql_fast(service, cake_targets: Optional[list] = None) -> O
         if "errors" in body:
             logger.warning("GraphQL fast response errors: %s", body["errors"])
         return body.get("data")
-    except Exception:
-        logger.exception("GraphQL fast dashboard fetch failed")
+    except Exception as exc:
+        _log_live_gql_failure("GraphQL fast dashboard fetch", exc)
         return None
 
 
@@ -337,8 +361,8 @@ async def _fetch_gql_openvpn_status(service) -> dict:
         if "errors" in body:
             logger.warning("GraphQL OpenVPN status field errors: %s", body["errors"])
         return body.get("data") or {}
-    except Exception:
-        logger.exception("GraphQL OpenVPN status fetch failed")
+    except Exception as exc:
+        _log_live_gql_failure("GraphQL OpenVPN status fetch", exc)
         return {}
 
 
@@ -368,8 +392,8 @@ async def _fetch_gql_transceivers(service, interfaces: List[str]) -> Optional[di
         if "errors" in body:
             logger.warning("GraphQL transceiver field errors: %s", body["errors"])
         return body.get("data") or {}
-    except Exception:
-        logger.exception("GraphQL transceiver fetch failed")
+    except Exception as exc:
+        _log_live_gql_failure("GraphQL transceiver fetch", exc)
         return None
 
 
@@ -404,8 +428,8 @@ async def _fetch_gql_wg_status(service, iface_names: List[str]) -> dict:
         if "errors" in body:
             logger.warning("GraphQL WG status field errors: %s", body["errors"])
         return body.get("data") or {}
-    except Exception:
-        logger.exception("GraphQL WireGuard status fetch failed")
+    except Exception as exc:
+        _log_live_gql_failure("GraphQL WireGuard status fetch", exc)
         return {}
 
 
@@ -1465,13 +1489,9 @@ class DeviceDataBroadcaster:
                 except asyncio.CancelledError:
                     self._pppoe_task = None
                     return
-                except Exception:
-                    logger.exception("Broadcaster: pppoe-sessions fetch error")
+                except Exception as exc:
                     self._pppoe_task = None
-                    self._push_to_all({
-                        "type": "error",
-                        "data": {"channel": "pppoe-sessions", "message": "Failed to fetch"},
-                    })
+                    _log_live_gql_failure("Broadcaster: pppoe-sessions fetch", exc)
                     return
                 self._pppoe_task = None
                 payload = {
@@ -1521,12 +1541,7 @@ class DeviceDataBroadcaster:
                     result = None
                 self._transceiver_task = None
                 self._last_transceiver_query_time = asyncio.get_event_loop().time()
-                if result is None:
-                    self._push_to_all({
-                        "type": "error",
-                        "data": {"channel": "transceiver-health", "message": "Failed to fetch"},
-                    })
-                else:
+                if result is not None:
                     self._push_to_all({
                         "type": "transceiver-health",
                         "data": build_transceiver_status(result, swept),
@@ -1578,12 +1593,7 @@ class DeviceDataBroadcaster:
                     text = None
                 self._firewall_task = None
                 self._last_firewall_query_time = asyncio.get_event_loop().time()
-                if text is None:
-                    self._push_to_all({
-                        "type": "error",
-                        "data": {"channel": FIREWALL_STATS_INTEREST, "message": "Failed to fetch"},
-                    })
-                else:
+                if text is not None:
                     parsed = parse_firewall_statistics(text)
                     self._push_to_all({
                         "type": FIREWALL_STATS_INTEREST,
@@ -1663,8 +1673,7 @@ class DeviceDataBroadcaster:
                             self._broadcast_bgp(gql)
                         if ipsec:
                             self._broadcast_ipsec(gql)
-                    else:
-                        self._push_to_all({"type": "error", "data": {"channel": "all", "message": "GraphQL fetch failed"}})
+                    # A missed sample keeps the last snapshot. A timeout is not a card error.
                 else:
                     # Fast query: interface counters + QoS
                     targets = self._cached_cake_targets
@@ -1672,8 +1681,7 @@ class DeviceDataBroadcaster:
                     if gql is not None:
                         self._broadcast_interface_counters(gql)
                         self._broadcast_qos(gql, targets)
-                    else:
-                        self._push_to_all({"type": "error", "data": {"channel": "interface-counters", "message": "GraphQL fast fetch failed"}})
+                    # Missed fast sample keeps the last counters. Do not error the card.
 
                 # OpenVPN runs on its own concurrent task (slow/erratic op) so it
                 # never blocks the shared queries above; driven every cycle.

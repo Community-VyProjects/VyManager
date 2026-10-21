@@ -90,7 +90,7 @@ def test_pppoe_cycle_swallows_cancelled_task_without_killing_the_loop():
     asyncio.run(scenario())
 
 
-def test_pppoe_cycle_failed_fetch_emits_error_not_empty_sessions():
+def test_pppoe_cycle_failed_fetch_keeps_the_last_snapshot():
     async def scenario():
         broadcaster = DeviceDataBroadcaster("instance", service=object())
         pushed = []
@@ -106,11 +106,7 @@ def test_pppoe_cycle_failed_fetch_emits_error_not_empty_sessions():
             pass
         broadcaster._pppoe_task = task
         broadcaster._handle_pppoe_cycle(start=False)
-        assert all(event["type"] != "pppoe-sessions" for event in pushed)
-        assert any(
-            event["type"] == "error" and event["data"]["channel"] == "pppoe-sessions"
-            for event in pushed
-        )
+        assert pushed == []
         assert broadcaster._pppoe_task is None
 
     asyncio.run(scenario())
