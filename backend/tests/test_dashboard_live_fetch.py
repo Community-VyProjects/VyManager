@@ -124,3 +124,54 @@ def test_successful_fast_cycle_still_broadcasts_counters(monkeypatch):
         events.append(queue.get_nowait())
     assert any(event.get("type") == "interface-counters" for event in events)
     assert not any(event.get("type") == "error" for event in events)
+
+
+def test_pppoe_timeout_does_not_error_the_card():
+    async def scenario():
+        broadcaster = DeviceDataBroadcaster("instance", service=object())
+        pushed = []
+        broadcaster._push_to_all = lambda event: pushed.append(event)
+
+        async def timed_out():
+            raise httpx.ReadTimeout("timed out")
+
+        broadcaster._pppoe_task = asyncio.create_task(timed_out())
+        await asyncio.sleep(0)
+        broadcaster._handle_pppoe_cycle(start=False)
+        assert pushed == []
+        assert broadcaster._pppoe_task is None
+
+    asyncio.run(scenario())
+
+
+def test_firewall_miss_does_not_error_the_card():
+    async def scenario():
+        broadcaster = DeviceDataBroadcaster("instance", service=object())
+        pushed = []
+        broadcaster._push_to_all = lambda event: pushed.append(event)
+
+        async def missed():
+            return None
+
+        broadcaster._firewall_task = asyncio.create_task(missed())
+        await broadcaster._firewall_task
+        broadcaster._handle_firewall_cycle(start=False)
+        assert pushed == []
+        assert broadcaster._firewall_task is None
+
+    asyncio.run(scenario())
+
+
+def test_wrapped_timeout_is_a_warning(caplog):
+    class Unavailable(Exception):
+        pass
+
+    try:
+        raise Unavailable("fallback failed") from httpx.ReadTimeout("timed out")
+    except Unavailable as exc:
+        with caplog.at_level(logging.DEBUG):
+            show._log_live_gql_failure("PPPoE sessions fetch", exc)
+
+    warnings = [r for r in caplog.records if "timed out" in r.message]
+    assert warnings
+    assert all(r.levelno == logging.WARNING and not r.exc_info for r in warnings)

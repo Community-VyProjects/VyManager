@@ -272,7 +272,7 @@ def test_completed_sweep_pushes_the_channel_event():
     asyncio.run(scenario())
 
 
-def test_failed_sweep_emits_an_error_not_an_empty_port_list():
+def test_failed_sweep_keeps_the_last_snapshot():
     async def scenario():
         broadcaster = DeviceDataBroadcaster("instance", service=object())
         pushed = []
@@ -280,16 +280,14 @@ def test_failed_sweep_emits_an_error_not_an_empty_port_list():
         broadcaster._transceiver_pending = ["eth0"]
 
         async def failed():
-            return None  # _fetch_gql_transceivers signals failure with None
+            return None  # _fetch_gql_transceivers signals a miss with None
 
         broadcaster._transceiver_task = asyncio.create_task(failed())
         await broadcaster._transceiver_task
         broadcaster._handle_transceiver_cycle(start=False)
 
-        assert all(event["type"] != "transceiver-health" for event in pushed)
-        assert pushed == [
-            {"type": "error", "data": {"channel": "transceiver-health", "message": "Failed to fetch"}}
-        ]
+        assert pushed == []
+        assert broadcaster._transceiver_task is None
 
     asyncio.run(scenario())
 

@@ -248,9 +248,21 @@ def _build_gql_wg_status_payload(api_key: str, iface_names: List[str]) -> dict:
     return {"query": "{ " + " ".join(fields) + " }"}
 
 
+def _is_live_timeout(exc: BaseException) -> bool:
+    """True when this error, or the one it wraps, is an HTTP timeout."""
+    current: BaseException | None = exc
+    for _ in range(5):
+        if current is None:
+            return False
+        if isinstance(current, httpx.TimeoutException):
+            return True
+        current = current.__cause__
+    return False
+
+
 def _log_live_gql_failure(label: str, exc: BaseException) -> None:
     """A missed live poll is expected. Timeouts are not exceptions."""
-    if isinstance(exc, httpx.TimeoutException):
+    if _is_live_timeout(exc):
         logger.warning("%s timed out", label)
         return
     logger.exception("%s failed", label)
@@ -1477,13 +1489,9 @@ class DeviceDataBroadcaster:
                 except asyncio.CancelledError:
                     self._pppoe_task = None
                     return
-                except Exception:
-                    logger.exception("Broadcaster: pppoe-sessions fetch error")
+                except Exception as exc:
                     self._pppoe_task = None
-                    self._push_to_all({
-                        "type": "error",
-                        "data": {"channel": "pppoe-sessions", "message": "Failed to fetch"},
-                    })
+                    _log_live_gql_failure("Broadcaster: pppoe-sessions fetch", exc)
                     return
                 self._pppoe_task = None
                 payload = {
@@ -1533,12 +1541,7 @@ class DeviceDataBroadcaster:
                     result = None
                 self._transceiver_task = None
                 self._last_transceiver_query_time = asyncio.get_event_loop().time()
-                if result is None:
-                    self._push_to_all({
-                        "type": "error",
-                        "data": {"channel": "transceiver-health", "message": "Failed to fetch"},
-                    })
-                else:
+                if result is not None:
                     self._push_to_all({
                         "type": "transceiver-health",
                         "data": build_transceiver_status(result, swept),
@@ -1590,12 +1593,7 @@ class DeviceDataBroadcaster:
                     text = None
                 self._firewall_task = None
                 self._last_firewall_query_time = asyncio.get_event_loop().time()
-                if text is None:
-                    self._push_to_all({
-                        "type": "error",
-                        "data": {"channel": FIREWALL_STATS_INTEREST, "message": "Failed to fetch"},
-                    })
-                else:
+                if text is not None:
                     parsed = parse_firewall_statistics(text)
                     self._push_to_all({
                         "type": FIREWALL_STATS_INTEREST,

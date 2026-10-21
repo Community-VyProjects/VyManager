@@ -321,6 +321,9 @@ async def fetch_firewall_statistics_text(service) -> Optional[str]:
         if not isinstance(result, str):
             return None
         return result
-    except Exception:
-        logger.exception("GraphQL firewall statistics fetch failed")
+    except Exception as exc:
+        if isinstance(exc, httpx.TimeoutException):
+            logger.warning("GraphQL firewall statistics fetch timed out")
+        else:
+            logger.exception("GraphQL firewall statistics fetch failed")
         return None
