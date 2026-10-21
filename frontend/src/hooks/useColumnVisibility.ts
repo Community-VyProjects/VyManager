@@ -1,22 +1,26 @@
 "use client";
 
-import { useLayoutEffect, useState } from "react";
+import { useCallback, useLayoutEffect, useState } from "react";
 import { arrayMove } from "@dnd-kit/sortable";
 import { useSession } from "@/lib/auth-client";
 import { tableLayoutService } from "@/lib/api/table-layouts";
 import {
+  basedOnStorageKey,
   browserLayoutKey,
   bumpLayoutEpoch,
   cacheColumnLayout,
   claimUnscopedBrowserLayout,
   clearedStorageKey,
+  conflictPayload,
   defaultColumnLayout,
   enqueueTableLayoutWrite,
   hydrateTableLayout,
+  layoutEpoch,
   localColumnLayout,
   orderStorageKey,
   publishedStorageKey,
   unsyncedStorageKey,
+  writeFailureAction,
   type ColumnDef,
   type ColumnLayout,
 } from "@/lib/table-layout";
@@ -48,28 +52,80 @@ function removeItem(key: string) {
   }
 }
 
-function transportFor(serverKey: string, browserKey: string) {
+function transportFor(
+  serverKey: string,
+  browserKey: string,
+  onServer: (layout: ColumnLayout | null) => void,
+) {
+  const basedOn = () => readItem(basedOnStorageKey(browserKey));
+  const applyConflict = (error: unknown) => {
+    const conflict = conflictPayload(error);
+    const remote = conflict?.layouts[serverKey];
+    removeItem(unsyncedStorageKey(browserKey));
+    removeItem(clearedStorageKey(browserKey));
+    bumpLayoutEpoch(browserKey);
+    if (remote) {
+      const layout = { visible: remote.visible, order: remote.order };
+      cacheColumnLayout(browserKey, layout, writeItem);
+      writeItem(publishedStorageKey(browserKey), "1");
+      const revision = conflict?.revisions?.[serverKey];
+      if (revision) writeItem(basedOnStorageKey(browserKey), revision);
+      onServer(layout);
+      return;
+    }
+    removeItem(browserKey);
+    removeItem(orderStorageKey(browserKey));
+    removeItem(publishedStorageKey(browserKey));
+    removeItem(basedOnStorageKey(browserKey));
+    onServer(null);
+  };
   return {
     save: async (layout: ColumnLayout) => {
       try {
-        await tableLayoutService.save(serverKey, layout);
+        const saved = await tableLayoutService.save(serverKey, layout, basedOn());
         removeItem(unsyncedStorageKey(browserKey));
         writeItem(publishedStorageKey(browserKey), "1");
+        const revision = saved.revisions?.[serverKey];
+        if (revision) writeItem(basedOnStorageKey(browserKey), revision);
       } catch (error) {
-        writeItem(unsyncedStorageKey(browserKey), "1");
-        throw error;
+        const action = writeFailureAction((error as { status?: number }).status);
+        if (action === "retry") {
+          writeItem(unsyncedStorageKey(browserKey), "1");
+          throw error;
+        }
+        if (action === "server-wins") {
+          applyConflict(error);
+          return;
+        }
+        removeItem(unsyncedStorageKey(browserKey));
       }
     },
     remove: async () => {
-      await tableLayoutService.remove(serverKey);
-      removeItem(clearedStorageKey(browserKey));
+      try {
+        const saved = await tableLayoutService.remove(serverKey, basedOn());
+        removeItem(clearedStorageKey(browserKey));
+        const revision = saved.revisions?.[serverKey];
+        if (revision) writeItem(basedOnStorageKey(browserKey), revision);
+      } catch (error) {
+        const action = writeFailureAction((error as { status?: number }).status);
+        if (action === "retry") throw error;
+        if (action === "server-wins") {
+          applyConflict(error);
+          return;
+        }
+        removeItem(clearedStorageKey(browserKey));
+      }
     },
   };
 }
 
-export function useColumnVisibility(storageKey: string, columns: ColumnDef[]) {
+export function useColumnVisibility(
+  storageKey: string,
+  columns: ColumnDef[],
+  userIdForTest?: string,
+) {
   const { data: session } = useSession();
-  const userId = session?.user?.id ?? null;
+  const userId = session?.user?.id ?? userIdForTest ?? null;
   const browserKey = userId ? browserLayoutKey(userId, storageKey) : null;
   const cached = userId
     ? localColumnLayout(browserLayoutKey(userId, storageKey), columns, readItem)
@@ -103,10 +159,17 @@ export function useColumnVisibility(storageKey: string, columns: ColumnDef[]) {
     }
   }
 
+  const paintServer = useCallback((layout: ColumnLayout | null) => {
+    const next = layout ?? defaultColumnLayout(columns);
+    setVisibleColumns(new Set(next.visible));
+    setColumnOrder(next.order);
+  }, [columns]);
+
   useLayoutEffect(() => {
     if (!userId || !browserKey) return;
     let cancelled = false;
-    const transport = transportFor(storageKey, browserKey);
+    const seenEpoch = layoutEpoch(browserKey);
+    const transport = transportFor(storageKey, browserKey, paintServer);
     void hydrateTableLayout({
       userId,
       storageKey,
@@ -121,13 +184,14 @@ export function useColumnVisibility(storageKey: string, columns: ColumnDef[]) {
         enqueueTableLayoutWrite(browserKey, { kind: "delete" }, transport),
     }).then((layout) => {
       if (cancelled || !layout) return;
+      if (layoutEpoch(browserKey) !== seenEpoch) return;
       setVisibleColumns(new Set(layout.visible));
       setColumnOrder(layout.order);
     });
     return () => {
       cancelled = true;
     };
-  }, [storageKey, columns, userId, browserKey]);
+  }, [storageKey, columns, userId, browserKey, paintServer]);
 
   const publish = (visible: string[], order: string[]) => {
     if (!userId || !browserKey) return;
@@ -138,7 +202,7 @@ export function useColumnVisibility(storageKey: string, columns: ColumnDef[]) {
     enqueueTableLayoutWrite(
       browserKey,
       { kind: "save", layout },
-      transportFor(storageKey, browserKey),
+      transportFor(storageKey, browserKey, paintServer),
     );
   };
 
@@ -177,7 +241,7 @@ export function useColumnVisibility(storageKey: string, columns: ColumnDef[]) {
     removeItem(publishedStorageKey(browserKey));
     writeItem(clearedStorageKey(browserKey), "1");
     bumpLayoutEpoch(browserKey);
-    enqueueTableLayoutWrite(browserKey, { kind: "delete" }, transportFor(storageKey, browserKey));
+    enqueueTableLayoutWrite(browserKey, { kind: "delete" }, transportFor(storageKey, browserKey, paintServer));
   };
 
   return {

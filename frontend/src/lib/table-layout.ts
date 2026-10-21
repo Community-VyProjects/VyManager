@@ -21,6 +21,8 @@ export interface ColumnLayout {
 export interface TableLayoutsPayload {
   exists: boolean;
   layouts: Record<string, ColumnLayout>;
+  revisions?: Record<string, string>;
+  updatedAt?: string | null;
 }
 
 const CLEARED_SUFFIX = "-cleared";
@@ -164,12 +166,12 @@ export function planTableLayoutHydration(input: {
   storageKey: string;
   columns: ColumnDef[];
   remoteLayouts: Record<string, ColumnLayout> | null;
+  revisions: Record<string, string> | null;
+  basedOn: string | null;
   fetchFailed: boolean;
   dirty: boolean;
   readItem: (key: string) => string | null;
 }): HydrationPlan {
-  // Browser markers are per account. An unscoped key belongs to whoever used
-  // this computer last, so it is never read and never uploaded.
   const browserKey = browserLayoutKey(input.userId, input.storageKey);
   const local = localColumnLayout(browserKey, input.columns, input.readItem);
   if (input.fetchFailed) {
@@ -182,7 +184,28 @@ export function planTableLayoutHydration(input: {
   const published = input.readItem(publishedStorageKey(browserKey)) === "1";
   const remote = input.remoteLayouts?.[input.storageKey];
   const remotePresent = remote !== undefined;
+  const remoteRevision = input.revisions?.[input.storageKey] ?? null;
+  const serverMoved = remotePresent && remoteRevision !== null && remoteRevision !== input.basedOn;
+  const keyRemoved = input.basedOn !== null && !remotePresent;
 
+  if (keyRemoved) {
+    return {
+      ...EMPTY_PLAN,
+      paint: defaultColumnLayout(input.columns),
+      clearUnsynced: true,
+      clearTombstone: true,
+      clearLocal: true,
+    };
+  }
+  if ((tombstone || unsynced) && serverMoved && remote) {
+    return {
+      ...EMPTY_PLAN,
+      paint: normalizeColumnLayout(remote, input.columns),
+      cacheLocal: true,
+      clearUnsynced: true,
+      clearTombstone: true,
+    };
+  }
   if (tombstone) {
     return {
       ...EMPTY_PLAN,
@@ -195,7 +218,7 @@ export function planTableLayoutHydration(input: {
   if (unsynced && local) {
     return { ...EMPTY_PLAN, paint: local, save: local };
   }
-  if (remotePresent) {
+  if (remotePresent && remote) {
     return {
       ...EMPTY_PLAN,
       paint: normalizeColumnLayout(remote, input.columns),
@@ -205,7 +228,7 @@ export function planTableLayoutHydration(input: {
     };
   }
   if (local && !published) {
-    return { ...EMPTY_PLAN, paint: local };
+    return { ...EMPTY_PLAN, paint: local, save: local };
   }
   return {
     ...EMPTY_PLAN,
@@ -236,6 +259,39 @@ export function layoutsFromPayload(payload: unknown): Record<string, ColumnLayou
     parsed[key] = { visible: value.visible, order: value.order };
   }
   return parsed;
+}
+
+export function basedOnStorageKey(storageKey: string): string {
+  return storageKey + "-based-on";
+}
+
+export function payloadRevisions(payload: unknown): Record<string, string> {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return {};
+  const value = (payload as { revisions?: unknown }).revisions;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const parsed: Record<string, string> = {};
+  for (const [key, revision] of Object.entries(value)) {
+    if (typeof revision === "string" && revision.length > 0) parsed[key] = revision;
+  }
+  return parsed;
+}
+
+/** FastAPI wraps the 409 body in detail. The account layout in that body wins. */
+export function conflictPayload(error: unknown): TableLayoutsPayload | null {
+  if (!error || typeof error !== "object") return null;
+  const details = (error as { details?: unknown }).details;
+  if (!details || typeof details !== "object") return null;
+  const body = (details as { detail?: unknown }).detail;
+  const layouts = layoutsFromPayload(body);
+  if (!layouts) return null;
+  return { exists: true, layouts, revisions: payloadRevisions(body) };
+}
+
+/** A 4xx is not retried. 409 means another computer wrote this table; that layout wins. */
+export function writeFailureAction(status: number | undefined): "retry" | "drop" | "server-wins" {
+  if (status === 409) return "server-wins";
+  if (status !== undefined && status >= 400 && status < 500) return "drop";
+  return "retry";
 }
 
 const epochs = new Map<string, number>();
@@ -330,8 +386,10 @@ export async function hydrateTableLayout(args: HydrateArgs): Promise<ColumnLayou
   const start = layoutEpoch(scope);
   let fetchFailed = false;
   let remoteLayouts: Record<string, ColumnLayout> | null = null;
+  let payload: unknown = null;
   try {
-    remoteLayouts = layoutsFromPayload(await args.getLayouts());
+    payload = await args.getLayouts();
+    remoteLayouts = layoutsFromPayload(payload);
     if (remoteLayouts === null) fetchFailed = true;
   } catch {
     fetchFailed = true;
@@ -343,6 +401,8 @@ export async function hydrateTableLayout(args: HydrateArgs): Promise<ColumnLayou
     storageKey: args.storageKey,
     columns: args.columns(),
     remoteLayouts,
+    revisions: payloadRevisions(payload),
+    basedOn: args.readItem(basedOnStorageKey(scope)),
     fetchFailed,
     dirty: false,
     readItem: args.readItem,
@@ -351,10 +411,13 @@ export async function hydrateTableLayout(args: HydrateArgs): Promise<ColumnLayou
     args.removeItem(scope);
     args.removeItem(orderStorageKey(scope));
     args.removeItem(publishedStorageKey(scope));
+    args.removeItem(basedOnStorageKey(scope));
   }
   if (plan.cacheLocal && plan.paint) {
     cacheColumnLayout(scope, plan.paint, args.writeItem);
     args.writeItem(publishedStorageKey(scope), "1");
+    const seen = payloadRevisions(payload)[args.storageKey];
+    if (seen) args.writeItem(basedOnStorageKey(scope), seen);
   }
   if (plan.clearUnsynced) args.removeItem(unsyncedStorageKey(scope));
   if (plan.clearTombstone) args.removeItem(clearedStorageKey(scope));

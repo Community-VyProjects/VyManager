@@ -63,7 +63,8 @@ def test_missing_row_is_empty_not_an_error():
     client, _conn = _build("u1")
     resp = client.get("/user/table-layouts")
     assert resp.status_code == 200
-    assert resp.json() == {"layouts": {}, "exists": False}
+    assert resp.json()["layouts"] == {}
+    assert resp.json()["exists"] is False
 
 
 def test_body_cannot_name_the_owner():
@@ -76,7 +77,25 @@ def test_body_cannot_name_the_owner():
     assert conn.calls == 0
 
 
-def test_invalid_key_and_incoherent_columns_are_422():
+def test_unknown_key_is_422():
+    client, conn = _build("alice")
+    resp = client.put("/user/table-layouts/not-a-table", json=POLICIES)
+    assert resp.status_code == 422
+    assert conn.calls == 0
+
+
+def test_stale_save_does_not_write():
+    from datetime import datetime
+
+    conn = _Conn(row={
+        "layouts": {"firewall-policies-columns": POLICIES},
+        "updatedAt": datetime(2026, 1, 1),
+    })
+    client, conn = _build("alice", conn=conn)
+    resp = client.put("/user/table-layouts/firewall-policies-columns", json=POLICIES)
+    assert resp.status_code == 409
+    assert resp.json()["detail"]["layouts"]["firewall-policies-columns"]["visible"] == ["action", "protocol"]
+    assert conn.calls == 1
     client, conn = _build("alice")
     bad_key = client.put("/user/table-layouts/Firewall_Policies", json=POLICIES)
     assert bad_key.status_code == 422
@@ -121,7 +140,8 @@ def test_malformed_stored_key_is_omitted():
             "firewall-policies-columns": POLICIES,
             "not a key": {"visible": ["action"], "order": ["action"]},
             "firewall-bridge-columns": {"visible": "nope", "order": []},
-        }
+        },
+        "updatedAt": None,
     })
     client, _conn = _build("alice", conn=conn)
     resp = client.get("/user/table-layouts")

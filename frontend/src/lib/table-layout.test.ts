@@ -64,6 +64,8 @@ function planFor(
     storageKey: KEY,
     columns: COLUMNS,
     remoteLayouts,
+    revisions: null,
+    basedOn: null,
     fetchFailed: extra.fetchFailed ?? false,
     dirty: extra.dirty ?? false,
     readItem: store.readItem,
@@ -138,6 +140,51 @@ describe("planTableLayoutHydration", () => {
     assert.equal(plan.deleteRemote, false);
   });
 
+  it("does not let a failed save overwrite a newer account row", () => {
+    const store = memory();
+    const scope = browserLayoutKey("alice", KEY);
+    seedLocal(store, scope, LOCAL);
+    store.writeItem(unsyncedStorageKey(scope), "1");
+    store.writeItem(scope + "-based-on", "t1");
+    const plan = planTableLayoutHydration({
+      userId: "alice",
+      storageKey: KEY,
+      columns: COLUMNS,
+      remoteLayouts: { [KEY]: REMOTE },
+      revisions: { [KEY]: "t2" },
+      basedOn: "t1",
+      fetchFailed: false,
+      dirty: false,
+      readItem: store.readItem,
+    });
+    assert.equal(plan.save, null);
+    assert.equal(plan.deleteRemote, false);
+    assert.deepEqual(plan.paint?.visible, ["action", "log"]);
+    assert.equal(plan.clearUnsynced, true);
+  });
+
+  it("does not upload a local edit after the other computer deleted this table", () => {
+    const store = memory();
+    const scope = browserLayoutKey("alice", KEY);
+    seedLocal(store, scope, LOCAL);
+    store.writeItem(unsyncedStorageKey(scope), "1");
+    store.writeItem(scope + "-based-on", "t1");
+    const plan = planTableLayoutHydration({
+      userId: "alice",
+      storageKey: KEY,
+      columns: COLUMNS,
+      remoteLayouts: {},
+      revisions: {},
+      basedOn: "t1",
+      fetchFailed: false,
+      dirty: false,
+      readItem: store.readItem,
+    });
+    assert.equal(plan.save, null);
+    assert.equal(plan.clearLocal, true);
+    assert.deepEqual(plan.paint?.visible, ["action", "protocol"]);
+  });
+
   it("does not paint a stale read over an edit that already happened", () => {
     const store = memory();
     seedLocal(store, browserLayoutKey("alice", KEY), LOCAL);
@@ -203,7 +250,7 @@ describe("claimUnscopedBrowserLayout", () => {
       },
     });
     assert.deepEqual(painted?.visible, LOCAL.visible);
-    assert.equal(saves.length, 0);
+    assert.deepEqual(saves, ["save"]);
     assert.equal(
       store.readItem(browserLayoutKey("alice", KEY)),
       JSON.stringify(LOCAL.visible),

@@ -10,16 +10,17 @@ class TableLayoutService {
     return apiClient.get<TableLayoutsPayload>("/user/table-layouts");
   }
 
-  save(key: string, layout: ColumnLayout): Promise<TableLayoutsPayload> {
+  save(key: string, layout: ColumnLayout, basedOn: string | null): Promise<TableLayoutsPayload> {
     return apiClient.put<TableLayoutsPayload>(
       `/user/table-layouts/${encodeURIComponent(key)}`,
-      layout,
+      basedOn ? { ...layout, basedOn } : layout,
     );
   }
 
-  remove(key: string): Promise<TableLayoutsPayload> {
+  remove(key: string, basedOn: string | null): Promise<TableLayoutsPayload> {
+    const query = basedOn ? `?basedOn=${encodeURIComponent(basedOn)}` : "";
     return apiClient.delete<TableLayoutsPayload>(
-      `/user/table-layouts/${encodeURIComponent(key)}`,
+      `/user/table-layouts/${encodeURIComponent(key)}${query}`,
     );
   }
 }

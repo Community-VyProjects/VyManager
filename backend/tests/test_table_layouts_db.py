@@ -75,17 +75,29 @@ def test_postgres_merge_isolates_users_and_deletes_one_table():
 
     first = alice.put("/user/table-layouts/firewall-policies-columns", json=POLICIES)
     assert first.status_code == 200, first.text
+    policies_rev = first.json()["revisions"]["firewall-policies-columns"]
+    assert policies_rev
     second = alice.put("/user/table-layouts/firewall-bridge-columns", json=BRIDGE)
     assert second.status_code == 200, second.text
     layouts = second.json()["layouts"]
     assert layouts["firewall-policies-columns"] == POLICIES
     assert layouts["firewall-bridge-columns"] == BRIDGE
+    assert second.json()["revisions"]["firewall-policies-columns"] == policies_rev
 
     bob_view = bob.get("/user/table-layouts")
     assert bob_view.status_code == 200
-    assert bob_view.json() == {"layouts": {}, "exists": False}
+    assert bob_view.json()["exists"] is False
 
-    deleted = alice.delete("/user/table-layouts/firewall-policies-columns")
+    stale = alice.put(
+        "/user/table-layouts/firewall-policies-columns",
+        json={**POLICIES, "basedOn": "2000-01-01T00:00:00Z"},
+    )
+    assert stale.status_code == 409
+    assert stale.json()["detail"]["revisions"]["firewall-policies-columns"] == policies_rev
+
+    deleted = alice.delete(
+        f"/user/table-layouts/firewall-policies-columns?basedOn={policies_rev}"
+    )
     assert deleted.status_code == 200, deleted.text
     assert "firewall-policies-columns" not in deleted.json()["layouts"]
     assert deleted.json()["layouts"]["firewall-bridge-columns"] == BRIDGE
