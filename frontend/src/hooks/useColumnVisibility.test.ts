@@ -137,4 +137,145 @@ describe("useColumnVisibility", () => {
     assert.equal(seen.api?.isVisible("log"), false);
     root.unmount();
   });
+
+  it("does not send a toggle queued behind a rejected save, and drops unknown columns", async () => {
+    window.localStorage.clear();
+    let putCount = 0;
+    let releasePut = () => {};
+    let markStarted = () => {};
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    globalThis.fetch = (async (_url: string, init?: { method?: string }) => {
+      if ((init?.method ?? "GET") === "PUT") {
+        putCount += 1;
+        markStarted();
+        await new Promise<void>((resolve) => {
+          releasePut = resolve;
+        });
+        return new Response(
+          JSON.stringify({
+            detail: {
+              exists: true,
+              layouts: {
+                "firewall-policies-columns": {
+                  visible: ["action", "not-a-column"],
+                  order: ["action"],
+                },
+              },
+              revisions: { "firewall-policies-columns": "t9" },
+            },
+          }),
+          { status: 409, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response(
+        JSON.stringify({ layouts: {}, exists: false, revisions: {} }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }) as typeof fetch;
+
+    const React = await import("react");
+    const { createRoot } = await import("react-dom/client");
+    const { useColumnVisibility } = await import("./useColumnVisibility");
+    const rootEl = document.getElementById("root");
+    assert.ok(rootEl);
+    const root = createRoot(rootEl);
+    const seen = {
+      api: null as {
+        toggleColumn: (id: string) => void;
+        isVisible: (id: string) => boolean;
+        visibleColumnCount: number;
+      } | null,
+    };
+
+    function Harness() {
+      const value = useColumnVisibility("firewall-policies-columns", COLUMNS, "alice");
+      React.useEffect(() => {
+        seen.api = value;
+      });
+      return null;
+    }
+
+    await React.act(async () => {
+      root.render(React.createElement(Harness));
+    });
+    await React.act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.ok(seen.api);
+    await React.act(async () => {
+      seen.api?.toggleColumn("log");
+    });
+    await started;
+    await React.act(async () => {
+      seen.api?.toggleColumn("log");
+      releasePut();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(putCount, 1);
+    assert.equal(seen.api?.isVisible("log"), false);
+    assert.equal(seen.api?.visibleColumnCount, 1);
+    assert.equal(
+      window.localStorage.getItem("alice:firewall-policies-columns-order"),
+      JSON.stringify(["action", "log"]),
+    );
+    root.unmount();
+  });
+
+  it("clears the stored revision after a successful reset", async () => {
+    window.localStorage.clear();
+    window.localStorage.setItem("alice:firewall-policies-columns-based-on", "t1");
+    globalThis.fetch = (async (_url: string, init?: { method?: string }) => {
+      const method = init?.method ?? "GET";
+      if (method === "GET") {
+        return new Response(
+          JSON.stringify({
+            exists: true,
+            layouts: {
+              "firewall-policies-columns": {
+                visible: ["action", "log"],
+                order: ["action", "log"],
+              },
+            },
+            revisions: { "firewall-policies-columns": "t1" },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response(JSON.stringify({ layouts: {}, exists: true, revisions: {} }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+
+    const React = await import("react");
+    const { createRoot } = await import("react-dom/client");
+    const { useColumnVisibility } = await import("./useColumnVisibility");
+    const rootEl = document.getElementById("root");
+    assert.ok(rootEl);
+    const root = createRoot(rootEl);
+    const seen = { api: null as { resetToDefault: () => void } | null };
+
+    function Harness() {
+      const value = useColumnVisibility("firewall-policies-columns", COLUMNS, "alice");
+      React.useEffect(() => {
+        seen.api = value;
+      });
+      return null;
+    }
+
+    await React.act(async () => {
+      root.render(React.createElement(Harness));
+    });
+    await React.act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await React.act(async () => {
+      seen.api?.resetToDefault();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(window.localStorage.getItem("alice:firewall-policies-columns-based-on"), null);
+    root.unmount();
+  });
 });

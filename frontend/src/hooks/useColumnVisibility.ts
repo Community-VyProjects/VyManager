@@ -18,6 +18,7 @@ import {
   hydrateTableLayout,
   layoutEpoch,
   localColumnLayout,
+  normalizeColumnLayout,
   orderStorageKey,
   publishedStorageKey,
   unsyncedStorageKey,
@@ -56,6 +57,7 @@ function removeItem(key: string) {
 function transportFor(
   serverKey: string,
   browserKey: string,
+  columns: ColumnDef[],
   onServer: (layout: ColumnLayout | null) => void,
 ) {
   const basedOn = () => readItem(basedOnStorageKey(browserKey));
@@ -67,7 +69,7 @@ function transportFor(
     bumpLayoutEpoch(browserKey);
     dropPendingLayoutWrites(browserKey);
     if (remote) {
-      const layout = { visible: remote.visible, order: remote.order };
+      const layout = normalizeColumnLayout(remote, columns);
       cacheColumnLayout(browserKey, layout, writeItem);
       writeItem(publishedStorageKey(browserKey), "1");
       const revision = conflict?.revisions?.[serverKey];
@@ -118,10 +120,9 @@ function transportFor(
     },
     remove: async () => {
       try {
-        const saved = await tableLayoutService.remove(serverKey, basedOn());
+        await tableLayoutService.remove(serverKey, basedOn());
         removeItem(clearedStorageKey(browserKey));
-        const revision = saved.revisions?.[serverKey];
-        if (revision) writeItem(basedOnStorageKey(browserKey), revision);
+        removeItem(basedOnStorageKey(browserKey));
       } catch (error) {
         const action = writeFailureAction((error as { status?: number }).status);
         if (action === "retry") throw error;
@@ -185,7 +186,7 @@ export function useColumnVisibility(
     if (!userId || !browserKey) return;
     let cancelled = false;
     const seenEpoch = layoutEpoch(browserKey);
-    const transport = transportFor(storageKey, browserKey, paintServer);
+    const transport = transportFor(storageKey, browserKey, columns, paintServer);
     void hydrateTableLayout({
       userId,
       storageKey,
@@ -218,7 +219,7 @@ export function useColumnVisibility(
     enqueueTableLayoutWrite(
       browserKey,
       { kind: "save", layout },
-      transportFor(storageKey, browserKey, paintServer),
+      transportFor(storageKey, browserKey, columns, paintServer),
     );
   };
 
@@ -257,7 +258,7 @@ export function useColumnVisibility(
     removeItem(publishedStorageKey(browserKey));
     writeItem(clearedStorageKey(browserKey), "1");
     bumpLayoutEpoch(browserKey);
-    enqueueTableLayoutWrite(browserKey, { kind: "delete" }, transportFor(storageKey, browserKey, paintServer));
+    enqueueTableLayoutWrite(browserKey, { kind: "delete" }, transportFor(storageKey, browserKey, columns, paintServer));
   };
 
   return {
