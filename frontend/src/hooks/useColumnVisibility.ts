@@ -110,7 +110,6 @@ function transportFor(serverKey: string, browserKey: string, userId: string, col
         if (status === 401 || status === 403) {
           writeItem(unsyncedStorageKey(browserKey), "1");
           removeItem(savingStorageKey(browserKey));
-          dropPendingLayoutWrites(browserKey);
           return;
         }
         const action = writeFailureAction(status);
@@ -153,7 +152,6 @@ function transportFor(serverKey: string, browserKey: string, userId: string, col
       } catch (error) {
         const status = (error as { status?: number }).status;
         if (status === 401 || status === 403) {
-          dropPendingLayoutWrites(browserKey);
           return;
         }
         const action = writeFailureAction(status);

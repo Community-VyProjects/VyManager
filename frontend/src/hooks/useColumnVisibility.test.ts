@@ -790,4 +790,68 @@ describe("useColumnVisibility", () => {
     );
     root.unmount();
   });
+
+  it("keeps a column edit queued behind a reset the session refused", async () => {
+    window.localStorage.clear();
+    let releaseDelete = () => {};
+    globalThis.fetch = (async (_url: string, init?: { method?: string }) => {
+      const method = init?.method ?? "GET";
+      if (method === "DELETE") {
+        await new Promise<void>((resolve) => {
+          releaseDelete = resolve;
+        });
+        return new Response(JSON.stringify({ detail: "Not authenticated" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (method === "PUT") {
+        return new Response(JSON.stringify({ detail: "Not authenticated" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ layouts: {}, exists: false, revisions: {} }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+
+    const React = await import("react");
+    const { createRoot } = await import("react-dom/client");
+    const { useColumnVisibility } = await import("./useColumnVisibility");
+    const rootEl = document.getElementById("root");
+    assert.ok(rootEl);
+    const root = createRoot(rootEl);
+    const seen = { api: null as { resetToDefault: () => void; toggleColumn: (id: string) => void } | null };
+
+    function Harness() {
+      const value = useColumnVisibility("firewall-policies-columns", COLUMNS, "alice");
+      React.useEffect(() => {
+        seen.api = value;
+      });
+      return null;
+    }
+
+    await React.act(async () => {
+      root.render(React.createElement(Harness));
+    });
+    await React.act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await React.act(async () => {
+      seen.api?.resetToDefault();
+      seen.api?.toggleColumn("log");
+    });
+    await React.act(async () => {
+      releaseDelete();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(window.localStorage.getItem("alice:firewall-policies-columns-unsynced"), "1");
+    assert.equal(
+      window.localStorage.getItem("alice:firewall-policies-columns"),
+      JSON.stringify(["action", "log"]),
+    );
+    root.unmount();
+  });
 });
