@@ -59,6 +59,7 @@ from routers.config import config as config_router
 from routers import show as show_router
 from routers.site_updates import site_updates as site_updates_router
 from routers import dashboard as dashboard_router
+from routers import table_layouts as table_layouts_router
 from routers import user_management as user_management_router
 from routers.tokens import tokens as tokens_router
 from routers.internal import sso_reconcile as sso_reconcile_router
@@ -420,6 +421,7 @@ app.include_router(config_router.router)
 app.include_router(show_router.router)
 app.include_router(site_updates_router.router)
 app.include_router(dashboard_router.router)
+app.include_router(table_layouts_router.router)
 app.include_router(user_management_router.router)
 app.include_router(tokens_router.router)
 app.include_router(sso_reconcile_router.router)

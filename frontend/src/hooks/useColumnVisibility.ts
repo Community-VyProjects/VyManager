@@ -1,97 +1,319 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useLayoutEffect, useState } from "react";
 import { arrayMove } from "@dnd-kit/sortable";
+import { useSession } from "@/lib/auth-client";
+import { tableLayoutService } from "@/lib/api/table-layouts";
+import {
+  basedOnStorageKey,
+  browserLayoutKey,
+  bumpLayoutEpoch,
+  cacheColumnLayout,
+  claimUnscopedBrowserLayout,
+  clearedStorageKey,
+  conflictPayload,
+  defaultColumnLayout,
+  dropPendingLayoutWrites,
+  enqueueTableLayoutWrite,
+  hydrateTableLayout,
+  layoutEpoch,
+  layoutWriteQueued,
+  localColumnLayout,
+  normalizeColumnLayout,
+  orderStorageKey,
+  publishedStorageKey,
+  savingStorageKey,
+  unsyncedStorageKey,
+  writeFailureAction,
+  type ColumnDef,
+  type ColumnLayout,
+} from "@/lib/table-layout";
 
-export interface ColumnDef {
-  id: string;
-  label: string;
-  defaultVisible?: boolean;
+export type { ColumnDef };
+
+function readItem(key: string): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
 }
 
-function readStorage<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
+function writeItem(key: string, value: string) {
   try {
-    const raw = localStorage.getItem(key);
-    if (raw) return JSON.parse(raw) as T;
+    window.localStorage.setItem(key, value);
+  } catch {
+    // ignore quota and private-mode failures; the account row is the other copy
+  }
+}
+
+function removeItem(key: string) {
+  try {
+    window.localStorage.removeItem(key);
   } catch {
     // ignore
   }
-  return fallback;
 }
 
-function writeStorage(key: string, value: unknown) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // ignore
+const layoutPainters = new Map<string, (layout: ColumnLayout | null) => void>();
+
+function bindLayoutPainter(key: string, painter: (layout: ColumnLayout | null) => void) {
+  layoutPainters.set(key, painter);
+}
+
+function unbindLayoutPainter(key: string, painter: (layout: ColumnLayout | null) => void) {
+  if (layoutPainters.get(key) === painter) layoutPainters.delete(key);
+}
+
+function transportFor(serverKey: string, browserKey: string, userId: string, columns: ColumnDef[]) {
+  const basedOn = () => readItem(basedOnStorageKey(browserKey));
+  const applyConflict = (error: unknown) => {
+    const conflict = conflictPayload(error);
+    const remote = conflict?.layouts[serverKey];
+    removeItem(unsyncedStorageKey(browserKey));
+    removeItem(savingStorageKey(browserKey));
+    removeItem(clearedStorageKey(browserKey));
+    // A hydrate that started before this conflict must not paint over the account layout.
+    // The painter is whoever is mounted now, not the instance that started the save.
+    bumpLayoutEpoch(browserKey);
+    dropPendingLayoutWrites(browserKey);
+    const paint = layoutPainters.get(browserKey);
+    if (remote) {
+      const layout = normalizeColumnLayout(remote, columns);
+      cacheColumnLayout(browserKey, layout, writeItem);
+      writeItem(publishedStorageKey(browserKey), "1");
+      const revision = conflict?.revisions?.[serverKey];
+      if (revision) writeItem(basedOnStorageKey(browserKey), revision);
+      paint?.(layout);
+      return;
+    }
+    removeItem(browserKey);
+    removeItem(orderStorageKey(browserKey));
+    removeItem(publishedStorageKey(browserKey));
+    removeItem(basedOnStorageKey(browserKey));
+    paint?.(null);
+  };
+  return {
+    save: async (layout: ColumnLayout) => {
+      const remember = (saved: { revisions?: Record<string, string> }) => {
+        removeItem(unsyncedStorageKey(browserKey));
+        if (!layoutWriteQueued(browserKey)) removeItem(savingStorageKey(browserKey));
+        writeItem(publishedStorageKey(browserKey), "1");
+        const revision = saved.revisions?.[serverKey];
+        if (revision) writeItem(basedOnStorageKey(browserKey), revision);
+      };
+      try {
+        remember(await tableLayoutService.save(serverKey, layout, basedOn(), userId));
+      } catch (error) {
+        const status = (error as { status?: number }).status;
+        if (status === 401 || status === 403) {
+          writeItem(unsyncedStorageKey(browserKey), "1");
+          removeItem(savingStorageKey(browserKey));
+          return;
+        }
+        const action = writeFailureAction(status);
+        if (action === "retry") {
+          writeItem(unsyncedStorageKey(browserKey), "1");
+          removeItem(savingStorageKey(browserKey));
+          throw error;
+        }
+        if (action !== "server-wins") {
+          removeItem(unsyncedStorageKey(browserKey));
+          removeItem(savingStorageKey(browserKey));
+          return;
+        }
+        if (conflictPayload(error)?.layouts[serverKey]) {
+          applyConflict(error);
+          return;
+        }
+        if (!layoutPainters.has(browserKey)) {
+          writeItem(unsyncedStorageKey(browserKey), "1");
+          removeItem(savingStorageKey(browserKey));
+          return;
+        }
+        try {
+          remember(await tableLayoutService.save(serverKey, layout, null, userId));
+        } catch (retryError) {
+          if (conflictPayload(retryError)?.layouts[serverKey]) {
+            applyConflict(retryError);
+            return;
+          }
+          writeItem(unsyncedStorageKey(browserKey), "1");
+          removeItem(savingStorageKey(browserKey));
+        }
+      }
+    },
+    remove: async () => {
+      try {
+        await tableLayoutService.remove(serverKey, basedOn(), userId);
+        removeItem(clearedStorageKey(browserKey));
+        removeItem(basedOnStorageKey(browserKey));
+      } catch (error) {
+        const status = (error as { status?: number }).status;
+        if (status === 401 || status === 403) {
+          return;
+        }
+        const action = writeFailureAction(status);
+        if (action === "retry") throw error;
+        if (action === "server-wins") {
+          applyConflict(error);
+          return;
+        }
+        removeItem(clearedStorageKey(browserKey));
+      }
+    },
+  };
+}
+
+export function useColumnVisibility(
+  storageKey: string,
+  columns: ColumnDef[],
+  userIdForTest?: string,
+) {
+  const { data: session } = useSession();
+  const userId = session?.user?.id ?? userIdForTest ?? null;
+  const browserKey = userId ? browserLayoutKey(userId, storageKey) : null;
+  const cached = userId
+    ? localColumnLayout(browserLayoutKey(userId, storageKey), columns, readItem)
+    : null;
+
+  // This user's browser copy, read synchronously. The account row may replace
+  // it after the read. Do not read an unscoped key here: that belongs to
+  // whoever used this computer last.
+  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(
+    () => new Set((cached ?? defaultColumnLayout(columns)).visible),
+  );
+  const [columnOrder, setColumnOrder] = useState<string[]>(
+    () => (cached ?? defaultColumnLayout(columns)).order,
+  );
+
+  const [paintedUser, setPaintedUser] = useState<string | null>(null);
+  if (!userId && paintedUser) {
+    layoutPainters.delete(browserLayoutKey(paintedUser, storageKey));
+    setPaintedUser(null);
+    const defaults = defaultColumnLayout(columns);
+    setVisibleColumns(new Set(defaults.visible));
+    setColumnOrder(defaults.order);
   }
-}
-
-export function useColumnVisibility(storageKey: string, columns: ColumnDef[]) {
-  const defaultIds = columns.map((c) => c.id);
-
-  // --- Visibility ---
-  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => {
-    const saved = readStorage<string[] | null>(storageKey, null);
-    return new Set(
-      columns
-        .filter((c) => (saved !== null ? saved.includes(c.id) : c.defaultVisible !== false))
-        .map((c) => c.id)
+  if (userId && userId !== paintedUser) {
+    if (paintedUser) {
+      layoutPainters.delete(browserLayoutKey(paintedUser, storageKey));
+    }
+    setPaintedUser(userId);
+    claimUnscopedBrowserLayout(
+      userId,
+      storageKey,
+      columns,
+      readItem,
+      writeItem,
+      removeItem,
     );
-  });
+    const local = localColumnLayout(browserLayoutKey(userId, storageKey), columns, readItem)
+      ?? defaultColumnLayout(columns);
+    setVisibleColumns(new Set(local.visible));
+    setColumnOrder(local.order);
+  }
+
+  const paintServer = useCallback((layout: ColumnLayout | null) => {
+    const next = layout ?? defaultColumnLayout(columns);
+    setVisibleColumns(new Set(next.visible));
+    setColumnOrder(next.order);
+  }, [columns]);
+
+  useLayoutEffect(() => {
+    if (!browserKey) return;
+    bindLayoutPainter(browserKey, paintServer);
+    return () => {
+      unbindLayoutPainter(browserKey, paintServer);
+    };
+  }, [browserKey, paintServer]);
+
+  useLayoutEffect(() => {
+    if (!userId || !browserKey) return;
+    let cancelled = false;
+    const seenEpoch = layoutEpoch(browserKey);
+    const transport = transportFor(storageKey, browserKey, userId, columns);
+    void hydrateTableLayout({
+      userId,
+      storageKey,
+      columns: () => columns,
+      readItem,
+      writeItem,
+      removeItem,
+      getLayouts: () => tableLayoutService.get(userId),
+      enqueueSave: (layout) => {
+        if (cancelled) return;
+        enqueueTableLayoutWrite(browserKey, { kind: "save", layout }, transport);
+      },
+      enqueueDelete: () => {
+        if (cancelled) return;
+        enqueueTableLayoutWrite(browserKey, { kind: "delete" }, transport);
+      },
+    }).then((layout) => {
+      if (cancelled || !layout) return;
+      if (layoutEpoch(browserKey) !== seenEpoch) return;
+      setVisibleColumns(new Set(layout.visible));
+      setColumnOrder(layout.order);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [storageKey, columns, userId, browserKey, paintServer]);
+
+  const publish = (visible: string[], order: string[]) => {
+    if (!userId || !browserKey) return;
+    const layout = { visible, order };
+    cacheColumnLayout(browserKey, layout, writeItem);
+    writeItem(savingStorageKey(browserKey), String(Date.now()));
+    removeItem(clearedStorageKey(browserKey));
+    bumpLayoutEpoch(browserKey);
+    enqueueTableLayoutWrite(
+      browserKey,
+      { kind: "save", layout },
+      transportFor(storageKey, browserKey, userId, columns),
+    );
+  };
 
   const toggleColumn = (id: string) => {
-    setVisibleColumns((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) { next.delete(id); } else { next.add(id); }
-      writeStorage(storageKey, [...next]);
-      return next;
-    });
+    if (!userId || !browserKey) return;
+    const next = new Set(visibleColumns);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setVisibleColumns(next);
+    publish([...next], columnOrder);
   };
 
   const isVisible = (id: string) => visibleColumns.has(id);
 
-  // --- Order ---
-  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
-    const saved = readStorage<string[] | null>(storageKey + "-order", null);
-    if (!saved) return defaultIds;
-    // Merge: keep saved order, append any new columns not yet in saved order
-    const extra = defaultIds.filter((id) => !saved.includes(id));
-    return [...saved.filter((id) => defaultIds.includes(id)), ...extra];
-  });
-
   const reorderColumns = (activeId: string, overId: string) => {
-    setColumnOrder((prev) => {
-      const next = arrayMove(prev, prev.indexOf(activeId), prev.indexOf(overId));
-      writeStorage(storageKey + "-order", next);
-      return next;
-    });
+    if (!userId || !browserKey) return;
+    const next = arrayMove(columnOrder, columnOrder.indexOf(activeId), columnOrder.indexOf(overId));
+    setColumnOrder(next);
+    publish([...visibleColumns], next);
   };
 
-  // Columns in user order
   const orderedColumns = columnOrder
     .map((id) => columns.find((c) => c.id === id))
     .filter(Boolean) as ColumnDef[];
 
-  // Only visible columns, in user order
   const visibleOrderedColumns = orderedColumns.filter((c) => visibleColumns.has(c.id));
 
   const visibleColumnCount = visibleColumns.size;
 
   const resetToDefault = () => {
-    const defaultVisible = new Set(
-      columns.filter((c) => c.defaultVisible !== false).map((c) => c.id)
-    );
-    const defaultOrder = columns.map((c) => c.id);
-    setVisibleColumns(defaultVisible);
-    setColumnOrder(defaultOrder);
-    try {
-      localStorage.removeItem(storageKey);
-      localStorage.removeItem(storageKey + "-order");
-    } catch {
-      // ignore
-    }
+    if (!userId || !browserKey) return;
+    const defaults = defaultColumnLayout(columns);
+    setVisibleColumns(new Set(defaults.visible));
+    setColumnOrder(defaults.order);
+    removeItem(browserKey);
+    removeItem(orderStorageKey(browserKey));
+    removeItem(unsyncedStorageKey(browserKey));
+    removeItem(savingStorageKey(browserKey));
+    removeItem(publishedStorageKey(browserKey));
+    writeItem(clearedStorageKey(browserKey), "1");
+    bumpLayoutEpoch(browserKey);
+    enqueueTableLayoutWrite(browserKey, { kind: "delete" }, transportFor(storageKey, browserKey, userId, columns));
   };
 
   return {

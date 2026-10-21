@@ -12,7 +12,7 @@ Six pages: Policies (IPv4/IPv6 rules), Bridge, Groups, Zones, Global Options and
 
 The main rule editor. A sidebar switches between IPv4 and IPv6, each with the base chains — Forward, Input, Output, and on VyOS 1.5 Prerouting (raw) — plus your custom chains, which you can create and delete here.
 
-The rule table shows rule number, action and a configurable set of columns: protocol, source and destination with ports, state, description and status are visible by default; log, interface, limit, time, ICMP type, TCP flags, connection status, mark, packet length and recent-match columns can be toggled on. Column layout is remembered per browser.
+The rule table shows rule number, action and a configurable set of columns: protocol, source and destination with ports, state, description and status are visible by default; log, interface, limit, time, ICMP type, TCP flags, connection status, mark, packet length and recent-match columns can be toggled on. Column layout follows the signed-in user, including onto another computer. A layout saved only in this browser before that stays on this browser for the account that opens that table first. It is saved to the account when that person next changes a column, and only then follows them. A later account on this browser does not receive it.
 
 Rules are added, cloned, edited and deleted through dialogs. Each chain has a default action (accept/drop/reject); custom chains also take a description, default logging, and a default jump target. Match fields that depend on the VyOS version (remote groups, dynamic address groups, IPsec match, GRE match) only appear when the router supports them.
 

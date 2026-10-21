@@ -1424,7 +1424,8 @@ async def delete_instance(request: Request, instance_id: str, conn: asyncpg.Conn
 # ============================================================================
 #
 # A backup captures every VyManager-managed table (users, accounts, sites,
-# instances + secrets, RBAC grants, OIDC providers/mappings, dashboard layouts)
+# instances + secrets, RBAC grants, OIDC providers/mappings, dashboard layouts,
+# per-user table column layouts)
 # into a single passphrase-encrypted file. Restore re-applies it in either
 # "replace" (wipe + restore) or "merge" (upsert) mode. See backup_crypto.py for
 # the file format.
@@ -1442,6 +1443,7 @@ BACKUP_TABLES: List[str] = [
     "user_feature_permissions",
     "oauth_role_mappings",
     "dashboard_layouts",
+    "user_table_layouts",
 ]
 
 # Transient/derived tables that are intentionally NOT backed up. sessions and

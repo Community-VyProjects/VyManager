@@ -441,6 +441,19 @@ model DashboardLayout {
   @@map("dashboard_layouts")
 }
 
+// UserTableLayout - column visibility and order for the shared table hook.
+// One JSON object per account, keyed by the browser storage key. Not per
+// instance and not shared with other users.
+model UserTableLayout {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  layouts   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_table_layouts")
+}
+
 // FirewallSeparator - User-defined coloured separator bars rendered between
 // firewall rules. Pure UI metadata layered on top of the VyOS config (the
 // config stays authoritative). Shared per instance, like a section label.
