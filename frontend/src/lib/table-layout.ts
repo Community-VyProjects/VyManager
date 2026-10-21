@@ -31,6 +31,12 @@ export function clearedStorageKey(storageKey: string): string {
   return storageKey + CLEARED_SUFFIX;
 }
 
+const PUBLISHED_SUFFIX = "-published";
+
+export function publishedStorageKey(storageKey: string): string {
+  return storageKey + PUBLISHED_SUFFIX;
+}
+
 export function unsyncedStorageKey(storageKey: string): string {
   return storageKey + UNSYNCED_SUFFIX;
 }
@@ -139,7 +145,7 @@ export interface HydrationPlan {
   deleteRemote: boolean;
   clearUnsynced: boolean;
   clearTombstone: boolean;
-  /** Drop this user's browser copy. An empty account must not keep another person's columns on screen. */
+  /** Drop this user's browser copy. Only after a layout we already saved is gone from the account, so a reset on another computer follows. An empty account does not drop a layout that was never saved. */
   clearLocal: boolean;
 }
 
@@ -173,6 +179,7 @@ export function planTableLayoutHydration(input: {
 
   const tombstone = input.readItem(clearedStorageKey(browserKey)) === "1";
   const unsynced = input.readItem(unsyncedStorageKey(browserKey)) === "1";
+  const published = input.readItem(publishedStorageKey(browserKey)) === "1";
   const remote = input.remoteLayouts?.[input.storageKey];
   const remotePresent = remote !== undefined;
 
@@ -197,10 +204,13 @@ export function planTableLayoutHydration(input: {
       clearTombstone: true,
     };
   }
+  if (local && !published) {
+    return { ...EMPTY_PLAN, paint: local };
+  }
   return {
     ...EMPTY_PLAN,
     paint: defaultColumnLayout(input.columns),
-    clearLocal: local !== null,
+    clearLocal: published,
   };
 }
 
@@ -340,9 +350,11 @@ export async function hydrateTableLayout(args: HydrateArgs): Promise<ColumnLayou
   if (plan.clearLocal) {
     args.removeItem(scope);
     args.removeItem(orderStorageKey(scope));
+    args.removeItem(publishedStorageKey(scope));
   }
   if (plan.cacheLocal && plan.paint) {
     cacheColumnLayout(scope, plan.paint, args.writeItem);
+    args.writeItem(publishedStorageKey(scope), "1");
   }
   if (plan.clearUnsynced) args.removeItem(unsyncedStorageKey(scope));
   if (plan.clearTombstone) args.removeItem(clearedStorageKey(scope));

@@ -15,6 +15,7 @@ import {
   hydrateTableLayout,
   localColumnLayout,
   orderStorageKey,
+  publishedStorageKey,
   unsyncedStorageKey,
   type ColumnDef,
   type ColumnLayout,
@@ -53,6 +54,7 @@ function transportFor(serverKey: string, browserKey: string) {
       try {
         await tableLayoutService.save(serverKey, layout);
         removeItem(unsyncedStorageKey(browserKey));
+        writeItem(publishedStorageKey(browserKey), "1");
       } catch (error) {
         writeItem(unsyncedStorageKey(browserKey), "1");
         throw error;
@@ -172,6 +174,7 @@ export function useColumnVisibility(storageKey: string, columns: ColumnDef[]) {
     removeItem(browserKey);
     removeItem(orderStorageKey(browserKey));
     removeItem(unsyncedStorageKey(browserKey));
+    removeItem(publishedStorageKey(browserKey));
     writeItem(clearedStorageKey(browserKey), "1");
     bumpLayoutEpoch(browserKey);
     enqueueTableLayoutWrite(browserKey, { kind: "delete" }, transportFor(storageKey, browserKey));

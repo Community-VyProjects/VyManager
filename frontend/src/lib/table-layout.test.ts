@@ -9,6 +9,7 @@ import {
   hydrateTableLayout,
   layoutEpoch,
   planTableLayoutHydration,
+  publishedStorageKey,
   unsyncedStorageKey,
   type ColumnDef,
   type ColumnLayout,
@@ -173,9 +174,66 @@ describe("claimUnscopedBrowserLayout", () => {
     );
     assert.equal(store.readItem(browserLayoutKey("bob", KEY)), null);
   });
+
+  it("survives the empty-account read that follows the claim", async () => {
+    const store = memory();
+    seedLocal(store, KEY, LOCAL);
+    claimUnscopedBrowserLayout(
+      "alice",
+      KEY,
+      COLUMNS,
+      store.readItem,
+      store.writeItem,
+      store.removeItem,
+    );
+    const saves: string[] = [];
+    const painted = await hydrateTableLayout({
+      userId: "alice",
+      storageKey: KEY,
+      columns: () => COLUMNS,
+      readItem: store.readItem,
+      writeItem: store.writeItem,
+      removeItem: store.removeItem,
+      getLayouts: async () => ({ exists: false, layouts: {} }),
+      enqueueSave: () => {
+        saves.push("save");
+      },
+      enqueueDelete: () => {
+        saves.push("delete");
+      },
+    });
+    assert.deepEqual(painted?.visible, LOCAL.visible);
+    assert.equal(saves.length, 0);
+    assert.equal(
+      store.readItem(browserLayoutKey("alice", KEY)),
+      JSON.stringify(LOCAL.visible),
+    );
+  });
 });
 
 describe("hydrateTableLayout", () => {
+  it("drops a published browser copy when the account row is gone", async () => {
+    const store = memory();
+    const scope = browserLayoutKey("alice", KEY);
+    seedLocal(store, scope, LOCAL);
+    store.writeItem(publishedStorageKey(scope), "1");
+    const painted = await hydrateTableLayout({
+      userId: "alice",
+      storageKey: KEY,
+      columns: () => COLUMNS,
+      readItem: store.readItem,
+      writeItem: store.writeItem,
+      removeItem: store.removeItem,
+      getLayouts: async () => ({ exists: false, layouts: {} }),
+      enqueueSave: () => {
+        throw new Error("must not upload a reset layout");
+      },
+      enqueueDelete: () => {},
+    });
+    assert.deepEqual(painted?.visible, ["action", "protocol"]);
+    assert.equal(store.readItem(scope), null);
+  });
+
   it("drops a stale response when this user edits during the read", async () => {
     const store = memory();
     const scope = browserLayoutKey("alice", KEY);
