@@ -51,16 +51,28 @@
     "node": ">=20.0"
   },
   "overrides": {
+    "tinypool": "2.1.2",
+    "zod": "4.6.7",
+    "body-parser": "1.20.9",
+    "launch-editor": "2.14.2",
+    "fast-uri": "3.1.9",
+    "postcss-selector-parser": "7.1.6",
     "qs": "6.16.0",
-    "serialize-javascript": "7.0.5",
+    "serialize-javascript": "7.1.3",
     "yaml": "1.10.3",
     "js-yaml@4": "4.3.2",
     "uuid": "11.1.1",
     "http-cache-semantics": "4.3.0"
   },
   "resolutions": {
+    "tinypool": "2.1.2",
+    "zod": "4.6.7",
+    "body-parser": "1.20.9",
+    "launch-editor": "2.14.2",
+    "fast-uri": "3.1.9",
+    "postcss-selector-parser": "7.1.6",
     "qs": "6.16.0",
-    "serialize-javascript": "7.0.5",
+    "serialize-javascript": "7.1.3",
     "yaml": "1.10.3",
     "uuid": "11.1.1",
     "http-cache-semantics": "4.3.0"

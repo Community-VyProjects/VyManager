@@ -75,6 +75,7 @@
   "overrides": {
     "deepmerge-ts": "8.0.2",
     "@formatjs/icu-messageformat-parser": "3.5.18",
+    "zod": "4.6.7",
     "minimatch@3": {
       "brace-expansion": "1.1.21"
     },
