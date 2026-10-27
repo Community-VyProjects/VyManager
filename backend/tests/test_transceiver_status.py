@@ -103,6 +103,13 @@ def test_parse_hardware_sensors_handles_no_sensors():
     assert "no sensors found" in result.raw.lower()
 
 
+def test_parse_hardware_sensors_preserves_authorization_error():
+    result = parse_hardware_sensors("This account is not authorized to run this command\n")
+
+    assert result.sensors == []
+    assert result.error == "This account is not authorized to run this command"
+
+
 def test_parse_hardware_sensors_summary_is_global_health_sentence():
     result = parse_hardware_sensors("""k10temp-pci-00c3
 temp1:        +54.6°C  (high = +70.0°C)

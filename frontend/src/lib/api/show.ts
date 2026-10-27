@@ -44,6 +44,7 @@ export interface HardwareSensorsResponse {
   sensors: HardwareSensor[];
   raw: string;
   summary?: string;
+  error?: string | null;
 }
 
 export interface FirewallRuleCounter {
