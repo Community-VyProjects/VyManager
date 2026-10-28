@@ -44,10 +44,10 @@ function isValidIPv4(value: string): boolean {
 }
 
 const RELAY_AGENTS_POLICIES = [
-  { value: "append", label: "Append" },
-  { value: "replace", label: "Replace" },
-  { value: "forward", label: "Forward" },
-  { value: "discard", label: "Discard" },
+  { value: "append" },
+  { value: "replace" },
+  { value: "forward" },
+  { value: "discard" },
 ] as const;
 
 export function DHCPRelayModal({ open, onClose, onSuccess, config }: DHCPRelayModalProps) {
@@ -433,7 +433,7 @@ export function DHCPRelayModal({ open, onClose, onSuccess, config }: DHCPRelayMo
                   <SelectContent>
                     {RELAY_AGENTS_POLICIES.map((p) => (
                       <SelectItem key={p.value} value={p.value}>
-                        <span className="font-mono">{p.label}</span>
+                        <span className="font-mono">{t(`modal.policyLabels.${p.value}`)}</span>
                         <span className="text-muted-foreground ml-2 text-xs">— {t(`modal.policies.${p.value}`)}</span>
                       </SelectItem>
                     ))}

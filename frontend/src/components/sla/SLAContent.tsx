@@ -189,14 +189,14 @@ export function SLAContent() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <ServerCard
               title={t("content.owampServer")}
-              fullName="One-Way Active Measurement Protocol"
+              fullName={t("content.owampFullName")}
               defaultPort={861}
               config={config!.owamp_server}
               description={t("content.owampDescription")}
             />
             <ServerCard
               title={t("content.twampServer")}
-              fullName="Two-Way Active Measurement Protocol"
+              fullName={t("content.twampFullName")}
               defaultPort={862}
               config={config!.twamp_server}
               description={t("content.twampDescription")}

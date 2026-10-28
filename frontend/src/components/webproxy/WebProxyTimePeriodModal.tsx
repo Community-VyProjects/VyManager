@@ -33,7 +33,8 @@ interface Props {
   onSubmit: (period: SquidGuardTimePeriod, isEdit: boolean) => Promise<void>;
 }
 
-const DEFAULT_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "weekdays", "weekend", "all"];
+const DEFAULT_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "weekdays", "weekend", "all"] as const;
+type DayKey = (typeof DEFAULT_DAYS)[number];
 
 export function WebProxyTimePeriodModal({ open, onOpenChange, timePeriod, caps, existingNames, onSubmit }: Props) {
   const t = useTranslations("webproxy");
@@ -134,7 +135,7 @@ export function WebProxyTimePeriodModal({ open, onOpenChange, timePeriod, caps, 
                   <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {dayOptions.map((d) => (
-                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                      <SelectItem key={d} value={d}>{(DEFAULT_DAYS as readonly string[]).includes(d) ? t(`period.days.${d as DayKey}`) : d}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

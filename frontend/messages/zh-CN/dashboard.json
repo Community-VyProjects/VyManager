@@ -144,7 +144,25 @@
     "next": "下一页",
     "page": "第 {current} / {total} 页",
     "trafficTooltip": "RX: {rx} / {rxPackets, plural, one {# 个包} other {# 个包}}\nTX: {tx} / {txPackets, plural, one {# 个包} other {# 个包}}",
-    "droppedErrors": "丢弃：{dropped} · 错误：{errors}"
+    "droppedErrors": "丢弃：{dropped} · 错误：{errors}",
+    "types": {
+      "physicalEthernet": "物理（以太网）",
+      "wireless": "无线",
+      "loopback": "环回",
+      "vpnWireguard": "VPN（WireGuard）",
+      "vpnVti": "VPN（虚拟隧道）",
+      "vpnTunnel": "VPN（隧道）",
+      "vlan": "VLAN（虚拟）",
+      "vlanSub": "VLAN（子接口）",
+      "bridge": "网桥",
+      "pppoe": "PPPoE",
+      "bonding": "链路聚合",
+      "dummy": "虚拟 (Dummy)",
+      "gre": "GRE 隧道",
+      "ipip": "IPIP 隧道",
+      "sit": "SIT 隧道",
+      "other": "其他"
+    }
   },
   "ipsec": {
     "up": "在线",

@@ -144,7 +144,25 @@
     "next": "Next",
     "page": "Page {current} of {total}",
     "trafficTooltip": "RX: {rx} / {rxPackets, plural, one {# pkt} other {# pkts}}\nTX: {tx} / {txPackets, plural, one {# pkt} other {# pkts}}",
-    "droppedErrors": "Dropped: {dropped} · Errors: {errors}"
+    "droppedErrors": "Dropped: {dropped} · Errors: {errors}",
+    "types": {
+      "physicalEthernet": "Physical (Ethernet)",
+      "wireless": "Wireless",
+      "loopback": "Loopback",
+      "vpnWireguard": "VPN (WireGuard)",
+      "vpnVti": "VPN (Virtual Tunnel)",
+      "vpnTunnel": "VPN (Tunnel)",
+      "vlan": "VLAN (Virtual)",
+      "vlanSub": "VLAN (Subinterface)",
+      "bridge": "Bridge",
+      "pppoe": "PPPoE",
+      "bonding": "Bonding",
+      "dummy": "Dummy",
+      "gre": "GRE Tunnel",
+      "ipip": "IPIP Tunnel",
+      "sit": "SIT Tunnel",
+      "other": "Other"
+    }
   },
   "ipsec": {
     "up": "Up",

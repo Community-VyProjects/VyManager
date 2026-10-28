@@ -10,7 +10,9 @@
     "owampServer": "OWAMP 服务器",
     "owampDescription": "测量端点之间的单向网络时延、抖动和丢包。用于非对称路径分析和 SLA 验证。",
     "twampServer": "TWAMP 服务器",
-    "twampDescription": "测量端点之间的往返网络时延、抖动和丢包。在 OWAMP 基础上增加了双向测量能力。"
+    "twampDescription": "测量端点之间的往返网络时延、抖动和丢包。在 OWAMP 基础上增加了双向测量能力。",
+    "owampFullName": "单向主动测量协议",
+    "twampFullName": "双向主动测量协议"
   },
   "settings": {
     "portRange": "端口必须是 1 到 65535 之间的数字",

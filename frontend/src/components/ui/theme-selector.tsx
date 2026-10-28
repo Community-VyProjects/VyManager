@@ -11,14 +11,19 @@ import type { ThemeDefinition } from "@/themes/types";
 import { cn } from "@/lib/utils";
 import { CustomThemeEditor } from "@/components/ui/custom-theme-editor";
 
+const BUILT_IN_THEME_IDS = ["dark", "light", "midnight", "slate", "emerald"] as const;
+type BuiltInThemeId = (typeof BUILT_IN_THEME_IDS)[number];
+
 function ThemeCard({
   theme,
+  name,
   isActive,
   onSelect,
   onEdit,
   onDelete,
 }: {
   theme: ThemeDefinition;
+  name: string;
   isActive: boolean;
   onSelect: () => void;
   onEdit?: () => void;
@@ -37,7 +42,7 @@ function ThemeCard({
         <div className="flex-1" style={{ background: theme.variables["primary"] }} />
         <div className="flex-1" style={{ background: theme.variables["accent"] }} />
       </div>
-      <span className="text-xs font-medium leading-none truncate pr-6">{theme.name}</span>
+      <span className="text-xs font-medium leading-none truncate pr-6">{name}</span>
       {theme.isCustom && (
         <div className="absolute top-1 right-1 flex gap-0.5">
           {onEdit && (
@@ -70,6 +75,11 @@ export function ThemeSelector() {
   const [editingTheme, setEditingTheme] = useState<ThemeDefinition | undefined>(undefined);
 
   const activeTheme = allThemes.find((t) => t.id === themeId) ?? allThemes[0];
+  // Built-in themes are named per locale; custom themes keep the name the user typed.
+  const themeName = (theme: ThemeDefinition) =>
+    !theme.isCustom && (BUILT_IN_THEME_IDS as readonly string[]).includes(theme.id)
+      ? t(`theme.names.${theme.id as BuiltInThemeId}`)
+      : theme.name;
 
   function openCreate() {
     setEditingTheme(undefined);
@@ -93,7 +103,7 @@ export function ThemeSelector() {
                 className="h-3 w-3 rounded-full border border-border/50 shrink-0"
                 style={{ background: activeTheme?.variables["primary"] }}
               />
-              <span className="truncate">{activeTheme?.name}</span>
+              <span className="truncate">{activeTheme ? themeName(activeTheme) : ""}</span>
             </span>
             <Palette className="h-4 w-4 text-muted-foreground shrink-0" />
           </Button>
@@ -105,6 +115,7 @@ export function ThemeSelector() {
               <ThemeCard
                 key={theme.id}
                 theme={theme}
+                name={themeName(theme)}
                 isActive={theme.id === themeId}
                 onSelect={() => { setThemeId(theme.id); setOpen(false); }}
                 onEdit={theme.isCustom ? () => openEdit(theme) : undefined}
