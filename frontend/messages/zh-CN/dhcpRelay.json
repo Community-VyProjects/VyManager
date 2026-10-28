@@ -60,6 +60,12 @@
     "saveConfiguration": "保存配置",
     "optionalSuffix": "（可选）",
     "selectInterface": "选择要添加的接口",
-    "noInterfaces": "没有其他可用接口"
+    "noInterfaces": "没有其他可用接口",
+    "policyLabels": {
+      "append": "追加",
+      "replace": "替换",
+      "forward": "转发",
+      "discard": "丢弃"
+    }
   }
 }

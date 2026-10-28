@@ -60,6 +60,12 @@
     "saveConfiguration": "Save Configuration",
     "optionalSuffix": "(optional)",
     "selectInterface": "Select interface to add",
-    "noInterfaces": "No additional interfaces available"
+    "noInterfaces": "No additional interfaces available",
+    "policyLabels": {
+      "append": "Append",
+      "replace": "Replace",
+      "forward": "Forward",
+      "discard": "Discard"
+    }
   }
 }

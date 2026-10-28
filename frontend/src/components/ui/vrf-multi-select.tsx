@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
 import { VrfSelect } from "@/components/ui/vrf-select";
@@ -37,11 +38,12 @@ export function VrfMultiSelect({
   onChange,
   vrfs,
   extraOptions,
-  placeholder = "Add VRF",
+  placeholder,
   disabled,
   id,
   className,
 }: VrfMultiSelectProps) {
+  const t = useTranslations("sharedUi");
   return (
     <div className="space-y-2">
       <VrfSelect
@@ -54,7 +56,7 @@ export function VrfMultiSelect({
         filter={(vrf) => !values.includes(vrf.name)}
         extraOptions={extraOptions?.filter((o) => !values.includes(o.value))}
         includeNone={false}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t("vrfMultiSelect.placeholder")}
         disabled={disabled}
         className={className}
       />

@@ -11,7 +11,14 @@
   },
   "theme": {
     "title": "Theme",
-    "createCustom": "Create custom theme"
+    "createCustom": "Create custom theme",
+    "names": {
+      "dark": "Dark",
+      "light": "Light",
+      "midnight": "Midnight",
+      "slate": "Slate",
+      "emerald": "Emerald"
+    }
   },
   "themeEditor": {
     "defaultName": "My Theme",
@@ -67,5 +74,8 @@
   },
   "appLayout": {
     "redirecting": "Redirecting to site manager..."
+  },
+  "vrfMultiSelect": {
+    "placeholder": "Add VRF"
   }
 }

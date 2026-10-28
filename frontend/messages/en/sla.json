@@ -10,7 +10,9 @@
     "owampServer": "OWAMP Server",
     "owampDescription": "Measures one-way network delay, jitter, and packet loss between endpoints. Used for asymmetric path analysis and SLA verification.",
     "twampServer": "TWAMP Server",
-    "twampDescription": "Measures round-trip network delay, jitter, and packet loss between endpoints. Extends OWAMP with bidirectional measurement capability."
+    "twampDescription": "Measures round-trip network delay, jitter, and packet loss between endpoints. Extends OWAMP with bidirectional measurement capability.",
+    "owampFullName": "One-Way Active Measurement Protocol",
+    "twampFullName": "Two-Way Active Measurement Protocol"
   },
   "settings": {
     "portRange": "Port must be a number between 1 and 65535",
