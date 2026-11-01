@@ -34,7 +34,7 @@ from openvpn_status import openvpn_configured, openvpn_gql_fields, build_openvpn
 from vrrp_status import vrrp_configured, vrrp_gql_fields, build_vrrp_status
 from bgp_status import bgp_configured, bgp_gql_fields, build_bgp_status
 from ipsec_status import ipsec_configured, ipsec_gql_fields, build_ipsec_status
-from hardware_status import HardwareSensorsResponse, parse_hardware_sensors, hardware_gql_fields, build_hardware_status
+from hardware_status import HardwareSensorsResponse, hardware_gql_fields, build_hardware_status
 from firewall_statistics import (
     FIREWALL_STATS_INTEREST,
     FirewallStatisticsResponse,
@@ -104,11 +104,10 @@ async def get_hardware_sensors(request: Request):
     await require_read_permission(request, FeatureGroup.INTERFACES)
     try:
         service = get_session_vyos_service(request)
-        response = await run_in_threadpool(service.device.show, path=["environment", "sensors"])
-        if response.status != 200 or response.error:
-            raise HTTPException(status_code=502, detail=response.error or "Unable to read hardware sensors")
-        output = response.result.get("data", "") if isinstance(response.result, dict) else response.result
-        return parse_hardware_sensors(output or "")
+        gql = await _fetch_graphql_hardware(service)
+        if gql is None:
+            raise HTTPException(status_code=502, detail="Unable to read hardware sensors")
+        return build_hardware_status(gql)
     except HTTPException:
         raise
     except Exception as e:
@@ -294,6 +293,27 @@ async def _fetch_graphql_dashboard(service, include_wireguard: bool, cake_target
         return body.get("data")
     except Exception as exc:
         _log_live_gql_failure("GraphQL dashboard fetch", exc)
+        return None
+
+
+async def _fetch_graphql_hardware(service) -> Optional[dict]:
+    """Fetch hardware sensors through VyOS GraphQL."""
+    api_key = str(service.config.apikey)
+    url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
+    payload = {"query": "{ " + " ".join(hardware_gql_fields(json.dumps(api_key))) + " }"}
+
+    try:
+        async with httpx.AsyncClient(verify=service.config.verify, timeout=15.0) as client:
+            resp = await client.post(url, json=payload, auth=("vyos", api_key))
+        if resp.status_code != 200:
+            logger.error("GraphQL hardware sensors HTTP error %d", resp.status_code)
+            return None
+        body = resp.json()
+        if body.get("errors"):
+            logger.warning("GraphQL hardware sensors response errors: %s", body["errors"])
+        return body.get("data")
+    except Exception as exc:
+        _log_live_gql_failure("GraphQL hardware sensors fetch", exc)
         return None
 
 

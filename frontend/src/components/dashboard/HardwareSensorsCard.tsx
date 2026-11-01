@@ -196,6 +196,8 @@ export function HardwareSensorsCard({
             <Loader2 className="animate-spin" />
             {t("hardwareSensors.reading")}
           </div>
+        ) : showData?.error ? (
+          <p className="py-8 text-sm text-destructive">{showData.error}</p>
         ) : showData && !showData.sensors.length ? (
           <p className="py-8 text-sm text-muted-foreground">
             {t("hardwareSensors.noSensors")}

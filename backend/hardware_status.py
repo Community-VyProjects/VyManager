@@ -18,6 +18,7 @@ class HardwareSensorsResponse(BaseModel):
     sensors: List[HardwareSensor] = Field(default_factory=list)
     raw: str = ""
     summary: str = ""
+    error: Optional[str] = None
 
 
 def _as_numeric(value: Optional[str]) -> Optional[float]:
@@ -67,6 +68,12 @@ def parse_hardware_sensors(text: str) -> HardwareSensorsResponse:
     
     # Check for no sensors available
     lower_text = (text or "").lower().strip()
+    if "not authorized to run this command" in lower_text:
+        return HardwareSensorsResponse(
+            sensors=[],
+            raw=text or "",
+            error=(text or "").strip(),
+        )
     if "no sensors available" in lower_text or "no sensors found" in lower_text:
         return HardwareSensorsResponse(sensors=[], raw=text or "", summary="")
     
