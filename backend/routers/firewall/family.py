@@ -62,7 +62,9 @@ class FirewallRuleState(BaseModel):
 class FirewallRuleInterface(BaseModel):
     """Interface configuration for firewall rule."""
     inbound: Optional[str] = None
+    inbound_group: Optional[str] = None
     outbound: Optional[str] = None
+    outbound_group: Optional[str] = None
 
 
 class FirewallRulePacketMods(BaseModel):
@@ -440,7 +442,9 @@ def build_router(family: str) -> APIRouter:
                 # Parse interface
                 interface = None
                 inbound_iface = None
+                inbound_group = None
                 outbound_iface = None
+                outbound_group = None
 
                 if "inbound-interface" in rule_data:
                     inbound_data = rule_data["inbound-interface"]
@@ -448,6 +452,7 @@ def build_router(family: str) -> APIRouter:
                         inbound_iface = inbound_data.get("name")
                         if not inbound_iface and "interface-name" in inbound_data:
                             inbound_iface = inbound_data.get("interface-name")
+                        inbound_group = inbound_data.get("group")
 
                 if "outbound-interface" in rule_data:
                     outbound_data = rule_data["outbound-interface"]
@@ -455,11 +460,14 @@ def build_router(family: str) -> APIRouter:
                         outbound_iface = outbound_data.get("name")
                         if not outbound_iface and "interface-name" in outbound_data:
                             outbound_iface = outbound_data.get("interface-name")
+                        outbound_group = outbound_data.get("group")
 
-                if inbound_iface or outbound_iface:
+                if inbound_iface or inbound_group or outbound_iface or outbound_group:
                     interface = FirewallRuleInterface(
                         inbound=inbound_iface,
-                        outbound=outbound_iface
+                        inbound_group=inbound_group,
+                        outbound=outbound_iface,
+                        outbound_group=outbound_group,
                     )
 
                 # Parse packet modifications

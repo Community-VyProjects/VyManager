@@ -33,7 +33,9 @@ export interface FirewallRuleState {
 
 export interface FirewallRuleInterface {
   inbound?: string | null;
+  inbound_group?: string | null;
   outbound?: string | null;
+  outbound_group?: string | null;
 }
 
 export interface FirewallRulePacketMods {
@@ -440,8 +442,14 @@ export class FirewallFamilyService {
       if (config.interface.inbound) {
         operations.push({ op: "set_rule_inbound_interface", value: config.interface.inbound });
       }
+      if (config.interface.inbound_group) {
+        operations.push({ op: "set_rule_inbound_interface_group", value: config.interface.inbound_group });
+      }
       if (config.interface.outbound) {
         operations.push({ op: "set_rule_outbound_interface", value: config.interface.outbound });
+      }
+      if (config.interface.outbound_group) {
+        operations.push({ op: "set_rule_outbound_interface_group", value: config.interface.outbound_group });
       }
     }
 
@@ -1015,16 +1023,28 @@ export class FirewallFamilyService {
       if (currentRule.interface?.inbound) {
         operations.push({ op: "delete_rule_inbound_interface" });
       }
+      if (currentRule.interface?.inbound_group) {
+        operations.push({ op: "delete_rule_inbound_interface_group" });
+      }
       if (currentRule.interface?.outbound) {
         operations.push({ op: "delete_rule_outbound_interface" });
+      }
+      if (currentRule.interface?.outbound_group) {
+        operations.push({ op: "delete_rule_outbound_interface_group" });
       }
 
       if (config.interface) {
         if (config.interface.inbound) {
           operations.push({ op: "set_rule_inbound_interface", value: config.interface.inbound });
         }
+        if (config.interface.inbound_group) {
+          operations.push({ op: "set_rule_inbound_interface_group", value: config.interface.inbound_group });
+        }
         if (config.interface.outbound) {
           operations.push({ op: "set_rule_outbound_interface", value: config.interface.outbound });
+        }
+        if (config.interface.outbound_group) {
+          operations.push({ op: "set_rule_outbound_interface_group", value: config.interface.outbound_group });
         }
       }
     }
