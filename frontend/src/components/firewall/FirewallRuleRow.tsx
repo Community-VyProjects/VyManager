@@ -394,11 +394,11 @@ export function FirewallRuleRow({
       case "interface":
         return (
           <TableCell key="interface">
-            {rule.interface?.inbound || rule.interface?.outbound ? (
+            {rule.interface?.inbound || rule.interface?.inbound_group || rule.interface?.outbound || rule.interface?.outbound_group ? (
               <div className="flex items-center gap-1 text-xs font-mono">
-                <span>{rule.interface.inbound || "*"}</span>
+                <span>{rule.interface.inbound || rule.interface.inbound_group || "*"}</span>
                 <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                <span>{rule.interface.outbound || "*"}</span>
+                <span>{rule.interface.outbound || rule.interface.outbound_group || "*"}</span>
               </div>
             ) : (
               <span className="text-sm text-muted-foreground">{t("rule.any")}</span>

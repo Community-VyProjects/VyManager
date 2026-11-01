@@ -134,8 +134,12 @@ export function FirewallRuleModal({
   const [stateInvalid, setStateInvalid] = useState(false);
 
   // Interface fields
+  const [inboundInterfaceMode, setInboundInterfaceMode] = useState<"any" | "interface" | "group">("any");
   const [inboundInterface, setInboundInterface] = useState("");
+  const [inboundInterfaceGroup, setInboundInterfaceGroup] = useState("");
+  const [outboundInterfaceMode, setOutboundInterfaceMode] = useState<"any" | "interface" | "group">("any");
   const [outboundInterface, setOutboundInterface] = useState("");
+  const [outboundInterfaceGroup, setOutboundInterfaceGroup] = useState("");
 
   // Advanced fields
   const [tcpFlags, setTcpFlags] = useState<Record<string, "disabled" | "enabled" | "not">>({
@@ -594,7 +598,11 @@ export function FirewallRuleModal({
     setStateInvalid(rule.state?.invalid || false);
 
     setInboundInterface(rule.interface?.inbound || "");
+    setInboundInterfaceGroup(rule.interface?.inbound_group || "");
+    setInboundInterfaceMode(rule.interface?.inbound_group ? "group" : rule.interface?.inbound ? "interface" : "any");
     setOutboundInterface(rule.interface?.outbound || "");
+    setOutboundInterfaceGroup(rule.interface?.outbound_group || "");
+    setOutboundInterfaceMode(rule.interface?.outbound_group ? "group" : rule.interface?.outbound ? "interface" : "any");
 
     const newTcpFlags: Record<string, "disabled" | "enabled" | "not"> = {
       syn: "disabled", ack: "disabled", fin: "disabled", rst: "disabled",
@@ -669,7 +677,11 @@ export function FirewallRuleModal({
     setStateRelated(false);
     setStateInvalid(false);
     setInboundInterface("");
+    setInboundInterfaceGroup("");
+    setInboundInterfaceMode("any");
     setOutboundInterface("");
+    setOutboundInterfaceGroup("");
+    setOutboundInterfaceMode("any");
     setTcpFlags({
       syn: "disabled",
       ack: "disabled",
@@ -974,10 +986,12 @@ export function FirewallRuleModal({
       }
 
       // Interface
-      if ((inboundInterface && inboundInterface !== "any") || (outboundInterface && outboundInterface !== "any")) {
+      if (inboundInterfaceMode !== "any" || outboundInterfaceMode !== "any") {
         config.interface = {};
-        if (inboundInterface && inboundInterface !== "any") config.interface.inbound = inboundInterface;
-        if (outboundInterface && outboundInterface !== "any") config.interface.outbound = outboundInterface;
+        if (inboundInterfaceMode === "interface" && inboundInterface) config.interface.inbound = inboundInterface;
+        if (inboundInterfaceMode === "group" && inboundInterfaceGroup) config.interface.inbound_group = inboundInterfaceGroup;
+        if (outboundInterfaceMode === "interface" && outboundInterface) config.interface.outbound = outboundInterface;
+        if (outboundInterfaceMode === "group" && outboundInterfaceGroup) config.interface.outbound_group = outboundInterfaceGroup;
       } else {
         config.interface = null;
       }
@@ -1422,10 +1436,12 @@ export function FirewallRuleModal({
       }
 
       // Interface
-      if ((inboundInterface && inboundInterface !== "any") || (outboundInterface && outboundInterface !== "any")) {
+      if (inboundInterfaceMode !== "any" || outboundInterfaceMode !== "any") {
         config.interface = {};
-        if (inboundInterface && inboundInterface !== "any") config.interface.inbound = inboundInterface;
-        if (outboundInterface && outboundInterface !== "any") config.interface.outbound = outboundInterface;
+        if (inboundInterfaceMode === "interface" && inboundInterface) config.interface.inbound = inboundInterface;
+        if (inboundInterfaceMode === "group" && inboundInterfaceGroup) config.interface.inbound_group = inboundInterfaceGroup;
+        if (outboundInterfaceMode === "interface" && outboundInterface) config.interface.outbound = outboundInterface;
+        if (outboundInterfaceMode === "group" && outboundInterfaceGroup) config.interface.outbound_group = outboundInterfaceGroup;
       }
 
       // Packet mods
@@ -2622,26 +2638,72 @@ export function FirewallRuleModal({
 
             <div className="space-y-2">
               <Label htmlFor="inboundInterface">{t("state.inboundInterface")}</Label>
-              <InterfaceSelect
-                value={inboundInterface}
-                onValueChange={setInboundInterface}
-                id="inboundInterface"
-                interfaces={interfaces.map((i) => ({ name: i.name, type: "", description: i.description ?? null }))}
-                noneOption={{ label: t("state.any"), value: "any" }}
-                placeholder={t("state.anyInterface")}
-              />
+              <Select value={inboundInterfaceMode} onValueChange={(value: "any" | "interface" | "group") => {
+                setInboundInterfaceMode(value);
+                if (value !== "interface") setInboundInterface("");
+                if (value !== "group") setInboundInterfaceGroup("");
+              }}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">{t("state.any")}</SelectItem>
+                  <SelectItem value="interface">{t("state.interface")}</SelectItem>
+                  <SelectItem value="group">{t("state.interfaceGroup")}</SelectItem>
+                </SelectContent>
+              </Select>
+              {inboundInterfaceMode === "interface" ? (
+                <InterfaceSelect
+                  value={inboundInterface}
+                  onValueChange={setInboundInterface}
+                  id="inboundInterface"
+                  interfaces={interfaces.map((i) => ({ name: i.name, type: "", description: i.description ?? null }))}
+                  noneOption={{ label: t("state.any"), value: "any" }}
+                  placeholder={t("state.anyInterface")}
+                />
+              ) : inboundInterfaceMode === "group" ? (
+                <Select value={inboundInterfaceGroup} onValueChange={setInboundInterfaceGroup}>
+                  <SelectTrigger><SelectValue placeholder={t("state.selectInterfaceGroup")} /></SelectTrigger>
+                  <SelectContent>
+                    {groups.filter((group) => group.type === "interface-group").map((group) => (
+                      <SelectItem key={group.name} value={group.name}>{group.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : null}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="outboundInterface">{t("state.outboundInterface")}</Label>
-              <InterfaceSelect
-                value={outboundInterface}
-                onValueChange={setOutboundInterface}
-                id="outboundInterface"
-                interfaces={interfaces.map((i) => ({ name: i.name, type: "", description: i.description ?? null }))}
-                noneOption={{ label: t("state.any"), value: "any" }}
-                placeholder={t("state.anyInterface")}
-              />
+              <Select value={outboundInterfaceMode} onValueChange={(value: "any" | "interface" | "group") => {
+                setOutboundInterfaceMode(value);
+                if (value !== "interface") setOutboundInterface("");
+                if (value !== "group") setOutboundInterfaceGroup("");
+              }}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">{t("state.any")}</SelectItem>
+                  <SelectItem value="interface">{t("state.interface")}</SelectItem>
+                  <SelectItem value="group">{t("state.interfaceGroup")}</SelectItem>
+                </SelectContent>
+              </Select>
+              {outboundInterfaceMode === "interface" ? (
+                <InterfaceSelect
+                  value={outboundInterface}
+                  onValueChange={setOutboundInterface}
+                  id="outboundInterface"
+                  interfaces={interfaces.map((i) => ({ name: i.name, type: "", description: i.description ?? null }))}
+                  noneOption={{ label: t("state.any"), value: "any" }}
+                  placeholder={t("state.anyInterface")}
+                />
+              ) : outboundInterfaceMode === "group" ? (
+                <Select value={outboundInterfaceGroup} onValueChange={setOutboundInterfaceGroup}>
+                  <SelectTrigger><SelectValue placeholder={t("state.selectInterfaceGroup")} /></SelectTrigger>
+                  <SelectContent>
+                    {groups.filter((group) => group.type === "interface-group").map((group) => (
+                      <SelectItem key={group.name} value={group.name}>{group.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : null}
             </div>
 
             {/* IPsec Matching */}
