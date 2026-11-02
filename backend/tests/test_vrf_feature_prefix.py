@@ -258,11 +258,20 @@ def _schema_fields(text: str):
                 "args": tokens(args.group(1)) if args else [],
                 "path": tokens(path.group(1)) if path else [],
             }
-    options = re.search(r"const VALUE_OPTIONS = \[([\s\S]*?)\];", text)
-    if options:
+    options = re.search(r"function optionFields[\s\S]*?path:\s*\[([^\]]*)\]", text)
+    names = re.search(r"const VALUE_OPTIONS = \[([\s\S]*?)\];", text)
+    if options and names:
+        template = options.group(1)
         for call in re.finditer(r"optionFields\(\"([^\"]+)\"\)", text):
-            for opt in re.findall(r"\"([^\"]+)\"", options.group(1)):
-                yield {"op": call.group(1), "args": [opt], "path": ["option", opt]}
+            for opt in re.findall(r"\"([^\"]+)\"", names.group(1)):
+                path = []
+                for part in template.split(","):
+                    part = part.strip()
+                    if part in ("opt", "name"):
+                        path.append(opt)
+                    elif part.startswith('"') and part.endswith('"'):
+                        path.append(part[1:-1])
+                yield {"op": call.group(1), "args": [opt], "path": path}
 
 
 def test_ui_schema_round_trip_uses_the_1_5_nodes():
@@ -339,6 +348,31 @@ def test_bfd_source_delete_follows_version():
     new = VrfBatchBuilder("1.5")
     new.delete_vrf_static_route_next_hop_bfd_multi_hop_source("blue", "10.0.0.0/24,192.0.2.1")
     assert new.get_operations()[-1]["path"][-1] == "source-address"
+
+
+def test_dhcpv6_static_mapping_uses_the_global_builder(monkeypatch):
+    from vyos_builders.dhcpv6_server.dhcpv6_server_batch_builder import DHCPv6ServerBatchBuilder
+
+    called = {}
+    real = DHCPv6ServerBatchBuilder.set_static_mapping
+
+    def spy(self, name, subnet, mapping):
+        called["args"] = (name, subnet, mapping)
+        return real(self, name, subnet, mapping)
+
+    monkeypatch.setattr(DHCPv6ServerBatchBuilder, "set_static_mapping", spy)
+    builder = VrfBatchBuilder("1.5")
+    builder.set_vrf_dhcpv6_subnet_static_mapping("blue", "LAN,2001:db8::/64,host1")
+    assert called == {"args": ("LAN", "2001:db8::/64", "host1")}
+    assert builder.get_operations()[-1]["path"][-1] == "host1"
+    assert "static-mapping" in builder.get_operations()[-1]["path"]
+
+
+def test_short_drop_value_is_rejected():
+    builder = VrfBatchBuilder("1.5")
+    with pytest.raises(ValueError, match="expects"):
+        builder.delete_vrf_static_route_interface_vrf("blue", "10.0.0.0/24")
+    assert builder.get_operations() == []
 
 
 def test_global_static_helpers_are_not_vrf_ops():
