@@ -124,3 +124,21 @@ export function instanceEditorTabFromSearch(
   const value = get(INSTANCE_EDITOR_QUERY);
   return value && isInstanceEditorTab(value) ? value : null;
 }
+
+/** Open the editor once per query value, and only after the instance has loaded. */
+export function instanceEditorToOpen(
+  tab: InstanceEditorTab | null,
+  hasInstance: boolean,
+  honored: string | null,
+): InstanceEditorTab | null {
+  if (!tab || !hasInstance || honored === tab) return null;
+  return tab;
+}
+
+/** Drop the editor query. Keep the administration section and any other params. */
+export function administrationPathAfterEditorClose(search: string): string {
+  const next = new URLSearchParams(search);
+  next.delete(INSTANCE_EDITOR_QUERY);
+  const query = next.toString();
+  return query ? `/administration?${query}` : "/administration";
+}

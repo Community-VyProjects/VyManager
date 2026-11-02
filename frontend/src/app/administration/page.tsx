@@ -11,8 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Pencil, Server, Users, KeyRound, Key, Download } from "lucide-react";
 import {
+  administrationPathAfterEditorClose,
   administrationTabFromSearch,
   instanceEditorTabFromSearch,
+  instanceEditorToOpen,
   INSTANCE_EDITOR_QUERY,
   type AdministrationTab,
   type InstanceEditorTab,
@@ -87,9 +89,10 @@ function AdministrationPageInner() {
       honoredEdit.current = null;
       return;
     }
-    if (!instance || honoredEdit.current === editorTab) return;
-    honoredEdit.current = editorTab;
-    setEditorInitialTab(editorTab);
+    const tab = instanceEditorToOpen(editorTab, instance != null, honoredEdit.current);
+    if (!tab) return;
+    honoredEdit.current = tab;
+    setEditorInitialTab(tab);
     setEditOpen(true);
   }, [editorTab, instance]);
 
@@ -210,10 +213,7 @@ function AdministrationPageInner() {
           onOpenChange={(open) => {
             setEditOpen(open);
             if (open || !searchParams.get(INSTANCE_EDITOR_QUERY)) return;
-            const next = new URLSearchParams(searchParams.toString());
-            next.delete(INSTANCE_EDITOR_QUERY);
-            const query = next.toString();
-            router.replace(query ? `/administration?${query}` : "/administration");
+            router.replace(administrationPathAfterEditorClose(searchParams.toString()));
           }}
           onSuccess={() => {
             void loadInstance();

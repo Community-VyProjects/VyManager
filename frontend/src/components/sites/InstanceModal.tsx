@@ -139,7 +139,7 @@ export function InstanceModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
-          <Tabs key={`${open}-${initialTab}`} defaultValue={initialTab} className="w-full">
+          <Tabs defaultValue={initialTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="basic">{t("instanceModal.tabBasic")}</TabsTrigger>
               <TabsTrigger value="connection">{t("instanceModal.tabConnection")}</TabsTrigger>

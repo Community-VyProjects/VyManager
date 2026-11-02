@@ -6,6 +6,8 @@ import {
   conntrackSectionFromSearch,
   containerTabFromSearch,
   instanceEditorTabFromSearch,
+  instanceEditorToOpen,
+  administrationPathAfterEditorClose,
   staticRouteTabFromSearch,
 } from "./query-tabs";
 
@@ -113,5 +115,30 @@ describe("instanceEditorTabFromSearch", () => {
     assert.equal(instanceEditorTabFromSearch(params({ edit: "sites" })), null);
     assert.equal(instanceEditorTabFromSearch(params({ section: "ssh" })), null);
     assert.equal(instanceEditorTabFromSearch(params({})), null);
+  });
+});
+
+describe("instanceEditorToOpen", () => {
+  it("opens the SSH tab once the instance has loaded", () => {
+    assert.equal(instanceEditorToOpen("ssh", true, null), "ssh");
+  });
+
+  it("waits for the instance and does not reopen the same query", () => {
+    assert.equal(instanceEditorToOpen("ssh", false, null), null);
+    assert.equal(instanceEditorToOpen("ssh", true, "ssh"), null);
+    assert.equal(instanceEditorToOpen(null, true, null), null);
+  });
+});
+
+describe("administrationPathAfterEditorClose", () => {
+  it("removes edit and keeps the instance section", () => {
+    assert.equal(
+      administrationPathAfterEditorClose("section=instance&edit=ssh"),
+      "/administration?section=instance",
+    );
+  });
+
+  it("drops a lone editor query", () => {
+    assert.equal(administrationPathAfterEditorClose("edit=ssh"), "/administration");
   });
 });
