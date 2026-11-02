@@ -4,6 +4,8 @@ import json
 import re
 from pathlib import Path
 
+from tests.yarn_lock import yarn_versions
+
 REPO = Path(__file__).resolve().parents[2]
 DOCS = REPO / "docs-site"
 MIN = (1, 16, 2)
@@ -13,20 +15,6 @@ NAME = "follow-redirects"
 def _tuple(version: str) -> tuple[int, ...]:
     core = version.split("-", 1)[0]
     return tuple(int(part) for part in core.split(".")[:3])
-
-
-def _yarn_versions(text: str, name: str) -> list[str]:
-    versions: list[str] = []
-    in_block = False
-    for line in text.splitlines():
-        if line.startswith(f"{name}@"):
-            in_block = True
-            continue
-        if in_block and line and not line.startswith(" "):
-            in_block = False
-        if in_block and line.startswith('  version "'):
-            versions.append(line.split('"')[1])
-    return versions
 
 
 def test_package_json_overrides_follow_redirects():
@@ -53,7 +41,7 @@ def test_npm_lock_resolves_follow_redirects_1_16_2():
 
 
 def test_yarn_lock_resolves_follow_redirects_1_16_2():
-    versions = _yarn_versions((DOCS / "yarn.lock").read_text(), NAME)
+    versions = yarn_versions((DOCS / "yarn.lock").read_text(), NAME)
     assert versions, "yarn.lock has no follow-redirects entry"
     for version in versions:
         assert _tuple(version) >= MIN, version
