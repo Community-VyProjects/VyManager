@@ -34,7 +34,6 @@ import { sessionService, ActiveSession } from "@/lib/api/session";
 import { useMonitoringWebSocket } from "@/hooks/useMonitoringWebSocket";
 import { TrafficTable } from "@/components/monitoring/TrafficTable";
 import { LogTable } from "@/components/monitoring/LogTable";
-import { ConntrackTable } from "@/components/monitoring/ConntrackTable";
 import { FilterBuilderModal } from "@/components/monitoring/FilterBuilderModal";
 import { SSHNotConfigured } from "@/components/console/SSHNotConfigured";
 import { cn } from "@/lib/utils";
@@ -49,7 +48,6 @@ const TABLE_COMMANDS = {
   show_log_l2tp: "log",
   monitor_protocol_bgp: "log",
   monitor_protocol_ospf: "log",
-  monitor_conntrack: "conntrack",
 } as const;
 
 type TableView = (typeof TABLE_COMMANDS)[keyof typeof TABLE_COMMANDS];
@@ -427,14 +425,6 @@ function MonitoringPageInner() {
                 )}
                 {tableView === "log" && (
                   <LogTable
-                    key={sessionKey}
-                    output={output}
-                    isRunning={isRunning}
-                    onClear={handleClear}
-                  />
-                )}
-                {tableView === "conntrack" && (
-                  <ConntrackTable
                     key={sessionKey}
                     output={output}
                     isRunning={isRunning}

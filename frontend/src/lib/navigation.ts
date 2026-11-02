@@ -291,7 +291,6 @@ export const navigation: NavItem[] = [
   { title: "Monitoring", href: "/monitoring", icon: Activity, requiredPermission: FeatureGroup.MONITORING, sections: [
       { id: "monitor-traffic", title: "Monitor Traffic", href: "/monitoring", description: "Capture traffic on an interface", searchParams: { command: "monitor_traffic" } },
       { id: "view-logs", title: "View Logs", href: "/monitoring", description: "Tail system logs", searchParams: { command: "monitor_log" } },
-      { id: "monitor-conntrack", title: "Monitor Conntrack", href: "/monitoring", description: "Inspect connection tracking state", searchParams: { command: "monitor_conntrack" } },
       { id: "log-tail", title: "Log Tail", href: "/monitoring", description: "Show the recent log tail", searchParams: { command: "show_log_tail" } },
     ] },
   {

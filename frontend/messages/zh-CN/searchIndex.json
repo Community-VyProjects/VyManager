@@ -182,7 +182,6 @@
     "monitoring": {
       "monitorTraffic": "在接口上抓取流量",
       "viewLogs": "实时查看系统日志",
-      "monitorConntrack": "查看连接跟踪状态",
       "logTail": "显示最近的日志"
     },
     "system": {
@@ -397,7 +396,6 @@
     "member": "成员",
     "members": "成员",
     "mode": "模式",
-    "monitorConntrack": "监控连接跟踪",
     "monitorTraffic": "监控流量",
     "multicastRoutes": "组播路由",
     "neighbor": "邻居",

@@ -73,21 +73,6 @@
     "empty": "开始监控以查看日志",
     "details": "日志记录详情"
   },
-  "conntrack": {
-    "events": "{count, number} 个事件",
-    "filterEvents": "过滤事件…",
-    "event": "事件",
-    "proto": "协议",
-    "source": "源",
-    "destination": "目标",
-    "state": "状态",
-    "waiting": "正在等待连接事件…",
-    "noMatch": "没有与过滤条件匹配的事件",
-    "empty": "开始监控以查看连接",
-    "details": "连接详情",
-    "forwardFlow": "正向流",
-    "replyFlow": "回复流"
-  },
   "filter": {
     "title": "构建过滤条件",
     "description": "使用条件构建 BPF 捕获过滤器",
