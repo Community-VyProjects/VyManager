@@ -14,9 +14,6 @@ class VrfStaticMapper:
     def _base(self, name: str) -> List[str]:
         return ["vrf", "name", name, "protocols", "static"]
 
-    def get_static(self, name: str) -> List[str]:
-        return self._base(name)
-
     # ========================================================================
     # IPv4 Route Paths
     # ========================================================================

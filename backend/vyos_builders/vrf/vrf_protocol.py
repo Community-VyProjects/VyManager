@@ -1,9 +1,10 @@
 """Reuse global feature builders under a VRF path prefix.
 
 VRF configuration is the same command tree as the global feature, with
-``vrf name <vrf>`` in front. Path existence stays in the mapper. The prefix
-is applied by :class:`PathPrefixMapper`, not by a second handwritten builder.
-This module is the only place VRF builders learn that prefix.
+``vrf name <vrf>`` in front. ``PathPrefixMapper`` applies that prefix to the
+global feature mapper before the global builder runs. The queued ops are
+that builder's operations. This module is the only place VRF builders learn
+the prefix.
 """
 
 from __future__ import annotations
@@ -19,7 +20,14 @@ from vyos_builders.isis.isis_batch_builder import IsisBatchBuilder
 from vyos_builders.ospf.ospf_batch_builder import OspfBatchBuilder
 from vyos_builders.ospfv3.ospfv3_batch_builder import Ospfv3BatchBuilder
 from vyos_builders.static_routes.static_routes_batch_builder import StaticRoutesBatchBuilder
-from vyos_mappers.path_prefix import PathPrefixMapper
+from vyos_builders.vrf.feature_modes import DIRECT, DROP, FLIP
+from vyos_mappers.feature_leaves import (
+    DhcpExtraLeaves,
+    Dhcpv6ExtraLeaves,
+    FailoverExtraLeaves,
+    StaticExtraLeaves,
+)
+from vyos_mappers.path_prefix import PathPrefixMapper, require_feature_version
 
 # Longest name first so "ospfv3" is not parsed as "ospf" and "dhcpv6" is not "dhcp".
 PROTOCOL_BUILDERS = {
@@ -174,67 +182,50 @@ def _parent_node_delete_path(
     return path[:-1]
 
 
-def _feature_method_names(proto: str, suffix: str) -> List[str]:
-    """Global builder suffixes for a VRF op suffix. Structural renames only."""
-    names: List[str] = []
+def _alias(proto: str, suffix: str) -> str:
+    """One global-builder suffix for a VRF op. Not a search list."""
     if proto == "static":
         if suffix.startswith("route6"):
-            names.append("ipv6_route" + suffix[len("route6") :])
-        elif suffix == "route" or suffix.startswith("route_"):
-            names.append("ipv4_" + suffix)
+            return "ipv6_route" + suffix[len("route6") :]
+        if suffix == "route" or suffix.startswith("route_"):
+            return "ipv4_" + suffix
     elif proto == "failover" and suffix.startswith("route_"):
-        names.append(suffix[len("route_") :])
+        return suffix[len("route_") :]
     elif proto == "dhcp":
         if suffix == "disable":
-            names.append("global_disable")
+            return "global_disable"
         if suffix.startswith("ha_"):
-            names.append("failover_" + suffix[len("ha_") :])
+            return "failover_" + suffix[len("ha_") :]
     elif proto == "dhcpv6" and suffix.startswith("shared_network_"):
-        names.append("network_" + suffix[len("shared_network_") :])
-    if suffix not in names:
-        names.append(suffix)
-    return names
+        return "network_" + suffix[len("shared_network_") :]
+    return suffix
+
+
+_LEAF_CLASSES = {
+    "static": StaticExtraLeaves,
+    "failover": FailoverExtraLeaves,
+    "dhcp": DhcpExtraLeaves,
+    "dhcpv6": Dhcpv6ExtraLeaves,
+}
+
+
+def _mode_key(proto: str, verb: str, suffix: Optional[str]) -> str:
+    return f"{proto}:{verb}:{suffix or ''}"
+
+
+def _leaf_name(verb: str, suffix: Optional[str]) -> str:
+    if suffix is None:
+        return "get_root" if verb == "set" else "get_root_delete"
+    return f"get_{suffix}" if verb == "set" else f"get_{suffix}_delete"
 
 
 def _feature_op_exists(owner: Any, verb: str, proto: str, suffix: Optional[str]) -> bool:
-    mapper = owner.mappers.get(f"vrf_{proto}")
-    if mapper is None:
+    if suffix is None and verb == "set" and proto not in _FEATURE_ROOT_SET:
         return False
-    if suffix is None:
-        if verb == "set" and proto not in _FEATURE_ROOT_SET:
-            return False
-        return hasattr(mapper, f"get_{proto}")
-    return any(
-        hasattr(mapper, candidate)
-        for candidate in (
-            f"get_{proto}_{suffix}",
-            f"get_{suffix}",
-            f"get_{proto}_{suffix}_delete",
-        )
-    )
-
-
-def _feature_mapper_ops(
-    owner: Any,
-    verb: str,
-    proto: str,
-    suffix: Optional[str],
-    vrf_name: str,
-    value: Optional[str],
-) -> Optional[List[Dict[str, Any]]]:
-    mapper = owner.mappers.get(f"vrf_{proto}")
-    if mapper is None:
-        return None
-    op = "set" if verb == "set" else "delete"
-    if suffix is None:
-        getter = getattr(mapper, f"get_{proto}", None)
-        if getter is None:
-            return None
-        return [{"op": op, "path": getter(vrf_name)}]
-    path = _mapper_path(mapper, proto, suffix, vrf_name, value, verb)
-    if path is None:
-        return None
-    return [{"op": op, "path": path}]
+    key = _mode_key(proto, verb, suffix)
+    if key in DIRECT or key in FLIP or key in DROP:
+        return True
+    return hasattr(_LEAF_CLASSES[proto], _leaf_name(verb, suffix))
 
 
 def _install_prefix(inner: Any, prefix: List[str]) -> None:
@@ -246,38 +237,104 @@ def _install_prefix(inner: Any, prefix: List[str]) -> None:
         inner.m = PathPrefixMapper(inner.m, prefix)
 
 
-def _try_feature_builder(
-    owner: Any,
-    verb: str,
+def _queue(owner: Any, inner: Any) -> Any:
+    for op in inner.get_operations():
+        owner._operations.append({"op": op["op"], "path": list(op.get("path") or [])})
+    return owner
+
+
+def _call_aliased(inner: Any, verb: str, proto: str, suffix: str, value: Optional[str]) -> None:
+    method = getattr(inner, f"{verb}_{_alias(proto, suffix)}")
+    _call_with_packed_value(method, value)
+
+
+def _emit_leaf(
+    inner: Any,
     proto: str,
-    suffix: str,
+    verb: str,
+    suffix: Optional[str],
     vrf_name: str,
     value: Optional[str],
-    mapped_ops: List[Dict[str, Any]],
-) -> Optional[List[Dict[str, Any]]]:
-    """Call the global builder when its prefixed paths match the mapper."""
-    if not mapped_ops:
-        return None
-    inner_cls = FEATURE_BUILDERS[proto]
-    prefix = ["vrf", "name", vrf_name]
-    for method_suffix in _feature_method_names(proto, suffix):
-        method_name = f"{verb}_{method_suffix}"
-        if not hasattr(inner_cls, method_name):
-            continue
-        inner = inner_cls(owner.version)
-        _install_prefix(inner, prefix)
-        method = getattr(inner, method_name)
-        try:
-            _call_with_packed_value(method, value)
-        except (TypeError, ValueError):
-            continue
-        ops = [
-            {"op": op["op"], "path": list(op.get("path") or [])}
-            for op in inner.get_operations()
-        ]
-        if ops == mapped_ops:
-            return ops
-    return None
+) -> bool:
+    """Queue one feature-mapper leaf through the global builder.
+
+    The leaf classes are not mixed into the live feature mappers, so a VRF
+    leaf cannot override a global DHCP or DHCPv6 getter. PathPrefixMapper
+    is what adds ``vrf name <vrf>``.
+    """
+    leaf_cls = _LEAF_CLASSES[proto]
+    gname = _leaf_name(verb, suffix)
+    raw = getattr(leaf_cls, gname, None)
+    if raw is None:
+        raise AttributeError(gname)
+    params = [p for p in inspect.signature(raw).parameters if p != "self"]
+    if not params:
+        args: tuple = ()
+    else:
+        if value is None:
+            return False
+        parts = [value] if len(params) == 1 else value.split(",", len(params) - 1)
+        if len(parts) != len(params):
+            return False
+        args = tuple(parts)
+    leaves = PathPrefixMapper(leaf_cls(), ["vrf", "name", vrf_name])
+    path = getattr(leaves, gname)(*args)
+    if verb == "set":
+        inner.add_set(path)
+    else:
+        inner.add_delete(path)
+    return True
+
+
+def _drop_set_leaf(inner: Any, proto: str, suffix: str, value: Optional[str]) -> bool:
+    method = getattr(inner, f"set_{_alias(proto, suffix)}")
+    params = [p for p in inspect.signature(method).parameters if p != "self"]
+    tokens = [] if value is None else value.split(",")
+    if len(tokens) + 1 != len(params):
+        return False
+    method(*tokens, "_")
+    ops = inner.get_operations()
+    inner._operations.clear()
+    for op in ops:
+        inner.add_delete(op["path"][:-1])
+    return True
+
+
+def _flip_set(inner: Any, proto: str, suffix: str, value: Optional[str]) -> None:
+    method = getattr(inner, f"set_{_alias(proto, suffix)}")
+    _call_with_packed_value(method, value)
+    ops = list(inner.get_operations())
+    inner._operations.clear()
+    for op in ops:
+        inner.add_delete(list(op["path"]))
+
+
+def _emit_version_delete(inner: Any, proto: str, suffix: str, value: Optional[str]) -> bool:
+    """Use a version-mapper delete getter when the global delete method would be wrong."""
+    if proto != "static" or not suffix:
+        return False
+    mapper = inner.mappers[inner.mapper_key]
+    gname = f"get_{_alias(proto, suffix)}_delete"
+    # PathPrefixMapper hides the real signature. Ask the 1.4 class.
+    from vyos_mappers.static_routes.static_routes_versions.v1_4 import StaticRoutesMapperV1_4
+
+    raw = getattr(StaticRoutesMapperV1_4, gname, None)
+    if raw is None or not hasattr(mapper, gname):
+        return False
+    params = [p for p in inspect.signature(raw).parameters if p != "self"]
+    if not params:
+        path = getattr(mapper, gname)()
+    else:
+        if value is None:
+            return False
+        parts = [value] if len(params) == 1 else value.split(",", len(params) - 1)
+        if len(parts) != len(params):
+            return False
+        path = getattr(mapper, gname)(*parts)
+    if not path:
+        return False
+    inner.add_delete(path)
+    return True
 
 
 def _run_feature_op(
@@ -288,19 +345,37 @@ def _run_feature_op(
     vrf_name: str,
     value: Optional[str],
 ) -> Any:
-    mapped = _feature_mapper_ops(owner, verb, proto, suffix, vrf_name, value)
-    if mapped is None:
-        # A packed value with the wrong arity was a silent no-op in the mixins.
-        # Unknown ops never get here: vrf_protocol_op_exists already rejected them.
+    require_feature_version(proto, owner.version)
+    inner = FEATURE_BUILDERS[proto](owner.version)
+    _install_prefix(inner, ["vrf", "name", vrf_name])
+    if (
+        proto == "static"
+        and suffix
+        and suffix.startswith("route_")
+        and "segments" in suffix
+        and "1.4" in owner.version
+        and "1.5" not in owner.version
+    ):
         return owner
-    chosen = mapped
-    if suffix is not None:
-        global_ops = _try_feature_builder(owner, verb, proto, suffix, vrf_name, value, mapped)
-        if global_ops is not None:
-            chosen = global_ops
-    for op in chosen:
-        owner._operations.append(op)
-    return owner
+    if verb == "delete" and suffix and _emit_version_delete(inner, proto, suffix, value):
+        return _queue(owner, inner)
+    key = _mode_key(proto, verb, suffix)
+    if suffix and key in DIRECT:
+        try:
+            _call_aliased(inner, verb, proto, suffix, value)
+        except TypeError:
+            return owner
+        return _queue(owner, inner)
+    if suffix and key in FLIP:
+        _flip_set(inner, proto, suffix, value)
+        return _queue(owner, inner)
+    if suffix and key in DROP:
+        if not _drop_set_leaf(inner, proto, suffix, value):
+            return owner
+        return _queue(owner, inner)
+    if not _emit_leaf(inner, proto, verb, suffix, vrf_name, value):
+        return owner
+    return _queue(owner, inner)
 
 
 def run_vrf_protocol_op(

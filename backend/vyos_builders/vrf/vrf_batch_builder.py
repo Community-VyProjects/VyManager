@@ -27,15 +27,11 @@ class VrfBatchBuilder(
         self.mappers = CommandMapperRegistry.get_mappers(
             (
                 "vrf",
-                "vrf_static",
                 "vrf_rpki",
-                "vrf_failover",
                 "vrf_ospf",
                 "vrf_ospfv3",
                 "vrf_isis",
                 "vrf_bgp",
-                "vrf_dhcp",
-                "vrf_dhcpv6",
             ),
             version,
         )

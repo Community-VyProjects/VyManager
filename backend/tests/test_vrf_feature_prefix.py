@@ -94,7 +94,53 @@ def test_dhcp_disable_calls_global_builder(monkeypatch):
     ]
 
 
-def test_static_root_set_is_not_an_op():
+def test_queued_ops_are_the_global_builder_output(monkeypatch):
+    def spy(self, destination):
+        self._operations.append({"op": "set", "path": ["MARK", destination]})
+        return self
+
+    monkeypatch.setattr(StaticRoutesBatchBuilder, "set_ipv4_route", spy)
+    builder = VrfBatchBuilder("1.5")
+    builder.set_vrf_static_route("blue", "10.0.0.0/24")
+    assert builder.get_operations() == [
+        {"op": "set", "path": ["MARK", "10.0.0.0/24"]}
+    ]
+
+
+def test_prefix_comes_from_path_prefix_mapper(monkeypatch):
+    from vyos_mappers.path_prefix import PathPrefixMapper
+
+    class Bare(PathPrefixMapper):
+        def __getattr__(self, name):
+            return getattr(self._inner, name)
+
+    monkeypatch.setattr("vyos_builders.vrf.vrf_protocol.PathPrefixMapper", Bare)
+    builder = VrfBatchBuilder("1.5")
+    builder.set_vrf_static_route("blue", "10.0.0.0/24")
+    assert builder.get_operations() == [
+        {"op": "set", "path": ["protocols", "static", "route", "10.0.0.0/24"]}
+    ]
+
+
+def test_dhcp_and_failover_reject_on_1_4():
+    builder = VrfBatchBuilder("1.4")
+    with pytest.raises(ValueError, match="not supported on this device"):
+        builder.set_vrf_dhcp_disable("blue")
+    with pytest.raises(ValueError, match="not supported on this device"):
+        builder.set_vrf_failover_route("blue", "10.0.0.0/24")
+
+
+def test_static_bfd_source_follows_version():
+    old = VrfBatchBuilder("1.4")
+    old.set_vrf_static_route_next_hop_bfd_multi_hop_source(
+        "blue", "10.0.0.0/24,192.0.2.1,192.0.2.2"
+    )
+    assert old.get_operations()[-1]["path"][-3:] == ["source", "192.0.2.2", "profile"]
+    new = VrfBatchBuilder("1.5")
+    new.set_vrf_static_route_next_hop_bfd_multi_hop_source(
+        "blue", "10.0.0.0/24,192.0.2.1,192.0.2.2"
+    )
+    assert new.get_operations()[-1]["path"][-2:] == ["source-address", "192.0.2.2"]
     builder = VrfBatchBuilder("1.5")
     with pytest.raises(AttributeError):
         builder.set_vrf_static("blue")
