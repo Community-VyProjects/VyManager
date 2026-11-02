@@ -354,37 +354,28 @@ async def independent_org_conn(request: Request) -> AsyncIterator[asyncpg.Connec
     """Org-scoped connection that always commits on exit.
 
     request_scoped_conn joins request.state.org_conn when a handler
-    transaction is open. A host-key pin must not join that transaction:
-    a later failure would roll the pin back, and the handshake must not
-    hold the handler connection. This opens a new connection, sets the
-    same org context, and does not replace request.state.org_conn.
+    transaction is open. A host-key pin must not join that transaction.
+    Same org-context source as request_scoped_conn's own connection.
     """
     pool = _require_pool(request)
-    saved_org_conn = getattr(request.state, "org_conn", None)
-    org_id = (
-        getattr(request.state, "acting_org_id", None)
-        or org_id_from_state(request)
-        or ""
-    )
     known_admin = is_system_admin_from_state(request)
-    try:
-        if known_admin is None:
-            async with pool.acquire() as conn:
-                async with conn.transaction():
-                    is_admin = await _resolve_system_admin(conn, request)
-                    await conn.execute(
-                        "SELECT set_config('app.org_id', $1, true),"
-                        "       set_config('app.is_system_admin', $2, true)",
-                        org_id,
-                        "true" if is_admin else "false",
-                    )
-                    yield conn
-            return
+    if known_admin is None:
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                is_admin = await _resolve_system_admin(conn, request)
+                await conn.execute(
+                    "SELECT set_config('app.org_id', $1, true),"
+                    "       set_config('app.is_system_admin', $2, true)",
+                    org_id_from_state(request) or "",
+                    "true" if is_admin else "false",
+                )
+                yield conn
+        return
 
-        async with org_scoped_conn(pool, org_id, known_admin) as conn:
-            yield conn
-    finally:
-        request.state.org_conn = saved_org_conn
+    async with org_scoped_conn(
+        pool, org_id_from_state(request), known_admin
+    ) as conn:
+        yield conn
 
 
 async def assert_row_in_acting_org(

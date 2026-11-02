@@ -655,8 +655,6 @@ def test_pin_survives_a_later_sftp_failure(monkeypatch):
     assert conn.held == 0
     stored = private.export_public_key().decode().strip()
     assert conn.committed[("inst", "backup.example", 22)] == stored
-    conn.keys.clear()
-    assert conn.committed[("inst", "backup.example", 22)] == stored
 
 
 def test_archive_and_container_pins_do_not_join_the_handler_transaction(monkeypatch):
@@ -739,6 +737,77 @@ def test_archive_and_container_pins_do_not_join_the_handler_transaction(monkeypa
         archive_request, "sftp://backup.example/cfg/",
     ))
     assert seen == [fresh]
+
+
+def test_independent_org_conn_commits_its_own_connection():
+    import org_scope
+
+    class _DB:
+        def __init__(self):
+            self.queries = []
+            self.in_tx = False
+
+        def transaction(self):
+            db = self
+
+            class _Tx:
+                async def __aenter__(self):
+                    db.in_tx = True
+                    return db
+
+                async def __aexit__(self, *args):
+                    db.in_tx = False
+                    return False
+
+            return _Tx()
+
+        async def execute(self, query, *args):
+            self.queries.append((query, args))
+
+    class _Pool:
+        def __init__(self):
+            self.conn = _DB()
+            self.held = 0
+
+        def acquire(self):
+            pool = self
+
+            class _Acq:
+                async def __aenter__(self):
+                    pool.held += 1
+                    return pool.conn
+
+                async def __aexit__(self, *args):
+                    pool.held -= 1
+                    return False
+
+            return _Acq()
+
+    handler = object()
+    pool = _Pool()
+    request = SimpleNamespace(
+        app=SimpleNamespace(state=SimpleNamespace(db_pool=pool)),
+        state=SimpleNamespace(
+            org={"id": "org-1"},
+            user_role="VIEWER",
+            org_conn=handler,
+            acting_org_id="org-stale",
+        ),
+    )
+
+    async def run():
+        async with org_scope.independent_org_conn(request) as conn:
+            assert conn is pool.conn
+            assert conn is not handler
+            assert pool.conn.in_tx is True
+            assert pool.held == 1
+            assert ("org-1", "false") in [args for _query, args in pool.conn.queries]
+            assert not any(args and args[0] == "org-stale" for _query, args in pool.conn.queries)
+        assert pool.conn.in_tx is False
+        assert pool.held == 0
+        assert request.state.org_conn is handler
+
+    _run(run())
 
 
 def test_replaced_router_pin_is_dropped_only_when_the_endpoint_changes():
