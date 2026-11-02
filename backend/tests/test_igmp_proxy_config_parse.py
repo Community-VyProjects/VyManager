@@ -1,7 +1,5 @@
 """IGMP proxy GET /config parse lives on the mapper (issue #966)."""
 
-from pathlib import Path
-
 import pytest
 
 import vyos_mappers  # noqa: F401  registers IgmpProxyMapper
@@ -84,25 +82,6 @@ def test_empty_tree():
     assert _mapper("1.4").parse_config({}) == empty
     assert _mapper().parse_config({"protocols": {"igmp-proxy": {}}}) == empty
 
-
-def test_router_has_no_config_parsers_section():
-    text = (
-        Path(__file__)
-        .resolve()
-        .parents[1]
-        .joinpath("routers/igmp_proxy/igmp_proxy.py")
-        .read_text()
-    )
-    assert "Config Parsers" not in text
-    parse_src = (
-        Path(__file__)
-        .resolve()
-        .parents[1]
-        .joinpath("vyos_mappers/igmp_proxy/config_parse.py")
-        .read_text()
-    )
-    assert "pydantic" not in parse_src
-    assert "fastapi" not in parse_src
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

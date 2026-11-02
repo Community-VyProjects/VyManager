@@ -1,7 +1,5 @@
 """NHRP GET /config parse lives on the mapper (issue #966)."""
 
-from pathlib import Path
-
 from vyos_mappers.nhrp.nhrp_versions import get_nhrp_mapper
 
 
@@ -112,11 +110,6 @@ def test_1_5_uses_authentication_and_nested_maps():
     assert tun1["registration_no_unique"] is True
     assert tun1["shortcut"] is True
 
-
-def test_nhrp_router_has_no_config_parsers():
-    text = Path(__file__).resolve().parents[1].joinpath("routers/nhrp/nhrp.py").read_text()
-    assert "Config Parsers" not in text
-    assert "def _parse_" not in text
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

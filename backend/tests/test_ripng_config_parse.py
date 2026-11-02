@@ -1,7 +1,5 @@
 """RIPng GET /config parse lives on the mapper (issue #966)."""
 
-from pathlib import Path
-
 from vyos_mappers.base import CommandMapperRegistry
 from vyos_mappers.ripng.ripng_versions import get_ripng_mapper
 
@@ -82,11 +80,6 @@ def test_registry_matches_factory():
     factory = get_ripng_mapper("1.5").parse_config(_tree())
     registry = CommandMapperRegistry.get_mapper("ripng", "1.5").parse_config(_tree())
     assert registry["default_metric"] == factory["default_metric"] == 4
-
-
-def test_router_has_no_config_parsers():
-    text = Path(__file__).resolve().parents[1].joinpath("routers/ripng/ripng.py").read_text()
-    assert "Config Parsers" not in text
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

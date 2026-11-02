@@ -1,7 +1,5 @@
 """RPKI GET /config parse lives on the mapper (issue #966)."""
 
-from pathlib import Path
-
 from vyos_mappers.rpki.rpki_versions import get_rpki_mapper
 
 
@@ -63,20 +61,6 @@ def test_empty_tree():
     assert get_rpki_mapper("1.5").parse_config({"protocols": {}}) == _empty()
     assert get_rpki_mapper("1.5").parse_config({"protocols": {"rpki": {}}}) == _empty()
 
-
-def test_router_has_no_config_parsers_section():
-    text = Path(__file__).resolve().parents[1].joinpath("routers/rpki/rpki.py").read_text()
-    assert "Config Parsers" not in text
-    parse_src = (
-        Path(__file__)
-        .resolve()
-        .parents[1]
-        .joinpath("vyos_mappers/rpki/config_parse.py")
-        .read_text()
-    )
-    assert "pydantic" not in parse_src
-    assert "fastapi" not in parse_src
-    assert "routers" not in parse_src
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

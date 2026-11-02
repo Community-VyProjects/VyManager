@@ -7,6 +7,8 @@ it on every version.
 
 from typing import Any, Dict, List, Optional
 
+from .qos import FLOW_ISOLATION_MODES
+
 
 # vyos-key -> model field for class/default scalar attributes
 _CLASS_SCALAR_FIELDS = {
@@ -31,17 +33,6 @@ _CLASS_SCALAR_FIELDS = {
     "set-dscp": "set_dscp",
     "target": "target",
 }
-
-FLOW_ISOLATION_MODES = [
-    "blind",
-    "dst-host",
-    "dual-dst-host",
-    "dual-src-host",
-    "flow",
-    "host",
-    "src-host",
-    "triple-isolate",
-]
 
 
 def _as_dict(raw) -> dict:

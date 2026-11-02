@@ -16,6 +16,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers import CommandMapperRegistry
 from vyos_builders.salt_minion import SaltMinionBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -97,20 +98,10 @@ async def get_salt_minion_config(http_request: Request, refresh: bool = False):
     await require_read_permission(http_request, FeatureGroup.SALT_MINION)
     try:
         service = get_session_vyos_service(http_request)
+        version = service.get_version()
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        sm_raw = full_config.get("service", {}).get("salt-minion", {})
-        if not sm_raw:
-            return SaltMinionConfig()
-
-        return SaltMinionConfig(
-            hash=sm_raw.get("hash"),
-            id=sm_raw.get("id"),
-            interval=_parse_int(sm_raw.get("interval")),
-            master_key=sm_raw.get("master-key"),
-            masters=_parse_masters(sm_raw),
-            source_interface=sm_raw.get("source-interface"),
-        )
+        mapper = CommandMapperRegistry.get_mapper("salt_minion", version)
+        return SaltMinionConfig(**mapper.parse_config(full_config))
     except Exception:
         logger.exception("Unhandled error in get_salt_minion_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -161,28 +152,3 @@ async def salt_minion_batch_configure(http_request: Request, body: SaltMinionBat
     except Exception:
         logger.exception("Unhandled error in salt_minion_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-# ============================================================================
-# Config parsers
-# ============================================================================
-
-
-def _parse_int(value) -> Optional[int]:
-    if value is None:
-        return None
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return None
-
-
-def _parse_masters(sm_raw: dict) -> List[str]:
-    master = sm_raw.get("master")
-    if master is None:
-        return []
-    if isinstance(master, list):
-        return sorted(str(v) for v in master)
-    if isinstance(master, dict):
-        return sorted(master.keys())
-    return [str(master)]

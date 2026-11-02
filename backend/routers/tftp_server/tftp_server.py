@@ -16,6 +16,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers import CommandMapperRegistry
 from vyos_builders.tftp_server import TFTPServerBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -100,18 +101,10 @@ async def get_tftp_server_config(http_request: Request, refresh: bool = False):
     await require_read_permission(http_request, FeatureGroup.TFTP_SERVER)
     try:
         service = get_session_vyos_service(http_request)
+        version = service.get_version()
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        tftp_raw = full_config.get("service", {}).get("tftp-server", {})
-        if not tftp_raw or not isinstance(tftp_raw, dict):
-            return TFTPServerConfig()
-
-        return TFTPServerConfig(
-            directory=tftp_raw.get("directory"),
-            allow_upload="allow-upload" in tftp_raw,
-            port=tftp_raw.get("port"),
-            listen_addresses=_parse_listen_addresses(tftp_raw),
-        )
+        mapper = CommandMapperRegistry.get_mapper("tftp_server", version)
+        return TFTPServerConfig(**mapper.parse_config(full_config))
     except Exception:
         logger.exception("Unhandled error in get_tftp_server_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -162,20 +155,3 @@ async def tftp_server_batch_configure(http_request: Request, body: TFTPServerBat
     except Exception:
         logger.exception("Unhandled error in tftp_server_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-# ============================================================================
-# Config parsers
-# ============================================================================
-
-
-def _parse_listen_addresses(tftp_raw: dict) -> List[TFTPServerListenAddress]:
-    listen_raw = tftp_raw.get("listen-address", {})
-    if not isinstance(listen_raw, dict):
-        return []
-    result = []
-    for address, cfg in listen_raw.items():
-        cfg = cfg or {}
-        result.append(TFTPServerListenAddress(address=address, vrf=cfg.get("vrf")))
-    result.sort(key=lambda a: a.address)
-    return result

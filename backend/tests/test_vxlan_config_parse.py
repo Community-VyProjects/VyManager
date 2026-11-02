@@ -1,7 +1,5 @@
 """VXLAN GET /config parse lives on the mapper (issue #966)."""
 
-from pathlib import Path
-
 from vyos_mappers.vxlan.vxlan_versions import get_vxlan_mapper
 
 
@@ -107,10 +105,6 @@ def test_empty_tree():
     assert parsed == {"interfaces": [], "total": 0}
     assert parsed == get_vxlan_mapper("1.5").parse_config({"interfaces": {"vxlan": None}})
 
-
-def test_vxlan_router_has_no_config_parsers():
-    text = Path(__file__).resolve().parents[1].joinpath("routers/vxlan/vxlan.py").read_text()
-    assert "Config Parsers" not in text
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

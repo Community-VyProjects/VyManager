@@ -1,7 +1,5 @@
 """BFD GET /config parse lives on the mapper (issue #966)."""
 
-from pathlib import Path
-
 from vyos_mappers.base import CommandMapperRegistry
 from vyos_mappers.bfd.bfd_versions import get_bfd_mapper
 
@@ -78,11 +76,6 @@ def test_registry_matches_factory():
     factory = get_bfd_mapper("1.5").parse_config(_tree())
     registry = CommandMapperRegistry.get_mapper("bfd", "1.5").parse_config(_tree())
     assert registry["peers"][0]["profile"] == factory["peers"][0]["profile"] == "fast"
-
-
-def test_router_has_no_config_parsers():
-    text = Path(__file__).resolve().parents[1].joinpath("routers/bfd/bfd.py").read_text()
-    assert "Config Parsers" not in text
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

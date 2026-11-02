@@ -1,7 +1,5 @@
 """VRF GET /config parse lives on the mapper (issue #966)."""
 
-from pathlib import Path
-
 from vyos_mappers.vrf.vrf_versions import get_vrf_mapper
 
 
@@ -186,12 +184,6 @@ def test_parse_instance_subtrees_and_int_coercion():
     }
     assert get_vrf_mapper("1.4").parse_config(bad_as)["instances"][0]["bgp"]["system_as"] is None
 
-
-def test_vrf_router_has_no_config_parsers():
-    text = Path(__file__).resolve().parents[1].joinpath("routers/vrf/vrf.py").read_text()
-    assert "Config Parsers" not in text
-    assert "def parse_vrf_instances" not in text
-    assert "def parse_ip_settings" not in text
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

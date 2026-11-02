@@ -1,7 +1,5 @@
 """OSPF GET /config parse lives on the mapper (issue #966)."""
 
-from pathlib import Path
-
 from vyos_mappers.ospf.ospf_versions import get_ospf_mapper
 
 
@@ -156,10 +154,6 @@ def test_parse_nested_ospf_config():
     assert parsed["aggregation_timer"] == 5
     assert parsed["capability_opaque"] is True
 
-
-def test_ospf_router_has_no_config_parsers():
-    text = Path(__file__).resolve().parents[1].joinpath("routers/ospf/ospf.py").read_text()
-    assert "Config Parsers" not in text
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

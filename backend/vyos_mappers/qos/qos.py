@@ -19,6 +19,19 @@ from ..base import BaseFeatureMapper
 
 BASE = ["qos"]
 
+# Cake flow-isolation values. The builder exposes this same list through
+# capabilities; do not keep a second copy there.
+FLOW_ISOLATION_MODES = [
+    "blind",
+    "dst-host",
+    "dual-dst-host",
+    "dual-src-host",
+    "flow",
+    "host",
+    "src-host",
+    "triple-isolate",
+]
+
 # 1.5-only valueless cake leaves. 1.4 rejects these template paths.
 _CAKE_15_ONLY_FLAGS = {
     ("ack-filter",),

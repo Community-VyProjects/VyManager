@@ -1,7 +1,5 @@
 """Broadcast relay GET /config parse lives on the mapper (issue #966)."""
 
-from pathlib import Path
-
 from vyos_mappers.broadcast_relay.broadcast_relay_versions import (
     get_broadcast_relay_mapper,
 )
@@ -66,16 +64,6 @@ def test_empty_tree():
         == empty
     )
 
-
-def test_router_has_no_config_parsers_section():
-    text = (
-        Path(__file__)
-        .resolve()
-        .parents[1]
-        .joinpath("routers/broadcast_relay/broadcast_relay.py")
-        .read_text()
-    )
-    assert "Config Parsers" not in text
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

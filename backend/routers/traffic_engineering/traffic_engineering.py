@@ -99,8 +99,13 @@ async def get_te_config(http_request: Request, refresh: bool = False):
 
     try:
         service = get_session_vyos_service(http_request)
+        version = service.get_version()
+        builder = TrafficEngineeringBatchBuilder(version=version)
+        if not builder.get_capabilities()["features"]["traffic_engineering"]["supported"]:
+            return TrafficEngineeringConfig()
+
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-        mapper = CommandMapperRegistry.get_mapper("traffic_engineering", service.get_version())
+        mapper = CommandMapperRegistry.get_mapper("traffic_engineering", version)
         return TrafficEngineeringConfig(**mapper.parse_config(full_config))
     except Exception:
         logger.exception("Unhandled error in get_te_config")

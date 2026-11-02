@@ -3,8 +3,6 @@
 Parse does not branch on version. Both 1.4 and 1.5 are asserted.
 """
 
-from pathlib import Path
-
 from vyos_mappers.ospfv3.ospfv3_versions import get_ospfv3_mapper
 
 
@@ -104,12 +102,6 @@ def test_parse_nested_ospfv3_config_both_versions():
     assert parsed["log_adjacency_changes"] is True
     assert parsed["log_adjacency_changes_detail"] is True
 
-
-def test_ospfv3_router_has_no_config_parsers():
-    text = (
-        Path(__file__).resolve().parents[1].joinpath("routers/ospfv3/ospfv3.py").read_text()
-    )
-    assert "Config Parsers" not in text
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

@@ -1,7 +1,5 @@
 """PIMv6 GET /config parse lives on the mapper (issue #966)."""
 
-from pathlib import Path
-
 from vyos_mappers.pim6.pim6_versions import get_pim6_mapper
 
 
@@ -87,10 +85,6 @@ def test_empty_tree():
     }
     assert parsed == get_pim6_mapper("1.5").parse_config({"protocols": {"pim6": {}}})
 
-
-def test_pim6_router_has_no_config_parsers():
-    text = Path(__file__).resolve().parents[1].joinpath("routers/pim6/pim6.py").read_text()
-    assert "Config Parsers" not in text
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

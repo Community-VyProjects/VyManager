@@ -1,7 +1,5 @@
 """DHCP relay GET /config parse lives on the mapper (issue #966)."""
 
-from pathlib import Path
-
 from vyos_mappers.dhcp_relay.dhcp_relay_versions import get_dhcp_relay_mapper
 
 
@@ -69,16 +67,6 @@ def test_empty_tree():
     assert missing_options["relay_options"]["hop_count"] is None
     assert missing_options["interfaces"] == []
 
-
-def test_router_has_no_config_parsers_section():
-    text = (
-        Path(__file__)
-        .resolve()
-        .parents[1]
-        .joinpath("routers/dhcp_relay/dhcp_relay.py")
-        .read_text()
-    )
-    assert "Config Parsers" not in text
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

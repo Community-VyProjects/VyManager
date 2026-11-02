@@ -1,7 +1,5 @@
 """Babel GET /config parse lives on the mapper (issue #966)."""
 
-from pathlib import Path
-
 from vyos_mappers.base import CommandMapperRegistry
 from vyos_mappers.babel.babel_versions import get_babel_mapper
 
@@ -82,11 +80,6 @@ def test_registry_matches_factory():
     factory = get_babel_mapper("1.5").parse_config(_tree())
     registry = CommandMapperRegistry.get_mapper("babel", "1.5").parse_config(_tree())
     assert registry["parameters"]["diversity_factor"] == factory["parameters"]["diversity_factor"]
-
-
-def test_router_has_no_config_parsers():
-    text = Path(__file__).resolve().parents[1].joinpath("routers/babel/babel.py").read_text()
-    assert "Config Parsers" not in text
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

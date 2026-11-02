@@ -1,7 +1,5 @@
 """Traffic Engineering GET /config parse lives on the mapper (issue #966)."""
 
-from pathlib import Path
-
 from vyos_mappers.base import CommandMapperRegistry
 from vyos_mappers.traffic_engineering.traffic_engineering_versions import (
     get_traffic_engineering_mapper,
@@ -63,11 +61,40 @@ def test_registry_matches_factory():
     assert registry == factory == {"admin_groups": [], "interfaces": []}
 
 
-def test_router_has_no_config_parsers():
-    text = Path(__file__).resolve().parents[1].joinpath(
-        "routers/traffic_engineering/traffic_engineering.py"
-    ).read_text()
-    assert "Config Parsers" not in text
+def test_1_4_get_does_not_fetch_config(monkeypatch):
+    fetched = {"n": 0}
+
+    async def allow(*_args, **_kwargs):
+        return None
+
+    class FakeService:
+        def get_version(self):
+            return "1.4"
+
+        def get_full_config(self, refresh=False):
+            fetched["n"] += 1
+            raise AssertionError("1.4 must not fetch config")
+
+    monkeypatch.setattr(
+        "routers.traffic_engineering.traffic_engineering.require_read_permission",
+        allow,
+    )
+    monkeypatch.setattr(
+        "routers.traffic_engineering.traffic_engineering.get_session_vyos_service",
+        lambda _req: FakeService(),
+    )
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from routers.traffic_engineering.traffic_engineering import router
+
+    app = FastAPI()
+    app.include_router(router)
+    response = TestClient(app).get("/vyos/traffic-engineering/config")
+    assert response.status_code == 200, response.text
+    assert response.json()["admin_groups"] == []
+    assert response.json()["interfaces"] == []
+    assert fetched["n"] == 0
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

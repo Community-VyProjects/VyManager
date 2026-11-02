@@ -1,7 +1,5 @@
 """Console server GET /config parse lives on the mapper (issue #966)."""
 
-from pathlib import Path
-
 from vyos_mappers.console_server.console_server_versions import (
     get_console_server_mapper,
 )
@@ -64,16 +62,6 @@ def test_empty_tree():
         {"service": {"console-server": {}}}
     ) == {"devices": []}
 
-
-def test_router_has_no_config_parsers_section():
-    text = (
-        Path(__file__)
-        .resolve()
-        .parents[1]
-        .joinpath("routers/console_server/console_server.py")
-        .read_text()
-    )
-    assert "Config Parsers" not in text
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

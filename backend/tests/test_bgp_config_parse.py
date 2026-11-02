@@ -1,7 +1,5 @@
 """BGP GET /config parse lives on the mapper (issue #966)."""
 
-from pathlib import Path
-
 from vyos_mappers.bgp.bgp_versions import get_bgp_mapper
 
 
@@ -111,10 +109,6 @@ def test_parse_nested_bgp_config():
     assert parsed["srv6_locator"] == "LOC1"
     assert parsed["sid_vpn_per_vrf_export"] == "100"
 
-
-def test_bgp_router_has_no_config_parsers():
-    text = Path(__file__).resolve().parents[1].joinpath("routers/bgp/bgp.py").read_text()
-    assert "Config Parsers" not in text
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

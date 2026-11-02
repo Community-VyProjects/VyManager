@@ -13,6 +13,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers.base import CommandMapperRegistry
 from vyos_builders.event_handler import EventHandlerBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -111,12 +112,10 @@ async def get_event_handler_config(http_request: Request, refresh: bool = False)
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        raw = full_config.get("service", {}).get("event-handler", {}).get("event", {})
-        if not raw or not isinstance(raw, dict):
-            return EventHandlerConfig()
-
-        return EventHandlerConfig(events=_parse_events(raw))
+        mapper = CommandMapperRegistry.get_mapper(
+            "event_handler", service.get_version()
+        )
+        return EventHandlerConfig(**mapper.parse_config(full_config))
     except Exception:
         logger.exception("Unhandled error in get_event_handler_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -171,50 +170,3 @@ async def event_handler_batch_configure(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-# ============================================================================
-# Config parsers
-# ============================================================================
-
-
-def _parse_events(raw: dict) -> List[EventHandlerEntry]:
-    result = []
-    for name, attrs in sorted(raw.items()):
-        if not isinstance(attrs, dict):
-            attrs = {}
-        result.append(EventHandlerEntry(
-            name=name,
-            filter=_parse_filter(attrs.get("filter", {})),
-            script=_parse_script(attrs.get("script", {})),
-        ))
-    return result
-
-
-def _parse_filter(raw) -> EventFilter:
-    if not raw or not isinstance(raw, dict):
-        return EventFilter()
-    return EventFilter(
-        pattern=raw.get("pattern"),
-        syslog_identifier=raw.get("syslog-identifier"),
-    )
-
-
-def _parse_script(raw) -> EventScript:
-    if not raw or not isinstance(raw, dict):
-        return EventScript()
-    return EventScript(
-        path=raw.get("path"),
-        arguments=raw.get("arguments"),
-        environment=_parse_environment(raw.get("environment", {})),
-    )
-
-
-def _parse_environment(raw) -> List[EventEnvironmentVar]:
-    if not raw or not isinstance(raw, dict):
-        return []
-    result = []
-    for env_name, attrs in sorted(raw.items()):
-        value = None
-        if isinstance(attrs, dict):
-            value = attrs.get("value")
-        result.append(EventEnvironmentVar(name=env_name, value=value))
-    return result

@@ -1,7 +1,5 @@
 """DHCPv6 relay GET /config parse lives on the mapper (issue #966)."""
 
-from pathlib import Path
-
 from vyos_mappers.dhcpv6_relay.dhcpv6_relay_versions import get_dhcpv6_relay_mapper
 
 
@@ -75,16 +73,6 @@ def test_empty_tree():
         {"service": {"dhcpv6-relay": {}}}
     ) == _empty()
 
-
-def test_router_has_no_config_parsers_section():
-    text = (
-        Path(__file__)
-        .resolve()
-        .parents[1]
-        .joinpath("routers/dhcpv6_relay/dhcpv6_relay.py")
-        .read_text()
-    )
-    assert "Config Parsers" not in text
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

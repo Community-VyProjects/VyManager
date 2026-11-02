@@ -13,6 +13,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers.base import CommandMapperRegistry
 from vyos_builders.https import HTTPSBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -133,26 +134,8 @@ async def get_https_config(http_request: Request, refresh: bool = False):
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        https_raw = full_config.get("service", {}).get("https", {})
-        if not https_raw:
-            return HTTPSConfig()
-
-        is_1_4 = "1.4" in service.get_version()
-
-        return HTTPSConfig(
-            listen_addresses=_parse_multi(https_raw.get("listen-address")),
-            allow_client_addresses=_parse_multi(
-                (https_raw.get("allow-client") or {}).get("address")
-            ),
-            port=_parse_int(https_raw.get("port")),
-            request_body_size_limit=_parse_int(https_raw.get("request-body-size-limit")),
-            tls_versions=_parse_multi(https_raw.get("tls-version")),
-            vrf=_parse_scalar(https_raw.get("vrf")),
-            enable_http_redirect="enable-http-redirect" in https_raw,
-            certificates=_parse_certificates(https_raw.get("certificates", {})),
-            api=_parse_api(https_raw.get("api", {}), is_1_4=is_1_4),
-        )
+        mapper = CommandMapperRegistry.get_mapper("https", service.get_version())
+        return HTTPSConfig(**mapper.parse_config(full_config))
     except Exception:
         logger.exception("Unhandled error in get_https_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -204,117 +187,3 @@ async def https_batch_configure(http_request: Request, body: HTTPSBatchRequest):
         logger.exception("Unhandled error in https_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
-# ============================================================================
-# Config parsers
-# ============================================================================
-
-
-def _parse_multi(value) -> List[str]:
-    if value is None:
-        return []
-    if isinstance(value, list):
-        return sorted(str(v) for v in value)
-    if isinstance(value, dict):
-        return sorted(value.keys())
-    return [str(value)]
-
-
-def _parse_int(value) -> Optional[int]:
-    if value is None:
-        return None
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return None
-
-
-def _parse_scalar(value) -> Optional[str]:
-    if value is None:
-        return None
-    if isinstance(value, list):
-        return str(value[0]) if value else None
-    return str(value)
-
-
-def _parse_certificates(raw: dict) -> HTTPSCertificates:
-    if not raw or not isinstance(raw, dict):
-        return HTTPSCertificates()
-    return HTTPSCertificates(
-        certificate=_parse_scalar(raw.get("certificate")),
-        ca_certificate=_parse_scalar(raw.get("ca-certificate")),
-        dh_params=_parse_scalar(raw.get("dh-params")),
-    )
-
-
-def _parse_api_keys(raw) -> List[HTTPSApiKey]:
-    if not raw or not isinstance(raw, dict):
-        return []
-    id_map = raw.get("id", {})
-    if not isinstance(id_map, dict):
-        return []
-    result = []
-    for key_id, attrs in sorted(id_map.items()):
-        key_val = ""
-        if isinstance(attrs, dict):
-            key_val = _parse_scalar(attrs.get("key")) or ""
-        result.append(HTTPSApiKey(id=key_id, key=key_val))
-    return result
-
-
-def _parse_graphql(raw: dict, is_1_4: bool) -> HTTPSGraphQL:
-    if not raw or not isinstance(raw, dict):
-        return HTTPSGraphQL()
-
-    auth_raw = raw.get("authentication", {}) or {}
-    auth = HTTPSGraphQLAuth(
-        auth_type=_parse_scalar(auth_raw.get("type")),
-        expiration=_parse_int(auth_raw.get("expiration")),
-        secret_length=_parse_int(auth_raw.get("secret-length")),
-    )
-
-    if is_1_4:
-        # CORS is at api level in 1.4, not under graphql — handled in _parse_api
-        cors_origins: List[str] = []
-    else:
-        cors_raw = raw.get("cors", {}) or {}
-        cors_origins = _parse_multi(cors_raw.get("allow-origin"))
-
-    return HTTPSGraphQL(
-        enabled=True,
-        introspection="introspection" in raw,
-        authentication=auth,
-        cors_allow_origins=cors_origins,
-    )
-
-
-def _parse_api(raw: dict, is_1_4: bool) -> HTTPSApi:
-    if not raw or not isinstance(raw, dict):
-        return HTTPSApi()
-
-    keys = _parse_api_keys(raw.get("keys", {}))
-    graphql_raw = raw.get("graphql", {}) or {}
-    graphql = _parse_graphql(graphql_raw, is_1_4=is_1_4) if graphql_raw else HTTPSGraphQL()
-
-    if is_1_4:
-        debug = "debug" in raw
-        strict = "strict" in raw
-        rest_enabled = debug or strict or bool(raw.get("keys"))
-        # 1.4 CORS is at api level
-        cors_origins = _parse_multi((raw.get("cors") or {}).get("allow-origin"))
-        if cors_origins and graphql.enabled:
-            graphql = HTTPSGraphQL(
-                enabled=graphql.enabled,
-                introspection=graphql.introspection,
-                authentication=graphql.authentication,
-                cors_allow_origins=cors_origins,
-            )
-        rest = HTTPSRestAPI(enabled=rest_enabled, debug=debug, strict=strict)
-    else:
-        rest_raw = raw.get("rest", {}) or {}
-        rest_enabled = bool(rest_raw) or isinstance(rest_raw, dict)
-        debug = "debug" in rest_raw if isinstance(rest_raw, dict) else False
-        strict = "strict" in rest_raw if isinstance(rest_raw, dict) else False
-        rest = HTTPSRestAPI(enabled=rest_enabled, debug=debug, strict=strict)
-
-    return HTTPSApi(keys=keys, graphql=graphql, rest=rest)

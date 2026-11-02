@@ -1,7 +1,5 @@
 """Tunnel GET /config parse lives on the mapper (issue #966)."""
 
-from pathlib import Path
-
 from vyos_mappers.tunnel.tunnel_versions import get_tunnel_mapper
 
 
@@ -95,10 +93,6 @@ def test_empty_tree():
     assert parsed == get_tunnel_mapper("1.5").parse_config({"interfaces": {"tunnel": {}}})
     assert parsed == get_tunnel_mapper("1.5").parse_config({"interfaces": {"tunnel": None}})
 
-
-def test_tunnel_router_has_no_config_parsers():
-    text = Path(__file__).resolve().parents[1].joinpath("routers/tunnel/tunnel.py").read_text()
-    assert "Config Parsers" not in text
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

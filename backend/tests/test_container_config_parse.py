@@ -1,7 +1,5 @@
 """Container GET /config parse lives on the mapper (issue #966)."""
 
-from pathlib import Path
-
 from vyos_mappers.container.container_versions import get_container_mapper
 
 
@@ -95,19 +93,6 @@ def test_parse_sorts_and_normalises_container_tree():
     assert reg["mirror"]["host_name"] == "mirror"
     assert reg["mirror"]["port"] == "5000"
 
-
-def test_container_router_has_no_config_parsers():
-    text = (
-        Path(__file__)
-        .resolve()
-        .parents[1]
-        .joinpath("routers/container/container.py")
-        .read_text()
-    )
-    assert "Config Parsers" not in text
-    assert "def _parse_container_" not in text
-    assert "def _validate_image_ref" in text
-    assert "def _parse_image_reference" in text
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

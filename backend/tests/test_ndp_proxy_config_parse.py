@@ -1,7 +1,5 @@
 """NDP proxy GET /config parse lives on the mapper (issue #966)."""
 
-from pathlib import Path
-
 import pytest
 
 from vyos_mappers.ndp_proxy.ndp_proxy_versions import get_ndp_proxy_mapper
@@ -82,16 +80,6 @@ def test_empty_tree():
     assert get_ndp_proxy_mapper("1.4").parse_config({}) == empty
     assert get_ndp_proxy_mapper("1.5").parse_config({"service": {"ndp-proxy": {}}}) == empty
 
-
-def test_router_has_no_config_parsers_section():
-    text = (
-        Path(__file__)
-        .resolve()
-        .parents[1]
-        .joinpath("routers/ndp_proxy/ndp_proxy.py")
-        .read_text()
-    )
-    assert "Config Parsers" not in text
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

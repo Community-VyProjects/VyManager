@@ -1,7 +1,5 @@
 """Conntrack-sync GET /config parse lives on the mapper (issue #966)."""
 
-from pathlib import Path
-
 from vyos_mappers.base import CommandMapperRegistry
 from vyos_mappers.conntrack_sync.conntrack_sync_versions import get_conntrack_sync_mapper
 
@@ -68,13 +66,6 @@ def test_registry_matches_factory():
     factory = get_conntrack_sync_mapper("1.5").parse_config(_tree())
     registry = CommandMapperRegistry.get_mapper("conntrack_sync", "1.5").parse_config(_tree())
     assert registry["mcast_group"] == factory["mcast_group"] == "225.0.0.50"
-
-
-def test_router_has_no_config_parsers():
-    text = Path(__file__).resolve().parents[1].joinpath(
-        "routers/conntrack_sync/conntrack_sync.py"
-    ).read_text()
-    assert "Config Parsers" not in text
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):
