@@ -61,3 +61,27 @@ class VrfMapperV1_5:
             "vrf", "name", name, "protocols", "static", "route", destination,
             "next-hop", next_hop, "segments", segments,
         ]
+
+    def get_static_route_next_hop_segments_delete(
+        self, name: str, destination: str, next_hop: str
+    ) -> List[str]:
+        return [
+            "vrf", "name", name, "protocols", "static", "route", destination,
+            "next-hop", next_hop, "segments",
+        ]
+
+    def get_static_route_interface_segments(
+        self, name: str, destination: str, interface: str, segments: str
+    ) -> List[str]:
+        return [
+            "vrf", "name", name, "protocols", "static", "route", destination,
+            "interface", interface, "segments", segments,
+        ]
+
+    def get_static_route_interface_segments_delete(
+        self, name: str, destination: str, interface: str
+    ) -> List[str]:
+        return [
+            "vrf", "name", name, "protocols", "static", "route", destination,
+            "interface", interface, "segments",
+        ]

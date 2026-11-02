@@ -5,7 +5,33 @@ these through the feature builder. They are not mixed into the live DHCP
 mapper classes, because several names already exist there with a different
 signature.
 """
-from typing import List
+from typing import FrozenSet, List
+
+# Lab-checked 1.5 nodes. A caller-supplied name is not a path segment.
+DHCP_OPTIONS: FrozenSet[str] = frozenset({
+    "default-router", "domain-name", "name-server", "domain-search", "ntp-server",
+    "pop-server", "smtp-server", "time-server", "wins-server", "server-identifier",
+    "bootfile-name", "bootfile-server", "bootfile-size", "tftp-server-name",
+    "time-zone", "time-offset", "client-prefix-length", "captive-portal",
+    "capwap-controller", "interface-mtu", "ipv6-only-preferred", "wpad-url",
+})
+DHCPV6_OPTIONS: FrozenSet[str] = frozenset({
+    "name-server", "domain-search", "captive-portal", "capwap-controller",
+    "info-refresh-time", "nis-domain", "nis-server", "nisplus-domain",
+    "nisplus-server", "sip-server", "sntp-server",
+})
+DDNS_FIELDS: FrozenSet[str] = frozenset({
+    "send-updates", "conflict-resolution", "ttl-percent", "update-on-renew",
+    "generated-prefix", "qualifying-suffix", "replace-client-name",
+    "override-client-update", "override-no-update",
+    "hostname-char-set", "hostname-char-replacement",
+})
+
+
+def _known(name: str, allowed: FrozenSet[str], kind: str) -> str:
+    if name not in allowed:
+        raise ValueError(f"unsupported {kind}: {name}")
+    return name
 
 class StaticExtraLeaves:
 
@@ -50,7 +76,7 @@ class DhcpExtraLeaves:
         return ['service', 'dhcp-server', 'dynamic-dns-update', a0, a1, 'key-name']
 
     def get_ddns_field_delete(self, a0) -> List[str]:
-        return ['service', 'dhcp-server', 'dynamic-dns-update', a0]
+        return ['service', 'dhcp-server', 'dynamic-dns-update', _known(a0, DDNS_FIELDS, "dynamic-dns-update field")]
 
     def get_dynamic_dns_update_dns_server_delete(self) -> List[str]:
         return ['service', 'dhcp-server', 'dynamic-dns-update', 'dns-server']
@@ -59,28 +85,22 @@ class DhcpExtraLeaves:
         return ['service', 'dhcp-server', 'dynamic-dns-update', 'domain-name']
 
     def get_dynamic_dns_update_enable_delete(self) -> List[str]:
-        return ['service', 'dhcp-server', 'dynamic-dns-update']
+        raise ValueError("dynamic-dns-update has no enable leaf on this device")
 
     def get_global_parameters_delete(self, a0) -> List[str]:
         return ['service', 'dhcp-server', 'global-parameters', a0]
 
     def get_shared_network_ddns_field_delete(self, a0, a1) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'dynamic-dns-update', a1]
-
-    def get_shared_network_domain_name_delete(self, a0) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'domain-name']
+        return ['service', 'dhcp-server', 'shared-network-name', a0, 'dynamic-dns-update', _known(a1, DDNS_FIELDS, "dynamic-dns-update field")]
 
     def get_shared_network_domain_search_delete(self, a0, a1) -> List[str]:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'domain-search', a1]
-
-    def get_shared_network_name_server_delete(self, a0, a1) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'name-server', a1]
 
     def get_shared_network_ntp_server_delete(self, a0, a1) -> List[str]:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'option', 'ntp-server', a1]
 
     def get_shared_network_option_delete(self, a0, a1) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'option', a1]
+        return ['service', 'dhcp-server', 'shared-network-name', a0, 'option', _known(a1, DHCP_OPTIONS, "option")]
 
     def get_shared_network_option_bootfile_name_delete(self, a0) -> List[str]:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'option', 'bootfile-name']
@@ -149,7 +169,7 @@ class DhcpExtraLeaves:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'option', 'wpad-url']
 
     def get_static_mapping_option_delete(self, a0, a1, a2, a3) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'static-mapping', a2, 'option', a3]
+        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'static-mapping', a2, 'option', _known(a3, DHCP_OPTIONS, "option")]
 
     def get_static_mapping_option_bootfile_name_delete(self, a0, a1, a2) -> List[str]:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'static-mapping', a2, 'option', 'bootfile-name']
@@ -221,10 +241,7 @@ class DhcpExtraLeaves:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'client-class', a2]
 
     def get_subnet_ddns_field_delete(self, a0, a1, a2) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'dynamic-dns-update', a2]
-
-    def get_subnet_default_router_delete(self, a0, a1) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'default-router']
+        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'dynamic-dns-update', _known(a2, DDNS_FIELDS, "dynamic-dns-update field")]
 
     def get_subnet_domain_name_delete(self, a0, a1) -> List[str]:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'domain-name']
@@ -250,11 +267,8 @@ class DhcpExtraLeaves:
     def get_subnet_name_server_delete(self, a0, a1, a2) -> List[str]:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'name-server', a2]
 
-    def get_subnet_ntp_server_delete(self, a0, a1, a2) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'ntp-server', a2]
-
     def get_subnet_option_delete(self, a0, a1, a2) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'option', a2]
+        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'option', _known(a2, DHCP_OPTIONS, "option")]
 
     def get_subnet_option_bootfile_name_delete(self, a0, a1) -> List[str]:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'option', 'bootfile-name']
@@ -326,7 +340,7 @@ class DhcpExtraLeaves:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'range', a2, 'client-class', a3]
 
     def get_subnet_range_option_delete(self, a0, a1, a2, a3) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'range', a2, 'option', a3]
+        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'range', a2, 'option', _known(a3, DHCP_OPTIONS, "option")]
 
     def get_subnet_range_option_static_route_next_hop_delete(self, a0, a1, a2, a3) -> List[str]:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'range', a2, 'option', 'static-route', a3]
@@ -344,7 +358,7 @@ class DhcpExtraLeaves:
         return ['service', 'dhcp-server', 'client-class', a0, 'relay-agent-information', 'remote-id', a1]
 
     def get_ddns_field(self, a0, a1) -> List[str]:
-        return ['service', 'dhcp-server', 'dynamic-dns-update', a0, a1]
+        return ['service', 'dhcp-server', 'dynamic-dns-update', _known(a0, DDNS_FIELDS, "dynamic-dns-update field"), a1]
 
     def get_dynamic_dns_update_dns_server(self, a0) -> List[str]:
         return ['service', 'dhcp-server', 'dynamic-dns-update', 'dns-server', a0]
@@ -365,7 +379,7 @@ class DhcpExtraLeaves:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'option', 'ntp-server', a1]
 
     def get_shared_network_option(self, a0, a1, a2) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'option', a1, a2]
+        return ['service', 'dhcp-server', 'shared-network-name', a0, 'option', _known(a1, DHCP_OPTIONS, "option"), a2]
 
     def get_shared_network_option_bootfile_name(self, a0, a1) -> List[str]:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'option', 'bootfile-name', a1]
@@ -434,7 +448,7 @@ class DhcpExtraLeaves:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'option', 'wpad-url', a1]
 
     def get_static_mapping_option(self, a0, a1, a2, a3, a4) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'static-mapping', a2, 'option', a3, a4]
+        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'static-mapping', a2, 'option', _known(a3, DHCP_OPTIONS, "option"), a4]
 
     def get_static_mapping_option_bootfile_name(self, a0, a1, a2, a3) -> List[str]:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'static-mapping', a2, 'option', 'bootfile-name', a3]
@@ -506,7 +520,7 @@ class DhcpExtraLeaves:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'client-class', a2]
 
     def get_subnet_ddns_field(self, a0, a1, a2, a3) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'dynamic-dns-update', a2, a3]
+        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'dynamic-dns-update', _known(a2, DDNS_FIELDS, "dynamic-dns-update field"), a3]
 
     def get_subnet_id(self, a0, a1, a2) -> List[str]:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'subnet-id', a2]
@@ -517,14 +531,8 @@ class DhcpExtraLeaves:
     def get_subnet_lease_default(self, a0, a1, a2) -> List[str]:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'lease', a2]
 
-    def get_subnet_lease_max(self, a0, a1, a2) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'lease', a2]
-
-    def get_subnet_lease_min(self, a0, a1, a2) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'lease', a2]
-
     def get_subnet_option(self, a0, a1, a2, a3) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'option', a2, a3]
+        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'option', _known(a2, DHCP_OPTIONS, "option"), a3]
 
     def get_subnet_option_bootfile_name(self, a0, a1, a2) -> List[str]:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'option', 'bootfile-name', a2]
@@ -596,7 +604,7 @@ class DhcpExtraLeaves:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'range', a2, 'client-class', a3]
 
     def get_subnet_range_option(self, a0, a1, a2, a3, a4) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'range', a2, 'option', a3, a4]
+        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'range', a2, 'option', _known(a3, DHCP_OPTIONS, "option"), a4]
 
     def get_subnet_range_option_static_route_next_hop(self, a0, a1, a2, a3, a4) -> List[str]:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'range', a2, 'option', 'static-route', a3, 'next-hop', a4]
@@ -613,7 +621,7 @@ class Dhcpv6ExtraLeaves:
         return ['service', 'dhcpv6-server', 'global-parameters']
 
     def get_shared_network_option_delete(self, a0, a1) -> List[str]:
-        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'option', a1]
+        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'option', _known(a1, DHCPV6_OPTIONS, "option")]
 
     def get_shared_network_option_domain_search_delete(self, a0, a1) -> List[str]:
         return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'option', 'domain-search', a1]
@@ -643,7 +651,7 @@ class Dhcpv6ExtraLeaves:
         return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'option', 'vendor-option', 'cisco', 'tftp-server']
 
     def get_static_mapping_option_delete(self, a0, a1, a2, a3) -> List[str]:
-        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'static-mapping', a2, 'option', a3]
+        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'static-mapping', a2, 'option', _known(a3, DHCPV6_OPTIONS, "option")]
 
     def get_static_mapping_option_vendor_cisco_tftp_server_delete(self, a0, a1, a2) -> List[str]:
         return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'static-mapping', a2, 'option', 'vendor-option', 'cisco', 'tftp-server']
@@ -679,7 +687,7 @@ class Dhcpv6ExtraLeaves:
         return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'nisplus-server', a2]
 
     def get_subnet_option_delete(self, a0, a1, a2) -> List[str]:
-        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'option', a2]
+        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'option', _known(a2, DHCPV6_OPTIONS, "option")]
 
     def get_subnet_option_vendor_cisco_tftp_server_delete(self, a0, a1) -> List[str]:
         return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'option', 'vendor-option', 'cisco', 'tftp-server']
@@ -688,7 +696,7 @@ class Dhcpv6ExtraLeaves:
         return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'prefix-delegation', 'prefix', a2, 'prefix-length']
 
     def get_subnet_range_option_delete(self, a0, a1, a2, a3) -> List[str]:
-        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'range', a2, 'option', a3]
+        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'range', a2, 'option', _known(a3, DHCPV6_OPTIONS, "option")]
 
     def get_subnet_range_option_vendor_cisco_tftp_server_delete(self, a0, a1, a2) -> List[str]:
         return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'range', a2, 'option', 'vendor-option', 'cisco', 'tftp-server']
@@ -748,7 +756,7 @@ class Dhcpv6ExtraLeaves:
         return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'static-mapping', a2, 'option', 'sntp-server', a3]
 
     def get_subnet_vendor_option_cisco_bootfile_delete(self, a0, a1) -> List[str]:
-        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'option', 'vendor-option', 'cisco', 'bootfile']
+        raise ValueError("vendor-option cisco bootfile is not a VyOS node")
 
     def get_subnet_vendor_option_cisco_tftp_server_delete(self, a0, a1, a2) -> List[str]:
         return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'option', 'vendor-option', 'cisco', 'tftp-server', a2]
@@ -760,7 +768,7 @@ class Dhcpv6ExtraLeaves:
         return ['service', 'dhcpv6-server', 'global-parameters', a0]
 
     def get_shared_network_option(self, a0, a1, a2) -> List[str]:
-        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'option', a1, a2]
+        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'option', _known(a1, DHCPV6_OPTIONS, "option"), a2]
 
     def get_shared_network_option_domain_search(self, a0, a1) -> List[str]:
         return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'option', 'domain-search', a1]
@@ -790,7 +798,7 @@ class Dhcpv6ExtraLeaves:
         return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'option', 'vendor-option', 'cisco', 'tftp-server', a1]
 
     def get_static_mapping_option(self, a0, a1, a2, a3, a4) -> List[str]:
-        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'static-mapping', a2, 'option', a3, a4]
+        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'static-mapping', a2, 'option', _known(a3, DHCPV6_OPTIONS, "option"), a4]
 
     def get_static_mapping_option_vendor_cisco_tftp_server(self, a0, a1, a2, a3) -> List[str]:
         return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'static-mapping', a2, 'option', 'vendor-option', 'cisco', 'tftp-server', a3]
@@ -826,7 +834,7 @@ class Dhcpv6ExtraLeaves:
         return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'nisplus-server', a2]
 
     def get_subnet_option(self, a0, a1, a2, a3) -> List[str]:
-        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'option', a2, a3]
+        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'option', _known(a2, DHCPV6_OPTIONS, "option"), a3]
 
     def get_subnet_option_vendor_cisco_tftp_server(self, a0, a1, a2) -> List[str]:
         return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'option', 'vendor-option', 'cisco', 'tftp-server', a2]
@@ -835,7 +843,7 @@ class Dhcpv6ExtraLeaves:
         return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'prefix-delegation', 'prefix', a2, 'prefix-length', a3]
 
     def get_subnet_range_option(self, a0, a1, a2, a3, a4) -> List[str]:
-        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'range', a2, 'option', a3, a4]
+        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'range', a2, 'option', _known(a3, DHCPV6_OPTIONS, "option"), a4]
 
     def get_subnet_range_option_vendor_cisco_tftp_server(self, a0, a1, a2, a3) -> List[str]:
         return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'range', a2, 'option', 'vendor-option', 'cisco', 'tftp-server', a3]
@@ -895,7 +903,7 @@ class Dhcpv6ExtraLeaves:
         return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'static-mapping', a2, 'option', 'sntp-server', a3]
 
     def get_subnet_vendor_option_cisco_bootfile(self, a0, a1, a2) -> List[str]:
-        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'option', 'vendor-option', 'cisco', 'bootfile', a2]
+        raise ValueError("vendor-option cisco bootfile is not a VyOS node")
 
     def get_subnet_vendor_option_cisco_tftp_server(self, a0, a1, a2) -> List[str]:
         return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'option', 'vendor-option', 'cisco', 'tftp-server', a2]

@@ -1,10 +1,5 @@
-"""VRF static, failover, DHCP, and DHCPv6 ops reuse the global builders.
+"""VRF static, failover, DHCP, and DHCPv6 ops reuse the global builders."""
 
-The golden file lists the old mixin op names. Paths that VyOS 1.5 rejects
-are the global builder's path, not the old mixin path.
-"""
-
-import json
 from pathlib import Path
 
 import pytest
@@ -13,10 +8,6 @@ from vyos_builders.dhcp.dhcp import DHCPBatchBuilder
 from vyos_builders.failover.failover_batch_builder import FailoverBatchBuilder
 from vyos_builders.static_routes.static_routes_batch_builder import StaticRoutesBatchBuilder
 from vyos_builders.vrf.vrf_batch_builder import VrfBatchBuilder
-
-_GOLDEN = json.loads(
-    (Path(__file__).parent / "fixtures" / "vrf_feature_ops.json").read_text()
-)
 
 
 def test_feature_mixins_are_not_a_second_builder_tree():
@@ -28,14 +19,19 @@ def test_feature_mixins_are_not_a_second_builder_tree():
 
 
 def test_legacy_op_names_still_resolve():
-    for name, spec in _GOLDEN.items():
-        builder = VrfBatchBuilder("1.5")
-        method = getattr(builder, name)
-        if spec["value"] is None:
-            method("blue")
-        else:
-            method("blue", spec["value"])
-        assert builder.get_operations() == spec["ops"], name
+    from vyos_builders.vrf.legacy_ops import LEGACY_OPS
+
+    builder = VrfBatchBuilder("1.5")
+    missing = [name for name in sorted(LEGACY_OPS) if not hasattr(builder, name)]
+    assert missing == []
+    for gone in (
+        "set_vrf_dhcp_subnet_lease_max",
+        "set_vrf_dhcp_subnet_lease_min",
+        "set_vrf_dhcp_dynamic_dns_update_enable",
+        "set_vrf_dhcpv6_subnet_vendor_option_cisco_bootfile",
+    ):
+        with pytest.raises(AttributeError):
+            getattr(builder, gone)
 
 
 def test_static_route_calls_global_builder(monkeypatch):
@@ -158,9 +154,10 @@ def test_ipv4_segments_set_is_a_noop_on_1_4():
     assert builder.get_operations() == []
 
 
-def test_short_value_does_not_emit():
+def test_short_value_is_rejected():
     builder = VrfBatchBuilder("1.5")
-    builder.set_vrf_static_route_next_hop("blue", "10.0.0.0/24")
+    with pytest.raises(ValueError, match="expects"):
+        builder.set_vrf_static_route_next_hop("blue", "10.0.0.0/24")
     assert builder.get_operations() == []
 
 
@@ -216,6 +213,62 @@ def test_1_5_dhcp_paths_match_the_global_tree():
     assert paths[1][-2:] == ["lease", "3600"]
     assert "default" not in paths[1]
     assert paths[2][-5:] == ["option", "vendor-option", "cisco", "tftp-server", "2001:db8::1"]
+
+
+def test_ui_schema_round_trip_uses_the_1_5_nodes():
+    """Schema path, op, and emitted VyOS path agree for the fields this PR moved."""
+    root = Path(__file__).resolve().parents[2] / "frontend" / "src" / "components" / "vrf" / "schema"
+    dhcp = (root / "dhcpEntities.ts").read_text()
+    schema = (root / "schemas.ts").read_text()
+    assert 'op: "vrf_dhcp_subnet_lease_default"' in dhcp
+    assert 'path: ["lease"]' in dhcp
+    assert "lease_max" not in dhcp
+    assert 'path: ["dynamic-dns-update"]' not in schema
+
+    builder = VrfBatchBuilder("1.5")
+    builder.set_vrf_dhcp_subnet_lease_default("blue", "LAN,10.0.0.0/24,3600")
+    builder.set_vrf_dhcp_subnet_option("blue", "LAN,10.0.0.0/24,default-router,192.0.2.1")
+    builder.set_vrf_dhcp_ddns_field("blue", "ttl-percent,50")
+    paths = [op["path"] for op in builder.get_operations()]
+    assert paths[0][-2:] == ["lease", "3600"]
+    assert paths[1][-3:] == ["option", "default-router", "192.0.2.1"]
+    assert paths[2][-3:] == ["dynamic-dns-update", "ttl-percent", "50"]
+    with pytest.raises(ValueError, match="unsupported"):
+        builder.set_vrf_dhcp_subnet_option("blue", "LAN,10.0.0.0/24,not-a-node,1")
+
+
+def test_dhcpv6_lease_time_uses_the_global_builder(monkeypatch):
+    from vyos_builders.dhcpv6_server.dhcpv6_server_batch_builder import DHCPv6ServerBatchBuilder
+
+    called = {}
+    real = DHCPv6ServerBatchBuilder.set_subnet_lease_default
+
+    def spy(self, name, subnet, value):
+        called["args"] = (name, subnet, value)
+        return real(self, name, subnet, value)
+
+    monkeypatch.setattr(DHCPv6ServerBatchBuilder, "set_subnet_lease_default", spy)
+    builder = VrfBatchBuilder("1.5")
+    builder.set_vrf_dhcpv6_subnet_lease_time_default("blue", "LAN,2001:db8::/64,3600")
+    assert called == {"args": ("LAN", "2001:db8::/64", "3600")}
+    assert builder.get_operations()[-1]["path"][-3:] == ["lease-time", "default", "3600"]
+
+
+def test_ipv4_segments_delete_is_a_noop_on_1_4():
+    builder = VrfBatchBuilder("1.4")
+    builder.delete_vrf_static_route_next_hop_segments("blue", "10.0.0.0/24,192.0.2.1")
+    builder.delete_vrf_static_route_interface_segments("blue", "10.0.0.0/24,eth0")
+    builder.set_vrf_static_route_interface_segments("blue", "10.0.0.0/24,eth0,1")
+    assert builder.get_operations() == []
+
+
+def test_bfd_source_delete_follows_version():
+    old = VrfBatchBuilder("1.4")
+    old.delete_vrf_static_route_next_hop_bfd_multi_hop_source("blue", "10.0.0.0/24,192.0.2.1")
+    assert old.get_operations()[-1]["path"][-1] == "source"
+    new = VrfBatchBuilder("1.5")
+    new.delete_vrf_static_route_next_hop_bfd_multi_hop_source("blue", "10.0.0.0/24,192.0.2.1")
+    assert new.get_operations()[-1]["path"][-1] == "source-address"
 
 
 def test_global_static_helpers_are_not_vrf_ops():

@@ -52,3 +52,19 @@ class VrfMapperV1_4:
     ) -> List[str]:
         """IPv4 SRv6 segments not supported in 1.4 — return empty path."""
         return []
+
+    def get_static_route_next_hop_segments_delete(
+        self, name: str, destination: str, next_hop: str
+    ) -> List[str]:
+        """IPv4 SRv6 segments are not a 1.4 node. Delete must not emit either."""
+        return []
+
+    def get_static_route_interface_segments(
+        self, name: str, destination: str, interface: str, segments: str
+    ) -> List[str]:
+        return []
+
+    def get_static_route_interface_segments_delete(
+        self, name: str, destination: str, interface: str
+    ) -> List[str]:
+        return []

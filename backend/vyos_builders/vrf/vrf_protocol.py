@@ -85,7 +85,7 @@ def parse_vrf_protocol_op(name: str) -> Optional[Tuple[str, str, Optional[str]]]
     return None
 
 
-class ArityError(TypeError):
+class ArityError(ValueError):
     """Packed value does not match the global builder method's arity."""
 
 
@@ -196,13 +196,19 @@ def _alias(proto: str, suffix: str) -> str:
     elif proto == "dhcp":
         if suffix == "disable":
             return "global_disable"
-        if suffix in ("subnet_lease_default", "subnet_lease_max", "subnet_lease_min"):
+        if suffix == "subnet_lease_default":
             return "subnet_lease"
         if suffix.startswith("ha_"):
             return "failover_" + suffix[len("ha_") :]
     elif proto == "dhcpv6":
         if suffix == "subnet_vendor_option_cisco_tftp_server":
             return "subnet_cisco_tftp_server"
+        if suffix == "subnet_lease_time_default":
+            return "subnet_lease_default"
+        if suffix == "subnet_lease_time_minimum":
+            return "subnet_lease_minimum"
+        if suffix == "subnet_lease_time_maximum":
+            return "subnet_lease_maximum"
         if suffix.startswith("shared_network_"):
             return "network_" + suffix[len("shared_network_") :]
     return suffix
@@ -387,16 +393,10 @@ def _run_feature_op(
         return _queue(owner, inner)
     key = _mode_key(proto, verb, suffix)
     if suffix and key in DIRECT:
-        try:
-            _call_aliased(inner, verb, proto, suffix, value)
-        except ArityError:
-            return owner
+        _call_aliased(inner, verb, proto, suffix, value)
         return _queue(owner, inner)
     if suffix and key in FLIP:
-        try:
-            _flip_set(inner, proto, suffix, value)
-        except ArityError:
-            return owner
+        _flip_set(inner, proto, suffix, value)
         return _queue(owner, inner)
     if suffix and key in DROP:
         if not _drop_set_leaf(inner, proto, suffix, value):
@@ -405,10 +405,7 @@ def _run_feature_op(
     if suffix:
         method = getattr(inner, f"{verb}_{_alias(proto, suffix)}", None)
         if method is not None:
-            try:
-                _call_with_packed_value(method, value)
-            except ArityError:
-                return owner
+            _call_with_packed_value(method, value)
             return _queue(owner, inner)
     if not _emit_leaf(inner, proto, verb, suffix, vrf_name, value):
         return owner
@@ -438,7 +435,7 @@ def run_vrf_protocol_op(
     if method is not None:
         try:
             _call_with_packed_value(method, value)
-        except TypeError:
+        except (TypeError, ArityError):
             if verb != "delete":
                 raise
             method = None
