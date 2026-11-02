@@ -27,9 +27,9 @@ from org_scope import (
     ws_conn,
     ws_org_conn,
 )
-import revocation_bus
 from session_cookie import verify_session_cookie
 from ssh_key_manager import decrypt_private_key, generate_keypair
+from stream_auth import watch_stream_revocation
 from trusted_origins import websocket_origin_allowed
 
 logger = logging.getLogger(__name__)
@@ -469,25 +469,12 @@ async def websocket_monitor(websocket: WebSocket):
 
         async def watch_revocation():
             """Close the stream when a revocation removes MONITORING access."""
-            queue = revocation_bus.subscribe()
-            try:
-                while True:
-                    payload = await queue.get()
-                    if not revocation_bus.payload_matches(
-                            payload, user_id=user_id, instance_id=instance_id):
-                        continue
-                    try:
-                        async with ws_org_conn(
-                                websocket, user_id, instance_id) as conn:
-                            still = await check_permission(
-                                conn, user_id, instance_id,
-                                FeatureGroup.MONITORING, PermissionLevel.WRITE)
-                    except Exception:
-                        still = True  # DB unavailable: do not tear down
-                    if not still:
-                        return
-            finally:
-                revocation_bus.unsubscribe(queue)
+            await watch_stream_revocation(
+                websocket,
+                user_id,
+                instance_id,
+                FeatureGroup.MONITORING,
+            )
 
         output_task = asyncio.create_task(stream_output())
         stop_task = asyncio.create_task(listen_for_stop())
