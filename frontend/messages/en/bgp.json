@@ -85,96 +85,30 @@
       "bestpathTitle": "Bestpath Selection",
       "distanceTitle": "Administrative Distance",
       "flags": {
-        "log_neighbor_changes": {
-          "label": "Log Neighbor Changes",
-          "desc": "Log neighbor up/down and reset reason"
-        },
-        "always_compare_med": {
-          "label": "Always Compare MED",
-          "desc": "Compare MED among all routes, not just from same AS"
-        },
-        "deterministic_med": {
-          "label": "Deterministic MED",
-          "desc": "Group paths by AS before comparing MED"
-        },
-        "ebgp_requires_policy": {
-          "label": "eBGP Requires Policy",
-          "desc": "Require route-map for eBGP sessions"
-        },
-        "graceful_shutdown": {
-          "label": "Graceful Shutdown",
-          "desc": "Initiate graceful shutdown procedure"
-        },
-        "no_client_to_client_reflection": {
-          "label": "No Client-to-Client Reflection",
-          "desc": "Disable route reflection between RR clients"
-        },
-        "no_fast_external_failover": {
-          "label": "No Fast External Failover",
-          "desc": "Disable fast failover on eBGP link down"
-        },
-        "allow_martian_nexthop": {
-          "label": "Allow Martian Nexthop",
-          "desc": "Allow martian next-hops in BGP table"
-        },
-        "disable_ebgp_connected_route_check": {
-          "label": "Disable eBGP Connected Check",
-          "desc": "Skip connected route check for eBGP peers"
-        },
-        "fast_convergence": {
-          "label": "Fast Convergence",
-          "desc": "Speed up best path selection after changes"
-        },
-        "network_import_check": {
-          "label": "Network Import Check",
-          "desc": "Check BGP network route in RIB before advertising"
-        },
-        "reject_as_sets": {
-          "label": "Reject AS-Sets",
-          "desc": "Reject routes with AS_SET or AS_CONFED_SET"
-        },
-        "route_reflector_allow_outbound_policy": {
-          "label": "RR Allow Outbound Policy",
-          "desc": "Apply outbound policy on reflected routes"
-        },
-        "suppress_fib_pending": {
-          "label": "Suppress FIB Pending",
-          "desc": "Do not advertise routes pending FIB installation"
-        },
-        "no_suppress_duplicates": {
-          "label": "No Suppress Duplicates",
-          "desc": "Do not suppress duplicate BGP routes"
-        },
-        "no_ipv6_auto_ra": {
-          "label": "No IPv6 Auto RA",
-          "desc": "Disable automatic IPv6 router advertisements"
-        },
-        "shutdown": {
-          "label": "Shutdown",
-          "desc": "Administratively shut down BGP"
-        }
+        "log_neighbor_changes": { "label": "Log Neighbor Changes", "desc": "Log neighbor up/down and reset reason" },
+        "always_compare_med": { "label": "Always Compare MED", "desc": "Compare MED among all routes, not just from same AS" },
+        "deterministic_med": { "label": "Deterministic MED", "desc": "Group paths by AS before comparing MED" },
+        "ebgp_requires_policy": { "label": "eBGP Requires Policy", "desc": "Require route-map for eBGP sessions" },
+        "graceful_shutdown": { "label": "Graceful Shutdown", "desc": "Initiate graceful shutdown procedure" },
+        "no_client_to_client_reflection": { "label": "No Client-to-Client Reflection", "desc": "Disable route reflection between RR clients" },
+        "no_fast_external_failover": { "label": "No Fast External Failover", "desc": "Disable fast failover on eBGP link down" },
+        "allow_martian_nexthop": { "label": "Allow Martian Nexthop", "desc": "Allow martian next-hops in BGP table" },
+        "disable_ebgp_connected_route_check": { "label": "Disable eBGP Connected Check", "desc": "Skip connected route check for eBGP peers" },
+        "fast_convergence": { "label": "Fast Convergence", "desc": "Speed up best path selection after changes" },
+        "network_import_check": { "label": "Network Import Check", "desc": "Check BGP network route in RIB before advertising" },
+        "reject_as_sets": { "label": "Reject AS-Sets", "desc": "Reject routes with AS_SET or AS_CONFED_SET" },
+        "route_reflector_allow_outbound_policy": { "label": "RR Allow Outbound Policy", "desc": "Apply outbound policy on reflected routes" },
+        "suppress_fib_pending": { "label": "Suppress FIB Pending", "desc": "Do not advertise routes pending FIB installation" },
+        "no_suppress_duplicates": { "label": "No Suppress Duplicates", "desc": "Do not suppress duplicate BGP routes" },
+        "no_ipv6_auto_ra": { "label": "No IPv6 Auto RA", "desc": "Disable automatic IPv6 router advertisements" },
+        "shutdown": { "label": "Shutdown", "desc": "Administratively shut down BGP" }
       },
       "bestpath": {
-        "as_path_confed": {
-          "label": "AS-Path Confed",
-          "desc": "Compare path length including confederation segments"
-        },
-        "as_path_ignore": {
-          "label": "AS-Path Ignore",
-          "desc": "Ignore AS-path length in best path selection"
-        },
-        "as_path_multipath_relax": {
-          "label": "AS-Path Multipath Relax",
-          "desc": "Allow load sharing across providers with different AS paths"
-        },
-        "compare_routerid": {
-          "label": "Compare Router ID",
-          "desc": "Compare router-id for identical eBGP paths"
-        },
-        "peer_type_multipath_relax": {
-          "label": "Peer Type Multipath Relax",
-          "desc": "Allow load sharing across iBGP and eBGP paths"
-        }
+        "as_path_confed": { "label": "AS-Path Confed", "desc": "Compare path length including confederation segments" },
+        "as_path_ignore": { "label": "AS-Path Ignore", "desc": "Ignore AS-path length in best path selection" },
+        "as_path_multipath_relax": { "label": "AS-Path Multipath Relax", "desc": "Allow load sharing across providers with different AS paths" },
+        "compare_routerid": { "label": "Compare Router ID", "desc": "Compare router-id for identical eBGP paths" },
+        "peer_type_multipath_relax": { "label": "Peer Type Multipath Relax", "desc": "Allow load sharing across iBGP and eBGP paths" }
       },
       "distance": {
         "external": "External",

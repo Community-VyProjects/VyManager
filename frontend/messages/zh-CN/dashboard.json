@@ -157,7 +157,7 @@
       "bridge": "网桥",
       "pppoe": "PPPoE",
       "bonding": "链路聚合",
-      "dummy": "虚拟 (Dummy)",
+      "dummy": "Dummy（哑接口）",
       "gre": "GRE 隧道",
       "ipip": "IPIP 隧道",
       "sit": "SIT 隧道",
