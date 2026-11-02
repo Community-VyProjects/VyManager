@@ -27,6 +27,8 @@ class _Conn:
         self.queries = []
         self.entered_transaction = False
         self.keys = {}
+        self.held = 0
+        self.in_transaction = in_transaction
 
     def is_in_transaction(self):
         return self.in_transaction
@@ -45,6 +47,20 @@ class _Conn:
                 return False
 
         return _Tx()
+
+    def acquire(self):
+        conn = self
+
+        class _Acq:
+            async def __aenter__(self):
+                conn.held += 1
+                return conn
+
+            async def __aexit__(self, *args):
+                conn.held -= 1
+                return False
+
+        return _Acq()
 
     async def execute(self, query, *args):
         self.queries.append((query, args))
@@ -77,14 +93,15 @@ def test_pinned_connect_uses_known_hosts_object_not_a_filename(monkeypatch):
     seen = {}
 
     async def fake_connect(host, port=22, **kwargs):
+        assert conn.held == 0
         seen["known_hosts"] = kwargs.get("known_hosts")
         seen["username"] = kwargs.get("username")
         return object()
 
-    monkeypatch.setattr(ssh.asyncssh, "connect", fake_connect)
     conn = _Conn(row={"hostKey": stored})
+    monkeypatch.setattr(ssh.asyncssh, "connect", fake_connect)
     _run(ssh.connect(
-        db_conn=conn,
+        pool=conn,
         instance_id="inst",
         host="router.example",
         port=22,
@@ -100,8 +117,9 @@ def test_pinned_connect_uses_known_hosts_object_not_a_filename(monkeypatch):
     assert matched[0].export_public_key().decode().strip() == stored
     other = asyncssh.generate_private_key("ssh-ed25519")
     assert other.export_public_key() not in [key.export_public_key() for key in matched]
-    assert any("pg_advisory_xact_lock" in query for query, _args in conn.queries)
-    assert conn.entered_transaction is False
+    assert conn.in_transaction is False
+    assert conn.held == 0
+    assert not any("pg_advisory_xact_lock" in query for query, _args in conn.queries)
 
 
 def test_nonstandard_port_pattern_matches_only_that_port(monkeypatch):
@@ -115,7 +133,7 @@ def test_nonstandard_port_pattern_matches_only_that_port(monkeypatch):
 
     monkeypatch.setattr(ssh.asyncssh, "connect", fake_connect)
     _run(ssh.connect(
-        db_conn=_Conn(row={"hostKey": stored}),
+        pool=_Conn(row={"hostKey": stored}),
         instance_id="inst",
         host="2001:db8::5",
         port=2222,
@@ -136,7 +154,7 @@ def test_corrupt_pin_is_refused_without_accepting_any_key(monkeypatch):
     monkeypatch.setattr(ssh.asyncssh, "connect", fake_connect)
     with pytest.raises(SshHostKeyRejected):
         _run(ssh.connect(
-            db_conn=_Conn(row={"hostKey": "not-a-key"}),
+            pool=_Conn(row={"hostKey": "not-a-key"}),
             instance_id="inst",
             host="router.example",
         ))
@@ -171,9 +189,10 @@ def test_first_use_stores_the_presented_key_and_closes_on_insert_failure(monkeyp
     monkeypatch.setattr(ssh.asyncssh, "connect", fake_connect)
     conn = _FailInsert(row=None, in_transaction=False)
     with pytest.raises(RuntimeError, match="disk full"):
-        _run(ssh.connect(db_conn=conn, instance_id="inst", host="router.example"))
+        _run(ssh.connect(pool=conn, instance_id="inst", host="router.example"))
     assert opened.closed is True
     assert conn.entered_transaction is True
+    assert conn.held == 0
     assert conn.keys == {}
 
 
@@ -196,7 +215,7 @@ def test_missing_server_key_does_not_store_a_pin(monkeypatch):
     monkeypatch.setattr(ssh.asyncssh, "connect", fake_connect)
     conn = _Conn(row=None)
     with pytest.raises(asyncssh.HostKeyNotVerifiable):
-        _run(ssh.connect(db_conn=conn, instance_id="inst", host="router.example"))
+        _run(ssh.connect(pool=conn, instance_id="inst", host="router.example"))
     assert opened.closed is True
     assert not any("INSERT INTO ssh_host_keys" in query for query, _args in conn.queries)
 
@@ -218,7 +237,7 @@ def test_changed_key_is_refused_and_pin_is_not_replaced(monkeypatch):
     conn = _Conn(row={"hostKey": stored})
     with pytest.raises(SshHostKeyRejected, match=SshHostKeyRejected.message):
         _run(ssh.connect(
-            db_conn=conn,
+            pool=conn,
             instance_id="inst",
             host="router.example",
             known_hosts=None,
@@ -255,7 +274,7 @@ def test_loopback_pin_accepts_the_same_key_and_refuses_a_different_one(monkeypat
         db = _Conn(row=None)
         try:
             first = await ssh.connect(
-                db_conn=db,
+                pool=db,
                 instance_id="inst",
                 host="127.0.0.1",
                 port=port,
@@ -268,7 +287,7 @@ def test_loopback_pin_accepts_the_same_key_and_refuses_a_different_one(monkeypat
             assert seen[0] is None
 
             second = await ssh.connect(
-                db_conn=db,
+                pool=db,
                 instance_id="inst",
                 host="127.0.0.1",
                 port=port,
@@ -283,7 +302,7 @@ def test_loopback_pin_accepts_the_same_key_and_refuses_a_different_one(monkeypat
             db.row = {"hostKey": db.keys[("inst", "127.0.0.1", port)]}
             with pytest.raises(SshHostKeyRejected) as raised:
                 await ssh.connect(
-                    db_conn=db,
+                    pool=db,
                     instance_id="inst",
                     host="127.0.0.1",
                     port=port,
@@ -308,14 +327,14 @@ def test_sftp_archive_does_not_hide_a_changed_host_key(monkeypatch):
     with pytest.raises(SshHostKeyRejected):
         _run(archive_url.list_archive_files(
             "sftp://vyos:secret@backup.example/cfg/",
-            db_conn=object(),
+            pool=object(),
             instance_id="inst",
         ))
     with pytest.raises(SshHostKeyRejected):
         _run(archive_url.fetch_archive_file_content(
             "sftp://vyos:secret@backup.example/cfg/",
             "config.boot",
-            db_conn=object(),
+            pool=object(),
             instance_id="inst",
         ))
 
@@ -375,6 +394,7 @@ def test_container_ssh_passes_instance_and_hides_key_material(monkeypatch):
         raise SshHostKeyRejected()
 
     monkeypatch.setattr(container_router, "request_scoped_conn", scoped)
+    monkeypatch.setattr(container_router, "pool_from", lambda source: object())
     monkeypatch.setattr(container_router, "decrypt_private_key", lambda *args: b"pem")
     monkeypatch.setattr(container_router.asyncssh, "import_private_key", lambda pem: "client-key")
     monkeypatch.setattr(container_router, "connect_ssh", reject)
@@ -415,17 +435,13 @@ def _patch_archive_endpoint(monkeypatch, error):
         def parse_config_management(self, system_cfg):
             return {"archive_locations": ["sftp://backup.example/cfg/"]}
 
-    @asynccontextmanager
-    async def scoped(request):
-        yield object()
-
     async def fail(*args, **kwargs):
         raise error
 
     monkeypatch.setattr(system_router, "require_read_permission", allow)
     monkeypatch.setattr(system_router, "get_session_vyos_service", lambda request: _Service())
     monkeypatch.setattr(system_router.CommandMapperRegistry, "get_mapper", lambda *args: _Mapper())
-    monkeypatch.setattr(system_router, "request_scoped_conn", scoped)
+    monkeypatch.setattr(system_router, "pool_from", lambda source: object())
     monkeypatch.setattr(system_router, "_list_archive_files", fail)
     monkeypatch.setattr(system_router, "fetch_archive_file_content", fail)
 
@@ -505,6 +521,7 @@ def test_console_and_monitoring_pin_and_report_a_changed_key(monkeypatch):
     calls = []
     console_socket = _Socket()
     monkeypatch.setattr(console_router, "websocket_origin_allowed", lambda origin: True)
+    monkeypatch.setattr(console_router, "pool_from", lambda source: object())
     monkeypatch.setattr(
         console_router,
         "_authenticate_websocket",
@@ -531,6 +548,7 @@ def test_console_and_monitoring_pin_and_report_a_changed_key(monkeypatch):
     calls.clear()
     monitor_socket = _Socket()
     monkeypatch.setattr(monitoring_router, "websocket_origin_allowed", lambda origin: True)
+    monkeypatch.setattr(monitoring_router, "pool_from", lambda source: object())
     monkeypatch.setattr(
         monitoring_router,
         "_authenticate_websocket",
@@ -560,3 +578,132 @@ def _done(value):
     async def inner(*args, **kwargs):
         return value
     return inner()
+
+
+def test_message_says_how_to_reset():
+    assert "reset the host key" in SshHostKeyRejected.message
+    assert "instance SSH settings" in SshHostKeyRejected.message
+    assert "ssh-ed25519" not in SshHostKeyRejected.message
+
+
+def test_cancelled_insert_closes_the_connection(monkeypatch):
+    private = asyncssh.generate_private_key("ssh-ed25519")
+
+    class _SSH:
+        def __init__(self):
+            self.closed = False
+
+        def get_server_host_key(self):
+            return private
+
+        def close(self):
+            self.closed = True
+
+    opened = _SSH()
+
+    async def fake_connect(*args, **kwargs):
+        assert conn.held == 0
+        return opened
+
+    class _CancelInsert(_Conn):
+        async def execute(self, query, *args):
+            self.queries.append((query, args))
+            if "INSERT INTO ssh_host_keys" in query:
+                raise asyncio.CancelledError()
+
+    monkeypatch.setattr(ssh.asyncssh, "connect", fake_connect)
+    conn = _CancelInsert(row=None)
+    with pytest.raises(asyncio.CancelledError):
+        _run(ssh.connect(pool=conn, instance_id="inst", host="router.example"))
+    assert opened.closed is True
+    assert conn.held == 0
+    assert conn.keys == {}
+
+
+def test_pin_survives_a_later_sftp_failure(monkeypatch):
+    private = asyncssh.generate_private_key("ssh-ed25519")
+
+    class _SSH:
+        def get_server_host_key(self):
+            return private
+
+        def close(self):
+            return None
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        def start_sftp_client(self):
+            raise ValueError("archive read failed")
+
+    async def fake_connect(*args, **kwargs):
+        assert conn.held == 0
+        return _SSH()
+
+    monkeypatch.setattr(ssh.asyncssh, "connect", fake_connect)
+    conn = _Conn(row=None)
+    with pytest.raises(ValueError, match="archive read failed"):
+        _run(archive_url.list_archive_files(
+            "sftp://vyos:secret@backup.example/cfg/",
+            pool=conn,
+            instance_id="inst",
+        ))
+    assert conn.held == 0
+    assert conn.in_transaction is False
+    assert conn.keys[("inst", "backup.example", 22)] == private.export_public_key().decode().strip()
+
+
+def test_replaced_router_pin_is_dropped_only_when_the_endpoint_changes():
+    class _Delete:
+        def __init__(self):
+            self.queries = []
+
+        async def execute(self, query, *args):
+            self.queries.append((query, args))
+
+    same = _Delete()
+    _run(ssh.forget_replaced_router_pin(same, "inst", "10.0.0.1", 22, "10.0.0.1", 22))
+    assert same.queries == []
+
+    changed = _Delete()
+    _run(ssh.forget_replaced_router_pin(changed, "inst", "10.0.0.1", 22, "10.0.0.2", 22))
+    assert changed.queries[0][1] == ("inst", "10.0.0.1", 22)
+
+
+def test_reset_endpoint_forgets_pins_for_that_instance(monkeypatch):
+    import routers.monitoring.monitoring as monitoring_router
+
+    deleted = {}
+
+    class _Conn:
+        async def fetchval(self, query, *args):
+            return "inst-1"
+
+        async def execute(self, query, *args):
+            deleted["query"] = query
+            deleted["args"] = args
+
+    @asynccontextmanager
+    async def scoped(request):
+        yield _Conn()
+
+    async def allow(*args, **kwargs):
+        return None
+
+    async def in_org(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(monitoring_router, "require_super_admin", allow)
+    monkeypatch.setattr(monitoring_router, "request_scoped_conn", scoped)
+    monkeypatch.setattr(monitoring_router, "_assert_instance_in_acting_org", in_org)
+    result = _run(monitoring_router.reset_ssh_host_key(
+        "inst-1",
+        SimpleNamespace(),
+    ))
+    assert result.success is True
+    assert deleted["args"] == ("inst-1",)
+    assert "ssh_host_keys" in deleted["query"]
+

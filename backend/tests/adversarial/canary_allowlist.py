@@ -46,6 +46,11 @@ PERMANENT_GLOBAL = {
     "routers/monitoring/monitoring.py":
         "getattr(state, 'db_pool') presence check only - acquisitions "
         "go through ws_conn/ws_org_conn.",
+    "utils/ssh.py":
+        "Host-key pin read and insert acquire a short connection and "
+        "commit before the handshake returns. The handshake must not pin "
+        "an org-scoped transaction. Callers use pool_from() so they do "
+        "not touch the pool themselves.",
 }
 
 # Files not yet migrated to org-scoped connections. The conversion waves

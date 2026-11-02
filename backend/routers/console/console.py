@@ -34,7 +34,7 @@ from session_cookie import verify_session_cookie
 from ssh_key_manager import decrypt_private_key
 from stream_auth import watch_stream_revocation
 from trusted_origins import websocket_origin_allowed
-from utils.ssh import SshHostKeyRejected, connect as connect_ssh
+from utils.ssh import SshHostKeyRejected, connect as connect_ssh, pool_from
 
 logger = logging.getLogger(__name__)
 
@@ -267,18 +267,17 @@ async def websocket_console(websocket: WebSocket):
             return
 
         try:
-            async with ws_org_conn(websocket, user_id, instance_id) as conn:
-                ssh_conn = await asyncio.wait_for(
-                    connect_ssh(
-                        db_conn=conn,
-                        instance_id=instance_id,
-                        host=instance["host"],
-                        port=instance["sshPort"],
-                        username=ssh_username,
-                        client_keys=[private_key],
-                    ),
-                    timeout=15,
-                )
+            ssh_conn = await asyncio.wait_for(
+                connect_ssh(
+                    pool=pool_from(websocket),
+                    instance_id=instance_id,
+                    host=instance["host"],
+                    port=instance["sshPort"],
+                    username=ssh_username,
+                    client_keys=[private_key],
+                ),
+                timeout=15,
+            )
 
         except asyncio.TimeoutError:
             await websocket.send_json({

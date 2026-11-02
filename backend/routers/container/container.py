@@ -35,7 +35,7 @@ from fastapi_permissions import require_read_permission, require_write_permissio
 from org_scope import request_scoped_conn
 from rbac_permissions import FeatureGroup
 from ssh_key_manager import decrypt_private_key
-from utils.ssh import SshHostKeyRejected, connect as connect_ssh
+from utils.ssh import SshHostKeyRejected, connect as connect_ssh, pool_from
 import inspect
 import logging
 from batch_dispatch import resolve_batch_method
@@ -507,18 +507,17 @@ async def _get_ssh_connection(request: Request) -> tuple:
         raise HTTPException(status_code=500, detail=f"Failed to decrypt SSH key: {exc}")
 
     try:
-        async with request_scoped_conn(request) as conn:
-            ssh_conn = await asyncio.wait_for(
-                connect_ssh(
-                    db_conn=conn,
-                    instance_id=instance["id"],
-                    host=row["host"],
-                    port=row["sshPort"] or 22,
-                    username=row["sshUsername"] or "vyos",
-                    client_keys=[private_key],
-                ),
-                timeout=_SSH_CONNECT_TIMEOUT,
-            )
+        ssh_conn = await asyncio.wait_for(
+            connect_ssh(
+                pool=pool_from(request),
+                instance_id=instance["id"],
+                host=row["host"],
+                port=row["sshPort"] or 22,
+                username=row["sshUsername"] or "vyos",
+                client_keys=[private_key],
+            ),
+            timeout=_SSH_CONNECT_TIMEOUT,
+        )
     except asyncio.TimeoutError:
         raise HTTPException(status_code=504, detail="SSH connection timed out")
     except SshHostKeyRejected as exc:

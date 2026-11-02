@@ -15,10 +15,23 @@ class SshHostKeyRejected(Exception):
     generic connection failure must not swallow a changed key.
     """
 
-    message = "SSH host key changed; connection refused"
+    message = (
+        "SSH host key changed; connection refused. "
+        "An administrator can reset the host key in instance SSH settings."
+    )
 
     def __init__(self) -> None:
         super().__init__(self.message)
+
+
+def pool_from(source: Any):
+    """Pool for a request or websocket. Callers must not acquire it themselves."""
+    app = getattr(source, "app", None)
+    state = getattr(app, "state", None)
+    pool = getattr(state, "db_pool", None)
+    if pool is None:
+        raise RuntimeError("Database not available")
+    return pool
 
 
 def _pinned_known_hosts(host: str, port: int, public_key: str) -> asyncssh.SSHKnownHosts:
@@ -41,9 +54,101 @@ def _pinned_known_hosts(host: str, port: int, public_key: str) -> asyncssh.SSHKn
     return hosts
 
 
+async def forget_instance_pins(db_conn: Any, instance_id: str) -> None:
+    """Drop every pin for an instance. The next connection accepts one new key."""
+    await db_conn.execute(
+        'DELETE FROM ssh_host_keys WHERE "instanceId" = $1',
+        instance_id,
+    )
+
+
+async def forget_replaced_router_pin(
+    db_conn: Any,
+    instance_id: str,
+    old_host: str,
+    old_port: int,
+    new_host: str,
+    new_port: int,
+) -> None:
+    """Drop the router pin when the instance host or SSH port changes.
+
+    Archive pins are for other hosts and are left in place.
+    """
+    if old_host == new_host and int(old_port) == int(new_port):
+        return
+    await db_conn.execute(
+        """
+        DELETE FROM ssh_host_keys
+        WHERE "instanceId" = $1 AND host = $2 AND port = $3
+        """,
+        instance_id,
+        old_host,
+        int(old_port),
+    )
+
+
+async def _read_pin(pool: Any, instance_id: str, host: str, port: int):
+    async with pool.acquire() as db:
+        async with db.transaction():
+            return await db.fetchrow(
+                """
+                SELECT "hostKey"
+                FROM ssh_host_keys
+                WHERE "instanceId" = $1 AND host = $2 AND port = $3
+                """,
+                instance_id,
+                host,
+                port,
+            )
+
+
+async def _store_pin(
+    pool: Any,
+    instance_id: str,
+    host: str,
+    port: int,
+    public_key: str,
+    endpoint: str,
+) -> bool:
+    """Commit the pin before the caller uses the SSH connection.
+
+    Returns False when a different key was stored first. The lock covers
+    only this insert, not the handshake.
+    """
+    async with pool.acquire() as db:
+        async with db.transaction():
+            await db.execute(
+                "SELECT pg_advisory_xact_lock(hashtext($1)::bigint)",
+                endpoint,
+            )
+            existing = await db.fetchrow(
+                """
+                SELECT "hostKey"
+                FROM ssh_host_keys
+                WHERE "instanceId" = $1 AND host = $2 AND port = $3
+                """,
+                instance_id,
+                host,
+                port,
+            )
+            if existing is not None:
+                return (existing["hostKey"] or "").strip() == public_key
+            await db.execute(
+                """
+                INSERT INTO ssh_host_keys ("instanceId", host, port, "hostKey")
+                VALUES ($1, $2, $3, $4)
+                """,
+                instance_id,
+                host,
+                port,
+                public_key,
+            )
+            return True
+
+
 async def connect(
     *,
-    db_conn: Any,
+    pool: Any,
     instance_id: str,
     host: str,
     port: int = 22,
@@ -51,10 +156,12 @@ async def connect(
 ) -> asyncssh.SSHClientConnection:
     """Connect and pin the server host key for this instance and endpoint.
 
-    The first connection to an endpoint is accepted once and stored. Later
-    connections are verified against that key. A changed key is refused
-    and the stored pin is left unchanged. Callers cannot disable the check
-    by passing known_hosts.
+    The first connection to an endpoint is accepted once and the pin is
+    committed before this function returns. Later connections are verified
+    against that key. A changed key is refused and the stored pin is left
+    unchanged. Callers cannot disable the check by passing known_hosts.
+
+    The database connection is not held during the handshake.
     """
     if not instance_id or not host:
         raise ValueError("SSH host key pinning requires an instance and host")
@@ -69,74 +176,48 @@ async def connect(
     kwargs.pop("known_hosts", None)
     endpoint = f"{instance_id}:{host}:{port}"
 
-    async def _connect_locked() -> asyncssh.SSHClientConnection:
-        await db_conn.execute(
-            "SELECT pg_advisory_xact_lock(hashtext($1)::bigint)",
-            endpoint,
-        )
-        row = await db_conn.fetchrow(
-            """
-            SELECT "hostKey"
-            FROM ssh_host_keys
-            WHERE "instanceId" = $1 AND host = $2 AND port = $3
-            """,
-            instance_id,
-            host,
-            port,
-        )
-
-        if row is not None:
-            pinned = _pinned_known_hosts(host, port, row["hostKey"])
-            try:
-                return await asyncssh.connect(
-                    host,
-                    port=port,
-                    known_hosts=pinned,
-                    **kwargs,
-                )
-            except asyncssh.HostKeyNotVerifiable as exc:
-                logger.warning(
-                    "SSH host key rejected for instance %s at %s:%s",
-                    instance_id,
-                    host,
-                    port,
-                )
-                raise SshHostKeyRejected() from exc
-
-        connection = await asyncssh.connect(
-            host,
-            port=port,
-            known_hosts=None,
-            **kwargs,
-        )
+    row = await _read_pin(pool, instance_id, host, port)
+    if row is not None:
+        pinned = _pinned_known_hosts(host, port, row["hostKey"])
         try:
-            server_key = connection.get_server_host_key()
-            if server_key is None:
-                raise asyncssh.HostKeyNotVerifiable(
-                    "SSH server did not provide a host key"
-                )
-            public_key = server_key.export_public_key().decode("utf-8").strip()
-            if not public_key or "\n" in public_key or "\r" in public_key:
-                raise asyncssh.HostKeyNotVerifiable(
-                    "SSH server host key could not be pinned"
-                )
-            await db_conn.execute(
-                """
-                INSERT INTO ssh_host_keys ("instanceId", host, port, "hostKey")
-                VALUES ($1, $2, $3, $4)
-                """,
+            return await asyncssh.connect(
+                host,
+                port=port,
+                known_hosts=pinned,
+                **kwargs,
+            )
+        except asyncssh.HostKeyNotVerifiable as exc:
+            logger.warning(
+                "SSH host key rejected for instance %s at %s:%s",
                 instance_id,
                 host,
                 port,
-                public_key,
             )
-        except Exception:
-            connection.close()
-            raise
-        return connection
+            raise SshHostKeyRejected() from exc
 
-    if db_conn.is_in_transaction():
-        return await _connect_locked()
-
-    async with db_conn.transaction():
-        return await _connect_locked()
+    connection = await asyncssh.connect(
+        host,
+        port=port,
+        known_hosts=None,
+        **kwargs,
+    )
+    try:
+        server_key = connection.get_server_host_key()
+        if server_key is None:
+            raise asyncssh.HostKeyNotVerifiable(
+                "SSH server did not provide a host key"
+            )
+        public_key = server_key.export_public_key().decode("utf-8").strip()
+        if not public_key or "\n" in public_key or "\r" in public_key:
+            raise asyncssh.HostKeyNotVerifiable(
+                "SSH server host key could not be pinned"
+            )
+        stored_same = await _store_pin(
+            pool, instance_id, host, port, public_key, endpoint,
+        )
+        if not stored_same:
+            raise SshHostKeyRejected()
+    except BaseException:
+        connection.close()
+        raise
+    return connection

@@ -18,6 +18,7 @@ import json
 import os
 from vyos_service import VyOSService, VyOSDeviceConfig
 from session_vyos_service import clear_session_cache
+from utils.ssh import forget_replaced_router_pin
 from session_cookie import get_session_cookie, verify_session_cookie
 import appliance_mode
 from fastapi_permissions import require_super_admin
@@ -1189,11 +1190,12 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
             )
 
         # Verify instance exists and its site is in the caller's organization
-        instance_org = await conn.fetchval(
-            'SELECT s."orgId" FROM instances i'
-            ' JOIN sites s ON i."siteId" = s.id WHERE i.id = $1',
-            instance_id
+        previous = await conn.fetchrow(
+            'SELECT i.host, i."sshPort", s."orgId" AS org_id'
+            ' FROM instances i JOIN sites s ON i."siteId" = s.id WHERE i.id = $1',
+            instance_id,
         )
+        instance_org = previous["org_id"] if previous else None
 
         if instance_org is None:
             raise HTTPException(status_code=404, detail="Instance not found")
@@ -1324,6 +1326,19 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
 
         if not instance:
             raise HTTPException(status_code=404, detail="Instance not found")
+
+        if previous and (
+            previous["host"] != instance["host"]
+            or previous["sshPort"] != instance["sshPort"]
+        ):
+            await forget_replaced_router_pin(
+                conn,
+                instance_id,
+                previous["host"],
+                previous["sshPort"],
+                instance["host"],
+                instance["sshPort"],
+            )
 
         # Invalidate cached VyOS service so changes take effect immediately
         clear_session_cache(instance_id)

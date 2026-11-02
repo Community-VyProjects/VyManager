@@ -142,6 +142,11 @@
     "confirming": "Confirming...",
     "markConfigured": "I've Configured the Key",
     "regenerating": "Regenerating...",
-    "regenerate": "Regenerate Key"
+    "regenerate": "Regenerate Key",
+    "resetHostKey": "Reset host key",
+    "resettingHostKey": "Resetting...",
+    "resetHostKeyHelp": "Forget the pinned server host key. The next connection accepts the key the server presents.",
+    "resetHostKeyConfirm": "Reset the pinned host key? The next connection will trust whatever key the server presents.",
+    "resetHostKeyFailed": "Failed to reset the host key"
   }
 }

@@ -92,7 +92,7 @@ def _validate_http_url(url: str) -> str:
 
 
 async def list_archive_files(
-    archive_url: str, *, db_conn=None, instance_id: Optional[str] = None,
+    archive_url: str, *, pool=None, instance_id: Optional[str] = None,
 ) -> List[Dict[str, Optional[str | int]]]:
     """
     List config backup files at the given archive location.
@@ -115,7 +115,7 @@ async def list_archive_files(
             hostname=hostname, port=port or 22,
             username=username or "vyos", password=password,
             path=path,
-            db_conn=db_conn, instance_id=instance_id,
+            pool=pool, instance_id=instance_id,
         )
     elif scheme == "ftp":
         return await _list_ftp(
@@ -135,10 +135,10 @@ async def list_archive_files(
 
 async def _list_sftp(
     *, hostname: str, port: int, username: str,
-    password: Optional[str], path: str, db_conn=None, instance_id: Optional[str] = None,
+    password: Optional[str], path: str, pool=None, instance_id: Optional[str] = None,
 ) -> List[Dict]:
     """List files via SFTP (works for both scp:// and sftp:// archive URLs)."""
-    if db_conn is None or instance_id is None:
+    if pool is None or instance_id is None:
         raise ValueError("SFTP archive connections require an active instance")
     connect_kwargs: Dict = {}
     if password:
@@ -147,7 +147,7 @@ async def _list_sftp(
     try:
         conn = await asyncio.wait_for(
             connect_ssh(
-                db_conn=db_conn,
+                pool=pool,
                 instance_id=instance_id,
                 host=hostname,
                 port=port,
@@ -294,7 +294,7 @@ async def _list_http(archive_url: str) -> List[Dict]:
 
 
 async def fetch_archive_file_content(
-    archive_url: str, filename: str, *, db_conn=None, instance_id: Optional[str] = None,
+    archive_url: str, filename: str, *, pool=None, instance_id: Optional[str] = None,
 ) -> str:
     """
     Fetch the text content of a specific backup file from an archive location.
@@ -323,7 +323,7 @@ async def fetch_archive_file_content(
             password=password,
             path=path,
             filename=filename,
-            db_conn=db_conn, instance_id=instance_id,
+            pool=pool, instance_id=instance_id,
         )
     elif scheme == "ftp":
         return await _fetch_ftp_content(
@@ -343,9 +343,9 @@ async def fetch_archive_file_content(
 async def _fetch_sftp_content(
     *, hostname: str, port: int, username: str,
     password: Optional[str], path: str, filename: str,
-    db_conn=None, instance_id: Optional[str] = None,
+    pool=None, instance_id: Optional[str] = None,
 ) -> str:
-    if db_conn is None or instance_id is None:
+    if pool is None or instance_id is None:
         raise ValueError("SFTP archive connections require an active instance")
     connect_kwargs: Dict = {}
     if password:
@@ -354,7 +354,7 @@ async def _fetch_sftp_content(
     try:
         conn = await asyncio.wait_for(
             connect_ssh(
-                db_conn=db_conn,
+                pool=pool,
                 instance_id=instance_id,
                 host=hostname,
                 port=port,
