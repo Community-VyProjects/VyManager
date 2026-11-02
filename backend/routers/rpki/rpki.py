@@ -9,6 +9,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers.base import CommandMapperRegistry
 from vyos_builders import RpkiBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -98,64 +99,13 @@ async def get_rpki_config(http_request: Request, refresh: bool = False):
 
     try:
         service = get_session_vyos_service(http_request)
+        version = service.get_version()
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        rpki_raw = full_config.get("protocols", {}).get("rpki", {})
-
-        if not rpki_raw:
-            return RpkiConfig()
-
-        return RpkiConfig(
-            cache_servers=_parse_cache_servers(rpki_raw.get("cache", {})),
-            expire_interval=_safe_int(rpki_raw.get("expire-interval")),
-            polling_period=_safe_int(rpki_raw.get("polling-period")),
-            retry_interval=_safe_int(rpki_raw.get("retry-interval")),
-        )
+        mapper = CommandMapperRegistry.get_mapper("rpki", version)
+        return RpkiConfig(**mapper.parse_config(full_config))
     except Exception:
         logger.exception("Unhandled error in get_rpki_config")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-# ============================================================================
-# Config Parsers
-# ============================================================================
-
-
-def _safe_int(value) -> Optional[int]:
-    if value is None:
-        return None
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return None
-
-
-def _parse_cache_servers(raw: dict) -> List[RpkiCacheServer]:
-    if not raw:
-        return []
-
-    servers = []
-    for address, cfg in raw.items():
-        if cfg is None:
-            cfg = {}
-
-        ssh_raw = cfg.get("ssh", {}) or {}
-        ssh = None
-        if ssh_raw:
-            ssh = RpkiSshConfig(
-                key=ssh_raw.get("key"),
-                username=ssh_raw.get("username"),
-            )
-
-        servers.append(RpkiCacheServer(
-            address=address,
-            port=_safe_int(cfg.get("port")),
-            preference=_safe_int(cfg.get("preference")),
-            source_address=cfg.get("source-address"),
-            ssh=ssh,
-        ))
-
-    return servers
 
 
 # ============================================================================

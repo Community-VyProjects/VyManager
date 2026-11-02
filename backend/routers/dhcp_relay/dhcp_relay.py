@@ -14,6 +14,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers.base import CommandMapperRegistry
 from vyos_builders.dhcp_relay import DHCPRelayBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -102,20 +103,10 @@ async def get_dhcp_relay_config(http_request: Request, refresh: bool = False):
     await require_read_permission(http_request, FeatureGroup.DHCP_RELAY)
     try:
         service = get_session_vyos_service(http_request)
+        version = service.get_version()
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        relay_raw = full_config.get("service", {}).get("dhcp-relay", {})
-        if not relay_raw:
-            return DHCPRelayConfig()
-
-        return DHCPRelayConfig(
-            disabled="disable" in relay_raw,
-            interfaces=_parse_multi(relay_raw.get("interface")),
-            listen_interfaces=_parse_multi(relay_raw.get("listen-interface")),
-            upstream_interfaces=_parse_multi(relay_raw.get("upstream-interface")),
-            servers=_parse_multi(relay_raw.get("server")),
-            relay_options=_parse_relay_options(relay_raw.get("relay-options", {})),
-        )
+        mapper = CommandMapperRegistry.get_mapper("dhcp_relay", version)
+        return DHCPRelayConfig(**mapper.parse_config(full_config))
     except Exception:
         logger.exception("Unhandled error in get_dhcp_relay_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -169,46 +160,3 @@ async def dhcp_relay_batch_configure(
         logger.exception("Unhandled error in dhcp_relay_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
-# ============================================================================
-# Config Parsers
-# ============================================================================
-
-
-def _parse_multi(value) -> List[str]:
-    """Normalize a VyOS multi-value node to a sorted list of strings."""
-    if value is None:
-        return []
-    if isinstance(value, list):
-        return sorted(str(v) for v in value)
-    if isinstance(value, dict):
-        return sorted(value.keys())
-    return [str(value)]
-
-
-def _parse_relay_options(opts: dict) -> DHCPRelayOptions:
-    """Parse relay-options sub-tree."""
-    if not opts:
-        return DHCPRelayOptions()
-
-    hop_count = None
-    raw_hop = opts.get("hop-count")
-    if raw_hop is not None:
-        try:
-            hop_count = int(raw_hop)
-        except (ValueError, TypeError):
-            logger.debug("Non-integer hop-count value %r; ignoring", raw_hop)
-
-    max_size = None
-    raw_max = opts.get("max-size")
-    if raw_max is not None:
-        try:
-            max_size = int(raw_max)
-        except (ValueError, TypeError):
-            logger.debug("Non-integer max-size value %r; ignoring", raw_max)
-
-    return DHCPRelayOptions(
-        hop_count=hop_count,
-        max_size=max_size,
-        relay_agents_packets=opts.get("relay-agents-packets"),
-    )

@@ -154,3 +154,92 @@ def test_bridge_capabilities_use_feature_flags():
     assert "continue" not in caps14["supported_actions"]
     assert "notrack" in caps15["supported_actions"]
 
+
+@pytest.mark.parametrize(
+    "method, args",
+    [
+        ("set_rule_ethernet_type", ("forward", 10, "0x0800")),
+        ("delete_rule_ethernet_type", ("forward", 10)),
+        ("set_rule_vlan_ethernet_type", ("forward", 10, "0x0800")),
+    ],
+)
+def test_bridge_ethernet_type_rejected_on_v1_4(method, args):
+    builder = BridgeFirewallBatchBuilder(version="1.4")
+    builder.set_rule("forward", 10)
+    with pytest.raises(ValueError, match="not supported"):
+        getattr(builder, method)(*args)
+    assert all("ethernet-type" not in item["path"] for item in builder.get_operations())
+
+
+def test_bridge_batch_and_reorder_reject_ethernet_type_on_v1_4(monkeypatch):
+    """1.4 ethernet-type must 400 on batch and reorder, and must not commit."""
+    from types import SimpleNamespace
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    executed = []
+
+    async def allow(*_args, **_kwargs):
+        return None
+
+    class Service:
+        def get_version(self):
+            return "1.4"
+
+        def execute_batch(self, batch):
+            executed.append(batch)
+            return SimpleNamespace(status=200, result="", error=None)
+
+    monkeypatch.setattr("routers.firewall.bridge.require_write_permission", allow)
+    monkeypatch.setattr(
+        "routers.firewall.bridge.get_session_vyos_service",
+        lambda _req: Service(),
+    )
+
+    from routers.firewall.bridge import router
+
+    app = FastAPI()
+    app.include_router(router)
+    client = TestClient(app)
+
+    batch = client.post(
+        "/vyos/firewall/bridge/batch",
+        json={
+            "chain": "forward",
+            "rule_number": 10,
+            "operations": [{"op": "set_rule_ethernet_type", "value": "0x0800"}],
+        },
+    )
+    assert batch.status_code == 400, batch.text
+    assert "not supported" in batch.json()["detail"]
+
+    reorder = client.post(
+        "/vyos/firewall/bridge/reorder",
+        json={
+            "chain": "forward",
+            "rules": [{
+                "old_number": 10,
+                "new_number": 20,
+                "rule_data": {"rule_number": 10, "ethernet_type": "0x0800"},
+            }],
+        },
+    )
+    assert reorder.status_code == 400, reorder.text
+    assert "not supported" in reorder.json()["detail"]
+
+    vlan = client.post(
+        "/vyos/firewall/bridge/reorder",
+        json={
+            "chain": "forward",
+            "rules": [{
+                "old_number": 10,
+                "new_number": 20,
+                "rule_data": {"rule_number": 10, "vlan_ethernet_type": "0x0800"},
+            }],
+        },
+    )
+    assert vlan.status_code == 400, vlan.text
+    assert "not supported" in vlan.json()["detail"]
+    assert executed == []
+

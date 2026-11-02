@@ -16,6 +16,13 @@ def get_bgp_mapper(version: str):
         version_specific = BgpMapperV1_5()  # Default to latest
 
     class MergedMapper:
+        # parse_config must live here. A method on BgpMapper is bound to
+        # `base`, so version-specific flag lookups would not see this instance.
+        def parse_config(self, full_config):
+            from ..config_parse import parse_config as parse_bgp_config
+
+            return parse_bgp_config(self, full_config)
+
         def __getattr__(self, name):
             if hasattr(version_specific, name):
                 return getattr(version_specific, name)

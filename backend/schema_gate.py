@@ -33,7 +33,6 @@ REQUIRED_TABLES = (
     "user_instance_roles",
     "user_feature_permissions",
     "active_sessions",
-    "ssh_host_keys",
     "audit_logs",
 )
 

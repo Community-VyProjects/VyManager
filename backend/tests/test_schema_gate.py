@@ -66,3 +66,4 @@ def test_connection_errors_keep_polling_then_time_out(monkeypatch):
 def test_feature_overlay_tables_are_not_boot_required():
     assert "pppoe_session_label_definitions" not in schema_gate.REQUIRED_TABLES
     assert "firewall_separators" not in schema_gate.REQUIRED_TABLES
+    assert "ssh_host_keys" not in schema_gate.REQUIRED_TABLES

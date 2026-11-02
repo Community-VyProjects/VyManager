@@ -22,6 +22,7 @@ from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import has_permission, require_read_permission
 from org_scope import request_scoped_conn
 from rbac_permissions import FeatureGroup, PermissionLevel
+from stream_auth import fail_closed
 from system_updates import SystemUpdatesInfo, parse_system_updates
 from routers.qos.qos import (
     find_cake_targets,
@@ -53,6 +54,19 @@ from transceiver_status import (
 from pppoe_status import load_pppoe_sessions, pppoe_configured
 import logging
 logger = logging.getLogger(__name__)
+
+
+async def dashboard_session_closed(open_conn, user_id: str, instance_id: str) -> bool:
+    """Close the dashboard stream when the session is gone or cannot be checked."""
+    from routers.events import _has_active_session
+
+    async def still_signed_in() -> bool:
+        async with open_conn() as conn:
+            return await _has_active_session(conn, user_id, instance_id)
+
+    result = await fail_closed(still_signed_in)
+    return result.close_reason is not None
+
 
 router = APIRouter(prefix="/vyos/show", tags=["show"])
 
@@ -1811,7 +1825,6 @@ async def dashboard_stream(
     retain_firewall_interest(requested, include_firewall=include_firewall)
 
     async def event_generator():
-        from routers.events import _has_active_session
         queue = broadcaster.subscribe(requested)
         try:
             yield 'event: connected\ndata: {"message":"Dashboard stream connected"}\n\n'
@@ -1824,13 +1837,11 @@ async def dashboard_stream(
                     # Close the stream if the user's session has expired.
                     # One short org-scoped connection per tick - a stream
                     # must never hold a transaction open between ticks.
-                    try:
-                        async with request_scoped_conn(request) as conn:
-                            still_active = await _has_active_session(
-                                conn, user_id, instance_id)
-                    except Exception:
-                        still_active = True  # assume valid when DB is unavailable
-                    if not still_active:
+                    if await dashboard_session_closed(
+                        lambda: request_scoped_conn(request),
+                        user_id,
+                        instance_id,
+                    ):
                         break
                     yield ": keep-alive\n\n"
                     continue

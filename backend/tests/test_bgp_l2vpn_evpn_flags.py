@@ -5,10 +5,10 @@ from pathlib import Path
 
 import pytest
 
-from routers.bgp.bgp import parse_address_families
 from vyos_builders.bgp.bgp_batch_builder import BgpBatchBuilder
 from vyos_builders.vrf.vrf_batch_builder import VrfBatchBuilder
 from vyos_mappers.bgp.bgp import BgpMapper
+from vyos_mappers.bgp.bgp_versions import get_bgp_mapper
 from vyos_mappers.vrf.vrf_bgp import VrfBgpMapper
 
 
@@ -71,22 +71,28 @@ def test_vrf_reuses_global_builder_with_prefix():
 
 
 def test_parse_l2vpn_evpn_flags():
-    families = parse_address_families({
-        "ipv4-unicast": {"network": {"192.0.2.0/24": {}}},
-        "l2vpn-evpn": {
-            "advertise-all-vni": {},
-            "rt-auto-derive": {},
-            "rd": "1:1",
-        },
+    parsed = get_bgp_mapper("1.5").parse_config({
+        "protocols": {
+            "bgp": {
+                "address-family": {
+                    "ipv4-unicast": {"network": {"192.0.2.0/24": {}}},
+                    "l2vpn-evpn": {
+                        "advertise-all-vni": {},
+                        "rt-auto-derive": {},
+                        "rd": "1:1",
+                    },
+                }
+            }
+        }
     })
-    by_afi = {f.afi: f for f in families}
+    by_afi = {f["afi"]: f for f in parsed["address_families"]}
     assert "l2vpn-evpn" in by_afi
-    assert set(by_afi["l2vpn-evpn"].evpn_flags) == {
+    assert set(by_afi["l2vpn-evpn"]["evpn_flags"]) == {
         "advertise-all-vni",
         "rt-auto-derive",
     }
-    assert by_afi["ipv4-unicast"].evpn_flags == []
-    assert by_afi["ipv4-unicast"].networks[0].prefix == "192.0.2.0/24"
+    assert by_afi["ipv4-unicast"]["evpn_flags"] == []
+    assert by_afi["ipv4-unicast"]["networks"][0]["prefix"] == "192.0.2.0/24"
 
 
 def _handler_maps_value_error_to_400(router_path: Path, handler_name: str) -> None:

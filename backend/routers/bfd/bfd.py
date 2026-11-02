@@ -10,6 +10,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers.base import CommandMapperRegistry
 from vyos_builders import BfdBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -134,17 +135,9 @@ async def get_bfd_config(http_request: Request, refresh: bool = False):
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        bfd_config = full_config.get("protocols", {}).get("bfd", {})
-
-        if not bfd_config:
-            return BfdConfig()
-
-        peers = parse_peers(bfd_config.get("peer", {}))
-        profiles = parse_profiles(bfd_config.get("profile", {}))
-
-        return BfdConfig(peers=peers, profiles=profiles)
-    except Exception as e:
+        mapper = CommandMapperRegistry.get_mapper("bfd", service.get_version())
+        return BfdConfig(**mapper.parse_config(full_config))
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -190,81 +183,6 @@ async def get_bfd_status(request: Request):
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-# ============================================================================
-# Config Parsers
-# ============================================================================
-
-
-def parse_interval(config: dict) -> BfdInterval:
-    """Parse BFD interval settings from config."""
-    interval_raw = config.get("interval", {})
-    if not interval_raw:
-        return BfdInterval()
-
-    return BfdInterval(
-        echo_interval=int(interval_raw["echo-interval"]) if interval_raw.get("echo-interval") else None,
-        multiplier=int(interval_raw["multiplier"]) if interval_raw.get("multiplier") else None,
-        receive=int(interval_raw["receive"]) if interval_raw.get("receive") else None,
-        transmit=int(interval_raw["transmit"]) if interval_raw.get("transmit") else None,
-    )
-
-
-def parse_source(config: dict) -> BfdSource:
-    """Parse BFD peer source configuration."""
-    source_raw = config.get("source", {})
-    if not source_raw:
-        return BfdSource()
-
-    return BfdSource(
-        address=source_raw.get("address"),
-        interface=source_raw.get("interface"),
-    )
-
-
-def parse_peers(peers_raw: dict) -> List[BfdPeer]:
-    """Parse BFD peer configurations."""
-    peers = []
-
-    for peer_addr, peer_config in peers_raw.items():
-        if peer_config is None:
-            peer_config = {}
-
-        peers.append(BfdPeer(
-            address=peer_addr,
-            echo_mode="echo-mode" in peer_config,
-            interval=parse_interval(peer_config),
-            minimum_ttl=int(peer_config["minimum-ttl"]) if peer_config.get("minimum-ttl") else None,
-            multihop="multihop" in peer_config,
-            passive="passive" in peer_config,
-            profile=peer_config.get("profile"),
-            shutdown="shutdown" in peer_config,
-            source=parse_source(peer_config),
-            vrf=peer_config.get("vrf"),
-        ))
-
-    return peers
-
-
-def parse_profiles(profiles_raw: dict) -> List[BfdProfile]:
-    """Parse BFD profile configurations."""
-    profiles = []
-
-    for profile_name, profile_config in profiles_raw.items():
-        if profile_config is None:
-            profile_config = {}
-
-        profiles.append(BfdProfile(
-            name=profile_name,
-            echo_mode="echo-mode" in profile_config,
-            interval=parse_interval(profile_config),
-            minimum_ttl=int(profile_config["minimum-ttl"]) if profile_config.get("minimum-ttl") else None,
-            passive="passive" in profile_config,
-            shutdown="shutdown" in profile_config,
-        ))
-
-    return profiles
 
 
 # ============================================================================

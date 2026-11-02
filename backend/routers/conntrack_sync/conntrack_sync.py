@@ -14,6 +14,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers.base import CommandMapperRegistry
 from vyos_builders.conntrack_sync import ConntrackSyncBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -117,25 +118,8 @@ async def get_conntrack_sync_config(http_request: Request, refresh: bool = False
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        cs_raw = full_config.get("service", {}).get("conntrack-sync", {})
-        if not cs_raw:
-            return ConntrackSyncConfig()
-
-        return ConntrackSyncConfig(
-            accept_protocols=_parse_multi(cs_raw.get("accept-protocol")),
-            disable_external_cache="disable-external-cache" in cs_raw,
-            disable_syslog="disable-syslog" in cs_raw,
-            event_listen_queue_size=_parse_int(cs_raw.get("event-listen-queue-size")),
-            expect_sync=_parse_multi(cs_raw.get("expect-sync")),
-            failover_mechanism=_parse_failover(cs_raw.get("failover-mechanism")),
-            ignore_addresses=sorted(_parse_multi(cs_raw.get("ignore-address"))),
-            interfaces=_parse_interfaces(cs_raw.get("interface")),
-            listen_addresses=sorted(_parse_multi(cs_raw.get("listen-address"))),
-            mcast_group=cs_raw.get("mcast-group"),
-            startup_resync="startup-resync" in cs_raw,
-            sync_queue_size=_parse_int(cs_raw.get("sync-queue-size")),
-        )
+        mapper = CommandMapperRegistry.get_mapper("conntrack_sync", service.get_version())
+        return ConntrackSyncConfig(**mapper.parse_config(full_config))
     except Exception:
         logger.exception("Unhandled error in get_conntrack_sync_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -188,66 +172,3 @@ async def conntrack_sync_batch_configure(
     except Exception:
         logger.exception("Unhandled error in conntrack_sync_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-# ============================================================================
-# Config Parsers
-# ============================================================================
-
-
-def _parse_multi(value) -> List[str]:
-    """Normalize a VyOS multi-value field to a list of strings."""
-    if value is None:
-        return []
-    if isinstance(value, list):
-        return value
-    if isinstance(value, dict):
-        return list(value.keys())
-    return [str(value)]
-
-
-def _parse_int(value) -> Optional[int]:
-    if value is None:
-        return None
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return None
-
-
-def _parse_failover(raw) -> Optional[ConntrackSyncFailoverMechanism]:
-    if not raw:
-        return None
-    vrrp_raw = raw.get("vrrp")
-    if vrrp_raw is None:
-        return ConntrackSyncFailoverMechanism()
-    sync_group = vrrp_raw.get("sync-group") if isinstance(vrrp_raw, dict) else None
-    return ConntrackSyncFailoverMechanism(
-        vrrp=ConntrackSyncFailoverVrrp(sync_group=sync_group)
-    )
-
-
-def _parse_interfaces(raw) -> List[ConntrackSyncInterface]:
-    if not raw or not isinstance(raw, dict):
-        return []
-    interfaces = []
-    for iface_name, iface_cfg in raw.items():
-        if iface_cfg is None:
-            iface_cfg = {}
-        port_raw = iface_cfg.get("port")
-        port = None
-        if port_raw is not None:
-            try:
-                port = int(port_raw)
-            except (ValueError, TypeError):
-                logger.debug(
-                    "Invalid conntrack-sync interface port '%s' for interface '%s'; defaulting to None",
-                    port_raw,
-                    iface_name,
-                )
-        interfaces.append(ConntrackSyncInterface(
-            name=iface_name,
-            peer=iface_cfg.get("peer"),
-            port=port,
-        ))
-    return sorted(interfaces, key=lambda i: i.name)

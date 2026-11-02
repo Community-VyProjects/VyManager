@@ -29,12 +29,13 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import appliance_mode
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers.base import CommandMapperRegistry
 from vyos_builders.container import ContainerBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from org_scope import request_scoped_conn
 from rbac_permissions import FeatureGroup
 from ssh_key_manager import decrypt_private_key
-from utils.ssh import connect as connect_ssh
+from utils.ssh import SshHostKeyRejected, connect as connect_ssh
 import inspect
 import logging
 from batch_dispatch import resolve_batch_method
@@ -520,6 +521,8 @@ async def _get_ssh_connection(request: Request) -> tuple:
             )
     except asyncio.TimeoutError:
         raise HTTPException(status_code=504, detail="SSH connection timed out")
+    except SshHostKeyRejected as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     except (OSError, asyncssh.Error) as exc:
         raise HTTPException(status_code=502, detail=f"SSH connection failed: {exc}")
 
@@ -583,18 +586,14 @@ async def get_container_config(http_request: Request, refresh: bool = False):
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
+        mapper = CommandMapperRegistry.get_mapper("container", service.get_version())
+        parsed = mapper.parse_config(full_config)
 
-        container_raw = full_config.get("container", {})
-        if not container_raw:
-            return ContainerConfig()
-
-        containers = _parse_container_names(container_raw.get("name", {}))
-        networks = _parse_container_networks(container_raw.get("network", {}))
-        registries = _parse_container_registries(container_raw.get("registry", {}))
-
+        # Image update status is not config-tree parsing. Keep it here.
         resolved = []
         status_tasks = []
-        for container in sorted(containers, key=lambda c: c.name):
+        for raw in parsed["containers"]:
+            container = ContainerInstance(**raw)
             if container.image:
                 status_tasks.append((container, asyncio.create_task(_check_container_image_update_status(http_request, container.image))))
             else:
@@ -605,8 +604,8 @@ async def get_container_config(http_request: Request, refresh: bool = False):
 
         return ContainerConfig(
             containers=sorted(resolved, key=lambda c: c.name),
-            networks=sorted(networks, key=lambda n: n.name),
-            registries=sorted(registries, key=lambda r: r.name),
+            networks=parsed["networks"],
+            registries=parsed["registries"],
         )
     except Exception:
         logger.exception("Unhandled error in get_container_config")
@@ -1068,224 +1067,3 @@ async def remove_container_dir(http_request: Request, body: ContainerRmdirReques
     if appliance_mode.is_appliance() and appliance_mode.is_stack_volume_path(body.path):
         raise HTTPException(status_code=400, detail=appliance_mode.STACK_GUARD_DETAIL)
     return await _run_shell_command(http_request, f"sudo rm -rf {shlex.quote(body.path)}")
-
-
-# ============================================================================
-# Config Parsers
-# ============================================================================
-
-
-def _parse_multi(raw) -> List[str]:
-    """Parse a multi-value field that may be a list, dict, or scalar."""
-    if raw is None:
-        return []
-    if isinstance(raw, list):
-        return raw
-    if isinstance(raw, dict):
-        return list(raw.keys())
-    return [str(raw)]
-
-
-def _parse_container_names(names_raw: dict) -> List[ContainerInstance]:
-    if not names_raw or not isinstance(names_raw, dict):
-        return []
-    result = []
-    for name, cfg in names_raw.items():
-        if cfg is None:
-            cfg = {}
-        result.append(_parse_container_instance(name, cfg))
-    return result
-
-
-def _parse_container_instance(name: str, cfg: dict) -> ContainerInstance:
-    # Devices
-    devices = []
-    for dev_name, dev_cfg in (cfg.get("device") or {}).items():
-        if dev_cfg is None:
-            dev_cfg = {}
-        devices.append(ContainerDevice(
-            name=dev_name,
-            source=dev_cfg.get("source"),
-            destination=dev_cfg.get("destination"),
-        ))
-
-    # Environments
-    environments = []
-    for env_name, env_cfg in (cfg.get("environment") or {}).items():
-        if env_cfg is None:
-            env_cfg = {}
-        environments.append(ContainerEnvironment(
-            name=env_name,
-            value=env_cfg.get("value"),
-        ))
-
-    # Labels
-    labels = []
-    for label_name, label_cfg in (cfg.get("label") or {}).items():
-        if label_cfg is None:
-            label_cfg = {}
-        labels.append(ContainerLabel(
-            name=label_name,
-            value=label_cfg.get("value"),
-        ))
-
-    # Network attachments
-    networks = []
-    for net_name, net_cfg in (cfg.get("network") or {}).items():
-        if net_cfg is None:
-            net_cfg = {}
-        networks.append(ContainerNetworkAttachment(
-            name=net_name,
-            addresses=_parse_multi(net_cfg.get("address")),
-        ))
-
-    # Ports
-    ports = []
-    for port_name, port_cfg in (cfg.get("port") or {}).items():
-        if port_cfg is None:
-            port_cfg = {}
-        ports.append(ContainerPort(
-            name=port_name,
-            source=port_cfg.get("source"),
-            destination=port_cfg.get("destination"),
-            protocol=port_cfg.get("protocol"),
-            listen_addresses=_parse_multi(port_cfg.get("listen-address")),
-        ))
-
-    # Sysctl params
-    sysctl_params = []
-    for param_name, param_cfg in (cfg.get("sysctl", {}).get("parameter") or {}).items():
-        if param_cfg is None:
-            param_cfg = {}
-        sysctl_params.append(ContainerSysctlParam(
-            name=param_name,
-            value=param_cfg.get("value"),
-        ))
-
-    # Tmpfs mounts
-    tmpfs_mounts = []
-    for tmpfs_name, tmpfs_cfg in (cfg.get("tmpfs") or {}).items():
-        if tmpfs_cfg is None:
-            tmpfs_cfg = {}
-        tmpfs_mounts.append(ContainerTmpfs(
-            name=tmpfs_name,
-            destination=tmpfs_cfg.get("destination"),
-            size=tmpfs_cfg.get("size"),
-        ))
-
-    # Volumes
-    volumes = []
-    for vol_name, vol_cfg in (cfg.get("volume") or {}).items():
-        if vol_cfg is None:
-            vol_cfg = {}
-        volumes.append(ContainerVolume(
-            name=vol_name,
-            source=vol_cfg.get("source"),
-            destination=vol_cfg.get("destination"),
-            mode=vol_cfg.get("mode"),
-            propagation=vol_cfg.get("propagation"),
-        ))
-
-    return ContainerInstance(
-        name=name,
-        image=cfg.get("image"),
-        description=cfg.get("description"),
-        disabled="disable" in cfg,
-        allow_host_networks="allow-host-networks" in cfg,
-        allow_host_pid="allow-host-pid" in cfg,
-        privileged="privileged" in cfg,
-        arguments=cfg.get("arguments"),
-        command=cfg.get("command"),
-        entrypoint=cfg.get("entrypoint"),
-        cpu_quota=cfg.get("cpu-quota"),
-        memory=cfg.get("memory"),
-        shared_memory=cfg.get("shared-memory"),
-        uid=cfg.get("uid"),
-        gid=cfg.get("gid"),
-        host_name=cfg.get("host-name"),
-        log_driver=cfg.get("log-driver"),
-        restart=cfg.get("restart"),
-        capabilities=_parse_multi(cfg.get("capability")),
-        name_servers=_parse_multi(cfg.get("name-server")),
-        devices=sorted(devices, key=lambda d: d.name),
-        environments=sorted(environments, key=lambda e: e.name),
-        labels=sorted(labels, key=lambda l: l.name),
-        networks=sorted(networks, key=lambda n: n.name),
-        ports=sorted(ports, key=lambda p: p.name),
-        sysctl_params=sorted(sysctl_params, key=lambda s: s.name),
-        tmpfs_mounts=sorted(tmpfs_mounts, key=lambda t: t.name),
-        volumes=sorted(volumes, key=lambda v: v.name),
-    )
-
-
-def _parse_container_networks(networks_raw: dict) -> List[ContainerNetworkConfig]:
-    if not networks_raw or not isinstance(networks_raw, dict):
-        return []
-    result = []
-    for net_name, cfg in networks_raw.items():
-        if cfg is None:
-            cfg = {}
-
-        network_type = None
-        macvlan_mode = None
-        macvlan_parent = None
-        type_cfg = cfg.get("type", {})
-        if isinstance(type_cfg, dict):
-            if "bridge" in type_cfg:
-                network_type = "bridge"
-            elif "macvlan" in type_cfg:
-                network_type = "macvlan"
-                mv_cfg = type_cfg.get("macvlan") or {}
-                if isinstance(mv_cfg, dict):
-                    macvlan_mode = mv_cfg.get("mode")
-                    macvlan_parent = mv_cfg.get("parent")
-
-        result.append(ContainerNetworkConfig(
-            name=net_name,
-            description=cfg.get("description"),
-            gateways=_parse_multi(cfg.get("gateway")),
-            mtu=cfg.get("mtu"),
-            no_name_server="no-name-server" in cfg,
-            prefixes=_parse_multi(cfg.get("prefix")),
-            network_type=network_type,
-            macvlan_mode=macvlan_mode,
-            macvlan_parent=macvlan_parent,
-            vrf=cfg.get("vrf"),
-        ))
-    return result
-
-
-def _parse_container_registries(registries_raw: dict) -> List[ContainerRegistry]:
-    if not registries_raw or not isinstance(registries_raw, dict):
-        return []
-    result = []
-    for reg_name, cfg in registries_raw.items():
-        if cfg is None:
-            cfg = {}
-
-        auth = None
-        auth_raw = cfg.get("authentication")
-        if auth_raw and isinstance(auth_raw, dict):
-            auth = ContainerRegistryAuth(
-                username=auth_raw.get("username"),
-                password=auth_raw.get("password"),
-            )
-
-        mirror = None
-        mirror_raw = cfg.get("mirror")
-        if mirror_raw and isinstance(mirror_raw, dict):
-            mirror = ContainerRegistryMirror(
-                address=mirror_raw.get("address"),
-                host_name=mirror_raw.get("host-name"),
-                path=mirror_raw.get("path"),
-                port=mirror_raw.get("port"),
-            )
-
-        result.append(ContainerRegistry(
-            name=reg_name,
-            disabled="disable" in cfg,
-            insecure="insecure" in cfg,
-            authentication=auth,
-            mirror=mirror,
-        ))
-    return result

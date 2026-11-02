@@ -21,6 +21,7 @@ Version differences (surfaced via capabilities):
 
 from typing import List, Dict, Any
 from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.qos.qos import FLOW_ISOLATION_MODES
 from vyos_builders.base import BatchBuilder
 
 # ---------------------------------------------------------------------------
@@ -35,10 +36,6 @@ POLICY_TYPES = [
 
 QUEUE_TYPES = ["drop-tail", "fair-queue", "fq-codel", "priority", "random-detect"]
 EXCEED_ACTIONS = ["continue", "drop", "ok", "reclassify", "pipe"]
-FLOW_ISOLATION_MODES = [
-    "blind", "dst-host", "dual-dst-host", "dual-src-host", "flow", "host",
-    "src-host", "triple-isolate",
-]
 DSCP_NAMES = [
     "default", "reliability", "throughput", "lowdelay", "priority", "immediate",
     "flash", "flash-override", "critical", "internet", "network",

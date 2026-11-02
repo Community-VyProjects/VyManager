@@ -125,3 +125,71 @@ def test_global_options_gates_bridged_traffic_and_timeouts_on_features():
     assert "bridged_traffic_available" not in caps15["version_notes"]
     assert "is_v15_or_later" not in caps15["version_notes"]
     assert "timeouts_available" not in caps15["version_notes"]
+
+
+@pytest.mark.parametrize("method, args, _op, _path", V15_ONLY_CASES)
+def test_global_options_v1_4_rejects_version_only_ops(method, args, _op, _path):
+    """A 1.5-only op on 1.4 must raise, not return and leave the batch short."""
+    builder = FirewallGlobalOptionsBatchBuilder(version="1.4")
+    builder.set_all_ping("enable")
+    with pytest.raises(ValueError, match="not supported"):
+        getattr(builder, method)(*args)
+    paths = [item["path"] for item in builder.get_operations()]
+    assert paths == [["firewall", "global-options", "all-ping", "enable"]]
+
+
+def test_global_options_batch_maps_value_error_to_http_400(monkeypatch):
+    """A mixed 1.4 batch must 400 before commit, not drop the 1.5-only op."""
+    from types import SimpleNamespace
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    executed = []
+
+    async def allow(*_args, **_kwargs):
+        return None
+
+    class Service:
+        def get_version(self):
+            return "1.4"
+
+        def get_full_config(self, refresh=False):
+            return {}
+
+        def execute_batch(self, batch):
+            executed.append(batch)
+            return SimpleNamespace(status=200, result="", error=None)
+
+    monkeypatch.setattr(
+        "routers.firewall_global_options.firewall_global_options.require_write_permission",
+        allow,
+    )
+    monkeypatch.setattr(
+        "routers.firewall_global_options.firewall_global_options.get_session_vyos_service",
+        lambda _req: Service(),
+    )
+
+    from routers.firewall_global_options.firewall_global_options import router
+
+    app = FastAPI()
+    app.include_router(router)
+    client = TestClient(app)
+
+    batch = client.post(
+        "/vyos/firewall/global-options/batch",
+        json={"operations": [
+            {"op": "set_all_ping", "value": "enable"},
+            {"op": "set_timeout_icmp", "value": "30"},
+        ]},
+    )
+    assert batch.status_code == 400, batch.text
+    assert "not supported" in batch.json()["detail"]
+
+    update = client.post(
+        "/vyos/firewall/global-options/update",
+        json={"all_ping": "enable", "timeouts": {"icmp": 30}},
+    )
+    assert update.status_code == 400, update.text
+    assert "not supported" in update.json()["detail"]
+    assert executed == []

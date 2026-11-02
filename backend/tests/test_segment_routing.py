@@ -6,11 +6,7 @@ mirror the config-dict shape returned by ``get_full_config`` for the
 ``protocols segment-routing`` subtree. No VyOS service or router needed.
 """
 
-from routers.segment_routing.segment_routing import (
-    _parse_locators,
-    _parse_interfaces,
-    _safe_int,
-)
+from vyos_mappers.segment_routing.segment_routing_versions import get_segment_routing_mapper
 from vyos_builders import SegmentRoutingBatchBuilder
 
 
@@ -142,38 +138,49 @@ SR_CONFIG = {
 }
 
 
+def _parsed(subtree, version="1.5"):
+    return get_segment_routing_mapper(version).parse_config(
+        {"protocols": {"segment-routing": subtree}}
+    )
+
+
 def test_parse_locators():
-    locators = {l.name: l for l in _parse_locators(SR_CONFIG["srv6"]["locator"])}
+    locators = {item["name"]: item for item in _parsed(SR_CONFIG)["locators"]}
     assert set(locators) == {"loc1", "loc2"}
 
     loc1 = locators["loc1"]
-    assert loc1.prefix == "2001:db8:aaaa::/48"
-    assert loc1.block_len == 40
-    assert loc1.node_len == 24
-    assert loc1.func_bits == 16
-    assert loc1.behavior_usid is True
+    assert loc1["prefix"] == "2001:db8:aaaa::/48"
+    assert loc1["block_len"] == 40
+    assert loc1["node_len"] == 24
+    assert loc1["func_bits"] == 16
+    assert loc1["behavior_usid"] is True
 
     loc2 = locators["loc2"]
-    assert loc2.prefix == "2001:db8:bbbb::/48"
-    assert loc2.block_len is None
-    assert loc2.behavior_usid is False
+    assert loc2["prefix"] == "2001:db8:bbbb::/48"
+    assert loc2["block_len"] is None
+    assert loc2["behavior_usid"] is False
 
 
 def test_parse_interfaces():
-    interfaces = {i.name: i for i in _parse_interfaces(SR_CONFIG["interface"])}
+    interfaces = {item["name"]: item for item in _parsed(SR_CONFIG)["interfaces"]}
     assert set(interfaces) == {"eth0", "eth1"}
-    assert interfaces["eth0"].hmac == "drop"
-    assert interfaces["eth1"].hmac is None
+    assert interfaces["eth0"]["hmac"] == "drop"
+    assert interfaces["eth1"]["hmac"] is None
 
 
 def test_parse_empty_inputs():
-    assert _parse_locators({}) == []
-    assert _parse_interfaces({}) == []
-    assert _parse_locators({"bare": None})[0].prefix is None
-    assert _parse_interfaces({"eth9": None})[0].hmac is None
+    assert _parsed({})["locators"] == []
+    assert _parsed({})["interfaces"] == []
+    assert _parsed({"srv6": {"locator": {"bare": None}}})["locators"][0]["prefix"] is None
+    assert _parsed({"interface": {"eth9": None}})["interfaces"][0]["hmac"] is None
 
 
 def test_safe_int():
-    assert _safe_int("40") == 40
-    assert _safe_int(None) is None
-    assert _safe_int("not-a-number") is None
+    parsed = _parsed({"srv6": {"locator": {"loc": {
+        "block-len": "40",
+        "node-len": "not-a-number",
+    }}}})
+    loc = parsed["locators"][0]
+    assert loc["block_len"] == 40
+    assert loc["node_len"] is None
+    assert _parsed({"srv6": {"locator": {"loc": {}}}})["locators"][0]["block_len"] is None

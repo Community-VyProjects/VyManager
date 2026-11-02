@@ -14,6 +14,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers.base import CommandMapperRegistry
 from vyos_builders.console_server import ConsoleServerBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -104,14 +105,10 @@ async def get_console_server_config(http_request: Request, refresh: bool = False
     await require_read_permission(http_request, FeatureGroup.CONSOLE_SERVER)
     try:
         service = get_session_vyos_service(http_request)
+        version = service.get_version()
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        cs_raw = full_config.get("service", {}).get("console-server", {})
-        if not cs_raw:
-            return ConsoleServerConfig()
-
-        devices = _parse_devices(cs_raw.get("device"))
-        return ConsoleServerConfig(devices=devices)
+        mapper = CommandMapperRegistry.get_mapper("console_server", version)
+        return ConsoleServerConfig(**mapper.parse_config(full_config))
     except Exception:
         logger.exception("Unhandled error in get_console_server_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -165,42 +162,3 @@ async def console_server_batch_configure(
         logger.exception("Unhandled error in console_server_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
-# ============================================================================
-# Config Parsers
-# ============================================================================
-
-
-def _parse_devices(raw) -> List[ConsoleDevice]:
-    if not raw or not isinstance(raw, dict):
-        return []
-    devices = []
-    for device_name, device_cfg in raw.items():
-        if device_cfg is None:
-            device_cfg = {}
-        ssh_raw = device_cfg.get("ssh")
-        ssh = None
-        if ssh_raw is not None:
-            port = None
-            if isinstance(ssh_raw, dict):
-                port_raw = ssh_raw.get("port")
-                if port_raw is not None:
-                    try:
-                        port = int(port_raw)
-                    except (ValueError, TypeError):
-                        logger.debug(
-                            "Invalid ssh port '%s' for device '%s'",
-                            port_raw, device_name,
-                        )
-            ssh = ConsoleDeviceSsh(port=port)
-        devices.append(ConsoleDevice(
-            name=device_name,
-            alias=device_cfg.get("alias"),
-            data_bits=device_cfg.get("data-bits"),
-            description=device_cfg.get("description"),
-            parity=device_cfg.get("parity"),
-            speed=device_cfg.get("speed"),
-            ssh=ssh,
-            stop_bits=device_cfg.get("stop-bits"),
-        ))
-    return sorted(devices, key=lambda d: d.name)

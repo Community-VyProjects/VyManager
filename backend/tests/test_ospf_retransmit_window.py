@@ -8,7 +8,6 @@ from pathlib import Path
 
 import pytest
 
-from routers.ospf.ospf import parse_areas, parse_interfaces
 from tests.en_message import en_message
 from vyos_builders.ospf.ospf_batch_builder import OspfBatchBuilder
 from vyos_mappers.ospf.ospf_versions import get_ospf_mapper
@@ -119,9 +118,13 @@ def test_ospf_api_emits_retransmit_window_ops():
 
 
 def test_parse_retransmit_window():
-    ifaces = parse_interfaces({"eth0": {"retransmit-window": "5"}})
-    assert ifaces[0].retransmit_window == 5
-    areas = parse_areas(
-        {"0": {"virtual-link": {"192.0.2.1": {"retransmit-window": "8"}}}}
-    )
-    assert areas[0].virtual_links[0].retransmit_window == 8
+    parsed = get_ospf_mapper("1.5").parse_config({
+        "protocols": {
+            "ospf": {
+                "interface": {"eth0": {"retransmit-window": "5"}},
+                "area": {"0": {"virtual-link": {"192.0.2.1": {"retransmit-window": "8"}}}},
+            }
+        }
+    })
+    assert parsed["interfaces"][0]["retransmit_window"] == 5
+    assert parsed["areas"][0]["virtual_links"][0]["retransmit_window"] == 8

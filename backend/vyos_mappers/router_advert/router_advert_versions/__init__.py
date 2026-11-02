@@ -10,6 +10,13 @@ def get_router_advert_mapper(version: str):
     version_specific = RouterAdvertMapperV1_4() if "1.4" in version else RouterAdvertMapperV1_5()
 
     class MergedMapper:
+        # parse_config must live here. A method on the base mapper is bound
+        # to `base`, so version branches would not see the merged mapper.
+        def parse_config(self, full_config):
+            from ..config_parse import parse_config as parse_router_advert_config
+
+            return parse_router_advert_config(self, full_config)
+
         def __getattr__(self, name):
             if hasattr(version_specific, name):
                 return getattr(version_specific, name)

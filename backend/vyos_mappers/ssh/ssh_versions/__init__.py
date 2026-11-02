@@ -14,6 +14,13 @@ def get_ssh_mapper(version: str):
         version_specific = SSHMapperV1_5()
 
     class MergedMapper:
+        # parse_config must live here. A method on SSHMapper is bound to
+        # `base`, so mapper.version would not fall through on the call.
+        def parse_config(self, full_config):
+            from ..config_parse import parse_config as parse_ssh_config
+
+            return parse_ssh_config(self, full_config)
+
         def __getattr__(self, name):
             if hasattr(version_specific, name):
                 return getattr(version_specific, name)

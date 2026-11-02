@@ -24,6 +24,8 @@ import inspect
 import logging
 import json
 from batch_dispatch import resolve_batch_method
+import vyos_mappers  # noqa: F401  registers CommandMapperRegistry features
+from vyos_mappers.base import CommandMapperRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -255,34 +257,6 @@ class QoSStatsResponse(BaseModel):
     applied: bool = True
     interfaces: List[QoSInterfaceStats] = []   # shaper / shaper-hfsc policies
     cake: List[QoSCakeStats] = []              # cake policies
-# vyos-key -> model field for class/default scalar attributes
-_CLASS_SCALAR_FIELDS = {
-    "average-packet": "average_packet",
-    "bandwidth": "bandwidth",
-    "burst": "burst",
-    "ceiling": "ceiling",
-    "codel-quantum": "codel_quantum",
-    "description": "description",
-    "exceed": "exceed",
-    "flows": "flows",
-    "interval": "interval",
-    "mark-probability": "mark_probability",
-    "maximum-threshold": "maximum_threshold",
-    "minimum-threshold": "minimum_threshold",
-    "mtu": "mtu",
-    "not-exceed": "not_exceed",
-    "priority": "priority",
-    "quantum": "quantum",
-    "queue-limit": "queue_limit",
-    "queue-type": "queue_type",
-    "set-dscp": "set_dscp",
-    "target": "target",
-}
-
-FLOW_ISOLATION_MODES = [
-    "blind", "dst-host", "dual-dst-host", "dual-src-host", "flow", "host",
-    "src-host", "triple-isolate",
-]
 
 
 # ============================================================================
@@ -319,16 +293,8 @@ async def get_qos_config(http_request: Request, refresh: bool = False):
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        qos_raw = full_config.get("qos", {})
-        if not qos_raw or not isinstance(qos_raw, dict):
-            return QoSConfig()
-
-        return QoSConfig(
-            interfaces=_parse_interfaces(qos_raw),
-            policies=_parse_policies(qos_raw),
-            traffic_match_groups=_parse_traffic_match_groups(qos_raw),
-        )
+        mapper = CommandMapperRegistry.get_mapper("qos", service.get_version())
+        return QoSConfig(**mapper.parse_config(full_config))
     except Exception:
         logger.exception("Unhandled error in get_qos_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -588,196 +554,3 @@ def qos_gql_fields(key_literal: str, cake_targets: List[tuple]) -> List[str]:
             "{ success data { result } }"
         )
     return fields
-
-
-# ============================================================================
-# Config parsers
-# ============================================================================
-
-
-def _as_dict(raw) -> dict:
-    return raw if isinstance(raw, dict) else {}
-
-
-def _parse_multi_value(raw) -> List[str]:
-    if raw is None:
-        return []
-    if isinstance(raw, list):
-        return sorted(str(v) for v in raw)
-    if isinstance(raw, dict):
-        return sorted(raw.keys())
-    return [str(raw)]
-
-
-def _parse_interfaces(qos_raw: dict) -> List[QoSInterface]:
-    iface_raw = _as_dict(qos_raw.get("interface"))
-    result = []
-    for name, cfg in iface_raw.items():
-        cfg = _as_dict(cfg)
-        result.append(QoSInterface(
-            name=name,
-            ingress=cfg.get("ingress"),
-            egress=cfg.get("egress"),
-        ))
-    result.sort(key=lambda i: i.name)
-    return result
-
-
-def _parse_match_addr(raw) -> Optional[QoSMatchAddr]:
-    raw = _as_dict(raw)
-    if not raw:
-        return None
-    dest = _as_dict(raw.get("destination"))
-    src = _as_dict(raw.get("source"))
-    tcp = _as_dict(raw.get("tcp"))
-    return QoSMatchAddr(
-        destination_address=dest.get("address"),
-        destination_port=dest.get("port"),
-        source_address=src.get("address"),
-        source_port=src.get("port"),
-        dscp=raw.get("dscp"),
-        max_length=raw.get("max-length"),
-        protocol=raw.get("protocol"),
-        tcp_ack="ack" in tcp,
-        tcp_syn="syn" in tcp,
-    )
-
-
-def _parse_match_rule(name: str, raw) -> QoSMatchRule:
-    raw = _as_dict(raw)
-    ether_raw = _as_dict(raw.get("ether"))
-    ether = None
-    if ether_raw:
-        ether = QoSMatchEther(
-            destination=ether_raw.get("destination"),
-            source=ether_raw.get("source"),
-            protocol=ether_raw.get("protocol"),
-        )
-    return QoSMatchRule(
-        name=name,
-        description=raw.get("description"),
-        interface=raw.get("interface"),
-        mark=raw.get("mark"),
-        vif=raw.get("vif"),
-        ether=ether,
-        ip=_parse_match_addr(raw.get("ip")),
-        ipv6=_parse_match_addr(raw.get("ipv6")),
-    )
-
-
-def _parse_matches(raw) -> List[QoSMatchRule]:
-    matches_raw = _as_dict(raw)
-    result = [_parse_match_rule(name, cfg) for name, cfg in matches_raw.items()]
-    result.sort(key=lambda m: m.name)
-    return result
-
-
-def _parse_service_curve(raw) -> Optional[QoSServiceCurve]:
-    raw = _as_dict(raw)
-    if not raw:
-        return None
-    return QoSServiceCurve(d=raw.get("d"), m1=raw.get("m1"), m2=raw.get("m2"))
-
-
-def _parse_class(class_id: str, raw) -> QoSClass:
-    raw = _as_dict(raw)
-    data: Dict[str, Any] = {"class_id": class_id}
-    for vyos_key, field in _CLASS_SCALAR_FIELDS.items():
-        if vyos_key in raw:
-            data[field] = raw.get(vyos_key)
-    cls = QoSClass(**data)
-    cls.linkshare = _parse_service_curve(raw.get("linkshare"))
-    cls.realtime = _parse_service_curve(raw.get("realtime"))
-    cls.upperlimit = _parse_service_curve(raw.get("upperlimit"))
-    cls.match_groups = _parse_multi_value(raw.get("match-group"))
-    cls.matches = _parse_matches(raw.get("match"))
-    return cls
-
-
-def _parse_precedences(raw) -> List[QoSPrecedence]:
-    prec_raw = _as_dict(raw)
-    result = []
-    for prec, cfg in prec_raw.items():
-        cfg = _as_dict(cfg)
-        result.append(QoSPrecedence(
-            precedence=prec,
-            average_packet=cfg.get("average-packet"),
-            mark_probability=cfg.get("mark-probability"),
-            maximum_threshold=cfg.get("maximum-threshold"),
-            minimum_threshold=cfg.get("minimum-threshold"),
-            queue_limit=cfg.get("queue-limit"),
-        ))
-    result.sort(key=lambda p: p.precedence)
-    return result
-
-
-def _parse_policy(ptype: str, name: str, raw) -> QoSPolicy:
-    raw = _as_dict(raw)
-    policy = QoSPolicy(type=ptype, name=name)
-    policy.description = raw.get("description")
-    policy.bandwidth = raw.get("bandwidth")
-    policy.rtt = raw.get("rtt")
-    policy.queue_limit = raw.get("queue-limit")
-    policy.hash_interval = raw.get("hash-interval")
-    policy.codel_quantum = raw.get("codel-quantum")
-    policy.flows = raw.get("flows")
-    policy.interval = raw.get("interval")
-    policy.target = raw.get("target")
-    policy.corruption = raw.get("corruption")
-    policy.delay = raw.get("delay")
-    policy.duplicate = raw.get("duplicate")
-    policy.loss = raw.get("loss")
-    policy.reordering = raw.get("reordering")
-    policy.burst = raw.get("burst")
-    policy.latency = raw.get("latency")
-
-    # `flow-isolation` is a leaf node holding a single mode value (e.g.
-    # "src-host"); `flow-isolation-nat` is a separate valueless sibling.
-    fi = raw.get("flow-isolation")
-    policy.flow_isolation = fi if isinstance(fi, str) and fi in FLOW_ISOLATION_MODES else None
-    policy.flow_isolation_nat = "flow-isolation-nat" in raw
-    ack = raw.get("ack-filter")
-    if "ack-filter" not in raw:
-        policy.ack_filter = None
-    elif isinstance(ack, dict) and "aggressive" in ack:
-        policy.ack_filter = "aggressive"
-    else:
-        policy.ack_filter = "filter"
-    policy.no_split_gso = "no-split-gso" in raw
-
-    classes_raw = _as_dict(raw.get("class"))
-    policy.classes = sorted(
-        (_parse_class(cid, cfg) for cid, cfg in classes_raw.items()),
-        key=lambda c: c.class_id,
-    )
-
-    if "default" in raw:
-        policy.default = _parse_class("default", raw.get("default"))
-
-    policy.precedences = _parse_precedences(raw.get("precedence"))
-    return policy
-
-
-def _parse_policies(qos_raw: dict) -> List[QoSPolicy]:
-    policy_raw = _as_dict(qos_raw.get("policy"))
-    result = []
-    for ptype, named in policy_raw.items():
-        for name, cfg in _as_dict(named).items():
-            result.append(_parse_policy(ptype, name, cfg))
-    result.sort(key=lambda p: (p.type, p.name))
-    return result
-
-
-def _parse_traffic_match_groups(qos_raw: dict) -> List[QoSTrafficMatchGroup]:
-    tmg_raw = _as_dict(qos_raw.get("traffic-match-group"))
-    result = []
-    for name, cfg in tmg_raw.items():
-        cfg = _as_dict(cfg)
-        result.append(QoSTrafficMatchGroup(
-            name=name,
-            description=cfg.get("description"),
-            match_groups=_parse_multi_value(cfg.get("match-group")),
-            matches=_parse_matches(cfg.get("match")),
-        ))
-    result.sort(key=lambda g: g.name)
-    return result

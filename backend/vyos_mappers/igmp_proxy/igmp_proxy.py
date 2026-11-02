@@ -25,6 +25,11 @@ class IgmpProxyMapper(BaseFeatureMapper):
     def __init__(self, version: str):
         super().__init__(version)
 
+    def parse_config(self, full_config):
+        from .config_parse import parse_config as parse_igmp_proxy_config
+
+        return parse_igmp_proxy_config(self, full_config)
+
     def _base(self) -> List[str]:
         return ["protocols", "igmp-proxy"]
 
