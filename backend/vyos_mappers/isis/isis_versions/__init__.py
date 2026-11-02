@@ -20,6 +20,13 @@ def get_isis_mapper(version: str):
         version_specific = IsisMapperV1_5()
 
     class MergedMapper:
+        # parse_config must live here. A method on the base class is bound to
+        # `base`, so version-specific lookup would not see this instance.
+        def parse_config(self, full_config):
+            from ..config_parse import parse_config as parse_isis_config
+
+            return parse_isis_config(self, full_config)
+
         def __getattr__(self, name):
             if hasattr(version_specific, name):
                 return getattr(version_specific, name)

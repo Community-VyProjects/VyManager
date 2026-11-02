@@ -20,6 +20,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers.base import CommandMapperRegistry
 from vyos_builders.igmp_proxy import IgmpProxyBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -113,58 +114,13 @@ async def get_igmp_proxy_config(http_request: Request, refresh: bool = False):
 
     try:
         service = get_session_vyos_service(http_request)
+        version = service.get_version()
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        igmp_config = full_config.get("protocols", {}).get("igmp-proxy", {})
-
-        if not igmp_config:
-            return IgmpProxyConfig()
-
-        return IgmpProxyConfig(
-            disabled="disable" in igmp_config,
-            disable_quickleave="disable-quickleave" in igmp_config,
-            interfaces=parse_interfaces(igmp_config.get("interface", {})),
-        )
-    except Exception as e:
+        mapper = CommandMapperRegistry.get_mapper("igmp_proxy", version)
+        return IgmpProxyConfig(**mapper.parse_config(full_config))
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-# ============================================================================
-# Config Parsers
-# ============================================================================
-
-
-def _ensure_list(value: Any) -> List[str]:
-    """Convert VyOS config value to a list. Single values come as strings, multiple as lists."""
-    if value is None:
-        return []
-    if isinstance(value, list):
-        return value
-    if isinstance(value, str):
-        return [value]
-    return []
-
-
-def parse_interfaces(interfaces_raw: dict) -> List[IgmpProxyInterface]:
-    """Parse IGMP proxy interface configurations."""
-    if not interfaces_raw:
-        return []
-
-    interfaces = []
-    for iface_name, iface_config in interfaces_raw.items():
-        if iface_config is None:
-            iface_config = {}
-
-        interfaces.append(IgmpProxyInterface(
-            name=iface_name,
-            role=iface_config.get("role"),
-            threshold=int(iface_config["threshold"]) if iface_config.get("threshold") else None,
-            alt_subnets=_ensure_list(iface_config.get("alt-subnet")),
-            whitelists=_ensure_list(iface_config.get("whitelist")),
-        ))
-
-    return interfaces
 
 
 # ============================================================================

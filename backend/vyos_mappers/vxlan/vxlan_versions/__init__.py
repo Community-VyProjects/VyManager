@@ -15,6 +15,13 @@ def get_vxlan_mapper(version: str):
     version_specific = VxlanMapperV1_5() if "1.5" in version or "latest" in version else VxlanMapperV1_4()
 
     class MergedMapper:
+        # parse_config must live here. A method on the base class is bound to
+        # `base`, so version-specific lookup would not see this instance.
+        def parse_config(self, full_config):
+            from ..config_parse import parse_config as parse_vxlan_config
+
+            return parse_vxlan_config(self, full_config)
+
         def __getattr__(self, name):
             if hasattr(version_specific, name):
                 return getattr(version_specific, name)

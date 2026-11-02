@@ -10,6 +10,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers.base import CommandMapperRegistry
 from vyos_builders import BabelBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -145,161 +146,11 @@ async def get_babel_config(http_request: Request, refresh: bool = False):
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        babel_config = full_config.get("protocols", {}).get("babel", {})
-
-        if not babel_config:
-            return BabelConfig()
-
-        # Parse interfaces
-        interfaces = parse_interfaces(babel_config.get("interface", {}))
-
-        # Parse parameters
-        parameters = parse_parameters(babel_config.get("parameters", {}))
-
-        # Parse redistribute
-        redistribute = parse_redistribute(babel_config.get("redistribute", {}))
-
-        # Parse distribute-list
-        distribute_list = parse_distribute_list(babel_config.get("distribute-list", {}))
-
-        return BabelConfig(
-            interfaces=interfaces,
-            parameters=parameters,
-            redistribute=redistribute,
-            distribute_list=distribute_list
-        )
-    except Exception as e:
+        mapper = CommandMapperRegistry.get_mapper("babel", service.get_version())
+        return BabelConfig(**mapper.parse_config(full_config))
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-# ============================================================================
-# Config Parsers
-# ============================================================================
-
-
-def parse_interfaces(interfaces_raw: dict) -> List[BabelInterface]:
-    """Parse Babel interface configuration."""
-    interfaces = []
-
-    for iface_name, iface_config in interfaces_raw.items():
-        if iface_config is None:
-            iface_config = {}
-
-        interfaces.append(BabelInterface(
-            name=iface_name,
-            type=iface_config.get("type"),
-            channel=iface_config.get("channel"),
-            hello_interval=int(iface_config["hello-interval"]) if iface_config.get("hello-interval") else None,
-            update_interval=int(iface_config["update-interval"]) if iface_config.get("update-interval") else None,
-            rxcost=int(iface_config["rxcost"]) if iface_config.get("rxcost") else None,
-            split_horizon=iface_config.get("split-horizon"),
-            enable_timestamps="enable-timestamps" in iface_config,
-            max_rtt_penalty=int(iface_config["max-rtt-penalty"]) if iface_config.get("max-rtt-penalty") else None,
-            rtt_decay=int(iface_config["rtt-decay"]) if iface_config.get("rtt-decay") else None,
-            rtt_min=int(iface_config["rtt-min"]) if iface_config.get("rtt-min") else None,
-            rtt_max=int(iface_config["rtt-max"]) if iface_config.get("rtt-max") else None,
-        ))
-
-    return interfaces
-
-
-def parse_parameters(params_raw: dict) -> BabelParameters:
-    """Parse Babel global parameters."""
-    if not params_raw:
-        return BabelParameters()
-
-    return BabelParameters(
-        diversity="diversity" in params_raw,
-        diversity_factor=int(params_raw["diversity-factor"]) if params_raw.get("diversity-factor") else None,
-        resend_delay=int(params_raw["resend-delay"]) if params_raw.get("resend-delay") else None,
-        smoothing_half_life=int(params_raw["smoothing-half-life"]) if params_raw.get("smoothing-half-life") else None,
-    )
-
-
-def parse_redistribute(redistribute_raw: dict) -> BabelRedistribute:
-    """Parse Babel redistribution settings."""
-    if not redistribute_raw:
-        return BabelRedistribute()
-
-    ipv4_protocols = list(redistribute_raw.get("ipv4", {}).keys())
-    ipv6_protocols = list(redistribute_raw.get("ipv6", {}).keys())
-
-    return BabelRedistribute(
-        ipv4=ipv4_protocols,
-        ipv6=ipv6_protocols
-    )
-
-
-def parse_distribute_list(dist_list_raw: dict) -> BabelDistributeList:
-    """Parse Babel distribute list configuration."""
-    if not dist_list_raw:
-        return BabelDistributeList()
-
-    ipv4_raw = dist_list_raw.get("ipv4", {})
-    ipv6_raw = dist_list_raw.get("ipv6", {})
-
-    # Parse global filters
-    ipv4_filter = _parse_global_filter(ipv4_raw)
-    ipv6_filter = _parse_global_filter(ipv6_raw)
-
-    # Parse per-interface filters
-    ipv4_iface_filters = _parse_interface_filters(ipv4_raw.get("interface", {}))
-    ipv6_iface_filters = _parse_interface_filters(ipv6_raw.get("interface", {}))
-
-    return BabelDistributeList(
-        ipv4=ipv4_filter,
-        ipv6=ipv6_filter,
-        ipv4_interfaces=ipv4_iface_filters,
-        ipv6_interfaces=ipv6_iface_filters
-    )
-
-
-def _parse_global_filter(af_raw: dict) -> DistributeListFilter:
-    """Parse global (non-interface) distribute-list filter."""
-    if not af_raw:
-        return DistributeListFilter()
-
-    acl_raw = af_raw.get("access-list", {})
-    pfx_raw = af_raw.get("prefix-list", {})
-
-    return DistributeListFilter(
-        access_list_in=acl_raw.get("in") if isinstance(acl_raw, dict) else None,
-        access_list_out=acl_raw.get("out") if isinstance(acl_raw, dict) else None,
-        prefix_list_in=pfx_raw.get("in") if isinstance(pfx_raw, dict) else None,
-        prefix_list_out=pfx_raw.get("out") if isinstance(pfx_raw, dict) else None,
-    )
-
-
-def _parse_interface_filters(iface_raw: dict) -> List[DistributeListInterfaceFilter]:
-    """Parse per-interface distribute-list filters."""
-    filters = []
-
-    if not iface_raw:
-        return filters
-
-    for iface_name, iface_config in iface_raw.items():
-        if iface_config is None:
-            iface_config = {}
-
-        acl_raw = iface_config.get("access-list", {})
-        pfx_raw = iface_config.get("prefix-list", {})
-
-        if not acl_raw:
-            acl_raw = {}
-        if not pfx_raw:
-            pfx_raw = {}
-
-        filters.append(DistributeListInterfaceFilter(
-            interface=iface_name,
-            access_list_in=acl_raw.get("in") if isinstance(acl_raw, dict) else None,
-            access_list_out=acl_raw.get("out") if isinstance(acl_raw, dict) else None,
-            prefix_list_in=pfx_raw.get("in") if isinstance(pfx_raw, dict) else None,
-            prefix_list_out=pfx_raw.get("out") if isinstance(pfx_raw, dict) else None,
-        ))
-
-    return filters
 
 
 # ============================================================================

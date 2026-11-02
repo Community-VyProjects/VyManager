@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pytest
 
-from routers.ospf.ospf import parse_interfaces
 from tests.en_message import en_message
 from vyos_builders.ospf.ospf_batch_builder import OspfBatchBuilder
+from vyos_mappers.ospf.ospf_versions import get_ospf_mapper
 
 REPO = Path(__file__).resolve().parents[2]
 MODAL = REPO / "frontend/src/components/ospf/OspfInterfaceModal.tsx"
@@ -54,19 +54,25 @@ def test_ospf_interface_ldp_sync_paths(version, method, args, op, expected_path)
 
 
 def test_parse_interface_ldp_sync_leaves():
-    ifaces = parse_interfaces(
-        {"eth0": {"ldp-sync": {"disable": {}, "holddown": "5"}}}
-    )
-    assert ifaces[0].ldp_sync is True
-    assert ifaces[0].ldp_sync_disable is True
-    assert ifaces[0].ldp_sync_holddown == 5
+    parsed = get_ospf_mapper("1.5").parse_config({
+        "protocols": {
+            "ospf": {"interface": {"eth0": {"ldp-sync": {"disable": {}, "holddown": "5"}}}}
+        }
+    })
+    iface = parsed["interfaces"][0]
+    assert iface["ldp_sync"] is True
+    assert iface["ldp_sync_disable"] is True
+    assert iface["ldp_sync_holddown"] == 5
 
 
 def test_parse_interface_ldp_sync_container_only():
-    ifaces = parse_interfaces({"eth0": {"ldp-sync": {}}})
-    assert ifaces[0].ldp_sync is True
-    assert ifaces[0].ldp_sync_disable is False
-    assert ifaces[0].ldp_sync_holddown is None
+    parsed = get_ospf_mapper("1.5").parse_config({
+        "protocols": {"ospf": {"interface": {"eth0": {"ldp-sync": {}}}}}
+    })
+    iface = parsed["interfaces"][0]
+    assert iface["ldp_sync"] is True
+    assert iface["ldp_sync_disable"] is False
+    assert iface["ldp_sync_holddown"] is None
 
 
 def test_interface_modal_exposes_ldp_sync_leaves():

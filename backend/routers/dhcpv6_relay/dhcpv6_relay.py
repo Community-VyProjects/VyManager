@@ -14,6 +14,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers.base import CommandMapperRegistry
 from vyos_builders.dhcpv6_relay import DHCPv6RelayBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -103,27 +104,10 @@ async def get_dhcpv6_relay_config(http_request: Request, refresh: bool = False):
     await require_read_permission(http_request, FeatureGroup.DHCPV6_RELAY)
     try:
         service = get_session_vyos_service(http_request)
+        version = service.get_version()
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        relay_raw = full_config.get("service", {}).get("dhcpv6-relay", {})
-        if not relay_raw:
-            return DHCPv6RelayConfig()
-
-        max_hop_count = None
-        raw_hop = relay_raw.get("max-hop-count")
-        if raw_hop is not None:
-            try:
-                max_hop_count = int(raw_hop)
-            except (ValueError, TypeError):
-                logger.debug("Non-integer max-hop-count value %r; ignoring", raw_hop)
-
-        return DHCPv6RelayConfig(
-            disabled="disable" in relay_raw,
-            max_hop_count=max_hop_count,
-            use_interface_id_option="use-interface-id-option" in relay_raw,
-            listen_interfaces=_parse_listen_interfaces(relay_raw.get("listen-interface", {})),
-            upstream_interfaces=_parse_upstream_interfaces(relay_raw.get("upstream-interface", {})),
-        )
+        mapper = CommandMapperRegistry.get_mapper("dhcpv6_relay", version)
+        return DHCPv6RelayConfig(**mapper.parse_config(full_config))
     except Exception:
         logger.exception("Unhandled error in get_dhcpv6_relay_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -177,43 +161,3 @@ async def dhcpv6_relay_batch_configure(
         logger.exception("Unhandled error in dhcpv6_relay_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
-# ============================================================================
-# Config Parsers
-# ============================================================================
-
-
-def _parse_listen_interfaces(raw) -> List[DHCPv6ListenInterface]:
-    """Parse listen-interface tagged node into a list of DHCPv6ListenInterface."""
-    if not raw or not isinstance(raw, dict):
-        return []
-    result = []
-    for iface, iface_data in sorted(raw.items()):
-        address = None
-        if isinstance(iface_data, dict):
-            addr_raw = iface_data.get("address")
-            if addr_raw is not None:
-                address = str(addr_raw)
-        result.append(DHCPv6ListenInterface(interface=iface, address=address))
-    return result
-
-
-def _parse_upstream_interfaces(raw) -> List[DHCPv6UpstreamInterface]:
-    """Parse upstream-interface tagged node into a list of DHCPv6UpstreamInterface."""
-    if not raw or not isinstance(raw, dict):
-        return []
-    result = []
-    for iface, iface_data in sorted(raw.items()):
-        addresses: List[str] = []
-        if isinstance(iface_data, dict):
-            addr_raw = iface_data.get("address")
-            if addr_raw is None:
-                addresses = []
-            elif isinstance(addr_raw, list):
-                addresses = sorted(str(a) for a in addr_raw)
-            elif isinstance(addr_raw, dict):
-                addresses = sorted(addr_raw.keys())
-            else:
-                addresses = [str(addr_raw)]
-        result.append(DHCPv6UpstreamInterface(interface=iface, addresses=addresses))
-    return result
