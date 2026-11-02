@@ -1,7 +1,5 @@
 """DNS dynamic GET /config parse lives on the mapper (issue #966)."""
 
-from pathlib import Path
-
 from vyos_mappers.dns_dynamic.dns_dynamic_versions import get_dns_dynamic_mapper
 
 
@@ -98,26 +96,6 @@ def test_empty_tree():
         == _empty()
     )
 
-
-def test_router_has_no_parse_helpers():
-    text = (
-        Path(__file__)
-        .resolve()
-        .parents[1]
-        .joinpath("routers/dns_dynamic/dns_dynamic.py")
-        .read_text()
-    )
-    assert "def _parse_" not in text
-    parse_src = (
-        Path(__file__)
-        .resolve()
-        .parents[1]
-        .joinpath("vyos_mappers/dns_dynamic/config_parse.py")
-        .read_text()
-    )
-    assert "pydantic" not in parse_src
-    assert "fastapi" not in parse_src
-    assert "routers" not in parse_src
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

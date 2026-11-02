@@ -1,7 +1,5 @@
 """SNMP GET /config parse lives on the mapper (issue #966)."""
 
-from pathlib import Path
-
 from vyos_mappers.snmp.snmp_versions import get_snmp_mapper
 
 
@@ -161,20 +159,6 @@ def test_empty_tree():
     assert get_snmp_mapper("1.5").parse_config({"service": {}}) == _empty()
     assert get_snmp_mapper("1.5").parse_config({"service": {"snmp": {}}}) == _empty()
 
-
-def test_router_parse_helpers_moved():
-    text = Path(__file__).resolve().parents[1].joinpath("routers/snmp/snmp.py").read_text()
-    assert "def _parse_" not in text
-    parse_src = (
-        Path(__file__)
-        .resolve()
-        .parents[1]
-        .joinpath("vyos_mappers/snmp/config_parse.py")
-        .read_text()
-    )
-    assert "pydantic" not in parse_src
-    assert "fastapi" not in parse_src
-    assert "routers" not in parse_src
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

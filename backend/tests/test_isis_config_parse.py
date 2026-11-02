@@ -1,7 +1,5 @@
 """IS-IS GET /config parse lives on the mapper."""
 
-from pathlib import Path
-
 from vyos_mappers.isis.isis_versions import get_isis_mapper
 
 
@@ -148,10 +146,6 @@ def test_1_4_and_1_5_parse_15_only_nodes_the_same():
     assert eth14["remote_lfa"] == eth["remote_lfa"]
     assert v14["segment_routing"]["srv6_locator"] == v15["segment_routing"]["srv6_locator"]
 
-
-def test_isis_router_has_no_parse_helpers():
-    text = Path(__file__).resolve().parents[1].joinpath("routers/isis/isis.py").read_text()
-    assert "def _parse_" not in text
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

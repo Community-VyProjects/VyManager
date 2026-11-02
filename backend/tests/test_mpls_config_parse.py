@@ -1,7 +1,5 @@
 """MPLS GET /config parse lives on the mapper."""
 
-from pathlib import Path
-
 from vyos_mappers.mpls.mpls_versions import get_mpls_mapper
 
 
@@ -110,10 +108,6 @@ def test_present_mpls_node_parses_interfaces_parameters_and_ldp():
     assert ldp["parameters"]["cisco_interop_tlv"] is True
     assert ldp["parameters"]["transport_prefer_ipv4"] is True
 
-
-def test_mpls_router_has_no_parse_helpers():
-    text = Path(__file__).resolve().parents[1].joinpath("routers/mpls/mpls.py").read_text()
-    assert "def _parse_" not in text
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

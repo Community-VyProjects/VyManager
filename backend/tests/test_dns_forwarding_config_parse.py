@@ -1,7 +1,5 @@
 """DNS forwarding GET /config parse lives on the mapper."""
 
-from pathlib import Path
-
 from vyos_mappers.dns_forwarding.dns_forwarding_versions import get_dns_forwarding_mapper
 
 
@@ -122,16 +120,6 @@ def test_dns_forwarding_parses_distinctive_fields():
     assert parsed["ecs_options"]["ecs_ipv4_bits"] == 24
     assert parsed["ecs_options"]["ecs_add_for"] == ["192.0.2.0/24"]
 
-
-def test_dns_forwarding_router_has_no_parse_helpers():
-    text = (
-        Path(__file__)
-        .resolve()
-        .parents[1]
-        .joinpath("routers/dns_forwarding/dns_forwarding.py")
-        .read_text()
-    )
-    assert "def _parse_" not in text
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

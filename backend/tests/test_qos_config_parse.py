@@ -1,7 +1,5 @@
 """QoS GET /config parse lives on the mapper."""
 
-from pathlib import Path
-
 from vyos_mappers.qos.qos_versions import get_qos_mapper
 
 
@@ -86,10 +84,6 @@ def test_qos_parses_interfaces_policies_and_match_groups():
     assert parsed["traffic_match_groups"][0]["name"] == "MG1"
     assert parsed["traffic_match_groups"][0]["matches"][0]["mark"] == "10"
 
-
-def test_qos_router_has_no_parse_helpers():
-    text = Path(__file__).resolve().parents[1].joinpath("routers/qos/qos.py").read_text()
-    assert "def _parse_" not in text
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

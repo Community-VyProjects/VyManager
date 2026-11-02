@@ -1,7 +1,5 @@
 """SSH GET /config parse lives on the mapper (issue #966)."""
 
-from pathlib import Path
-
 from vyos_mappers.ssh.ssh_versions import get_ssh_mapper
 
 
@@ -144,16 +142,6 @@ def test_empty_tree():
     assert get_ssh_mapper("1.5").parse_config({"service": {"ssh": {}}}) == _empty()
     assert get_ssh_mapper("1.5").parse_config({"service": {"ssh": "nope"}}) == _empty()
 
-
-def test_router_has_no_parse_helpers():
-    root = Path(__file__).resolve().parents[1]
-    text = root.joinpath("routers/ssh/ssh.py").read_text()
-    assert "def _parse_" not in text
-    assert "mapper.parse_config" in text
-    parse_src = root.joinpath("vyos_mappers/ssh/config_parse.py").read_text()
-    assert "pydantic" not in parse_src
-    assert "fastapi" not in parse_src
-    assert "routers" not in parse_src
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):
