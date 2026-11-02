@@ -27,7 +27,7 @@ from utils.archive_url import (
     validate_filename,
 )
 from utils.ssh import SshHostKeyRejected
-from org_scope import request_scoped_conn
+from org_scope import independent_org_conn
 from utils.vyos_config_parser import parse_vyos_config
 from batch_dispatch import resolve_batch_method
 
@@ -725,7 +725,7 @@ async def list_archive_files_endpoint(request: Request, archive_location: str):
             raise HTTPException(status_code=400, detail="No active instance")
         files = await _list_archive_files(
             validated_location,
-            open_conn=lambda: request_scoped_conn(request),
+            open_conn=lambda: independent_org_conn(request),
             instance_id=instance["id"],
         )
         return {"files": files, "archive_location": validated_location}
@@ -811,7 +811,7 @@ async def get_archive_diff(request: Request, archive_location: str, filename: st
             content = await fetch_archive_file_content(
                 validated_location,
                 filename,
-                open_conn=lambda: request_scoped_conn(request),
+                open_conn=lambda: independent_org_conn(request),
                 instance_id=instance["id"],
             )
         except ValueError as exc:

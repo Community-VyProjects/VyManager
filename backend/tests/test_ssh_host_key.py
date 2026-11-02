@@ -28,6 +28,7 @@ class _Conn:
         self.entered_transaction = False
         self.keys = {}
         self.held = 0
+        self.committed = {}
 
     def is_in_transaction(self):
         return self.in_transaction
@@ -64,28 +65,21 @@ class _Conn:
             return {"hostKey": stored}
         return self.row
 
-    def acquire(self):
-        conn = self
-
-        class _Acq:
-            async def __aenter__(self):
-                conn.held += 1
-                return conn
-
-            async def __aexit__(self, *args):
-                conn.held -= 1
-                return False
-
-        return _Acq()
-
 
 def _opener(conn):
+    """Commit pin writes when the short connection exits, not later."""
     def open_conn():
         @asynccontextmanager
         async def _cm():
             conn.held += 1
+            snapshot = dict(conn.keys)
             try:
                 yield conn
+            except BaseException:
+                conn.keys = snapshot
+                raise
+            else:
+                conn.committed = dict(conn.keys)
             finally:
                 conn.held -= 1
         return _cm()
@@ -659,7 +653,92 @@ def test_pin_survives_a_later_sftp_failure(monkeypatch):
             instance_id="inst",
         ))
     assert conn.held == 0
-    assert conn.keys[("inst", "backup.example", 22)] == private.export_public_key().decode().strip()
+    stored = private.export_public_key().decode().strip()
+    assert conn.committed[("inst", "backup.example", 22)] == stored
+    conn.keys.clear()
+    assert conn.committed[("inst", "backup.example", 22)] == stored
+
+
+def test_archive_and_container_pins_do_not_join_the_handler_transaction(monkeypatch):
+    import routers.container.container as container_router
+    import routers.system as system_router
+
+    handler = object()
+    fresh = object()
+
+    @asynccontextmanager
+    async def independent(request):
+        yield fresh
+
+    class _Row:
+        async def fetchrow(self, *args):
+            return {
+                "host": "10.0.0.5",
+                "sshPort": 22,
+                "sshUsername": "vyos",
+                "sshEncryptedPrivKey": b"enc",
+                "sshKeyNonce": "nonce",
+                "sshKeyConfigured": True,
+            }
+
+    @asynccontextmanager
+    async def row_conn(request):
+        yield _Row()
+
+    seen = []
+
+    async def capture_ssh(**kwargs):
+        async with kwargs["open_conn"]() as conn:
+            seen.append(conn)
+        raise SshHostKeyRejected()
+
+    monkeypatch.setattr(container_router, "request_scoped_conn", row_conn)
+    monkeypatch.setattr(container_router, "independent_org_conn", independent)
+    monkeypatch.setattr(container_router, "decrypt_private_key", lambda *args: b"pem")
+    monkeypatch.setattr(container_router.asyncssh, "import_private_key", lambda pem: "key")
+    monkeypatch.setattr(container_router, "connect_ssh", capture_ssh)
+    request = SimpleNamespace(
+        state=SimpleNamespace(user={"id": "u"}, instance={"id": "inst"}, org_conn=handler),
+    )
+    with pytest.raises(HTTPException):
+        _run(container_router._get_ssh_connection(request))
+    assert seen == [fresh]
+    assert handler not in seen
+
+    seen.clear()
+
+    async def capture_list(url, *, open_conn, instance_id):
+        async with open_conn() as conn:
+            seen.append(conn)
+        return []
+
+    async def allow(*args, **kwargs):
+        return None
+
+    class _Service:
+        def get_full_config(self, refresh=False):
+            return {"system": {}}
+
+        def get_version(self):
+            return "1.4"
+
+    class _Mapper:
+        def parse_config_management(self, system_cfg):
+            return {"archive_locations": ["sftp://backup.example/cfg/"]}
+
+    monkeypatch.setattr(system_router, "require_read_permission", allow)
+    monkeypatch.setattr(system_router, "get_session_vyos_service", lambda request: _Service())
+    monkeypatch.setattr(system_router.CommandMapperRegistry, "get_mapper", lambda *args: _Mapper())
+    monkeypatch.setattr(system_router, "independent_org_conn", independent)
+    monkeypatch.setattr(system_router, "_list_archive_files", capture_list)
+    archive_request = SimpleNamespace(state=SimpleNamespace(
+        instance={"id": "inst"},
+        org_conn=handler,
+    ))
+    _run(system_router.list_archive_files_endpoint(
+        archive_request, "sftp://backup.example/cfg/",
+    ))
+    assert seen == [fresh]
 
 
 def test_replaced_router_pin_is_dropped_only_when_the_endpoint_changes():
