@@ -27,6 +27,7 @@ from utils.archive_url import (
     validate_filename,
 )
 from utils.vyos_config_parser import parse_vyos_config
+from org_scope import request_scoped_conn
 from batch_dispatch import resolve_batch_method
 
 logger = logging.getLogger(__name__)
@@ -718,7 +719,15 @@ async def list_archive_files_endpoint(request: Request, archive_location: str):
 
         # Use the value from device config (not user input) to break taint chain
         validated_location = locations[locations.index(archive_location)]
-        files = await _list_archive_files(validated_location)
+        instance = getattr(request.state, "instance", None)
+        if not instance:
+            raise HTTPException(status_code=400, detail="No active instance")
+        async with request_scoped_conn(request) as conn:
+            files = await _list_archive_files(
+                validated_location,
+                db_conn=conn,
+                instance_id=instance["id"],
+            )
         return {"files": files, "archive_location": validated_location}
     except HTTPException:
         raise
@@ -794,7 +803,16 @@ async def get_archive_diff(request: Request, archive_location: str, filename: st
         validated_location = locations[locations.index(archive_location)]
 
         try:
-            content = await fetch_archive_file_content(validated_location, filename)
+            instance = getattr(request.state, "instance", None)
+            if not instance:
+                raise HTTPException(status_code=400, detail="No active instance")
+            async with request_scoped_conn(request) as conn:
+                content = await fetch_archive_file_content(
+                    validated_location,
+                    filename,
+                    db_conn=conn,
+                    instance_id=instance["id"],
+                )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
 
