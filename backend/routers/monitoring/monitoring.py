@@ -31,7 +31,7 @@ from session_cookie import verify_session_cookie
 from ssh_key_manager import decrypt_private_key, generate_keypair
 from stream_auth import watch_stream_revocation
 from trusted_origins import websocket_origin_allowed
-from utils.ssh import SshHostKeyRejected, connect as connect_ssh, forget_instance_pins, pool_from
+from utils.ssh import SshHostKeyRejected, connect as connect_ssh, forget_instance_pins
 
 logger = logging.getLogger(__name__)
 
@@ -410,7 +410,7 @@ async def websocket_monitor(websocket: WebSocket):
         try:
             ssh_conn = await asyncio.wait_for(
                 connect_ssh(
-                    pool=pool_from(websocket),
+                    open_conn=lambda: ws_org_conn(websocket, user_id, instance_id),
                     instance_id=instance_id,
                     host=instance["host"],
                     port=instance["sshPort"],

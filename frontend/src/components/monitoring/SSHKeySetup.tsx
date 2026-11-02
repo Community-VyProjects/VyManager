@@ -22,6 +22,7 @@ export function SSHKeySetup({ instanceId, sshUsername, onConfigured }: SSHKeySet
   const [marking, setMarking] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [resettingHostKey, setResettingHostKey] = useState(false);
+  const [hostKeyReset, setHostKeyReset] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -130,7 +131,9 @@ export function SSHKeySetup({ instanceId, sshUsername, onConfigured }: SSHKeySet
     try {
       setResettingHostKey(true);
       setError(null);
+      setHostKeyReset(false);
       await monitoringService.resetSSHHostKey(instanceId);
+      setHostKeyReset(true);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : t("sshKey.resetHostKeyFailed");
       setError(message);
@@ -281,6 +284,9 @@ save`}
 
       <div className="space-y-2 border-t pt-3">
         <p className="text-xs text-muted-foreground">{t("sshKey.resetHostKeyHelp")}</p>
+        {hostKeyReset && (
+          <p className="text-sm">{t("sshKey.resetHostKeyDone")}</p>
+        )}
         <Button
           variant="outline"
           onClick={handleResetHostKey}

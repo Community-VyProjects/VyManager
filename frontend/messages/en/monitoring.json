@@ -147,6 +147,7 @@
     "resettingHostKey": "Resetting...",
     "resetHostKeyHelp": "Forget the pinned server host key. The next connection accepts the key the server presents.",
     "resetHostKeyConfirm": "Reset the pinned host key? The next connection will trust whatever key the server presents.",
-    "resetHostKeyFailed": "Failed to reset the host key"
+    "resetHostKeyFailed": "Failed to reset the host key",
+    "resetHostKeyDone": "Host key pin cleared. The next connection will accept the key the server presents."
   }
 }

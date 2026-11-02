@@ -1,7 +1,7 @@
 """Shared SSH connections with per-instance host-key pinning."""
 
 import logging
-from typing import Any
+from typing import Any, Callable
 
 import asyncssh
 
@@ -22,16 +22,6 @@ class SshHostKeyRejected(Exception):
 
     def __init__(self) -> None:
         super().__init__(self.message)
-
-
-def pool_from(source: Any):
-    """Pool for a request or websocket. Callers must not acquire it themselves."""
-    app = getattr(source, "app", None)
-    state = getattr(app, "state", None)
-    pool = getattr(state, "db_pool", None)
-    if pool is None:
-        raise RuntimeError("Database not available")
-    return pool
 
 
 def _pinned_known_hosts(host: str, port: int, public_key: str) -> asyncssh.SSHKnownHosts:
@@ -87,10 +77,18 @@ async def forget_replaced_router_pin(
     )
 
 
-async def _read_pin(pool: Any, instance_id: str, host: str, port: int):
-    async with pool.acquire() as db:
-        async with db.transaction():
-            return await db.fetchrow(
+async def _in_transaction(db: Any, work):
+    """Run work inside the caller's org transaction, or a short one."""
+    if db.is_in_transaction():
+        return await work(db)
+    async with db.transaction():
+        return await work(db)
+
+
+async def _read_pin(open_conn: Callable, instance_id: str, host: str, port: int):
+    async with open_conn() as db:
+        async def read(conn):
+            return await conn.fetchrow(
                 """
                 SELECT "hostKey"
                 FROM ssh_host_keys
@@ -101,9 +99,11 @@ async def _read_pin(pool: Any, instance_id: str, host: str, port: int):
                 port,
             )
 
+        return await _in_transaction(db, read)
+
 
 async def _store_pin(
-    pool: Any,
+    open_conn: Callable,
     instance_id: str,
     host: str,
     port: int,
@@ -113,15 +113,16 @@ async def _store_pin(
     """Commit the pin before the caller uses the SSH connection.
 
     Returns False when a different key was stored first. The lock covers
-    only this insert, not the handshake.
+    only this insert, not the handshake. open_conn must be a short
+    org-scoped connection, not one held across the handshake.
     """
-    async with pool.acquire() as db:
-        async with db.transaction():
-            await db.execute(
+    async with open_conn() as db:
+        async def store(conn) -> bool:
+            await conn.execute(
                 "SELECT pg_advisory_xact_lock(hashtext($1)::bigint)",
                 endpoint,
             )
-            existing = await db.fetchrow(
+            existing = await conn.fetchrow(
                 """
                 SELECT "hostKey"
                 FROM ssh_host_keys
@@ -133,7 +134,7 @@ async def _store_pin(
             )
             if existing is not None:
                 return (existing["hostKey"] or "").strip() == public_key
-            await db.execute(
+            await conn.execute(
                 """
                 INSERT INTO ssh_host_keys ("instanceId", host, port, "hostKey")
                 VALUES ($1, $2, $3, $4)
@@ -145,10 +146,12 @@ async def _store_pin(
             )
             return True
 
+        return await _in_transaction(db, store)
+
 
 async def connect(
     *,
-    pool: Any,
+    open_conn: Callable,
     instance_id: str,
     host: str,
     port: int = 22,
@@ -156,12 +159,12 @@ async def connect(
 ) -> asyncssh.SSHClientConnection:
     """Connect and pin the server host key for this instance and endpoint.
 
-    The first connection to an endpoint is accepted once and the pin is
-    committed before this function returns. Later connections are verified
-    against that key. A changed key is refused and the stored pin is left
-    unchanged. Callers cannot disable the check by passing known_hosts.
-
-    The database connection is not held during the handshake.
+    open_conn returns a short org-scoped connection. It is closed before
+    the handshake and opened again only to commit a first-use pin. The
+    first connection to an endpoint is accepted once. Later connections
+    are verified against that key. A changed key is refused and the stored
+    pin is left unchanged. Callers cannot disable the check by passing
+    known_hosts.
     """
     if not instance_id or not host:
         raise ValueError("SSH host key pinning requires an instance and host")
@@ -176,7 +179,7 @@ async def connect(
     kwargs.pop("known_hosts", None)
     endpoint = f"{instance_id}:{host}:{port}"
 
-    row = await _read_pin(pool, instance_id, host, port)
+    row = await _read_pin(open_conn, instance_id, host, port)
     if row is not None:
         pinned = _pinned_known_hosts(host, port, row["hostKey"])
         try:
@@ -213,7 +216,7 @@ async def connect(
                 "SSH server host key could not be pinned"
             )
         stored_same = await _store_pin(
-            pool, instance_id, host, port, public_key, endpoint,
+            open_conn, instance_id, host, port, public_key, endpoint,
         )
         if not stored_same:
             raise SshHostKeyRejected()

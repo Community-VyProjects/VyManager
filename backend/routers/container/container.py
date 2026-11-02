@@ -35,7 +35,7 @@ from fastapi_permissions import require_read_permission, require_write_permissio
 from org_scope import request_scoped_conn
 from rbac_permissions import FeatureGroup
 from ssh_key_manager import decrypt_private_key
-from utils.ssh import SshHostKeyRejected, connect as connect_ssh, pool_from
+from utils.ssh import SshHostKeyRejected, connect as connect_ssh
 import inspect
 import logging
 from batch_dispatch import resolve_batch_method
@@ -509,7 +509,7 @@ async def _get_ssh_connection(request: Request) -> tuple:
     try:
         ssh_conn = await asyncio.wait_for(
             connect_ssh(
-                pool=pool_from(request),
+                open_conn=lambda: request_scoped_conn(request),
                 instance_id=instance["id"],
                 host=row["host"],
                 port=row["sshPort"] or 22,

@@ -147,6 +147,7 @@
     "resettingHostKey": "正在重置...",
     "resetHostKeyHelp": "忘记已固定的服务器主机密钥。下次连接将接受服务器出示的密钥。",
     "resetHostKeyConfirm": "重置已固定的主机密钥？下次连接将信任服务器出示的密钥。",
-    "resetHostKeyFailed": "重置主机密钥失败"
+    "resetHostKeyFailed": "重置主机密钥失败",
+    "resetHostKeyDone": "主机密钥固定已清除。下次连接将接受服务器出示的密钥。"
   }
 }
