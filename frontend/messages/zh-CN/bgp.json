@@ -117,17 +117,17 @@
       }
     },
     "afiNames": {
-      "ipv4_unicast": "IPv4 单播",
-      "ipv6_unicast": "IPv6 单播",
-      "ipv4_multicast": "IPv4 组播",
-      "ipv6_multicast": "IPv6 组播",
-      "ipv4_labeled_unicast": "IPv4 标签单播",
-      "ipv6_labeled_unicast": "IPv6 标签单播",
-      "ipv4_vpn": "IPv4 VPN",
-      "ipv6_vpn": "IPv6 VPN",
-      "ipv4_flowspec": "IPv4 FlowSpec",
-      "ipv6_flowspec": "IPv6 FlowSpec",
-      "l2vpn_evpn": "L2VPN EVPN"
+      "ipv4-unicast": "IPv4 单播",
+      "ipv6-unicast": "IPv6 单播",
+      "ipv4-multicast": "IPv4 组播",
+      "ipv6-multicast": "IPv6 组播",
+      "ipv4-labeled-unicast": "IPv4 标签单播",
+      "ipv6-labeled-unicast": "IPv6 标签单播",
+      "ipv4-vpn": "IPv4 VPN",
+      "ipv6-vpn": "IPv6 VPN",
+      "ipv4-flowspec": "IPv4 FlowSpec",
+      "ipv6-flowspec": "IPv6 FlowSpec",
+      "l2vpn-evpn": "L2VPN EVPN"
     }
   },
   "form": {

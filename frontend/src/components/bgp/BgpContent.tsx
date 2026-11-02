@@ -55,12 +55,7 @@ import { BgpNeighborModal } from "./BgpNeighborModal";
 import { BgpPeerGroupModal } from "./BgpPeerGroupModal";
 import { DeleteBgpNeighborModal } from "./DeleteBgpNeighborModal";
 import { DeleteBgpPeerGroupModal } from "./DeleteBgpPeerGroupModal";
-
-const AFI_NAME_KEYS = [
-  "ipv4_unicast", "ipv6_unicast", "ipv4_multicast", "ipv6_multicast", "ipv4_labeled_unicast", "ipv6_labeled_unicast",
-  "ipv4_vpn", "ipv6_vpn", "ipv4_flowspec", "ipv6_flowspec", "l2vpn_evpn",
-] as const;
-type AfiNameKey = (typeof AFI_NAME_KEYS)[number];
+import { afiNameKey, formatUnknownAfi } from "./afi-name";
 
 export function BgpContent() {
   const t = useTranslations("bgp");
@@ -406,13 +401,10 @@ export function BgpContent() {
     return config?.neighbors.filter((n) => n.peer_group === pgName).length ?? 0;
   };
 
-  // Address families with a translated heading; anything else is title-cased below.
   const formatAfi = (afi: string): string => {
-    if ((AFI_NAME_KEYS as readonly string[]).includes(afi)) return t(`content.afiNames.${afi as AfiNameKey}`);
-    return afi
-      .split("_")
-      .map((part) => (/^(ipv4|ipv6|l2vpn|evpn|vpn)$/.test(part) ? part.toUpperCase().replace("IPV", "IPv") : part.charAt(0).toUpperCase() + part.slice(1)))
-      .join(" ");
+    const key = afiNameKey(afi);
+    if (key) return t(`content.afiNames.${key}`);
+    return formatUnknownAfi(afi);
   };
 
   const redistributeProtocols = [

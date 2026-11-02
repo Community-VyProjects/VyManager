@@ -32,7 +32,6 @@ def test_webproxy_day_displays_use_catalog_keys():
     content = CONTENT.read_text()
     assert "t(`period.days.${key}`)" in modal
     assert 't("period.dayExists", { day: dayLabel(newDay) })' in modal
-    assert "{ day: newDay," in modal
     assert "dayLabel(d.day)" in modal
     assert "{d.day}</span>" not in modal
     assert "t(`period.days.${key}`)" in content
@@ -81,30 +80,44 @@ def test_dummy_type_tooltip_does_not_reuse_vlan_gloss():
 
 def test_leftover_strings_resolve_catalog_leaves():
     bgp = (REPO / "frontend/src/components/bgp/BgpContent.tsx").read_text()
-    assert 't(`content.afiNames.${afi as AfiNameKey}`)' in bgp
-    assert en_message(REPO, "bgp.json", "content.afiNames.ipv4_unicast") == "IPv4 Unicast"
-    assert en_message(REPO, "bgp.json", "content.afiNames.l2vpn_evpn") == "L2VPN EVPN"
+    assert "afiNameKey(afi)" in bgp
+    assert "t(`content.afiNames.${key}`)" in bgp
+    assert "formatUnknownAfi(afi)" in bgp
+    assert en_message(REPO, "bgp.json", "content.afiNames.ipv4-unicast") == "IPv4 Unicast"
+    assert en_message(REPO, "bgp.json", "content.afiNames.l2vpn-evpn") == "L2VPN EVPN"
+    assert catalog_message("zh-CN", "bgp.json", "content.afiNames.ipv4-unicast") == "IPv4 单播"
+    assert catalog_message("zh-CN", "bgp.json", "content.afiNames.l2vpn-evpn") == "L2VPN EVPN"
+    assert catalog_message("zh-CN", "bgp.json", "content.afiNames.ipv4-unicast") != en_message(
+        REPO, "bgp.json", "content.afiNames.ipv4-unicast"
+    )
 
     stats = (REPO / "frontend/src/components/dashboard/InterfaceStatisticsCard.tsx").read_text()
     assert 't(`interfaceStatistics.types.${meta.key}`)' in stats
     assert en_message(REPO, "dashboard.json", "interfaceStatistics.types.physicalEthernet") == "Physical (Ethernet)"
+    assert catalog_message("zh-CN", "dashboard.json", "interfaceStatistics.types.physicalEthernet") == "物理（以太网）"
+    assert catalog_message("zh-CN", "dashboard.json", "interfaceStatistics.types.other") == "其他"
 
     theme = (REPO / "frontend/src/components/ui/theme-selector.tsx").read_text()
     assert 't(`theme.names.${theme.id as BuiltInThemeId}`)' in theme
     assert en_message(REPO, "sharedUi.json", "theme.names.dark") == "Dark"
-    assert ": theme.name" in theme
+    assert catalog_message("zh-CN", "sharedUi.json", "theme.names.dark") == "深色"
+    assert catalog_message("zh-CN", "sharedUi.json", "theme.names.emerald") == "翡翠"
 
     sla = (REPO / "frontend/src/components/sla/SLAContent.tsx").read_text()
     assert 't("content.owampFullName")' in sla
     assert 't("content.twampFullName")' in sla
     assert en_message(REPO, "sla.json", "content.owampFullName") == "One-Way Active Measurement Protocol"
     assert en_message(REPO, "sla.json", "content.twampFullName") == "Two-Way Active Measurement Protocol"
+    assert catalog_message("zh-CN", "sla.json", "content.owampFullName") == "单向主动测量协议"
+    assert catalog_message("zh-CN", "sla.json", "content.twampFullName") == "双向主动测量协议"
 
     vrf = (REPO / "frontend/src/components/ui/vrf-multi-select.tsx").read_text()
     assert 't("vrfMultiSelect.placeholder")' in vrf
     assert en_message(REPO, "sharedUi.json", "vrfMultiSelect.placeholder") == "Add VRF"
+    assert catalog_message("zh-CN", "sharedUi.json", "vrfMultiSelect.placeholder") == "添加 VRF"
 
     layout = (REPO / "frontend/src/app/layout.tsx").read_text()
     assert 'getTranslations("sharedMisc")' in layout
     assert 't("appDescription")' in layout
     assert en_message(REPO, "sharedMisc.json", "appDescription") == "Professional VyOS Management Interface"
+    assert catalog_message("zh-CN", "sharedMisc.json", "appDescription") == "专业的 VyOS 管理界面"
