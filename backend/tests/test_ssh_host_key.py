@@ -1113,3 +1113,42 @@ def test_update_instance_drops_the_old_router_pin(monkeypatch):
     ))
     assert unchanged.deleted == []
 
+
+def test_openssh_key_type_change_is_a_host_key_refusal(monkeypatch):
+    """OpenSSH drops the socket when the client offers only the pinned type.
+
+    Offering every algorithm makes the server present its key. That is a
+    host-key refusal, including for an archive listing, not an empty success.
+    A caller cannot put the narrowed list back.
+    """
+    private = asyncssh.generate_private_key("ssh-ed25519")
+    stored = private.export_public_key().decode().strip()
+    seen = []
+
+    async def openssh_connect(*args, **kwargs):
+        seen.append(dict(kwargs))
+        if kwargs.get("server_host_key_algs") != "default":
+            raise asyncssh.ConnectionLost("Connection lost")
+        raise asyncssh.HostKeyNotVerifiable("Host key is not trusted")
+
+    monkeypatch.setattr(ssh.asyncssh, "connect", openssh_connect)
+    db = _Conn(row={"hostKey": stored})
+    with pytest.raises(SshHostKeyRejected) as raised:
+        _run(ssh.connect(
+            open_conn=_opener(db),
+            instance_id="inst",
+            host="router.example",
+            server_host_key_algs=["ssh-ed25519"],
+        ))
+    assert str(raised.value) == SshHostKeyRejected.message
+    assert seen[-1]["server_host_key_algs"] == "default"
+
+    with pytest.raises(SshHostKeyRejected):
+        _run(archive_url.list_archive_files(
+            "sftp://vyos@router.example/config/",
+            open_conn=_opener(db),
+            instance_id="inst",
+        ))
+    assert seen[-1]["server_host_key_algs"] == "default"
+    assert db.keys == {}
+
