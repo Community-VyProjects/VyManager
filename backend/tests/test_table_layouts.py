@@ -371,6 +371,121 @@ def test_replace_restore_reinserts_pins_after_instance_cascade():
     assert conn.pins[("inst-1", "10.0.0.1", 22)] == "ssh-ed25519 AAAA"
 
 
+def test_merge_restore_upserts_pins_on_the_composite_key():
+    """Merge restore must conflict on the pin key, not a missing id column."""
+    import asyncio
+    from types import SimpleNamespace
+    from typing import cast
+
+    import asyncpg
+    from fastapi import Request, UploadFile
+    from backup_crypto import encrypt_backup
+    from routers.session.session import restore_backup
+
+    payload = {
+        "format_version": 1,
+        "tables": {
+            "users": [{"id": "admin", "email": "a@example.com", "role": "ADMIN"}],
+            "sites": [{"id": "site-1", "name": "lab", "orgId": "default"}],
+            "instances": [{
+                "id": "inst-1",
+                "siteId": "site-1",
+                "name": "lab",
+                "host": "10.0.0.1",
+            }],
+            "ssh_host_keys": [{
+                "instanceId": "inst-1",
+                "host": "10.0.0.1",
+                "port": 22,
+                "hostKey": "ssh-ed25519 BBBB",
+            }],
+        },
+    }
+    blob = encrypt_backup(payload, "pw")
+
+    class _Upload:
+        async def read(self):
+            return blob
+
+    class _Conn:
+        def __init__(self):
+            self.sites = {"site-1"}
+            self.instances = {"inst-1"}
+            self.pins = {("inst-1", "10.0.0.1", 22): "old-key"}
+            self.host_key_sql = ""
+
+        def transaction(self):
+            conn = self
+
+            class _Tx:
+                async def __aenter__(self):
+                    return conn
+
+                async def __aexit__(self, *args):
+                    return False
+
+            return _Tx()
+
+        async def fetchval(self, query, *args):
+            if "SELECT role" in query:
+                return "ADMIN"
+            if "COUNT" in query:
+                return 1
+            if "INSERT INTO" in query:
+                updated = self._insert(query, args)
+                return not updated
+            return None
+
+        async def fetch(self, query, *args):
+            columns = {
+                "users": [("id", "text"), ("email", "text"), ("role", "text")],
+                "sites": [("id", "text"), ("name", "text"), ("orgId", "text")],
+                "instances": [
+                    ("id", "text"), ("siteId", "text"), ("name", "text"), ("host", "text"),
+                ],
+                "ssh_host_keys": [
+                    ("instanceId", "text"), ("host", "text"),
+                    ("port", "int4"), ("hostKey", "text"),
+                ],
+            }
+            table = args[0] if args else ""
+            return [
+                {"column_name": name, "udt_name": udt}
+                for name, udt in columns.get(table, [("id", "text")])
+            ]
+
+        async def execute(self, query, *args):
+            return None
+
+        def _insert(self, query, args):
+            if 'INSERT INTO "ssh_host_keys"' in query:
+                self.host_key_sql = query
+                if 'ON CONFLICT ("instanceId", "host", "port")' not in query:
+                    raise RuntimeError("ssh_host_keys merge did not use the composite key")
+                if 'ON CONFLICT ("id")' in query or "ON CONFLICT (id)" in query:
+                    raise RuntimeError("ssh_host_keys merge used id")
+                self.pins[(args[0], args[1], int(args[2]))] = args[3]
+                return True
+            return False
+
+    conn = _Conn()
+    request = SimpleNamespace(state=SimpleNamespace(user={"id": "admin"}))
+    result = asyncio.run(restore_backup(
+        cast(Request, request),
+        file=cast(UploadFile, _Upload()),
+        passphrase="pw",
+        mode="merge",
+        confirm="merge",
+        conn=cast(asyncpg.Connection, conn),
+    ))
+    assert result.success is True
+    restored = result.data
+    assert restored is not None
+    assert restored["updated"]["ssh_host_keys"] == 1
+    assert conn.pins[("inst-1", "10.0.0.1", 22)] == "ssh-ed25519 BBBB"
+    assert 'ON CONFLICT ("id")' not in conn.host_key_sql
+
+
 def test_host_key_merge_conflicts_on_the_composite_key():
     from routers.session.session import _build_insert
 
