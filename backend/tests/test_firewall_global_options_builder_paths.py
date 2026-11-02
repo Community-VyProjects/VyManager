@@ -138,35 +138,58 @@ def test_global_options_v1_4_rejects_version_only_ops(method, args, _op, _path):
     assert paths == [["firewall", "global-options", "all-ping", "enable"]]
 
 
-def test_global_options_batch_maps_value_error_to_http_400():
-    """The 1.4 mapper guard raises ValueError; both save routes must return 400."""
-    import ast
-    from pathlib import Path
+def test_global_options_batch_maps_value_error_to_http_400(monkeypatch):
+    """A mixed 1.4 batch must 400 before commit, not drop the 1.5-only op."""
+    from types import SimpleNamespace
 
-    router_path = (
-        Path(__file__).resolve().parents[1]
-        / "routers"
-        / "firewall_global_options"
-        / "firewall_global_options.py"
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    executed = []
+
+    async def allow(*_args, **_kwargs):
+        return None
+
+    class Service:
+        def get_version(self):
+            return "1.4"
+
+        def get_full_config(self, refresh=False):
+            return {}
+
+        def execute_batch(self, batch):
+            executed.append(batch)
+            return SimpleNamespace(status=200, result="", error=None)
+
+    monkeypatch.setattr(
+        "routers.firewall_global_options.firewall_global_options.require_write_permission",
+        allow,
     )
-    tree = ast.parse(router_path.read_text())
-    for name in ("firewall_global_options_batch_configure", "update_firewall_global_options"):
-        handler = next(
-            node for node in ast.walk(tree)
-            if isinstance(node, ast.AsyncFunctionDef) and node.name == name
-        )
-        value_error_handlers = [
-            h for h in ast.walk(handler)
-            if isinstance(h, ast.ExceptHandler)
-            and isinstance(h.type, ast.Name)
-            and h.type.id == "ValueError"
-        ]
-        assert value_error_handlers, f"{name} must catch ValueError"
-        status_codes = set()
-        for h in value_error_handlers:
-            for node in ast.walk(h):
-                if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "HTTPException":
-                    for kw in node.keywords:
-                        if kw.arg == "status_code" and isinstance(kw.value, ast.Constant):
-                            status_codes.add(kw.value.value)
-        assert 400 in status_codes, f"{name} must map ValueError to HTTP 400"
+    monkeypatch.setattr(
+        "routers.firewall_global_options.firewall_global_options.get_session_vyos_service",
+        lambda _req: Service(),
+    )
+
+    from routers.firewall_global_options.firewall_global_options import router
+
+    app = FastAPI()
+    app.include_router(router)
+    client = TestClient(app)
+
+    batch = client.post(
+        "/vyos/firewall/global-options/batch",
+        json={"operations": [
+            {"op": "set_all_ping", "value": "enable"},
+            {"op": "set_timeout_icmp", "value": "30"},
+        ]},
+    )
+    assert batch.status_code == 400, batch.text
+    assert "not supported" in batch.json()["detail"]
+
+    update = client.post(
+        "/vyos/firewall/global-options/update",
+        json={"all_ping": "enable", "timeouts": {"icmp": 30}},
+    )
+    assert update.status_code == 400, update.text
+    assert "not supported" in update.json()["detail"]
+    assert executed == []

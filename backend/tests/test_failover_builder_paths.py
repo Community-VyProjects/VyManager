@@ -93,29 +93,59 @@ def test_failover_v1_4_rejects_version_only_ops(method, args, _op, _path):
     assert paths == [["protocols", "failover", "route", "10.0.0.0/8"]]
 
 
-def test_failover_batch_maps_value_error_to_http_400():
-    import ast
-    from pathlib import Path
+def test_failover_batch_maps_value_error_to_http_400(monkeypatch):
+    """A 1.4 dhcp-interface batch must 400 and must not reach execute_batch."""
+    from types import SimpleNamespace
 
-    router_path = Path(__file__).resolve().parents[1] / "routers" / "failover" / "failover.py"
-    tree = ast.parse(router_path.read_text())
-    handler = next(
-        node for node in ast.walk(tree)
-        if isinstance(node, ast.AsyncFunctionDef) and node.name == "failover_batch_configure"
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    executed = []
+
+    async def allow(*_args, **_kwargs):
+        return None
+
+    class Service:
+        def get_version(self):
+            return "1.4"
+
+        def execute_batch(self, batch):
+            executed.append(batch)
+            return SimpleNamespace(status=200, result="", error=None)
+
+    monkeypatch.setattr("routers.failover.failover.require_write_permission", allow)
+    monkeypatch.setattr(
+        "routers.failover.failover.get_session_vyos_service",
+        lambda _req: Service(),
     )
-    value_error_handlers = [
-        h for h in ast.walk(handler)
-        if isinstance(h, ast.ExceptHandler)
-        and isinstance(h.type, ast.Name)
-        and h.type.id == "ValueError"
-    ]
-    assert value_error_handlers, "failover_batch_configure must catch ValueError"
-    status_codes = set()
-    for h in value_error_handlers:
-        for node in ast.walk(h):
-            if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "HTTPException":
-                for kw in node.keywords:
-                    if kw.arg == "status_code" and isinstance(kw.value, ast.Constant):
-                        status_codes.add(kw.value.value)
-    assert 400 in status_codes, "ValueError must map to HTTP 400"
+
+    from routers.failover.failover import router
+
+    app = FastAPI()
+    app.include_router(router)
+    dhcp = TestClient(app).post(
+        "/vyos/failover/batch",
+        json={
+            "destination": "10.0.0.0/8",
+            "dhcp_interface": "eth0",
+            "operations": [{"op": "set_dhcp_interface"}],
+        },
+    )
+    assert dhcp.status_code == 400, dhcp.text
+    assert "not supported" in dhcp.json()["detail"]
+
+    target = TestClient(app).post(
+        "/vyos/failover/batch",
+        json={
+            "destination": "10.0.0.0/8",
+            "next_hop": "192.0.2.1",
+            "operations": [{
+                "op": "set_next_hop_check_target_interface",
+                "value": "192.0.2.1,203.0.113.5,eth0",
+            }],
+        },
+    )
+    assert target.status_code == 400, target.text
+    assert "not supported" in target.json()["detail"]
+    assert executed == []
 
