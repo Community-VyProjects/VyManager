@@ -270,25 +270,36 @@ def test_dashboard_stream_ends_when_session_check_raises(monkeypatch):
             self.state = SimpleNamespace(user={"id": "user"})
 
         async def is_disconnected(self):
+            await asyncio.sleep(0)
             return False
 
     class Connection:
         async def __aenter__(self):
+            await asyncio.sleep(0)
             return object()
 
         async def __aexit__(self, *args):
+            await asyncio.sleep(0)
             return False
 
     async def deny(*args, **kwargs):
+        await asyncio.sleep(0)
         return False
 
     async def boom(*args, **kwargs):
+        await asyncio.sleep(0)
         raise RuntimeError("database unavailable")
 
     real_wait_for = asyncio.wait_for
 
+    calls = {"n": 0}
+
     async def timeout_now(coro, timeout=None):
         coro.close()
+        calls["n"] += 1
+        if calls["n"] > 1:
+            raise AssertionError("dashboard stream did not end when the session check raised")
+        await asyncio.sleep(0)
         raise asyncio.TimeoutError
 
     monkeypatch.setattr(
@@ -309,7 +320,10 @@ def test_dashboard_stream_ends_when_session_check_raises(monkeypatch):
             async for chunk in response.body_iterator:
                 chunks.append(chunk)
 
-        await real_wait_for(read(), timeout=1)
+        try:
+            await real_wait_for(read(), timeout=1)
+        except TimeoutError:
+            raise AssertionError("dashboard stream did not end when the session check raised")
         return "".join(chunks)
 
     body = _run(scenario())
@@ -329,23 +343,34 @@ def test_banner_stream_ends_when_recheck_raises(monkeypatch):
 
     class Connection:
         async def __aenter__(self):
+            await asyncio.sleep(0)
             return object()
 
         async def __aexit__(self, *args):
+            await asyncio.sleep(0)
             return False
 
     async def allow(*args, **kwargs):
+        await asyncio.sleep(0)
         return None
 
     async def empty_state(request):
+        await asyncio.sleep(0)
         return {}
 
     async def boom(*args, **kwargs):
+        await asyncio.sleep(0)
         raise RuntimeError("database unavailable")
+
+    calls = {"n": 0}
 
     async def timeout_wait(aws, timeout=None, return_when=None):
         for fut in aws:
             fut.cancel()
+        calls["n"] += 1
+        if calls["n"] > 1:
+            raise AssertionError("banner stream did not end when the recheck raised")
+        await asyncio.sleep(0)
         return set(), set()
 
     monkeypatch.setattr("routers.events.require_read_permission", allow)
@@ -366,7 +391,84 @@ def test_banner_stream_ends_when_recheck_raises(monkeypatch):
             async for chunk in response.body_iterator:
                 chunks.append(chunk)
 
-        await asyncio.wait_for(read(), timeout=1)
+        try:
+            await asyncio.wait_for(read(), timeout=1)
+        except TimeoutError:
+            raise AssertionError("banner stream did not end when the recheck raised")
+        return "".join(chunks)
+
+    body = _run(scenario())
+    assert "banner_state" in body
+    assert ": keepalive" not in body
+
+
+def test_banner_stream_ends_on_matching_revocation(monkeypatch):
+    from routers.events import banner_events
+
+    class ExplodingQueue(asyncio.Queue):
+        def __init__(self):
+            super().__init__()
+            self.gets = 0
+
+        async def get(self):
+            self.gets += 1
+            if self.gets > 1:
+                raise AssertionError("banner stream did not end after the matching revocation")
+            return await super().get()
+
+    events = ExplodingQueue()
+    revocations = ExplodingQueue()
+    revocations.put_nowait("user:user")
+
+    class Request:
+        def __init__(self):
+            self.state = SimpleNamespace(
+                user={"id": "user"},
+                instance={"id": "inst"},
+            )
+
+    class Connection:
+        async def __aenter__(self):
+            await asyncio.sleep(0)
+            return object()
+
+        async def __aexit__(self, *args):
+            await asyncio.sleep(0)
+            return False
+
+    async def allow(*args, **kwargs):
+        await asyncio.sleep(0)
+        return None
+
+    async def empty_state(request):
+        await asyncio.sleep(0)
+        return {}
+
+    async def boom(*args, **kwargs):
+        await asyncio.sleep(0)
+        raise RuntimeError("database unavailable")
+
+    monkeypatch.setattr("routers.events.require_read_permission", allow)
+    monkeypatch.setattr("routers.events._gather_banner_state", empty_state)
+    monkeypatch.setattr("routers.events.event_manager.subscribe", lambda instance_id: events)
+    monkeypatch.setattr("routers.events.event_manager.unsubscribe", lambda instance_id, queue: None)
+    monkeypatch.setattr("routers.events.revocation_bus.subscribe", lambda: revocations)
+    monkeypatch.setattr("routers.events.revocation_bus.unsubscribe", lambda queue: None)
+    monkeypatch.setattr("routers.events.request_scoped_conn", lambda request: Connection())
+    monkeypatch.setattr("routers.events.configuration_read_allowed", boom)
+
+    async def scenario():
+        response = await banner_events(Request())
+        chunks = []
+
+        async def read():
+            async for chunk in response.body_iterator:
+                chunks.append(chunk)
+
+        try:
+            await asyncio.wait_for(read(), timeout=1)
+        except TimeoutError:
+            raise AssertionError("banner stream did not end after the matching revocation")
         return "".join(chunks)
 
     body = _run(scenario())
