@@ -106,3 +106,39 @@ export function administrationTabFromSearch(
   const value = get("section") ?? get("tab");
   return value ? ADMINISTRATION_TAB_FROM_NAV[value] ?? null : null;
 }
+
+/** Opens the appliance instance editor. `ssh` is the SSH key setup tab. */
+export const INSTANCE_EDITOR_QUERY = "edit";
+
+export const INSTANCE_EDITOR_TABS = ["basic", "connection", "ssh"] as const;
+
+export type InstanceEditorTab = (typeof INSTANCE_EDITOR_TABS)[number];
+
+export function isInstanceEditorTab(value: string): value is InstanceEditorTab {
+  return (INSTANCE_EDITOR_TABS as readonly string[]).includes(value);
+}
+
+export function instanceEditorTabFromSearch(
+  get: (key: string) => string | null,
+): InstanceEditorTab | null {
+  const value = get(INSTANCE_EDITOR_QUERY);
+  return value && isInstanceEditorTab(value) ? value : null;
+}
+
+/** Open the editor once per query value, and only after the instance has loaded. */
+export function instanceEditorToOpen(
+  tab: InstanceEditorTab | null,
+  hasInstance: boolean,
+  honored: string | null,
+): InstanceEditorTab | null {
+  if (!tab || !hasInstance || honored === tab) return null;
+  return tab;
+}
+
+/** Drop the editor query. Keep the administration section and any other params. */
+export function administrationPathAfterEditorClose(search: string): string {
+  const next = new URLSearchParams(search);
+  next.delete(INSTANCE_EDITOR_QUERY);
+  const query = next.toString();
+  return query ? `/administration?${query}` : "/administration";
+}

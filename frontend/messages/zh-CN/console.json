@@ -12,7 +12,8 @@
   "disconnect": "断开",
   "sshNotConfigured": {
     "title": "SSH 未配置",
-    "description": "使用控制台前，必须先生成 SSH 密钥并将其添加到 VyOS 设备。",
-    "openSiteManager": "<link>打开站点管理</link>进行设置。"
+    "description": "使用此页面前，必须先生成 SSH 密钥并将其添加到 VyOS 设备。",
+    "openSiteManager": "<link>打开站点管理</link>进行设置。",
+    "openSshSetup": "<link>打开 SSH 设置</link>进行设置。"
   }
 }
