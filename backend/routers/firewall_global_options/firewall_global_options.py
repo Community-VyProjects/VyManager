@@ -350,6 +350,8 @@ async def firewall_global_options_batch_configure(http_request: Request, body: G
         )
     except HTTPException:
         raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -404,6 +406,8 @@ async def update_firewall_global_options(http_request: Request, config: Firewall
             data={"message": "Configuration updated"},
             error=response.error if response.error else None
         )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")

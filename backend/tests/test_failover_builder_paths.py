@@ -81,3 +81,71 @@ def test_failover_common_paths(method, args, op, expected_path, version):
 def test_failover_v1_5_only_paths(method, args, op, expected_path):
     _run("1.5", method, args, op, expected_path)
 
+
+@pytest.mark.parametrize("method, args, _op, _path", V15_ONLY_CASES)
+def test_failover_v1_4_rejects_version_only_ops(method, args, _op, _path):
+    """Missing 1.4 nodes must raise ValueError, not AttributeError into a 500."""
+    builder = FailoverBatchBuilder(version="1.4")
+    builder.set_route("10.0.0.0/8")
+    with pytest.raises(ValueError, match="not supported"):
+        getattr(builder, method)(*args)
+    paths = [item["path"] for item in builder.get_operations()]
+    assert paths == [["protocols", "failover", "route", "10.0.0.0/8"]]
+
+
+def test_failover_batch_maps_value_error_to_http_400(monkeypatch):
+    """A 1.4 dhcp-interface batch must 400 and must not reach execute_batch."""
+    from types import SimpleNamespace
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    executed = []
+
+    async def allow(*_args, **_kwargs):
+        return None
+
+    class Service:
+        def get_version(self):
+            return "1.4"
+
+        def execute_batch(self, batch):
+            executed.append(batch)
+            return SimpleNamespace(status=200, result="", error=None)
+
+    monkeypatch.setattr("routers.failover.failover.require_write_permission", allow)
+    monkeypatch.setattr(
+        "routers.failover.failover.get_session_vyos_service",
+        lambda _req: Service(),
+    )
+
+    from routers.failover.failover import router
+
+    app = FastAPI()
+    app.include_router(router)
+    dhcp = TestClient(app).post(
+        "/vyos/failover/batch",
+        json={
+            "destination": "10.0.0.0/8",
+            "dhcp_interface": "eth0",
+            "operations": [{"op": "set_dhcp_interface"}],
+        },
+    )
+    assert dhcp.status_code == 400, dhcp.text
+    assert "not supported" in dhcp.json()["detail"]
+
+    target = TestClient(app).post(
+        "/vyos/failover/batch",
+        json={
+            "destination": "10.0.0.0/8",
+            "next_hop": "192.0.2.1",
+            "operations": [{
+                "op": "set_next_hop_check_target_interface",
+                "value": "192.0.2.1,203.0.113.5,eth0",
+            }],
+        },
+    )
+    assert target.status_code == 400, target.text
+    assert "not supported" in target.json()["detail"]
+    assert executed == []
+

@@ -317,6 +317,8 @@ async def failover_batch_configure(http_request: Request, body: FailoverBatchReq
         )
     except AttributeError as e:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")

@@ -217,12 +217,19 @@ class BridgeFirewallMapper(BaseFeatureMapper):
     # Rule Properties - Ethernet Type (VyOS 1.5+ only)
     # ========================================================================
 
+    def _reject_ethernet_type(self) -> None:
+        """1.4 has no firewall bridge ethernet-type node."""
+        if not self._is_v15:
+            raise ValueError("Bridge firewall ethernet-type is not supported on VyOS 1.4")
+
     def get_rule_ethernet_type(self, chain: str, rule_number: int, eth_type: str) -> List[str]:
         """Get command path for setting ethernet type (VyOS 1.5+ only)."""
+        self._reject_ethernet_type()
         return self._get_rule_base(chain, rule_number) + ["ethernet-type", eth_type]
 
     def get_rule_ethernet_type_path(self, chain: str, rule_number: int) -> List[str]:
         """Get command path for ethernet type (for deletion) (VyOS 1.5+ only)."""
+        self._reject_ethernet_type()
         return self._get_rule_base(chain, rule_number) + ["ethernet-type"]
 
     # ========================================================================
@@ -543,6 +550,7 @@ class BridgeFirewallMapper(BaseFeatureMapper):
 
     def get_rule_vlan_ethernet_type(self, chain: str, rule_number: int, eth_type: str) -> List[str]:
         """Get command path for VLAN ethernet type matching (VyOS 1.5+ only)."""
+        self._reject_ethernet_type()
         return self._get_rule_base(chain, rule_number) + ["vlan", "ethernet-type", eth_type]
 
     # ========================================================================

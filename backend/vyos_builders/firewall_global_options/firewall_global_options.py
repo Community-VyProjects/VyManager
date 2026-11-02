@@ -290,31 +290,23 @@ class FirewallGlobalOptionsBatchBuilder(BatchBuilder):
 
     def set_apply_to_bridged_traffic_ipv4(self) -> "FirewallGlobalOptionsBatchBuilder":
         """Enable apply-to-bridged-traffic ipv4 (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_apply_to_bridged_traffic_ipv4()
-            return self.add_set(path)
-        return self
+        path = self.mappers[self.mapper_key].get_apply_to_bridged_traffic_ipv4()
+        return self.add_set(path)
 
     def delete_apply_to_bridged_traffic_ipv4(self) -> "FirewallGlobalOptionsBatchBuilder":
         """Disable apply-to-bridged-traffic ipv4 (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_apply_to_bridged_traffic_ipv4_path()
-            return self.add_delete(path)
-        return self
+        path = self.mappers[self.mapper_key].get_apply_to_bridged_traffic_ipv4_path()
+        return self.add_delete(path)
 
     def set_apply_to_bridged_traffic_ipv6(self) -> "FirewallGlobalOptionsBatchBuilder":
         """Enable apply-to-bridged-traffic ipv6 (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_apply_to_bridged_traffic_ipv6()
-            return self.add_set(path)
-        return self
+        path = self.mappers[self.mapper_key].get_apply_to_bridged_traffic_ipv6()
+        return self.add_set(path)
 
     def delete_apply_to_bridged_traffic_ipv6(self) -> "FirewallGlobalOptionsBatchBuilder":
         """Disable apply-to-bridged-traffic ipv6 (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_apply_to_bridged_traffic_ipv6_path()
-            return self.add_delete(path)
-        return self
+        path = self.mappers[self.mapper_key].get_apply_to_bridged_traffic_ipv6_path()
+        return self.add_delete(path)
 
     # ========================================================================
     # Timeout Settings (VyOS 1.5+)
@@ -322,175 +314,127 @@ class FirewallGlobalOptionsBatchBuilder(BatchBuilder):
 
     def set_timeout_icmp(self, seconds: int) -> "FirewallGlobalOptionsBatchBuilder":
         """Set timeout icmp (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_icmp(seconds)
-            return self.add_set(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_icmp(seconds)
+        return self.add_set(path)
 
     def delete_timeout_icmp(self) -> "FirewallGlobalOptionsBatchBuilder":
         """Delete timeout icmp (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_icmp_path()
-            return self.add_delete(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_icmp_path()
+        return self.add_delete(path)
 
     def set_timeout_other(self, seconds: int) -> "FirewallGlobalOptionsBatchBuilder":
         """Set timeout other (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_other(seconds)
-            return self.add_set(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_other(seconds)
+        return self.add_set(path)
 
     def delete_timeout_other(self) -> "FirewallGlobalOptionsBatchBuilder":
         """Delete timeout other (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_other_path()
-            return self.add_delete(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_other_path()
+        return self.add_delete(path)
 
     # TCP Timeouts
 
     def set_timeout_tcp_close(self, seconds: int) -> "FirewallGlobalOptionsBatchBuilder":
         """Set timeout tcp close (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_tcp_close(seconds)
-            return self.add_set(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_tcp_close(seconds)
+        return self.add_set(path)
 
     def delete_timeout_tcp_close(self) -> "FirewallGlobalOptionsBatchBuilder":
         """Delete timeout tcp close (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_tcp_close_path()
-            return self.add_delete(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_tcp_close_path()
+        return self.add_delete(path)
 
     def set_timeout_tcp_close_wait(self, seconds: int) -> "FirewallGlobalOptionsBatchBuilder":
         """Set timeout tcp close-wait (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_tcp_close_wait(seconds)
-            return self.add_set(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_tcp_close_wait(seconds)
+        return self.add_set(path)
 
     def delete_timeout_tcp_close_wait(self) -> "FirewallGlobalOptionsBatchBuilder":
         """Delete timeout tcp close-wait (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_tcp_close_wait_path()
-            return self.add_delete(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_tcp_close_wait_path()
+        return self.add_delete(path)
 
     def set_timeout_tcp_established(self, seconds: int) -> "FirewallGlobalOptionsBatchBuilder":
         """Set timeout tcp established (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_tcp_established(seconds)
-            return self.add_set(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_tcp_established(seconds)
+        return self.add_set(path)
 
     def delete_timeout_tcp_established(self) -> "FirewallGlobalOptionsBatchBuilder":
         """Delete timeout tcp established (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_tcp_established_path()
-            return self.add_delete(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_tcp_established_path()
+        return self.add_delete(path)
 
     def set_timeout_tcp_fin_wait(self, seconds: int) -> "FirewallGlobalOptionsBatchBuilder":
         """Set timeout tcp fin-wait (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_tcp_fin_wait(seconds)
-            return self.add_set(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_tcp_fin_wait(seconds)
+        return self.add_set(path)
 
     def delete_timeout_tcp_fin_wait(self) -> "FirewallGlobalOptionsBatchBuilder":
         """Delete timeout tcp fin-wait (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_tcp_fin_wait_path()
-            return self.add_delete(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_tcp_fin_wait_path()
+        return self.add_delete(path)
 
     def set_timeout_tcp_last_ack(self, seconds: int) -> "FirewallGlobalOptionsBatchBuilder":
         """Set timeout tcp last-ack (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_tcp_last_ack(seconds)
-            return self.add_set(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_tcp_last_ack(seconds)
+        return self.add_set(path)
 
     def delete_timeout_tcp_last_ack(self) -> "FirewallGlobalOptionsBatchBuilder":
         """Delete timeout tcp last-ack (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_tcp_last_ack_path()
-            return self.add_delete(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_tcp_last_ack_path()
+        return self.add_delete(path)
 
     def set_timeout_tcp_syn_recv(self, seconds: int) -> "FirewallGlobalOptionsBatchBuilder":
         """Set timeout tcp syn-recv (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_tcp_syn_recv(seconds)
-            return self.add_set(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_tcp_syn_recv(seconds)
+        return self.add_set(path)
 
     def delete_timeout_tcp_syn_recv(self) -> "FirewallGlobalOptionsBatchBuilder":
         """Delete timeout tcp syn-recv (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_tcp_syn_recv_path()
-            return self.add_delete(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_tcp_syn_recv_path()
+        return self.add_delete(path)
 
     def set_timeout_tcp_syn_sent(self, seconds: int) -> "FirewallGlobalOptionsBatchBuilder":
         """Set timeout tcp syn-sent (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_tcp_syn_sent(seconds)
-            return self.add_set(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_tcp_syn_sent(seconds)
+        return self.add_set(path)
 
     def delete_timeout_tcp_syn_sent(self) -> "FirewallGlobalOptionsBatchBuilder":
         """Delete timeout tcp syn-sent (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_tcp_syn_sent_path()
-            return self.add_delete(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_tcp_syn_sent_path()
+        return self.add_delete(path)
 
     def set_timeout_tcp_time_wait(self, seconds: int) -> "FirewallGlobalOptionsBatchBuilder":
         """Set timeout tcp time-wait (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_tcp_time_wait(seconds)
-            return self.add_set(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_tcp_time_wait(seconds)
+        return self.add_set(path)
 
     def delete_timeout_tcp_time_wait(self) -> "FirewallGlobalOptionsBatchBuilder":
         """Delete timeout tcp time-wait (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_tcp_time_wait_path()
-            return self.add_delete(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_tcp_time_wait_path()
+        return self.add_delete(path)
 
     # UDP Timeouts
 
     def set_timeout_udp_other(self, seconds: int) -> "FirewallGlobalOptionsBatchBuilder":
         """Set timeout udp other (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_udp_other(seconds)
-            return self.add_set(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_udp_other(seconds)
+        return self.add_set(path)
 
     def delete_timeout_udp_other(self) -> "FirewallGlobalOptionsBatchBuilder":
         """Delete timeout udp other (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_udp_other_path()
-            return self.add_delete(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_udp_other_path()
+        return self.add_delete(path)
 
     def set_timeout_udp_stream(self, seconds: int) -> "FirewallGlobalOptionsBatchBuilder":
         """Set timeout udp stream (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_udp_stream(seconds)
-            return self.add_set(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_udp_stream(seconds)
+        return self.add_set(path)
 
     def delete_timeout_udp_stream(self) -> "FirewallGlobalOptionsBatchBuilder":
         """Delete timeout udp stream (VyOS 1.5+)."""
-        if self._is_v15_or_later():
-            path = self.mappers[self.mapper_key].get_timeout_udp_stream_path()
-            return self.add_delete(path)
-        return self
+        path = self.mappers[self.mapper_key].get_timeout_udp_stream_path()
+        return self.add_delete(path)
 
     # ========================================================================
     # Capabilities
