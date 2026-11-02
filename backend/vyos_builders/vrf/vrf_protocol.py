@@ -1,16 +1,14 @@
 """Reuse global feature builders under a VRF path prefix.
 
 VRF configuration is the same command tree as the global feature, with
-``vrf name <vrf>`` in front. ``PathPrefixMapper`` applies that prefix to the
-global feature mapper before the global builder runs. The queued ops are
-that builder's operations. This module is the only place VRF builders learn
-the prefix.
+``vrf name <vrf>`` in front. ``PathPrefixMapper`` applies that prefix.
+Version differences stay on the feature mapper.
 """
 
 from __future__ import annotations
 
 import inspect
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 from vyos_builders.bgp.bgp_batch_builder import BgpBatchBuilder
 from vyos_builders.dhcp.dhcp import DHCPBatchBuilder
@@ -407,8 +405,7 @@ def _run_feature_op(
         _flip_set(inner, proto, suffix, value)
         return _queue(owner, inner)
     if suffix and key in DROP:
-        if not _drop_set_leaf(inner, proto, suffix, value):
-            return owner
+        _drop_set_leaf(inner, proto, suffix, value)
         return _queue(owner, inner)
     if suffix:
         method = getattr(inner, f"{verb}_{_alias(proto, suffix)}", None)

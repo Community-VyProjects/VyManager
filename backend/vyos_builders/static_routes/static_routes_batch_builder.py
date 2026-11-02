@@ -5,8 +5,9 @@ Provides all batch operations for static route configuration.
 Handles version-specific differences through the mapper layer.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, cast
 from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.static_routes.static_routes import StaticRoutesMapper
 from vyos_builders.base import BatchBuilder
 
 
@@ -443,6 +444,60 @@ class StaticRoutesBatchBuilder(BatchBuilder):
             destination, next_hop, source
         )
         return self.add_set(path)
+
+    def delete_ipv4_route_next_hop_bfd_multi_hop_source(
+        self, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        mapper = cast(StaticRoutesMapper, self.mappers[self.mapper_key])
+        path = mapper.get_ipv4_route_next_hop_bfd_multi_hop_source_delete(
+            destination, next_hop
+        )
+        return self.add_delete(path)
+
+    def delete_ipv6_route_next_hop_bfd_multi_hop_source(
+        self, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        mapper = cast(StaticRoutesMapper, self.mappers[self.mapper_key])
+        path = mapper.get_ipv6_route_next_hop_bfd_multi_hop_source_delete(
+            destination, next_hop
+        )
+        return self.add_delete(path)
+
+    def set_ipv4_route_next_hop_segments(
+        self, destination: str, next_hop: str, segments: str
+    ) -> "StaticRoutesBatchBuilder":
+        mapper = cast(StaticRoutesMapper, self.mappers[self.mapper_key])
+        path = mapper.get_ipv4_route_next_hop_segments(
+            destination, next_hop, segments
+        )
+        return self.add_set(path)
+
+    def delete_ipv4_route_next_hop_segments(
+        self, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        mapper = cast(StaticRoutesMapper, self.mappers[self.mapper_key])
+        path = mapper.get_ipv4_route_next_hop_segments_delete(
+            destination, next_hop
+        )
+        return self.add_delete(path)
+
+    def set_ipv4_route_interface_segments(
+        self, destination: str, interface: str, segments: str
+    ) -> "StaticRoutesBatchBuilder":
+        mapper = cast(StaticRoutesMapper, self.mappers[self.mapper_key])
+        path = mapper.get_ipv4_route_interface_segments(
+            destination, interface, segments
+        )
+        return self.add_set(path)
+
+    def delete_ipv4_route_interface_segments(
+        self, destination: str, interface: str
+    ) -> "StaticRoutesBatchBuilder":
+        mapper = cast(StaticRoutesMapper, self.mappers[self.mapper_key])
+        path = mapper.get_ipv4_route_interface_segments_delete(
+            destination, interface
+        )
+        return self.add_delete(path)
 
     def set_ipv4_route_interface_vrf(
         self, destination: str, interface: str, vrf: str

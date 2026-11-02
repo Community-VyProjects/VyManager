@@ -115,6 +115,16 @@ def test_prefix_comes_from_path_prefix_mapper(monkeypatch):
     assert builder.get_operations() == [
         {"op": "set", "path": ["protocols", "static", "route", "10.0.0.0/24"]}
     ]
+    builder.set_vrf_static_route_next_hop_bfd_multi_hop_source(
+        "blue", "10.0.0.0/24,192.0.2.1,192.0.2.2"
+    )
+    builder.set_vrf_static_route_next_hop_segments(
+        "blue", "10.0.0.0/24,192.0.2.1,fc00::1"
+    )
+    paths = [op["path"] for op in builder.get_operations()]
+    assert all(path[:3] != ["vrf", "name", "blue"] for path in paths)
+    assert paths[1][-2:] == ["source-address", "192.0.2.2"]
+    assert paths[2][-1] == "fc00::1"
 
 
 def test_dhcp_and_failover_reject_on_1_4():
@@ -130,6 +140,7 @@ def test_static_bfd_source_follows_version():
     old.set_vrf_static_route_next_hop_bfd_multi_hop_source(
         "blue", "10.0.0.0/24,192.0.2.1,192.0.2.2"
     )
+    assert old.get_operations()[-1]["path"][:3] == ["vrf", "name", "blue"]
     assert old.get_operations()[-1]["path"][-3:] == ["source", "192.0.2.2", "profile"]
     new = VrfBatchBuilder("1.5")
     new.set_vrf_static_route_next_hop_bfd_multi_hop_source(

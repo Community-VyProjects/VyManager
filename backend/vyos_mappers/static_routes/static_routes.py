@@ -498,6 +498,54 @@ class StaticRoutesMapper(BaseFeatureMapper):
             "next-hop", next_hop, "bfd", "multi-hop", "source-address", source
         ]
 
+    def get_ipv4_route_next_hop_bfd_multi_hop_source_delete(
+        self, destination: str, next_hop: str
+    ) -> List[str]:
+        return [
+            "protocols", "static", "route", destination,
+            "next-hop", next_hop, "bfd", "multi-hop", "source-address",
+        ]
+
+    def get_ipv6_route_next_hop_bfd_multi_hop_source_delete(
+        self, destination: str, next_hop: str
+    ) -> List[str]:
+        return [
+            "protocols", "static", "route6", destination,
+            "next-hop", next_hop, "bfd", "multi-hop", "source-address",
+        ]
+
+    def get_ipv4_route_next_hop_segments(
+        self, destination: str, next_hop: str, segments: str
+    ) -> List[str]:
+        return [
+            "protocols", "static", "route", destination,
+            "next-hop", next_hop, "segments", segments,
+        ]
+
+    def get_ipv4_route_next_hop_segments_delete(
+        self, destination: str, next_hop: str
+    ) -> List[str]:
+        return [
+            "protocols", "static", "route", destination,
+            "next-hop", next_hop, "segments",
+        ]
+
+    def get_ipv4_route_interface_segments(
+        self, destination: str, interface: str, segments: str
+    ) -> List[str]:
+        return [
+            "protocols", "static", "route", destination,
+            "interface", interface, "segments", segments,
+        ]
+
+    def get_ipv4_route_interface_segments_delete(
+        self, destination: str, interface: str
+    ) -> List[str]:
+        return [
+            "protocols", "static", "route", destination,
+            "interface", interface, "segments",
+        ]
+
     def get_ipv4_route_interface_vrf(
         self, destination: str, interface: str, vrf: str
     ) -> List[str]:
