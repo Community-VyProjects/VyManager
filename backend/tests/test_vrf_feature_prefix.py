@@ -215,26 +215,96 @@ def test_1_5_dhcp_paths_match_the_global_tree():
     assert paths[2][-5:] == ["option", "vendor-option", "cisco", "tftp-server", "2001:db8::1"]
 
 
-def test_ui_schema_round_trip_uses_the_1_5_nodes():
-    """Schema path, op, and emitted VyOS path agree for the fields this PR moved."""
-    root = Path(__file__).resolve().parents[2] / "frontend" / "src" / "components" / "vrf" / "schema"
-    dhcp = (root / "dhcpEntities.ts").read_text()
-    schema = (root / "schemas.ts").read_text()
-    assert 'op: "vrf_dhcp_subnet_lease_default"' in dhcp
-    assert 'path: ["lease"]' in dhcp
-    assert "lease_max" not in dhcp
-    assert 'path: ["dynamic-dns-update"]' not in schema
+def _schema_fields(text: str):
+    """Yield {op, args, path} from schema literals and the option/DDNS maps."""
+    import re
 
+    for block in re.finditer(r"\{[^{}]*op:\s*\"([^\"]+)\"[^{}]*\}", text):
+        body = block.group(0)
+        args = re.findall(r"args:\s*\[([^\]]*)\]", body)
+        path = re.findall(r"path:\s*\[([^\]]*)\]", body)
+        if not path or not re.search(r"\"", path[0]):
+            continue
+        yield {
+            "op": block.group(1),
+            "args": re.findall(r"\"([^\"]+)\"", args[0]) if args else [],
+            "path": re.findall(r"\"([^\"]+)\"", path[0]),
+        }
+    for match in re.finditer(
+        r"\[\s*((?:\"[^\"]+\"\s*,?\s*)+)\]\.map\(\((\w+)\) => \(\{([^}]*)\}\)\)",
+        text,
+        re.S,
+    ):
+        values = re.findall(r"\"([^\"]+)\"", match.group(1))
+        var = match.group(2)
+        body = match.group(3)
+        op = re.search(r"op:\s*\"([^\"]+)\"", body)
+        if not op:
+            continue
+        for value in values:
+            def tokens(source: str):
+                out = []
+                for part in source.split(","):
+                    part = part.strip()
+                    if part == var:
+                        out.append(value)
+                    elif part.startswith('"') and part.endswith('"'):
+                        out.append(part[1:-1])
+                return out
+            args = re.search(r"args:\s*\[([^\]]*)\]", body)
+            path = re.search(r"path:\s*\[([^\]]*)\]", body)
+            yield {
+                "op": op.group(1),
+                "args": tokens(args.group(1)) if args else [],
+                "path": tokens(path.group(1)) if path else [],
+            }
+    options = re.search(r"const VALUE_OPTIONS = \[([\s\S]*?)\];", text)
+    if options:
+        for call in re.finditer(r"optionFields\(\"([^\"]+)\"\)", text):
+            for opt in re.findall(r"\"([^\"]+)\"", options.group(1)):
+                yield {"op": call.group(1), "args": [opt], "path": ["option", opt]}
+
+
+def test_ui_schema_round_trip_uses_the_1_5_nodes():
+    """A schema field's own path is the tail of the op it emits."""
+    root = Path(__file__).resolve().parents[2] / "frontend" / "src" / "components" / "vrf" / "schema"
+    fields = list(_schema_fields((root / "dhcpEntities.ts").read_text()))
+    fields += list(_schema_fields((root / "schemas.ts").read_text()))
+    wanted = {
+        "vrf_dhcp_subnet_lease_default": ("LAN,10.0.0.0/24", "3600"),
+        "vrf_dhcp_subnet_option": ("LAN,10.0.0.0/24", "192.0.2.1"),
+        "vrf_dhcp_ddns_field": ("", "50"),
+    }
+    seen = set()
     builder = VrfBatchBuilder("1.5")
-    builder.set_vrf_dhcp_subnet_lease_default("blue", "LAN,10.0.0.0/24,3600")
-    builder.set_vrf_dhcp_subnet_option("blue", "LAN,10.0.0.0/24,default-router,192.0.2.1")
-    builder.set_vrf_dhcp_ddns_field("blue", "ttl-percent,50")
-    paths = [op["path"] for op in builder.get_operations()]
-    assert paths[0][-2:] == ["lease", "3600"]
-    assert paths[1][-3:] == ["option", "default-router", "192.0.2.1"]
-    assert paths[2][-3:] == ["dynamic-dns-update", "ttl-percent", "50"]
+    for field in fields:
+        if field["op"] not in wanted:
+            continue
+        if field["op"] == "vrf_dhcp_subnet_option" and field["args"] != ["default-router"]:
+            continue
+        if field["op"] == "vrf_dhcp_ddns_field" and field["args"] != ["ttl-percent"]:
+            continue
+        context, sample = wanted[field["op"]]
+        packed = ",".join(part for part in (context, *field["args"], sample) if part != "")
+        getattr(builder, "set_" + field["op"])("blue", packed)
+        emitted = builder.get_operations()[-1]["path"]
+        assert emitted[-len(field["path"]) - 1 : -1] == field["path"], field
+        assert emitted[-1] == sample
+        seen.add(field["op"])
+    assert seen == set(wanted)
     with pytest.raises(ValueError, match="unsupported"):
-        builder.set_vrf_dhcp_subnet_option("blue", "LAN,10.0.0.0/24,not-a-node,1")
+        builder.set_vrf_dhcp_shared_network_ddns_field("blue", "NET,not-a-field,1")
+    with pytest.raises(ValueError, match="unsupported"):
+        builder.delete_vrf_dhcp_subnet_option("blue", "LAN,10.0.0.0/24,not-a-node")
+
+
+def test_short_value_is_rejected_on_every_path():
+    builder = VrfBatchBuilder("1.5")
+    with pytest.raises(ValueError, match="expects"):
+        builder.set_vrf_static_route_next_hop_segments("blue", "10.0.0.0/24")
+    with pytest.raises(ValueError, match="expects"):
+        builder.set_vrf_dhcp_ddns_field("blue", "ttl-percent")
+    assert builder.get_operations() == []
 
 
 def test_dhcpv6_lease_time_uses_the_global_builder(monkeypatch):

@@ -209,6 +209,8 @@ def _alias(proto: str, suffix: str) -> str:
             return "subnet_lease_minimum"
         if suffix == "subnet_lease_time_maximum":
             return "subnet_lease_maximum"
+        if suffix.startswith("subnet_static_mapping"):
+            return suffix[len("subnet_") :]
         if suffix.startswith("shared_network_"):
             return "network_" + suffix[len("shared_network_") :]
     return suffix
@@ -296,10 +298,12 @@ def _emit_leaf(
         args: tuple = ()
     else:
         if value is None:
-            return False
+            raise ArityError(f"{gname} requires a value")
         parts = [value] if len(params) == 1 else value.split(",", len(params) - 1)
         if len(parts) != len(params):
-            return False
+            raise ArityError(
+                f"{gname} expects {len(params)} comma-separated value(s), got {len(parts)}"
+            )
         args = tuple(parts)
     wrapped = inner.mappers[inner.mapper_key] if getattr(inner, "mappers", None) else inner.m
     if not hasattr(wrapped, gname):
@@ -317,7 +321,9 @@ def _drop_set_leaf(inner: Any, proto: str, suffix: str, value: Optional[str]) ->
     params = [p for p in inspect.signature(method).parameters if p != "self"]
     tokens = [] if value is None else value.split(",")
     if len(tokens) + 1 != len(params):
-        return False
+        raise ArityError(
+            f"set_{_alias(proto, suffix)} expects {len(params) - 1} comma-separated value(s), got {len(tokens)}"
+        )
     method(*tokens, "_")
     ops = inner.get_operations()
     inner._operations.clear()
@@ -365,10 +371,12 @@ def _emit_version_override(
         path = getter(vrf_name)
     else:
         if value is None:
-            return True
+            raise ArityError(f"{gname} requires a value")
         parts = [value] if len(extra) == 1 else value.split(",", len(extra) - 1)
         if len(parts) != len(extra):
-            return True
+            raise ArityError(
+                f"{gname} expects {len(extra)} comma-separated value(s), got {len(parts)}"
+            )
         path = getter(vrf_name, *parts)
     if path:
         if verb == "set":
