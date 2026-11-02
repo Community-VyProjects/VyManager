@@ -104,6 +104,16 @@ class MonitoringService {
   }
 
   /**
+   * Forget pinned server host keys so the next connection can accept a new key.
+   * Requires site ADMIN.
+   */
+  async resetSSHHostKey(instanceId: string): Promise<GenericResponse> {
+    return apiClient.post<GenericResponse>(
+      `/vyos/monitoring/instances/${instanceId}/ssh-host-key/reset`
+    );
+  }
+
+  /**
    * Get SSH monitoring availability for the current user's active instance.
    * Accessible to any user with MONITORING read permission (not admin-only).
    */

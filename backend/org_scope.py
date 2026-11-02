@@ -328,7 +328,19 @@ async def request_scoped_conn(request: Request) -> AsyncIterator[asyncpg.Connect
         yield existing
         return
 
-    pool: asyncpg.Pool = request.app.state.db_pool
+    async with independent_org_conn(request) as conn:
+        yield conn
+
+
+@asynccontextmanager
+async def independent_org_conn(request: Request) -> AsyncIterator[asyncpg.Connection]:
+    """Org-scoped connection that always commits on exit.
+
+    request_scoped_conn joins request.state.org_conn when a handler
+    transaction is open. A host-key pin must not join that transaction.
+    Same org-context source as request_scoped_conn's own connection.
+    """
+    pool = _require_pool(request)
     known_admin = is_system_admin_from_state(request)
     if known_admin is None:
         async with pool.acquire() as conn:

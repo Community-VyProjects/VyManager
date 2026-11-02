@@ -19,6 +19,7 @@ from urllib.parse import urlparse, urlunparse
 
 import asyncssh
 import httpx
+from utils.ssh import connect as connect_ssh
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +91,9 @@ def _validate_http_url(url: str) -> str:
     return urlunparse(clean)
 
 
-async def list_archive_files(archive_url: str) -> List[Dict[str, Optional[str | int]]]:
+async def list_archive_files(
+    archive_url: str, *, open_conn=None, instance_id: Optional[str] = None,
+) -> List[Dict[str, Optional[str | int]]]:
     """
     List config backup files at the given archive location.
 
@@ -112,6 +115,7 @@ async def list_archive_files(archive_url: str) -> List[Dict[str, Optional[str | 
             hostname=hostname, port=port or 22,
             username=username or "vyos", password=password,
             path=path,
+            open_conn=open_conn, instance_id=instance_id,
         )
     elif scheme == "ftp":
         return await _list_ftp(
@@ -131,21 +135,25 @@ async def list_archive_files(archive_url: str) -> List[Dict[str, Optional[str | 
 
 async def _list_sftp(
     *, hostname: str, port: int, username: str,
-    password: Optional[str], path: str,
+    password: Optional[str], path: str, open_conn=None, instance_id: Optional[str] = None,
 ) -> List[Dict]:
     """List files via SFTP (works for both scp:// and sftp:// archive URLs)."""
-    connect_kwargs: Dict = {
-        "host": hostname,
-        "port": port,
-        "username": username,
-        "known_hosts": None,
-    }
+    if open_conn is None or instance_id is None:
+        raise ValueError("SFTP archive connections require an active instance")
+    connect_kwargs: Dict = {}
     if password:
         connect_kwargs["password"] = password
 
     try:
         conn = await asyncio.wait_for(
-            asyncssh.connect(**connect_kwargs),
+            connect_ssh(
+                open_conn=open_conn,
+                instance_id=instance_id,
+                host=hostname,
+                port=port,
+                username=username,
+                **connect_kwargs,
+            ),
             timeout=_CONNECTION_TIMEOUT,
         )
     except asyncio.TimeoutError:
@@ -285,7 +293,9 @@ async def _list_http(archive_url: str) -> List[Dict]:
     return files
 
 
-async def fetch_archive_file_content(archive_url: str, filename: str) -> str:
+async def fetch_archive_file_content(
+    archive_url: str, filename: str, *, open_conn=None, instance_id: Optional[str] = None,
+) -> str:
     """
     Fetch the text content of a specific backup file from an archive location.
 
@@ -313,6 +323,7 @@ async def fetch_archive_file_content(archive_url: str, filename: str) -> str:
             password=password,
             path=path,
             filename=filename,
+            open_conn=open_conn, instance_id=instance_id,
         )
     elif scheme == "ftp":
         return await _fetch_ftp_content(
@@ -332,19 +343,24 @@ async def fetch_archive_file_content(archive_url: str, filename: str) -> str:
 async def _fetch_sftp_content(
     *, hostname: str, port: int, username: str,
     password: Optional[str], path: str, filename: str,
+    open_conn=None, instance_id: Optional[str] = None,
 ) -> str:
-    connect_kwargs: Dict = {
-        "host": hostname,
-        "port": port,
-        "username": username,
-        "known_hosts": None,
-    }
+    if open_conn is None or instance_id is None:
+        raise ValueError("SFTP archive connections require an active instance")
+    connect_kwargs: Dict = {}
     if password:
         connect_kwargs["password"] = password
 
     try:
         conn = await asyncio.wait_for(
-            asyncssh.connect(**connect_kwargs),
+            connect_ssh(
+                open_conn=open_conn,
+                instance_id=instance_id,
+                host=hostname,
+                port=port,
+                username=username,
+                **connect_kwargs,
+            ),
             timeout=_CONNECTION_TIMEOUT,
         )
     except asyncio.TimeoutError:

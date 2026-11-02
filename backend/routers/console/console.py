@@ -34,6 +34,7 @@ from session_cookie import verify_session_cookie
 from ssh_key_manager import decrypt_private_key
 from stream_auth import watch_stream_revocation
 from trusted_origins import websocket_origin_allowed
+from utils.ssh import SshHostKeyRejected, connect as connect_ssh
 
 logger = logging.getLogger(__name__)
 
@@ -267,12 +268,13 @@ async def websocket_console(websocket: WebSocket):
 
         try:
             ssh_conn = await asyncio.wait_for(
-                asyncssh.connect(
-                    instance["host"],
+                connect_ssh(
+                    open_conn=lambda: ws_org_conn(websocket, user_id, instance_id),
+                    instance_id=instance_id,
+                    host=instance["host"],
                     port=instance["sshPort"],
                     username=ssh_username,
                     client_keys=[private_key],
-                    known_hosts=None,
                 ),
                 timeout=15,
             )
@@ -281,6 +283,15 @@ async def websocket_console(websocket: WebSocket):
             await websocket.send_json({
                 "type": "error",
                 "message": "SSH connection timed out",
+            })
+
+            await websocket.close()
+            return
+
+        except SshHostKeyRejected as exc:
+            await websocket.send_json({
+                "type": "error",
+                "message": str(exc),
             })
 
             await websocket.close()

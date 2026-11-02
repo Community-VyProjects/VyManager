@@ -306,10 +306,25 @@ model Instance {
   site              Site               @relation(fields: [siteId], references: [id], onDelete: Cascade)
   activeSessions    ActiveSession[]
   userInstanceRoles UserInstanceRole[]
+  sshHostKeys       SshHostKey[]
 
   @@unique([siteId, name])
   @@index([siteId])
   @@map("instances")
+}
+
+model SshHostKey {
+  instanceId String
+  host       String
+  port       Int
+  hostKey    String   @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@id([instanceId, host, port])
+  @@map("ssh_host_keys")
 }
 
 // ActiveSession - Tracks which instance a user is currently connected to

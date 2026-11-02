@@ -236,6 +236,270 @@ def test_malformed_stored_key_can_be_replaced_and_deleted():
     assert any("layouts - $2" in sql for sql in conn.sql)
 
 
+def test_backup_keeps_host_key_pins_with_instances():
+    from routers.session.session import BACKUP_EXCLUDED_TABLES, BACKUP_TABLES
+
+    assert "ssh_host_keys" in BACKUP_TABLES
+    assert "ssh_host_keys" not in BACKUP_EXCLUDED_TABLES
+    assert BACKUP_TABLES.index("ssh_host_keys") > BACKUP_TABLES.index("instances")
+
+
+def test_replace_restore_reinserts_pins_after_instance_cascade():
+    """A replace restore deletes instances, which cascades the pins.
+
+    The backup must insert the pins again after the instances exist.
+    """
+    import asyncio
+    from types import SimpleNamespace
+    from typing import cast
+
+    import asyncpg
+    from fastapi import Request, UploadFile
+    from backup_crypto import encrypt_backup
+    from routers.session.session import restore_backup
+
+    payload = {
+        "format_version": 1,
+        "tables": {
+            "users": [{"id": "admin", "email": "a@example.com", "role": "ADMIN"}],
+            "sites": [{"id": "site-1", "name": "lab", "orgId": "default"}],
+            "instances": [{
+                "id": "inst-1",
+                "siteId": "site-1",
+                "name": "lab",
+                "host": "10.0.0.1",
+            }],
+            "ssh_host_keys": [{
+                "instanceId": "inst-1",
+                "host": "10.0.0.1",
+                "port": 22,
+                "hostKey": "ssh-ed25519 AAAA",
+            }],
+        },
+    }
+    blob = encrypt_backup(payload, "pw")
+
+    class _Upload:
+        async def read(self):
+            return blob
+
+    class _Conn:
+        def __init__(self):
+            self.sites = set()
+            self.instances = {"old"}
+            self.pins = {("old", "9.9.9.9", 22): "stale"}
+            self.cascaded = False
+            self.pin_after_cascade = False
+
+        def transaction(self):
+            conn = self
+
+            class _Tx:
+                async def __aenter__(self):
+                    return conn
+
+                async def __aexit__(self, *args):
+                    return False
+
+            return _Tx()
+
+        async def fetchval(self, query, *args):
+            if "SELECT role" in query:
+                return "ADMIN"
+            if "COUNT" in query:
+                return 1
+            if "INSERT INTO" in query:
+                self._insert(query, args)
+                return True
+            return None
+
+        async def fetch(self, query, *args):
+            columns = {
+                "users": [("id", "text"), ("email", "text"), ("role", "text")],
+                "sites": [("id", "text"), ("name", "text"), ("orgId", "text")],
+                "instances": [
+                    ("id", "text"), ("siteId", "text"), ("name", "text"), ("host", "text"),
+                ],
+                "ssh_host_keys": [
+                    ("instanceId", "text"), ("host", "text"),
+                    ("port", "int4"), ("hostKey", "text"),
+                ],
+            }
+            table = args[0] if args else ""
+            return [
+                {"column_name": name, "udt_name": udt}
+                for name, udt in columns.get(table, [("id", "text")])
+            ]
+
+        async def execute(self, query, *args):
+            if 'DELETE FROM "instances"' in query:
+                self.instances.clear()
+                self.pins.clear()
+                self.cascaded = True
+            elif 'DELETE FROM "ssh_host_keys"' in query:
+                self.pins.clear()
+            elif 'DELETE FROM "sites"' in query:
+                self.sites.clear()
+
+        def _insert(self, query, args):
+            if 'INSERT INTO "sites"' in query:
+                self.sites.add(args[0])
+            elif 'INSERT INTO "instances"' in query:
+                if args[1] not in self.sites:
+                    raise RuntimeError("instance inserted before its site")
+                self.instances.add(args[0])
+            elif 'INSERT INTO "ssh_host_keys"' in query:
+                if args[0] not in self.instances:
+                    raise RuntimeError("pin inserted before its instance")
+                self.pins[(args[0], args[1], int(args[2]))] = args[3]
+                self.pin_after_cascade = self.cascaded
+
+    conn = _Conn()
+    request = SimpleNamespace(state=SimpleNamespace(user={"id": "admin"}))
+    result = asyncio.run(restore_backup(
+        cast(Request, request),
+        file=cast(UploadFile, _Upload()),
+        passphrase="pw",
+        mode="replace",
+        confirm="replace",
+        conn=cast(asyncpg.Connection, conn),
+    ))
+    assert result.success is True
+    assert conn.cascaded is True
+    assert conn.pin_after_cascade is True
+    assert ("old", "9.9.9.9", 22) not in conn.pins
+    assert conn.pins[("inst-1", "10.0.0.1", 22)] == "ssh-ed25519 AAAA"
+
+
+def test_merge_restore_upserts_pins_on_the_composite_key():
+    """Merge restore must conflict on the pin key, not a missing id column."""
+    import asyncio
+    from types import SimpleNamespace
+    from typing import cast
+
+    import asyncpg
+    from fastapi import Request, UploadFile
+    from backup_crypto import encrypt_backup
+    from routers.session.session import restore_backup
+
+    payload = {
+        "format_version": 1,
+        "tables": {
+            "users": [{"id": "admin", "email": "a@example.com", "role": "ADMIN"}],
+            "sites": [{"id": "site-1", "name": "lab", "orgId": "default"}],
+            "instances": [{
+                "id": "inst-1",
+                "siteId": "site-1",
+                "name": "lab",
+                "host": "10.0.0.1",
+            }],
+            "ssh_host_keys": [{
+                "instanceId": "inst-1",
+                "host": "10.0.0.1",
+                "port": 22,
+                "hostKey": "ssh-ed25519 BBBB",
+            }],
+        },
+    }
+    blob = encrypt_backup(payload, "pw")
+
+    class _Upload:
+        async def read(self):
+            return blob
+
+    class _Conn:
+        def __init__(self):
+            self.sites = {"site-1"}
+            self.instances = {"inst-1"}
+            self.pins = {("inst-1", "10.0.0.1", 22): "old-key"}
+            self.host_key_sql = ""
+
+        def transaction(self):
+            conn = self
+
+            class _Tx:
+                async def __aenter__(self):
+                    return conn
+
+                async def __aexit__(self, *args):
+                    return False
+
+            return _Tx()
+
+        async def fetchval(self, query, *args):
+            if "SELECT role" in query:
+                return "ADMIN"
+            if "COUNT" in query:
+                return 1
+            if "INSERT INTO" in query:
+                updated = self._insert(query, args)
+                return not updated
+            return None
+
+        async def fetch(self, query, *args):
+            columns = {
+                "users": [("id", "text"), ("email", "text"), ("role", "text")],
+                "sites": [("id", "text"), ("name", "text"), ("orgId", "text")],
+                "instances": [
+                    ("id", "text"), ("siteId", "text"), ("name", "text"), ("host", "text"),
+                ],
+                "ssh_host_keys": [
+                    ("instanceId", "text"), ("host", "text"),
+                    ("port", "int4"), ("hostKey", "text"),
+                ],
+            }
+            table = args[0] if args else ""
+            return [
+                {"column_name": name, "udt_name": udt}
+                for name, udt in columns.get(table, [("id", "text")])
+            ]
+
+        async def execute(self, query, *args):
+            return None
+
+        def _insert(self, query, args):
+            if 'INSERT INTO "ssh_host_keys"' in query:
+                self.host_key_sql = query
+                if 'ON CONFLICT ("instanceId", "host", "port")' not in query:
+                    raise RuntimeError("ssh_host_keys merge did not use the composite key")
+                if 'ON CONFLICT ("id")' in query or "ON CONFLICT (id)" in query:
+                    raise RuntimeError("ssh_host_keys merge used id")
+                self.pins[(args[0], args[1], int(args[2]))] = args[3]
+                return True
+            return False
+
+    conn = _Conn()
+    request = SimpleNamespace(state=SimpleNamespace(user={"id": "admin"}))
+    result = asyncio.run(restore_backup(
+        cast(Request, request),
+        file=cast(UploadFile, _Upload()),
+        passphrase="pw",
+        mode="merge",
+        confirm="merge",
+        conn=cast(asyncpg.Connection, conn),
+    ))
+    assert result.success is True
+    restored = result.data
+    assert restored is not None
+    assert restored["updated"]["ssh_host_keys"] == 1
+    assert conn.pins[("inst-1", "10.0.0.1", 22)] == "ssh-ed25519 BBBB"
+    assert 'ON CONFLICT ("id")' not in conn.host_key_sql
+
+
+def test_host_key_merge_conflicts_on_the_composite_key():
+    from routers.session.session import _build_insert
+
+    sql = _build_insert(
+        "ssh_host_keys",
+        ["instanceId", "host", "port", "hostKey"],
+        {"instanceId": "text", "host": "text", "port": "int4", "hostKey": "text"},
+        merge=True,
+        conflict=["instanceId", "host", "port"],
+    )
+    assert 'ON CONFLICT ("instanceId", "host", "port")' in sql
+    assert "ON CONFLICT (id)" not in sql
+
+
 def test_backup_lists_layouts_after_users():
     from routers.session.session import BACKUP_TABLES
 

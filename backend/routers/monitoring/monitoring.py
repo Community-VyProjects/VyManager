@@ -31,6 +31,7 @@ from session_cookie import verify_session_cookie
 from ssh_key_manager import decrypt_private_key, generate_keypair
 from stream_auth import watch_stream_revocation
 from trusted_origins import websocket_origin_allowed
+from utils.ssh import SshHostKeyRejected, connect as connect_ssh, forget_instance_pins
 
 logger = logging.getLogger(__name__)
 
@@ -217,6 +218,27 @@ async def delete_ssh_key(instance_id: str, request: Request):
     return GenericResponse(success=True, message="SSH key removed")
 
 
+@router.post("/instances/{instance_id}/ssh-host-key/reset", response_model=GenericResponse)
+async def reset_ssh_host_key(instance_id: str, request: Request):
+    """Forget pinned server host keys for an instance. Requires site ADMIN.
+
+    The next connection to each endpoint accepts the key that server presents.
+    """
+    await require_super_admin(request)
+
+    async with request_scoped_conn(request) as conn:
+        await _assert_instance_in_acting_org(request, conn, instance_id)
+        exists = await conn.fetchval(
+            "SELECT id FROM instances WHERE id = $1",
+            instance_id,
+        )
+        if not exists:
+            raise HTTPException(status_code=404, detail="Instance not found")
+        await forget_instance_pins(conn, instance_id)
+
+    return GenericResponse(success=True, message="SSH host key pin removed")
+
+
 @router.get("/status", response_model=MonitoringStatusResponse)
 async def get_monitoring_status(request: Request):
     """Get SSH monitoring availability for the current user's active instance. Requires MONITORING read permission."""
@@ -387,12 +409,13 @@ async def websocket_monitor(websocket: WebSocket):
 
         try:
             ssh_conn = await asyncio.wait_for(
-                asyncssh.connect(
-                    instance["host"],
+                connect_ssh(
+                    open_conn=lambda: ws_org_conn(websocket, user_id, instance_id),
+                    instance_id=instance_id,
+                    host=instance["host"],
                     port=instance["sshPort"],
                     username=ssh_username,
                     client_keys=[private_key],
-                    known_hosts=None,
                 ),
                 timeout=15,
             )
@@ -400,6 +423,13 @@ async def websocket_monitor(websocket: WebSocket):
             await websocket.send_json({
                 "type": "error",
                 "data": "SSH connection timed out",
+            })
+            await websocket.close()
+            return
+        except SshHostKeyRejected as exc:
+            await websocket.send_json({
+                "type": "error",
+                "data": str(exc),
             })
             await websocket.close()
             return

@@ -21,6 +21,8 @@ export function SSHKeySetup({ instanceId, sshUsername, onConfigured }: SSHKeySet
   const [generating, setGenerating] = useState(false);
   const [marking, setMarking] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [resettingHostKey, setResettingHostKey] = useState(false);
+  const [hostKeyReset, setHostKeyReset] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -121,6 +123,22 @@ export function SSHKeySetup({ instanceId, sshUsername, onConfigured }: SSHKeySet
       setError(message);
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleResetHostKey = async () => {
+    if (!window.confirm(t("sshKey.resetHostKeyConfirm"))) return;
+    try {
+      setResettingHostKey(true);
+      setError(null);
+      setHostKeyReset(false);
+      await monitoringService.resetSSHHostKey(instanceId);
+      setHostKeyReset(true);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : t("sshKey.resetHostKeyFailed");
+      setError(message);
+    } finally {
+      setResettingHostKey(false);
     }
   };
 
@@ -263,6 +281,27 @@ save`}
           </Button>
         </div>
       )}
+
+      <div className="space-y-2 border-t pt-3">
+        <p className="text-xs text-muted-foreground">{t("sshKey.resetHostKeyHelp")}</p>
+        {hostKeyReset && (
+          <p className="text-sm">{t("sshKey.resetHostKeyDone")}</p>
+        )}
+        <Button
+          variant="outline"
+          onClick={handleResetHostKey}
+          disabled={resettingHostKey || loading}
+        >
+          {resettingHostKey ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              {t("sshKey.resettingHostKey")}
+            </>
+          ) : (
+            t("sshKey.resetHostKey")
+          )}
+        </Button>
+      </div>
     </div>
   );
 }

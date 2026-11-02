@@ -32,9 +32,10 @@ from session_vyos_service import get_session_vyos_service
 from vyos_mappers.base import CommandMapperRegistry
 from vyos_builders.container import ContainerBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
-from org_scope import request_scoped_conn
+from org_scope import independent_org_conn, request_scoped_conn
 from rbac_permissions import FeatureGroup
 from ssh_key_manager import decrypt_private_key
+from utils.ssh import SshHostKeyRejected, connect as connect_ssh
 import inspect
 import logging
 from batch_dispatch import resolve_batch_method
@@ -507,17 +508,20 @@ async def _get_ssh_connection(request: Request) -> tuple:
 
     try:
         ssh_conn = await asyncio.wait_for(
-            asyncssh.connect(
-                row["host"],
+            connect_ssh(
+                open_conn=lambda: independent_org_conn(request),
+                instance_id=instance["id"],
+                host=row["host"],
                 port=row["sshPort"] or 22,
                 username=row["sshUsername"] or "vyos",
                 client_keys=[private_key],
-                known_hosts=None,
             ),
             timeout=_SSH_CONNECT_TIMEOUT,
         )
     except asyncio.TimeoutError:
         raise HTTPException(status_code=504, detail="SSH connection timed out")
+    except SshHostKeyRejected as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     except (OSError, asyncssh.Error) as exc:
         raise HTTPException(status_code=502, detail=f"SSH connection failed: {exc}")
 

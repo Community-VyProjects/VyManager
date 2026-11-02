@@ -18,6 +18,7 @@ import json
 import os
 from vyos_service import VyOSService, VyOSDeviceConfig
 from session_vyos_service import clear_session_cache
+from utils.ssh import forget_replaced_router_pin
 from session_cookie import get_session_cookie, verify_session_cookie
 import appliance_mode
 from fastapi_permissions import require_super_admin
@@ -1189,11 +1190,12 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
             )
 
         # Verify instance exists and its site is in the caller's organization
-        instance_org = await conn.fetchval(
-            'SELECT s."orgId" FROM instances i'
-            ' JOIN sites s ON i."siteId" = s.id WHERE i.id = $1',
-            instance_id
+        previous = await conn.fetchrow(
+            'SELECT i.host, i."sshPort", s."orgId" AS org_id'
+            ' FROM instances i JOIN sites s ON i."siteId" = s.id WHERE i.id = $1',
+            instance_id,
         )
+        instance_org = previous["org_id"] if previous else None
 
         if instance_org is None:
             raise HTTPException(status_code=404, detail="Instance not found")
@@ -1325,6 +1327,19 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
         if not instance:
             raise HTTPException(status_code=404, detail="Instance not found")
 
+        if previous and (
+            previous["host"] != instance["host"]
+            or previous["sshPort"] != instance["sshPort"]
+        ):
+            await forget_replaced_router_pin(
+                conn,
+                instance_id,
+                previous["host"],
+                previous["sshPort"],
+                instance["host"],
+                instance["sshPort"],
+            )
+
         # Invalidate cached VyOS service so changes take effect immediately
         clear_session_cache(instance_id)
 
@@ -1436,6 +1451,7 @@ BACKUP_TABLES: List[str] = [
     "users",
     "sites",
     "instances",
+    "ssh_host_keys",
     "firewall_separators",
     "accounts",
     "oauth_providers",
@@ -1464,6 +1480,11 @@ BACKUP_NATURAL_KEYS: Dict[str, List[str]] = {
     "sites": ["name"],
     "instances": ["siteId", "name"],
     "oauth_providers": ["providerId"],
+}
+
+# Primary key for merge upserts when the table has no single id column.
+BACKUP_CONFLICT_KEYS: Dict[str, List[str]] = {
+    "ssh_host_keys": ["instanceId", "host", "port"],
 }
 
 BACKUP_FORMAT_VERSION = 1
@@ -1543,7 +1564,13 @@ def _bind_value(value: Any, udt: str) -> Any:
     return str(value)
 
 
-def _build_insert(table: str, columns: List[str], col_types: Dict[str, str], merge: bool):
+def _build_insert(
+    table: str,
+    columns: List[str],
+    col_types: Dict[str, str],
+    merge: bool,
+    conflict: Optional[List[str]] = None,
+):
     """Build an INSERT statement that binds all values as text and casts each
     column to its real type. In merge mode, conflicts on the primary key update
     the row; RETURNING reports whether the row was inserted (xmax = 0) or updated.
@@ -1552,11 +1579,15 @@ def _build_insert(table: str, columns: List[str], col_types: Dict[str, str], mer
     placeholders = [f'${i + 1}::text::"{col_types[c]}"' for i, c in enumerate(columns)]
     sql = f'INSERT INTO "{table}" ({", ".join(quoted)}) VALUES ({", ".join(placeholders)})'
     if merge:
-        updates = ", ".join(f'{q} = EXCLUDED.{q}' for q, c in zip(quoted, columns) if c != "id")
+        target = conflict or ["id"]
+        quoted_target = ", ".join(f'\"{c}\"' for c in target)
+        updates = ", ".join(
+            f'{q} = EXCLUDED.{q}' for q, c in zip(quoted, columns) if c not in target
+        )
         if updates:
-            sql += f' ON CONFLICT (id) DO UPDATE SET {updates}'
+            sql += f' ON CONFLICT ({quoted_target}) DO UPDATE SET {updates}'
         else:
-            sql += ' ON CONFLICT (id) DO NOTHING'
+            sql += f' ON CONFLICT ({quoted_target}) DO NOTHING'
     sql += ' RETURNING (xmax = 0) AS inserted'
     return sql
 
@@ -1733,7 +1764,13 @@ async def restore_backup(
                 if not columns:
                     continue
                 values = [_bind_value(row[c], types[c]) for c in columns]
-                sql = _build_insert(table, columns, types, merge=(mode == "merge"))
+                sql = _build_insert(
+                    table,
+                    columns,
+                    types,
+                    merge=(mode == "merge"),
+                    conflict=BACKUP_CONFLICT_KEYS.get(table),
+                )
 
                 try:
                     # Row-level savepoint so a natural-key collision skips

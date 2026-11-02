@@ -26,6 +26,8 @@ from utils.archive_url import (
     transform_archive_to_load_url,
     validate_filename,
 )
+from utils.ssh import SshHostKeyRejected
+from org_scope import independent_org_conn
 from utils.vyos_config_parser import parse_vyos_config
 from batch_dispatch import resolve_batch_method
 
@@ -718,10 +720,19 @@ async def list_archive_files_endpoint(request: Request, archive_location: str):
 
         # Use the value from device config (not user input) to break taint chain
         validated_location = locations[locations.index(archive_location)]
-        files = await _list_archive_files(validated_location)
+        instance = getattr(request.state, "instance", None)
+        if not instance or not instance.get("id"):
+            raise HTTPException(status_code=400, detail="No active instance")
+        files = await _list_archive_files(
+            validated_location,
+            open_conn=lambda: independent_org_conn(request),
+            instance_id=instance["id"],
+        )
         return {"files": files, "archive_location": validated_location}
     except HTTPException:
         raise
+    except SshHostKeyRejected as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     except Exception:
         logger.exception("Unhandled error in list_archive_files_endpoint")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -794,7 +805,15 @@ async def get_archive_diff(request: Request, archive_location: str, filename: st
         validated_location = locations[locations.index(archive_location)]
 
         try:
-            content = await fetch_archive_file_content(validated_location, filename)
+            instance = getattr(request.state, "instance", None)
+            if not instance or not instance.get("id"):
+                raise HTTPException(status_code=400, detail="No active instance")
+            content = await fetch_archive_file_content(
+                validated_location,
+                filename,
+                open_conn=lambda: independent_org_conn(request),
+                instance_id=instance["id"],
+            )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
 
@@ -819,6 +838,8 @@ async def get_archive_diff(request: Request, archive_location: str, filename: st
         }
     except HTTPException:
         raise
+    except SshHostKeyRejected as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     except Exception:
         logger.exception("Unhandled error in get_archive_diff")
         raise HTTPException(status_code=500, detail="Internal server error")
