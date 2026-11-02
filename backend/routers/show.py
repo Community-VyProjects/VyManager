@@ -55,6 +55,19 @@ from pppoe_status import load_pppoe_sessions, pppoe_configured
 import logging
 logger = logging.getLogger(__name__)
 
+
+async def dashboard_session_closed(open_conn, user_id: str, instance_id: str) -> bool:
+    """Close the dashboard stream when the session is gone or cannot be checked."""
+    from routers.events import _has_active_session
+
+    async def still_signed_in() -> bool:
+        async with open_conn() as conn:
+            return await _has_active_session(conn, user_id, instance_id)
+
+    result = await fail_closed(still_signed_in)
+    return result.close_reason is not None
+
+
 router = APIRouter(prefix="/vyos/show", tags=["show"])
 
 
@@ -1812,7 +1825,6 @@ async def dashboard_stream(
     retain_firewall_interest(requested, include_firewall=include_firewall)
 
     async def event_generator():
-        from routers.events import _has_active_session
         queue = broadcaster.subscribe(requested)
         try:
             yield 'event: connected\ndata: {"message":"Dashboard stream connected"}\n\n'
@@ -1825,13 +1837,11 @@ async def dashboard_stream(
                     # Close the stream if the user's session has expired.
                     # One short org-scoped connection per tick - a stream
                     # must never hold a transaction open between ticks.
-                    async def still_signed_in() -> bool:
-                        async with request_scoped_conn(request) as conn:
-                            return await _has_active_session(
-                                conn, user_id, instance_id)
-
-                    result = await fail_closed(still_signed_in)
-                    if result.close_reason is not None:
+                    if await dashboard_session_closed(
+                        lambda: request_scoped_conn(request),
+                        user_id,
+                        instance_id,
+                    ):
                         break
                     yield ": keep-alive\n\n"
                     continue

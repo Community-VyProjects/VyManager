@@ -195,12 +195,7 @@ def test_ssh_watches_pass_the_feature_and_console_close_handler():
     events = calls("routers/events.py", "banner_access_revoked")
     assert len(events) == 1
     assert calls("routers/events.py", "configuration_read_allowed")
-
-    show = calls("routers/show.py", "fail_closed")
-    assert len(show) == 1
-    assert "assume valid when the database is unavailable" not in (
-        root / "routers/show.py"
-    ).read_text()
+    assert calls("routers/show.py", "dashboard_session_closed")
 
 
 def test_no_session_denies_configuration_read(monkeypatch):
@@ -225,6 +220,25 @@ def test_banner_closes_when_the_recheck_fails():
         raise RuntimeError("database unavailable")
 
     assert _run(events.banner_access_revoked(boom)) is True
+
+
+def test_dashboard_closes_when_the_session_check_raises(monkeypatch):
+    from routers import events
+    from routers import show
+
+    class Connection:
+        async def __aenter__(self):
+            return object()
+
+        async def __aexit__(self, *args):
+            return False
+
+    async def boom(*args):
+        raise RuntimeError("database unavailable")
+
+    monkeypatch.setattr(events, "_has_active_session", boom)
+
+    assert _run(show.dashboard_session_closed(lambda: Connection(), "user", "inst")) is True
 
 
 def test_banner_stays_open_only_when_read_holds():
