@@ -1,4 +1,5 @@
 import { getAuth } from "@/lib/auth";
+import { isOAuthCallbackPath, rewriteLegacyOAuthCallbackURL } from "@/lib/oauth-callback";
 import { toNextJsHandler } from "better-auth/next-js";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -21,6 +22,12 @@ function getClientIp(request: NextRequest): string {
   );
 }
 
+function rewriteLegacyOAuthCallback(request: NextRequest): NextRequest {
+  const url = rewriteLegacyOAuthCallbackURL(request.nextUrl);
+  if (url === request.nextUrl) return request;
+  return new NextRequest(url, request);
+}
+
 function checkLoginRateLimit(ip: string): boolean {
   const now = Date.now();
   const record = loginAttempts.get(ip);
@@ -36,12 +43,12 @@ function checkLoginRateLimit(ip: string): boolean {
 export async function GET(request: NextRequest) {
   const auth = await getAuth();
   const handlers = toNextJsHandler(auth);
-  const response = await handlers.GET(request);
+  const response = await handlers.GET(rewriteLegacyOAuthCallback(request));
   // A denied SSO login (the role mapping throws when the account is in no
   // permitted group) surfaces as a 5xx from the OAuth callback. Turn that into
   // a friendly redirect to the login page instead of a raw error page.
   if (
-    request.nextUrl.pathname.includes("/oauth2/callback/") &&
+    isOAuthCallbackPath(request.nextUrl.pathname) &&
     response.status >= 500
   ) {
     // Build the redirect off the configured PUBLIC base URL, not request.url.
@@ -122,5 +129,5 @@ export async function POST(request: NextRequest) {
 
   const auth = await getAuth();
   const handlers = toNextJsHandler(auth);
-  return handlers.POST(request);
+  return handlers.POST(rewriteLegacyOAuthCallback(request));
 }

@@ -10,6 +10,7 @@ import {
   type ProviderMappingConfig,
   type InstanceFeaturePermission,
 } from "./sso-role-mapping";
+import { publishedOAuthRedirectURI } from "./oauth-callback";
 
 const prisma = new PrismaClient();
 
@@ -179,6 +180,11 @@ const trustedOrigins = process.env.TRUSTED_ORIGINS
   ? process.env.TRUSTED_ORIGINS.split(",").filter(Boolean)
   : ["http://localhost:3000"];
 
+const authBaseURL =
+  process.env.BETTER_AUTH_URL ||
+  process.env.NEXT_PUBLIC_APP_URL ||
+  "http://localhost:3000";
+
 const authSecret = process.env.BETTER_AUTH_SECRET || (isProd ? "" : "dev-secret");
 if (!authSecret) {
   throw new Error("BETTER_AUTH_SECRET must be set in production");
@@ -261,6 +267,7 @@ async function buildAuth() {
     ...(p.userInfoUrl ? { userInfoUrl: p.userInfoUrl } : {}),
     scopes: p.scopes ? p.scopes.split(" ").filter(Boolean) : ["openid", "email", "profile"],
     pkce: p.pkce,
+    redirectURI: publishedOAuthRedirectURI(authBaseURL, p.providerId),
     // Override profile fetching so group claims that live only in the id_token
     // (e.g. Microsoft Entra) survive into mapProfileToUser. See buildGetUserInfo.
     getUserInfo: buildGetUserInfo(p.userInfoUrl, p.discoveryUrl) as unknown as
@@ -328,10 +335,7 @@ async function buildAuth() {
       expiresIn: 60 * 60 * 24 * 7, // 7 days
       updateAge: 60 * 60 * 24, // 1 day
     },
-    baseURL:
-      process.env.BETTER_AUTH_URL ||
-      process.env.NEXT_PUBLIC_APP_URL ||
-      "http://localhost:3000",
+    baseURL: authBaseURL,
     secret: authSecret,
     trustedOrigins: trustedOrigins,
     advanced: {

@@ -31,13 +31,16 @@ export function TwoFactorEnrollForm({
     setError("");
     setBusy(true);
     try {
-      const result = await authClient.twoFactor.enable({ password });
-      if (result.error) {
-        setError(result.error.message || t("enroll.startFailed"));
+      const result = await authClient.twoFactor.enable({
+        password,
+        method: "totp",
+      });
+      if (result.error || result.data?.method !== "totp") {
+        setError(result.error?.message || t("enroll.startFailed"));
         return;
       }
-      setTotpURI(result.data?.totpURI ?? "");
-      setBackupCodes(result.data?.backupCodes ?? []);
+      setTotpURI(result.data.totpURI);
+      setBackupCodes(result.data.backupCodes);
       setCode("");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("enroll.startFailed"));
