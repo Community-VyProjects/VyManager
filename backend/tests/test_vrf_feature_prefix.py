@@ -361,6 +361,30 @@ def test_bfd_source_delete_follows_version():
     assert new.get_operations()[-1]["path"][-1] == "source-address"
 
 
+def test_route6_bfd_source_follows_version():
+    old = VrfBatchBuilder("1.4")
+    old.set_vrf_static_route6_next_hop_bfd_multi_hop_source(
+        "blue", "2001:db8::/64,2001:db8::1,2001:db8::2"
+    )
+    assert old.get_operations()[-1]["path"] == [
+        "vrf", "name", "blue", "protocols", "static", "route6", "2001:db8::/64",
+        "next-hop", "2001:db8::1", "bfd", "multi-hop", "source", "2001:db8::2", "profile",
+    ]
+    old.delete_vrf_static_route6_next_hop_bfd_multi_hop_source(
+        "blue", "2001:db8::/64,2001:db8::1"
+    )
+    assert old.get_operations()[-1]["path"][-1] == "source"
+    new = VrfBatchBuilder("1.5")
+    new.set_vrf_static_route6_next_hop_bfd_multi_hop_source(
+        "blue", "2001:db8::/64,2001:db8::1,2001:db8::2"
+    )
+    assert new.get_operations()[-1]["path"][-2:] == ["source-address", "2001:db8::2"]
+    new.delete_vrf_static_route6_next_hop_bfd_multi_hop_source(
+        "blue", "2001:db8::/64,2001:db8::1"
+    )
+    assert new.get_operations()[-1]["path"][-1] == "source-address"
+
+
 def test_dhcpv6_static_mapping_uses_the_global_builder(monkeypatch):
     from vyos_builders.dhcpv6_server.dhcpv6_server_batch_builder import DHCPv6ServerBatchBuilder
 

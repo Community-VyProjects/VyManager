@@ -314,7 +314,7 @@ def _emit_leaf(
     return True
 
 
-def _drop_set_leaf(inner: Any, proto: str, suffix: str, value: Optional[str]) -> bool:
+def _drop_set_leaf(inner: Any, proto: str, suffix: str, value: Optional[str]) -> None:
     method = getattr(inner, f"set_{_alias(proto, suffix)}")
     params = [p for p in inspect.signature(method).parameters if p != "self"]
     tokens = [] if value is None else value.split(",")
@@ -327,7 +327,6 @@ def _drop_set_leaf(inner: Any, proto: str, suffix: str, value: Optional[str]) ->
     inner._operations.clear()
     for op in ops:
         inner.add_delete(op["path"][:-1])
-    return True
 
 
 def _flip_set(inner: Any, proto: str, suffix: str, value: Optional[str]) -> None:
@@ -337,51 +336,6 @@ def _flip_set(inner: Any, proto: str, suffix: str, value: Optional[str]) -> None
     inner._operations.clear()
     for op in ops:
         inner.add_delete(list(op["path"]))
-
-
-def _emit_version_override(
-    owner: Any,
-    inner: Any,
-    proto: str,
-    verb: str,
-    suffix: Optional[str],
-    vrf_name: str,
-    value: Optional[str],
-) -> bool:
-    """Use a version-merged VRF mapper override when that version defines one.
-
-    The 1.4 class already returns [] for IPv4 next-hop segments and the
-    tagged BFD source path. 1.5 defines the flat BFD source-address path.
-    The builder does not inspect the version string.
-    """
-    if proto != "static" or not suffix:
-        return False
-    mapper = owner.mappers.get("vrf")
-    if mapper is None:
-        return False
-    gname = "get_static_" + suffix + ("" if verb == "set" else "_delete")
-    getter = getattr(mapper, gname, None)
-    if getter is None:
-        return False
-    params = [p for p in inspect.signature(getter).parameters if p != "self"]
-    extra = params[1:]
-    if not extra:
-        path = getter(vrf_name)
-    else:
-        if value is None:
-            raise ArityError(f"{gname} requires a value")
-        parts = [value] if len(extra) == 1 else value.split(",", len(extra) - 1)
-        if len(parts) != len(extra):
-            raise ArityError(
-                f"{gname} expects {len(extra)} comma-separated value(s), got {len(parts)}"
-            )
-        path = getter(vrf_name, *parts)
-    if path:
-        if verb == "set":
-            inner.add_set(path)
-        else:
-            inner.add_delete(path)
-    return True
 
 
 def _run_feature_op(
@@ -395,8 +349,6 @@ def _run_feature_op(
     require_feature_version(proto, owner.version)
     inner = FEATURE_BUILDERS[proto](owner.version)
     _install_prefix(inner, ["vrf", "name", vrf_name])
-    if _emit_version_override(owner, inner, proto, verb, suffix, vrf_name, value):
-        return _queue(owner, inner)
     key = _mode_key(proto, verb, suffix)
     if suffix and key in DIRECT:
         _call_aliased(inner, verb, proto, suffix, value)
