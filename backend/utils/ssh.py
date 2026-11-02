@@ -24,6 +24,21 @@ class SshHostKeyRejected(Exception):
         super().__init__(self.message)
 
 
+def _changed_host_key(exc: BaseException) -> bool:
+    """True only for a host-key mismatch, not a cipher or kex failure.
+
+    AsyncSSH reports a different host-key type as KeyExchangeFailed with
+    'server host key' in the reason. Other negotiation failures use that
+    same exception and must stay generic connection errors.
+    """
+    if isinstance(exc, asyncssh.HostKeyNotVerifiable):
+        return True
+    return (
+        isinstance(exc, asyncssh.KeyExchangeFailed)
+        and "server host key" in str(exc)
+    )
+
+
 def _pinned_known_hosts(host: str, port: int, public_key: str) -> asyncssh.SSHKnownHosts:
     """Build a known-hosts object for one endpoint.
 
@@ -190,6 +205,8 @@ async def connect(
                 **kwargs,
             )
         except (asyncssh.HostKeyNotVerifiable, asyncssh.KeyExchangeFailed) as exc:
+            if not _changed_host_key(exc):
+                raise
             logger.warning(
                 "SSH host key rejected for instance %s at %s:%s",
                 instance_id,

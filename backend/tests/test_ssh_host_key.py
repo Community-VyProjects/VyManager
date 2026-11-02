@@ -739,26 +739,52 @@ def test_archive_and_container_pins_do_not_join_the_handler_transaction(monkeypa
     assert seen == [fresh]
 
 
-def test_different_key_type_is_not_hidden_as_a_generic_failure(monkeypatch):
+def test_different_key_type_is_refused_on_a_real_server():
+    class _Allow(_AllowAll):
+        pass
+
+    async def scenario():
+        pinned = asyncssh.generate_private_key("ssh-ed25519")
+        other = asyncssh.generate_private_key("ecdsa-sha2-nistp256")
+        server = await asyncssh.create_server(
+            _Allow, "127.0.0.1", 0, server_host_keys=[other],
+        )
+        port = server.sockets[0].getsockname()[1]
+        db = _Conn(row={"hostKey": pinned.export_public_key().decode().strip()})
+        try:
+            with pytest.raises(SshHostKeyRejected) as raised:
+                await ssh.connect(
+                    open_conn=_opener(db),
+                    instance_id="inst",
+                    host="127.0.0.1",
+                    port=port,
+                    username="vyos",
+                )
+            assert str(raised.value) == SshHostKeyRejected.message
+            assert "ecdsa" not in str(raised.value)
+            assert db.keys == {}
+        finally:
+            server.close()
+            await server.wait_closed()
+
+    _run(scenario())
+
+
+def test_unrelated_key_exchange_failure_is_not_a_host_key_change(monkeypatch):
     private = asyncssh.generate_private_key("ssh-ed25519")
     stored = private.export_public_key().decode().strip()
 
     async def fake_connect(*args, **kwargs):
-        assert isinstance(kwargs.get("known_hosts"), asyncssh.SSHKnownHosts)
-        raise asyncssh.KeyExchangeFailed("no matching host key algorithm")
+        raise asyncssh.KeyExchangeFailed(
+            "No matching encryption algorithm found, sent aes128-ctr and received <None>"
+        )
 
     monkeypatch.setattr(ssh.asyncssh, "connect", fake_connect)
-    with pytest.raises(SshHostKeyRejected, match=SshHostKeyRejected.message):
+    with pytest.raises(asyncssh.KeyExchangeFailed):
         _run(ssh.connect(
             open_conn=_opener(_Conn(row={"hostKey": stored})),
             instance_id="inst",
             host="router.example",
-        ))
-    with pytest.raises(SshHostKeyRejected):
-        _run(archive_url.list_archive_files(
-            "sftp://vyos@backup.example/cfg/",
-            open_conn=_opener(_Conn(row={"hostKey": stored})),
-            instance_id="inst",
         ))
 
 
