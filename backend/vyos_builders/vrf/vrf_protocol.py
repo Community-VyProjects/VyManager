@@ -44,7 +44,6 @@ FEATURE_BUILDERS = {
     "static": StaticRoutesBatchBuilder,
     "failover": FailoverBatchBuilder,
 }
-_FEATURE_ROOT_SET = frozenset({"dhcp", "dhcpv6"})
 _ALL_BUILDERS = {**FEATURE_BUILDERS, **PROTOCOL_BUILDERS}
 _PROTO_KEYS = tuple(sorted(_ALL_BUILDERS, key=len, reverse=True))
 
@@ -204,8 +203,6 @@ def _alias(proto: str, suffix: str) -> str:
     elif proto == "dhcpv6":
         if suffix == "subnet_vendor_option_cisco_tftp_server":
             return "subnet_cisco_tftp_server"
-        if suffix == "subnet_vendor_option_cisco_bootfile":
-            return "subnet_cisco_bootfile"
         if suffix.startswith("shared_network_"):
             return "network_" + suffix[len("shared_network_") :]
     return suffix
@@ -241,11 +238,6 @@ def _feature_mapper_cls(proto: str):
         return StaticRoutesMapper
     from vyos_mappers.failover.failover import FailoverMapper
     return FailoverMapper
-
-
-def _has_feature_leaf(proto: str, verb: str, suffix: Optional[str]) -> bool:
-    gname = _leaf_name(verb, suffix)
-    return hasattr(_LEAF_CLASSES[proto], gname) or hasattr(_feature_mapper_cls(proto), gname)
 
 
 def _feature_op_exists(owner: Any, verb: str, proto: str, suffix: Optional[str]) -> bool:

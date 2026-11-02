@@ -27,7 +27,7 @@ def test_feature_mixins_are_not_a_second_builder_tree():
     assert "VrfDhcpv6Mixin" not in names
 
 
-def test_deleted_mixin_paths_are_unchanged():
+def test_legacy_op_names_still_resolve():
     for name, spec in _GOLDEN.items():
         builder = VrfBatchBuilder("1.5")
         method = getattr(builder, name)

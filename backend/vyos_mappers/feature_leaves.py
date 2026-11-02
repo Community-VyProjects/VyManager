@@ -59,7 +59,7 @@ class DhcpExtraLeaves:
         return ['service', 'dhcp-server', 'dynamic-dns-update', 'domain-name']
 
     def get_dynamic_dns_update_enable_delete(self) -> List[str]:
-        return ['service', 'dhcp-server', 'dynamic-dns-update', 'enable']
+        return ['service', 'dhcp-server', 'dynamic-dns-update']
 
     def get_global_parameters_delete(self, a0) -> List[str]:
         return ['service', 'dhcp-server', 'global-parameters', a0]
@@ -353,7 +353,7 @@ class DhcpExtraLeaves:
         return ['service', 'dhcp-server', 'dynamic-dns-update', 'domain-name', a0]
 
     def get_dynamic_dns_update_enable(self) -> List[str]:
-        return ['service', 'dhcp-server', 'dynamic-dns-update', 'enable']
+        return ['service', 'dhcp-server', 'dynamic-dns-update']
 
     def get_global_parameters(self, a0) -> List[str]:
         return ['service', 'dhcp-server', 'global-parameters', a0]
