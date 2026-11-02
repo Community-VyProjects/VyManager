@@ -202,8 +202,8 @@ export default function LoginPage() {
     setError("");
     setOauthLoading(providerId);
     try {
-      await authClient.signIn.oauth2({
-        providerId,
+      await authClient.signIn.social({
+        provider: providerId,
         callbackURL: afterLoginPath(appliance),
         // On a failed callback (e.g. role mapping denies access because the
         // account is in no permitted group) return to the login page with a
