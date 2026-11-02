@@ -1,32 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { afiNameKey, formatUnknownAfi } from "./afi-name";
-
-// Tokens from vyos_builders/bgp/bgp_batch_builder.py address_family_types.global.
-const RECEIVED = [
-  "ipv4-unicast",
-  "ipv6-unicast",
-  "ipv4-multicast",
-  "ipv6-multicast",
-  "ipv4-labeled-unicast",
-  "ipv6-labeled-unicast",
-  "ipv4-vpn",
-  "ipv6-vpn",
-  "ipv4-flowspec",
-  "ipv6-flowspec",
-  "l2vpn-evpn",
-] as const;
+import { AFI_NAME_KEYS, afiNameKey, formatUnknownAfi } from "./afi-name";
 
 describe("afiNameKey", () => {
-  it("maps the hyphenated token the dropdown receives", () => {
-    for (const afi of RECEIVED) {
+  it("round-trips every catalog key and rejects the underscore form", () => {
+    for (const afi of AFI_NAME_KEYS) {
       assert.equal(afiNameKey(afi), afi);
+      assert.equal(afiNameKey(afi.replaceAll("-", "_")), null);
     }
-  });
-
-  it("does not treat the underscore form as the same token", () => {
-    assert.equal(afiNameKey("ipv4_unicast"), null);
-    assert.equal(afiNameKey("l2vpn_evpn"), null);
   });
 });
 

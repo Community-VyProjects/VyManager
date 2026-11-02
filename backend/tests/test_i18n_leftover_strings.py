@@ -5,9 +5,11 @@ not enough: another key can contain the same words.
 """
 
 import json
+import re
 from pathlib import Path
 
 from tests.en_message import en_message
+from vyos_builders.bgp.bgp_batch_builder import BgpBatchBuilder
 
 REPO = Path(__file__).resolve().parents[2]
 MODAL = REPO / "frontend/src/components/webproxy/WebProxyTimePeriodModal.tsx"
@@ -76,6 +78,23 @@ def test_dummy_type_tooltip_does_not_reuse_vlan_gloss():
     assert vlan == "VLAN（虚拟）"
     assert dummy != vlan
     assert "(Dummy)" not in dummy
+
+
+def test_afi_catalog_keys_are_the_tokens_the_dropdown_receives():
+    sent = {
+        version: BgpBatchBuilder(version).get_capabilities()["address_family_types"]["global"]
+        for version in ("1.4", "1.5")
+    }
+    assert sent["1.4"] == sent["1.5"]
+    tokens = sent["1.5"]
+    source = (REPO / "frontend/src/components/bgp/afi-name.ts").read_text()
+    start = source.index("export const AFI_NAME_KEYS = [")
+    end = source.index("] as const", start)
+    classifier_keys = re.findall(r'"([^"]+)"', source[start:end])
+    assert classifier_keys == tokens
+    for locale in ("en", "zh-CN"):
+        node = json.loads((REPO / "frontend/messages" / locale / "bgp.json").read_text())
+        assert list(node["content"]["afiNames"]) == tokens
 
 
 def test_leftover_strings_resolve_catalog_leaves():
