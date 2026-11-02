@@ -73,21 +73,6 @@
     "empty": "Start monitoring to view logs",
     "details": "Log Entry Details"
   },
-  "conntrack": {
-    "events": "{count, number} events",
-    "filterEvents": "Filter events…",
-    "event": "Event",
-    "proto": "Proto",
-    "source": "Source",
-    "destination": "Destination",
-    "state": "State",
-    "waiting": "Waiting for connection events…",
-    "noMatch": "No events match filter",
-    "empty": "Start monitoring to view connections",
-    "details": "Connection Details",
-    "forwardFlow": "Forward Flow",
-    "replyFlow": "Reply Flow"
-  },
   "filter": {
     "title": "Build Filter",
     "description": "Construct a BPF capture filter using conditions",

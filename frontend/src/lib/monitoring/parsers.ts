@@ -238,65 +238,6 @@ export function parseLogLine(line: string, id: number): LogEntry | null {
 }
 
 // ============================================================================
-// Conntrack Parser
-// ============================================================================
-
-export type ConntrackEvent = "NEW" | "UPDATE" | "DESTROY" | "unknown";
-
-export interface ConntrackEntry {
-  id: number;
-  timestamp: string;
-  event: ConntrackEvent;
-  proto: string;
-  state: string;
-  srcIp: string;
-  srcPort: string;
-  dstIp: string;
-  dstPort: string;
-  replySrcIp: string;
-  replySrcPort: string;
-  replyDstIp: string;
-  replyDstPort: string;
-  raw: string;
-}
-
-// [NEW] tcp  6 120 ESTABLISHED src=X dst=Y sport=A dport=B ... src=X dst=Y sport=A dport=B
-const CONNTRACK_RE =
-  /\[(NEW|UPDATE|DESTROY)\]\s+(\w+)\s+\d+(?:\s+\d+)?(?:\s+([A-Z_]+))?\s+src=(\S+)\s+dst=(\S+)\s+sport=(\d+)\s+dport=(\d+)(?:.*?src=(\S+)\s+dst=(\S+)\s+sport=(\d+)\s+dport=(\d+))?/;
-
-export function parseConntrackLine(line: string, id: number): ConntrackEntry | null {
-  const trimmed = clean(line);
-  if (!trimmed) return null;
-
-  const m = trimmed.match(CONNTRACK_RE);
-  if (!m) return null;
-
-  const [
-    ,
-    event, proto, state = "",
-    srcIp, dstIp, srcPort, dstPort,
-    replySrcIp = "", replyDstIp = "", replySrcPort = "", replyDstPort = "",
-  ] = m;
-
-  return {
-    id,
-    timestamp: new Date().toLocaleTimeString(),
-    event: event as ConntrackEvent,
-    proto: proto.toUpperCase(),
-    state,
-    srcIp,
-    srcPort,
-    dstIp,
-    dstPort,
-    replySrcIp,
-    replySrcPort,
-    replyDstIp,
-    replyDstPort,
-    raw: trimmed,
-  };
-}
-
-// ============================================================================
 // Shared helpers
 // ============================================================================
 

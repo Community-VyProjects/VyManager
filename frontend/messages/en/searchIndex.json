@@ -182,7 +182,6 @@
     "monitoring": {
       "monitorTraffic": "Capture traffic on an interface",
       "viewLogs": "Tail system logs",
-      "monitorConntrack": "Inspect connection tracking state",
       "logTail": "Show the recent log tail"
     },
     "system": {
@@ -397,7 +396,6 @@
     "member": "Member",
     "members": "Members",
     "mode": "Mode",
-    "monitorConntrack": "Monitor Conntrack",
     "monitorTraffic": "Monitor Traffic",
     "multicastRoutes": "Multicast Routes",
     "neighbor": "Neighbor",

@@ -84,12 +84,6 @@ COMMANDS: Dict[str, MonitoringCommand] = {
             },
         },
     ),
-    "monitor_conntrack": MonitoringCommand(
-        name="monitor_conntrack",
-        description="Monitor connection tracking events",
-        template="monitor conntrack",
-        params={},
-    ),
     "show_log_vpn_ipsec": MonitoringCommand(
         name="show_log_vpn_ipsec",
         description="IPsec VPN connection logs",
