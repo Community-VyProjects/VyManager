@@ -77,7 +77,7 @@ class DhcpExtraLeaves:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'name-server', a1]
 
     def get_shared_network_ntp_server_delete(self, a0, a1) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'ntp-server', a1]
+        return ['service', 'dhcp-server', 'shared-network-name', a0, 'option', 'ntp-server', a1]
 
     def get_shared_network_option_delete(self, a0, a1) -> List[str]:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'option', a1]
@@ -239,13 +239,13 @@ class DhcpExtraLeaves:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'ignore-client-id']
 
     def get_subnet_lease_default_delete(self, a0, a1) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'lease', 'default']
+        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'lease']
 
     def get_subnet_lease_max_delete(self, a0, a1) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'lease', 'max']
+        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'lease']
 
     def get_subnet_lease_min_delete(self, a0, a1) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'lease', 'min']
+        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'lease']
 
     def get_subnet_name_server_delete(self, a0, a1, a2) -> List[str]:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'name-server', a2]
@@ -362,7 +362,7 @@ class DhcpExtraLeaves:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'dynamic-dns-update', a1, a2]
 
     def get_shared_network_ntp_server(self, a0, a1) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'ntp-server', a1]
+        return ['service', 'dhcp-server', 'shared-network-name', a0, 'option', 'ntp-server', a1]
 
     def get_shared_network_option(self, a0, a1, a2) -> List[str]:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'option', a1, a2]
@@ -515,13 +515,13 @@ class DhcpExtraLeaves:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'ignore-client-id']
 
     def get_subnet_lease_default(self, a0, a1, a2) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'lease', 'default', a2]
+        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'lease', a2]
 
     def get_subnet_lease_max(self, a0, a1, a2) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'lease', 'max', a2]
+        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'lease', a2]
 
     def get_subnet_lease_min(self, a0, a1, a2) -> List[str]:
-        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'lease', 'min', a2]
+        return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'lease', a2]
 
     def get_subnet_option(self, a0, a1, a2, a3) -> List[str]:
         return ['service', 'dhcp-server', 'shared-network-name', a0, 'subnet', a1, 'option', a2, a3]
@@ -748,10 +748,10 @@ class Dhcpv6ExtraLeaves:
         return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'static-mapping', a2, 'option', 'sntp-server', a3]
 
     def get_subnet_vendor_option_cisco_bootfile_delete(self, a0, a1) -> List[str]:
-        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'vendor-option', 'cisco', 'bootfile']
+        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'option', 'vendor-option', 'cisco', 'bootfile']
 
     def get_subnet_vendor_option_cisco_tftp_server_delete(self, a0, a1, a2) -> List[str]:
-        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'vendor-option', 'cisco', 'tftp-server', a2]
+        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'option', 'vendor-option', 'cisco', 'tftp-server', a2]
 
     def get_root(self) -> List[str]:
         return ['service', 'dhcpv6-server']
@@ -895,7 +895,7 @@ class Dhcpv6ExtraLeaves:
         return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'static-mapping', a2, 'option', 'sntp-server', a3]
 
     def get_subnet_vendor_option_cisco_bootfile(self, a0, a1, a2) -> List[str]:
-        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'vendor-option', 'cisco', 'bootfile', a2]
+        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'option', 'vendor-option', 'cisco', 'bootfile', a2]
 
     def get_subnet_vendor_option_cisco_tftp_server(self, a0, a1, a2) -> List[str]:
-        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'vendor-option', 'cisco', 'tftp-server', a2]
+        return ['service', 'dhcpv6-server', 'shared-network-name', a0, 'subnet', a1, 'option', 'vendor-option', 'cisco', 'tftp-server', a2]

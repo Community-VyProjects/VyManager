@@ -1,7 +1,8 @@
-"""Which VRF feature ops are an existing global builder method.
+"""Which VRF feature ops call an existing global builder method.
 
-Everything else is a getter on the feature mapper (feature_leaves).
-Runtime does not compare paths and discard.
+DIRECT, FLIP, and DROP are names from the deleted mixins. The allowlist
+of op names is legacy_ops.LEGACY_OPS. FLIP and DROP rewrite a global set
+into a delete; they do not compare paths.
 """
 DIRECT = frozenset({
     'dhcp:delete:client_class',

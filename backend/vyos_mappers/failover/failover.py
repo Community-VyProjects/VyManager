@@ -22,10 +22,9 @@ Version differences:
 
 from typing import List
 from ..base import BaseFeatureMapper
-from ..feature_leaves import FailoverExtraLeaves
 
 
-class FailoverMapper(FailoverExtraLeaves, BaseFeatureMapper):
+class FailoverMapper(BaseFeatureMapper):
     """Base mapper with common operations shared between VyOS 1.4 and 1.5."""
 
     def __init__(self, version: str):

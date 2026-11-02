@@ -7,10 +7,9 @@ Version-specific logic is in version-specific files.
 
 from typing import List
 from ..base import BaseFeatureMapper
-from ..feature_leaves import StaticExtraLeaves
 
 
-class StaticRoutesMapper(StaticExtraLeaves, BaseFeatureMapper):
+class StaticRoutesMapper(BaseFeatureMapper):
     """Base mapper with common operations"""
 
     def __init__(self, version: str):

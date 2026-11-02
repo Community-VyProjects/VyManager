@@ -1,13 +1,12 @@
 """DHCPv6 Server command path mapper (base — version-agnostic paths)."""
 from typing import List
 from ..base import BaseFeatureMapper
-from ..feature_leaves import Dhcpv6ExtraLeaves
 
 BASE = ["service", "dhcpv6-server"]
 SNN = BASE + ["shared-network-name"]
 
 
-class DHCPv6ServerMapper(Dhcpv6ExtraLeaves, BaseFeatureMapper):
+class DHCPv6ServerMapper(BaseFeatureMapper):
     def __init__(self, version: str):
         super().__init__(version)
 

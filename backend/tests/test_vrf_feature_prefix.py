@@ -1,8 +1,7 @@
 """VRF static, failover, DHCP, and DHCPv6 ops reuse the global builders.
 
-The golden file is the path contract of the deleted handwritten mixins.
-A structural test requires the global builder method to run, so a mapper-only
-fallback cannot satisfy it.
+The golden file lists the old mixin op names. Paths that VyOS 1.5 rejects
+are the global builder's path, not the old mixin path.
 """
 
 import json
@@ -205,3 +204,22 @@ def test_ui_schema_feature_ops_resolve():
     assert missing == []
     assert any(op.startswith("vrf_dhcp_") for op in ops)
     assert any(op.startswith("vrf_static_") for op in ops)
+
+
+def test_1_5_dhcp_paths_match_the_global_tree():
+    builder = VrfBatchBuilder("1.5")
+    builder.set_vrf_dhcp_shared_network_ntp_server("blue", "NET,192.0.2.1")
+    builder.set_vrf_dhcp_subnet_lease_default("blue", "NET,10.0.0.0/24,3600")
+    builder.set_vrf_dhcpv6_subnet_vendor_option_cisco_tftp_server("blue", "NET,2001:db8::/64,2001:db8::1")
+    paths = [op["path"] for op in builder.get_operations()]
+    assert paths[0][-3:] == ["option", "ntp-server", "192.0.2.1"]
+    assert paths[1][-2:] == ["lease", "3600"]
+    assert "default" not in paths[1]
+    assert paths[2][-5:] == ["option", "vendor-option", "cisco", "tftp-server", "2001:db8::1"]
+
+
+def test_global_static_helpers_are_not_vrf_ops():
+    builder = VrfBatchBuilder("1.5")
+    with pytest.raises(AttributeError):
+        builder.set_vrf_static_arp_interface("blue", "eth0")
+

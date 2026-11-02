@@ -618,6 +618,7 @@
           "dhcp-server",
           "shared-network-name",
           "tok0",
+          "option",
           "ntp-server",
           "tok1"
         ]
@@ -2000,8 +2001,7 @@
           "tok0",
           "subnet",
           "tok1",
-          "lease",
-          "default"
+          "lease"
         ]
       }
     ]
@@ -2021,8 +2021,7 @@
           "tok0",
           "subnet",
           "tok1",
-          "lease",
-          "max"
+          "lease"
         ]
       }
     ]
@@ -2042,8 +2041,7 @@
           "tok0",
           "subnet",
           "tok1",
-          "lease",
-          "min"
+          "lease"
         ]
       }
     ]
@@ -4343,6 +4341,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "vendor-option",
           "cisco",
           "bootfile"
@@ -4365,6 +4364,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "vendor-option",
           "cisco",
           "tftp-server",
@@ -6355,6 +6355,7 @@
           "dhcp-server",
           "shared-network-name",
           "tok0",
+          "option",
           "ntp-server",
           "tok1"
         ]
@@ -7777,7 +7778,6 @@
           "subnet",
           "tok1",
           "lease",
-          "default",
           "tok2"
         ]
       }
@@ -7799,7 +7799,6 @@
           "subnet",
           "tok1",
           "lease",
-          "max",
           "tok2"
         ]
       }
@@ -7821,7 +7820,6 @@
           "subnet",
           "tok1",
           "lease",
-          "min",
           "tok2"
         ]
       }
@@ -10181,6 +10179,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "vendor-option",
           "cisco",
           "bootfile",
@@ -10204,6 +10203,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "vendor-option",
           "cisco",
           "tftp-server",

@@ -186,7 +186,7 @@ def _parent_node_delete_path(
 
 
 def _alias(proto: str, suffix: str) -> str:
-    """One global-builder suffix for a VRF op. Not a search list."""
+    """Map one VRF suffix onto one global builder method name."""
     if proto == "static":
         if suffix.startswith("route6"):
             return "ipv6_route" + suffix[len("route6") :]
@@ -197,10 +197,17 @@ def _alias(proto: str, suffix: str) -> str:
     elif proto == "dhcp":
         if suffix == "disable":
             return "global_disable"
+        if suffix in ("subnet_lease_default", "subnet_lease_max", "subnet_lease_min"):
+            return "subnet_lease"
         if suffix.startswith("ha_"):
             return "failover_" + suffix[len("ha_") :]
-    elif proto == "dhcpv6" and suffix.startswith("shared_network_"):
-        return "network_" + suffix[len("shared_network_") :]
+    elif proto == "dhcpv6":
+        if suffix == "subnet_vendor_option_cisco_tftp_server":
+            return "subnet_cisco_tftp_server"
+        if suffix == "subnet_vendor_option_cisco_bootfile":
+            return "subnet_cisco_bootfile"
+        if suffix.startswith("shared_network_"):
+            return "network_" + suffix[len("shared_network_") :]
     return suffix
 
 
@@ -242,14 +249,9 @@ def _has_feature_leaf(proto: str, verb: str, suffix: Optional[str]) -> bool:
 
 
 def _feature_op_exists(owner: Any, verb: str, proto: str, suffix: Optional[str]) -> bool:
-    if suffix is None and verb == "set" and proto not in _FEATURE_ROOT_SET:
-        return False
-    key = _mode_key(proto, verb, suffix)
-    if key in DIRECT or key in FLIP or key in DROP:
-        return True
-    if suffix and hasattr(FEATURE_BUILDERS[proto], f"{verb}_{_alias(proto, suffix)}"):
-        return True
-    return _has_feature_leaf(proto, verb, suffix)
+    from .legacy_ops import LEGACY_OPS
+    name = f"{verb}_vrf_{proto}" if not suffix else f"{verb}_vrf_{proto}_{suffix}"
+    return name in LEGACY_OPS
 
 
 def _install_prefix(inner: Any, prefix: List[str]) -> None:
@@ -301,8 +303,10 @@ def _emit_leaf(
         if len(parts) != len(params):
             return False
         args = tuple(parts)
-    leaves = inner.mappers[inner.mapper_key] if getattr(inner, "mappers", None) else inner.m
-    path = getattr(leaves, gname)(*args)
+    wrapped = inner.mappers[inner.mapper_key] if getattr(inner, "mappers", None) else inner.m
+    if not hasattr(wrapped, gname):
+        wrapped = PathPrefixMapper(_LEAF_CLASSES[proto](), ["vrf", "name", vrf_name])
+    path = getattr(wrapped, gname)(*args)
     if verb == "set":
         inner.add_set(path)
     else:
@@ -333,51 +337,46 @@ def _flip_set(inner: Any, proto: str, suffix: str, value: Optional[str]) -> None
         inner.add_delete(list(op["path"]))
 
 
-def _emit_v14_bfd(
-    inner: Any,
+def _emit_version_override(
     owner: Any,
+    inner: Any,
     proto: str,
     verb: str,
     suffix: Optional[str],
     vrf_name: str,
     value: Optional[str],
 ) -> bool:
-    """1.4 BFD multi-hop source stays on the existing VRF 1.4 override.
+    """Use a version-merged VRF mapper override when that version defines one.
 
-    That override is not copied onto the global static mapper, so non-VRF
-    static routes keep their current 1.4 path.
+    The 1.4 class already returns [] for IPv4 next-hop segments and the
+    tagged BFD source path. 1.5 defines the flat BFD source-address path.
+    The builder does not inspect the version string.
     """
-    if proto != "static" or "1.5" in owner.version or "1.4" not in owner.version:
+    if proto != "static" or not suffix:
         return False
-    if suffix not in (
-        "route_next_hop_bfd_multi_hop_source",
-        "route6_next_hop_bfd_multi_hop_source",
-    ):
+    mapper = owner.mappers.get("vrf")
+    if mapper is None:
         return False
-    from vyos_mappers.vrf.vrf_versions.v1_4 import VrfMapperV1_4
-
-    raw_name = "get_static_" + suffix + ("" if verb == "set" else "_delete")
-    # route6 suffix is route6_... and the 1.4 method is get_static_route6_...
-    raw = getattr(VrfMapperV1_4, raw_name, None)
-    if raw is None:
+    gname = "get_static_" + suffix + ("" if verb == "set" else "_delete")
+    getter = getattr(mapper, gname, None)
+    if getter is None:
         return False
-    params = [p for p in inspect.signature(raw).parameters if p != "self"]
-    extra = params[1:]  # drop vrf name
+    params = [p for p in inspect.signature(getter).parameters if p != "self"]
+    extra = params[1:]
     if not extra:
-        path = raw(VrfMapperV1_4(), vrf_name)
+        path = getter(vrf_name)
     else:
         if value is None:
-            return False
+            return True
         parts = [value] if len(extra) == 1 else value.split(",", len(extra) - 1)
         if len(parts) != len(extra):
-            return False
-        path = raw(VrfMapperV1_4(), vrf_name, *parts)
-    if not path:
-        return False
-    if verb == "set":
-        inner.add_set(path)
-    else:
-        inner.add_delete(path)
+            return True
+        path = getter(vrf_name, *parts)
+    if path:
+        if verb == "set":
+            inner.add_set(path)
+        else:
+            inner.add_delete(path)
     return True
 
 
@@ -392,15 +391,7 @@ def _run_feature_op(
     require_feature_version(proto, owner.version)
     inner = FEATURE_BUILDERS[proto](owner.version)
     _install_prefix(inner, ["vrf", "name", vrf_name])
-    if (
-        proto == "static"
-        and suffix == "route_next_hop_segments"
-        and verb == "set"
-        and "1.4" in owner.version
-        and "1.5" not in owner.version
-    ):
-        return owner
-    if _emit_v14_bfd(inner, owner, proto, verb, suffix, vrf_name, value):
+    if _emit_version_override(owner, inner, proto, verb, suffix, vrf_name, value):
         return _queue(owner, inner)
     key = _mode_key(proto, verb, suffix)
     if suffix and key in DIRECT:
