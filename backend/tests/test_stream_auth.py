@@ -83,7 +83,13 @@ def test_watch_closes_when_recheck_raises(monkeypatch):
     closed = []
 
     class Queue:
+        def __init__(self):
+            self.calls = 0
+
         async def get(self):
+            self.calls += 1
+            if self.calls > 1:
+                raise AssertionError("watch did not close after the revocation")
             return "user:user-1"
 
     class FailingConnection:
@@ -125,6 +131,8 @@ def test_watch_ignores_unrelated_revocation_then_closes_on_denial(monkeypatch):
             self.payloads = ["user:other", "instance:inst-1"]
 
         async def get(self):
+            if not self.payloads:
+                raise AssertionError("watch did not close after the matching revocation")
             return self.payloads.pop(0)
 
     monkeypatch.setattr(stream_auth.revocation_bus, "subscribe", lambda: Queue())
@@ -155,17 +163,78 @@ def test_watch_ignores_unrelated_revocation_then_closes_on_denial(monkeypatch):
     assert closed == [stream_auth.DENIED]
 
 
-def test_ssh_watches_use_the_shared_helper():
+def test_ssh_watches_pass_the_feature_and_console_close_handler():
+    import ast
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[1]
-    for rel in (
-        "routers/console/console.py",
-        "routers/monitoring/monitoring.py",
-    ):
-        text = (root / rel).read_text()
-        assert "watch_stream_revocation(" in text, rel
-        assert "still = True" not in text, rel
-    events = (root / "routers/events.py").read_text()
-    assert "fail_closed(" in events
-    assert "assume valid when the database is unavailable" not in events
+
+    def calls(rel, name):
+        tree = ast.parse((root / rel).read_text())
+        found = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            called = func.id if isinstance(func, ast.Name) else getattr(func, "attr", None)
+            if called == name:
+                found.append(node)
+        return found
+
+    console = calls("routers/console/console.py", "watch_stream_revocation")
+    assert len(console) == 1
+    console_args = [ast.unparse(arg) for arg in console[0].args]
+    assert "FeatureGroup.SSH_CONSOLE" in console_args
+    assert "on_close" in console_args
+
+    monitoring = calls("routers/monitoring/monitoring.py", "watch_stream_revocation")
+    assert len(monitoring) == 1
+    monitoring_args = [ast.unparse(arg) for arg in monitoring[0].args]
+    assert monitoring_args[-1] == "FeatureGroup.MONITORING"
+
+    events = calls("routers/events.py", "banner_access_revoked")
+    assert len(events) == 1
+    assert calls("routers/events.py", "configuration_read_allowed")
+
+    show = calls("routers/show.py", "fail_closed")
+    assert len(show) == 1
+    assert "assume valid when the database is unavailable" not in (
+        root / "routers/show.py"
+    ).read_text()
+
+
+def test_no_session_denies_configuration_read(monkeypatch):
+    from routers import events
+
+    async def no_session(*args):
+        return False
+
+    async def should_not_run(*args, **kwargs):
+        raise AssertionError("permission checked without a session")
+
+    monkeypatch.setattr(events, "_has_active_session", no_session)
+    monkeypatch.setattr(events, "check_permission", should_not_run)
+
+    assert _run(events.configuration_read_allowed(object(), "user", "inst", None)) is False
+
+
+def test_banner_closes_when_the_recheck_fails():
+    from routers import events
+
+    async def boom():
+        raise RuntimeError("database unavailable")
+
+    assert _run(events.banner_access_revoked(boom)) is True
+
+
+def test_banner_stays_open_only_when_read_holds():
+    from routers import events
+
+    async def allowed():
+        return True
+
+    async def denied():
+        return False
+
+    assert _run(events.banner_access_revoked(allowed)) is False
+    assert _run(events.banner_access_revoked(denied)) is True

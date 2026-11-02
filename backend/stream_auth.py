@@ -37,42 +37,23 @@ async def fail_closed(check) -> StreamRecheck:
         return StreamRecheck(allowed=False, failed=True)
 
 
-async def recheck_permission(
-    connection,
-    user_id: str,
-    instance_id: str,
-    feature: FeatureGroup,
-    level: PermissionLevel,
-    org_id: str | None = None,
-) -> StreamRecheck:
-    async def check() -> bool:
-        async with connection as conn:
-            return await check_permission(
-                conn,
-                user_id,
-                instance_id,
-                feature,
-                level,
-                org_id=org_id,
-            )
-
-    return await fail_closed(check)
-
-
 async def recheck_stream_permission(
     websocket: WebSocket,
     user_id: str,
     instance_id: str,
     feature: FeatureGroup,
-    level: PermissionLevel = PermissionLevel.WRITE,
 ) -> StreamRecheck:
-    return await recheck_permission(
-        ws_org_conn(websocket, user_id, instance_id),
-        user_id,
-        instance_id,
-        feature,
-        level,
-    )
+    async def check() -> bool:
+        async with ws_org_conn(websocket, user_id, instance_id) as conn:
+            return await check_permission(
+                conn,
+                user_id,
+                instance_id,
+                feature,
+                PermissionLevel.WRITE,
+            )
+
+    return await fail_closed(check)
 
 
 async def watch_stream_revocation(

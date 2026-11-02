@@ -22,6 +22,7 @@ from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import has_permission, require_read_permission
 from org_scope import request_scoped_conn
 from rbac_permissions import FeatureGroup, PermissionLevel
+from stream_auth import fail_closed
 from system_updates import SystemUpdatesInfo, parse_system_updates
 from routers.qos.qos import (
     find_cake_targets,
@@ -1824,13 +1825,13 @@ async def dashboard_stream(
                     # Close the stream if the user's session has expired.
                     # One short org-scoped connection per tick - a stream
                     # must never hold a transaction open between ticks.
-                    try:
+                    async def still_signed_in() -> bool:
                         async with request_scoped_conn(request) as conn:
-                            still_active = await _has_active_session(
+                            return await _has_active_session(
                                 conn, user_id, instance_id)
-                    except Exception:
-                        still_active = True  # assume valid when DB is unavailable
-                    if not still_active:
+
+                    result = await fail_closed(still_signed_in)
+                    if result.close_reason is not None:
                         break
                     yield ": keep-alive\n\n"
                     continue

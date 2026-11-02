@@ -45,6 +45,22 @@ POLL_INTERVAL = 10  # seconds
 # Session helpers
 # ============================================================================
 
+async def configuration_read_allowed(conn, user_id: str, instance_id: str, org_id: str | None) -> bool:
+    """True only when this user still has an active session and configuration read."""
+    if not await _has_active_session(conn, user_id, instance_id):
+        return False
+    return await check_permission(
+        conn, user_id, instance_id,
+        FeatureGroup.CONFIGURATION, PermissionLevel.READ,
+        org_id=org_id)
+
+
+async def banner_access_revoked(check) -> bool:
+    """Close the banner stream when read access is gone or cannot be checked."""
+    result = await fail_closed(check)
+    return result.close_reason is not None
+
+
 async def _has_active_session(conn, user_id: str, instance_id: str) -> bool:
     """Return True if the user still has an active VyOS instance session.
 
@@ -119,15 +135,10 @@ async def banner_events(request: Request):
         """Re-check the user still has read access on this instance."""
         async def check() -> bool:
             async with request_scoped_conn(request) as conn:
-                if not await _has_active_session(conn, user_id, instance_id):
-                    return False
-                return await check_permission(
-                    conn, user_id, instance_id,
-                    FeatureGroup.CONFIGURATION, PermissionLevel.READ,
-                    org_id=org_id_from_state(request))
+                return await configuration_read_allowed(
+                    conn, user_id, instance_id, org_id_from_state(request))
 
-        result = await fail_closed(check)
-        return result.close_reason is not None
+        return await banner_access_revoked(check)
 
     async def event_stream():
         try:
