@@ -141,6 +141,9 @@ def test_static_bfd_source_follows_version():
         "blue", "10.0.0.0/24,192.0.2.1,192.0.2.2"
     )
     assert new.get_operations()[-1]["path"][-2:] == ["source-address", "192.0.2.2"]
+
+
+def test_static_root_set_is_not_an_op():
     builder = VrfBatchBuilder("1.5")
     with pytest.raises(AttributeError):
         builder.set_vrf_static("blue")
@@ -148,6 +151,12 @@ def test_static_bfd_source_follows_version():
     assert builder.get_operations() == [
         {"op": "delete", "path": ["vrf", "name", "blue", "protocols", "static"]}
     ]
+
+
+def test_ipv4_segments_set_is_a_noop_on_1_4():
+    builder = VrfBatchBuilder("1.4")
+    builder.set_vrf_static_route_next_hop_segments("blue", "10.0.0.0/24,192.0.2.1,1")
+    assert builder.get_operations() == []
 
 
 def test_short_value_does_not_emit():

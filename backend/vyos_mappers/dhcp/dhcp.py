@@ -6,13 +6,14 @@ Integrates version-specific mappers for differences between VyOS 1.4 and 1.5.
 import re
 from typing import FrozenSet, List, Sequence
 from ..base import BaseFeatureMapper
+from ..feature_leaves import DhcpExtraLeaves
 from .dhcp_catalog import delete_path, set_path
 from .dhcp_versions import DHCPMapperV1_4, DHCPMapperV1_5
 
 _CLIENT_CLASS_NAME = re.compile(r"^[-_a-zA-Z0-9][\w\-\.\+]*$")
 
 
-class DHCPMapper(BaseFeatureMapper):
+class DHCPMapper(DhcpExtraLeaves, BaseFeatureMapper):
     """Base mapper for DHCP server configuration commands."""
 
     def __init__(self, version: str):

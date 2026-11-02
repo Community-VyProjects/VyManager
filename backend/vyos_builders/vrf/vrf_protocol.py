@@ -86,21 +86,24 @@ def parse_vrf_protocol_op(name: str) -> Optional[Tuple[str, str, Optional[str]]]
     return None
 
 
+class ArityError(TypeError):
+    """Packed value does not match the global builder method's arity."""
+
+
 def _call_with_packed_value(method: Callable[..., Any], value: Optional[str]) -> None:
     params = [p for p in inspect.signature(method).parameters if p != "self"]
     if not params:
         method()
         return
     if value is None:
-        raise TypeError(f"{method.__name__} requires a value")
+        raise ArityError(f"{method.__name__} requires a value")
     if len(params) == 1:
         method(value)
         return
-    extra = len(params)
-    parts = value.split(",", extra - 1)
-    if len(parts) != extra:
-        raise TypeError(
-            f"{method.__name__} expects {extra} comma-separated value(s), got {len(parts)}"
+    parts = value.split(",", len(params) - 1)
+    if len(parts) != len(params):
+        raise ArityError(
+            f"{method.__name__} expects {len(params)} comma-separated value(s), got {len(parts)}"
         )
     method(*parts)
 
@@ -219,13 +222,34 @@ def _leaf_name(verb: str, suffix: Optional[str]) -> str:
     return f"get_{suffix}" if verb == "set" else f"get_{suffix}_delete"
 
 
+def _feature_mapper_cls(proto: str):
+    if proto == "dhcp":
+        from vyos_mappers.dhcp.dhcp import DHCPMapper
+        return DHCPMapper
+    if proto == "dhcpv6":
+        from vyos_mappers.dhcpv6_server.dhcpv6_server import DHCPv6ServerMapper
+        return DHCPv6ServerMapper
+    if proto == "static":
+        from vyos_mappers.static_routes.static_routes import StaticRoutesMapper
+        return StaticRoutesMapper
+    from vyos_mappers.failover.failover import FailoverMapper
+    return FailoverMapper
+
+
+def _has_feature_leaf(proto: str, verb: str, suffix: Optional[str]) -> bool:
+    gname = _leaf_name(verb, suffix)
+    return hasattr(_LEAF_CLASSES[proto], gname) or hasattr(_feature_mapper_cls(proto), gname)
+
+
 def _feature_op_exists(owner: Any, verb: str, proto: str, suffix: Optional[str]) -> bool:
     if suffix is None and verb == "set" and proto not in _FEATURE_ROOT_SET:
         return False
     key = _mode_key(proto, verb, suffix)
     if key in DIRECT or key in FLIP or key in DROP:
         return True
-    return hasattr(_LEAF_CLASSES[proto], _leaf_name(verb, suffix))
+    if suffix and hasattr(FEATURE_BUILDERS[proto], f"{verb}_{_alias(proto, suffix)}"):
+        return True
+    return _has_feature_leaf(proto, verb, suffix)
 
 
 def _install_prefix(inner: Any, prefix: List[str]) -> None:
@@ -256,17 +280,17 @@ def _emit_leaf(
     vrf_name: str,
     value: Optional[str],
 ) -> bool:
-    """Queue one feature-mapper leaf through the global builder.
+    """Queue one leaf the global builder does not expose.
 
-    The leaf classes are not mixed into the live feature mappers, so a VRF
-    leaf cannot override a global DHCP or DHCPv6 getter. PathPrefixMapper
-    is what adds ``vrf name <vrf>``.
+    PathPrefixMapper adds the VRF prefix. The feature builder then records
+    that path with add_set or add_delete.
     """
-    leaf_cls = _LEAF_CLASSES[proto]
     gname = _leaf_name(verb, suffix)
-    raw = getattr(leaf_cls, gname, None)
+    raw = getattr(_LEAF_CLASSES[proto], gname, None)
     if raw is None:
-        raise AttributeError(gname)
+        raw = getattr(_feature_mapper_cls(proto), gname, None)
+    if raw is None:
+        return False
     params = [p for p in inspect.signature(raw).parameters if p != "self"]
     if not params:
         args: tuple = ()
@@ -277,7 +301,7 @@ def _emit_leaf(
         if len(parts) != len(params):
             return False
         args = tuple(parts)
-    leaves = PathPrefixMapper(leaf_cls(), ["vrf", "name", vrf_name])
+    leaves = inner.mappers[inner.mapper_key] if getattr(inner, "mappers", None) else inner.m
     path = getattr(leaves, gname)(*args)
     if verb == "set":
         inner.add_set(path)
@@ -309,31 +333,51 @@ def _flip_set(inner: Any, proto: str, suffix: str, value: Optional[str]) -> None
         inner.add_delete(list(op["path"]))
 
 
-def _emit_version_delete(inner: Any, proto: str, suffix: str, value: Optional[str]) -> bool:
-    """Use a version-mapper delete getter when the global delete method would be wrong."""
-    if proto != "static" or not suffix:
-        return False
-    mapper = inner.mappers[inner.mapper_key]
-    gname = f"get_{_alias(proto, suffix)}_delete"
-    # PathPrefixMapper hides the real signature. Ask the 1.4 class.
-    from vyos_mappers.static_routes.static_routes_versions.v1_4 import StaticRoutesMapperV1_4
+def _emit_v14_bfd(
+    inner: Any,
+    owner: Any,
+    proto: str,
+    verb: str,
+    suffix: Optional[str],
+    vrf_name: str,
+    value: Optional[str],
+) -> bool:
+    """1.4 BFD multi-hop source stays on the existing VRF 1.4 override.
 
-    raw = getattr(StaticRoutesMapperV1_4, gname, None)
-    if raw is None or not hasattr(mapper, gname):
+    That override is not copied onto the global static mapper, so non-VRF
+    static routes keep their current 1.4 path.
+    """
+    if proto != "static" or "1.5" in owner.version or "1.4" not in owner.version:
+        return False
+    if suffix not in (
+        "route_next_hop_bfd_multi_hop_source",
+        "route6_next_hop_bfd_multi_hop_source",
+    ):
+        return False
+    from vyos_mappers.vrf.vrf_versions.v1_4 import VrfMapperV1_4
+
+    raw_name = "get_static_" + suffix + ("" if verb == "set" else "_delete")
+    # route6 suffix is route6_... and the 1.4 method is get_static_route6_...
+    raw = getattr(VrfMapperV1_4, raw_name, None)
+    if raw is None:
         return False
     params = [p for p in inspect.signature(raw).parameters if p != "self"]
-    if not params:
-        path = getattr(mapper, gname)()
+    extra = params[1:]  # drop vrf name
+    if not extra:
+        path = raw(VrfMapperV1_4(), vrf_name)
     else:
         if value is None:
             return False
-        parts = [value] if len(params) == 1 else value.split(",", len(params) - 1)
-        if len(parts) != len(params):
+        parts = [value] if len(extra) == 1 else value.split(",", len(extra) - 1)
+        if len(parts) != len(extra):
             return False
-        path = getattr(mapper, gname)(*parts)
+        path = raw(VrfMapperV1_4(), vrf_name, *parts)
     if not path:
         return False
-    inner.add_delete(path)
+    if verb == "set":
+        inner.add_set(path)
+    else:
+        inner.add_delete(path)
     return True
 
 
@@ -350,29 +394,39 @@ def _run_feature_op(
     _install_prefix(inner, ["vrf", "name", vrf_name])
     if (
         proto == "static"
-        and suffix
-        and suffix.startswith("route_")
-        and "segments" in suffix
+        and suffix == "route_next_hop_segments"
+        and verb == "set"
         and "1.4" in owner.version
         and "1.5" not in owner.version
     ):
         return owner
-    if verb == "delete" and suffix and _emit_version_delete(inner, proto, suffix, value):
+    if _emit_v14_bfd(inner, owner, proto, verb, suffix, vrf_name, value):
         return _queue(owner, inner)
     key = _mode_key(proto, verb, suffix)
     if suffix and key in DIRECT:
         try:
             _call_aliased(inner, verb, proto, suffix, value)
-        except TypeError:
+        except ArityError:
             return owner
         return _queue(owner, inner)
     if suffix and key in FLIP:
-        _flip_set(inner, proto, suffix, value)
+        try:
+            _flip_set(inner, proto, suffix, value)
+        except ArityError:
+            return owner
         return _queue(owner, inner)
     if suffix and key in DROP:
         if not _drop_set_leaf(inner, proto, suffix, value):
             return owner
         return _queue(owner, inner)
+    if suffix:
+        method = getattr(inner, f"{verb}_{_alias(proto, suffix)}", None)
+        if method is not None:
+            try:
+                _call_with_packed_value(method, value)
+            except ArityError:
+                return owner
+            return _queue(owner, inner)
     if not _emit_leaf(inner, proto, verb, suffix, vrf_name, value):
         return owner
     return _queue(owner, inner)

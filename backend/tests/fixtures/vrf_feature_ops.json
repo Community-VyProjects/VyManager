@@ -130,7 +130,7 @@
     ]
   },
   "delete_vrf_dhcp_ddns_domain_key_name": {
-    "value": "tok0,tok1",
+    "value": "forward-domain,example.com",
     "ops": [
       {
         "op": "delete",
@@ -141,8 +141,8 @@
           "service",
           "dhcp-server",
           "dynamic-dns-update",
-          "tok0",
-          "tok1",
+          "forward-domain",
+          "example.com",
           "key-name"
         ]
       }
@@ -559,6 +559,7 @@
           "dhcp-server",
           "shared-network-name",
           "tok0",
+          "option",
           "domain-name"
         ]
       }
@@ -577,6 +578,7 @@
           "dhcp-server",
           "shared-network-name",
           "tok0",
+          "option",
           "domain-search",
           "tok1"
         ]
@@ -596,6 +598,7 @@
           "dhcp-server",
           "shared-network-name",
           "tok0",
+          "option",
           "name-server",
           "tok1"
         ]
@@ -1832,6 +1835,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "default-router"
         ]
       }
@@ -1892,6 +1896,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "domain-name"
         ]
       }
@@ -1912,6 +1917,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "domain-search",
           "tok2"
         ]
@@ -2057,6 +2063,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "name-server",
           "tok2"
         ]
@@ -2078,6 +2085,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "ntp-server",
           "tok2"
         ]
@@ -3225,6 +3233,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "domain-search",
           "tok2"
         ]
@@ -3349,6 +3358,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "name-server",
           "tok2"
         ]
@@ -3370,6 +3380,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "nis-domain"
         ]
       }
@@ -3390,6 +3401,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "nis-server",
           "tok2"
         ]
@@ -3411,6 +3423,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "nisplus-domain"
         ]
       }
@@ -3431,6 +3444,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "nisplus-server",
           "tok2"
         ]
@@ -3919,6 +3933,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "sip-server",
           "tok2"
         ]
@@ -3940,6 +3955,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "sntp-server",
           "tok2"
         ]
@@ -5791,7 +5807,7 @@
     ]
   },
   "set_vrf_dhcp_ddns_domain_dns_server_address": {
-    "value": "tok0,tok1,tok2,tok3",
+    "value": "forward-domain,example.com,srv1,192.0.2.1",
     "ops": [
       {
         "op": "set",
@@ -5802,18 +5818,18 @@
           "service",
           "dhcp-server",
           "dynamic-dns-update",
-          "tok0",
-          "tok1",
+          "forward-domain",
+          "example.com",
           "dns-server",
-          "tok2",
+          "srv1",
           "address",
-          "tok3"
+          "192.0.2.1"
         ]
       }
     ]
   },
   "set_vrf_dhcp_ddns_domain_dns_server_port": {
-    "value": "tok0,tok1,tok2,tok3",
+    "value": "forward-domain,example.com,srv1,53",
     "ops": [
       {
         "op": "set",
@@ -5824,18 +5840,18 @@
           "service",
           "dhcp-server",
           "dynamic-dns-update",
-          "tok0",
-          "tok1",
+          "forward-domain",
+          "example.com",
           "dns-server",
-          "tok2",
+          "srv1",
           "port",
-          "tok3"
+          "53"
         ]
       }
     ]
   },
   "set_vrf_dhcp_ddns_domain_key_name": {
-    "value": "tok0,tok1,tok2",
+    "value": "forward-domain,example.com,key1",
     "ops": [
       {
         "op": "set",
@@ -5846,10 +5862,10 @@
           "service",
           "dhcp-server",
           "dynamic-dns-update",
-          "tok0",
-          "tok1",
+          "forward-domain",
+          "example.com",
           "key-name",
-          "tok2"
+          "key1"
         ]
       }
     ]
@@ -6279,6 +6295,7 @@
           "dhcp-server",
           "shared-network-name",
           "tok0",
+          "option",
           "domain-name",
           "tok1"
         ]
@@ -6298,6 +6315,7 @@
           "dhcp-server",
           "shared-network-name",
           "tok0",
+          "option",
           "domain-search",
           "tok1"
         ]
@@ -6317,6 +6335,7 @@
           "dhcp-server",
           "shared-network-name",
           "tok0",
+          "option",
           "name-server",
           "tok1"
         ]
@@ -7588,6 +7607,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "default-router",
           "tok2"
         ]
@@ -7650,6 +7670,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "domain-name",
           "tok2"
         ]
@@ -7671,6 +7692,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "domain-search",
           "tok2"
         ]
@@ -7820,6 +7842,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "name-server",
           "tok2"
         ]
@@ -7841,6 +7864,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "ntp-server",
           "tok2"
         ]
@@ -9019,6 +9043,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "domain-search",
           "tok2"
         ]
@@ -9148,6 +9173,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "name-server",
           "tok2"
         ]
@@ -9169,6 +9195,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "nis-domain",
           "tok2"
         ]
@@ -9190,6 +9217,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "nis-server",
           "tok2"
         ]
@@ -9211,6 +9239,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "nisplus-domain",
           "tok2"
         ]
@@ -9232,6 +9261,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "nisplus-server",
           "tok2"
         ]
@@ -9733,6 +9763,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "sip-server",
           "tok2"
         ]
@@ -9754,6 +9785,7 @@
           "tok0",
           "subnet",
           "tok1",
+          "option",
           "sntp-server",
           "tok2"
         ]
