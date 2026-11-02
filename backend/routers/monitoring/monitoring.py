@@ -30,6 +30,7 @@ from org_scope import (
 import revocation_bus
 from session_cookie import verify_session_cookie
 from ssh_key_manager import decrypt_private_key, generate_keypair
+from stream_auth import recheck_stream_permission
 from trusted_origins import websocket_origin_allowed
 
 logger = logging.getLogger(__name__)
@@ -476,14 +477,12 @@ async def websocket_monitor(websocket: WebSocket):
                     if not revocation_bus.payload_matches(
                             payload, user_id=user_id, instance_id=instance_id):
                         continue
-                    try:
-                        async with ws_org_conn(
-                                websocket, user_id, instance_id) as conn:
-                            still = await check_permission(
-                                conn, user_id, instance_id,
-                                FeatureGroup.MONITORING, PermissionLevel.WRITE)
-                    except Exception:
-                        still = True  # DB unavailable: do not tear down
+                    still = await recheck_stream_permission(
+                        websocket,
+                        user_id,
+                        instance_id,
+                        FeatureGroup.MONITORING,
+                    )
                     if not still:
                         return
             finally:
