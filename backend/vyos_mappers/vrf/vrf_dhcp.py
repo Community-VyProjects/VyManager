@@ -513,14 +513,26 @@ class VrfDhcpMapper:
     def get_dhcp_shared_network_option_static_route_next_hop(self, name: str, network: str, route: str, value: str) -> List[str]:
         return self._sn(name, network) + ["option", "static-route", route, "next-hop", value]
 
+    def get_dhcp_shared_network_option_static_route_next_hop_delete(self, name: str, network: str, route: str) -> List[str]:
+        return self._sn(name, network) + ["option", "static-route", route]
+
     def get_dhcp_subnet_option_static_route_next_hop(self, name: str, network: str, prefix: str, route: str, value: str) -> List[str]:
         return self._subnet(name, network, prefix) + ["option", "static-route", route, "next-hop", value]
+
+    def get_dhcp_subnet_option_static_route_next_hop_delete(self, name: str, network: str, prefix: str, route: str) -> List[str]:
+        return self._subnet(name, network, prefix) + ["option", "static-route", route]
 
     def get_dhcp_subnet_range_option_static_route_next_hop(self, name: str, network: str, prefix: str, rng: str, route: str, value: str) -> List[str]:
         return self._range(name, network, prefix, rng) + ["option", "static-route", route, "next-hop", value]
 
+    def get_dhcp_subnet_range_option_static_route_next_hop_delete(self, name: str, network: str, prefix: str, rng: str, route: str) -> List[str]:
+        return self._range(name, network, prefix, rng) + ["option", "static-route", route]
+
     def get_dhcp_static_mapping_option_static_route_next_hop(self, name: str, network: str, prefix: str, host: str, route: str, value: str) -> List[str]:
         return self._sm(name, network, prefix, host) + ["option", "static-route", route, "next-hop", value]
+
+    def get_dhcp_static_mapping_option_static_route_next_hop_delete(self, name: str, network: str, prefix: str, host: str, route: str) -> List[str]:
+        return self._sm(name, network, prefix, host) + ["option", "static-route", route]
 
     # Option vendor-option ubiquiti unifi-controller per scope
     def get_dhcp_shared_network_option_unifi_controller(self, name: str, network: str, value: str) -> List[str]:

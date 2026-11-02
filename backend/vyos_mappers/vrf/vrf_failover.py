@@ -30,6 +30,9 @@ class VrfFailoverMapper:
     def _base(self, name: str) -> List[str]:
         return ["vrf", "name", name, "protocols", "failover"]
 
+    def get_failover(self, name: str) -> List[str]:
+        return self._base(name)
+
     # ========================================================================
     # Failover Route Paths
     # ========================================================================
