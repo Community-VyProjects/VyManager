@@ -364,8 +364,43 @@ def test_dhcpv6_static_mapping_uses_the_global_builder(monkeypatch):
     builder = VrfBatchBuilder("1.5")
     builder.set_vrf_dhcpv6_subnet_static_mapping("blue", "LAN,2001:db8::/64,host1")
     assert called == {"args": ("LAN", "2001:db8::/64", "host1")}
-    assert builder.get_operations()[-1]["path"][-1] == "host1"
-    assert "static-mapping" in builder.get_operations()[-1]["path"]
+    assert builder.get_operations() == [{
+        "op": "set",
+        "path": [
+            "vrf", "name", "blue", "service", "dhcpv6-server",
+            "shared-network-name", "LAN", "subnet", "2001:db8::/64",
+            "static-mapping", "host1",
+        ],
+    }]
+    deleted = VrfBatchBuilder("1.5")
+    deleted.delete_vrf_dhcpv6_subnet_static_mapping("blue", "LAN,2001:db8::/64,host1")
+    assert deleted.get_operations() == [{
+        "op": "delete",
+        "path": [
+            "vrf", "name", "blue", "service", "dhcpv6-server",
+            "shared-network-name", "LAN", "subnet", "2001:db8::/64",
+            "static-mapping", "host1",
+        ],
+    }]
+
+
+def test_dhcpv6_prefix_comes_from_the_mapper_wrapper(monkeypatch):
+    from vyos_mappers.path_prefix import PathPrefixMapper
+
+    class Bare(PathPrefixMapper):
+        def __getattr__(self, name):
+            return getattr(self._inner, name)
+
+    monkeypatch.setattr("vyos_builders.vrf.vrf_protocol.PathPrefixMapper", Bare)
+    builder = VrfBatchBuilder("1.5")
+    builder.set_vrf_dhcpv6_subnet_static_mapping("blue", "LAN,2001:db8::/64,host1")
+    assert builder.get_operations() == [{
+        "op": "set",
+        "path": [
+            "service", "dhcpv6-server", "shared-network-name", "LAN",
+            "subnet", "2001:db8::/64", "static-mapping", "host1",
+        ],
+    }]
 
 
 def test_short_drop_value_is_rejected():
