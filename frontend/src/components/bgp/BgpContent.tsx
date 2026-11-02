@@ -55,6 +55,7 @@ import { BgpNeighborModal } from "./BgpNeighborModal";
 import { BgpPeerGroupModal } from "./BgpPeerGroupModal";
 import { DeleteBgpNeighborModal } from "./DeleteBgpNeighborModal";
 import { DeleteBgpPeerGroupModal } from "./DeleteBgpPeerGroupModal";
+import { afiNameKey, formatUnknownAfi } from "./afi-name";
 
 export function BgpContent() {
   const t = useTranslations("bgp");
@@ -401,7 +402,9 @@ export function BgpContent() {
   };
 
   const formatAfi = (afi: string): string => {
-    return afi.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    const key = afiNameKey(afi);
+    if (key) return t(`content.afiNames.${key}`);
+    return formatUnknownAfi(afi);
   };
 
   const redistributeProtocols = [

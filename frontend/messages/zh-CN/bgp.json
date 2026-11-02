@@ -115,6 +115,19 @@
         "internal": "内部",
         "local": "本地"
       }
+    },
+    "afiNames": {
+      "ipv4-unicast": "IPv4 单播",
+      "ipv6-unicast": "IPv6 单播",
+      "ipv4-multicast": "IPv4 组播",
+      "ipv6-multicast": "IPv6 组播",
+      "ipv4-labeled-unicast": "IPv4 标签单播",
+      "ipv6-labeled-unicast": "IPv6 标签单播",
+      "ipv4-vpn": "IPv4 VPN",
+      "ipv6-vpn": "IPv6 VPN",
+      "ipv4-flowspec": "IPv4 FlowSpec",
+      "ipv6-flowspec": "IPv6 FlowSpec",
+      "l2vpn-evpn": "L2VPN EVPN"
     }
   },
   "form": {

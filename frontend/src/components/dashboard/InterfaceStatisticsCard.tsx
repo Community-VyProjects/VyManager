@@ -49,23 +49,27 @@ interface InterfaceStatisticsCardProps {
 
 const PAGE_SIZE = 8;
 
-const TYPE_META: Record<string, { abbr: string; color: string }> = {
-  "Physical (Ethernet)":  { abbr: "ETH",   color: "bg-blue-500" },
-  Wireless:               { abbr: "WiFi",   color: "bg-purple-500" },
-  Loopback:               { abbr: "LO",     color: "bg-gray-400" },
-  "VPN (WireGuard)":      { abbr: "WG",     color: "bg-green-500" },
-  "VPN (Virtual Tunnel)": { abbr: "VTI",    color: "bg-emerald-500" },
-  "VPN (Tunnel)":         { abbr: "TUN",    color: "bg-teal-500" },
-  "VLAN (Virtual)":       { abbr: "VLAN",   color: "bg-orange-500" },
-  "VLAN (Subinterface)":  { abbr: "VIF",    color: "bg-yellow-500" },
-  Bridge:                 { abbr: "BR",     color: "bg-cyan-500" },
-  PPPoE:                  { abbr: "PPPoE",  color: "bg-pink-500" },
-  Bonding:                { abbr: "BOND",   color: "bg-indigo-500" },
-  Dummy:                  { abbr: "DUM",    color: "bg-stone-400" },
-  "GRE Tunnel":           { abbr: "GRE",    color: "bg-lime-500" },
-  "IPIP Tunnel":          { abbr: "IPIP",   color: "bg-amber-500" },
-  "SIT Tunnel":           { abbr: "SIT",    color: "bg-rose-500" },
-  Other:                  { abbr: "?",      color: "bg-slate-400" },
+type InterfaceTypeKey =
+  | "physicalEthernet" | "wireless" | "loopback" | "vpnWireguard" | "vpnVti" | "vpnTunnel" | "vlan" | "vlanSub"
+  | "bridge" | "pppoe" | "bonding" | "dummy" | "gre" | "ipip" | "sit" | "other";
+
+const TYPE_META: Record<string, { abbr: string; color: string; key: InterfaceTypeKey }> = {
+  "Physical (Ethernet)":  { abbr: "ETH",   color: "bg-blue-500", key: "physicalEthernet" },
+  Wireless:               { abbr: "WiFi",   color: "bg-purple-500", key: "wireless" },
+  Loopback:               { abbr: "LO",     color: "bg-gray-400", key: "loopback" },
+  "VPN (WireGuard)":      { abbr: "WG",     color: "bg-green-500", key: "vpnWireguard" },
+  "VPN (Virtual Tunnel)": { abbr: "VTI",    color: "bg-emerald-500", key: "vpnVti" },
+  "VPN (Tunnel)":         { abbr: "TUN",    color: "bg-teal-500", key: "vpnTunnel" },
+  "VLAN (Virtual)":       { abbr: "VLAN",   color: "bg-orange-500", key: "vlan" },
+  "VLAN (Subinterface)":  { abbr: "VIF",    color: "bg-yellow-500", key: "vlanSub" },
+  Bridge:                 { abbr: "BR",     color: "bg-cyan-500", key: "bridge" },
+  PPPoE:                  { abbr: "PPPoE",  color: "bg-pink-500", key: "pppoe" },
+  Bonding:                { abbr: "BOND",   color: "bg-indigo-500", key: "bonding" },
+  Dummy:                  { abbr: "DUM",    color: "bg-stone-400", key: "dummy" },
+  "GRE Tunnel":           { abbr: "GRE",    color: "bg-lime-500", key: "gre" },
+  "IPIP Tunnel":          { abbr: "IPIP",   color: "bg-amber-500", key: "ipip" },
+  "SIT Tunnel":           { abbr: "SIT",    color: "bg-rose-500", key: "sit" },
+  Other:                  { abbr: "?",      color: "bg-slate-400", key: "other" },
 };
 
 // ============================================================================
@@ -73,11 +77,12 @@ const TYPE_META: Record<string, { abbr: string; color: string }> = {
 // ============================================================================
 
 function TypePill({ type }: { type: string }) {
-  const meta = TYPE_META[type] ?? { abbr: "?", color: "bg-slate-400" };
+  const t = useTranslations("dashboard");
+  const meta = TYPE_META[type] ?? { abbr: "?", color: "bg-slate-400", key: "other" };
   return (
     <span
       className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold text-white shrink-0 ${meta.color}`}
-      title={type}
+      title={t(`interfaceStatistics.types.${meta.key}`)}
     >
       {meta.abbr}
     </span>

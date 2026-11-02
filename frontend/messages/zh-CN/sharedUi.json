@@ -11,7 +11,14 @@
   },
   "theme": {
     "title": "主题",
-    "createCustom": "创建自定义主题"
+    "createCustom": "创建自定义主题",
+    "names": {
+      "dark": "深色",
+      "light": "浅色",
+      "midnight": "午夜",
+      "slate": "石板",
+      "emerald": "翡翠"
+    }
   },
   "themeEditor": {
     "defaultName": "我的主题",
@@ -67,5 +74,8 @@
   },
   "appLayout": {
     "redirecting": "正在跳转到站点管理..."
+  },
+  "vrfMultiSelect": {
+    "placeholder": "添加 VRF"
   }
 }

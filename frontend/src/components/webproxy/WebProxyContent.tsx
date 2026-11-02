@@ -57,6 +57,7 @@ import { WebProxySquidGuardModal } from "./WebProxySquidGuardModal";
 import { WebProxyRuleModal } from "./WebProxyRuleModal";
 import { WebProxySourceGroupModal } from "./WebProxySourceGroupModal";
 import { WebProxyTimePeriodModal } from "./WebProxyTimePeriodModal";
+import { timePeriodDayKey } from "./time-period-days";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
@@ -551,18 +552,22 @@ export function WebProxyContent() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {sg?.time_periods.map((t) => (
-                          <TableRow key={t.name}>
-                            <TableCell className="font-mono">{t.name}</TableCell>
+                        {sg?.time_periods.map((period) => (
+                          <TableRow key={period.name}>
+                            <TableCell className="font-mono">{period.name}</TableCell>
                             <TableCell>
-                              <CellChips items={t.days.map((d) => `${d.day}${d.time ? ` ${d.time}` : ""}`)} />
+                              <CellChips items={period.days.map((d) => {
+                                const key = timePeriodDayKey(d.day);
+                                const label = key ? t(`period.days.${key}`) : d.day;
+                                return `${label}${d.time ? ` ${d.time}` : ""}`;
+                              })} />
                             </TableCell>
-                            <TableCell className="text-sm">{t.description ?? "—"}</TableCell>
+                            <TableCell className="text-sm">{period.description ?? "—"}</TableCell>
                             {hasWritePermission && (
                               <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-1">
-                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingPeriod(t); setPeriodOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeletingPeriod(t.name)}><Trash2 className="h-4 w-4" /></Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingPeriod(period); setPeriodOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeletingPeriod(period.name)}><Trash2 className="h-4 w-4" /></Button>
                                 </div>
                               </TableCell>
                             )}

@@ -204,6 +204,18 @@
     "description": "Define days and time ranges to scope filter rules.",
     "allDay": "all day",
     "timePlaceholder": "08:00-17:00 (optional)",
-    "timeHelp": "Time range in 24-hour format (hh:mm-hh:mm). Leave empty to match the whole day."
+    "timeHelp": "Time range in 24-hour format (hh:mm-hh:mm). Leave empty to match the whole day.",
+    "days": {
+      "Sun": "Sun",
+      "Mon": "Mon",
+      "Tue": "Tue",
+      "Wed": "Wed",
+      "Thu": "Thu",
+      "Fri": "Fri",
+      "Sat": "Sat",
+      "weekdays": "weekdays",
+      "weekend": "weekend",
+      "all": "all"
+    }
   }
 }

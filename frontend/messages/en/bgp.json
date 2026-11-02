@@ -115,6 +115,19 @@
         "internal": "Internal",
         "local": "Local"
       }
+    },
+    "afiNames": {
+      "ipv4-unicast": "IPv4 Unicast",
+      "ipv6-unicast": "IPv6 Unicast",
+      "ipv4-multicast": "IPv4 Multicast",
+      "ipv6-multicast": "IPv6 Multicast",
+      "ipv4-labeled-unicast": "IPv4 Labeled Unicast",
+      "ipv6-labeled-unicast": "IPv6 Labeled Unicast",
+      "ipv4-vpn": "IPv4 VPN",
+      "ipv6-vpn": "IPv6 VPN",
+      "ipv4-flowspec": "IPv4 FlowSpec",
+      "ipv6-flowspec": "IPv6 FlowSpec",
+      "l2vpn-evpn": "L2VPN EVPN"
     }
   },
   "form": {

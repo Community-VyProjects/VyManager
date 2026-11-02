@@ -204,6 +204,18 @@
     "description": "定义日期和时间范围，用于限定过滤规则的生效时间。",
     "allDay": "全天",
     "timePlaceholder": "08:00-17:00（可选）",
-    "timeHelp": "24 小时制时间范围（hh:mm-hh:mm）。留空则匹配全天。"
+    "timeHelp": "24 小时制时间范围（hh:mm-hh:mm）。留空则匹配全天。",
+    "days": {
+      "Sun": "周日",
+      "Mon": "周一",
+      "Tue": "周二",
+      "Wed": "周三",
+      "Thu": "周四",
+      "Fri": "周五",
+      "Sat": "周六",
+      "weekdays": "工作日",
+      "weekend": "周末",
+      "all": "每天"
+    }
   }
 }

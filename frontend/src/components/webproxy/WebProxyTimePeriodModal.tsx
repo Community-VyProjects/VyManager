@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
 import type { SquidGuardTimePeriod, TimePeriodDay, WebProxyCapabilities } from "@/lib/api/webproxy";
+import { TIME_PERIOD_DAYS, timePeriodDayKey } from "./time-period-days";
 
 interface Props {
   open: boolean;
@@ -32,8 +33,6 @@ interface Props {
   existingNames: string[];
   onSubmit: (period: SquidGuardTimePeriod, isEdit: boolean) => Promise<void>;
 }
-
-const DEFAULT_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "weekdays", "weekend", "all"];
 
 export function WebProxyTimePeriodModal({ open, onOpenChange, timePeriod, caps, existingNames, onSubmit }: Props) {
   const t = useTranslations("webproxy");
@@ -47,7 +46,12 @@ export function WebProxyTimePeriodModal({ open, onOpenChange, timePeriod, caps, 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const dayOptions = caps?.options.time_period_days ?? DEFAULT_DAYS;
+  const dayOptions = caps?.options.time_period_days ?? TIME_PERIOD_DAYS;
+
+  const dayLabel = (day: string) => {
+    const key = timePeriodDayKey(day);
+    return key ? t(`period.days.${key}`) : day;
+  };
 
   useEffect(() => {
     if (open) {
@@ -62,7 +66,7 @@ export function WebProxyTimePeriodModal({ open, onOpenChange, timePeriod, caps, 
 
   const addDay = () => {
     if (days.some((d) => d.day === newDay)) {
-      setError(t("period.dayExists", { day: newDay }));
+      setError(t("period.dayExists", { day: dayLabel(newDay) }));
       return;
     }
     setDays([...days, { day: newDay, time: newTime.trim() || null }]);
@@ -120,7 +124,7 @@ export function WebProxyTimePeriodModal({ open, onOpenChange, timePeriod, caps, 
                 <div className="space-y-2">
                   {days.map((d, idx) => (
                     <div key={`${d.day}-${idx}`} className="flex items-center gap-2 rounded-md border p-2">
-                      <span className="font-mono text-sm w-24">{d.day}</span>
+                      <span className="font-mono text-sm w-24">{dayLabel(d.day)}</span>
                       <span className="font-mono text-sm flex-1 text-muted-foreground">{d.time || t("period.allDay")}</span>
                       <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => removeDay(idx)}>
                         <Trash2 className="h-4 w-4" />
@@ -134,7 +138,7 @@ export function WebProxyTimePeriodModal({ open, onOpenChange, timePeriod, caps, 
                   <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {dayOptions.map((d) => (
-                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                      <SelectItem key={d} value={d}>{dayLabel(d)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
