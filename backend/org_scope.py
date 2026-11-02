@@ -328,24 +328,7 @@ async def request_scoped_conn(request: Request) -> AsyncIterator[asyncpg.Connect
         yield existing
         return
 
-    pool: asyncpg.Pool = request.app.state.db_pool
-    known_admin = is_system_admin_from_state(request)
-    if known_admin is None:
-        async with pool.acquire() as conn:
-            async with conn.transaction():
-                is_admin = await _resolve_system_admin(conn, request)
-                await conn.execute(
-                    "SELECT set_config('app.org_id', $1, true),"
-                    "       set_config('app.is_system_admin', $2, true)",
-                    org_id_from_state(request) or "",
-                    "true" if is_admin else "false",
-                )
-                yield conn
-        return
-
-    async with org_scoped_conn(
-        pool, org_id_from_state(request), known_admin
-    ) as conn:
+    async with independent_org_conn(request) as conn:
         yield conn
 
 

@@ -189,7 +189,7 @@ async def connect(
                 known_hosts=pinned,
                 **kwargs,
             )
-        except asyncssh.HostKeyNotVerifiable as exc:
+        except (asyncssh.HostKeyNotVerifiable, asyncssh.KeyExchangeFailed) as exc:
             logger.warning(
                 "SSH host key rejected for instance %s at %s:%s",
                 instance_id,

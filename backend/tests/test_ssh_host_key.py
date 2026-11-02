@@ -739,6 +739,29 @@ def test_archive_and_container_pins_do_not_join_the_handler_transaction(monkeypa
     assert seen == [fresh]
 
 
+def test_different_key_type_is_not_hidden_as_a_generic_failure(monkeypatch):
+    private = asyncssh.generate_private_key("ssh-ed25519")
+    stored = private.export_public_key().decode().strip()
+
+    async def fake_connect(*args, **kwargs):
+        assert isinstance(kwargs.get("known_hosts"), asyncssh.SSHKnownHosts)
+        raise asyncssh.KeyExchangeFailed("no matching host key algorithm")
+
+    monkeypatch.setattr(ssh.asyncssh, "connect", fake_connect)
+    with pytest.raises(SshHostKeyRejected, match=SshHostKeyRejected.message):
+        _run(ssh.connect(
+            open_conn=_opener(_Conn(row={"hostKey": stored})),
+            instance_id="inst",
+            host="router.example",
+        ))
+    with pytest.raises(SshHostKeyRejected):
+        _run(archive_url.list_archive_files(
+            "sftp://vyos@backup.example/cfg/",
+            open_conn=_opener(_Conn(row={"hostKey": stored})),
+            instance_id="inst",
+        ))
+
+
 def test_independent_org_conn_commits_its_own_connection():
     import org_scope
 
@@ -806,6 +829,61 @@ def test_independent_org_conn_commits_its_own_connection():
         assert pool.conn.in_tx is False
         assert pool.held == 0
         assert request.state.org_conn is handler
+
+    _run(run())
+
+
+def test_independent_org_conn_resolves_an_unknown_role():
+    import org_scope
+
+    class _DB:
+        def __init__(self):
+            self.queries = []
+
+        def transaction(self):
+            db = self
+
+            class _Tx:
+                async def __aenter__(self):
+                    return db
+
+                async def __aexit__(self, *args):
+                    return False
+
+            return _Tx()
+
+        async def execute(self, query, *args):
+            self.queries.append((query, args))
+
+        async def fetchval(self, query, *args):
+            return "ADMIN"
+
+    class _Pool:
+        def __init__(self):
+            self.conn = _DB()
+
+        def acquire(self):
+            pool = self
+
+            class _Acq:
+                async def __aenter__(self):
+                    return pool.conn
+
+                async def __aexit__(self, *args):
+                    return False
+
+            return _Acq()
+
+    pool = _Pool()
+    request = SimpleNamespace(
+        app=SimpleNamespace(state=SimpleNamespace(db_pool=pool)),
+        state=SimpleNamespace(org={"id": "org-9"}, user={"id": "user-1"}),
+    )
+
+    async def run():
+        async with org_scope.independent_org_conn(request) as conn:
+            assert conn is pool.conn
+            assert ("org-9", "true") in [args for _query, args in pool.conn.queries]
 
     _run(run())
 
