@@ -14,6 +14,13 @@ def get_ntp_mapper(version: str):
         version_specific = NTPMapperV1_5()
 
     class MergedMapper:
+        # parse_config must live here. A method on NTPMapper is bound to
+        # `base`, so mapper.version would not fall through on the call.
+        def parse_config(self, full_config):
+            from ..config_parse import parse_config as parse_ntp_config
+
+            return parse_ntp_config(self, full_config)
+
         def __getattr__(self, name):
             if hasattr(version_specific, name):
                 return getattr(version_specific, name)

@@ -17,6 +17,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers.base import CommandMapperRegistry
 from vyos_builders.snmp import SNMPBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -198,29 +199,10 @@ async def get_snmp_config(http_request: Request, refresh: bool = False):
     await require_read_permission(http_request, FeatureGroup.SNMP)
     try:
         service = get_session_vyos_service(http_request)
+        version = service.get_version()
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        snmp_raw = full_config.get("service", {}).get("snmp", {})
-        if not snmp_raw or not isinstance(snmp_raw, dict):
-            return SNMPConfig()
-
-        return SNMPConfig(
-            contact=snmp_raw.get("contact"),
-            description=snmp_raw.get("description"),
-            location=snmp_raw.get("location"),
-            protocol=snmp_raw.get("protocol"),
-            trap_source=snmp_raw.get("trap-source"),
-            vrf=snmp_raw.get("vrf"),
-            smux_peers=_parse_multi_value(snmp_raw.get("smux-peer")),
-            oid_enable=_parse_multi_value(snmp_raw.get("oid-enable")),
-            listen_addresses=_parse_listen_addresses(snmp_raw),
-            communities=_parse_communities(snmp_raw),
-            mib_interfaces=_parse_multi_value(snmp_raw.get("mib", {}).get("interface")),
-            mib_interface_max=snmp_raw.get("mib", {}).get("interface-max"),
-            script_extensions=_parse_script_extensions(snmp_raw),
-            trap_targets=_parse_trap_targets(snmp_raw),
-            v3=_parse_v3(snmp_raw.get("v3", {})),
-        )
+        mapper = CommandMapperRegistry.get_mapper("snmp", version)
+        return SNMPConfig(**mapper.parse_config(full_config))
     except Exception:
         logger.exception("Unhandled error in get_snmp_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -271,163 +253,3 @@ async def snmp_batch_configure(http_request: Request, body: SNMPBatchRequest):
     except Exception:
         logger.exception("Unhandled error in snmp_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-# ============================================================================
-# Config parsers
-# ============================================================================
-
-
-def _parse_multi_value(raw) -> List[str]:
-    """Parse a VyOS multi-value node into a sorted list of strings."""
-    if raw is None:
-        return []
-    if isinstance(raw, list):
-        return sorted(str(v) for v in raw)
-    if isinstance(raw, dict):
-        return sorted(raw.keys())
-    return [str(raw)]
-
-
-def _parse_listen_addresses(snmp_raw: dict) -> List[SNMPListenAddress]:
-    listen_raw = snmp_raw.get("listen-address", {})
-    if not isinstance(listen_raw, dict):
-        return []
-    result = []
-    for address, cfg in listen_raw.items():
-        cfg = cfg or {}
-        result.append(SNMPListenAddress(address=address, port=cfg.get("port")))
-    result.sort(key=lambda a: a.address)
-    return result
-
-
-def _parse_communities(snmp_raw: dict) -> List[SNMPCommunity]:
-    comm_raw = snmp_raw.get("community", {})
-    if not isinstance(comm_raw, dict):
-        return []
-    result = []
-    for name, cfg in comm_raw.items():
-        cfg = cfg or {}
-        result.append(SNMPCommunity(
-            name=name,
-            authorization=cfg.get("authorization"),
-            clients=_parse_multi_value(cfg.get("client")),
-            networks=_parse_multi_value(cfg.get("network")),
-        ))
-    result.sort(key=lambda c: c.name)
-    return result
-
-
-def _parse_script_extensions(snmp_raw: dict) -> List[SNMPScriptExtension]:
-    ext_raw = snmp_raw.get("script-extensions", {}).get("extension-name", {})
-    if not isinstance(ext_raw, dict):
-        return []
-    result = []
-    for name, cfg in ext_raw.items():
-        cfg = cfg or {}
-        result.append(SNMPScriptExtension(name=name, script=cfg.get("script")))
-    result.sort(key=lambda e: e.name)
-    return result
-
-
-def _parse_trap_targets(snmp_raw: dict) -> List[SNMPTrapTarget]:
-    trap_raw = snmp_raw.get("trap-target", {})
-    if not isinstance(trap_raw, dict):
-        return []
-    result = []
-    for address, cfg in trap_raw.items():
-        cfg = cfg or {}
-        result.append(SNMPTrapTarget(
-            address=address,
-            community=cfg.get("community"),
-            port=cfg.get("port"),
-        ))
-    result.sort(key=lambda t: t.address)
-    return result
-
-
-def _parse_auth(cfg: dict) -> Optional[SNMPv3Auth]:
-    auth_raw = cfg.get("auth")
-    if not isinstance(auth_raw, dict):
-        return None
-    return SNMPv3Auth(
-        type=auth_raw.get("type"),
-        plaintext_password=auth_raw.get("plaintext-password"),
-        encrypted_password=auth_raw.get("encrypted-password"),
-    )
-
-
-def _parse_privacy(cfg: dict) -> Optional[SNMPv3Privacy]:
-    priv_raw = cfg.get("privacy")
-    if not isinstance(priv_raw, dict):
-        return None
-    return SNMPv3Privacy(
-        type=priv_raw.get("type"),
-        plaintext_password=priv_raw.get("plaintext-password"),
-        encrypted_password=priv_raw.get("encrypted-password"),
-    )
-
-
-def _parse_v3(v3_raw: dict) -> SNMPv3:
-    if not isinstance(v3_raw, dict) or not v3_raw:
-        return SNMPv3()
-
-    groups = []
-    for name, cfg in (v3_raw.get("group", {}) or {}).items():
-        cfg = cfg or {}
-        groups.append(SNMPv3Group(
-            name=name,
-            mode=cfg.get("mode"),
-            seclevel=cfg.get("seclevel"),
-            view=cfg.get("view"),
-        ))
-    groups.sort(key=lambda g: g.name)
-
-    users = []
-    for name, cfg in (v3_raw.get("user", {}) or {}).items():
-        cfg = cfg or {}
-        users.append(SNMPv3User(
-            name=name,
-            group=cfg.get("group"),
-            mode=cfg.get("mode"),
-            auth=_parse_auth(cfg),
-            privacy=_parse_privacy(cfg),
-        ))
-    users.sort(key=lambda u: u.name)
-
-    views = []
-    for name, cfg in (v3_raw.get("view", {}) or {}).items():
-        cfg = cfg or {}
-        oids = []
-        for oid, oid_cfg in (cfg.get("oid", {}) or {}).items():
-            oid_cfg = oid_cfg or {}
-            oids.append(SNMPv3ViewOid(
-                oid=oid,
-                mask=oid_cfg.get("mask"),
-                exclude=_parse_multi_value(oid_cfg.get("exclude")),
-            ))
-        oids.sort(key=lambda o: o.oid)
-        views.append(SNMPv3View(name=name, oids=oids))
-    views.sort(key=lambda v: v.name)
-
-    trap_targets = []
-    for address, cfg in (v3_raw.get("trap-target", {}) or {}).items():
-        cfg = cfg or {}
-        trap_targets.append(SNMPv3TrapTarget(
-            address=address,
-            user=cfg.get("user"),
-            type=cfg.get("type"),
-            protocol=cfg.get("protocol"),
-            port=cfg.get("port"),
-            auth=_parse_auth(cfg),
-            privacy=_parse_privacy(cfg),
-        ))
-    trap_targets.sort(key=lambda t: t.address)
-
-    return SNMPv3(
-        engineid=v3_raw.get("engineid"),
-        groups=groups,
-        users=users,
-        views=views,
-        trap_targets=trap_targets,
-    )

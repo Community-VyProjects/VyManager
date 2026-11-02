@@ -9,6 +9,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers.base import CommandMapperRegistry
 from vyos_builders import RipNgBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -130,135 +131,11 @@ async def get_ripng_config(http_request: Request, refresh: bool = False):
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        ripng_raw = full_config.get("protocols", {}).get("ripng", {})
-
-        if not ripng_raw:
-            return RipNgConfig()
-
-        return RipNgConfig(
-            default_information_originate="originate" in (ripng_raw.get("default-information") or {}),
-            default_metric=_safe_int(ripng_raw.get("default-metric")),
-            route_map=ripng_raw.get("route-map"),
-            aggregate_addresses=_to_list(ripng_raw.get("aggregate-address")),
-            networks=_to_list(ripng_raw.get("network")),
-            routes=_to_list(ripng_raw.get("route")),
-            passive_interfaces=_to_list(ripng_raw.get("passive-interface")),
-            distribute_list=_parse_distribute_list(ripng_raw.get("distribute-list", {})),
-            interfaces=_parse_interfaces(ripng_raw.get("interface", {})),
-            redistribute=_parse_redistribute(ripng_raw.get("redistribute", {})),
-            timers=_parse_timers(ripng_raw.get("timers", {})),
-        )
+        mapper = CommandMapperRegistry.get_mapper("ripng", service.get_version())
+        return RipNgConfig(**mapper.parse_config(full_config))
     except Exception:
         logger.exception("Unhandled error in get_ripng_config")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-# ============================================================================
-# Config Parsers
-# ============================================================================
-
-
-def _safe_int(value) -> Optional[int]:
-    if value is None:
-        return None
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return None
-
-
-def _to_list(value) -> List[str]:
-    if value is None:
-        return []
-    if isinstance(value, list):
-        return value
-    if isinstance(value, str):
-        return [value]
-    if isinstance(value, dict):
-        return list(value.keys())
-    return []
-
-
-def _parse_distribute_list(raw: dict) -> RipNgDistributeList:
-    if not raw:
-        return RipNgDistributeList()
-
-    acl_raw = raw.get("access-list", {}) or {}
-    pl_raw = raw.get("prefix-list", {}) or {}
-
-    global_filters = RipNgDistributeListGlobal(
-        access_list_in=acl_raw.get("in") if isinstance(acl_raw, dict) else None,
-        access_list_out=acl_raw.get("out") if isinstance(acl_raw, dict) else None,
-        prefix_list_in=pl_raw.get("in") if isinstance(pl_raw, dict) else None,
-        prefix_list_out=pl_raw.get("out") if isinstance(pl_raw, dict) else None,
-    )
-
-    iface_filters: List[RipNgDistributeListInterface] = []
-    for iface, iface_raw in (raw.get("interface", {}) or {}).items():
-        if iface_raw is None:
-            iface_raw = {}
-        iface_acl = iface_raw.get("access-list", {}) or {}
-        iface_pl = iface_raw.get("prefix-list", {}) or {}
-        iface_filters.append(RipNgDistributeListInterface(
-            interface=iface,
-            access_list_in=iface_acl.get("in") if isinstance(iface_acl, dict) else None,
-            access_list_out=iface_acl.get("out") if isinstance(iface_acl, dict) else None,
-            prefix_list_in=iface_pl.get("in") if isinstance(iface_pl, dict) else None,
-            prefix_list_out=iface_pl.get("out") if isinstance(iface_pl, dict) else None,
-        ))
-
-    return RipNgDistributeList(global_filters=global_filters, interface_filters=iface_filters)
-
-
-def _parse_interfaces(raw: dict) -> List[RipNgInterface]:
-    if not raw:
-        return []
-
-    interfaces = []
-    for iface_name, cfg in raw.items():
-        if cfg is None:
-            cfg = {}
-
-        split_horizon_raw = cfg.get("split-horizon", {}) or {}
-        split_horizon = None
-        if "poison-reverse" in split_horizon_raw:
-            split_horizon = "poison-reverse"
-        elif "disable" in split_horizon_raw:
-            split_horizon = "disable"
-
-        interfaces.append(RipNgInterface(
-            name=iface_name,
-            split_horizon=split_horizon,
-        ))
-
-    return interfaces
-
-
-def _parse_redistribute(raw: dict) -> List[RipNgRedistribute]:
-    if not raw:
-        return []
-
-    entries = []
-    for protocol, cfg in raw.items():
-        if cfg is None:
-            cfg = {}
-        entries.append(RipNgRedistribute(
-            protocol=protocol,
-            metric=_safe_int(cfg.get("metric")),
-            route_map=cfg.get("route-map"),
-        ))
-    return entries
-
-
-def _parse_timers(raw: dict) -> RipNgTimers:
-    if not raw:
-        return RipNgTimers()
-    return RipNgTimers(
-        update=_safe_int(raw.get("update")),
-        timeout=_safe_int(raw.get("timeout")),
-        garbage_collection=_safe_int(raw.get("garbage-collection")),
-    )
 
 
 # ============================================================================

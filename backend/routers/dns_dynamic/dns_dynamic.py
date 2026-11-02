@@ -14,6 +14,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers.base import CommandMapperRegistry
 from vyos_builders.dns_dynamic import DNSDynamicBatchBuilder
 from dns_dynamic_status import DynamicDnsStatusResponse, fetch_dynamic_dns_status
 from fastapi_permissions import require_read_permission, require_write_permission
@@ -116,16 +117,8 @@ async def get_dns_dynamic_config(http_request: Request, refresh: bool = False):
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        dyn = full_config.get("service", {}).get("dns", {}).get("dynamic", {})
-        if not dyn:
-            return DNSDynamicConfig()
-
-        return DNSDynamicConfig(
-            interval=_parse_int(dyn.get("interval")),
-            vrf=dyn.get("vrf"),
-            entries=_parse_name_entries(dyn.get("name", {})),
-        )
+        mapper = CommandMapperRegistry.get_mapper("dns_dynamic", service.get_version())
+        return DNSDynamicConfig(**mapper.parse_config(full_config))
     except Exception:
         logger.exception("Unhandled error in get_dns_dynamic_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -198,60 +191,3 @@ async def dns_dynamic_batch_configure(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-# ============================================================================
-# Config parsers
-# ============================================================================
-
-
-def _parse_int(value) -> Optional[int]:
-    if value is None:
-        return None
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return None
-
-
-def _parse_multi(value) -> List[str]:
-    if value is None:
-        return []
-    if isinstance(value, list):
-        return sorted(str(v) for v in value)
-    if isinstance(value, dict):
-        return sorted(value.keys())
-    return [str(value)]
-
-
-def _parse_name_entries(raw: dict) -> List[DynamicNameEntry]:
-    if not raw or not isinstance(raw, dict):
-        return []
-    result = []
-    for name, attrs in sorted(raw.items()):
-        if not isinstance(attrs, dict):
-            attrs = {}
-
-        addr_raw = attrs.get("address", {}) or {}
-        web_raw = addr_raw.get("web", {}) or {}
-        address = DynamicAddressConfig(
-            interface=addr_raw.get("interface"),
-            web_url=web_raw.get("url"),
-            web_skip=web_raw.get("skip"),
-        )
-
-        result.append(DynamicNameEntry(
-            name=name,
-            protocol=attrs.get("protocol"),
-            server=attrs.get("server"),
-            username=attrs.get("username"),
-            password=attrs.get("password"),
-            hostnames=_parse_multi(attrs.get("host-name")),
-            ip_version=attrs.get("ip-version"),
-            address=address,
-            description=attrs.get("description"),
-            ttl=_parse_int(attrs.get("ttl")),
-            key=attrs.get("key"),
-            expiry_time=_parse_int(attrs.get("expiry-time")),
-            wait_time=_parse_int(attrs.get("wait-time")),
-            zone=attrs.get("zone"),
-        ))
-    return result

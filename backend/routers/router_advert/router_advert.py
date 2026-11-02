@@ -46,6 +46,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers.base import CommandMapperRegistry
 from vyos_builders.router_advert import RouterAdvertBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -172,119 +173,13 @@ async def get_router_advert_config(http_request: Request, refresh: bool = False)
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        ra_config = full_config.get("service", {}).get("router-advert", {})
-        if not ra_config:
-            return RouterAdvertConfig()
-
-        return RouterAdvertConfig(
-            interfaces=_parse_interfaces(ra_config.get("interface", {})),
+        mapper = CommandMapperRegistry.get_mapper(
+            "router_advert", service.get_version()
         )
+        return RouterAdvertConfig(**mapper.parse_config(full_config))
     except Exception:
         logger.exception("Unhandled error in get_router_advert_config")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-# ============================================================================
-# Config parsers
-# ============================================================================
-
-
-def _to_list(val) -> List[str]:
-    if val is None:
-        return []
-    if isinstance(val, list):
-        return val
-    return [val]
-
-
-def _parse_prefixes(raw: dict) -> List[RAPrefix]:
-    if not raw:
-        return []
-    result = []
-    for prefix_str, cfg in raw.items():
-        if cfg is None:
-            cfg = {}
-        result.append(RAPrefix(
-            prefix=prefix_str,
-            base_interface=cfg.get("base-interface"),
-            decrement_lifetime="decrement-lifetime" in cfg,
-            deprecate_prefix="deprecate-prefix" in cfg,
-            no_autonomous_flag="no-autonomous-flag" in cfg,
-            no_on_link_flag="no-on-link-flag" in cfg,
-            preferred_lifetime=cfg.get("preferred-lifetime"),
-            valid_lifetime=cfg.get("valid-lifetime"),
-        ))
-    return result
-
-
-def _parse_nat64prefixes(raw: dict) -> List[NAT64Prefix]:
-    if not raw:
-        return []
-    result = []
-    for prefix_str, cfg in raw.items():
-        if cfg is None:
-            cfg = {}
-        result.append(NAT64Prefix(
-            prefix=prefix_str,
-            valid_lifetime=cfg.get("valid-lifetime"),
-        ))
-    return result
-
-
-def _parse_routes(raw: dict) -> List[RARoute]:
-    if not raw:
-        return []
-    result = []
-    for route_str, cfg in raw.items():
-        if cfg is None:
-            cfg = {}
-        result.append(RARoute(
-            route=route_str,
-            no_remove_route="no-remove-route" in cfg,
-            route_preference=cfg.get("route-preference"),
-            valid_lifetime=cfg.get("valid-lifetime"),
-        ))
-    return result
-
-
-def _parse_interfaces(raw: dict) -> List[RouterAdvertInterface]:
-    if not raw:
-        return []
-    result = []
-    for iface_name, cfg in raw.items():
-        if cfg is None:
-            cfg = {}
-
-        interval = cfg.get("interval") or {}
-        interval_max_raw = interval.get("max")
-        interval_min_raw = interval.get("min")
-
-        result.append(RouterAdvertInterface(
-            name=iface_name,
-            auto_ignore=_to_list(cfg.get("auto-ignore")),
-            captive_portal=cfg.get("captive-portal"),
-            default_lifetime=cfg.get("default-lifetime"),
-            default_preference=cfg.get("default-preference"),
-            dnssl=_to_list(cfg.get("dnssl")),
-            hop_limit=int(cfg["hop-limit"]) if cfg.get("hop-limit") is not None else None,
-            interval_max=int(interval_max_raw) if interval_max_raw is not None else None,
-            interval_min=int(interval_min_raw) if interval_min_raw is not None else None,
-            link_mtu=int(cfg["link-mtu"]) if cfg.get("link-mtu") is not None else None,
-            managed_flag="managed-flag" in cfg,
-            name_server=_to_list(cfg.get("name-server")),
-            name_server_lifetime=int(cfg["name-server-lifetime"]) if cfg.get("name-server-lifetime") is not None else None,
-            nat64_prefixes=_parse_nat64prefixes(cfg.get("nat64prefix", {})),
-            no_send_advert="no-send-advert" in cfg,
-            no_send_interval="no-send-interval" in cfg,
-            other_config_flag="other-config-flag" in cfg,
-            prefixes=_parse_prefixes(cfg.get("prefix", {})),
-            reachable_time=int(cfg["reachable-time"]) if cfg.get("reachable-time") is not None else None,
-            retrans_timer=int(cfg["retrans-timer"]) if cfg.get("retrans-timer") is not None else None,
-            routes=_parse_routes(cfg.get("route", {})),
-            source_address=_to_list(cfg.get("source-address")),
-        ))
-    return result
 
 
 # ============================================================================

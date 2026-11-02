@@ -16,6 +16,13 @@ def get_segment_routing_mapper(version: str):
         version_specific = SegmentRoutingMapperV1_5()
 
     class MergedMapper:
+        # parse_config must live here. A method on the base mapper is bound
+        # to `base`, so version branches would not see the merged mapper.
+        def parse_config(self, full_config):
+            from ..config_parse import parse_config as parse_segment_routing_config
+
+            return parse_segment_routing_config(self, full_config)
+
         def __getattr__(self, name):
             if hasattr(version_specific, name):
                 return getattr(version_specific, name)

@@ -27,6 +27,13 @@ def get_nhrp_mapper(version: str):
         version_specific = NhrpMapperV1_5()
 
     class MergedMapper:
+        # parse_config must live here. A method on NhrpMapper is bound to
+        # `base`, so 1.4 would still read 1.5 authentication and map keys.
+        def parse_config(self, full_config):
+            from ..config_parse import parse_config as parse_nhrp_config
+
+            return parse_nhrp_config(self, full_config)
+
         def __getattr__(self, name):
             if hasattr(version_specific, name):
                 return getattr(version_specific, name)

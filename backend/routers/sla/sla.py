@@ -18,6 +18,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers import CommandMapperRegistry
 from vyos_builders.sla import SLABatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -107,16 +108,10 @@ async def get_sla_config(http_request: Request, refresh: bool = False):
     await require_read_permission(http_request, FeatureGroup.SLA)
     try:
         service = get_session_vyos_service(http_request)
+        version = service.get_version()
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        sla_raw = full_config.get("service", {}).get("sla", {})
-        if not sla_raw:
-            return SLAConfig()
-
-        return SLAConfig(
-            owamp_server=_parse_owamp_server(sla_raw),
-            twamp_server=_parse_twamp_server(sla_raw),
-        )
+        mapper = CommandMapperRegistry.get_mapper("sla", version)
+        return SLAConfig(**mapper.parse_config(full_config))
     except Exception:
         logger.exception("Unhandled error in get_sla_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -167,43 +162,3 @@ async def sla_batch_configure(http_request: Request, body: SLABatchRequest):
     except Exception:
         logger.exception("Unhandled error in sla_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-# ============================================================================
-# Config parsers
-# ============================================================================
-
-
-def _parse_port(server_raw: dict) -> Optional[int]:
-    """Parse an optional port value from a server config dict."""
-    port_val = server_raw.get("port")
-    if port_val is not None:
-        try:
-            return int(port_val)
-        except (ValueError, TypeError):
-            pass
-    return None
-
-
-def _parse_owamp_server(sla_raw: dict) -> OWAMPServerConfig:
-    owamp_raw = sla_raw.get("owamp-server")
-    if owamp_raw is None:
-        return OWAMPServerConfig(enabled=False)
-    if not isinstance(owamp_raw, dict):
-        owamp_raw = {}
-    return OWAMPServerConfig(
-        enabled=True,
-        port=_parse_port(owamp_raw),
-    )
-
-
-def _parse_twamp_server(sla_raw: dict) -> TWAMPServerConfig:
-    twamp_raw = sla_raw.get("twamp-server")
-    if twamp_raw is None:
-        return TWAMPServerConfig(enabled=False)
-    if not isinstance(twamp_raw, dict):
-        twamp_raw = {}
-    return TWAMPServerConfig(
-        enabled=True,
-        port=_parse_port(twamp_raw),
-    )

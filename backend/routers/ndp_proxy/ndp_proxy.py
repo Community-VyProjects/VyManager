@@ -23,6 +23,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers.base import CommandMapperRegistry
 from vyos_builders.ndp_proxy import NdpProxyBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -126,68 +127,13 @@ async def get_ndp_proxy_config(http_request: Request, refresh: bool = False):
 
     try:
         service = get_session_vyos_service(http_request)
+        version = service.get_version()
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        ndp_config = full_config.get("service", {}).get("ndp-proxy", {})
-
-        if not ndp_config:
-            return NdpProxyConfig()
-
-        route_refresh_raw = ndp_config.get("route-refresh")
-        route_refresh = int(route_refresh_raw) if route_refresh_raw is not None else None
-
-        return NdpProxyConfig(
-            route_refresh=route_refresh,
-            interfaces=_parse_interfaces(ndp_config.get("interface", {})),
-        )
+        mapper = CommandMapperRegistry.get_mapper("ndp_proxy", version)
+        return NdpProxyConfig(**mapper.parse_config(full_config))
     except Exception:
         logger.exception("Unhandled error in get_ndp_proxy_config")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-# ============================================================================
-# Config Parsers
-# ============================================================================
-
-
-def _parse_prefixes(prefixes_raw: dict) -> List[NdpProxyPrefix]:
-    if not prefixes_raw:
-        return []
-
-    prefixes = []
-    for prefix_val, prefix_cfg in prefixes_raw.items():
-        if prefix_cfg is None:
-            prefix_cfg = {}
-        prefixes.append(NdpProxyPrefix(
-            prefix=prefix_val,
-            disabled="disable" in prefix_cfg,
-            mode=prefix_cfg.get("mode"),
-            interface=prefix_cfg.get("interface"),
-        ))
-    return prefixes
-
-
-def _parse_interfaces(interfaces_raw: dict) -> List[NdpProxyInterface]:
-    if not interfaces_raw:
-        return []
-
-    interfaces = []
-    for iface_name, iface_cfg in interfaces_raw.items():
-        if iface_cfg is None:
-            iface_cfg = {}
-
-        timeout_raw = iface_cfg.get("timeout")
-        ttl_raw = iface_cfg.get("ttl")
-
-        interfaces.append(NdpProxyInterface(
-            name=iface_name,
-            disabled="disable" in iface_cfg,
-            enable_router_bit="enable-router-bit" in iface_cfg,
-            timeout=int(timeout_raw) if timeout_raw is not None else None,
-            ttl=int(ttl_raw) if ttl_raw is not None else None,
-            prefixes=_parse_prefixes(iface_cfg.get("prefix", {})),
-        ))
-    return interfaces
 
 
 # ============================================================================

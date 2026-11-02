@@ -14,6 +14,13 @@ def get_container_mapper(version: str):
         version_specific = ContainerMapperV1_5()
 
     class MergedMapper:
+        # parse_config must live here. A method on ContainerMapper is bound
+        # to `base`.
+        def parse_config(self, full_config):
+            from ..config_parse import parse_config as parse_container_config
+
+            return parse_container_config(self, full_config)
+
         def __getattr__(self, name):
             if hasattr(version_specific, name):
                 return getattr(version_specific, name)

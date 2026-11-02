@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from routers.qos.qos import _parse_policy
+from vyos_mappers.qos.config_parse import parse_policy
 from vyos_builders.qos.qos_batch_builder import QoSBatchBuilder
 
 REPO = Path(__file__).resolve().parents[2]
@@ -56,18 +56,18 @@ def test_capability_gated_to_v1_5():
 
 
 def test_parse_cake_ack_filter_and_no_split_gso():
-    none = _parse_policy("cake", "CAKE1", {"bandwidth": "100mbit"})
-    assert none.ack_filter is None
-    assert none.no_split_gso is False
+    none = parse_policy("cake", "CAKE1", {"bandwidth": "100mbit"})
+    assert none["ack_filter"] is None
+    assert none["no_split_gso"] is False
 
-    filt = _parse_policy("cake", "CAKE1", {"ack-filter": {}})
-    assert filt.ack_filter == "filter"
+    filt = parse_policy("cake", "CAKE1", {"ack-filter": {}})
+    assert filt["ack_filter"] == "filter"
 
-    agg = _parse_policy("cake", "CAKE1", {"ack-filter": {"aggressive": {}}})
-    assert agg.ack_filter == "aggressive"
+    agg = parse_policy("cake", "CAKE1", {"ack-filter": {"aggressive": {}}})
+    assert agg["ack_filter"] == "aggressive"
 
-    gso = _parse_policy("cake", "CAKE1", {"no-split-gso": {}})
-    assert gso.no_split_gso is True
+    gso = parse_policy("cake", "CAKE1", {"no-split-gso": {}})
+    assert gso["no_split_gso"] is True
 
 
 def test_policy_modal_gates_cake_flags():

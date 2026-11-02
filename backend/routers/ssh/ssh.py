@@ -17,6 +17,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers import CommandMapperRegistry
 from vyos_builders.ssh import SSHBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -133,32 +134,10 @@ async def get_ssh_config(http_request: Request, refresh: bool = False):
     await require_read_permission(http_request, FeatureGroup.SSH)
     try:
         service = get_session_vyos_service(http_request)
+        version = service.get_version()
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        ssh_raw = full_config.get("service", {}).get("ssh", {})
-        if not ssh_raw or not isinstance(ssh_raw, dict):
-            return SSHConfig()
-
-        return SSHConfig(
-            ports=_parse_multi_value(ssh_raw.get("port")),
-            listen_addresses=_parse_multi_value(ssh_raw.get("listen-address")),
-            vrfs=_parse_multi_value(ssh_raw.get("vrf")),
-            disable_host_validation="disable-host-validation" in ssh_raw,
-            disable_password_authentication="disable-password-authentication" in ssh_raw,
-            loglevel=ssh_raw.get("loglevel"),
-            client_keepalive_interval=ssh_raw.get("client-keepalive-interval"),
-            # Node is "cipher" on 1.5 and "ciphers" on 1.4 — accept either.
-            ciphers=_parse_multi_value(ssh_raw.get("cipher", ssh_raw.get("ciphers"))),
-            macs=_parse_multi_value(ssh_raw.get("mac")),
-            key_exchanges=_parse_multi_value(ssh_raw.get("key-exchange")),
-            hostkey_algorithms=_parse_multi_value(ssh_raw.get("hostkey-algorithm")),
-            pubkey_accepted_algorithms=_parse_multi_value(ssh_raw.get("pubkey-accepted-algorithm")),
-            trusted_user_ca=ssh_raw.get("trusted-user-ca"),
-            access_control=_parse_access_control(ssh_raw),
-            dynamic_protection=_parse_dynamic_protection(ssh_raw),
-            fido=_parse_fido(ssh_raw),
-            rekey=_parse_rekey(ssh_raw),
-        )
+        mapper = CommandMapperRegistry.get_mapper("ssh", version)
+        return SSHConfig(**mapper.parse_config(full_config))
     except Exception:
         logger.exception("Unhandled error in get_ssh_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -209,65 +188,3 @@ async def ssh_batch_configure(http_request: Request, body: SSHBatchRequest):
     except Exception:
         logger.exception("Unhandled error in ssh_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-# ============================================================================
-# Config parsers
-# ============================================================================
-
-
-def _parse_multi_value(raw) -> List[str]:
-    """Parse a VyOS multi-value node into a sorted list of strings."""
-    if raw is None:
-        return []
-    if isinstance(raw, list):
-        return sorted(str(v) for v in raw)
-    if isinstance(raw, dict):
-        return sorted(raw.keys())
-    return [str(raw)]
-
-
-def _parse_access_control(ssh_raw: dict) -> SSHAccessControl:
-    ac = ssh_raw.get("access-control", {})
-    if not isinstance(ac, dict):
-        return SSHAccessControl()
-    allow = ac.get("allow", {}) or {}
-    deny = ac.get("deny", {}) or {}
-    return SSHAccessControl(
-        allow_users=_parse_multi_value(allow.get("user")),
-        allow_groups=_parse_multi_value(allow.get("group")),
-        deny_users=_parse_multi_value(deny.get("user")),
-        deny_groups=_parse_multi_value(deny.get("group")),
-    )
-
-
-def _parse_dynamic_protection(ssh_raw: dict) -> SSHDynamicProtection:
-    if "dynamic-protection" not in ssh_raw:
-        return SSHDynamicProtection()
-    dp = ssh_raw.get("dynamic-protection") or {}
-    if not isinstance(dp, dict):
-        dp = {}
-    return SSHDynamicProtection(
-        enabled=True,
-        allow_from=_parse_multi_value(dp.get("allow-from")),
-        block_time=dp.get("block-time"),
-        detect_time=dp.get("detect-time"),
-        threshold=dp.get("threshold"),
-    )
-
-
-def _parse_fido(ssh_raw: dict) -> SSHFido:
-    fido = ssh_raw.get("fido", {})
-    if not isinstance(fido, dict):
-        return SSHFido()
-    return SSHFido(
-        pin_required="pin-required" in fido,
-        touch_required="touch-required" in fido,
-    )
-
-
-def _parse_rekey(ssh_raw: dict) -> SSHRekey:
-    rekey = ssh_raw.get("rekey", {})
-    if not isinstance(rekey, dict):
-        return SSHRekey()
-    return SSHRekey(data=rekey.get("data"), time=rekey.get("time"))

@@ -8,11 +8,11 @@ from pathlib import Path
 
 import pytest
 
-from routers.ospf.ospf import parse_graceful_restart as parse_ospf_gr
-from routers.ospfv3.ospfv3 import parse_graceful_restart as parse_ospfv3_gr
 from tests.en_message import en_message
 from vyos_builders.ospf.ospf_batch_builder import OspfBatchBuilder
 from vyos_builders.ospfv3.ospfv3_batch_builder import Ospfv3BatchBuilder
+from vyos_mappers.ospf.ospf_versions import get_ospf_mapper
+from vyos_mappers.ospfv3.ospfv3_versions import get_ospfv3_mapper
 
 REPO = Path(__file__).resolve().parents[2]
 OSPF_PAGE = REPO / "frontend/src/components/ospf/OspfContent.tsx"
@@ -64,24 +64,42 @@ def test_helper_enable_router_id_paths(builder_cls, method, args, op, expected_p
 
 
 def test_parse_ospf_helper_router_ids_list():
-    parsed = parse_ospf_gr(
-        {"helper": {"enable": {"router-id": ["192.0.2.1", "192.0.2.2"]}}}
-    )
-    assert parsed.helper.enable is True
-    assert parsed.helper.router_ids == ["192.0.2.1", "192.0.2.2"]
+    parsed = get_ospf_mapper("1.5").parse_config({
+        "protocols": {
+            "ospf": {
+                "graceful-restart": {
+                    "helper": {"enable": {"router-id": ["192.0.2.1", "192.0.2.2"]}}
+                }
+            }
+        }
+    })
+    assert parsed["graceful_restart"]["helper"]["enable"] is True
+    assert parsed["graceful_restart"]["helper"]["router_ids"] == ["192.0.2.1", "192.0.2.2"]
 
 
 def test_parse_ospf_helper_router_ids_dict():
-    parsed = parse_ospf_gr({"helper": {"enable": {"router-id": {"192.0.2.1": {}}}}})
-    assert parsed.helper.router_ids == ["192.0.2.1"]
+    parsed = get_ospf_mapper("1.5").parse_config({
+        "protocols": {
+            "ospf": {
+                "graceful-restart": {
+                    "helper": {"enable": {"router-id": {"192.0.2.1": {}}}}
+                }
+            }
+        }
+    })
+    assert parsed["graceful_restart"]["helper"]["router_ids"] == ["192.0.2.1"]
 
 
 def test_parse_ospfv3_helper_router_ids_list():
-    parsed = parse_ospfv3_gr(
-        {"helper": {"enable": {"router-id": ["192.0.2.1"]}}}
-    )
-    assert parsed.helper.enable is True
-    assert parsed.helper.router_ids == ["192.0.2.1"]
+    parsed = get_ospfv3_mapper("1.5").parse_config({
+        "protocols": {
+            "ospfv3": {
+                "graceful-restart": {"helper": {"enable": {"router-id": ["192.0.2.1"]}}}
+            }
+        }
+    })
+    assert parsed["graceful_restart"]["helper"]["enable"] is True
+    assert parsed["graceful_restart"]["helper"]["router_ids"] == ["192.0.2.1"]
 
 
 def test_pages_expose_helper_router_id():

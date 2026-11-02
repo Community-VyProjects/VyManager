@@ -20,6 +20,13 @@ def get_ospfv3_mapper(version: str):
         version_specific = Ospfv3MapperV1_5()  # Default to latest
 
     class MergedMapper:
+        # parse_config must live here. A method on Ospfv3Mapper is bound to
+        # `base`, so a version override would not see this instance.
+        def parse_config(self, full_config):
+            from ..config_parse import parse_config as parse_ospfv3_config
+
+            return parse_ospfv3_config(self, full_config)
+
         def __getattr__(self, name):
             if hasattr(version_specific, name):
                 return getattr(version_specific, name)

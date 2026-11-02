@@ -10,6 +10,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers.base import CommandMapperRegistry
 from vyos_builders import SegmentRoutingBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -104,72 +105,11 @@ async def get_segment_routing_config(http_request: Request, refresh: bool = Fals
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        sr_raw = full_config.get("protocols", {}).get("segment-routing", {})
-
-        if not sr_raw:
-            return SegmentRoutingConfig()
-
-        return SegmentRoutingConfig(
-            locators=_parse_locators(sr_raw.get("srv6", {}).get("locator", {})),
-            interfaces=_parse_interfaces(sr_raw.get("interface", {})),
-        )
+        mapper = CommandMapperRegistry.get_mapper("segment_routing", service.get_version())
+        return SegmentRoutingConfig(**mapper.parse_config(full_config))
     except Exception:
         logger.exception("Unhandled error in get_segment_routing_config")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-# ============================================================================
-# Config Parsers
-# ============================================================================
-
-
-def _safe_int(value) -> Optional[int]:
-    if value is None:
-        return None
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return None
-
-
-def _parse_locators(raw: dict) -> List[Srv6Locator]:
-    if not raw:
-        return []
-
-    locators = []
-    for name, cfg in raw.items():
-        if cfg is None:
-            cfg = {}
-
-        locators.append(Srv6Locator(
-            name=name,
-            prefix=cfg.get("prefix"),
-            block_len=_safe_int(cfg.get("block-len")),
-            node_len=_safe_int(cfg.get("node-len")),
-            func_bits=_safe_int(cfg.get("func-bits")),
-            behavior_usid="behavior-usid" in cfg,
-        ))
-
-    return locators
-
-
-def _parse_interfaces(raw: dict) -> List[SrInterface]:
-    if not raw:
-        return []
-
-    interfaces = []
-    for name, cfg in raw.items():
-        if cfg is None:
-            cfg = {}
-
-        srv6 = cfg.get("srv6", {}) or {}
-        interfaces.append(SrInterface(
-            name=name,
-            hmac=srv6.get("hmac"),
-        ))
-
-    return interfaces
 
 
 # ============================================================================

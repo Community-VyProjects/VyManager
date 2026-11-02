@@ -14,6 +14,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers.base import CommandMapperRegistry
 from vyos_builders.broadcast_relay import BroadcastRelayBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -101,28 +102,10 @@ async def get_broadcast_relay_config(http_request: Request, refresh: bool = Fals
     await require_read_permission(http_request, FeatureGroup.BROADCAST_RELAY)
     try:
         service = get_session_vyos_service(http_request)
+        version = service.get_version()
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        br_raw = full_config.get("service", {}).get("broadcast-relay", {})
-        if not br_raw:
-            return BroadcastRelayConfig()
-
-        globally_disabled = "disable" in br_raw
-
-        instances_raw = br_raw.get("id", {})
-        instances = []
-        if instances_raw and isinstance(instances_raw, dict):
-            for relay_id, inst_cfg in instances_raw.items():
-                if inst_cfg is None:
-                    inst_cfg = {}
-                instances.append(_parse_instance(relay_id, inst_cfg))
-
-        instances.sort(key=lambda i: int(i.id))
-
-        return BroadcastRelayConfig(
-            globally_disabled=globally_disabled,
-            instances=instances,
-        )
+        mapper = CommandMapperRegistry.get_mapper("broadcast_relay", version)
+        return BroadcastRelayConfig(**mapper.parse_config(full_config))
     except Exception:
         logger.exception("Unhandled error in get_broadcast_relay_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -176,37 +159,3 @@ async def broadcast_relay_batch_configure(
         logger.exception("Unhandled error in broadcast_relay_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
-# ============================================================================
-# Config Parsers
-# ============================================================================
-
-
-def _parse_instance(relay_id: str, cfg: dict) -> BroadcastRelayInstance:
-    """Parse a single broadcast relay instance from raw VyOS config."""
-    interfaces_raw = cfg.get("interface")
-    if interfaces_raw is None:
-        interfaces = []
-    elif isinstance(interfaces_raw, list):
-        interfaces = interfaces_raw
-    elif isinstance(interfaces_raw, dict):
-        interfaces = list(interfaces_raw.keys())
-    else:
-        interfaces = [str(interfaces_raw)]
-
-    port_raw = cfg.get("port")
-    port = None
-    if port_raw is not None:
-        try:
-            port = int(port_raw)
-        except (ValueError, TypeError):
-            logger.debug("Instance %s has non-integer port value %r; leaving port unset", relay_id, port_raw)
-
-    return BroadcastRelayInstance(
-        id=relay_id,
-        address=cfg.get("address"),
-        description=cfg.get("description"),
-        disabled="disable" in cfg,
-        interfaces=sorted(interfaces),
-        port=port,
-    )
