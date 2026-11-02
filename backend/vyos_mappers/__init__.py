@@ -68,10 +68,9 @@ from .ospf import OspfMapper
 from .ospf.ospf_versions import get_ospf_mapper
 from .ospfv3 import Ospfv3Mapper
 from .ospfv3.ospfv3_versions import get_ospfv3_mapper
-from .vrf import VrfMapper, VrfStaticMapper, VrfRpkiMapper, VrfFailoverMapper
+from .vrf import VrfMapper, VrfRpkiMapper
 from .vrf import VrfOspfMapper, VrfOspfv3Mapper, VrfIsisMapper, VrfBgpMapper
-from .vrf import VrfDhcpMapper, VrfDhcpv6Mapper
-from .vrf.vrf_versions import get_vrf_mapper, get_vrf_static_mapper
+from .vrf.vrf_versions import get_vrf_mapper
 from .system.performance_versions import get_system_performance_mapper
 from .system.system_mapper import SystemMapper
 from .system.system_versions import get_system_mapper
@@ -251,17 +250,12 @@ CommandMapperRegistry.register_feature("ospf", get_ospf_mapper)
 CommandMapperRegistry.register_feature("ospfv3", get_ospfv3_mapper)
 # VRF uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("vrf", get_vrf_mapper)
-# VRF Static Routes uses factory for version-specific BFD paths
-CommandMapperRegistry.register_feature("vrf_static", get_vrf_static_mapper)
 # VRF sub-mappers. OSPF and BGP take version so redistribute nhrp can raise on 1.4.
 CommandMapperRegistry.register_feature("vrf_rpki", lambda v: VrfRpkiMapper())
-CommandMapperRegistry.register_feature("vrf_failover", lambda v: VrfFailoverMapper())
 CommandMapperRegistry.register_feature("vrf_ospf", lambda v: VrfOspfMapper(v))
 CommandMapperRegistry.register_feature("vrf_ospfv3", lambda v: VrfOspfv3Mapper())
 CommandMapperRegistry.register_feature("vrf_isis", lambda v: VrfIsisMapper(v))
 CommandMapperRegistry.register_feature("vrf_bgp", lambda v: VrfBgpMapper(v))
-CommandMapperRegistry.register_feature("vrf_dhcp", lambda v: VrfDhcpMapper())
-CommandMapperRegistry.register_feature("vrf_dhcpv6", lambda v: VrfDhcpv6Mapper())
 CommandMapperRegistry.register_feature("system_performance", get_system_performance_mapper)
 # System general mapper (hostname, login, syslog, conntrack, etc.)
 CommandMapperRegistry.register_feature("system", get_system_mapper)
@@ -386,15 +380,11 @@ __all__ = [
     "OspfMapper",
     "Ospfv3Mapper",
     "VrfMapper",
-    "VrfStaticMapper",
     "VrfRpkiMapper",
-    "VrfFailoverMapper",
     "VrfOspfMapper",
     "VrfOspfv3Mapper",
     "VrfIsisMapper",
     "VrfBgpMapper",
-    "VrfDhcpMapper",
-    "VrfDhcpv6Mapper",
     "HighAvailabilityMapper",
     "IsisMapper",
     "OpenfabricMapper",

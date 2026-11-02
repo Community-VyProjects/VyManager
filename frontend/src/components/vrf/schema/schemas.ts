@@ -215,7 +215,6 @@ export const DHCP_SCHEMA: SectionSpec[] = [
   {
     title: "Dynamic DNS update",
     fields: [
-      { op: "vrf_dhcp_dynamic_dns_update_enable", label: "Enable", type: "toggle", path: ["dynamic-dns-update", "enable"] },
       ...[
         "send-updates", "conflict-resolution", "ttl-percent", "update-on-renew",
         "generated-prefix", "qualifying-suffix", "replace-client-name",

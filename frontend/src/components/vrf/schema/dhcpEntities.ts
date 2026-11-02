@@ -76,7 +76,6 @@ const SUBNET_GROUP: EntityGroupSpec = {
       fields: [
         { op: "vrf_dhcp_subnet_description", label: "Description", type: "text", path: ["description"] },
         { op: "vrf_dhcp_subnet_disable", label: "Disable", type: "toggle", path: ["disable"] },
-        { op: "vrf_dhcp_subnet_default_router", label: "Default router", type: "text", path: ["default-router"] },
         { op: "vrf_dhcp_subnet_id", label: "Subnet ID", type: "number", path: ["subnet-id"] },
         { op: "vrf_dhcp_subnet_client_class", label: "Client class", type: "text", path: ["client-class"] },
         { op: "vrf_dhcp_subnet_ignore_client_id", label: "Ignore client ID", type: "toggle", path: ["ignore-client-id"] },
@@ -87,9 +86,7 @@ const SUBNET_GROUP: EntityGroupSpec = {
     {
       title: "Lease",
       fields: [
-        { op: "vrf_dhcp_subnet_lease_default", label: "Default", type: "number", path: ["lease", "default"] },
-        { op: "vrf_dhcp_subnet_lease_max", label: "Maximum", type: "number", path: ["lease", "max"] },
-        { op: "vrf_dhcp_subnet_lease_min", label: "Minimum", type: "number", path: ["lease", "min"] },
+        { op: "vrf_dhcp_subnet_lease_default", label: "Lease", type: "number", path: ["lease"] },
       ],
     },
     { title: "Options", fields: optionFields("vrf_dhcp_subnet_option") },

@@ -4,27 +4,19 @@ VRF Batch Builder
 Provides all batch operations for VRF (Virtual Routing and Forwarding) configuration.
 Handles version-specific differences through the mapper layer.
 
-Inherits from service mixins and prefixes global protocol builders for
-OSPF, OSPFv3, ISIS, and BGP (vrf name <vrf> + the global protocol tree).
+Prefixes global feature builders for OSPF, OSPFv3, ISIS, BGP, static,
+failover, DHCP, and DHCPv6 (vrf name <vrf> + the global feature tree).
 """
 
 from typing import Dict, Any
 from vyos_mappers import CommandMapperRegistry
-from .vrf_static_mixin import VrfStaticMixin
 from .vrf_rpki_mixin import VrfRpkiMixin
-from .vrf_failover_mixin import VrfFailoverMixin
-from .vrf_dhcp_mixin import VrfDhcpMixin
-from .vrf_dhcpv6_mixin import VrfDhcpv6Mixin
 from .vrf_protocol import parse_vrf_protocol_op, run_vrf_protocol_op, vrf_protocol_op_exists
 from vyos_builders.base import BatchBuilder
 
 
 class VrfBatchBuilder(
-    VrfStaticMixin,
     VrfRpkiMixin,
-    VrfFailoverMixin,
-    VrfDhcpMixin,
-    VrfDhcpv6Mixin,
     BatchBuilder,
 ):
     """Complete batch builder for VRF operations."""
@@ -35,15 +27,11 @@ class VrfBatchBuilder(
         self.mappers = CommandMapperRegistry.get_mappers(
             (
                 "vrf",
-                "vrf_static",
                 "vrf_rpki",
-                "vrf_failover",
                 "vrf_ospf",
                 "vrf_ospfv3",
                 "vrf_isis",
                 "vrf_bgp",
-                "vrf_dhcp",
-                "vrf_dhcpv6",
             ),
             version,
         )
