@@ -106,3 +106,21 @@ export function administrationTabFromSearch(
   const value = get("section") ?? get("tab");
   return value ? ADMINISTRATION_TAB_FROM_NAV[value] ?? null : null;
 }
+
+/** Opens the appliance instance editor. `ssh` is the SSH key setup tab. */
+export const INSTANCE_EDITOR_QUERY = "edit";
+
+export const INSTANCE_EDITOR_TABS = ["basic", "connection", "ssh"] as const;
+
+export type InstanceEditorTab = (typeof INSTANCE_EDITOR_TABS)[number];
+
+export function isInstanceEditorTab(value: string): value is InstanceEditorTab {
+  return (INSTANCE_EDITOR_TABS as readonly string[]).includes(value);
+}
+
+export function instanceEditorTabFromSearch(
+  get: (key: string) => string | null,
+): InstanceEditorTab | null {
+  const value = get(INSTANCE_EDITOR_QUERY);
+  return value && isInstanceEditorTab(value) ? value : null;
+}

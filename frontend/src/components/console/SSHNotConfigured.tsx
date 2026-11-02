@@ -1,14 +1,22 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useSessionStore } from "@/store/session-store";
+import { sshSetupLink } from "@/lib/appliance";
 
 export function SSHNotConfigured() {
   const t = useTranslations("console");
   const appliance = useSessionStore((s) => s.appliance);
+  const setup = sshSetupLink(appliance);
+  const link = (chunks: ReactNode) => (
+    <Link href={setup.href} className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
+      {chunks}
+    </Link>
+  );
 
   return (
     <Card>
@@ -17,19 +25,10 @@ export function SSHNotConfigured() {
         <div className="space-y-1">
           <p className="text-sm font-medium">{t("sshNotConfigured.title")}</p>
           <p className="text-sm text-muted-foreground">
-            {t("sshNotConfigured.description")}
-            {!appliance && (
-              <>
-                {" "}
-                {t.rich("sshNotConfigured.openSiteManager", {
-                  link: (chunks) => (
-                    <Link href="/sites" className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
-                      {chunks}
-                    </Link>
-                  ),
-                })}
-              </>
-            )}
+            {t("sshNotConfigured.description")}{" "}
+            {setup.messageKey === "openSshSetup"
+              ? t.rich("sshNotConfigured.openSshSetup", { link })
+              : t.rich("sshNotConfigured.openSiteManager", { link })}
           </p>
         </div>
       </CardContent>

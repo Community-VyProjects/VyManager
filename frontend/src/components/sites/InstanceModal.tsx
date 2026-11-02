@@ -28,6 +28,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SSHKeySetup } from "@/components/monitoring/SSHKeySetup";
 import { ApiError } from "@/lib/types/api";
 import { modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
+import { type InstanceEditorTab } from "@/lib/query-tabs";
 import {
   emptyInstanceDraft,
   instanceDraftFrom,
@@ -45,6 +46,7 @@ interface InstanceModalProps {
   existing?: Instance | null;
   site?: Site | null;
   sites?: Site[];
+  initialTab?: InstanceEditorTab;
 }
 
 export function InstanceModal({
@@ -54,6 +56,7 @@ export function InstanceModal({
   existing,
   site,
   sites = [],
+  initialTab = "basic",
 }: InstanceModalProps) {
   const t = useTranslations("sites");
   const tc = useTranslations("common");
@@ -136,7 +139,7 @@ export function InstanceModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
-          <Tabs defaultValue="basic" className="w-full">
+          <Tabs key={`${open}-${initialTab}`} defaultValue={initialTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="basic">{t("instanceModal.tabBasic")}</TabsTrigger>
               <TabsTrigger value="connection">{t("instanceModal.tabConnection")}</TabsTrigger>

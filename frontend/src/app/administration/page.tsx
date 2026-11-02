@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -10,7 +10,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Pencil, Server, Users, KeyRound, Key, Download } from "lucide-react";
-import { administrationTabFromSearch, type AdministrationTab } from "@/lib/query-tabs";
+import {
+  administrationTabFromSearch,
+  instanceEditorTabFromSearch,
+  INSTANCE_EDITOR_QUERY,
+  type AdministrationTab,
+  type InstanceEditorTab,
+} from "@/lib/query-tabs";
 import { hideSiteInventory } from "@/lib/appliance";
 import { useSessionStore } from "@/store/session-store";
 import { sessionService, type Instance, type Site } from "@/lib/api/session";
@@ -34,7 +40,10 @@ function AdministrationPageInner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [editorInitialTab, setEditorInitialTab] = useState<InstanceEditorTab>("basic");
   const [backupOpen, setBackupOpen] = useState(false);
+  const honoredEdit = useRef<string | null>(null);
+  const editorTab = instanceEditorTabFromSearch((key) => searchParams.get(key));
 
   useEffect(() => {
     void loadSession().finally(() => setModeReady(true));
@@ -72,6 +81,17 @@ function AdministrationPageInner() {
     void loadInstance();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load once the mode is known; a language switch re-renders via router.refresh()
   }, [modeReady, appliance]);
+
+  useEffect(() => {
+    if (!editorTab) {
+      honoredEdit.current = null;
+      return;
+    }
+    if (!instance || honoredEdit.current === editorTab) return;
+    honoredEdit.current = editorTab;
+    setEditorInitialTab(editorTab);
+    setEditOpen(true);
+  }, [editorTab, instance]);
 
   const setTab = (value: string) => {
     router.replace(`/administration?section=${value}`);
@@ -142,7 +162,13 @@ function AdministrationPageInner() {
                       timeout: String(instance.timeout),
                     })}
                   </p>
-                  <Button className="gap-2" onClick={() => setEditOpen(true)}>
+                  <Button
+                    className="gap-2"
+                    onClick={() => {
+                      setEditorInitialTab("basic");
+                      setEditOpen(true);
+                    }}
+                  >
                     <Pencil className="h-4 w-4" />
                     {t("page.editInstance")}
                   </Button>
@@ -180,7 +206,15 @@ function AdministrationPageInner() {
 
         <InstanceModal
           open={editOpen}
-          onOpenChange={setEditOpen}
+          initialTab={editorInitialTab}
+          onOpenChange={(open) => {
+            setEditOpen(open);
+            if (open || !searchParams.get(INSTANCE_EDITOR_QUERY)) return;
+            const next = new URLSearchParams(searchParams.toString());
+            next.delete(INSTANCE_EDITOR_QUERY);
+            const query = next.toString();
+            router.replace(query ? `/administration?${query}` : "/administration");
+          }}
           onSuccess={() => {
             void loadInstance();
           }}

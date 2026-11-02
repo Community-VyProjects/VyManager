@@ -10,7 +10,9 @@ import {
   isProtectedStackVolumePath,
   postLoginPath,
   shouldRedirectToSites,
+  sshSetupLink,
 } from "./appliance";
+import { instanceEditorTabFromSearch } from "./query-tabs";
 
 describe("isApplianceMode", () => {
   it("is true only when appliance is true", () => {
@@ -48,6 +50,27 @@ describe("shouldRedirectToSites", () => {
     assert.equal(shouldRedirectToSites(true, true), false);
     assert.equal(shouldRedirectToSites(false, false), true);
     assert.equal(shouldRedirectToSites(false, true), false);
+  });
+});
+
+describe("sshSetupLink", () => {
+  it("stays on Site Manager outside appliance mode", () => {
+    assert.deepEqual(sshSetupLink(false), {
+      href: "/sites",
+      messageKey: "openSiteManager",
+    });
+  });
+
+  it("opens the instance editor SSH tab in appliance mode", () => {
+    const link = sshSetupLink(true);
+    const url = new URL(link.href, "https://router.local");
+    assert.equal(url.pathname, "/administration");
+    assert.equal(url.searchParams.get("section"), "instance");
+    assert.equal(
+      instanceEditorTabFromSearch((key) => url.searchParams.get(key)),
+      "ssh",
+    );
+    assert.equal(link.messageKey, "openSshSetup");
   });
 });
 

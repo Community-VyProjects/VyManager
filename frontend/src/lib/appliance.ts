@@ -1,4 +1,25 @@
+import { INSTANCE_EDITOR_QUERY } from "./query-tabs";
+
 /** Appliance (on-box) chrome. Backend VYMANAGER_MODE is the source of truth. */
+
+export type SshSetupLink = {
+  href: string;
+  messageKey: "openSiteManager" | "openSshSetup";
+};
+
+/**
+ * Where the operator generates the instance SSH key.
+ * Appliance mode has no Site Manager; the key lives on the instance editor SSH tab.
+ */
+export function sshSetupLink(appliance: boolean): SshSetupLink {
+  if (appliance) {
+    return {
+      href: `/administration?section=instance&${INSTANCE_EDITOR_QUERY}=ssh`,
+      messageKey: "openSshSetup",
+    };
+  }
+  return { href: "/sites", messageKey: "openSiteManager" };
+}
 
 export function isApplianceMode(status: { appliance?: boolean } | null | undefined): boolean {
   return status?.appliance === true;

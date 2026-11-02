@@ -12,7 +12,8 @@
   "disconnect": "Disconnect",
   "sshNotConfigured": {
     "title": "SSH not configured",
-    "description": "An SSH key must be generated and added to the VyOS device before using the console.",
-    "openSiteManager": "<link>Open Site Manager</link> to set it up."
+    "description": "An SSH key must be generated and added to the VyOS device before this page can connect.",
+    "openSiteManager": "<link>Open Site Manager</link> to set it up.",
+    "openSshSetup": "<link>Open SSH setup</link> to set it up."
   }
 }

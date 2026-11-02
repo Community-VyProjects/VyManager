@@ -5,7 +5,6 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from "react";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -37,8 +36,8 @@ import { TrafficTable } from "@/components/monitoring/TrafficTable";
 import { LogTable } from "@/components/monitoring/LogTable";
 import { ConntrackTable } from "@/components/monitoring/ConntrackTable";
 import { FilterBuilderModal } from "@/components/monitoring/FilterBuilderModal";
+import { SSHNotConfigured } from "@/components/console/SSHNotConfigured";
 import { cn } from "@/lib/utils";
-import { useSessionStore } from "@/store/session-store";
 
 // Commands that use the parsed table views
 const TABLE_COMMANDS = {
@@ -62,7 +61,6 @@ function getTableView(command: string): TableView | null {
 function MonitoringPageInner() {
   const t = useTranslations("monitoring");
   const searchParams = useSearchParams();
-  const appliance = useSessionStore((s) => s.appliance);
   const [session, setSession] = useState<ActiveSession | null>(null);
   const [sshStatus, setSSHStatus] = useState<MonitoringStatus | null>(null);
   const [commands, setCommands] = useState<MonitoringCommand[]>([]);
@@ -236,31 +234,7 @@ function MonitoringPageInner() {
             </CardContent>
           </Card>
         ) : !sshStatus?.configured ? (
-          <Card>
-            <CardContent className="py-12 text-center space-y-2">
-              <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto" />
-              <p className="text-sm font-medium">{t("page.sshNotConfigured")}</p>
-              <p className="text-sm text-muted-foreground">
-                {t.rich("page.sshNotConfiguredHelp", {
-                  name: session.instance_name,
-                  strong: (chunks) => <span className="font-medium">{chunks}</span>,
-                })}
-              </p>
-              <p className="text-sm text-muted-foreground pt-1">
-                {!appliance && (
-                  <>
-                    {t.rich("page.openSiteManager", {
-                      link: (chunks) => (
-                        <Link href="/sites" className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
-                          {chunks}
-                        </Link>
-                      ),
-                    })}
-                  </>
-                )}
-              </p>
-            </CardContent>
-          </Card>
+          <SSHNotConfigured />
         ) : (
           <>
             {/* Command Controls */}
