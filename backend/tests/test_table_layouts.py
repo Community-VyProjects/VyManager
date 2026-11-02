@@ -236,6 +236,28 @@ def test_malformed_stored_key_can_be_replaced_and_deleted():
     assert any("layouts - $2" in sql for sql in conn.sql)
 
 
+def test_backup_keeps_host_key_pins_with_instances():
+    from routers.session.session import BACKUP_EXCLUDED_TABLES, BACKUP_TABLES
+
+    assert "ssh_host_keys" in BACKUP_TABLES
+    assert "ssh_host_keys" not in BACKUP_EXCLUDED_TABLES
+    assert BACKUP_TABLES.index("ssh_host_keys") > BACKUP_TABLES.index("instances")
+
+
+def test_host_key_merge_conflicts_on_the_composite_key():
+    from routers.session.session import _build_insert
+
+    sql = _build_insert(
+        "ssh_host_keys",
+        ["instanceId", "host", "port", "hostKey"],
+        {"instanceId": "text", "host": "text", "port": "int4", "hostKey": "text"},
+        merge=True,
+        conflict=["instanceId", "host", "port"],
+    )
+    assert 'ON CONFLICT ("instanceId", "host", "port")' in sql
+    assert "ON CONFLICT (id)" not in sql
+
+
 def test_backup_lists_layouts_after_users():
     from routers.session.session import BACKUP_TABLES
 

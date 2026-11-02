@@ -191,7 +191,10 @@ async def connect(
         raise ValueError("SSH port must be an integer")
 
     # A caller-supplied known_hosts=None would disable verification.
+    # A narrowed server_host_key_algs list makes OpenSSH drop the
+    # connection when the key type changed, which hides the refusal.
     kwargs.pop("known_hosts", None)
+    kwargs.pop("server_host_key_algs", None)
     endpoint = f"{instance_id}:{host}:{port}"
 
     row = await _read_pin(open_conn, instance_id, host, port)
@@ -202,6 +205,7 @@ async def connect(
                 host,
                 port=port,
                 known_hosts=pinned,
+                server_host_key_algs="default",
                 **kwargs,
             )
         except (asyncssh.HostKeyNotVerifiable, asyncssh.KeyExchangeFailed) as exc:

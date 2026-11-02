@@ -1451,6 +1451,7 @@ BACKUP_TABLES: List[str] = [
     "users",
     "sites",
     "instances",
+    "ssh_host_keys",
     "firewall_separators",
     "accounts",
     "oauth_providers",
@@ -1479,6 +1480,11 @@ BACKUP_NATURAL_KEYS: Dict[str, List[str]] = {
     "sites": ["name"],
     "instances": ["siteId", "name"],
     "oauth_providers": ["providerId"],
+}
+
+# Primary key for merge upserts when the table has no single id column.
+BACKUP_CONFLICT_KEYS: Dict[str, List[str]] = {
+    "ssh_host_keys": ["instanceId", "host", "port"],
 }
 
 BACKUP_FORMAT_VERSION = 1
@@ -1558,7 +1564,13 @@ def _bind_value(value: Any, udt: str) -> Any:
     return str(value)
 
 
-def _build_insert(table: str, columns: List[str], col_types: Dict[str, str], merge: bool):
+def _build_insert(
+    table: str,
+    columns: List[str],
+    col_types: Dict[str, str],
+    merge: bool,
+    conflict: Optional[List[str]] = None,
+):
     """Build an INSERT statement that binds all values as text and casts each
     column to its real type. In merge mode, conflicts on the primary key update
     the row; RETURNING reports whether the row was inserted (xmax = 0) or updated.
@@ -1567,11 +1579,15 @@ def _build_insert(table: str, columns: List[str], col_types: Dict[str, str], mer
     placeholders = [f'${i + 1}::text::"{col_types[c]}"' for i, c in enumerate(columns)]
     sql = f'INSERT INTO "{table}" ({", ".join(quoted)}) VALUES ({", ".join(placeholders)})'
     if merge:
-        updates = ", ".join(f'{q} = EXCLUDED.{q}' for q, c in zip(quoted, columns) if c != "id")
+        target = conflict or ["id"]
+        quoted_target = ", ".join(f'\"{c}\"' for c in target)
+        updates = ", ".join(
+            f'{q} = EXCLUDED.{q}' for q, c in zip(quoted, columns) if c not in target
+        )
         if updates:
-            sql += f' ON CONFLICT (id) DO UPDATE SET {updates}'
+            sql += f' ON CONFLICT ({quoted_target}) DO UPDATE SET {updates}'
         else:
-            sql += ' ON CONFLICT (id) DO NOTHING'
+            sql += f' ON CONFLICT ({quoted_target}) DO NOTHING'
     sql += ' RETURNING (xmax = 0) AS inserted'
     return sql
 
@@ -1748,7 +1764,13 @@ async def restore_backup(
                 if not columns:
                     continue
                 values = [_bind_value(row[c], types[c]) for c in columns]
-                sql = _build_insert(table, columns, types, merge=(mode == "merge"))
+                sql = _build_insert(
+                    table,
+                    columns,
+                    types,
+                    merge=(mode == "merge"),
+                    conflict=BACKUP_CONFLICT_KEYS.get(table),
+                )
 
                 try:
                     # Row-level savepoint so a natural-key collision skips
