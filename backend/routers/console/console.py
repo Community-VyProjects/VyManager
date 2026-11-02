@@ -29,11 +29,10 @@ from pydantic import BaseModel
 
 from fastapi_permissions import require_read_permission
 from org_scope import request_scoped_conn, ws_conn, ws_org_conn
-import revocation_bus
 from rbac_permissions import FeatureGroup, PermissionLevel, check_permission
 from session_cookie import verify_session_cookie
 from ssh_key_manager import decrypt_private_key
-from stream_auth import recheck_stream_permission
+from stream_auth import watch_stream_revocation
 from trusted_origins import websocket_origin_allowed
 
 logger = logging.getLogger(__name__)
@@ -565,27 +564,19 @@ async def websocket_console(websocket: WebSocket):
         async def watch_revocation():
             """Close the shell instantly when a revocation removes access
             (the 30s monitor_auth loop is the floor)."""
-            queue = revocation_bus.subscribe()
-            try:
-                while True:
-                    payload = await queue.get()
-                    if not revocation_bus.payload_matches(
-                            payload, user_id=user_id, instance_id=instance_id):
-                        continue
-                    still = await recheck_stream_permission(
-                        websocket,
-                        user_id,
-                        instance_id,
-                        FeatureGroup.SSH_CONSOLE,
-                    )
-                    if not still:
-                        await _safe_send(websocket, {
-                            "type": "disconnected",
-                            "reason": "Permissions revoked",
-                        })
-                        return
-            finally:
-                revocation_bus.unsubscribe(queue)
+            async def on_close(reason):
+                await _safe_send(websocket, {
+                    "type": "disconnected",
+                    "reason": reason,
+                })
+
+            await watch_stream_revocation(
+                websocket,
+                user_id,
+                instance_id,
+                FeatureGroup.SSH_CONSOLE,
+                on_close,
+            )
 
         output_task = asyncio.create_task(stream_output())
         input_task = asyncio.create_task(forward_input())

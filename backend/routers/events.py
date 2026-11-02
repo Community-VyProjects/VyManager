@@ -22,6 +22,7 @@ from session_vyos_service import get_session_vyos_service, _session_device_regis
 from fastapi_permissions import require_read_permission
 from org_scope import org_id_from_state, request_scoped_conn
 from rbac_permissions import FeatureGroup, PermissionLevel, check_permission
+from stream_auth import fail_closed
 import revocation_bus
 from events.event_manager import (
     event_manager,
@@ -116,16 +117,17 @@ async def banner_events(request: Request):
 
     async def _access_revoked() -> bool:
         """Re-check the user still has read access on this instance."""
-        try:
+        async def check() -> bool:
             async with request_scoped_conn(request) as conn:
                 if not await _has_active_session(conn, user_id, instance_id):
-                    return True
-                return not await check_permission(
+                    return False
+                return await check_permission(
                     conn, user_id, instance_id,
                     FeatureGroup.CONFIGURATION, PermissionLevel.READ,
                     org_id=org_id_from_state(request))
-        except Exception:
-            return False  # assume valid when the database is unavailable
+
+        result = await fail_closed(check)
+        return result.close_reason is not None
 
     async def event_stream():
         try:
