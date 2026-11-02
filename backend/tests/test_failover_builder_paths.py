@@ -81,3 +81,41 @@ def test_failover_common_paths(method, args, op, expected_path, version):
 def test_failover_v1_5_only_paths(method, args, op, expected_path):
     _run("1.5", method, args, op, expected_path)
 
+
+@pytest.mark.parametrize("method, args, _op, _path", V15_ONLY_CASES)
+def test_failover_v1_4_rejects_version_only_ops(method, args, _op, _path):
+    """Missing 1.4 nodes must raise ValueError, not AttributeError into a 500."""
+    builder = FailoverBatchBuilder(version="1.4")
+    builder.set_route("10.0.0.0/8")
+    with pytest.raises(ValueError, match="not supported"):
+        getattr(builder, method)(*args)
+    paths = [item["path"] for item in builder.get_operations()]
+    assert paths == [["protocols", "failover", "route", "10.0.0.0/8"]]
+
+
+def test_failover_batch_maps_value_error_to_http_400():
+    import ast
+    from pathlib import Path
+
+    router_path = Path(__file__).resolve().parents[1] / "routers" / "failover" / "failover.py"
+    tree = ast.parse(router_path.read_text())
+    handler = next(
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "failover_batch_configure"
+    )
+    value_error_handlers = [
+        h for h in ast.walk(handler)
+        if isinstance(h, ast.ExceptHandler)
+        and isinstance(h.type, ast.Name)
+        and h.type.id == "ValueError"
+    ]
+    assert value_error_handlers, "failover_batch_configure must catch ValueError"
+    status_codes = set()
+    for h in value_error_handlers:
+        for node in ast.walk(h):
+            if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "HTTPException":
+                for kw in node.keywords:
+                    if kw.arg == "status_code" and isinstance(kw.value, ast.Constant):
+                        status_codes.add(kw.value.value)
+    assert 400 in status_codes, "ValueError must map to HTTP 400"
+

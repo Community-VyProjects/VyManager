@@ -125,3 +125,48 @@ def test_global_options_gates_bridged_traffic_and_timeouts_on_features():
     assert "bridged_traffic_available" not in caps15["version_notes"]
     assert "is_v15_or_later" not in caps15["version_notes"]
     assert "timeouts_available" not in caps15["version_notes"]
+
+
+@pytest.mark.parametrize("method, args, _op, _path", V15_ONLY_CASES)
+def test_global_options_v1_4_rejects_version_only_ops(method, args, _op, _path):
+    """A 1.5-only op on 1.4 must raise, not return and leave the batch short."""
+    builder = FirewallGlobalOptionsBatchBuilder(version="1.4")
+    builder.set_all_ping("enable")
+    with pytest.raises(ValueError, match="not supported"):
+        getattr(builder, method)(*args)
+    paths = [item["path"] for item in builder.get_operations()]
+    assert paths == [["firewall", "global-options", "all-ping", "enable"]]
+
+
+def test_global_options_batch_maps_value_error_to_http_400():
+    """The 1.4 mapper guard raises ValueError; both save routes must return 400."""
+    import ast
+    from pathlib import Path
+
+    router_path = (
+        Path(__file__).resolve().parents[1]
+        / "routers"
+        / "firewall_global_options"
+        / "firewall_global_options.py"
+    )
+    tree = ast.parse(router_path.read_text())
+    for name in ("firewall_global_options_batch_configure", "update_firewall_global_options"):
+        handler = next(
+            node for node in ast.walk(tree)
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == name
+        )
+        value_error_handlers = [
+            h for h in ast.walk(handler)
+            if isinstance(h, ast.ExceptHandler)
+            and isinstance(h.type, ast.Name)
+            and h.type.id == "ValueError"
+        ]
+        assert value_error_handlers, f"{name} must catch ValueError"
+        status_codes = set()
+        for h in value_error_handlers:
+            for node in ast.walk(h):
+                if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "HTTPException":
+                    for kw in node.keywords:
+                        if kw.arg == "status_code" and isinstance(kw.value, ast.Constant):
+                            status_codes.add(kw.value.value)
+        assert 400 in status_codes, f"{name} must map ValueError to HTTP 400"

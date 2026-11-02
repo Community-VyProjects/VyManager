@@ -154,3 +154,46 @@ def test_bridge_capabilities_use_feature_flags():
     assert "continue" not in caps14["supported_actions"]
     assert "notrack" in caps15["supported_actions"]
 
+
+@pytest.mark.parametrize(
+    "method, args",
+    [
+        ("set_rule_ethernet_type", ("forward", 10, "0x0800")),
+        ("delete_rule_ethernet_type", ("forward", 10)),
+        ("set_rule_vlan_ethernet_type", ("forward", 10, "0x0800")),
+    ],
+)
+def test_bridge_ethernet_type_rejected_on_v1_4(method, args):
+    builder = BridgeFirewallBatchBuilder(version="1.4")
+    builder.set_rule("forward", 10)
+    with pytest.raises(ValueError, match="not supported"):
+        getattr(builder, method)(*args)
+    assert all("ethernet-type" not in item["path"] for item in builder.get_operations())
+
+
+def test_bridge_batch_maps_value_error_to_http_400():
+    import ast
+    from pathlib import Path
+
+    router_path = Path(__file__).resolve().parents[1] / "routers" / "firewall" / "bridge.py"
+    tree = ast.parse(router_path.read_text())
+    handler = next(
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "configure_bridge_batch"
+    )
+    value_error_handlers = [
+        h for h in ast.walk(handler)
+        if isinstance(h, ast.ExceptHandler)
+        and isinstance(h.type, ast.Name)
+        and h.type.id == "ValueError"
+    ]
+    assert value_error_handlers, "configure_bridge_batch must catch ValueError"
+    status_codes = set()
+    for h in value_error_handlers:
+        for node in ast.walk(h):
+            if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "HTTPException":
+                for kw in node.keywords:
+                    if kw.arg == "status_code" and isinstance(kw.value, ast.Constant):
+                        status_codes.add(kw.value.value)
+    assert 400 in status_codes, "ValueError must map to HTTP 400"
+
