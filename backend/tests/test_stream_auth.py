@@ -1,5 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
+from types import SimpleNamespace
 
 import stream_auth
 from rbac_permissions import FeatureGroup, PermissionLevel
@@ -252,3 +253,122 @@ def test_banner_stays_open_only_when_read_holds():
 
     assert _run(events.banner_access_revoked(allowed)) is False
     assert _run(events.banner_access_revoked(denied)) is True
+
+
+def test_dashboard_stream_ends_when_session_check_raises(monkeypatch):
+    from routers.show import dashboard_stream
+
+    class Broadcaster:
+        def subscribe(self, interests):
+            return asyncio.Queue()
+
+        def unsubscribe(self, queue):
+            return None
+
+    class Request:
+        def __init__(self):
+            self.state = SimpleNamespace(user={"id": "user"})
+
+        async def is_disconnected(self):
+            return False
+
+    class Connection:
+        async def __aenter__(self):
+            return object()
+
+        async def __aexit__(self, *args):
+            return False
+
+    async def deny(*args, **kwargs):
+        return False
+
+    async def boom(*args, **kwargs):
+        raise RuntimeError("database unavailable")
+
+    real_wait_for = asyncio.wait_for
+
+    async def timeout_now(coro, timeout=None):
+        coro.close()
+        raise asyncio.TimeoutError
+
+    monkeypatch.setattr(
+        "routers.show.get_session_vyos_service",
+        lambda request: SimpleNamespace(config=SimpleNamespace(instance_id="inst")),
+    )
+    monkeypatch.setattr("routers.show.has_permission", deny)
+    monkeypatch.setattr("routers.show._get_broadcaster", lambda service: Broadcaster())
+    monkeypatch.setattr("routers.show.asyncio.wait_for", timeout_now)
+    monkeypatch.setattr("routers.show.request_scoped_conn", lambda request: Connection())
+    monkeypatch.setattr("routers.events._has_active_session", boom)
+
+    async def scenario():
+        response = await dashboard_stream(Request(), interest=[])
+        chunks = []
+
+        async def read():
+            async for chunk in response.body_iterator:
+                chunks.append(chunk)
+
+        await real_wait_for(read(), timeout=1)
+        return "".join(chunks)
+
+    body = _run(scenario())
+    assert "Dashboard stream connected" in body
+    assert ": keep-alive" not in body
+
+
+def test_banner_stream_ends_when_recheck_raises(monkeypatch):
+    from routers.events import banner_events
+
+    class Request:
+        def __init__(self):
+            self.state = SimpleNamespace(
+                user={"id": "user"},
+                instance={"id": "inst"},
+            )
+
+    class Connection:
+        async def __aenter__(self):
+            return object()
+
+        async def __aexit__(self, *args):
+            return False
+
+    async def allow(*args, **kwargs):
+        return None
+
+    async def empty_state(request):
+        return {}
+
+    async def boom(*args, **kwargs):
+        raise RuntimeError("database unavailable")
+
+    async def timeout_wait(aws, timeout=None, return_when=None):
+        for fut in aws:
+            fut.cancel()
+        return set(), set()
+
+    monkeypatch.setattr("routers.events.require_read_permission", allow)
+    monkeypatch.setattr("routers.events._gather_banner_state", empty_state)
+    monkeypatch.setattr("routers.events.event_manager.subscribe", lambda instance_id: asyncio.Queue())
+    monkeypatch.setattr("routers.events.event_manager.unsubscribe", lambda instance_id, queue: None)
+    monkeypatch.setattr("routers.events.revocation_bus.subscribe", lambda: asyncio.Queue())
+    monkeypatch.setattr("routers.events.revocation_bus.unsubscribe", lambda queue: None)
+    monkeypatch.setattr("routers.events.asyncio.wait", timeout_wait)
+    monkeypatch.setattr("routers.events.request_scoped_conn", lambda request: Connection())
+    monkeypatch.setattr("routers.events.configuration_read_allowed", boom)
+
+    async def scenario():
+        response = await banner_events(Request())
+        chunks = []
+
+        async def read():
+            async for chunk in response.body_iterator:
+                chunks.append(chunk)
+
+        await asyncio.wait_for(read(), timeout=1)
+        return "".join(chunks)
+
+    body = _run(scenario())
+    assert "banner_state" in body
+    assert ": keepalive" not in body
