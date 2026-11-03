@@ -62,6 +62,9 @@ BETTER_AUTH_URL=https://vymanager.example.com
 NEXT_PUBLIC_APP_URL=https://vymanager.example.com
 TRUSTED_ORIGINS=https://vymanager.example.com
 BETTER_AUTH_SECURE_COOKIES=true
+TRUSTED_PROXY_HOPS=1
 ```
+
+`TRUSTED_PROXY_HOPS` is how many proxies append `X-Forwarded-For`, including the one that connects to the app. The examples above are `1`. A CDN in front of nginx is `2`. Leave it unset when clients connect straight to port 3000: the sign-in limiter then uses the TCP peer and ignores `X-Forwarded-For` and `X-Real-IP`. A count that is too high lets the client choose the bucket. A count that is too low puts every user in the inner proxy's bucket.
 
 `TRUSTED_ORIGINS` must contain exactly the URLs users type into their browser — both the WebSocket origin check and Better Auth validate against it. `BETTER_AUTH_SECURE_COOKIES=true` marks session cookies `Secure` (the backend accepts both the plain and `__Secure-`-prefixed cookie names); only enable it once HTTPS works end to end.

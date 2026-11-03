@@ -1,0 +1,32 @@
+name: Frontend auth tests
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-auth-tests.yml'
+  push:
+    branches:
+      - beta
+
+jobs:
+  auth-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run login-rate-limit.test.ts and login-rate-limit-route.test.ts
+        working-directory: frontend
+        run: npm run test:auth

@@ -7,7 +7,8 @@
     "build": "npm run check:messages && next build",
     "start": "next start",
     "lint": "eslint && npm run check:messages && node --test eslint-rules/no-untranslated-text.test.mjs",
-    "check:messages": "tsx --test src/i18n/messages-parity.test.ts src/i18n/config.test.ts"
+    "check:messages": "tsx --test src/i18n/messages-parity.test.ts src/i18n/config.test.ts",
+    "test:auth": "tsx --test src/lib/login-rate-limit.test.ts src/lib/client-peer.test.ts && node --experimental-test-module-mocks --import tsx --test src/app/api/auth/login-rate-limit-route.test.ts src/app/api/auth/oauth-callback-route.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

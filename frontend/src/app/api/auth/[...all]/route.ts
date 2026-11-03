@@ -1,5 +1,6 @@
 import { getAuth } from "@/lib/auth";
-import { clientIpFromProxyHeaders, loginRateLimiter } from "@/lib/login-rate-limit";
+import { currentClientPeer } from "@/lib/client-peer";
+import { clientIpForRateLimit, loginRateLimiter, trustedProxyHops } from "@/lib/login-rate-limit";
 import { isOAuthCallbackPath, rewriteLegacyOAuthCallbackURL } from "@/lib/oauth-callback";
 import { toNextJsHandler } from "better-auth/next-js";
 import { NextRequest, NextResponse } from "next/server";
@@ -11,10 +12,11 @@ export const dynamic = "force-dynamic";
 const allowOnboardingFailOpen = process.env.ALLOW_ONBOARDING_FAIL_OPEN === "true";
 
 function getClientIp(request: NextRequest): string {
-  return clientIpFromProxyHeaders(
-    request.headers.get("x-forwarded-for"),
-    request.headers.get("x-real-ip"),
-  );
+  return clientIpForRateLimit({
+    peerAddress: currentClientPeer(),
+    forwardedFor: request.headers.get("x-forwarded-for"),
+    trustedProxyHops: trustedProxyHops(),
+  });
 }
 
 function rewriteLegacyOAuthCallback(request: NextRequest): NextRequest {
