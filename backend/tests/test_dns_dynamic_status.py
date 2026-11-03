@@ -12,10 +12,6 @@ from fastapi.testclient import TestClient
 
 import dns_dynamic_status as status_mod
 import routers.dns_dynamic.dns_dynamic as dns_dynamic_mod
-from dns_dynamic_status import (
-    dynamic_status_gql_query,
-    parse_dynamic_dns_status,
-)
 
 
 NORMALIZED = [
@@ -100,7 +96,7 @@ def _node(success, result=None, error_name=None, errors=None):
 
 
 def test_query_uses_typed_dynamic_status_op():
-    query = dynamic_status_gql_query(json.dumps("secret"))["query"]
+    query = status_mod.dynamic_status_gql_query(json.dumps("secret"))["query"]
 
     assert "ShowDynamicStatusDns" in query
     assert json.dumps("secret") in query
@@ -110,7 +106,7 @@ def test_query_uses_typed_dynamic_status_op():
 
 
 def test_parse_normalized_cache_keeps_resolved_addresses():
-    hosts = parse_dynamic_dns_status(NORMALIZED)
+    hosts = status_mod.parse_dynamic_dns_status(NORMALIZED)
 
     assert len(hosts) == 2
     assert hosts[0].host == "example.com"
@@ -133,7 +129,7 @@ def test_parse_accepts_hyphenated_keys_and_json_string():
         }
     ])
 
-    hosts = parse_dynamic_dns_status(raw)
+    hosts = status_mod.parse_dynamic_dns_status(raw)
 
     assert len(hosts) == 1
     assert hosts[0].ipv4 == "198.51.100.8"
@@ -142,7 +138,7 @@ def test_parse_accepts_hyphenated_keys_and_json_string():
 
 
 def test_parse_drops_rows_without_a_hostname():
-    hosts = parse_dynamic_dns_status([
+    hosts = status_mod.parse_dynamic_dns_status([
         {"ipv4": "203.0.113.1"},
         "not-a-row",
         {"host": "  ", "ipv4": "203.0.113.2"},
@@ -152,9 +148,9 @@ def test_parse_drops_rows_without_a_hostname():
 
 
 def test_parse_ignores_non_list_result():
-    assert parse_dynamic_dns_status({"host": "example.com", "ipv4": "1.2.3.4"}) == []
-    assert parse_dynamic_dns_status("not-json") == []
-    assert parse_dynamic_dns_status(None) == []
+    assert status_mod.parse_dynamic_dns_status({"host": "example.com", "ipv4": "1.2.3.4"}) == []
+    assert status_mod.parse_dynamic_dns_status("not-json") == []
+    assert status_mod.parse_dynamic_dns_status(None) == []
 
 
 def test_fetch_returns_resolved_hosts(monkeypatch):

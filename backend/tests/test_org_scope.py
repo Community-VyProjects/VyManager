@@ -11,10 +11,11 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException
 
-import org_scope
 from org_scope import (
+    _handler_conn,
     assert_row_in_acting_org,
     is_system_admin_from_state,
+    org_enforcement_enabled,
     org_id_from_state,
 )
 
@@ -67,27 +68,27 @@ def run(coro):
 
 
 def test_row_check_noop_when_enforcement_off(monkeypatch):
-    monkeypatch.setattr(org_scope, "ORG_ENFORCEMENT", False)
+    monkeypatch.setattr("org_scope.ORG_ENFORCEMENT", False)
     req = request_with_state(user={"id": "u1"}, acting_org_id="orgA")
     # Cross-org id, but enforcement off → must not raise.
     run(assert_row_in_acting_org(req, FakeConn(role="VIEWER"), "orgB"))
 
 
 def test_row_check_system_admin_bypasses(monkeypatch):
-    monkeypatch.setattr(org_scope, "ORG_ENFORCEMENT", True)
+    monkeypatch.setattr("org_scope.ORG_ENFORCEMENT", True)
     req = request_with_state(user={"id": "u1"}, acting_org_id="orgA")
     # role ADMIN → System Administrator → bypass even on a cross-org id.
     run(assert_row_in_acting_org(req, FakeConn(role="ADMIN"), "orgB"))
 
 
 def test_row_check_same_org_passes(monkeypatch):
-    monkeypatch.setattr(org_scope, "ORG_ENFORCEMENT", True)
+    monkeypatch.setattr("org_scope.ORG_ENFORCEMENT", True)
     req = request_with_state(user={"id": "u1"}, acting_org_id="orgA")
     run(assert_row_in_acting_org(req, FakeConn(role="VIEWER"), "orgA"))
 
 
 def test_row_check_cross_org_404(monkeypatch):
-    monkeypatch.setattr(org_scope, "ORG_ENFORCEMENT", True)
+    monkeypatch.setattr("org_scope.ORG_ENFORCEMENT", True)
     req = request_with_state(user={"id": "u1"}, acting_org_id="orgA")
     with pytest.raises(HTTPException) as exc:
         run(assert_row_in_acting_org(req, FakeConn(role="VIEWER"), "orgB"))
@@ -95,7 +96,7 @@ def test_row_check_cross_org_404(monkeypatch):
 
 
 def test_row_check_falls_back_to_sole_membership(monkeypatch):
-    monkeypatch.setattr(org_scope, "ORG_ENFORCEMENT", True)
+    monkeypatch.setattr("org_scope.ORG_ENFORCEMENT", True)
     # No acting_org_id/state.org; resolve from the sole membership.
     req = request_with_state(user={"id": "u1"})
     run(assert_row_in_acting_org(
@@ -107,22 +108,30 @@ def test_row_check_falls_back_to_sole_membership(monkeypatch):
 
 
 def test_row_check_null_row_org_404(monkeypatch):
-    monkeypatch.setattr(org_scope, "ORG_ENFORCEMENT", True)
+    monkeypatch.setattr("org_scope.ORG_ENFORCEMENT", True)
     req = request_with_state(user={"id": "u1"}, acting_org_id="orgA")
     with pytest.raises(HTTPException) as exc:
         run(assert_row_in_acting_org(req, FakeConn(role="VIEWER"), None))
     assert exc.value.status_code == 404
 
 
+def test_enforcement_accessor_reads_flag_at_call_time(monkeypatch):
+    monkeypatch.setattr("org_scope.ORG_ENFORCEMENT", True)
+    assert org_enforcement_enabled() is True
+    monkeypatch.setattr("org_scope.ORG_ENFORCEMENT", False)
+    assert org_enforcement_enabled() is False
+
+
 def test_enforcement_flag_env_parsing(monkeypatch):
     import importlib
+    module = importlib.import_module("org_scope")
     for val, expected in (("1", True), ("true", True), ("ON", True),
                           ("", False), ("0", False), ("no", False)):
         monkeypatch.setenv("ORG_ENFORCEMENT", val)
-        reloaded = importlib.reload(org_scope)
+        reloaded = importlib.reload(module)
         assert reloaded.ORG_ENFORCEMENT is expected, val
     monkeypatch.delenv("ORG_ENFORCEMENT", raising=False)
-    importlib.reload(org_scope)
+    importlib.reload(module)
 
 
 def test_system_admin_flag_tristate():
@@ -382,7 +391,7 @@ def test_multi_org_admin_acts_globally_without_org_id():
 
             # System admin, two orgs, no org_id -> global (bypass, empty org).
             req = _fake_request(pool, "u_admin_g")
-            async with org_scope._handler_conn(req, None) as conn:
+            async with _handler_conn(req, None) as conn:
                 sysadmin = await conn.fetchval(
                     "SELECT current_setting('app.is_system_admin', true)")
                 org = await conn.fetchval(
@@ -396,7 +405,7 @@ def test_multi_org_admin_acts_globally_without_org_id():
             req2 = _fake_request(pool, "u_member_g")
             raised = None
             try:
-                async with org_scope._handler_conn(req2, None):
+                async with _handler_conn(req2, None):
                     pass
             except HTTPException as exc:
                 raised = exc

@@ -16,11 +16,6 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 import sso_jwt_verify
-from sso_jwt_verify import (
-    TokenInvalid,
-    VerificationUnavailable,
-    verified_claims,
-)
 
 ISSUER = "https://idp.test"
 CLIENT_ID = "vymanager-client"
@@ -44,7 +39,7 @@ def idp(monkeypatch):
 
     async def fake_fetch(url):
         if url not in documents:
-            raise VerificationUnavailable(f"fetch failed for {url}")
+            raise sso_jwt_verify.VerificationUnavailable(f"fetch failed for {url}")
         return documents[url]
 
     monkeypatch.setattr(sso_jwt_verify, "_fetch_json", fake_fetch)
@@ -72,7 +67,7 @@ def _run(coro):
 
 
 def test_valid_token_yields_claims(idp):
-    claims = _run(verified_claims(idp(), DISCOVERY_URL, CLIENT_ID))
+    claims = _run(sso_jwt_verify.verified_claims(idp(), DISCOVERY_URL, CLIENT_ID))
     assert claims["groups"] == ["netops"]
 
 
@@ -80,26 +75,26 @@ def test_tampered_token_is_invalid(idp):
     token = idp()
     header, payload, signature = token.split(".")
     forged = f"{header}.{payload[:-2]}AA.{signature}"
-    with pytest.raises(TokenInvalid):
-        _run(verified_claims(forged, DISCOVERY_URL, CLIENT_ID))
+    with pytest.raises(sso_jwt_verify.TokenInvalid):
+        _run(sso_jwt_verify.verified_claims(forged, DISCOVERY_URL, CLIENT_ID))
 
 
 def test_expired_token_is_invalid(idp):
     token = idp(exp=int(time.time()) - 3600)
-    with pytest.raises(TokenInvalid):
-        _run(verified_claims(token, DISCOVERY_URL, CLIENT_ID))
+    with pytest.raises(sso_jwt_verify.TokenInvalid):
+        _run(sso_jwt_verify.verified_claims(token, DISCOVERY_URL, CLIENT_ID))
 
 
 def test_wrong_audience_is_invalid(idp):
     token = idp(aud="someone-else")
-    with pytest.raises(TokenInvalid):
-        _run(verified_claims(token, DISCOVERY_URL, CLIENT_ID))
+    with pytest.raises(sso_jwt_verify.TokenInvalid):
+        _run(sso_jwt_verify.verified_claims(token, DISCOVERY_URL, CLIENT_ID))
 
 
 def test_wrong_issuer_is_invalid(idp):
     token = idp(iss="https://evil.test")
-    with pytest.raises(TokenInvalid):
-        _run(verified_claims(token, DISCOVERY_URL, CLIENT_ID))
+    with pytest.raises(sso_jwt_verify.TokenInvalid):
+        _run(sso_jwt_verify.verified_claims(token, DISCOVERY_URL, CLIENT_ID))
 
 
 def test_hmac_downgrade_is_invalid(idp):
@@ -108,24 +103,24 @@ def test_hmac_downgrade_is_invalid(idp):
     forged = jwt.encode(
         {"iss": ISSUER, "aud": CLIENT_ID, "exp": int(time.time()) + 300},
         "not-a-real-key", algorithm="HS256", headers={"kid": "test-key"})
-    with pytest.raises(TokenInvalid):
-        _run(verified_claims(forged, DISCOVERY_URL, CLIENT_ID))
+    with pytest.raises(sso_jwt_verify.TokenInvalid):
+        _run(sso_jwt_verify.verified_claims(forged, DISCOVERY_URL, CLIENT_ID))
 
 
 def test_missing_discovery_is_unavailable_not_invalid(idp):
-    with pytest.raises(VerificationUnavailable):
-        _run(verified_claims(idp(), None, CLIENT_ID))
+    with pytest.raises(sso_jwt_verify.VerificationUnavailable):
+        _run(sso_jwt_verify.verified_claims(idp(), None, CLIENT_ID))
 
 
 def test_unreachable_jwks_is_unavailable(idp, monkeypatch):
     async def down(url):
-        raise VerificationUnavailable(f"fetch failed for {url}")
+        raise sso_jwt_verify.VerificationUnavailable(f"fetch failed for {url}")
 
     monkeypatch.setattr(sso_jwt_verify, "_fetch_json", down)
     sso_jwt_verify._discovery_cache.clear()
     sso_jwt_verify._jwks_cache.clear()
-    with pytest.raises(VerificationUnavailable):
-        _run(verified_claims(idp(), DISCOVERY_URL, CLIENT_ID))
+    with pytest.raises(sso_jwt_verify.VerificationUnavailable):
+        _run(sso_jwt_verify.verified_claims(idp(), DISCOVERY_URL, CLIENT_ID))
 
 
 def test_strict_mode_flag(monkeypatch):

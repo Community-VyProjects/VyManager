@@ -31,8 +31,7 @@ from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
 from fastapi_permissions import require_read_permission
-import org_scope
-from org_scope import request_scoped_conn
+from org_scope import org_enforcement_enabled, request_scoped_conn
 from rbac_permissions import FeatureGroup
 from system_updates import SystemUpdatesInfo, parse_system_updates
 from vyos_service import VyOSDeviceConfig, VyOSService
@@ -194,7 +193,7 @@ async def get_site_updates(request: Request, site_id: str, refresh: bool = False
         # Under org enforcement, an org ADMIN/OWNER of the site's organization
         # also sees all of its instances (mirrors the site/instance listings
         # and the permission layer). Inert while enforcement is off.
-        org_admin = org_scope.ORG_ENFORCEMENT and await conn.fetchval(
+        org_admin = org_enforcement_enabled() and await conn.fetchval(
             """
             SELECT 1 FROM sites s
             JOIN org_memberships m ON m."orgId" = s."orgId"

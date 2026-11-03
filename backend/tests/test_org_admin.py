@@ -143,3 +143,67 @@ def test_org_admin_sees_org_sites_under_enforcement(monkeypatch):
         assert "s_ov2" not in seen, seen
     finally:
         asyncio.run(cleanup())
+
+
+class _OrgAdminConn:
+    """A member of the site's org who holds ADMIN in that org."""
+
+    def __init__(self):
+        self.fetchval_sql = []
+        self.fetch_sql = []
+
+    async def fetchval(self, sql, *args):
+        self.fetchval_sql.append(sql)
+        return "MEMBER" if "FROM users" in sql else 1
+
+    async def fetch(self, sql, *args):
+        self.fetch_sql.append(sql)
+        return []
+
+
+def _asked_org(conn):
+    return any("org_memberships" in sql for sql in conn.fetchval_sql)
+
+
+def _used_grants(conn):
+    return any("user_instance_roles" in sql for sql in conn.fetch_sql)
+
+
+@pytest.mark.parametrize("enforced", [False, True])
+def test_list_site_instances_reads_enforcement_live(monkeypatch, enforced):
+    from types import SimpleNamespace
+
+    from routers.session.session import list_site_instances
+
+    monkeypatch.setattr("org_scope.ORG_ENFORCEMENT", enforced)
+    conn = _OrgAdminConn()
+    req = SimpleNamespace(state=SimpleNamespace(user={"id": "u1"}))
+    assert asyncio.run(list_site_instances(req, "s1", conn)) == []
+    assert _asked_org(conn) is enforced
+    assert _used_grants(conn) is not enforced
+
+
+@pytest.mark.parametrize("enforced", [False, True])
+def test_site_updates_reads_enforcement_live(monkeypatch, enforced):
+    from contextlib import asynccontextmanager
+    from types import SimpleNamespace
+
+    from routers.site_updates.site_updates import get_site_updates
+
+    conn = _OrgAdminConn()
+
+    @asynccontextmanager
+    async def scoped(_request):
+        yield conn
+
+    async def allow(_request, _group):
+        return None
+
+    monkeypatch.setattr("org_scope.ORG_ENFORCEMENT", enforced)
+    monkeypatch.setattr("routers.site_updates.site_updates.request_scoped_conn", scoped)
+    monkeypatch.setattr("routers.site_updates.site_updates.require_read_permission", allow)
+    req = SimpleNamespace(state=SimpleNamespace(user={"id": "u1"}))
+    summary = asyncio.run(get_site_updates(req, "s1"))
+    assert summary.total == 0
+    assert _asked_org(conn) is enforced
+    assert _used_grants(conn) is not enforced

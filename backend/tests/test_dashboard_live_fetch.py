@@ -10,7 +10,6 @@ import logging
 import httpx
 
 import dashboard_broadcaster as pump
-from dashboard_broadcaster import DeviceDataBroadcaster
 
 
 class _Config:
@@ -81,12 +80,12 @@ def _run_cycles(broadcaster, cycles, monkeypatch):
         return None
 
     monkeypatch.setattr(pump.asyncio, "sleep", sleep)
-    monkeypatch.setattr(DeviceDataBroadcaster, "_refresh_config_state", refresh)
+    monkeypatch.setattr(pump.DeviceDataBroadcaster, "_refresh_config_state", refresh)
     asyncio.run(broadcaster._run())
 
 
 def test_fast_timeout_does_not_error_the_interface_card(monkeypatch):
-    broadcaster = DeviceDataBroadcaster("instance", service=_Service())
+    broadcaster = pump.DeviceDataBroadcaster("instance", service=_Service())
     queue = asyncio.Queue()
     broadcaster._subscribers.append((queue, frozenset()))
 
@@ -105,7 +104,7 @@ def test_fast_timeout_does_not_error_the_interface_card(monkeypatch):
 
 
 def test_successful_fast_cycle_still_broadcasts_counters(monkeypatch):
-    broadcaster = DeviceDataBroadcaster("instance", service=_Service())
+    broadcaster = pump.DeviceDataBroadcaster("instance", service=_Service())
     queue = asyncio.Queue()
     broadcaster._subscribers.append((queue, frozenset()))
 
@@ -128,7 +127,7 @@ def test_successful_fast_cycle_still_broadcasts_counters(monkeypatch):
 
 def test_pppoe_timeout_does_not_error_the_card():
     async def scenario():
-        broadcaster = DeviceDataBroadcaster("instance", service=object())
+        broadcaster = pump.DeviceDataBroadcaster("instance", service=object())
         pushed = []
         broadcaster._push_to_all = lambda event: pushed.append(event)
 
@@ -146,7 +145,7 @@ def test_pppoe_timeout_does_not_error_the_card():
 
 def test_firewall_miss_does_not_error_the_card():
     async def scenario():
-        broadcaster = DeviceDataBroadcaster("instance", service=object())
+        broadcaster = pump.DeviceDataBroadcaster("instance", service=object())
         pushed = []
         broadcaster._push_to_all = lambda event: pushed.append(event)
 
