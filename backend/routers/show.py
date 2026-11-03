@@ -12,7 +12,7 @@ is dashboard_broadcaster. This module is the request endpoint.
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import List, Optional, Dict
+from typing import List, Optional
 import asyncio
 import json
 import httpx
@@ -32,8 +32,10 @@ from dashboard_broadcaster import (
 )
 from interface_show import (
     InterfaceCountersResponse,
+    InterfaceName,
     parse_interface_counters,
     parse_show_ethernet_names,
+    _interfaces_from_kernel,
 )
 from firewall_statistics import (
     FIREWALL_STATS_INTEREST,
@@ -242,27 +244,10 @@ async def get_interface_counters(request: Request):
 # ========================================================================
 
 
-class InterfaceName(BaseModel):
-    """Model for interface name from config."""
-    name: str
-    type: str
-    description: Optional[str] = None
-
-
 class AllInterfacesResponse(BaseModel):
     """Response containing all interface names from config."""
     interfaces: List[InterfaceName]
     total: int
-
-
-# Maps the kernel's ``linkinfo.info_kind`` to the config-style ``type`` value
-# the frontend expects (consumers filter on these, e.g. "ethernet"/"bonding").
-# Anything not listed falls through to the raw info_kind / link_type.
-_KERNEL_KIND_TO_TYPE = {
-    "vlan": "vif",
-    "bond": "bonding",
-    "veth": "virtual-ethernet",
-}
 
 
 def _interfaces_from_config(interfaces_config: dict) -> List[InterfaceName]:
@@ -319,75 +304,6 @@ def _interfaces_from_config(interfaces_config: dict) -> List[InterfaceName]:
                                     interfaces.append(InterfaceName(name=vif_c_name, type="vif-c", description=c_desc))
 
     # Sort interfaces by name for consistent ordering
-    interfaces.sort(key=lambda x: x.name)
-    return interfaces
-
-
-def _kernel_iface_type(entry: dict) -> str:
-    """Derive a config-style ``type`` for a kernel interface entry.
-
-    Used only for interfaces not present in the VyOS config (e.g. container or
-    host-created interfaces); for configured interfaces the config type wins.
-    """
-    info_kind = ""
-    linkinfo = entry.get("linkinfo")
-    if isinstance(linkinfo, dict):
-        info_kind = linkinfo.get("info_kind") or ""
-    if info_kind:
-        return _KERNEL_KIND_TO_TYPE.get(info_kind, info_kind)
-
-    link_type = entry.get("link_type") or ""
-    if link_type == "loopback":
-        return "loopback"
-    if link_type == "ether":
-        return "ethernet"
-    return link_type or "unknown"
-
-
-def _interfaces_from_kernel(json_str: str, config_index: Dict[str, InterfaceName]) -> List[InterfaceName]:
-    """Build the interface list from ``show interfaces kernel json`` output.
-
-    The output is an ``ip -d -s -j link show`` style array covering every kernel
-    interface (including container/host-created ones). Config wins for type and
-    description; interfaces only in the config (e.g. a down pppoe/tunnel) are
-    unioned back in so they never disappear from dropdowns. ``pim6reg`` registers
-    are filtered out (no useful insight per issue #6). Sorted by name.
-    """
-    data = json.loads(json_str)
-    if not isinstance(data, list):
-        raise ValueError("kernel interface output is not a JSON array")
-
-    interfaces: List[InterfaceName] = []
-    seen: set = set()
-
-    for entry in data:
-        if not isinstance(entry, dict):
-            continue
-        name = entry.get("ifname")
-        if not name:
-            continue
-        # Filter out PIM register interfaces (pim6reg / pimreg) - no useful insight.
-        if entry.get("link_type") == "pimreg" or name.startswith("pim6reg") or name.startswith("pimreg"):
-            continue
-
-        seen.add(name)
-        cfg_entry = config_index.get(name)
-        if cfg_entry is not None:
-            # Config wins for type + description.
-            interfaces.append(cfg_entry)
-        else:
-            interfaces.append(InterfaceName(
-                name=name,
-                type=_kernel_iface_type(entry),
-                description=(entry.get("ifalias") or None),
-            ))
-
-    # Union: configured interfaces that have no kernel device right now
-    # (e.g. disconnected pppoe, down tunnels/openvpn) must still be selectable.
-    for name, cfg_entry in config_index.items():
-        if name not in seen:
-            interfaces.append(cfg_entry)
-
     interfaces.sort(key=lambda x: x.name)
     return interfaces
 

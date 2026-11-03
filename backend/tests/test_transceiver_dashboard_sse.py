@@ -230,10 +230,10 @@ def test_sweep_starts_once_and_is_not_restarted_every_cycle():
             started.append(list(interfaces))
             await asyncio.sleep(60)
 
-        import dashboard_broadcaster as show_module
+        import dashboard_broadcaster as pump
 
-        original = show_module._fetch_gql_transceivers
-        show_module._fetch_gql_transceivers = fake_fetch
+        original = pump._fetch_gql_transceivers
+        pump._fetch_gql_transceivers = fake_fetch
         try:
             broadcaster._handle_transceiver_cycle(start=True)
             await asyncio.sleep(0)
@@ -245,7 +245,7 @@ def test_sweep_starts_once_and_is_not_restarted_every_cycle():
             assert broadcaster._transceiver_task is not None
             broadcaster._transceiver_task.cancel()
         finally:
-            show_module._fetch_gql_transceivers = original
+            pump._fetch_gql_transceivers = original
 
     asyncio.run(scenario())
 

@@ -1,44 +1,63 @@
-"""The live pump and show-text parsers do not live in the request router.
+"""The live pump and show parsers do not live in the request router.
 
 Hardware, firewall statistics, and BGP status already have their own modules.
-The dashboard pump and the remaining show-text parsers follow that split.
+The dashboard pump and the remaining show parsers follow that split.
 """
 
 import ast
+import json
 from pathlib import Path
 
-from interface_show import parse_interface_counters, parse_show_ethernet_names
+from interface_show import (
+    InterfaceName,
+    _interfaces_from_kernel,
+    parse_interface_counters,
+    parse_show_ethernet_names,
+)
 from wireguard_status import _parse_wg_handshake, _parse_wg_summary
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# Closed set of top-level names the request router may own. A new show parser
+# in routers/show.py fails this, instead of a denylist that misses the next one.
+ROUTER_NAMES = {
+    "dashboard_session_closed",
+    "SystemMemory",
+    "DiskPartition",
+    "get_hardware_sensors",
+    "firewall_statistics_access",
+    "get_firewall_statistics",
+    "_extract_show_output",
+    "_fetch_graphql_hardware",
+    "get_interface_counters",
+    "AllInterfacesResponse",
+    "_interfaces_from_config",
+    "get_all_interfaces",
+    "AvailableEthernetInterfacesResponse",
+    "get_available_ethernet_interfaces",
+    "get_system_updates",
+    "retain_firewall_interest",
+    "dashboard_stream",
+}
 
-def _defined(rel: str) -> set[str]:
+
+def _top_level(rel: str) -> set[str]:
     tree = ast.parse((ROOT / rel).read_text())
     names = set()
-    for node in ast.walk(tree):
+    for node in tree.body:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             names.add(node.name)
     return names
 
 
-def test_show_router_does_not_own_the_pump_or_show_text_parsers():
-    router = _defined("routers/show.py")
-    for name in (
-        "DeviceDataBroadcaster",
-        "parse_interface_counters",
-        "parse_gql_interface_counters",
-        "parse_gql_memory",
-        "_parse_vyos_text_config",
-        "_parse_wg_summary",
-        "_parse_wg_handshake",
-        "_collect_wg_from_gql",
-    ):
-        assert name not in router, name
-
-    assert "DeviceDataBroadcaster" in _defined("dashboard_broadcaster.py")
-    assert "parse_interface_counters" in _defined("interface_show.py")
-    assert "_parse_wg_summary" in _defined("wireguard_status.py")
+def test_show_router_owns_only_endpoints():
+    assert _top_level("routers/show.py") == ROUTER_NAMES
+    show_src = _top_level("interface_show.py")
+    assert "_interfaces_from_kernel" in show_src
+    assert "_kernel_iface_type" in show_src
+    assert "DeviceDataBroadcaster" in _top_level("dashboard_broadcaster.py")
+    assert "_gql_result" not in _top_level("dashboard_broadcaster.py")
+    assert "_gql_result" in _top_level("wireguard_status.py")
 
 
 def test_pump_and_parsers_do_not_import_the_show_router():
@@ -69,6 +88,24 @@ def test_interface_counter_text_parser_reads_the_show_table():
 def test_ethernet_show_text_keeps_only_physical_names():
     output = "eth0\neth1\nvlan10\neth2.10\n"
     assert parse_show_ethernet_names(output) == ["eth0", "eth1"]
+
+
+def test_kernel_show_drops_pim_registers_and_keeps_config():
+    config_index = {
+        "eth0": InterfaceName(name="eth0", type="ethernet", description="wan"),
+        "pppoe0": InterfaceName(name="pppoe0", type="pppoe", description=None),
+    }
+    raw = json.dumps([
+        {"ifname": "eth0", "link_type": "ether", "ifalias": "ignored"},
+        {"ifname": "pim6reg0", "link_type": "pimreg"},
+        {"ifname": "veth0", "linkinfo": {"info_kind": "veth"}},
+    ])
+    names = {item.name: item for item in _interfaces_from_kernel(raw, config_index)}
+    assert names["eth0"].type == "ethernet"
+    assert names["eth0"].description == "wan"
+    assert "pim6reg0" not in names
+    assert names["veth0"].type == "virtual-ethernet"
+    assert names["pppoe0"].type == "pppoe"
 
 
 def test_wireguard_summary_text_records_handshake_seconds():

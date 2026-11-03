@@ -39,7 +39,12 @@ from transceiver_status import (
     transceiver_gql_fields,
 )
 from vrrp_status import build_vrrp_status, vrrp_configured, vrrp_gql_fields
-from wireguard_status import _collect_wg_from_gql, _parse_vyos_text_config, _wg_alias
+from wireguard_status import (
+    _collect_wg_from_gql,
+    _gql_result,
+    _parse_vyos_text_config,
+    _wg_alias,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -245,13 +250,6 @@ async def _fetch_gql_transceivers(service, interfaces: List[str]) -> Optional[di
     except Exception as exc:
         _log_live_gql_failure("GraphQL transceiver fetch", exc)
         return None
-
-
-def _gql_result(gql: dict, key: str):
-    """Safely extract ``data.result`` from a named GraphQL alias."""
-    entry = gql.get(key) or {}
-    data = entry.get("data") or {}
-    return data.get("result")
 
 
 async def _fetch_gql_wg_status(service, iface_names: List[str]) -> dict:
