@@ -54,7 +54,54 @@ describe("clientIpForRateLimit", () => {
         forwardedFor: "203.0.113.5",
         trustedProxyHops: 1,
       }),
-      DIRECT_CLIENT_KEY,
+      null,
+    );
+  });
+
+  it("ignores forwarded headers from a peer that is not a trusted proxy", () => {
+    assert.equal(
+      clientIpForRateLimit({
+        peerAddress: "203.0.113.10",
+        forwardedFor: "1.1.1.1, 198.51.100.8",
+        trustedProxyHops: 1,
+      }),
+      "203.0.113.10",
+    );
+    assert.equal(
+      clientIpForRateLimit({
+        peerAddress: "10.0.0.8",
+        forwardedFor: "9.9.9.9, 203.0.113.5",
+        trustedProxyHops: 1,
+        trustedProxyPeers: new Set(["10.0.0.8", "127.0.0.1"]),
+      }),
+      "203.0.113.5",
+    );
+  });
+
+  it("buckets an IPv6 client by /64", () => {
+    assert.equal(
+      clientIpForRateLimit({
+        peerAddress: "2001:db8:1:2::1",
+        forwardedFor: "9.9.9.9",
+        trustedProxyHops: 0,
+      }),
+      clientIpForRateLimit({
+        peerAddress: "2001:db8:1:2::ffff",
+        forwardedFor: null,
+        trustedProxyHops: 0,
+      }),
+    );
+    assert.notEqual(
+      clientIpForRateLimit({
+        peerAddress: "2001:db8:1:2::1",
+        forwardedFor: null,
+        trustedProxyHops: 0,
+      }),
+      clientIpForRateLimit({
+        peerAddress: "2001:db8:1:3::1",
+        forwardedFor: null,
+        trustedProxyHops: 0,
+      }),
     );
   });
 
@@ -86,11 +133,13 @@ describe("clientIpForRateLimit", () => {
   });
 
   it("does not put every user in the CDN bucket when two proxies append", () => {
+    const proxies = new Set(["10.0.0.2", "127.0.0.1"]);
     assert.equal(
       clientIpForRateLimit({
         peerAddress: "10.0.0.2",
         forwardedFor: "9.9.9.9, 203.0.113.5, 198.51.100.2",
         trustedProxyHops: 2,
+        trustedProxyPeers: proxies,
       }),
       "203.0.113.5",
     );
@@ -99,6 +148,7 @@ describe("clientIpForRateLimit", () => {
         peerAddress: "10.0.0.2",
         forwardedFor: "9.9.9.9, 203.0.113.5, 198.51.100.2",
         trustedProxyHops: 1,
+        trustedProxyPeers: proxies,
       }),
       "198.51.100.2",
     );
@@ -129,16 +179,20 @@ describe("login rate limiter", () => {
     assert.equal(limiter.tracked(), 1);
   });
 
-  it("refuses new clients once the window map is full", () => {
+  it("evicts the oldest client instead of refusing a new one", () => {
     const limiter = createLoginRateLimiter();
     const now = 7_000_000;
-    for (let i = 0; i < LOGIN_RATE_MAX_CLIENTS; i++) {
-      assert.equal(limiter.allow(`client-${i}`, now), true);
+    for (let i = 0; i < LOGIN_RATE_LIMIT; i++) {
+      assert.equal(limiter.allow("client-0", now), true);
+    }
+    assert.equal(limiter.allow("client-0", now), false);
+    for (let i = 1; i < LOGIN_RATE_MAX_CLIENTS; i++) {
+      assert.equal(limiter.allow(`client-${i}`, now + 1), true);
     }
     assert.equal(limiter.tracked(), LOGIN_RATE_MAX_CLIENTS);
-    assert.equal(limiter.allow("one-more", now), false);
+    assert.equal(limiter.allow("one-more", now + 2), true);
     assert.equal(limiter.tracked(), LOGIN_RATE_MAX_CLIENTS);
-    assert.equal(limiter.allow("client-0", now), true);
+    assert.equal(limiter.allow("client-0", now + 2), true);
   });
 
   it("allows the same client again after the window, not at the exact reset", () => {

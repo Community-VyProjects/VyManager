@@ -74,4 +74,28 @@ describe("sign-in rate limit route", { concurrency: false }, () => {
       });
     });
   });
+
+  it("does not trust forwarded hops from a client on the published port", async () => {
+    const { POST } = await import("./[...all]/route");
+    await withHops("1", async () => {
+      await runWithClientPeer("203.0.113.80", async () => {
+        for (let i = 0; i < LOGIN_RATE_LIMIT; i++) {
+          const response = await POST(signIn(rotating(i, `198.51.100.${i}`)));
+          assert.equal(response.status, 200, `attempt ${i + 1} must not be limited`);
+        }
+        const blocked = await POST(signIn(rotating(9, "198.51.100.99")));
+        assert.equal(blocked.status, 429);
+      });
+    });
+  });
+
+  it("does not lock every sign-in when the peer was not captured", async () => {
+    const { POST } = await import("./[...all]/route");
+    await withHops("1", async () => {
+      for (let i = 0; i < LOGIN_RATE_LIMIT + 1; i++) {
+        const response = await POST(signIn(rotating(1, "203.0.113.50")));
+        assert.equal(response.status, 200);
+      }
+    });
+  });
 });

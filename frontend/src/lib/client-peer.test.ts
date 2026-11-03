@@ -1,9 +1,19 @@
 import assert from "node:assert/strict";
 import http from "node:http";
 import { describe, it } from "node:test";
-import { currentClientPeer, installClientPeerCapture } from "./client-peer";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { currentClientPeer, installClientPeerCapture, runWithClientPeer } from "./client-peer";
 
 describe("client peer capture", () => {
+  it("shares the peer store on globalThis so a second module copy can read it", () => {
+    const key = Symbol.for("vymanager.loginRateLimitPeer");
+    runWithClientPeer("203.0.113.9", () => {
+      const store = (globalThis as unknown as Record<symbol, AsyncLocalStorage<string | null>>)[key];
+      assert.equal(store.getStore(), "203.0.113.9");
+      assert.equal(currentClientPeer(), "203.0.113.9");
+    });
+  });
+
   it("records the socket peer and ignores a client forwarded header", async () => {
     installClientPeerCapture();
     installClientPeerCapture();

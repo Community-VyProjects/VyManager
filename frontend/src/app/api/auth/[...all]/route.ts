@@ -1,5 +1,5 @@
 import { getAuth } from "@/lib/auth";
-import { currentClientPeer } from "@/lib/client-peer";
+import { currentClientPeer, installClientPeerCapture } from "@/lib/client-peer";
 import { clientIpForRateLimit, loginRateLimiter, trustedProxyHops } from "@/lib/login-rate-limit";
 import { isOAuthCallbackPath, rewriteLegacyOAuthCallbackURL } from "@/lib/oauth-callback";
 import { toNextJsHandler } from "better-auth/next-js";
@@ -11,7 +11,9 @@ export const dynamic = "force-dynamic";
 
 const allowOnboardingFailOpen = process.env.ALLOW_ONBOARDING_FAIL_OPEN === "true";
 
-function getClientIp(request: NextRequest): string {
+installClientPeerCapture();
+
+function getClientIp(request: NextRequest): string | null {
   return clientIpForRateLimit({
     peerAddress: currentClientPeer(),
     forwardedFor: request.headers.get("x-forwarded-for"),
@@ -55,7 +57,8 @@ export async function POST(request: NextRequest) {
 
   // Rate limit login attempts
   if (path.includes("/sign-in")) {
-    if (!loginRateLimiter.allow(getClientIp(request), Date.now())) {
+    const ip = getClientIp(request);
+    if (ip && !loginRateLimiter.allow(ip, Date.now())) {
       return NextResponse.json(
         { error: { message: "Too many login attempts. Please try again later." } },
         { status: 429 }
