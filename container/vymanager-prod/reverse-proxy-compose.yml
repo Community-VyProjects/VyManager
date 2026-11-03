@@ -69,7 +69,7 @@ services:
       - ../../frontend/.env
     environment:
       TRUSTED_PROXY_HOPS: "1"
-      TRUSTED_PROXY_IPS: 172.28.10.10
+      TRUSTED_PROXY_IPS: 172.28.10.10,fd28:10::10
     restart: unless-stopped
     networks:
       - vymanager-network
@@ -91,6 +91,7 @@ services:
     networks:
       vymanager-network:
         ipv4_address: 172.28.10.10
+        ipv6_address: fd28:10::10
     depends_on:
       frontend:
         condition: service_started
@@ -100,9 +101,11 @@ services:
 networks:
   vymanager-network:
     driver: bridge
+    enable_ipv6: true
     ipam:
       config:
         - subnet: 172.28.10.0/24
+        - subnet: fd28:10::/64
 
 volumes:
   postgres_data:

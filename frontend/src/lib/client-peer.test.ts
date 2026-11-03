@@ -6,7 +6,7 @@ import https from "node:https";
 import os from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { CLIENT_IP_HEADER, betterAuthIpAddress } from "./login-rate-limit";
+import { CLIENT_IP_HEADER, betterAuthIpAddress, rateLimitAddress } from "./login-rate-limit";
 import { getIP } from "@better-auth/core/utils/ip";
 import { currentClientPeer, installClientPeerCapture } from "./client-peer";
 
@@ -132,7 +132,7 @@ describe("client peer capture", () => {
         { advanced: { ipAddress: betterAuthIpAddress() } },
       );
       assert.ok(resolved);
-      assert.notEqual(resolved, "0000:0000:0000:0000");
+      assert.notEqual(stamped, rateLimitAddress(stamped));
     } finally {
       await new Promise<void>((resolve, reject) => {
         server.close((err) => (err ? reject(err) : resolve()));

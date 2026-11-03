@@ -72,7 +72,7 @@ The stock compose publishes `3000:3000` on a bridge network. A host proxy to `12
 
 For the compose deployment, use `container/vymanager-prod/reverse-proxy-compose.yml` with `container/vymanager-prod/Caddyfile`. It is a complete file: postgres, migrate, backend, frontend, and a proxy at `172.28.10.10` on a network that has an address pool. Frontend port 3000 is not published. Caddy serves HTTPS on 443 with `tls internal` (its local CA) and redirects port 80. Leave `BETTER_AUTH_SECURE_COOKIES` unset until the browser trusts that CA. Run it from that directory with `docker compose -f reverse-proxy-compose.yml up -d`. It needs the same env files as the stock compose, plus `SSH_ENCRYPTION_KEY`.
 
-IPv6 clients that reach a published port through Docker's userland proxy are seen as the bridge gateway, not as their own address. They share one sign-in bucket. Per-client limits for those clients need the daemon to preserve the source address (`userland-proxy: false`) or a proxy that is not behind that NAT.
+IPv6 clients that reach a published port on an IPv4-only bridge are seen as the gateway, so they share one sign-in bucket. The compose file enables IPv6 and gives the proxy `fd28:10::10`, which is listed next to its IPv4 address. Turning the userland proxy off does not fix that: with the userland proxy off, Docker cannot forward IPv6 to an IPv4-only container.
 
 A plain merge onto the stock compose is the wrong tool. A merge can add an address pool. It cannot drop the published `3000:3000` port, and that published port is what makes a host proxy look like the Docker gateway.
 
