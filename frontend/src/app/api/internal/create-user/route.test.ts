@@ -103,6 +103,13 @@ mock.module("@/lib/auth", {
             sessionCreates += 1;
             return { token: "should-not-exist" };
           },
+          deleteUser: async (userId: string) => {
+            const index = users.findIndex((row) => row.id === userId);
+            if (index >= 0) users.splice(index, 1);
+            for (let i = accounts.length - 1; i >= 0; i -= 1) {
+              if (accounts[i].userId === userId) accounts.splice(i, 1);
+            }
+          },
         },
       }),
     }),
@@ -213,6 +220,7 @@ describe("POST /api/internal/create-user", { concurrency: false }, () => {
       assert.equal(response.status, 200);
       const body = (await response.json()) as { user: { email: string } };
       assert.equal(body.user.email, "hook@example.com");
+      assert.equal(users.length, 1);
       assert.equal(signUpCalls, 0);
       assert.equal(sessionCreates, 0);
     } finally {

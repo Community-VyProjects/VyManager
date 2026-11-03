@@ -65,8 +65,9 @@ export async function POST(request: NextRequest) {
 
     // signUpEmail inserts a session while autoSignIn stays on. First-user
     // signup still needs that session, so admin provisioning writes the
-    // credential account directly. The auth adapter transaction rolls
-    // the user back if the link fails. Do not delete after that returns.
+    // credential account directly. The adapter does not roll that write
+    // back, so a failed link deletes the user. An after-commit hook
+    // failure does not: the account is already saved.
     const auth = await getAuth();
     const ctx = await auth.$context;
     const user = await createCredentialAccount(
@@ -80,6 +81,7 @@ export async function POST(request: NextRequest) {
         createUser: (row, source) => ctx.internalAdapter.createUser(row, source),
         linkAccount: (account) => ctx.internalAdapter.linkAccount(account),
         hashPassword: (value) => ctx.password.hash(value),
+        deleteUser: (userId) => ctx.internalAdapter.deleteUser(userId),
         runInTransaction: async (fn) => runCredentialTransaction(ctx.adapter, fn),
         minPasswordLength: ctx.password.config.minPasswordLength,
         maxPasswordLength: ctx.password.config.maxPasswordLength,

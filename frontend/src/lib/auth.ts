@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { genericOAuth, twoFactor } from "better-auth/plugins";
+import { prismaAdapter } from "better-auth/adapters/prisma";
 import { PrismaClient } from "@prisma/client";
 import { sendTwoFactorOtp, smtpConfigured } from "./two-factor-smtp";
 import {
@@ -9,7 +10,6 @@ import {
   type ProviderMappingConfig,
   type InstanceFeaturePermission,
 } from "./sso-role-mapping";
-import { createAuthPrismaAdapter } from "./auth-database";
 import { publishedOAuthRedirectURI } from "./oauth-callback";
 import { betterAuthIpAddress } from "./login-rate-limit";
 
@@ -282,7 +282,13 @@ async function buildAuth() {
 
   return betterAuth({
     appName: "VyManager",
-    database: createAuthPrismaAdapter(prisma),
+    // Do not turn adapter transactions on. user.create.before counts users
+    // on this client, so an interactive transaction would hold a second
+    // pool connection for every sign-up and SSO create. Admin create
+    // deletes its own user if the credential link fails.
+    database: prismaAdapter(prisma, {
+      provider: "postgresql",
+    }),
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
