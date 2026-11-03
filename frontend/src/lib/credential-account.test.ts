@@ -40,17 +40,14 @@ function harness(opts?: { failLink?: boolean; failCreate?: Error }): {
       return account;
     },
     hashPassword: async (password) => `hashed:${password}`,
-    runInTransaction: async (fn) => {
-      const userSnapshot = users.slice();
-      const accountSnapshot = accounts.slice();
-      try {
-        return await fn();
-      } catch (error) {
-        users.splice(0, users.length, ...userSnapshot);
-        accounts.splice(0, accounts.length, ...accountSnapshot);
-        throw error;
+    deleteUser: async (userId) => {
+      const index = users.findIndex((row) => row.id === userId);
+      if (index >= 0) users.splice(index, 1);
+      for (let i = accounts.length - 1; i >= 0; i -= 1) {
+        if (accounts[i].userId === userId) accounts.splice(i, 1);
       }
     },
+    runInTransaction: async (fn) => fn(),
     minPasswordLength: 8,
     maxPasswordLength: 128,
   };
@@ -95,8 +92,14 @@ describe("createCredentialAccount", () => {
     assert.equal(accounts[0].password, "hashed:correct-horse");
   });
 
-  it("rolls the user back when the credential account cannot be linked", async () => {
+  it("removes the user when the credential link fails and the transaction does not roll back", async () => {
     const { deps, users, accounts } = harness({ failLink: true });
+    let deleted = 0;
+    const remove = deps.deleteUser;
+    deps.deleteUser = async (userId) => {
+      deleted += 1;
+      return remove(userId);
+    };
     await assert.rejects(
       () =>
         createCredentialAccount(
@@ -105,6 +108,7 @@ describe("createCredentialAccount", () => {
         ),
       /Failed to create user/,
     );
+    assert.equal(deleted, 1);
     assert.equal(users.length, 0);
     assert.equal(accounts.length, 0);
   });

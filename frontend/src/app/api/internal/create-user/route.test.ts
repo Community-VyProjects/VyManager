@@ -92,6 +92,7 @@ mock.module("@/lib/auth", {
             sessionCreates += 1;
             return { token: "should-not-exist" };
           },
+          deleteUser: async () => undefined,
         },
       }),
     }),

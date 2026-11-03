@@ -5,7 +5,10 @@ import * as z from "zod";
  *
  * Public sign-up keeps autoSignIn so the first user gets a session.
  * This path must not. It writes the user and the credential account
- * and never creates a session.
+ * and never creates a session. If the credential link fails, the user
+ * row is deleted. The Prisma adapter does not roll a transaction back
+ * unless it was built with transactions on, and a leftover user makes
+ * the next create look like a duplicate.
  */
 export type CreatedCredentialUser = {
   id: string;
@@ -28,6 +31,7 @@ export type CredentialAccountDeps = {
     password: string;
   }) => Promise<unknown>;
   hashPassword: (password: string) => Promise<string>;
+  deleteUser: (userId: string) => Promise<unknown>;
   runInTransaction: <T>(fn: () => Promise<T>) => Promise<T>;
   minPasswordLength: number;
   maxPasswordLength: number;
@@ -53,13 +57,18 @@ export async function createCredentialAccount(
   }
 
   const email = input.email.toLowerCase();
-  return deps.runInTransaction(async () => {
-    const existing = await deps.findUserByEmail(email);
-    if (existing?.user) {
-      throw new Error("User already exists. Use another email.");
-    }
-    const hash = await deps.hashPassword(input.password);
-    try {
+  const prior = await deps.findUserByEmail(email);
+  if (prior?.user) {
+    throw new Error("User already exists. Use another email.");
+  }
+  const hash = await deps.hashPassword(input.password);
+  let createdId: string | undefined;
+  try {
+    return await deps.runInTransaction(async () => {
+      const existing = await deps.findUserByEmail(email);
+      if (existing?.user) {
+        throw new Error("User already exists. Use another email.");
+      }
       const created = await deps.createUser(
         { email, name: input.name, emailVerified: false },
         { method: "email-password" },
@@ -67,6 +76,7 @@ export async function createCredentialAccount(
       if (!created?.id) {
         throw new Error("Failed to create user");
       }
+      createdId = created.id;
       await deps.linkAccount({
         userId: created.id,
         providerId: "credential",
@@ -78,9 +88,16 @@ export async function createCredentialAccount(
         email: created.email,
         name: created.name,
       };
-    } catch (error) {
-      if (existingAccount(error)) throw error;
-      throw new Error("Failed to create user", { cause: error });
+    });
+  } catch (error) {
+    if (createdId) {
+      try {
+        await deps.deleteUser(createdId);
+      } catch (cleanupError) {
+        throw new Error("Failed to create user", { cause: cleanupError });
+      }
     }
-  });
+    if (existingAccount(error)) throw error;
+    throw new Error("Failed to create user", { cause: error });
+  }
 }

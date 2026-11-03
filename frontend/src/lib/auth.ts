@@ -1,6 +1,5 @@
 import { betterAuth } from "better-auth";
 import { genericOAuth, twoFactor } from "better-auth/plugins";
-import { prismaAdapter } from "better-auth/adapters/prisma";
 import { PrismaClient } from "@prisma/client";
 import { sendTwoFactorOtp, smtpConfigured } from "./two-factor-smtp";
 import {
@@ -10,6 +9,7 @@ import {
   type ProviderMappingConfig,
   type InstanceFeaturePermission,
 } from "./sso-role-mapping";
+import { createAuthPrismaAdapter } from "./auth-database";
 import { publishedOAuthRedirectURI } from "./oauth-callback";
 import { betterAuthIpAddress } from "./login-rate-limit";
 
@@ -282,9 +282,7 @@ async function buildAuth() {
 
   return betterAuth({
     appName: "VyManager",
-    database: prismaAdapter(prisma, {
-      provider: "postgresql",
-    }),
+    database: createAuthPrismaAdapter(prisma),
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
