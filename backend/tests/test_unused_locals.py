@@ -133,8 +133,22 @@ def _expression_reads(node, bound, reads, binds, in_lambda=False):
         _expression_reads(child, bound, reads, binds, in_lambda)
 
 
+def _lambda_walrus_targets(node) -> set[str]:
+    """Names a ``:=`` binds in this lambda, through comprehensions in it."""
+    names: set[str] = set()
+    stack = [node.body]
+    while stack:
+        sub = stack.pop()
+        if isinstance(sub, ast.Lambda):
+            continue
+        if isinstance(sub, ast.NamedExpr):
+            names.add(sub.target.id)
+        stack.extend(ast.iter_child_nodes(sub))
+    return names
+
+
 def _lambda_body(node, bound, reads, binds):
-    inner = bound | {a.arg for a in _params(node.args)}
+    inner = bound | {a.arg for a in _params(node.args)} | _lambda_walrus_targets(node)
     _expression_reads(node.body, inner, reads, binds, True)
 
 
@@ -680,6 +694,21 @@ def test_comprehension_attribute_and_subscript_targets_read_their_names():
 def test_def_with_a_lambda_default_gets_its_own_symbol_table():
     src = "def f():\n    def g(v=lambda: 0):\n        y = 1\n    return g\n"
     assert unused_locals(src) == ["3:y"]
+
+
+def test_walrus_in_a_lambda_shadows_the_local_for_that_lambda():
+    src = (
+        "def f():\n"
+        "    x = 1\n"
+        "    y = 2\n"
+        "    z = 3\n"
+        "    return (\n"
+        "        lambda: (x := 0) + x,\n"
+        "        lambda rows: [(y := r) for r in rows] and y,\n"
+        "        lambda: ((lambda: (z := 0))(), z),\n"
+        "    )\n"
+    )
+    assert unused_locals(src) == ["2:x", "3:y"]
 
 
 def test_global_and_nonlocal_targets_are_not_locals():
