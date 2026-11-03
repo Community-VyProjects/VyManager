@@ -65,6 +65,7 @@ describe("client peer capture", () => {
       "req", "-x509", "-newkey", "rsa:2048",
       "-keyout", key, "-out", cert,
       "-days", "1", "-nodes", "-subj", "/CN=localhost",
+      "-addext", "subjectAltName=DNS:localhost,IP:127.0.0.1",
     ]);
     const seen: Array<string | null> = [];
     const server = https.createServer({ key: fs.readFileSync(key), cert: fs.readFileSync(cert) }, (req, res) => {
@@ -84,7 +85,8 @@ describe("client peer capture", () => {
           port: address.port,
           path: "/",
           method: "GET",
-          rejectUnauthorized: false,
+          ca: fs.readFileSync(cert),
+          servername: "localhost",
           headers: {
             "x-forwarded-for": "203.0.113.5",
             [CLIENT_IP_HEADER]: "8.8.8.8",
