@@ -26,6 +26,50 @@ const {
   findMinimatchDirs,
 } = require("./ensure-minimatch-callable.js");
 
+test("a package-lock that nests minimatch below 11.0.1 fails", () => {
+  withTemp("mm-plock-", (dir) => {
+    const lock = path.join(dir, "package-lock.json");
+    fs.writeFileSync(
+      lock,
+      JSON.stringify({
+        packages: {
+          "node_modules/eslint/node_modules/minimatch": { version: "3.1.5" },
+          "node_modules/@typescript-eslint/typescript-estree/node_modules/minimatch": { version: "9.0.9" },
+          "node_modules/@types/minimatch": { version: "5.1.2" },
+        },
+      }),
+    );
+    assert.throws(() => assertLockfile(lock), /resolves minimatch 3\.1\.5/);
+  });
+});
+
+test("a package-lock that resolves only minimatch 11.0.4 passes", () => {
+  withTemp("mm-plock-ok-", (dir) => {
+    const lock = path.join(dir, "package-lock.json");
+    fs.writeFileSync(
+      lock,
+      JSON.stringify({
+        packages: {
+          "node_modules/minimatch": { version: "11.0.4" },
+          "node_modules/@types/minimatch": { version: "5.1.2" },
+        },
+      }),
+    );
+    assertLockfile(lock);
+  });
+});
+
+test("a package-lock with no minimatch package does not count as resolved", () => {
+  withTemp("mm-plock-empty-", (dir) => {
+    const lock = path.join(dir, "package-lock.json");
+    fs.writeFileSync(
+      lock,
+      JSON.stringify({ packages: { "node_modules/@types/minimatch": { version: "5.1.2" } } }),
+    );
+    assert.throws(() => assertLockfile(lock), /does not resolve minimatch/);
+  });
+});
+
 test("yarn resolver ignores @types/minimatch tarballs", () => {
   const text = [
     'resolved "https://registry.npmjs.org/@types/minimatch/-/minimatch-5.1.2.tgz"',
