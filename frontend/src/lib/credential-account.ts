@@ -123,7 +123,11 @@ export async function createCredentialAccount(
       try {
         await deps.deleteUser(createdId);
       } catch (cleanupError) {
-        throw new Error("Failed to create user", { cause: cleanupError });
+        console.error(
+          "Failed to delete the user after a failed credential link",
+          cleanupError,
+        );
+        throw new Error("Failed to create user", { cause: error });
       }
     }
     if (uniqueConflict(error)) {

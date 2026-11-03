@@ -114,6 +114,39 @@ describe("createCredentialAccount", () => {
     assert.equal(accounts.length, 0);
   });
 
+  it("keeps the original link failure when the user cannot be deleted", async () => {
+    const { deps, users } = harness({ failLink: true });
+    deps.deleteUser = async () => {
+      throw new Error("delete failed");
+    };
+    const errors: unknown[][] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => {
+      errors.push(args);
+    };
+    try {
+      await assert.rejects(
+        () =>
+          createCredentialAccount(
+            { email: "new.user@example.com", password: "correct-horse", name: "New" },
+            deps,
+          ),
+        (error: unknown) => {
+          assert.ok(error instanceof Error);
+          assert.equal(error.message, "Failed to create user");
+          assert.ok(error.cause instanceof Error);
+          assert.equal(error.cause.message, "link failed");
+          return true;
+        },
+      );
+    } finally {
+      console.error = original;
+    }
+    assert.equal(users.length, 1);
+    assert.equal(errors.length, 1);
+    assert.match(String(errors[0][0]), /Failed to delete the user/);
+  });
+
   it("reports a committed create as success when an after-commit hook throws", async () => {
     const errors: unknown[][] = [];
     const original = console.error;
@@ -123,7 +156,7 @@ describe("createCredentialAccount", () => {
     try {
       const adapter = {
         transaction: async <T>(cb: (trx: object) => Promise<T>) => cb({}),
-        options: { adapterConfig: { transaction: true } },
+        options: { adapterConfig: { transaction: false } },
       };
       const result = await runCredentialTransaction(adapter, async () => {
         await queueAfterTransactionHook(async () => {
