@@ -541,7 +541,6 @@ class VyOSService:
             raise ValueError(f"Failed to retrieve full config: {error_msg}")
 
         # Parse JSON from result
-        import json
         # response.result is already the JSON string
         config_json = response.result
 

@@ -658,9 +658,6 @@ def test_pin_survives_a_later_sftp_failure(monkeypatch):
 
 
 def test_archive_and_container_pins_do_not_join_the_handler_transaction(monkeypatch):
-    import routers.container.container as container_router
-    import routers.system as system_router
-
     handler = object()
     fresh = object()
 
