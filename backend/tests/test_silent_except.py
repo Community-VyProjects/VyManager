@@ -95,6 +95,7 @@ class _FakeWebSocket:
             self._received = True
             return {"command": "anything", "params": {}}
         await asyncio.Event().wait()
+        raise AssertionError("receive_json blocks until the task is cancelled")
 
     async def close(self):
         pass
