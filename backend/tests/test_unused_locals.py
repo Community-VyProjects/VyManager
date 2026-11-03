@@ -4,21 +4,27 @@ Code-quality flags it as "Unused local variable". Only a bare-name target
 of ``=``, an annotated assignment with a value, ``with ... as`` or ``:=``
 is checked. Tuple unpacking, loop targets and ``except ... as`` names are
 not, because code-quality does not report them either. Names that start
-with ``_`` are deliberate placeholders.
+with ``_`` are deliberate placeholders. An ``x += 1`` target and a name
+in an annotation (quoted or not) count as reads.
 
 Reads in the function itself and in nested ``def`` and ``class`` bodies
 come from :mod:`symtable`, so ``global`` and ``nonlocal`` names are not
-locals and a nested function that rebinds the name shadows it. Reads in
-lambdas and comprehensions come from the AST instead. Python 3.12+
-inlines list, set and dict comprehensions (PEP 709), and ``symtable`` then
-loses both the read of an enclosing local and the shadowing by the
-comprehension's own targets. Walking those expressions the same way on
-every version keeps the scan identical on 3.11 and 3.13.
+locals and a nested function that rebinds the name shadows it. A class
+body that rebinds the name does not shadow it for its methods, lambdas
+and comprehensions. Reads in lambdas and comprehensions come from the AST
+instead. Python 3.12+ inlines list, set and dict comprehensions (PEP 709),
+and ``symtable`` then loses both the read of an enclosing local and the
+shadowing by the comprehension's own targets. Walking those expressions
+the same way on every version keeps the scan identical on 3.11 and 3.13.
+Annotation names also come from the AST, because ``symtable`` drops them
+under ``from __future__ import annotations``.
 """
 
 import ast
 import symtable
 from pathlib import Path
+
+from tests.annotation_names import annotation_names
 
 BACKEND = Path(__file__).resolve().parents[1]
 _SKIP_DIRS = {"venv", ".venv", "node_modules", "__pycache__"}
@@ -35,17 +41,29 @@ def _child(table, node):
     raise AssertionError(f"no symbol table for {node.name} at line {node.lineno}")
 
 
+def _params(args):
+    params = args.posonlyargs + args.args + args.kwonlyargs
+    return params + [a for a in (args.vararg, args.kwarg) if a]
+
+
+def _defaults(args):
+    return args.defaults + [d for d in args.kw_defaults if d is not None]
+
+
+def _def_annotations(node):
+    """Parameter and return annotations of a ``def``."""
+    if isinstance(node, ast.ClassDef):
+        return []
+    annotations = [a.annotation for a in _params(node.args) if a.annotation is not None]
+    return annotations + ([node.returns] if node.returns is not None else [])
+
+
 def _outer_parts(node):
     """Pieces of a ``def`` or ``class`` that run in the enclosing scope."""
-    parts = list(node.decorator_list)
+    parts = list(node.decorator_list) + _def_annotations(node)
     if isinstance(node, ast.ClassDef):
         return parts + node.bases + [k.value for k in node.keywords]
-    args = node.args
-    parts += args.defaults + [d for d in args.kw_defaults if d is not None]
-    params = args.posonlyargs + args.args + args.kwonlyargs
-    params += [a for a in (args.vararg, args.kwarg) if a]
-    parts += [a.annotation for a in params if a.annotation is not None]
-    return parts + ([node.returns] if node.returns is not None else [])
+    return parts + _defaults(node.args)
 
 
 def _scope_nodes(body):
@@ -99,44 +117,109 @@ def _expression_reads(node, bound, reads, binds, in_lambda=False):
         _expression_reads(node.value, bound, reads, binds, in_lambda)
         return
     if isinstance(node, ast.Lambda):
-        args = node.args
-        for default in args.defaults + [d for d in args.kw_defaults if d is not None]:
+        for default in _defaults(node.args):
             _expression_reads(default, bound, reads, binds, in_lambda)
-        params = args.posonlyargs + args.args + args.kwonlyargs
-        params += [a for a in (args.vararg, args.kwarg) if a]
-        inner = bound | {a.arg for a in params}
-        _expression_reads(node.body, inner, reads, binds, True)
+        _lambda_body(node, bound, reads, binds)
         return
     if isinstance(node, _COMPREHENSIONS):
-        # The first iterable runs before any target is bound; each later
-        # clause and the element see every target bound so far.
-        current = set(bound)
-        for gen in node.generators:
-            _expression_reads(gen.iter, frozenset(current), reads, binds, in_lambda)
-            current |= {n.id for n in ast.walk(gen.target) if isinstance(n, ast.Name)}
-            for cond in gen.ifs:
-                _expression_reads(cond, frozenset(current), reads, binds, in_lambda)
-        elements = [node.key, node.value] if isinstance(node, ast.DictComp) else [node.elt]
-        for element in elements:
-            _expression_reads(element, frozenset(current), reads, binds, in_lambda)
+        # The first iterable runs before any target is bound.
+        _expression_reads(node.generators[0].iter, bound, reads, binds, in_lambda)
+        _comprehension_body(node, bound, reads, binds, in_lambda)
         return
     for child in ast.iter_child_nodes(node):
         _expression_reads(child, bound, reads, binds, in_lambda)
 
 
-def _read_by_nested_def(table, body, name) -> bool:
-    """Whether a nested ``def`` or ``class`` reads ``name`` from this scope.
+def _lambda_body(node, bound, reads, binds):
+    inner = bound | {a.arg for a in _params(node.args)}
+    _expression_reads(node.body, inner, reads, binds, True)
 
-    CPython marks a name free in every scope it passes through, so the
-    direct children are enough, and a child that rebinds the name has it
-    local, not free.
+
+def _comprehension_body(node, bound, reads, binds, in_lambda):
+    """Everything after the first iterable; each part sees the targets so far."""
+    current = set(bound)
+    for index, gen in enumerate(node.generators):
+        if index:
+            _expression_reads(gen.iter, frozenset(current), reads, binds, in_lambda)
+        current |= {n.id for n in ast.walk(gen.target) if isinstance(n, ast.Name)}
+        for cond in gen.ifs:
+            _expression_reads(cond, frozenset(current), reads, binds, in_lambda)
+    elements = [node.key, node.value] if isinstance(node, ast.DictComp) else [node.elt]
+    for element in elements:
+        _expression_reads(element, frozenset(current), reads, binds, in_lambda)
+
+
+def _class_bypass_reads(node, reads):
+    """Reads in a class-body lambda or comprehension that skip the class.
+
+    Lambda defaults and a comprehension's first iterable run in the class
+    scope, so only expression scopes nested in them reach further out.
     """
-    for node in _scope_nodes(body):
-        if isinstance(node, _DEF_NODES):
-            child = _child(table, node)
-            if name in child.get_identifiers() and child.lookup(name).is_free():
+    if isinstance(node, ast.Lambda):
+        outer = _defaults(node.args)
+        _lambda_body(node, frozenset(), reads, set())
+    else:
+        outer = [node.generators[0].iter]
+        _comprehension_body(node, frozenset(), reads, set(), False)
+    for sub in _scope_nodes(outer):
+        if isinstance(sub, _EXPRESSION_SCOPES):
+            _class_bypass_reads(sub, reads)
+
+
+def _nested_reads(table, node, name) -> bool:
+    """Whether nested scope ``table`` (for ``node``) reads ``name`` from outside.
+
+    CPython marks a name free in every scope it passes through, so a
+    function child answers directly, and one that rebinds the name has it
+    local, not free. A class that rebinds the name keeps it local, yet its
+    methods, lambdas and comprehensions still read the outer one.
+    """
+    if name in table.get_identifiers() and table.lookup(name).is_free():
+        return True
+    if not isinstance(node, ast.ClassDef):
+        return False
+    for sub in _scope_nodes(node.body):
+        if isinstance(sub, _DEF_NODES):
+            if _nested_reads(_child(table, sub), sub, name):
+                return True
+        elif isinstance(sub, _EXPRESSION_SCOPES):
+            reads: set[str] = set()
+            _class_bypass_reads(sub, reads)
+            if name in reads:
                 return True
     return False
+
+
+def _stops_at(table, name) -> bool:
+    if name not in table.get_identifiers():
+        return False
+    sym = table.lookup(name)
+    return sym.is_local() or sym.is_declared_global()
+
+
+def _annotation_lookups(table, body):
+    """(own, passed) annotation names whose lookup starts in this scope.
+
+    ``own`` are annotations evaluated here. ``passed`` come up from nested
+    scopes that do not bind them. A class stops its own annotation names
+    if it binds them, but names from its methods skip the class.
+    """
+    own: set[str] = set()
+    passed: set[str] = set()
+    for sub in _scope_nodes(body):
+        if isinstance(sub, ast.AnnAssign):
+            own |= annotation_names(sub.annotation)
+        if not isinstance(sub, _DEF_NODES):
+            continue
+        for annotation in _def_annotations(sub):
+            own |= annotation_names(annotation)
+        child = _child(table, sub)
+        child_own, child_passed = _annotation_lookups(child, sub.body)
+        if isinstance(sub, ast.ClassDef):
+            passed |= {n for n in child_own if not _stops_at(child, n)} | child_passed
+        else:
+            passed |= {n for n in child_own | child_passed if not _stops_at(child, n)}
+    return own, passed
 
 
 def _scan(body, table, out):
@@ -145,11 +228,17 @@ def _scan(body, table, out):
 
 
 def _check_function(node, table, out):
-    reads: set[str] = set()
+    own, passed = _annotation_lookups(table, node.body)
+    reads: set[str] = own | passed
     binds: set[tuple[int, str]] = set(_plain_bindings(node.body))
+    nested = []
     for sub in _scope_nodes(node.body):
         if isinstance(sub, _EXPRESSION_SCOPES):
             _expression_reads(sub, frozenset(), reads, binds)
+        elif isinstance(sub, ast.AugAssign) and isinstance(sub.target, ast.Name):
+            reads.add(sub.target.id)
+        elif isinstance(sub, _DEF_NODES):
+            nested.append(sub)
     for line, name in sorted(binds):
         sym = table.lookup(name)
         if (
@@ -157,7 +246,7 @@ def _check_function(node, table, out):
             and sym.is_local()
             and not sym.is_referenced()
             and name not in reads
-            and not _read_by_nested_def(table, node.body, name)
+            and not any(_nested_reads(_child(table, n), n, name) for n in nested)
         ):
             out.append(f"{line}:{name}")
 
@@ -304,6 +393,104 @@ def test_read_in_nested_def_decorator_or_default_is_used():
         "    return g\n"
     )
     assert unused_locals(src) == []
+
+
+def test_augmented_assignment_reads_its_target():
+    assert unused_locals("def f():\n    x = 0\n    x += 1\n") == []
+
+
+def test_class_that_rebinds_the_name_does_not_shadow_its_methods():
+    src = (
+        "def f(rows):\n"
+        "    x = 1\n"
+        "    y = 2\n"
+        "    z = 3\n"
+        "    w = 4\n"
+        "    class C:\n"
+        "        x = y = z = w = 0\n"
+        "        def m(self):\n"
+        "            return x\n"
+        "        g = lambda self: y\n"
+        "        h = [z for _ in rows]\n"
+        "        class D:\n"
+        "            def n(self):\n"
+        "                return w\n"
+        "    return C\n"
+    )
+    assert unused_locals(src) == []
+
+
+def test_class_scope_parts_of_class_lambdas_and_comprehensions_read_the_class():
+    src = (
+        "def f():\n"
+        "    x = 1\n"
+        "    y = 2\n"
+        "    class C:\n"
+        "        x = y = [0]\n"
+        "        g = lambda self, v=x: v\n"
+        "        h = [r for r in y]\n"
+        "    return C\n"
+    )
+    assert unused_locals(src) == ["2:x", "3:y"]
+
+
+def test_reads_in_class_bases_keywords_and_kw_defaults_are_used():
+    src = (
+        "def f(mk):\n"
+        "    a = 1\n"
+        "    b = 2\n"
+        "    c = 3\n"
+        "    class C(mk(lambda: a), metaclass=mk(lambda: b)):\n"
+        "        pass\n"
+        "    def g(*, v=(lambda: c)):\n"
+        "        return v\n"
+        "    return C, g\n"
+    )
+    assert unused_locals(src) == []
+
+
+def test_annotation_reads_count_under_future_annotations():
+    src = (
+        "from __future__ import annotations\n"
+        "def f():\n"
+        "    A = int\n"
+        "    P = int\n"
+        "    R = int\n"
+        "    Q = int\n"
+        "    M = int\n"
+        "    a: A = 1\n"
+        "    def g(v: P) -> 'R':\n"
+        "        w: Q = v\n"
+        "        return w\n"
+        "    class C:\n"
+        "        M = 0\n"
+        "        def m(self):\n"
+        "            q: M = 0\n"
+        "            return q\n"
+        "    return a, g, C\n"
+    )
+    assert unused_locals(src) == []
+
+
+def test_annotation_name_bound_in_a_nested_scope_does_not_reach_out():
+    src = (
+        "from __future__ import annotations\n"
+        "def f():\n"
+        "    T = int\n"
+        "    U = int\n"
+        "    M = int\n"
+        "    def g():\n"
+        "        T = str\n"
+        "        w: T = 1\n"
+        "        return w, T\n"
+        "    class C:\n"
+        "        U = M = str\n"
+        "        v: U = 1\n"
+        "        def m(self) -> M:\n"
+        "            pass\n"
+        "    return g, C\n"
+    )
+    assert unused_locals(src) == ["3:T", "4:U", "5:M"]
 
 
 def test_global_and_nonlocal_targets_are_not_locals():
