@@ -15,7 +15,7 @@
     "typecheck": "tsc",
     "export-openapi": "node ./scripts/export-openapi.mjs",
     "postinstall": "node scripts/ensure-minimatch-callable.js",
-    "prebuild": "node scripts/ensure-minimatch-callable.js && node --test scripts/ensure-minimatch-callable.test.js && npm run export-openapi",
+    "prebuild": "node scripts/ensure-minimatch-callable.js && node --test scripts/ensure-minimatch-callable.test.js scripts/deepmerge-stub.test.js && npm run export-openapi",
     "prestart": "node scripts/ensure-minimatch-callable.js && npm run export-openapi",
     "preserve": "node scripts/ensure-minimatch-callable.js",
     "predeploy": "node scripts/ensure-minimatch-callable.js"
@@ -27,6 +27,7 @@
     "@mdx-js/react": "^3.0.0",
     "@scalar/docusaurus": "^0.8.39",
     "clsx": "^2.0.0",
+    "deepmerge": "file:./stubs/deepmerge",
     "prism-react-renderer": "^2.3.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -68,7 +69,8 @@
     "http-cache-semantics": "4.3.0",
     "follow-redirects": "1.16.2",
     "joi": "17.13.9",
-    "minimatch": "11.0.4"
+    "minimatch": "11.0.4",
+    "deepmerge": "$deepmerge"
   },
   "resolutions": {
     "tinypool": "2.1.2",
@@ -84,6 +86,7 @@
     "http-cache-semantics": "4.3.0",
     "follow-redirects": "1.16.2",
     "joi": "17.13.9",
-    "minimatch": "11.0.4"
+    "minimatch": "11.0.4",
+    "deepmerge": "file:./stubs/deepmerge"
   }
 }
