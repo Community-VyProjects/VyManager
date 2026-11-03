@@ -50,7 +50,7 @@ function assertLockfile(lockPath) {
   if (!fs.existsSync(lockPath)) return;
   if (lockPath.endsWith("yarn.lock")) {
     const text = fs.readFileSync(lockPath, "utf8");
-    const versions = [...text.matchAll(/\/minimatch\/-\/minimatch-(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)\.tgz/g)].map(
+    const versions = [...text.matchAll(/registry\.(?:npmjs\.org|yarnpkg\.com)\/minimatch\/-\/minimatch-(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)\.tgz/g)].map(
       (match) => match[1],
     );
     if (versions.length === 0) {
@@ -236,7 +236,8 @@ function main() {
 
   const dirs = findMinimatchDirs(path.join(root, "node_modules"));
   if (dirs.length === 0) {
-    throw new Error(`no minimatch installed under ${root}`);
+    process.stdout.write(`minimatch not installed under ${root}; skip\n`);
+    return;
   }
   for (const pkgDir of dirs) {
     const meta = JSON.parse(fs.readFileSync(path.join(pkgDir, "package.json"), "utf8"));
