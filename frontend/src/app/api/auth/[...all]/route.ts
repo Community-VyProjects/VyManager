@@ -1,6 +1,6 @@
 import { getAuth } from "@/lib/auth";
 import { currentClientPeer, installClientPeerCapture } from "@/lib/client-peer";
-import { clientIpForRateLimit, loginRateLimiter, trustedProxyHops } from "@/lib/login-rate-limit";
+import { clientIpForRateLimit, loginRateLimiter, rateLimitAddress, trustedProxyHops } from "@/lib/login-rate-limit";
 import { isOAuthCallbackPath, rewriteLegacyOAuthCallbackURL } from "@/lib/oauth-callback";
 import { toNextJsHandler } from "better-auth/next-js";
 import { NextRequest, NextResponse } from "next/server";
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
         { status: 503 },
       );
     }
-    if (!loginRateLimiter.allow(ip, Date.now())) {
+    if (!loginRateLimiter.allow(rateLimitAddress(ip), Date.now())) {
       return NextResponse.json(
         { error: { message: "Too many login attempts. Please try again later." } },
         { status: 429 }

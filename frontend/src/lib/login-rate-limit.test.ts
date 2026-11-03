@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { getIP } from "../../node_modules/@better-auth/core/dist/utils/ip.mjs";
 import {
+  CLIENT_IP_HEADER,
   LOGIN_RATE_LIMIT,
   LOGIN_RATE_MAX_CLIENTS,
   LOGIN_RATE_WINDOW_MS,
@@ -8,6 +10,7 @@ import {
   createLoginRateLimiter,
   parseTrustedProxyIps,
   peerIsTrustedProxy,
+  rateLimitAddress,
   trustedProxyEntries,
   trustedProxyHops,
 } from "./login-rate-limit";
@@ -115,30 +118,50 @@ describe("clientIpForRateLimit", () => {
     );
   });
 
-  it("buckets an IPv6 client by /64", () => {
+  it("keeps a full IPv6 address for the header and buckets the limiter by /64", () => {
     assert.equal(
       clientIpForRateLimit({
         peerAddress: "2001:db8:1:2::1",
         forwardedFor: "9.9.9.9",
         trustedProxyHops: 0,
+        trustedProxyIps: "",
       }),
-      clientIpForRateLimit({
-        peerAddress: "2001:db8:1:2::ffff",
-        forwardedFor: null,
-        trustedProxyHops: 0,
-      }),
+      "2001:db8:1:2::1",
+    );
+    assert.equal(
+      rateLimitAddress("2001:db8:1:2::1"),
+      rateLimitAddress("2001:db8:1:2::ffff"),
     );
     assert.notEqual(
-      clientIpForRateLimit({
-        peerAddress: "2001:db8:1:2::1",
-        forwardedFor: null,
-        trustedProxyHops: 0,
-      }),
-      clientIpForRateLimit({
-        peerAddress: "2001:db8:1:3::1",
-        forwardedFor: null,
-        trustedProxyHops: 0,
-      }),
+      rateLimitAddress("2001:db8:1:2::1"),
+      rateLimitAddress("2001:db8:1:3::1"),
+    );
+  });
+
+  it("gives Better Auth a real IPv6 address, not the limiter bucket", () => {
+    const options = {
+      advanced: { ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] } },
+    };
+    const full = clientIpForRateLimit({
+      peerAddress: "2001:db8:1:2::1",
+      forwardedFor: "9.9.9.9",
+      trustedProxyHops: 0,
+      trustedProxyIps: "",
+    });
+    assert.ok(full);
+    assert.notEqual(full, rateLimitAddress(full));
+    assert.ok(getIP({ headers: { get: (name: string) => (name === CLIENT_IP_HEADER ? full : null) } }, options));
+    assert.equal(
+      getIP({ headers: { get: () => rateLimitAddress(full as string) } }, options),
+      null,
+    );
+    assert.equal(getIP({ headers: { get: () => "127.0.0.1" } }, options), "127.0.0.1");
+    assert.equal(
+      getIP(
+        { headers: { get: () => "127.0.0.1" } },
+        { advanced: { ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER], trustedProxies: ["127.0.0.1"] } } },
+      ),
+      null,
     );
   });
 

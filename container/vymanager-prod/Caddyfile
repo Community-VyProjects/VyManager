@@ -1,0 +1,5 @@
+:80 {
+	@ws path /vyos/monitoring/ws/* /vyos/console/ws/*
+	reverse_proxy @ws backend:8000
+	reverse_proxy frontend:3000
+}

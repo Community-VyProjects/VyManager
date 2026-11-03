@@ -185,14 +185,14 @@ export function clientIpForRateLimit(input: {
       ? input.trustedProxyIps
       : process.env.TRUSTED_PROXY_IPS,
   );
-  if (hops <= 0 || !peerIsTrustedProxy(peer, trust)) return rateLimitAddress(peer);
+  if (hops <= 0 || !peerIsTrustedProxy(peer, trust)) return peer;
   const addrs = [peer, ...forwardedHopsRightToLeft(input.forwardedFor)];
   let index = 0;
   for (; index < addrs.length - 1; index++) {
     if (index < hops) continue;
     break;
   }
-  return rateLimitAddress(addrs[index]);
+  return addrs[index];
 }
 
 export function createLoginRateLimiter(): LoginRateLimiter {

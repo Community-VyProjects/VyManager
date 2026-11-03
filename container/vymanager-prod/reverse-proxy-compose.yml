@@ -1,0 +1,109 @@
+# Compose deployment with a proxy on the app network.
+# Do not merge this onto env-file-docker-compose.yml. A plain merge can add
+# an address pool, but it cannot drop the published 3000:3000 port, and that
+# published port is what makes the proxy peer the Docker gateway.
+#
+# Requires the same env files as the stock compose, plus SSH_ENCRYPTION_KEY.
+# From this directory:
+#   docker compose -f reverse-proxy-compose.yml up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vymanager-postgres
+    environment:
+      POSTGRES_USER: vymanager
+      POSTGRES_PASSWORD: vymanager_secure_password
+      POSTGRES_DB: vymanager_auth
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - vymanager-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vymanager -d vymanager_auth"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  migrate:
+    image: ghcr.io/community-vyprojects/vymanager-frontend:beta
+    container_name: vymanager-migrate
+    entrypoint: ["sh", "-c", "npx prisma generate && npx prisma migrate deploy"]
+    env_file:
+      - ../../frontend/.env
+    restart: "no"
+    networks:
+      - vymanager-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backend:
+    image: ghcr.io/community-vyprojects/vymanager-backend:beta
+    container_name: vymanager-backend
+    env_file:
+      - ../../backend/.env
+    environment:
+      SSH_ENCRYPTION_KEY: "${SSH_ENCRYPTION_KEY:?SSH_ENCRYPTION_KEY must be set}"
+    restart: unless-stopped
+    networks:
+      - vymanager-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+
+  frontend:
+    image: ghcr.io/community-vyprojects/vymanager-frontend:beta
+    container_name: vymanager-frontend
+    env_file:
+      - ../../frontend/.env
+    environment:
+      TRUSTED_PROXY_HOPS: "1"
+      TRUSTED_PROXY_IPS: 172.28.10.10
+    restart: unless-stopped
+    networks:
+      - vymanager-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  proxy:
+    image: caddy:2
+    container_name: vymanager-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    restart: unless-stopped
+    networks:
+      vymanager-network:
+        ipv4_address: 172.28.10.10
+    depends_on:
+      frontend:
+        condition: service_started
+      backend:
+        condition: service_started
+
+networks:
+  vymanager-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.10.0/24
+
+volumes:
+  postgres_data:
+    driver: local
