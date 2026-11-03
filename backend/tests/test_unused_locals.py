@@ -144,7 +144,12 @@ def _comprehension_body(node, bound, reads, binds, in_lambda):
     for index, gen in enumerate(node.generators):
         if index:
             _expression_reads(gen.iter, frozenset(current), reads, binds, in_lambda)
-        current |= {n.id for n in ast.walk(gen.target) if isinstance(n, ast.Name)}
+        current |= {
+            n.id for n in ast.walk(gen.target)
+            if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Store)
+        }
+        # ``o`` in ``for o.x in`` and ``d``, ``k`` in ``for d[k] in`` are reads.
+        _expression_reads(gen.target, frozenset(current), reads, binds, in_lambda)
         for cond in gen.ifs:
             _expression_reads(cond, frozenset(current), reads, binds, in_lambda)
     elements = [node.key, node.value] if isinstance(node, ast.DictComp) else [node.elt]
@@ -659,6 +664,22 @@ def test_annotations_reach_out_of_classes_and_nested_functions():
         "    return C, g\n"
     )
     assert unused_locals(src) == []
+
+
+def test_comprehension_attribute_and_subscript_targets_read_their_names():
+    src = (
+        "def f(rows):\n"
+        "    o = 1\n"
+        "    d = 2\n"
+        "    k = 3\n"
+        "    return [1 for o.x in rows], [1 for d[k] in rows]\n"
+    )
+    assert unused_locals(src) == []
+
+
+def test_def_with_a_lambda_default_gets_its_own_symbol_table():
+    src = "def f():\n    def g(v=lambda: 0):\n        y = 1\n    return g\n"
+    assert unused_locals(src) == ["3:y"]
 
 
 def test_global_and_nonlocal_targets_are_not_locals():
