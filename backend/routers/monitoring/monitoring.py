@@ -473,7 +473,7 @@ async def websocket_monitor(websocket: WebSocket):
                     "data": "Session timed out due to inactivity",
                 })
             except (ConnectionError, WebSocketDisconnect):
-                pass
+                pass  # SSH or client side closed; the caller tears down.
 
         async def listen_for_stop():
             """Listen for stop command from client."""
@@ -520,17 +520,19 @@ async def websocket_monitor(websocket: WebSocket):
             task.cancel()
             try:
                 await task
-            except (asyncio.CancelledError, Exception):
-                pass
+            except asyncio.CancelledError:
+                pass  # We just cancelled it; that is the normal exit.
+            except Exception:
+                logger.exception("Monitoring: error while cancelling pending task")
 
     except WebSocketDisconnect:
-        pass
+        pass  # Client left; the finally block below does the cleanup.
     except Exception:
         logger.exception("Unexpected error in monitoring WebSocket")
         try:
             await websocket.send_json({"type": "error", "data": "Internal server error"})
         except Exception:
-            pass
+            pass  # Best effort: the client may already be gone.
     finally:
         _active_sessions.pop(user_id, None)
 
@@ -538,23 +540,23 @@ async def websocket_monitor(websocket: WebSocket):
             try:
                 ssh_process.terminate()
             except Exception:
-                pass
+                pass  # Best effort: the process may already have exited.
 
         if ssh_conn:
             try:
                 ssh_conn.close()
             except Exception:
-                pass
+                pass  # Best effort: the connection may already be closed.
 
         try:
             await websocket.send_json({"type": "stopped"})
         except Exception:
-            pass
+            pass  # Best effort: the client may already be gone.
 
         try:
             await websocket.close()
         except Exception:
-            pass
+            pass  # Best effort: the socket may already be closed.
 
 
 # ============================================================================

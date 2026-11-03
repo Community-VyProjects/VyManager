@@ -280,8 +280,8 @@ async def lifespan(app: FastAPI):
     # Stop the revocation bus listener
     try:
         await revocation_bus.stop()
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"  ⚠ Revocation bus stop failed: {e}")
 
     # Stop SSE banner poller
     stop_poller()
@@ -289,7 +289,7 @@ async def lifespan(app: FastAPI):
         try:
             await poller_task
         except asyncio.CancelledError:
-            pass
+            pass  # stop_poller() cancelled it; that is the normal exit.
         print("  ✓ SSE banner poller stopped")
 
     # Stop cleanup task
@@ -298,7 +298,7 @@ async def lifespan(app: FastAPI):
         try:
             await cleanup_task
         except asyncio.CancelledError:
-            pass
+            pass  # We just cancelled it; that is the normal exit.
         print("  ✓ Session cleanup task stopped")
 
     # Close database connection pool

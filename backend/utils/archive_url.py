@@ -233,7 +233,7 @@ async def _list_ftp(
                         files.append({"filename": name, "modified": None, "size": None})
                 ftp2.quit()
             except Exception:
-                pass
+                logger.warning("FTP NLST fallback listing failed")
 
         files.sort(key=lambda f: f["filename"], reverse=True)
         return files

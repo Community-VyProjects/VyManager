@@ -82,7 +82,7 @@ def test_pppoe_cycle_swallows_cancelled_task_without_killing_the_loop():
         try:
             await task
         except asyncio.CancelledError:
-            pass
+            pass  # Setup: we only need a cancelled task.
         broadcaster._pppoe_task = task
         broadcaster._handle_pppoe_cycle(start=False)
         assert broadcaster._pppoe_task is None
@@ -103,7 +103,7 @@ def test_pppoe_cycle_failed_fetch_keeps_the_last_snapshot():
         try:
             await task
         except RuntimeError:
-            pass
+            pass  # Setup: we only need a failed task.
         broadcaster._pppoe_task = task
         broadcaster._handle_pppoe_cycle(start=False)
         assert pushed == []

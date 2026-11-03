@@ -382,7 +382,7 @@ def parse_bgp_summary(protocols_config: dict) -> Optional[Dict[str, Any]]:
         try:
             system_as = int(as_val)
         except (ValueError, TypeError):
-            pass
+            pass  # Unparseable system-as reads as unset.
 
     router_id = None
     params = bgp_config.get("parameters", {})

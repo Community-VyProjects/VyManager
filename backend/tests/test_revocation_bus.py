@@ -132,7 +132,7 @@ def test_token_revoke_emits_through_bus(monkeypatch):
                         for _ in range(4):
                             seen.add(await asyncio.wait_for(q.get(), timeout=3))
                     except asyncio.TimeoutError:
-                        pass
+                        pass  # Fewer than 4 payloads; the asserts below check them.
 
                 asyncio.run(drain())
                 assert "user:u_rb" in seen

@@ -15,7 +15,7 @@ def _parse_port(server_raw: dict) -> Optional[int]:
         try:
             return int(port_val)
         except (ValueError, TypeError):
-            pass
+            pass  # Unparseable port reads as unset.
     return None
 
 
