@@ -91,6 +91,51 @@ export const TRUST_DEVICE_COOKIE_NAMES = [
   "__Secure-better-auth.trust_device",
 ] as const;
 
+export type TrustDeviceCookieName = (typeof TRUST_DEVICE_COOKIE_NAMES)[number];
+
+/**
+ * Attributes better-auth's createAuthCookie sets on trust_device.
+ * Secure follows the __Secure- prefix: that name was set with Secure,
+ * and browsers drop a deletion that omits it. The plain name stays
+ * non-Secure so an HTTP session can still be forgotten.
+ */
+export function trustDeviceExpiryOptions(name: TrustDeviceCookieName): {
+  path: "/";
+  maxAge: 0;
+  httpOnly: true;
+  sameSite: "lax";
+  secure: boolean;
+} {
+  return {
+    path: "/",
+    maxAge: 0,
+    httpOnly: true,
+    sameSite: "lax",
+    secure: name.startsWith("__Secure-"),
+  };
+}
+
+const TRUST_DEVICE_IDENTIFIER = /^trust-device-[A-Za-z0-9_-]+$/;
+
+/** Payload is `token!trust-device-<id>`, the value better-auth signs into the cookie. */
+export function trustDeviceIdentifier(payload: string): string | null {
+  const separator = payload.indexOf("!");
+  if (separator < 1) return null;
+  const identifier = payload.slice(separator + 1);
+  if (!TRUST_DEVICE_IDENTIFIER.test(identifier)) return null;
+  return identifier;
+}
+
+export function cookieHeaderHasTrustDevice(cookieHeader: string | null): boolean {
+  if (!cookieHeader) return false;
+  return cookieHeader.split(";").some((part) => {
+    const eq = part.indexOf("=");
+    if (eq < 1) return false;
+    const name = part.slice(0, eq).trim();
+    return (TRUST_DEVICE_COOKIE_NAMES as readonly string[]).includes(name);
+  });
+}
+
 export function parseTwoFactorQuery(search: string): {
   challenge: boolean;
   methods: string[];

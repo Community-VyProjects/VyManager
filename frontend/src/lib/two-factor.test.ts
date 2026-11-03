@@ -7,7 +7,11 @@ import {
   parseTwoFactorQuery,
   totpSecretFromUri,
   mustEnrollTwoFactor,
+  cookieHeaderHasTrustDevice,
+  trustDeviceExpiryOptions,
+  trustDeviceIdentifier,
 } from "./two-factor";
+import { revokePresentedTrustDevices } from "../app/api/auth/trust-device/revoke";
 
 describe("interpretSignInResult", () => {
   it("returns the error message from a failed password", () => {
@@ -120,6 +124,91 @@ describe("leftoverPasswordSessions", () => {
       { nowMs: now, currentUserAgent: ua },
     );
     assert.deepEqual(ghosts.map((s) => s.token), ["ghost"]);
+  });
+});
+
+describe("trustDeviceExpiryOptions", () => {
+  it("matches better-auth attributes, with Secure only on the prefixed name", () => {
+    assert.deepEqual(trustDeviceExpiryOptions("better-auth.trust_device"), {
+      path: "/",
+      maxAge: 0,
+      httpOnly: true,
+      sameSite: "lax",
+      secure: false,
+    });
+    assert.deepEqual(trustDeviceExpiryOptions("__Secure-better-auth.trust_device"), {
+      path: "/",
+      maxAge: 0,
+      httpOnly: true,
+      sameSite: "lax",
+      secure: true,
+    });
+  });
+});
+
+describe("trustDeviceIdentifier", () => {
+  it("reads only a trust-device identifier from the signed payload", () => {
+    assert.equal(
+      trustDeviceIdentifier("hmac-token!trust-device-abcDEF1234567890_-"),
+      "trust-device-abcDEF1234567890_-",
+    );
+    assert.equal(trustDeviceIdentifier("hmac-token!reset-password-abc"), null);
+    assert.equal(trustDeviceIdentifier("no-separator"), null);
+  });
+});
+
+describe("cookieHeaderHasTrustDevice", () => {
+  it("matches the cookie name, not a value that contains it", () => {
+    assert.equal(
+      cookieHeaderHasTrustDevice("__Secure-better-auth.trust_device=abc"),
+      true,
+    );
+    assert.equal(cookieHeaderHasTrustDevice("better-auth.trust_device=abc"), true);
+    assert.equal(cookieHeaderHasTrustDevice("better-auth.session_token=trust_device"), false);
+    assert.equal(cookieHeaderHasTrustDevice(null), false);
+  });
+});
+
+describe("revokePresentedTrustDevices", () => {
+  it("deletes the row for a better-call signed cookie and ignores a forged one", async () => {
+    const { serializeSignedCookie } = await import("better-call");
+    const secret = "test-secret";
+    const identifier = "trust-device-abcDEF1234567890_-";
+    const setCookie = await serializeSignedCookie(
+      "__Secure-better-auth.trust_device",
+      `hmac-token!${identifier}`,
+      secret,
+      { path: "/" },
+    );
+    const deleted: string[] = [];
+    await revokePresentedTrustDevices(setCookie.split(";")[0], {
+      secret,
+      deleteVerificationByIdentifier: async (id) => {
+        deleted.push(id);
+      },
+    });
+    assert.deepEqual(deleted, [identifier]);
+
+    deleted.length = 0;
+    const forged = await serializeSignedCookie(
+      "__Secure-better-auth.trust_device",
+      `hmac-token!${identifier}`,
+      "other-secret",
+      { path: "/" },
+    );
+    const forgedPair = forged.split(";")[0];
+    const signature = decodeURIComponent(forgedPair.slice(forgedPair.indexOf("=") + 1))
+      .split(".")
+      .pop();
+    assert.equal(signature?.length, 44);
+    assert.equal(signature?.endsWith("="), true);
+    await revokePresentedTrustDevices(forgedPair, {
+      secret,
+      deleteVerificationByIdentifier: async (id) => {
+        deleted.push(id);
+      },
+    });
+    assert.deepEqual(deleted, []);
   });
 });
 
