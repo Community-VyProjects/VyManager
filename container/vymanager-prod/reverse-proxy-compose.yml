@@ -3,7 +3,9 @@
 # an address pool, but it cannot drop the published 3000:3000 port, and that
 # published port is what makes the proxy peer the Docker gateway.
 #
-# Requires the same env files as the stock compose, plus SSH_ENCRYPTION_KEY.
+# Requires the same env files as the stock compose, plus SSH_ENCRYPTION_KEY
+# and VYMANAGER_HOST (shell or a .env file next to this file). The stack
+# refuses to start if VYMANAGER_HOST is unset.
 # From this directory:
 #   docker compose -f reverse-proxy-compose.yml up -d
 
@@ -83,7 +85,7 @@ services:
     image: caddy:2
     container_name: vymanager-proxy
     environment:
-      VYMANAGER_HOST: ${VYMANAGER_HOST:-vymanager.example.com}
+      VYMANAGER_HOST: ${VYMANAGER_HOST:?VYMANAGER_HOST must be set}
     ports:
       - "80:80"
       - "443:443"
