@@ -4,7 +4,6 @@ import os
 if os.path.exists(".env"):
     load_dotenv()
 
-import os
 import asyncpg
 import asyncio
 from datetime import datetime, timedelta
