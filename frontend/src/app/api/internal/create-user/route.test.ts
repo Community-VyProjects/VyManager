@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it, mock } from "node:test";
 import { NextRequest } from "next/server";
+import { queueAfterTransactionHook } from "@better-auth/core/context";
 
 // mock.module is only on the ESM test runner, not tsx's CJS loader:
 // node --experimental-test-module-mocks --import tsx --test src/app/api/internal/create-user/route.test.ts
@@ -22,6 +23,7 @@ let signUpCalls = 0;
 let transactionCalls = 0;
 let nextId = 0;
 let createError: Error | null = null;
+let failAfterCommit = false;
 
 function resetStore(): void {
   users.length = 0;
@@ -31,6 +33,7 @@ function resetStore(): void {
   transactionCalls = 0;
   nextId = 0;
   createError = null;
+  failAfterCommit = false;
 }
 
 mock.module("@/lib/auth", {
@@ -85,6 +88,11 @@ mock.module("@/lib/auth", {
               name: user.name,
             };
             users.push(created);
+            if (failAfterCommit) {
+              await queueAfterTransactionHook(async () => {
+                throw new Error("hook failed");
+              });
+            }
             return created;
           },
           linkAccount: async (account: StoredAccount) => {
@@ -187,6 +195,32 @@ describe("POST /api/internal/create-user", { concurrency: false }, () => {
     assert.equal(users.length, 0);
     assert.equal(signUpCalls, 0);
     assert.equal(sessionCreates, 0);
+  });
+
+  it("returns the created user when an after-commit hook throws", async () => {
+    resetStore();
+    failAfterCommit = true;
+    const errors: unknown[][] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => {
+      errors.push(args);
+    };
+    try {
+      const { POST } = await import("./route");
+      const response = await POST(
+        post({ email: "hook@example.com", password: "correct-horse", name: "Hook" }),
+      );
+      assert.equal(response.status, 200);
+      const body = (await response.json()) as { user: { email: string } };
+      assert.equal(body.user.email, "hook@example.com");
+      assert.equal(signUpCalls, 0);
+      assert.equal(sessionCreates, 0);
+    } finally {
+      console.error = original;
+      failAfterCommit = false;
+    }
+    assert.equal(errors.length, 1);
+    assert.match(String(errors[0][0]), /after-commit hook failed/);
   });
 
   it("does not create a user when the internal secret is missing", async () => {
