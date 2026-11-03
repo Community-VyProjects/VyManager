@@ -6,7 +6,8 @@ import https from "node:https";
 import os from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { CLIENT_IP_HEADER } from "./login-rate-limit";
+import { CLIENT_IP_HEADER, betterAuthIpAddress } from "./login-rate-limit";
+import { getIP } from "@better-auth/core/utils/ip";
 import { currentClientPeer, installClientPeerCapture } from "./client-peer";
 
 describe("client peer capture", () => {
@@ -103,6 +104,39 @@ describe("client peer capture", () => {
         server.close((err) => (err ? reject(err) : resolve()));
       });
       fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("stamps a full IPv6 peer that Better Auth accepts", async () => {
+    installClientPeerCapture();
+    const seen: string[] = [];
+    const server = http.createServer((req, res) => {
+      seen.push(req.headers[CLIENT_IP_HEADER]?.toString() ?? "");
+      res.end("ok");
+    });
+    await new Promise<void>((resolve, reject) => {
+      server.listen(0, "::1", () => resolve());
+      server.on("error", reject);
+    });
+    try {
+      const address = server.address();
+      assert.ok(address && typeof address === "object");
+      const response = await fetch(`http://[::1]:${address.port}/`, {
+        headers: { "x-forwarded-for": "2001:db8::9", [CLIENT_IP_HEADER]: "2001:db8::8" },
+      });
+      assert.equal(response.status, 200);
+      const stamped = seen[0];
+      assert.equal(stamped, "::1");
+      const resolved = getIP(
+        { headers: { get: (name: string) => (name === CLIENT_IP_HEADER ? stamped : null) } },
+        { advanced: { ipAddress: betterAuthIpAddress() } },
+      );
+      assert.ok(resolved);
+      assert.notEqual(resolved, "0000:0000:0000:0000");
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((err) => (err ? reject(err) : resolve()));
+      });
     }
   });
 });

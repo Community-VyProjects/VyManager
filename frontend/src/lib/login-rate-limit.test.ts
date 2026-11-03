@@ -1,17 +1,18 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { getIP } from "../../node_modules/@better-auth/core/dist/utils/ip.mjs";
+import { readFileSync } from "node:fs";
+import { getIP } from "@better-auth/core/utils/ip";
 import {
   CLIENT_IP_HEADER,
   LOGIN_RATE_LIMIT,
   LOGIN_RATE_MAX_CLIENTS,
   LOGIN_RATE_WINDOW_MS,
+  betterAuthIpAddress,
   clientIpForRateLimit,
   createLoginRateLimiter,
   parseTrustedProxyIps,
   peerIsTrustedProxy,
   rateLimitAddress,
-  trustedProxyEntries,
   trustedProxyHops,
 } from "./login-rate-limit";
 
@@ -34,10 +35,6 @@ describe("trusted proxy list", () => {
     assert.equal(peerIsTrustedProxy("172.19.0.4", trust), false);
     assert.equal(peerIsTrustedProxy("10.1.1.1", trust), true);
     assert.equal(peerIsTrustedProxy("203.0.113.9", trust), false);
-    assert.deepEqual(
-      new Set(trustedProxyEntries("10.1.1.1, nope, 0.0.0.0/0")),
-      new Set(["::1", "10.1.1.1", "127.0.0.1"]),
-    );
     assert.equal(
       clientIpForRateLimit({
         peerAddress: "172.18.0.4",
@@ -139,9 +136,10 @@ describe("clientIpForRateLimit", () => {
   });
 
   it("gives Better Auth a real IPv6 address, not the limiter bucket", () => {
-    const options = {
-      advanced: { ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] } },
-    };
+    const options = { advanced: { ipAddress: betterAuthIpAddress() } };
+    assert.equal("trustedProxies" in betterAuthIpAddress(), false);
+    const authSrc = readFileSync(new URL("./auth.ts", import.meta.url), "utf8");
+    assert.match(authSrc, /ipAddress:\s*betterAuthIpAddress\(\)/);
     const full = clientIpForRateLimit({
       peerAddress: "2001:db8:1:2::1",
       forwardedFor: "9.9.9.9",
@@ -156,13 +154,6 @@ describe("clientIpForRateLimit", () => {
       null,
     );
     assert.equal(getIP({ headers: { get: () => "127.0.0.1" } }, options), "127.0.0.1");
-    assert.equal(
-      getIP(
-        { headers: { get: () => "127.0.0.1" } },
-        { advanced: { ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER], trustedProxies: ["127.0.0.1"] } } },
-      ),
-      null,
-    );
   });
 
   it("uses the hop the immediate proxy appended, not the client prefix", () => {

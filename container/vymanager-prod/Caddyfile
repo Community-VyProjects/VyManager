@@ -1,5 +1,12 @@
-:80 {
+# tls internal is Caddy's local CA. Browsers do not trust it until that
+# CA is installed. Leave BETTER_AUTH_SECURE_COOKIES unset until then.
+https:// {
+	tls internal
 	@ws path /vyos/monitoring/ws/* /vyos/console/ws/*
 	reverse_proxy @ws backend:8000
 	reverse_proxy frontend:3000
+}
+
+http:// {
+	redir https://{host}{uri}
 }

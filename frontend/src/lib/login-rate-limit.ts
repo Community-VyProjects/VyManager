@@ -15,6 +15,13 @@ export const LOGIN_RATE_LIMIT = 10;
 export const LOGIN_RATE_WINDOW_MS = 60_000;
 /** Header set from the socket peer. Better Auth must not read X-Forwarded-For. */
 export const CLIENT_IP_HEADER = "x-vymanager-client-ip";
+
+/** The only IP config Better Auth should use. No trustedProxies: a resolved
+ * address that matches a trusted entry is skipped and every such client
+ * shares one sign-in bucket. */
+export function betterAuthIpAddress(): { ipAddressHeaders: string[] } {
+  return { ipAddressHeaders: [CLIENT_IP_HEADER] };
+}
 /** Map size bound. A new client evicts the oldest key instead of being refused. */
 export const LOGIN_RATE_MAX_CLIENTS = 4096;
 
@@ -117,26 +124,6 @@ export function parseTrustedProxyIps(raw: string | undefined): ProxyTrust {
     if (item && isIpAddress(item)) exact.add(item);
   }
   return { exact, v4Cidrs };
-}
-
-/** Loopback plus validated TRUSTED_PROXY_IPS entries, for Better Auth. */
-export function trustedProxyEntries(
-  raw: string | undefined = process.env.TRUSTED_PROXY_IPS,
-): string[] {
-  const entries = new Set<string>(LOOPBACK_PEERS);
-  if (!raw) return [...entries];
-  for (const part of raw.split(",")) {
-    const token = part.trim();
-    if (!token) continue;
-    const trust = parseTrustedProxyIps(token);
-    if (token.includes("/")) {
-      if (trust.v4Cidrs.length === 1) entries.add(token);
-      continue;
-    }
-    const item = normalizePeerAddress(token);
-    if (item && trust.exact.has(item)) entries.add(item);
-  }
-  return [...entries];
 }
 
 export function peerIsTrustedProxy(peer: string, trust: ProxyTrust): boolean {
