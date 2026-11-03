@@ -493,6 +493,93 @@ def test_annotation_name_bound_in_a_nested_scope_does_not_reach_out():
     assert unused_locals(src) == ["3:T", "4:U", "5:M"]
 
 
+def test_bare_annotation_without_value_is_not_a_binding():
+    assert unused_locals("def f():\n    x: int\n    return 1\n") == []
+
+
+def test_comprehension_in_a_function_scope_lambda_default_is_read():
+    src = "def f(r):\n    c = 1\n    g = lambda v=[c for _ in r]: v\n    return g\n"
+    assert unused_locals(src) == []
+
+
+def test_comprehension_condition_sees_its_own_target():
+    src = "def f(rows):\n    r = 1\n    return [r for r in rows if r]\n"
+    assert unused_locals(src) == ["2:r"]
+
+
+def test_lambda_nested_in_class_comprehension_iterable_reads_the_function():
+    src = (
+        "def f():\n"
+        "    x = 1\n"
+        "    class C:\n"
+        "        x = 0\n"
+        "        h = [a for a in (lambda: x)()]\n"
+        "    return C\n"
+    )
+    assert unused_locals(src) == []
+
+
+def test_annotation_name_declared_global_in_a_nested_function_does_not_reach_out():
+    src = (
+        "from __future__ import annotations\n"
+        "def f():\n"
+        "    T = int\n"
+        "    def g():\n"
+        "        global T\n"
+        "        w: T = 1\n"
+        "        return w\n"
+        "    return g\n"
+    )
+    assert unused_locals(src) == ["3:T"]
+
+
+def test_every_lambda_parameter_kind_shadows_the_local():
+    src = (
+        "def f():\n"
+        "    p = 1\n"
+        "    a = 2\n"
+        "    k = 3\n"
+        "    o = 4\n"
+        "    return lambda p, /, *a, o, **k: (p, a, o, k)\n"
+    )
+    assert unused_locals(src) == ["2:p", "3:a", "4:k", "5:o"]
+
+
+def test_set_dict_and_generator_comprehensions_read_and_shadow():
+    src = (
+        "def f(rows):\n"
+        "    s = 1\n"
+        "    g = 2\n"
+        "    d = 3\n"
+        "    key = 4\n"
+        "    sr = 5\n"
+        "    gr = 6\n"
+        "    return (\n"
+        "        {s for s in rows},\n"
+        "        (g for g in rows),\n"
+        "        {d: v for d, v in rows},\n"
+        "        {key: 0 for _ in rows},\n"
+        "        {sr for _ in rows},\n"
+        "        (gr for _ in rows),\n"
+        "    )\n"
+    )
+    assert unused_locals(src) == ["2:s", "3:g", "4:d"]
+
+
+def test_star_parameter_annotations_count_under_future_annotations():
+    src = (
+        "from __future__ import annotations\n"
+        "def f():\n"
+        "    P = int\n"
+        "    Q = int\n"
+        "    O = int\n"
+        "    def g(x: O, /, *v: P, **w: Q):\n"
+        "        return x, v, w\n"
+        "    return g\n"
+    )
+    assert unused_locals(src) == []
+
+
 def test_global_and_nonlocal_targets_are_not_locals():
     src = (
         "def f():\n"
