@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
+import { runWithTransaction } from "@better-auth/core/context";
 import { getAuth } from "@/lib/auth";
+import { createCredentialAccount } from "@/lib/credential-account";
 import { ApiError } from "@/lib/types/api";
 
 /**
@@ -62,30 +64,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use Better Auth's internal API to create the user
-    // This ensures password hashing is done correctly
+    // signUpEmail inserts a session while autoSignIn stays on. First-user
+    // signup still needs that session, so admin provisioning writes the
+    // credential account directly and never creates one.
     const auth = await getAuth();
-    const result = await auth.api.signUpEmail({
-      body: {
+    const ctx = await auth.$context;
+    const user = await createCredentialAccount(
+      {
         email,
         password,
         name: name || email.split("@")[0],
       },
-    });
-
-    if (!result) {
-      return NextResponse.json(
-        { error: "Failed to create user" },
-        { status: 500 }
-      );
-    }
+      {
+        findUserByEmail: (value) => ctx.internalAdapter.findUserByEmail(value),
+        createUser: (row, source) => ctx.internalAdapter.createUser(row, source),
+        linkAccount: (account) => ctx.internalAdapter.linkAccount(account),
+        hashPassword: (value) => ctx.password.hash(value),
+        runInTransaction: async (fn) => runWithTransaction(ctx.adapter, fn),
+        minPasswordLength: ctx.password.config.minPasswordLength,
+        maxPasswordLength: ctx.password.config.maxPasswordLength,
+      },
+    );
 
     return NextResponse.json({
       success: true,
       user: {
-        id: result.user.id,
-        email: result.user.email,
-        name: result.user.name,
+        id: user.id,
+        email: user.email,
+        name: user.name,
       },
     });
   } catch (error) {
