@@ -59,8 +59,11 @@ def _def_annotations(node):
 
 
 def _outer_parts(node):
-    """Pieces of a ``def`` or ``class`` that run in the enclosing scope."""
-    parts = list(node.decorator_list) + _def_annotations(node)
+    """Decorators, bases and defaults, which run in the enclosing scope.
+
+    Annotations also run there but are read by :func:`_annotation_lookups`.
+    """
+    parts = list(node.decorator_list)
     if isinstance(node, ast.ClassDef):
         return parts + node.bases + [k.value for k in node.keywords]
     return parts + _defaults(node.args)
@@ -396,7 +399,8 @@ def test_read_in_nested_def_decorator_or_default_is_used():
 
 
 def test_augmented_assignment_reads_its_target():
-    assert unused_locals("def f():\n    x = 0\n    x += 1\n") == []
+    src = "def f(o):\n    x = 0\n    x += 1\n    o.n += 1\n    o[0] += 1\n"
+    assert unused_locals(src) == []
 
 
 def test_class_that_rebinds_the_name_does_not_shadow_its_methods():
@@ -576,6 +580,83 @@ def test_star_parameter_annotations_count_under_future_annotations():
         "    def g(x: O, /, *v: P, **w: Q):\n"
         "        return x, v, w\n"
         "    return g\n"
+    )
+    assert unused_locals(src) == []
+
+
+def test_walrus_value_in_a_comprehension_reads_the_local():
+    src = "def f(rows):\n    k = 1\n    return [(t := k) for _ in rows], t\n"
+    assert unused_locals(src) == []
+
+
+def test_lambda_nested_in_a_class_lambda_default_reads_the_function():
+    src = (
+        "def f():\n"
+        "    x = 1\n"
+        "    class C:\n"
+        "        x = 0\n"
+        "        g = lambda self, v=(lambda: x): v\n"
+        "    return C\n"
+    )
+    assert unused_locals(src) == []
+
+
+def test_later_comprehension_iterable_and_lambda_body_iterable_are_read():
+    src = (
+        "def f(rows):\n"
+        "    k = 1\n"
+        "    x = 2\n"
+        "    return [y for _ in rows for y in k], lambda: [a for a in x]\n"
+    )
+    assert unused_locals(src) == []
+
+
+def test_functions_under_compound_statements_are_scanned():
+    src = (
+        "if True:\n"
+        "    def f():\n"
+        "        x = 1\n"
+        "class A:\n"
+        "    try:\n"
+        "        def m(self):\n"
+        "            y = 1\n"
+        "    finally:\n"
+        "        pass\n"
+    )
+    assert unused_locals(src) == ["3:x", "7:y"]
+
+
+def test_redefined_function_is_matched_to_its_own_symbol_table():
+    src = "def f():\n    x = 1\n\ndef f():\n    y = 2\n    return y\n"
+    assert unused_locals(src) == ["2:x"]
+
+
+def test_read_in_class_decorator_is_used():
+    src = (
+        "def f(mk):\n"
+        "    d = 1\n"
+        "    @mk(lambda: d)\n"
+        "    class C:\n"
+        "        pass\n"
+        "    return C\n"
+    )
+    assert unused_locals(src) == []
+
+
+def test_annotations_reach_out_of_classes_and_nested_functions():
+    src = (
+        "from __future__ import annotations\n"
+        "def f():\n"
+        "    V = int\n"
+        "    D = int\n"
+        "    class C:\n"
+        "        v: V = 1\n"
+        "    def g():\n"
+        "        def h():\n"
+        "            w: D = 1\n"
+        "            return w\n"
+        "        return h\n"
+        "    return C, g\n"
     )
     assert unused_locals(src) == []
 
