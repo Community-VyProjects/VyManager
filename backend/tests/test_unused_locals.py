@@ -134,12 +134,16 @@ def _expression_reads(node, bound, reads, binds, in_lambda=False):
 
 
 def _lambda_walrus_targets(node) -> set[str]:
-    """Names a ``:=`` binds in this lambda, through comprehensions in it."""
+    """Names a ``:=`` binds in this lambda, through comprehensions in it.
+
+    A nested lambda's body is its own scope, but its defaults run here.
+    """
     names: set[str] = set()
     stack = [node.body]
     while stack:
         sub = stack.pop()
         if isinstance(sub, ast.Lambda):
+            stack.extend(_defaults(sub.args))
             continue
         if isinstance(sub, ast.NamedExpr):
             names.add(sub.target.id)
@@ -702,13 +706,15 @@ def test_walrus_in_a_lambda_shadows_the_local_for_that_lambda():
         "    x = 1\n"
         "    y = 2\n"
         "    z = 3\n"
+        "    w = 4\n"
         "    return (\n"
         "        lambda: (x := 0) + x,\n"
         "        lambda rows: [(y := r) for r in rows] and y,\n"
         "        lambda: ((lambda: (z := 0))(), z),\n"
+        "        lambda: ((lambda v=(w := 0): v), w),\n"
         "    )\n"
     )
-    assert unused_locals(src) == ["2:x", "3:y"]
+    assert unused_locals(src) == ["2:x", "3:y", "5:w"]
 
 
 def test_global_and_nonlocal_targets_are_not_locals():
