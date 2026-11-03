@@ -6,10 +6,9 @@ if False:  # type checking only
     from pydantic import BaseModel
 else:
     try:
-        from pydantic import BaseModel, Field
+        from pydantic import BaseModel
     except ImportError:
         BaseModel = None  # type: ignore
-        Field = None  # type: ignore
 
 
 class ApiRequest(BaseModel):
