@@ -99,10 +99,17 @@ describe("POST /api/auth/trust-device", () => {
     assertExpired(response.headers.getSetCookie());
   });
 
-  it("does not delete a row for a forged trust cookie", async () => {
+  it("does not delete a row when the trust cookie signature is wrong", async () => {
     const { POST } = await import("./route");
     deleted.length = 0;
-    const forged = `__Secure-better-auth.trust_device=hmac-token!${TRUST_ID}.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa=`;
+    const forged = await signedCookie(
+      "__Secure-better-auth.trust_device",
+      `hmac-token!${TRUST_ID}`,
+      "other-secret",
+    );
+    const signature = decodeURIComponent(forged.slice(forged.indexOf("=") + 1)).split(".").pop();
+    assert.equal(signature?.length, 44);
+    assert.equal(signature?.endsWith("="), true);
     const response = await POST(post(forged));
     assert.equal(response.status, 200);
     assert.deepEqual(deleted, []);

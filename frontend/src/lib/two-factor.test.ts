@@ -190,15 +190,24 @@ describe("revokePresentedTrustDevices", () => {
     assert.deepEqual(deleted, [identifier]);
 
     deleted.length = 0;
-    await revokePresentedTrustDevices(
-      `__Secure-better-auth.trust_device=hmac-token!${identifier}.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa=`,
-      {
-        secret,
-        deleteVerificationByIdentifier: async (id) => {
-          deleted.push(id);
-        },
-      },
+    const forged = await serializeSignedCookie(
+      "__Secure-better-auth.trust_device",
+      `hmac-token!${identifier}`,
+      "other-secret",
+      { path: "/" },
     );
+    const forgedPair = forged.split(";")[0];
+    const signature = decodeURIComponent(forgedPair.slice(forgedPair.indexOf("=") + 1))
+      .split(".")
+      .pop();
+    assert.equal(signature?.length, 44);
+    assert.equal(signature?.endsWith("="), true);
+    await revokePresentedTrustDevices(forgedPair, {
+      secret,
+      deleteVerificationByIdentifier: async (id) => {
+        deleted.push(id);
+      },
+    });
     assert.deepEqual(deleted, []);
   });
 });
