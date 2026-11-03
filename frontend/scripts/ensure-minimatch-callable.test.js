@@ -8,6 +8,16 @@ const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 const { spawnSync } = require("node:child_process");
+
+function withTemp(prefix, fn) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  try {
+    return fn(dir);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 const {
   yarnMinimatchVersions,
   assertLockfile,
@@ -26,54 +36,58 @@ test("yarn resolver ignores @types/minimatch tarballs", () => {
 });
 
 test("a yarn lockfile that only names @types/minimatch does not count as resolved", () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mm-types-"));
-  const lock = path.join(dir, "yarn.lock");
-  fs.writeFileSync(
-    lock,
-    'resolved "https://registry.npmjs.org/@types/minimatch/-/minimatch-5.1.2.tgz"\n',
-  );
-  assert.throws(() => assertLockfile(lock), /does not resolve minimatch/);
+  withTemp("mm-types-", (dir) => {
+    const lock = path.join(dir, "yarn.lock");
+    fs.writeFileSync(
+      lock,
+      'resolved "https://registry.npmjs.org/@types/minimatch/-/minimatch-5.1.2.tgz"\n',
+    );
+    assert.throws(() => assertLockfile(lock), /does not resolve minimatch/);
+  });
 });
 
 test("a yarn lockfile that resolves minimatch 3.1.5 fails", () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mm-old-"));
-  const lock = path.join(dir, "yarn.lock");
-  fs.writeFileSync(
-    lock,
-    'resolved "https://registry.npmjs.org/minimatch/-/minimatch-3.1.5.tgz"\n',
-  );
-  assert.throws(() => assertLockfile(lock), /resolves minimatch 3.1.5/);
+  withTemp("mm-old-", (dir) => {
+    const lock = path.join(dir, "yarn.lock");
+    fs.writeFileSync(
+      lock,
+      'resolved "https://registry.npmjs.org/minimatch/-/minimatch-3.1.5.tgz"\n',
+    );
+    assert.throws(() => assertLockfile(lock), /resolves minimatch 3.1.5/);
+  });
 });
 
 test("findMinimatchDirs ignores a directory that is not the minimatch package", () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mm-find-"));
-  const types = path.join(dir, "@types", "minimatch");
-  fs.mkdirSync(types, { recursive: true });
-  fs.writeFileSync(path.join(types, "package.json"), JSON.stringify({ name: "@types/minimatch", version: "5.1.2" }));
-  const real = path.join(dir, "minimatch");
-  fs.mkdirSync(real);
-  fs.writeFileSync(path.join(real, "package.json"), JSON.stringify({ name: "minimatch", version: "11.0.4" }));
-  const found = findMinimatchDirs(dir);
-  assert.deepEqual(found, [real]);
+  withTemp("mm-find-", (dir) => {
+    const types = path.join(dir, "@types", "minimatch");
+    fs.mkdirSync(types, { recursive: true });
+    fs.writeFileSync(path.join(types, "package.json"), JSON.stringify({ name: "@types/minimatch", version: "5.1.2" }));
+    const real = path.join(dir, "minimatch");
+    fs.mkdirSync(real);
+    fs.writeFileSync(path.join(real, "package.json"), JSON.stringify({ name: "minimatch", version: "11.0.4" }));
+    const found = findMinimatchDirs(dir);
+    assert.deepEqual(found, [real]);
+  });
 });
 
 test("postinstall skips when minimatch is not installed", () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mm-skip-"));
-  fs.mkdirSync(path.join(dir, "scripts"));
-  fs.mkdirSync(path.join(dir, "node_modules"));
-  fs.copyFileSync(
-    path.join(__dirname, "ensure-minimatch-callable.js"),
-    path.join(dir, "scripts", "ensure-minimatch-callable.js"),
-  );
-  const result = spawnSync(process.execPath, [path.join(dir, "scripts", "ensure-minimatch-callable.js")], {
-    encoding: "utf8",
+  withTemp("mm-skip-", (dir) => {
+    fs.mkdirSync(path.join(dir, "scripts"));
+    fs.mkdirSync(path.join(dir, "node_modules"));
+    fs.copyFileSync(
+      path.join(__dirname, "ensure-minimatch-callable.js"),
+      path.join(dir, "scripts", "ensure-minimatch-callable.js"),
+    );
+    const result = spawnSync(process.execPath, [path.join(dir, "scripts", "ensure-minimatch-callable.js")], {
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /minimatch not installed/);
   });
-  assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /minimatch not installed/);
 });
 
 test("the CJS and ESM patches restore the callable default", () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "mm-patch-"));
+  withTemp("mm-patch-", (root) => {
   const pkg = path.join(root, "node_modules", "minimatch");
   fs.mkdirSync(path.join(pkg, "dist", "commonjs"), { recursive: true });
   fs.mkdirSync(path.join(pkg, "dist", "esm"), { recursive: true });
@@ -121,4 +135,5 @@ test("the CJS and ESM patches restore the callable default", () => {
     { encoding: "utf8" },
   );
   assert.equal(imported.status, 0, imported.stderr || imported.stdout);
+  });
 });

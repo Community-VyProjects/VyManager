@@ -30,20 +30,27 @@ function versionAtLeast(version, floor) {
   return true;
 }
 
-function assertScriptsMatch() {
+function assertCopiesMatch(fileName) {
+  const mine = path.resolve(__dirname, fileName);
+  if (!fs.existsSync(mine)) return;
+  const text = fs.readFileSync(mine, "utf8");
   const candidates = [
-    path.resolve(__dirname, `../../frontend/scripts/${SCRIPT_NAME}`),
-    path.resolve(__dirname, `../../docs-site/scripts/${SCRIPT_NAME}`),
+    path.resolve(__dirname, `../../frontend/scripts/${fileName}`),
+    path.resolve(__dirname, `../../docs-site/scripts/${fileName}`),
   ];
-  const mine = fs.readFileSync(__filename, "utf8");
   for (const other of candidates) {
-    if (path.resolve(other) === path.resolve(__filename)) continue;
+    if (path.resolve(other) === mine) continue;
     if (!fs.existsSync(other)) continue;
     const theirs = fs.readFileSync(other, "utf8");
-    if (mine !== theirs) {
-      throw new Error(`minimatch compat script drifted:\n${__filename}\n${other}`);
+    if (text !== theirs) {
+      throw new Error(`minimatch compat file drifted:\n${mine}\n${other}`);
     }
   }
+}
+
+function assertScriptsMatch() {
+  assertCopiesMatch(SCRIPT_NAME);
+  assertCopiesMatch("ensure-minimatch-callable.test.js");
 }
 
 const YARN_MINIMATCH_URL = /registry\.(?:npmjs\.org|yarnpkg\.com)\/minimatch\/-\/minimatch-(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)\.tgz/g;
