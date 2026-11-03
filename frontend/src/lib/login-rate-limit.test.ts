@@ -8,6 +8,7 @@ import {
   createLoginRateLimiter,
   parseTrustedProxyIps,
   peerIsTrustedProxy,
+  trustedProxyEntries,
   trustedProxyHops,
 } from "./login-rate-limit";
 
@@ -30,6 +31,10 @@ describe("trusted proxy list", () => {
     assert.equal(peerIsTrustedProxy("172.19.0.4", trust), false);
     assert.equal(peerIsTrustedProxy("10.1.1.1", trust), true);
     assert.equal(peerIsTrustedProxy("203.0.113.9", trust), false);
+    assert.deepEqual(
+      new Set(trustedProxyEntries("10.1.1.1, nope, 0.0.0.0/0")),
+      new Set(["::1", "10.1.1.1", "127.0.0.1"]),
+    );
     assert.equal(
       clientIpForRateLimit({
         peerAddress: "172.18.0.4",

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import http from "node:http";
 import { describe, it, mock } from "node:test";
 import { NextRequest } from "next/server";
 import { LOGIN_RATE_LIMIT } from "@/lib/login-rate-limit";
@@ -112,5 +113,44 @@ describe("sign-in rate limit route", { concurrency: false }, () => {
     }
     assert.ok(errors.length >= 2);
     assert.match(String(errors[0][0]), /no client peer/);
+  });
+
+  it("rate-limits a real http request from the socket peer", async () => {
+    const previousRuntime = process.env.NEXT_RUNTIME;
+    process.env.NEXT_RUNTIME = "nodejs";
+    const { register } = await import("../../../instrumentation");
+    await register();
+    const { POST } = await import("./[...all]/route");
+    await withHops(undefined, async () => {
+      const server = http.createServer(async (req, res) => {
+        const prefix = Number(new URL(req.url ?? "/", "http://local").pathname.slice(1) || "0");
+        const response = await POST(signIn(rotating(prefix, "9.9.9.9")));
+        res.statusCode = response.status;
+        res.end();
+      });
+      await new Promise<void>((resolve) => {
+        server.listen(0, "127.0.0.1", () => resolve());
+      });
+      try {
+        const address = server.address();
+        assert.ok(address && typeof address === "object");
+        for (let i = 0; i < LOGIN_RATE_LIMIT; i++) {
+          const response = await fetch(`http://127.0.0.1:${address.port}/${i}`, {
+            headers: { "x-forwarded-for": `${i}.${i}.${i}.${i}` },
+          });
+          assert.equal(response.status, 200, `attempt ${i + 1} must not be limited`);
+        }
+        const blocked = await fetch(`http://127.0.0.1:${address.port}/9`, {
+          headers: { "x-forwarded-for": "8.8.8.8, 198.51.100.9" },
+        });
+        assert.equal(blocked.status, 429);
+      } finally {
+        await new Promise<void>((resolve, reject) => {
+          server.close((err) => (err ? reject(err) : resolve()));
+        });
+      }
+    });
+    if (previousRuntime === undefined) delete process.env.NEXT_RUNTIME;
+    else process.env.NEXT_RUNTIME = previousRuntime;
   });
 });

@@ -6,12 +6,15 @@
  * unless the TCP peer is a trusted proxy and TRUSTED_PROXY_HOPS says how
  * many proxies appended a hop. Loopback is trusted by default. A client
  * who connects straight to the published port is keyed by that peer even
- * if the hop count is set. Count 1 matches nginx or Caddy on the same
- * host. Count 2 is a CDN in front of that proxy. Values above 8 are unset.
+ * if the hop count is set. Count 1 is for a proxy whose TCP peer is
+ * loopback, which is not the stock compose bridge. Count 2 is a CDN in
+ * front of that proxy. Values above 8 are unset.
  */
 
 export const LOGIN_RATE_LIMIT = 10;
 export const LOGIN_RATE_WINDOW_MS = 60_000;
+/** Header set from the socket peer. Better Auth must not read X-Forwarded-For. */
+export const CLIENT_IP_HEADER = "x-vymanager-client-ip";
 /** Map size bound. A new client evicts the oldest key instead of being refused. */
 export const LOGIN_RATE_MAX_CLIENTS = 4096;
 
@@ -114,6 +117,26 @@ export function parseTrustedProxyIps(raw: string | undefined): ProxyTrust {
     if (item && isIpAddress(item)) exact.add(item);
   }
   return { exact, v4Cidrs };
+}
+
+/** Loopback plus validated TRUSTED_PROXY_IPS entries, for Better Auth. */
+export function trustedProxyEntries(
+  raw: string | undefined = process.env.TRUSTED_PROXY_IPS,
+): string[] {
+  const entries = new Set<string>(LOOPBACK_PEERS);
+  if (!raw) return [...entries];
+  for (const part of raw.split(",")) {
+    const token = part.trim();
+    if (!token) continue;
+    const trust = parseTrustedProxyIps(token);
+    if (token.includes("/")) {
+      if (trust.v4Cidrs.length === 1) entries.add(token);
+      continue;
+    }
+    const item = normalizePeerAddress(token);
+    if (item && trust.exact.has(item)) entries.add(item);
+  }
+  return [...entries];
 }
 
 export function peerIsTrustedProxy(peer: string, trust: ProxyTrust): boolean {

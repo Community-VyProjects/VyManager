@@ -11,6 +11,7 @@ import {
   type InstanceFeaturePermission,
 } from "./sso-role-mapping";
 import { publishedOAuthRedirectURI } from "./oauth-callback";
+import { trustedProxyEntries, CLIENT_IP_HEADER } from "./login-rate-limit";
 
 const prisma = new PrismaClient();
 
@@ -342,6 +343,12 @@ async function buildAuth() {
       useSecureCookies: secureCookies,
       crossSubDomainCookies: {
         enabled: false,
+      },
+      // Do not read X-Forwarded-For. A single client-sent value is trusted
+      // by Better Auth unless this header is the only one it consults.
+      ipAddress: {
+        ipAddressHeaders: [CLIENT_IP_HEADER],
+        trustedProxies: trustedProxyEntries(),
       },
     },
     plugins: [
