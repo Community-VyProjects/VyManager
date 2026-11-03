@@ -300,7 +300,7 @@ def test_cancelled_sweep_does_not_kill_the_shared_loop():
         try:
             await task
         except asyncio.CancelledError:
-            pass
+            pass  # Setup: we only need a cancelled task.
         broadcaster._transceiver_task = task
         # CancelledError is a BaseException; a bare `except Exception` here
         # would let it escape and take the broadcaster down for every client.

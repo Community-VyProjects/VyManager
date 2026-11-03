@@ -155,7 +155,7 @@ async def websocket_console(websocket: WebSocket):
             await existing
 
         except asyncio.CancelledError:
-            pass
+            pass  # We just cancelled it; that is the normal exit.
 
         except Exception:
             logger.exception(
@@ -617,7 +617,7 @@ async def websocket_console(websocket: WebSocket):
                 await task
 
             except asyncio.CancelledError:
-                pass
+                pass  # We just cancelled it; that is the normal exit.
 
             except Exception:
                 logger.exception(
@@ -631,7 +631,7 @@ async def websocket_console(websocket: WebSocket):
                 raise exc
 
     except WebSocketDisconnect:
-        pass
+        pass  # Client left; the finally block below does the cleanup.
 
     except Exception:
         logger.exception("Unexpected error in console WebSocket")
@@ -707,7 +707,7 @@ async def websocket_console(websocket: WebSocket):
             await websocket.close()
 
         except Exception:
-            pass
+            pass  # Best effort: the socket may already be closed.
 
 
 # ============================================================================
@@ -719,7 +719,7 @@ async def _safe_send(websocket: WebSocket, data: dict) -> None:
         await websocket.send_json(data)
 
     except Exception:
-        pass
+        pass  # Best effort: the client may already be gone.
 
 
 async def _authenticate_websocket(websocket: WebSocket) -> Optional[dict]:

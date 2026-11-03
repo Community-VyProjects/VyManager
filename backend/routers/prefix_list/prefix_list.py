@@ -166,7 +166,7 @@ async def get_prefix_list_config(http_request: Request, refresh: bool = False):
                     try:
                         ge = int(ge_value)
                     except (ValueError, TypeError):
-                        pass
+                        pass  # Unparseable value reads as unset.
 
                 # Parse le (less-than-or-equal)
                 le = None
@@ -175,7 +175,7 @@ async def get_prefix_list_config(http_request: Request, refresh: bool = False):
                     try:
                         le = int(le_value)
                     except (ValueError, TypeError):
-                        pass
+                        pass  # Unparseable value reads as unset.
 
                 rule = PrefixListRule(
                     rule_number=int(rule_num),
@@ -218,7 +218,7 @@ async def get_prefix_list_config(http_request: Request, refresh: bool = False):
                     try:
                         ge = int(ge_value)
                     except (ValueError, TypeError):
-                        pass
+                        pass  # Unparseable value reads as unset.
 
                 # Parse le (less-than-or-equal)
                 le = None
@@ -227,7 +227,7 @@ async def get_prefix_list_config(http_request: Request, refresh: bool = False):
                     try:
                         le = int(le_value)
                     except (ValueError, TypeError):
-                        pass
+                        pass  # Unparseable value reads as unset.
 
                 rule = PrefixListRule(
                     rule_number=int(rule_num),

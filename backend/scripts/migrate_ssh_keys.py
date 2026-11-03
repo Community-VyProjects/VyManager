@@ -61,7 +61,7 @@ async def run(database_url: str, dry_run: bool) -> int:
                     already += 1
                     continue
                 except Exception:
-                    pass
+                    pass  # Not under the derived key; try the master below.
 
                 # Decrypt under the raw master, re-encrypt under derived.
                 try:
@@ -90,7 +90,7 @@ async def run(database_url: str, dry_run: bool) -> int:
             if dry_run:
                 raise _Rollback()
     except _Rollback:
-        pass
+        pass  # Dry run: raised only to roll the transaction back.
     finally:
         await conn.close()
 

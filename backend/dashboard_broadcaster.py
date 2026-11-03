@@ -475,7 +475,7 @@ class DeviceDataBroadcaster:
                 try:
                     q.get_nowait()
                 except asyncio.QueueEmpty:
-                    pass
+                    pass  # The consumer drained it first; there is room now.
             try:
                 q.put_nowait(event)
             except asyncio.QueueFull:

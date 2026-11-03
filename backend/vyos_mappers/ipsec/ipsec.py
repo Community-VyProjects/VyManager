@@ -455,117 +455,113 @@ class IPSecMapper:
             "disable_uniqreqids": False,
         }
 
-        try:
-            vpn_config = full_config.get("vpn", {})
-            ipsec_config = vpn_config.get("ipsec", {})
+        vpn_config = full_config.get("vpn", {})
+        ipsec_config = vpn_config.get("ipsec", {})
 
-            if not ipsec_config:
-                return result
+        if not ipsec_config:
+            return result
 
-            result["disable_uniqreqids"] = "disable-uniqreqids" in ipsec_config
+        result["disable_uniqreqids"] = "disable-uniqreqids" in ipsec_config
 
-            # Parse interfaces
-            interfaces = ipsec_config.get("interface", {})
-            if isinstance(interfaces, list):
-                result["interfaces"] = interfaces
-            elif isinstance(interfaces, str):
-                result["interfaces"] = [interfaces]
-            elif isinstance(interfaces, dict):
-                result["interfaces"] = list(interfaces.keys())
+        # Parse interfaces
+        interfaces = ipsec_config.get("interface", {})
+        if isinstance(interfaces, list):
+            result["interfaces"] = interfaces
+        elif isinstance(interfaces, str):
+            result["interfaces"] = [interfaces]
+        elif isinstance(interfaces, dict):
+            result["interfaces"] = list(interfaces.keys())
 
-            # Parse log
-            log_config = ipsec_config.get("log", {})
-            result["log"] = {
-                "level": log_config.get("level"),
-                "subsystem": self._normalize_to_list(log_config.get("subsystem")),
+        # Parse log
+        log_config = ipsec_config.get("log", {})
+        result["log"] = {
+            "level": log_config.get("level"),
+            "subsystem": self._normalize_to_list(log_config.get("subsystem")),
+        }
+
+        # Parse options
+        options = ipsec_config.get("options", {})
+        result["options"] = {
+            "disable_route_autoinstall": "disable-route-autoinstall" in options,
+            "flexvpn": "flexvpn" in options,
+            "interface": self._normalize_to_list(options.get("interface")),
+            "virtual_ip": "virtual-ip" in options,
+        }
+
+        # Parse authentication PSKs
+        auth_config = ipsec_config.get("authentication", {})
+        psk_config = auth_config.get("psk", {})
+        for psk_name, psk_data in psk_config.items():
+            result["authentication"]["psk"][psk_name] = {
+                "name": psk_name,
+                "identities": self._normalize_to_list(psk_data.get("id")),
+                "secret": psk_data.get("secret"),
+                "secret_type": psk_data.get("secret-type"),
+                "dhcp_interface": psk_data.get("dhcp-interface"),
             }
 
-            # Parse options
-            options = ipsec_config.get("options", {})
-            result["options"] = {
-                "disable_route_autoinstall": "disable-route-autoinstall" in options,
-                "flexvpn": "flexvpn" in options,
-                "interface": self._normalize_to_list(options.get("interface")),
-                "virtual_ip": "virtual-ip" in options,
+        # Parse ESP groups
+        for name, config in ipsec_config.get("esp-group", {}).items():
+            result["esp_groups"][name] = self._parse_esp_group(name, config)
+
+        # Parse IKE groups
+        for name, config in ipsec_config.get("ike-group", {}).items():
+            result["ike_groups"][name] = self._parse_ike_group(name, config)
+
+        # Parse site-to-site peers
+        s2s_config = ipsec_config.get("site-to-site", {})
+        for peer_name, peer_config in s2s_config.get("peer", {}).items():
+            result["site_to_site_peers"][peer_name] = self._parse_s2s_peer(peer_name, peer_config)
+
+        # Parse remote access
+        ra_config = ipsec_config.get("remote-access", {})
+        for conn_name, conn_config in ra_config.get("connection", {}).items():
+            result["remote_access"]["connections"][conn_name] = self._parse_ra_connection(conn_name, conn_config)
+
+        for pool_name, pool_config in ra_config.get("pool", {}).items():
+            result["remote_access"]["pools"][pool_name] = self._parse_ra_pool(pool_name, pool_config)
+
+        # Parse RADIUS
+        radius_config = ra_config.get("radius", {})
+        if radius_config:
+            result["remote_access"]["radius"] = {
+                "nas_identifier": radius_config.get("nas-identifier"),
+                "timeout": radius_config.get("timeout"),
+                "servers": {},
+            }
+            for srv, srv_config in radius_config.get("server", {}).items():
+                result["remote_access"]["radius"]["servers"][srv] = {
+                    "address": srv,
+                    "key": srv_config.get("key"),
+                    "port": srv_config.get("port"),
+                    "disabled": "disable" in srv_config,
+                    "disable_accounting": "disable-accounting" in srv_config,
+                }
+
+        # Parse DHCP relay
+        dhcp_config = ra_config.get("dhcp", {})
+        if dhcp_config:
+            result["remote_access"]["dhcp"] = {
+                "interface": dhcp_config.get("interface"),
+                "server": dhcp_config.get("server"),
             }
 
-            # Parse authentication PSKs
-            auth_config = ipsec_config.get("authentication", {})
-            psk_config = auth_config.get("psk", {})
-            for psk_name, psk_data in psk_config.items():
-                result["authentication"]["psk"][psk_name] = {
-                    "name": psk_name,
-                    "identities": self._normalize_to_list(psk_data.get("id")),
-                    "secret": psk_data.get("secret"),
-                    "secret_type": psk_data.get("secret-type"),
-                    "dhcp_interface": psk_data.get("dhcp-interface"),
-                }
-
-            # Parse ESP groups
-            for name, config in ipsec_config.get("esp-group", {}).items():
-                result["esp_groups"][name] = self._parse_esp_group(name, config)
-
-            # Parse IKE groups
-            for name, config in ipsec_config.get("ike-group", {}).items():
-                result["ike_groups"][name] = self._parse_ike_group(name, config)
-
-            # Parse site-to-site peers
-            s2s_config = ipsec_config.get("site-to-site", {})
-            for peer_name, peer_config in s2s_config.get("peer", {}).items():
-                result["site_to_site_peers"][peer_name] = self._parse_s2s_peer(peer_name, peer_config)
-
-            # Parse remote access
-            ra_config = ipsec_config.get("remote-access", {})
-            for conn_name, conn_config in ra_config.get("connection", {}).items():
-                result["remote_access"]["connections"][conn_name] = self._parse_ra_connection(conn_name, conn_config)
-
-            for pool_name, pool_config in ra_config.get("pool", {}).items():
-                result["remote_access"]["pools"][pool_name] = self._parse_ra_pool(pool_name, pool_config)
-
-            # Parse RADIUS
-            radius_config = ra_config.get("radius", {})
-            if radius_config:
-                result["remote_access"]["radius"] = {
-                    "nas_identifier": radius_config.get("nas-identifier"),
-                    "timeout": radius_config.get("timeout"),
-                    "servers": {},
-                }
-                for srv, srv_config in radius_config.get("server", {}).items():
-                    result["remote_access"]["radius"]["servers"][srv] = {
-                        "address": srv,
-                        "key": srv_config.get("key"),
-                        "port": srv_config.get("port"),
-                        "disabled": "disable" in srv_config,
-                        "disable_accounting": "disable-accounting" in srv_config,
-                    }
-
-            # Parse DHCP relay
-            dhcp_config = ra_config.get("dhcp", {})
-            if dhcp_config:
-                result["remote_access"]["dhcp"] = {
-                    "interface": dhcp_config.get("interface"),
-                    "server": dhcp_config.get("server"),
-                }
-
-            # Parse profiles
-            for profile_name, profile_config in ipsec_config.get("profile", {}).items():
-                auth = profile_config.get("authentication", {})
-                result["profiles"][profile_name] = {
-                    "name": profile_name,
-                    "disabled": "disable" in profile_config,
-                    "ike_group": profile_config.get("ike-group"),
-                    "esp_group": profile_config.get("esp-group"),
-                    "authentication": {
-                        "mode": auth.get("mode"),
-                        "pre_shared_secret": auth.get("pre-shared-secret"),
-                    },
-                    "bind": {
-                        "tunnel": self._normalize_to_list(profile_config.get("bind", {}).get("tunnel")),
-                    },
-                }
-
-        except Exception:
-            pass
+        # Parse profiles
+        for profile_name, profile_config in ipsec_config.get("profile", {}).items():
+            auth = profile_config.get("authentication", {})
+            result["profiles"][profile_name] = {
+                "name": profile_name,
+                "disabled": "disable" in profile_config,
+                "ike_group": profile_config.get("ike-group"),
+                "esp_group": profile_config.get("esp-group"),
+                "authentication": {
+                    "mode": auth.get("mode"),
+                    "pre_shared_secret": auth.get("pre-shared-secret"),
+                },
+                "bind": {
+                    "tunnel": self._normalize_to_list(profile_config.get("bind", {}).get("tunnel")),
+                },
+            }
 
         return result
 

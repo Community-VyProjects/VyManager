@@ -114,7 +114,7 @@ async def banner_events(request: Request):
                     await asyncio.sleep(30)
                     yield ": keepalive\n\n"
             except asyncio.CancelledError:
-                pass
+                pass  # Client disconnected; end the idle stream.
 
         return StreamingResponse(
             idle_stream(),
@@ -176,7 +176,7 @@ async def banner_events(request: Request):
                     break
                 yield ": keepalive\n\n"
         except asyncio.CancelledError:
-            pass
+            pass  # Client disconnected; finally unsubscribes.
         finally:
             event_manager.unsubscribe(instance_id, queue)
             revocation_bus.unsubscribe(revocations)
