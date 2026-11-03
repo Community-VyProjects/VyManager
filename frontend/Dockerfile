@@ -8,6 +8,7 @@ RUN apk add --no-cache openssl
 
 # Copy package files and prisma schema
 COPY package*.json ./
+COPY scripts/ensure-minimatch-callable.js ./scripts/ensure-minimatch-callable.js
 COPY prisma ./prisma/
 COPY next.config.* ./
 

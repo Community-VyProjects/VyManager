@@ -11,6 +11,7 @@
 const fs = require("fs");
 const path = require("path");
 const Module = require("module");
+const { spawnSync } = require("child_process");
 
 const MARKER = "vymanager-minimatch-callable-default";
 const FLOOR = [11, 0, 1];
@@ -49,7 +50,7 @@ function assertLockfile(lockPath) {
   if (!fs.existsSync(lockPath)) return;
   if (lockPath.endsWith("yarn.lock")) {
     const text = fs.readFileSync(lockPath, "utf8");
-    const versions = [...text.matchAll(/minimatch-(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)\.tgz/g)].map(
+    const versions = [...text.matchAll(/\/minimatch\/-\/minimatch-(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)\.tgz/g)].map(
       (match) => match[1],
     );
     if (versions.length === 0) {
@@ -95,7 +96,15 @@ function findMinimatchDirs(nodeModules) {
       if (!entry.isDirectory()) continue;
       const full = path.join(dir, entry.name);
       if (entry.name === "minimatch") {
-        found.push(full);
+        const manifest = path.join(full, "package.json");
+        if (!fs.existsSync(manifest)) continue;
+        let meta;
+        try {
+          meta = JSON.parse(fs.readFileSync(manifest, "utf8"));
+        } catch {
+          continue;
+        }
+        if (meta.name === "minimatch") found.push(full);
         continue;
       }
       if (entry.name === "node_modules" || entry.name.startsWith("@")) {
@@ -127,6 +136,25 @@ for (const key of ["Minimatch", "escape", "unescape", "filter", "match", "defaul
   if (exports[key] !== undefined) module.exports[key] = exports[key];
 }
 Object.defineProperty(module.exports, "__esModule", { value: true });
+`;
+  const mapMarker = "//# sourceMappingURL=index.js.map";
+  const next = source.includes(mapMarker)
+    ? source.replace(mapMarker, `${footer}\n${mapMarker}`)
+    : `${source}\n${footer}`;
+  fs.writeFileSync(file, next);
+}
+
+function patchEsm(pkgDir) {
+  const file = path.join(pkgDir, "dist", "esm", "index.js");
+  if (!fs.existsSync(file)) {
+    throw new Error(`${pkgDir} has no ESM build to patch`);
+  }
+  const source = fs.readFileSync(file, "utf8");
+  if (source.includes(MARKER)) return;
+  const footer = `
+// ${MARKER}
+// Native ESM callers use import minimatch from "minimatch". v11 has no default export.
+export { minimatch as default };
 `;
   const mapMarker = "//# sourceMappingURL=index.js.map";
   const next = source.includes(mapMarker)
@@ -177,6 +205,25 @@ function assertCallable(pkgDir, version) {
   }
 }
 
+function assertEsmDefault(pkgDir) {
+  const script = [
+    'import minimatch from "minimatch";',
+    'if (typeof minimatch !== "function") throw new Error("esm default is " + typeof minimatch);',
+    'if (typeof minimatch.Minimatch !== "function") throw new Error("esm Minimatch missing");',
+    'if (minimatch("foo.js", "*.js") !== true) throw new Error("esm match failed");',
+    'if (new minimatch.Minimatch("*.js", { dot: true, matchBase: true }).match("foo.js") !== true) {',
+    '  throw new Error("esm Minimatch match failed");',
+    "}",
+  ].join("\n");
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+    cwd: path.resolve(pkgDir, "../.."),
+    encoding: "utf8",
+  });
+  if (result.status !== 0) {
+    throw new Error(`${pkgDir} ESM default import failed: ${result.stderr || result.stdout}`);
+  }
+}
+
 function main() {
   assertScriptsMatch();
   const root = path.resolve(__dirname, "..");
@@ -197,7 +244,9 @@ function main() {
       throw new Error(`${pkgDir} is minimatch ${meta.version}, want >= 11.0.1`);
     }
     patchCjs(pkgDir);
+    patchEsm(pkgDir);
     assertCallable(pkgDir, meta.version);
+    assertEsmDefault(pkgDir);
   }
   process.stdout.write(`minimatch >= 11.0.1 callable in ${dirs.length} install(s)\n`);
 }

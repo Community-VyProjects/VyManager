@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "npm run check:messages && next build",
     "start": "next start",
+    "postinstall": "node scripts/ensure-minimatch-callable.js",
     "prelint": "node scripts/ensure-minimatch-callable.js",
     "prebuild": "node scripts/ensure-minimatch-callable.js",
     "lint": "eslint && npm run check:messages && node --test eslint-rules/no-untranslated-text.test.mjs",
