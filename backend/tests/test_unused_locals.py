@@ -1,12 +1,19 @@
 """A function local that is assigned and never read is dead.
 
-Code-quality flags it as "Unused local variable". The scan uses
-:mod:`symtable`, so a read in a nested function or lambda counts, and a
-``global`` or ``nonlocal`` name is not a local. Only a bare-name target
+Code-quality flags it as "Unused local variable". Only a bare-name target
 of ``=``, an annotated assignment with a value, ``with ... as`` or ``:=``
-is checked. Tuple unpacking, loop targets and ``except ... as`` names
-are not, because code-quality does not report them either. Names that
-start with ``_`` are deliberate placeholders.
+is checked. Tuple unpacking, loop targets and ``except ... as`` names are
+not, because code-quality does not report them either. Names that start
+with ``_`` are deliberate placeholders.
+
+Reads in the function itself and in nested ``def`` and ``class`` bodies
+come from :mod:`symtable`, so ``global`` and ``nonlocal`` names are not
+locals and a nested function that rebinds the name shadows it. Reads in
+lambdas and comprehensions come from the AST instead. Python 3.12+
+inlines list, set and dict comprehensions (PEP 709), and ``symtable`` then
+loses both the read of an enclosing local and the shadowing by the
+comprehension's own targets. Walking those expressions the same way on
+every version keeps the scan identical on 3.11 and 3.13.
 """
 
 import ast
@@ -16,8 +23,9 @@ from pathlib import Path
 BACKEND = Path(__file__).resolve().parents[1]
 _SKIP_DIRS = {"venv", ".venv", "node_modules", "__pycache__"}
 _FUNCTION_NODES = (ast.FunctionDef, ast.AsyncFunctionDef)
-_SCOPE_NODES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)
+_DEF_NODES = (*_FUNCTION_NODES, ast.ClassDef)
 _COMPREHENSIONS = (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
+_EXPRESSION_SCOPES = (ast.Lambda, *_COMPREHENSIONS)
 
 
 def _child(table, node):
@@ -27,13 +35,38 @@ def _child(table, node):
     raise AssertionError(f"no symbol table for {node.name} at line {node.lineno}")
 
 
-def _plain_bindings(body):
-    """(line, name) for bare-name assignments in this scope, not nested ones."""
+def _outer_parts(node):
+    """Pieces of a ``def`` or ``class`` that run in the enclosing scope."""
+    parts = list(node.decorator_list)
+    if isinstance(node, ast.ClassDef):
+        return parts + node.bases + [k.value for k in node.keywords]
+    args = node.args
+    parts += args.defaults + [d for d in args.kw_defaults if d is not None]
+    params = args.posonlyargs + args.args + args.kwonlyargs
+    params += [a for a in (args.vararg, args.kwarg) if a]
+    parts += [a.annotation for a in params if a.annotation is not None]
+    return parts + ([node.returns] if node.returns is not None else [])
+
+
+def _scope_nodes(body):
+    """Nodes evaluated in this scope.
+
+    Nested ``def`` and ``class`` bodies are left out. Lambdas and
+    comprehensions are yielded but not entered.
+    """
     stack = list(body)
     while stack:
         node = stack.pop()
-        if isinstance(node, _SCOPE_NODES):
-            continue
+        yield node
+        if isinstance(node, _DEF_NODES):
+            stack.extend(_outer_parts(node))
+        elif not isinstance(node, _EXPRESSION_SCOPES):
+            stack.extend(ast.iter_child_nodes(node))
+
+
+def _plain_bindings(body):
+    """(line, name) for bare-name assignments in this scope."""
+    for node in _scope_nodes(body):
         targets = []
         if isinstance(node, ast.Assign):
             targets = node.targets
@@ -46,39 +79,63 @@ def _plain_bindings(body):
         for target in targets:
             if isinstance(target, ast.Name):
                 yield target.lineno, target.id
-        stack.extend(ast.iter_child_nodes(node))
 
 
-def _comprehension_reads(body) -> set[str]:
-    """Names read inside comprehensions in this scope.
+def _expression_reads(node, bound, reads, binds, in_lambda=False):
+    """Collect names a lambda or comprehension reads from the enclosing scope.
 
-    Python 3.12+ inlines list, set and dict comprehensions (PEP 709), and
-    ``symtable`` then drops the read of an enclosing local used only inside
-    one, so those reads are collected from the AST instead.
+    ``bound`` holds the lambda parameters and comprehension targets in
+    effect, which shadow the enclosing names. A ``:=`` inside a
+    comprehension binds in the enclosing function, so it goes to ``binds``
+    unless a lambda sits in between.
     """
-    names: set[str] = set()
-    stack = list(body)
-    while stack:
-        node = stack.pop()
-        if isinstance(node, _SCOPE_NODES):
-            continue
-        if isinstance(node, _COMPREHENSIONS):
-            names.update(
-                n.id for n in ast.walk(node)
-                if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)
-            )
-            continue
-        stack.extend(ast.iter_child_nodes(node))
-    return names
+    if isinstance(node, ast.Name):
+        if isinstance(node.ctx, ast.Load) and node.id not in bound:
+            reads.add(node.id)
+        return
+    if isinstance(node, ast.NamedExpr):
+        if not in_lambda:
+            binds.add((node.target.lineno, node.target.id))
+        _expression_reads(node.value, bound, reads, binds, in_lambda)
+        return
+    if isinstance(node, ast.Lambda):
+        args = node.args
+        for default in args.defaults + [d for d in args.kw_defaults if d is not None]:
+            _expression_reads(default, bound, reads, binds, in_lambda)
+        params = args.posonlyargs + args.args + args.kwonlyargs
+        params += [a for a in (args.vararg, args.kwarg) if a]
+        inner = bound | {a.arg for a in params}
+        _expression_reads(node.body, inner, reads, binds, True)
+        return
+    if isinstance(node, _COMPREHENSIONS):
+        # The first iterable runs before any target is bound; each later
+        # clause and the element see every target bound so far.
+        current = set(bound)
+        for gen in node.generators:
+            _expression_reads(gen.iter, frozenset(current), reads, binds, in_lambda)
+            current |= {n.id for n in ast.walk(gen.target) if isinstance(n, ast.Name)}
+            for cond in gen.ifs:
+                _expression_reads(cond, frozenset(current), reads, binds, in_lambda)
+        elements = [node.key, node.value] if isinstance(node, ast.DictComp) else [node.elt]
+        for element in elements:
+            _expression_reads(element, frozenset(current), reads, binds, in_lambda)
+        return
+    for child in ast.iter_child_nodes(node):
+        _expression_reads(child, bound, reads, binds, in_lambda)
 
 
-def _read_below(table, name) -> bool:
-    """Whether a nested scope reads ``name`` from an enclosing function."""
-    for child in table.get_children():
-        if name in child.get_identifiers() and child.lookup(name).is_free():
-            return True
-        if _read_below(child, name):
-            return True
+def _read_by_nested_def(table, body, name) -> bool:
+    """Whether a nested ``def`` or ``class`` reads ``name`` from this scope.
+
+    CPython marks a name free in every scope it passes through, so the
+    direct children are enough, and a child that rebinds the name has it
+    local, not free.
+    """
+    for node in _scope_nodes(body):
+        if isinstance(node, _DEF_NODES):
+            child = _child(table, node)
+            if name in child.get_identifiers() and child.lookup(name).is_free():
+                return True
     return False
 
 
@@ -87,21 +144,29 @@ def _scan(body, table, out):
         _visit(node, table, out)
 
 
+def _check_function(node, table, out):
+    reads: set[str] = set()
+    binds: set[tuple[int, str]] = set(_plain_bindings(node.body))
+    for sub in _scope_nodes(node.body):
+        if isinstance(sub, _EXPRESSION_SCOPES):
+            _expression_reads(sub, frozenset(), reads, binds)
+    for line, name in sorted(binds):
+        sym = table.lookup(name)
+        if (
+            not name.startswith("_")
+            and sym.is_local()
+            and not sym.is_referenced()
+            and name not in reads
+            and not _read_by_nested_def(table, node.body, name)
+        ):
+            out.append(f"{line}:{name}")
+
+
 def _visit(node, table, out):
-    if isinstance(node, (*_FUNCTION_NODES, ast.ClassDef)):
+    if isinstance(node, _DEF_NODES):
         inner = _child(table, node)
         if isinstance(node, _FUNCTION_NODES):
-            comprehension_reads = _comprehension_reads(node.body)
-            for line, name in sorted(_plain_bindings(node.body)):
-                sym = inner.lookup(name)
-                if (
-                    not name.startswith("_")
-                    and sym.is_local()
-                    and not sym.is_referenced()
-                    and name not in comprehension_reads
-                    and not _read_below(inner, name)
-                ):
-                    out.append(f"{line}:{name}")
+            _check_function(node, inner, out)
         _scan(node.body, inner, out)
         return
     for child in ast.iter_child_nodes(node):
@@ -164,6 +229,81 @@ def test_read_from_closure_lambda_or_comprehension_is_used():
 def test_comprehension_reads_do_not_cover_other_names():
     src = "def f(rows):\n    seen = 1\n    keep = 2\n    return [r for r in rows if r == keep]\n"
     assert unused_locals(src) == ["2:seen"]
+
+
+def test_shadowing_nested_function_does_not_cover_the_outer_local():
+    src = (
+        "def f():\n"
+        "    x = 1\n"
+        "    def g():\n"
+        "        x = 2\n"
+        "        def h():\n"
+        "            return x\n"
+        "        return h\n"
+        "    return g\n"
+    )
+    assert unused_locals(src) == ["2:x"]
+
+
+def test_read_passed_through_nested_scopes_is_used():
+    src = (
+        "def f():\n"
+        "    x = 1\n"
+        "    y = 2\n"
+        "    def g():\n"
+        "        def h():\n"
+        "            return x\n"
+        "        return h\n"
+        "    class C:\n"
+        "        def m(self):\n"
+        "            return y\n"
+        "    return g, C\n"
+    )
+    assert unused_locals(src) == []
+
+
+def test_comprehension_target_and_lambda_parameter_shadow_the_local():
+    src = (
+        "def f(rows):\n"
+        "    r = 1\n"
+        "    a = 2\n"
+        "    b = 3\n"
+        "    x = 4\n"
+        "    return (\n"
+        "        [r for r in rows],\n"
+        "        (lambda a: a),\n"
+        "        [lambda: b for b in rows],\n"
+        "        [y for x in rows for y in x],\n"
+        "    )\n"
+    )
+    assert unused_locals(src) == ["2:r", "3:a", "4:b", "5:x"]
+
+
+def test_first_comprehension_iterable_reads_the_enclosing_name():
+    src = "def f():\n    r = [1]\n    return [r for r in r]\n"
+    assert unused_locals(src) == []
+
+
+def test_walrus_in_comprehension_binds_the_function():
+    unused = "def f(rows):\n    [(t := r) for r in rows]\n"
+    used = "def f(rows):\n    [(t := r) for r in rows]\n    return t\n"
+    in_lambda = "def f(rows):\n    return [lambda: (t := r) for r in rows]\n"
+    assert unused_locals(unused) == ["2:t"]
+    assert unused_locals(used) == []
+    assert unused_locals(in_lambda) == []
+
+
+def test_read_in_nested_def_decorator_or_default_is_used():
+    src = (
+        "def f(deco):\n"
+        "    x = 1\n"
+        "    y = 2\n"
+        "    @deco(lambda: x)\n"
+        "    def g(v=[y for _ in range(1)]):\n"
+        "        return v\n"
+        "    return g\n"
+    )
+    assert unused_locals(src) == []
 
 
 def test_global_and_nonlocal_targets_are_not_locals():
