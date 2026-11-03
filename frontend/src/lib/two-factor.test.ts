@@ -8,10 +8,10 @@ import {
   totpSecretFromUri,
   mustEnrollTwoFactor,
   cookieHeaderHasTrustDevice,
-  revokePresentedTrustDevices,
   trustDeviceExpiryOptions,
   trustDeviceIdentifier,
 } from "./two-factor";
+import { revokePresentedTrustDevices } from "../app/api/auth/trust-device/revoke";
 
 describe("interpretSignInResult", () => {
   it("returns the error message from a failed password", () => {

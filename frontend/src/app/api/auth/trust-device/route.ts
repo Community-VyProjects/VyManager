@@ -3,9 +3,9 @@ import { getAuth } from "@/lib/auth";
 import {
   TRUST_DEVICE_COOKIE_NAMES,
   cookieHeaderHasTrustDevice,
-  revokePresentedTrustDevices,
   trustDeviceExpiryOptions,
 } from "@/lib/two-factor";
+import { revokePresentedTrustDevices } from "./revoke";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
