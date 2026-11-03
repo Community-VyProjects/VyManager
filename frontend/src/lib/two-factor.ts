@@ -91,6 +91,30 @@ export const TRUST_DEVICE_COOKIE_NAMES = [
   "__Secure-better-auth.trust_device",
 ] as const;
 
+export type TrustDeviceCookieName = (typeof TRUST_DEVICE_COOKIE_NAMES)[number];
+
+/**
+ * Attributes better-auth's createAuthCookie sets on trust_device.
+ * Secure follows the __Secure- prefix: that name was set with Secure,
+ * and browsers drop a deletion that omits it. The plain name stays
+ * non-Secure so an HTTP session can still be forgotten.
+ */
+export function trustDeviceExpiryOptions(name: TrustDeviceCookieName): {
+  path: "/";
+  maxAge: 0;
+  httpOnly: true;
+  sameSite: "lax";
+  secure: boolean;
+} {
+  return {
+    path: "/",
+    maxAge: 0,
+    httpOnly: true,
+    sameSite: "lax",
+    secure: name.startsWith("__Secure-"),
+  };
+}
+
 export function parseTwoFactorQuery(search: string): {
   challenge: boolean;
   methods: string[];

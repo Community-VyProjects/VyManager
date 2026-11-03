@@ -7,6 +7,7 @@ import {
   parseTwoFactorQuery,
   totpSecretFromUri,
   mustEnrollTwoFactor,
+  trustDeviceExpiryOptions,
 } from "./two-factor";
 
 describe("interpretSignInResult", () => {
@@ -120,6 +121,25 @@ describe("leftoverPasswordSessions", () => {
       { nowMs: now, currentUserAgent: ua },
     );
     assert.deepEqual(ghosts.map((s) => s.token), ["ghost"]);
+  });
+});
+
+describe("trustDeviceExpiryOptions", () => {
+  it("matches better-auth attributes, with Secure only on the prefixed name", () => {
+    assert.deepEqual(trustDeviceExpiryOptions("better-auth.trust_device"), {
+      path: "/",
+      maxAge: 0,
+      httpOnly: true,
+      sameSite: "lax",
+      secure: false,
+    });
+    assert.deepEqual(trustDeviceExpiryOptions("__Secure-better-auth.trust_device"), {
+      path: "/",
+      maxAge: 0,
+      httpOnly: true,
+      sameSite: "lax",
+      secure: true,
+    });
   });
 });
 

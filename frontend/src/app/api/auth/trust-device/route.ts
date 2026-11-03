@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { TRUST_DEVICE_COOKIE_NAMES } from "@/lib/two-factor";
+import { TRUST_DEVICE_COOKIE_NAMES, trustDeviceExpiryOptions } from "@/lib/two-factor";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export async function POST() {
   const response = NextResponse.json({ ok: true });
   for (const name of TRUST_DEVICE_COOKIE_NAMES) {
-    response.cookies.set(name, "", { path: "/", maxAge: 0 });
+    response.cookies.set(name, "", trustDeviceExpiryOptions(name));
   }
   return response;
 }
