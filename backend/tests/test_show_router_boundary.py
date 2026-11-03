@@ -18,9 +18,12 @@ from wireguard_status import _parse_wg_handshake, _parse_wg_summary
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# Closed set of top-level names the request router may own. A new show parser
-# in routers/show.py fails this, instead of a denylist that misses the next one.
+# Closed set of top-level names the request router may own. Functions, classes,
+# and assignments are all counted, so a leftover parser table fails this
+# instead of a denylist that misses the next one.
 ROUTER_NAMES = {
+    "logger",
+    "router",
     "dashboard_session_closed",
     "SystemMemory",
     "DiskPartition",
@@ -41,12 +44,27 @@ ROUTER_NAMES = {
 }
 
 
+def _assigned(node) -> set[str]:
+    names = set()
+    if isinstance(node, ast.Name):
+        names.add(node.id)
+    elif isinstance(node, (ast.Tuple, ast.List)):
+        for elt in node.elts:
+            names.update(_assigned(elt))
+    return names
+
+
 def _top_level(rel: str) -> set[str]:
     tree = ast.parse((ROOT / rel).read_text())
     names = set()
     for node in tree.body:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             names.add(node.name)
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                names.update(_assigned(target))
+        elif isinstance(node, ast.AnnAssign):
+            names.update(_assigned(node.target))
     return names
 
 
@@ -55,6 +73,7 @@ def test_show_router_owns_only_endpoints():
     show_src = _top_level("interface_show.py")
     assert "_interfaces_from_kernel" in show_src
     assert "_kernel_iface_type" in show_src
+    assert "_KERNEL_KIND_TO_TYPE" in show_src
     assert "DeviceDataBroadcaster" in _top_level("dashboard_broadcaster.py")
     assert "_gql_result" not in _top_level("dashboard_broadcaster.py")
     assert "_gql_result" in _top_level("wireguard_status.py")
