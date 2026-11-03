@@ -95,7 +95,6 @@ export function RouteMapRuleModal({
   const [matchIpNexthopType, setMatchIpNexthopType] = useState(false);
   const [matchIpv6NexthopAccessList, setMatchIpv6NexthopAccessList] = useState("");
   const [matchIpv6NexthopAddress, setMatchIpv6NexthopAddress] = useState("");
-  const [matchIpv6NexthopPrefixLen, setMatchIpv6NexthopPrefixLen] = useState("");
   const [matchIpv6NexthopPrefixList, setMatchIpv6NexthopPrefixList] = useState("");
   const [matchIpv6NexthopType, setMatchIpv6NexthopType] = useState(false);
 
@@ -405,7 +404,6 @@ export function RouteMapRuleModal({
     setMatchIpNexthopType(false);
     setMatchIpv6NexthopAccessList("");
     setMatchIpv6NexthopAddress("");
-    setMatchIpv6NexthopPrefixLen("");
     setMatchIpv6NexthopPrefixList("");
     setMatchIpv6NexthopType(false);
     setMatchIpRouteSourceAccessList("");
@@ -508,7 +506,6 @@ export function RouteMapRuleModal({
     setMatchIpNexthopType(match.ip_nexthop_type === "blackhole");
     setMatchIpv6NexthopAccessList(match.ipv6_nexthop_access_list || "");
     setMatchIpv6NexthopAddress(match.ipv6_nexthop_address || "");
-    setMatchIpv6NexthopPrefixLen(match.ipv6_nexthop_prefix_len !== null ? String(match.ipv6_nexthop_prefix_len) : "");
     setMatchIpv6NexthopPrefixList(match.ipv6_nexthop_prefix_list || "");
     setMatchIpv6NexthopType(match.ipv6_nexthop_type === "blackhole");
     setMatchIpRouteSourceAccessList(match.ip_route_source_access_list || "");
@@ -642,7 +639,6 @@ export function RouteMapRuleModal({
       if (matchIpNexthopType) match.ip_nexthop_type = "blackhole";
       if (matchIpv6NexthopAccessList.trim()) match.ipv6_nexthop_access_list = matchIpv6NexthopAccessList.trim();
       if (matchIpv6NexthopAddress.trim()) match.ipv6_nexthop_address = matchIpv6NexthopAddress.trim();
-      if (matchIpv6NexthopPrefixLen.trim()) match.ipv6_nexthop_prefix_len = parseInt(matchIpv6NexthopPrefixLen);
       if (matchIpv6NexthopPrefixList.trim()) match.ipv6_nexthop_prefix_list = matchIpv6NexthopPrefixList.trim();
       if (matchIpv6NexthopType) match.ipv6_nexthop_type = "blackhole";
       if (matchIpRouteSourceAccessList.trim()) match.ip_route_source_access_list = matchIpRouteSourceAccessList.trim();
@@ -1131,16 +1127,6 @@ export function RouteMapRuleModal({
                             ))}
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="matchIpv6NexthopPrefixLen">{t("match.prefixLength")}</Label>
-                        <Input
-                          id="matchIpv6NexthopPrefixLen"
-                          type="number"
-                          placeholder="0-128"
-                          value={matchIpv6NexthopPrefixLen}
-                          onChange={(e) => setMatchIpv6NexthopPrefixLen(e.target.value)}
-                        />
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center space-x-2 pt-7">

@@ -322,9 +322,24 @@ class RouteMapBatchBuilder(BatchBuilder):
         path = self.mappers[self.mapper_key].get_rule_path(name, rule) + ["match", "ip", "nexthop"]
         return self.add_delete(path)
 
+    def set_match_ipv6_nexthop_access_list(self, name: str, rule: str, access_list: str) -> "RouteMapBatchBuilder":
+        """Set match IPv6 next-hop via access-list."""
+        path = self.mappers[self.mapper_key].get_match_ipv6_nexthop_access_list(name, rule, access_list)
+        return self.add_set(path)
+
     def set_match_ipv6_nexthop_address(self, name: str, rule: str, address: str) -> "RouteMapBatchBuilder":
         """Set match IPv6 next-hop address."""
         path = self.mappers[self.mapper_key].get_match_ipv6_nexthop_address(name, rule, address)
+        return self.add_set(path)
+
+    def set_match_ipv6_nexthop_prefix_list(self, name: str, rule: str, prefix_list: str) -> "RouteMapBatchBuilder":
+        """Set match IPv6 next-hop via prefix-list."""
+        path = self.mappers[self.mapper_key].get_match_ipv6_nexthop_prefix_list(name, rule, prefix_list)
+        return self.add_set(path)
+
+    def set_match_ipv6_nexthop_type(self, name: str, rule: str, nh_type: str) -> "RouteMapBatchBuilder":
+        """Set match IPv6 next-hop type."""
+        path = self.mappers[self.mapper_key].get_match_ipv6_nexthop_type(name, rule, nh_type)
         return self.add_set(path)
 
     def delete_match_ipv6_nexthop(self, name: str, rule: str) -> "RouteMapBatchBuilder":

@@ -55,7 +55,10 @@ class MatchConditions(BaseModel):
     ip_nexthop_prefix_len: Optional[int] = None
     ip_nexthop_prefix_list: Optional[str] = None
     ip_nexthop_type: Optional[str] = None
+    ipv6_nexthop_access_list: Optional[str] = None
     ipv6_nexthop_address: Optional[str] = None
+    ipv6_nexthop_prefix_list: Optional[str] = None
+    ipv6_nexthop_type: Optional[str] = None
 
     # Route Source
     ip_route_source_access_list: Optional[str] = None
@@ -352,7 +355,10 @@ def parse_match_conditions(match_data: dict) -> MatchConditions:
     # IPv6 Next-Hop
     if "ipv6" in match_data and "nexthop" in match_data["ipv6"]:
         ipv6_nh = match_data["ipv6"]["nexthop"]
+        match.ipv6_nexthop_access_list = ipv6_nh.get("access-list")
         match.ipv6_nexthop_address = ipv6_nh.get("address")
+        match.ipv6_nexthop_prefix_list = ipv6_nh.get("prefix-list")
+        match.ipv6_nexthop_type = ipv6_nh.get("type")
 
     # IP Route Source
     if "ip" in match_data and "route-source" in match_data["ip"]:
@@ -638,8 +644,14 @@ async def reorder_route_map_rules(http_request: Request, body: ReorderRouteMapRe
                 builder.set_match_ip_nexthop_prefix_list(body.route_map_name, str(new_number), match.ip_nexthop_prefix_list)
             if match.ip_nexthop_type:
                 builder.set_match_ip_nexthop_type(body.route_map_name, str(new_number), match.ip_nexthop_type)
+            if match.ipv6_nexthop_access_list:
+                builder.set_match_ipv6_nexthop_access_list(body.route_map_name, str(new_number), match.ipv6_nexthop_access_list)
             if match.ipv6_nexthop_address:
                 builder.set_match_ipv6_nexthop_address(body.route_map_name, str(new_number), match.ipv6_nexthop_address)
+            if match.ipv6_nexthop_prefix_list:
+                builder.set_match_ipv6_nexthop_prefix_list(body.route_map_name, str(new_number), match.ipv6_nexthop_prefix_list)
+            if match.ipv6_nexthop_type:
+                builder.set_match_ipv6_nexthop_type(body.route_map_name, str(new_number), match.ipv6_nexthop_type)
 
             # Route source matches
             if match.ip_route_source_access_list:

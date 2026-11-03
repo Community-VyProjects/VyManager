@@ -483,4 +483,28 @@ describe("route-map rule", () => {
     await submitRouteMapUpdate("RM", storedMap, draft, service);
     assert.equal(service.calls[0].rule_number, 10);
   });
+
+  it("emits ipv6 nexthop access-list, prefix-list, and blackhole", async () => {
+    const service = new RecordingRouteMap();
+    const draft = emptyRouteMapRuleDraft();
+    draft.ruleNumber = 10;
+    draft.match = {
+      ipv6_nexthop_access_list: "ACL6",
+      ipv6_nexthop_address: "2001:db8::1",
+      ipv6_nexthop_prefix_list: "PL6",
+      ipv6_nexthop_type: "blackhole",
+    };
+    await submitRouteMapCreate("RM", draft, service);
+    const ops = service.calls[0].operations;
+    assert.deepEqual(
+      ops.filter((op) => op.op.startsWith("set_match_ipv6_nexthop")),
+      [
+        { op: "set_match_ipv6_nexthop_access_list", value: "ACL6" },
+        { op: "set_match_ipv6_nexthop_address", value: "2001:db8::1" },
+        { op: "set_match_ipv6_nexthop_prefix_list", value: "PL6" },
+        { op: "set_match_ipv6_nexthop_type", value: "blackhole" },
+      ],
+    );
+    assert.equal(ops.some((op) => op.op.includes("prefix_len")), false);
+  });
 });

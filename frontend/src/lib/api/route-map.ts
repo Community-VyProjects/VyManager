@@ -35,7 +35,6 @@ export interface MatchConditions {
   ip_nexthop_type?: string | null;
   ipv6_nexthop_access_list?: string | null;
   ipv6_nexthop_address?: string | null;
-  ipv6_nexthop_prefix_len?: number | null;
   ipv6_nexthop_prefix_list?: string | null;
   ipv6_nexthop_type?: string | null;
 
@@ -524,7 +523,10 @@ export class RouteMapService {
     if (match.ip_nexthop_prefix_len !== undefined && match.ip_nexthop_prefix_len !== null) operations.push({ op: "set_match_ip_nexthop_prefix_len", value: match.ip_nexthop_prefix_len.toString() });
     if (match.ip_nexthop_prefix_list) operations.push({ op: "set_match_ip_nexthop_prefix_list", value: match.ip_nexthop_prefix_list });
     if (match.ip_nexthop_type) operations.push({ op: "set_match_ip_nexthop_type", value: match.ip_nexthop_type });
+    if (match.ipv6_nexthop_access_list) operations.push({ op: "set_match_ipv6_nexthop_access_list", value: match.ipv6_nexthop_access_list });
     if (match.ipv6_nexthop_address) operations.push({ op: "set_match_ipv6_nexthop_address", value: match.ipv6_nexthop_address });
+    if (match.ipv6_nexthop_prefix_list) operations.push({ op: "set_match_ipv6_nexthop_prefix_list", value: match.ipv6_nexthop_prefix_list });
+    if (match.ipv6_nexthop_type) operations.push({ op: "set_match_ipv6_nexthop_type", value: match.ipv6_nexthop_type });
 
     // Route Source
     if (match.ip_route_source_access_list) operations.push({ op: "set_match_ip_route_source_access_list", value: match.ip_route_source_access_list });
