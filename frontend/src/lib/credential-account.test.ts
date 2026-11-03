@@ -40,14 +40,17 @@ function harness(opts?: { failLink?: boolean; failCreate?: Error }): {
       return account;
     },
     hashPassword: async (password) => `hashed:${password}`,
-    deleteUser: async (userId) => {
-      const index = users.findIndex((row) => row.id === userId);
-      if (index >= 0) users.splice(index, 1);
-      for (let i = accounts.length - 1; i >= 0; i -= 1) {
-        if (accounts[i].userId === userId) accounts.splice(i, 1);
+    runInTransaction: async (fn) => {
+      const userSnapshot = users.slice();
+      const accountSnapshot = accounts.slice();
+      try {
+        return await fn();
+      } catch (error) {
+        users.splice(0, users.length, ...userSnapshot);
+        accounts.splice(0, accounts.length, ...accountSnapshot);
+        throw error;
       }
     },
-    runInTransaction: async (fn) => fn(),
     minPasswordLength: 8,
     maxPasswordLength: 128,
   };
@@ -92,13 +95,25 @@ describe("createCredentialAccount", () => {
     assert.equal(accounts[0].password, "hashed:correct-horse");
   });
 
-  it("removes the user when the credential link fails and the transaction does not roll back", async () => {
+  it("leaves no user when the credential link fails inside a rolling transaction", async () => {
     const { deps, users, accounts } = harness({ failLink: true });
-    let deleted = 0;
-    const remove = deps.deleteUser;
-    deps.deleteUser = async (userId) => {
-      deleted += 1;
-      return remove(userId);
+    await assert.rejects(
+      () =>
+        createCredentialAccount(
+          { email: "new.user@example.com", password: "correct-horse", name: "New" },
+          deps,
+        ),
+      /Failed to create user/,
+    );
+    assert.equal(users.length, 0);
+    assert.equal(accounts.length, 0);
+  });
+
+  it("keeps a committed user when an after-commit hook throws", async () => {
+    const { deps, users, accounts } = harness();
+    deps.runInTransaction = async (fn) => {
+      await fn();
+      throw new Error("after-commit hook failed");
     };
     await assert.rejects(
       () =>
@@ -108,9 +123,9 @@ describe("createCredentialAccount", () => {
         ),
       /Failed to create user/,
     );
-    assert.equal(deleted, 1);
-    assert.equal(users.length, 0);
-    assert.equal(accounts.length, 0);
+    assert.equal(users.length, 1);
+    assert.equal(accounts.length, 1);
+    assert.equal(accounts[0].password, "hashed:correct-horse");
   });
 
   it("does not hash or write when the password is too long", async () => {
@@ -147,18 +162,33 @@ describe("createCredentialAccount", () => {
     assert.equal(accounts.length, 0);
   });
 
-  it("lets a duplicate-key failure stay a duplicate so the caller can reject it", async () => {
-    const { deps, users } = harness({
-      failCreate: new Error("duplicate key value violates unique constraint"),
-    });
+  it("treats a Prisma unique constraint as an existing email", async () => {
+    const prismaUnique = new Error(
+      "Unique constraint failed on the fields: (`email`)",
+    );
+    const { deps, users, accounts } = harness({ failCreate: prismaUnique });
     await assert.rejects(
       () =>
         createCredentialAccount(
           { email: "new.user@example.com", password: "correct-horse", name: "New" },
           deps,
         ),
-      /duplicate/,
+      /already exists/,
     );
     assert.equal(users.length, 0);
+    assert.equal(accounts.length, 0);
+
+    const coded = new Error("Invalid prisma.user.create() invocation");
+    (coded as Error & { code: string }).code = "P2002";
+    const second = harness({ failCreate: coded });
+    await assert.rejects(
+      () =>
+        createCredentialAccount(
+          { email: "other.user@example.com", password: "correct-horse", name: "Other" },
+          second.deps,
+        ),
+      /already exists/,
+    );
+    assert.equal(second.users.length, 0);
   });
 });

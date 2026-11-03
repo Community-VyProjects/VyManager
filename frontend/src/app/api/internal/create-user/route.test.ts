@@ -21,6 +21,7 @@ let sessionCreates = 0;
 let signUpCalls = 0;
 let transactionCalls = 0;
 let nextId = 0;
+let createError: Error | null = null;
 
 function resetStore(): void {
   users.length = 0;
@@ -29,6 +30,7 @@ function resetStore(): void {
   signUpCalls = 0;
   transactionCalls = 0;
   nextId = 0;
+  createError = null;
 }
 
 mock.module("@/lib/auth", {
@@ -76,6 +78,7 @@ mock.module("@/lib/auth", {
             return user ? { user, accounts: [] } : null;
           },
           createUser: async (user: { email: string; name: string }) => {
+            if (createError) throw createError;
             const created = {
               id: `user-${++nextId}`,
               email: user.email.toLowerCase(),
@@ -92,7 +95,6 @@ mock.module("@/lib/auth", {
             sessionCreates += 1;
             return { token: "should-not-exist" };
           },
-          deleteUser: async () => undefined,
         },
       }),
     }),
@@ -168,6 +170,21 @@ describe("POST /api/internal/create-user", { concurrency: false }, () => {
     assert.equal(body.error, "Email already exists");
     assert.equal(users.length, 1);
     assert.equal(accounts.length, 1);
+    assert.equal(signUpCalls, 0);
+    assert.equal(sessionCreates, 0);
+  });
+
+  it("returns 400 when Prisma reports a unique email constraint", async () => {
+    resetStore();
+    createError = new Error("Unique constraint failed on the fields: (`email`)");
+    const { POST } = await import("./route");
+    const response = await POST(
+      post({ email: "race@example.com", password: "correct-horse", name: "Race" }),
+    );
+    assert.equal(response.status, 400);
+    const body = (await response.json()) as { error: string };
+    assert.equal(body.error, "Email already exists");
+    assert.equal(users.length, 0);
     assert.equal(signUpCalls, 0);
     assert.equal(sessionCreates, 0);
   });
