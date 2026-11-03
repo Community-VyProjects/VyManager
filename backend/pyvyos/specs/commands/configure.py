@@ -3,11 +3,10 @@
 from typing import List, Literal, Union
 
 try:
-    from pydantic import BaseModel, Field
+    from pydantic import BaseModel
     from ..models import ApiRequest
 except ImportError:
     BaseModel = None  # type: ignore
-    Field = None  # type: ignore
     ApiRequest = None  # type: ignore
 
 

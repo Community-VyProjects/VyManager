@@ -7,7 +7,6 @@ API endpoints for managing VyOS PPPoE server configuration.
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
-import asyncio
 import json
 from urllib.parse import unquote
 from session_vyos_service import get_session_vyos_service

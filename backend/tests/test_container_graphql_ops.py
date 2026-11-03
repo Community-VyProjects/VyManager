@@ -11,7 +11,6 @@ client so no real device or SSH connection is used. They assert:
 import json
 from contextlib import asynccontextmanager
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
