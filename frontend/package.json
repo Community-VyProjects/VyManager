@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "npm run check:messages && next build",
     "start": "next start",
-    "lint": "eslint && npm run check:messages && node --test eslint-rules/no-untranslated-text.test.mjs",
+    "postinstall": "node scripts/ensure-minimatch-callable.js",
+    "prelint": "node scripts/ensure-minimatch-callable.js",
+    "prebuild": "node scripts/ensure-minimatch-callable.js && node --test scripts/ensure-minimatch-callable.test.js",
+    "lint": "eslint && npm run check:messages && node --test eslint-rules/no-untranslated-text.test.mjs scripts/ensure-minimatch-callable.test.js",
     "check:messages": "tsx --test src/i18n/messages-parity.test.ts src/i18n/config.test.ts",
     "test:auth": "tsx --test src/lib/login-rate-limit.test.ts src/lib/client-peer.test.ts src/lib/credential-account.test.ts && node --experimental-test-module-mocks --import tsx --test src/app/api/auth/login-rate-limit-route.test.ts src/app/api/internal/create-user/route.test.ts"
   },
@@ -80,11 +83,6 @@
     "deepmerge-ts": "8.0.2",
     "@formatjs/icu-messageformat-parser": "3.5.18",
     "zod": "4.6.7",
-    "minimatch@3": {
-      "brace-expansion": "1.1.21"
-    },
-    "minimatch@9": {
-      "brace-expansion": "2.1.7"
-    }
+    "minimatch": "11.0.4"
   }
 }

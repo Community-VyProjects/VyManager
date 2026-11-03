@@ -17,6 +17,7 @@ RUN apk add --no-cache openssl
 
 # Copy package files and prisma schema first for better caching
 COPY frontend/package*.json ./
+COPY frontend/scripts/ensure-minimatch-callable.js ./scripts/ensure-minimatch-callable.js
 COPY frontend/prisma ./prisma/
 COPY frontend/next.config.* ./
 
