@@ -46,13 +46,17 @@ function assertScriptsMatch() {
   }
 }
 
+const YARN_MINIMATCH_URL = /registry\.(?:npmjs\.org|yarnpkg\.com)\/minimatch\/-\/minimatch-(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)\.tgz/g;
+
+function yarnMinimatchVersions(text) {
+  return [...String(text).matchAll(YARN_MINIMATCH_URL)].map((match) => match[1]);
+}
+
 function assertLockfile(lockPath) {
   if (!fs.existsSync(lockPath)) return;
   if (lockPath.endsWith("yarn.lock")) {
     const text = fs.readFileSync(lockPath, "utf8");
-    const versions = [...text.matchAll(/registry\.(?:npmjs\.org|yarnpkg\.com)\/minimatch\/-\/minimatch-(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)\.tgz/g)].map(
-      (match) => match[1],
-    );
+    const versions = yarnMinimatchVersions(text);
     if (versions.length === 0) {
       throw new Error(`${lockPath} does not resolve minimatch`);
     }
@@ -252,9 +256,21 @@ function main() {
   process.stdout.write(`minimatch >= 11.0.1 callable in ${dirs.length} install(s)\n`);
 }
 
-try {
-  main();
-} catch (error) {
-  process.stderr.write(`${error.message}\n`);
-  process.exit(1);
+module.exports = {
+  yarnMinimatchVersions,
+  versionAtLeast,
+  assertLockfile,
+  patchCjs,
+  patchEsm,
+  findMinimatchDirs,
+  FLOOR,
+};
+
+if (require.main === module) {
+  try {
+    main();
+  } catch (error) {
+    process.stderr.write(`${error.message}\n`);
+    process.exit(1);
+  }
 }

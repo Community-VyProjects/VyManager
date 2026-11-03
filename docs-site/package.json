@@ -15,7 +15,7 @@
     "typecheck": "tsc",
     "export-openapi": "node ./scripts/export-openapi.mjs",
     "postinstall": "node scripts/ensure-minimatch-callable.js",
-    "prebuild": "node scripts/ensure-minimatch-callable.js && npm run export-openapi",
+    "prebuild": "node scripts/ensure-minimatch-callable.js && node --test ../frontend/scripts/ensure-minimatch-callable.test.js && npm run export-openapi",
     "prestart": "node scripts/ensure-minimatch-callable.js && npm run export-openapi",
     "preserve": "node scripts/ensure-minimatch-callable.js",
     "predeploy": "node scripts/ensure-minimatch-callable.js"
