@@ -168,10 +168,6 @@ class RouteMapMapper(BaseFeatureMapper):
         """Match IPv6 next-hop via access-list."""
         return ["policy", "route-map", name, "rule", rule, "match", "ipv6", "nexthop", "access-list", access_list]
 
-    def get_match_ipv6_nexthop_prefix_len(self, name: str, rule: str, prefix_len: str) -> List[str]:
-        """Match IPv6 next-hop prefix length."""
-        return ["policy", "route-map", name, "rule", rule, "match", "ipv6", "nexthop", "prefix-len", prefix_len]
-
     def get_match_ipv6_nexthop_prefix_list(self, name: str, rule: str, prefix_list: str) -> List[str]:
         """Match IPv6 next-hop via prefix-list."""
         return ["policy", "route-map", name, "rule", rule, "match", "ipv6", "nexthop", "prefix-list", prefix_list]
