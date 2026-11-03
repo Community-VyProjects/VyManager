@@ -90,7 +90,7 @@ def test_logout_auth_401_without_user():
 def test_logout_auth_deletes_current_session_row(monkeypatch):
     import asyncio
 
-    import routers.session.session as S
+    from routers.session.session import logout_auth_session
 
     class _Conn:
         def __init__(self):
@@ -99,8 +99,8 @@ def test_logout_auth_deletes_current_session_row(monkeypatch):
         async def execute(self, sql, *args):
             self.calls.append((sql, args))
 
-    monkeypatch.setattr(S, "get_session_cookie", lambda _req: "signed")
-    monkeypatch.setattr(S, "verify_session_cookie", lambda _v: "tok123")
+    monkeypatch.setattr("routers.session.session.get_session_cookie", lambda _req: "signed")
+    monkeypatch.setattr("routers.session.session.verify_session_cookie", lambda _v: "tok123")
 
     class _Req:
         def __init__(self):
@@ -109,7 +109,7 @@ def test_logout_auth_deletes_current_session_row(monkeypatch):
     conn = _Conn()
 
     async def run():
-        return await S.logout_auth_session(_Req(), conn)
+        return await logout_auth_session(_Req(), conn)
 
     result = asyncio.run(run())
     assert result.success is True

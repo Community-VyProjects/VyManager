@@ -313,7 +313,7 @@ def test_pppoe_configured_gates_on_service_tree():
     assert pppoe_configured({"service": {"pppoe-server": {"interface": {"eth0": {}}}}}) is True
 
 
-def test_load_pppoe_sessions_raises_when_fallback_fails():
+def test_load_pppoe_sessions_raises_when_fallback_fails(monkeypatch):
     import asyncio
     from types import SimpleNamespace
     from pppoe_status import PPPoESessionsUnavailable, load_pppoe_sessions
@@ -333,18 +333,13 @@ def test_load_pppoe_sessions_raises_when_fallback_fails():
     async def fake_fetch(_service, protocol="pppoe"):
         return None
 
-    import pppoe_status as mod
-    original = mod.fetch_accel_ppp_sessions
-    mod.fetch_accel_ppp_sessions = fake_fetch
-    try:
-        with pytest.raises(PPPoESessionsUnavailable) as caught:
-            asyncio.run(load_pppoe_sessions(service))
-        assert "Unable to read PPPoE sessions" in str(caught.value.detail)
-    finally:
-        mod.fetch_accel_ppp_sessions = original
+    monkeypatch.setattr("pppoe_status.fetch_accel_ppp_sessions", fake_fetch)
+    with pytest.raises(PPPoESessionsUnavailable) as caught:
+        asyncio.run(load_pppoe_sessions(service))
+    assert "Unable to read PPPoE sessions" in str(caught.value.detail)
 
 
-def test_load_pppoe_sessions_skips_rest_show_when_graphql_succeeds():
+def test_load_pppoe_sessions_skips_rest_show_when_graphql_succeeds(monkeypatch):
     import asyncio
     from types import SimpleNamespace
     from pppoe_status import load_pppoe_sessions
@@ -367,14 +362,7 @@ def test_load_pppoe_sessions_skips_rest_show_when_graphql_succeeds():
     async def boom_mtus(_service):
         raise AssertionError("ShowInterfaces must ride the sessions POST")
 
-    import pppoe_status as mod
-    original = mod.fetch_accel_ppp_sessions
-    original_mtus = mod.fetch_interface_mtus
-    mod.fetch_accel_ppp_sessions = fake_fetch
-    mod.fetch_interface_mtus = boom_mtus
-    try:
-        loaded = asyncio.run(load_pppoe_sessions(service))
-        assert loaded[0].mtu == 1480
-    finally:
-        mod.fetch_accel_ppp_sessions = original
-        mod.fetch_interface_mtus = original_mtus
+    monkeypatch.setattr("pppoe_status.fetch_accel_ppp_sessions", fake_fetch)
+    monkeypatch.setattr("pppoe_status.fetch_interface_mtus", boom_mtus)
+    loaded = asyncio.run(load_pppoe_sessions(service))
+    assert loaded[0].mtu == 1480

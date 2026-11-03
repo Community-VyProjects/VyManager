@@ -6,8 +6,13 @@ Handles connect/disconnect operations and instance selection.
 """
 
 from fastapi import Depends, APIRouter, HTTPException, Query, Request, UploadFile, File, Form
-import org_scope
-from org_scope import assert_row_in_acting_org, org_conn_admin, org_conn_self, org_unit_of_work
+from org_scope import (
+    assert_row_in_acting_org,
+    org_conn_admin,
+    org_conn_self,
+    org_enforcement_enabled,
+    org_unit_of_work,
+)
 from starlette.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -669,7 +674,7 @@ async def list_user_sites(request: Request, conn: asyncpg.Connection = Depends(o
             # instance admin) — mirroring the permission layer, which grants
             # org ADMIN/OWNER full access on their org's instances. Inert while
             # ORG_ENFORCEMENT is off, so single-team deployments are unchanged.
-            if org_scope.ORG_ENFORCEMENT:
+            if org_enforcement_enabled():
                 org_admin_sites = await conn.fetch(
                     """
                     SELECT s.id, s.name, s.description, s."orgId",
@@ -752,7 +757,7 @@ async def list_site_instances(request: Request, site_id: str, conn: asyncpg.Conn
             # Under org enforcement, an org ADMIN/OWNER of the site's
             # organization sees all of its instances (mirrors the permission
             # layer and the site listing). Inert while enforcement is off.
-            org_admin = org_scope.ORG_ENFORCEMENT and await conn.fetchval(
+            org_admin = org_enforcement_enabled() and await conn.fetchval(
                 """
                 SELECT 1 FROM sites s
                 JOIN org_memberships m ON m."orgId" = s."orgId"

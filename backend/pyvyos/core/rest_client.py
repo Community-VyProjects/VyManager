@@ -10,7 +10,6 @@ import ipaddress
 
 import requests
 import urllib3
-from requests import Response
 from requests.exceptions import (
     HTTPError,
     ConnectionError,
@@ -336,7 +335,7 @@ class RestClient(ABC):
 
     @classmethod
     def _validate_response(
-        cls, resp: Response
+        cls, resp: requests.Response
     ) -> Tuple[Optional[int], Dict[str, Any], Union[str, bool]]:
         """
         Validates and processes API responses with comprehensive error handling.
@@ -389,12 +388,12 @@ class RestClient(ABC):
 
         except JSONDecodeError as exc:
             error = f"Invalid response format: {str(exc)}"
-            status = resp.status_code if resp is not None and isinstance(resp, Response) else 500
+            status = resp.status_code if resp is not None and isinstance(resp, requests.Response) else 500
 
 
         except HTTPError as exc:
             response = exc.response
-            status = response.status_code if response is not None and isinstance(response, Response) else 500
+            status = response.status_code if response is not None and isinstance(response, requests.Response) else 500
             # Try to parse JSON error response from VyOS
             error_msg = "Unknown error"
             if response is not None:

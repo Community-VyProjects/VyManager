@@ -218,7 +218,7 @@ def test_sweep_reports_no_ports_without_starting_a_fetch():
     assert pushed == [{"type": "transceiver-health", "data": {"interfaces": [], "total": 0}}]
 
 
-def test_sweep_starts_once_and_is_not_restarted_every_cycle():
+def test_sweep_starts_once_and_is_not_restarted_every_cycle(monkeypatch):
     async def scenario():
         broadcaster = DeviceDataBroadcaster("instance", service=object())
         broadcaster._subscribers.append((asyncio.Queue(), frozenset({"transceiver-health"})))
@@ -230,22 +230,16 @@ def test_sweep_starts_once_and_is_not_restarted_every_cycle():
             started.append(list(interfaces))
             await asyncio.sleep(60)
 
-        import dashboard_broadcaster as pump
-
-        original = pump._fetch_gql_transceivers
-        pump._fetch_gql_transceivers = fake_fetch
-        try:
-            broadcaster._handle_transceiver_cycle(start=True)
-            await asyncio.sleep(0)
-            # The 3 s loop ticks again while the sweep is still in flight.
-            broadcaster._handle_transceiver_cycle(start=True)
-            broadcaster._handle_transceiver_cycle(start=True)
-            await asyncio.sleep(0)
-            assert started == [["eth0", "eth1"]]
-            assert broadcaster._transceiver_task is not None
-            broadcaster._transceiver_task.cancel()
-        finally:
-            pump._fetch_gql_transceivers = original
+        monkeypatch.setattr("dashboard_broadcaster._fetch_gql_transceivers", fake_fetch)
+        broadcaster._handle_transceiver_cycle(start=True)
+        await asyncio.sleep(0)
+        # The 3 s loop ticks again while the sweep is still in flight.
+        broadcaster._handle_transceiver_cycle(start=True)
+        broadcaster._handle_transceiver_cycle(start=True)
+        await asyncio.sleep(0)
+        assert started == [["eth0", "eth1"]]
+        assert broadcaster._transceiver_task is not None
+        broadcaster._transceiver_task.cancel()
 
     asyncio.run(scenario())
 

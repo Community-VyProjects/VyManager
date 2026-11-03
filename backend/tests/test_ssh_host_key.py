@@ -13,7 +13,6 @@ import routers.container.container as container_router
 import routers.system as system_router
 import utils.archive_url as archive_url
 import utils.ssh as ssh
-from utils.ssh import SshHostKeyRejected
 
 
 def _run(coro):
@@ -87,10 +86,10 @@ def _opener(conn):
 
 
 def test_rejection_is_not_an_ssh_error():
-    assert not issubclass(SshHostKeyRejected, asyncssh.Error)
-    assert not issubclass(SshHostKeyRejected, OSError)
-    assert "ssh-ed25519" not in SshHostKeyRejected.message
-    assert "AAAA" not in SshHostKeyRejected.message
+    assert not issubclass(ssh.SshHostKeyRejected, asyncssh.Error)
+    assert not issubclass(ssh.SshHostKeyRejected, OSError)
+    assert "ssh-ed25519" not in ssh.SshHostKeyRejected.message
+    assert "AAAA" not in ssh.SshHostKeyRejected.message
 
 
 def test_pinned_connect_uses_known_hosts_object_not_a_filename(monkeypatch):
@@ -157,7 +156,7 @@ def test_corrupt_pin_is_refused_without_accepting_any_key(monkeypatch):
         return object()
 
     monkeypatch.setattr(ssh.asyncssh, "connect", fake_connect)
-    with pytest.raises(SshHostKeyRejected):
+    with pytest.raises(ssh.SshHostKeyRejected):
         _run(ssh.connect(
             open_conn=_opener(_Conn(row={"hostKey": "not-a-key"})),
             instance_id="inst",
@@ -240,7 +239,7 @@ def test_changed_key_is_refused_and_pin_is_not_replaced(monkeypatch):
 
     monkeypatch.setattr(ssh.asyncssh, "connect", fake_connect)
     conn = _Conn(row={"hostKey": stored})
-    with pytest.raises(SshHostKeyRejected, match=SshHostKeyRejected.message):
+    with pytest.raises(ssh.SshHostKeyRejected, match=ssh.SshHostKeyRejected.message):
         _run(ssh.connect(
             open_conn=_opener(conn),
             instance_id="inst",
@@ -305,7 +304,7 @@ def test_loopback_pin_accepts_the_same_key_and_refuses_a_different_one(monkeypat
 
             db.keys[("inst", "127.0.0.1", port)] = other_key.export_public_key().decode().strip()
             db.row = {"hostKey": db.keys[("inst", "127.0.0.1", port)]}
-            with pytest.raises(SshHostKeyRejected) as raised:
+            with pytest.raises(ssh.SshHostKeyRejected) as raised:
                 await ssh.connect(
                     open_conn=_opener(db),
                     instance_id="inst",
@@ -313,7 +312,7 @@ def test_loopback_pin_accepts_the_same_key_and_refuses_a_different_one(monkeypat
                     port=port,
                     username="vyos",
                 )
-            assert str(raised.value) == SshHostKeyRejected.message
+            assert str(raised.value) == ssh.SshHostKeyRejected.message
             assert server_key.export_public_key().decode().strip() not in str(raised.value)
             assert db.keys[("inst", "127.0.0.1", port)] == other_key.export_public_key().decode().strip()
             assert isinstance(seen[2], asyncssh.SSHKnownHosts)
@@ -326,16 +325,16 @@ def test_loopback_pin_accepts_the_same_key_and_refuses_a_different_one(monkeypat
 
 def test_sftp_archive_does_not_hide_a_changed_host_key(monkeypatch):
     async def reject(**kwargs):
-        raise SshHostKeyRejected()
+        raise ssh.SshHostKeyRejected()
 
     monkeypatch.setattr(archive_url, "connect_ssh", reject)
-    with pytest.raises(SshHostKeyRejected):
+    with pytest.raises(ssh.SshHostKeyRejected):
         _run(archive_url.list_archive_files(
             "sftp://vyos:secret@backup.example/cfg/",
             open_conn=lambda: None,
             instance_id="inst",
         ))
-    with pytest.raises(SshHostKeyRejected):
+    with pytest.raises(ssh.SshHostKeyRejected):
         _run(archive_url.fetch_archive_file_content(
             "sftp://vyos:secret@backup.example/cfg/",
             "config.boot",
@@ -396,7 +395,7 @@ def test_container_ssh_passes_instance_and_hides_key_material(monkeypatch):
 
     async def reject(**kwargs):
         calls.append(kwargs)
-        raise SshHostKeyRejected()
+        raise ssh.SshHostKeyRejected()
 
     monkeypatch.setattr(container_router, "request_scoped_conn", scoped)
     monkeypatch.setattr(container_router, "decrypt_private_key", lambda *args: b"pem")
@@ -410,7 +409,7 @@ def test_container_ssh_passes_instance_and_hides_key_material(monkeypatch):
     with pytest.raises(HTTPException) as raised:
         _run(container_router._get_ssh_connection(request))
     assert raised.value.status_code == 502
-    assert raised.value.detail == SshHostKeyRejected.message
+    assert raised.value.detail == ssh.SshHostKeyRejected.message
     assert "ssh-ed25519" not in raised.value.detail
     assert calls[0]["instance_id"] == "inst-1"
     assert calls[0]["host"] == "10.0.0.5"
@@ -450,21 +449,21 @@ def _patch_archive_endpoint(monkeypatch, error):
 
 
 def test_archive_endpoints_map_a_changed_host_key(monkeypatch):
-    _patch_archive_endpoint(monkeypatch, SshHostKeyRejected())
+    _patch_archive_endpoint(monkeypatch, ssh.SshHostKeyRejected())
     request = _archive_request({"id": "inst"})
     with pytest.raises(HTTPException) as listed:
         _run(system_router.list_archive_files_endpoint(
             request, "sftp://backup.example/cfg/",
         ))
     assert listed.value.status_code == 502
-    assert listed.value.detail == SshHostKeyRejected.message
+    assert listed.value.detail == ssh.SshHostKeyRejected.message
 
     with pytest.raises(HTTPException) as diffed:
         _run(system_router.get_archive_diff(
             request, "sftp://backup.example/cfg/", "config.boot",
         ))
     assert diffed.value.status_code == 502
-    assert diffed.value.detail == SshHostKeyRejected.message
+    assert diffed.value.detail == ssh.SshHostKeyRejected.message
 
 
 def test_archive_endpoints_reject_a_missing_instance(monkeypatch):
@@ -519,7 +518,7 @@ def test_console_and_monitoring_pin_and_report_a_changed_key(monkeypatch):
 
     async def reject(**kwargs):
         calls.append(kwargs)
-        raise SshHostKeyRejected()
+        raise ssh.SshHostKeyRejected()
 
     calls = []
     console_socket = _Socket()
@@ -543,7 +542,7 @@ def test_console_and_monitoring_pin_and_report_a_changed_key(monkeypatch):
     assert "known_hosts" not in calls[0]
     assert {
         "type": "error",
-        "message": SshHostKeyRejected.message,
+        "message": ssh.SshHostKeyRejected.message,
     } in console_socket.sent
     assert console_socket.closed is True
 
@@ -570,7 +569,7 @@ def test_console_and_monitoring_pin_and_report_a_changed_key(monkeypatch):
     assert "known_hosts" not in calls[0]
     assert {
         "type": "error",
-        "data": SshHostKeyRejected.message,
+        "data": ssh.SshHostKeyRejected.message,
     } in monitor_socket.sent
     assert monitor_socket.closed is True
 
@@ -582,9 +581,9 @@ def _done(value):
 
 
 def test_message_says_how_to_reset():
-    assert "reset the host key" in SshHostKeyRejected.message
-    assert "instance SSH settings" in SshHostKeyRejected.message
-    assert "ssh-ed25519" not in SshHostKeyRejected.message
+    assert "reset the host key" in ssh.SshHostKeyRejected.message
+    assert "instance SSH settings" in ssh.SshHostKeyRejected.message
+    assert "ssh-ed25519" not in ssh.SshHostKeyRejected.message
 
 
 def test_cancelled_insert_closes_the_connection(monkeypatch):
@@ -685,7 +684,7 @@ def test_archive_and_container_pins_do_not_join_the_handler_transaction(monkeypa
     async def capture_ssh(**kwargs):
         async with kwargs["open_conn"]() as conn:
             seen.append(conn)
-        raise SshHostKeyRejected()
+        raise ssh.SshHostKeyRejected()
 
     monkeypatch.setattr(container_router, "request_scoped_conn", row_conn)
     monkeypatch.setattr(container_router, "independent_org_conn", independent)
@@ -749,7 +748,7 @@ def test_different_key_type_is_refused_on_a_real_server():
         port = server.sockets[0].getsockname()[1]
         db = _Conn(row={"hostKey": pinned.export_public_key().decode().strip()})
         try:
-            with pytest.raises(SshHostKeyRejected) as raised:
+            with pytest.raises(ssh.SshHostKeyRejected) as raised:
                 await ssh.connect(
                     open_conn=_opener(db),
                     instance_id="inst",
@@ -757,7 +756,7 @@ def test_different_key_type_is_refused_on_a_real_server():
                     port=port,
                     username="vyos",
                 )
-            assert str(raised.value) == SshHostKeyRejected.message
+            assert str(raised.value) == ssh.SshHostKeyRejected.message
             assert "ecdsa" not in str(raised.value)
             assert db.keys == {}
         finally:
@@ -1130,17 +1129,17 @@ def test_openssh_key_type_change_is_a_host_key_refusal(monkeypatch):
 
     monkeypatch.setattr(ssh.asyncssh, "connect", openssh_connect)
     db = _Conn(row={"hostKey": stored})
-    with pytest.raises(SshHostKeyRejected) as raised:
+    with pytest.raises(ssh.SshHostKeyRejected) as raised:
         _run(ssh.connect(
             open_conn=_opener(db),
             instance_id="inst",
             host="router.example",
             server_host_key_algs=["ssh-ed25519"],
         ))
-    assert str(raised.value) == SshHostKeyRejected.message
+    assert str(raised.value) == ssh.SshHostKeyRejected.message
     assert seen[-1]["server_host_key_algs"] == "default"
 
-    with pytest.raises(SshHostKeyRejected):
+    with pytest.raises(ssh.SshHostKeyRejected):
         _run(archive_url.list_archive_files(
             "sftp://vyos@router.example/config/",
             open_conn=_opener(db),

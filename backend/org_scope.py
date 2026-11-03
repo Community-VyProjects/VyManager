@@ -40,6 +40,15 @@ ORG_ENFORCEMENT = os.getenv("ORG_ENFORCEMENT", "").strip().lower() in (
 )
 
 
+def org_enforcement_enabled() -> bool:
+    """Read ORG_ENFORCEMENT at call time.
+
+    Callers that ``from org_scope import`` need this instead of the flag
+    itself, which would bind its value once at import.
+    """
+    return ORG_ENFORCEMENT
+
+
 def _require_pool(request: Request) -> asyncpg.Pool:
     pool = getattr(request.app.state, "db_pool", None)
     if pool is None:
