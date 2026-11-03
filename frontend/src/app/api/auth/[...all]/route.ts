@@ -1,4 +1,6 @@
 import { getAuth } from "@/lib/auth";
+import { currentClientPeer, installClientPeerCapture } from "@/lib/client-peer";
+import { clientIpForRateLimit, loginRateLimiter, rateLimitAddress, trustedProxyHops } from "@/lib/login-rate-limit";
 import { isOAuthCallbackPath, rewriteLegacyOAuthCallbackURL } from "@/lib/oauth-callback";
 import { toNextJsHandler } from "better-auth/next-js";
 import { NextRequest, NextResponse } from "next/server";
@@ -9,35 +11,20 @@ export const dynamic = "force-dynamic";
 
 const allowOnboardingFailOpen = process.env.ALLOW_ONBOARDING_FAIL_OPEN === "true";
 
-// Simple in-memory rate limiter for login attempts
-const LOGIN_RATE_LIMIT = 10;        // max attempts
-const LOGIN_RATE_WINDOW_MS = 60_000; // per 1 minute
-const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+installClientPeerCapture();
 
-function getClientIp(request: NextRequest): string {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
-    request.headers.get("x-real-ip") ??
-    "unknown"
-  );
+function getClientIp(request: NextRequest): string | null {
+  return clientIpForRateLimit({
+    peerAddress: currentClientPeer(),
+    forwardedFor: request.headers.get("x-forwarded-for"),
+    trustedProxyHops: trustedProxyHops(),
+  });
 }
 
 function rewriteLegacyOAuthCallback(request: NextRequest): NextRequest {
   const url = rewriteLegacyOAuthCallbackURL(request.nextUrl);
   if (url === request.nextUrl) return request;
   return new NextRequest(url, request);
-}
-
-function checkLoginRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const record = loginAttempts.get(ip);
-  if (!record || now > record.resetAt) {
-    loginAttempts.set(ip, { count: 1, resetAt: now + LOGIN_RATE_WINDOW_MS });
-    return true;
-  }
-  if (record.count >= LOGIN_RATE_LIMIT) return false;
-  record.count++;
-  return true;
 }
 
 export async function GET(request: NextRequest) {
@@ -70,7 +57,15 @@ export async function POST(request: NextRequest) {
 
   // Rate limit login attempts
   if (path.includes("/sign-in")) {
-    if (!checkLoginRateLimit(getClientIp(request))) {
+    const ip = getClientIp(request);
+    if (!ip) {
+      console.error("[Auth] Sign-in rate limit has no client peer; refusing the attempt.");
+      return NextResponse.json(
+        { error: { message: "Unable to verify the client address. Please try again later." } },
+        { status: 503 },
+      );
+    }
+    if (!loginRateLimiter.allow(rateLimitAddress(ip), Date.now())) {
       return NextResponse.json(
         { error: { message: "Too many login attempts. Please try again later." } },
         { status: 429 }

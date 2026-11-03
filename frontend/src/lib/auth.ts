@@ -11,6 +11,7 @@ import {
   type InstanceFeaturePermission,
 } from "./sso-role-mapping";
 import { publishedOAuthRedirectURI } from "./oauth-callback";
+import { betterAuthIpAddress } from "./login-rate-limit";
 
 const prisma = new PrismaClient();
 
@@ -343,6 +344,10 @@ async function buildAuth() {
       crossSubDomainCookies: {
         enabled: false,
       },
+      // One resolved address. Do not set trustedProxies: Better Auth skips a
+      // value that matches a trusted entry, so loopback and any client inside
+      // a configured CIDR would share one sign-in bucket.
+      ipAddress: betterAuthIpAddress(),
     },
     plugins: [
       genericOAuth({

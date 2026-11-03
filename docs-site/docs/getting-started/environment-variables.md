@@ -51,6 +51,8 @@ In the Docker Compose deployment, both the backend and frontend containers read 
 | `NEXT_PUBLIC_WS_URL` | no | none | Explicit override for the WebSocket endpoint (e.g. `wss://api.example.com`). When unset, the client derives the WebSocket URL itself. `NEXT_PUBLIC_` variables are baked in at build time, so this only applies when building the frontend yourself. |
 | `ALLOWED_DEV_ORIGINS` | no | none | Comma-separated hostnames allowed to reach the Next.js dev server. Development only. |
 | `ALLOW_ONBOARDING_FAIL_OPEN` | no | `false` | When `true`, sign-up is allowed even if the frontend cannot reach the backend to check whether onboarding is complete. Leave it off: fail-open means anyone can register while the backend is down. |
+| `TRUSTED_PROXY_HOPS` | no | `0` | How many proxies append `X-Forwarded-For`, including the one that connects to the app. `0` uses the TCP peer and ignores forwarded headers. The host nginx and Caddy examples are `1`. A CDN in front of that proxy is `2`. Values above 8 are treated as unset. |
+| `TRUSTED_PROXY_IPS` | no | loopback only | Extra proxy peers, comma-separated. Each entry is an exact address or an IPv4 CIDR. Junk and `0.0.0.0/0` are ignored. Forwarded hops are used only when the TCP peer is loopback or listed here. Do not list the Docker gateway while port 3000 is published. |
 
 ## Legacy
 

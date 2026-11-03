@@ -1,0 +1,13 @@
+# Certificate name is VYMANAGER_HOST. It must be the name users type.
+# tls internal uses Caddy's local CA. Leave BETTER_AUTH_SECURE_COOKIES
+# unset until the browser trusts that CA.
+{$VYMANAGER_HOST} {
+	tls internal
+	@ws path /vyos/monitoring/ws/* /vyos/console/ws/*
+	reverse_proxy @ws backend:8000
+	reverse_proxy frontend:3000
+}
+
+http://{$VYMANAGER_HOST} {
+	redir https://{host}{uri}
+}
