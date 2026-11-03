@@ -1,4 +1,5 @@
 import * as z from "zod";
+import { runWithTransaction } from "@better-auth/core/context";
 
 /**
  * Admin provisioning of an email/password account.
@@ -35,6 +36,27 @@ export type CredentialAccountDeps = {
   minPasswordLength: number;
   maxPasswordLength: number;
 };
+
+/**
+ * Run the credential writes in the auth transaction.
+ *
+ * An after-commit hook must not fail the create. The user and credential
+ * are already saved, and the backend still has to set the site role.
+ * A 500 here would leave a hidden VIEWER and make the retry a duplicate.
+ */
+export async function runCredentialTransaction<T>(
+  adapter: Parameters<typeof runWithTransaction>[0],
+  fn: () => Promise<T>,
+): Promise<T> {
+  return runWithTransaction(adapter, fn, {
+    onAfterCommitHookError(error) {
+      console.error(
+        "Admin credential create committed, but an after-commit hook failed",
+        error,
+      );
+    },
+  });
+}
 
 function uniqueConflict(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;

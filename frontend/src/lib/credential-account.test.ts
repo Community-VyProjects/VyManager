@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { createCredentialAccount, type CredentialAccountDeps } from "./credential-account";
+import { createCredentialAccount, runCredentialTransaction, type CredentialAccountDeps } from "./credential-account";
+import { queueAfterTransactionHook } from "@better-auth/core/context";
 
 type User = { id: string; email: string; name: string; emailVerified: boolean };
 type Account = {
@@ -109,23 +110,29 @@ describe("createCredentialAccount", () => {
     assert.equal(accounts.length, 0);
   });
 
-  it("keeps a committed user when an after-commit hook throws", async () => {
-    const { deps, users, accounts } = harness();
-    deps.runInTransaction = async (fn) => {
-      await fn();
-      throw new Error("after-commit hook failed");
+  it("reports a committed create as success when an after-commit hook throws", async () => {
+    const errors: unknown[][] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => {
+      errors.push(args);
     };
-    await assert.rejects(
-      () =>
-        createCredentialAccount(
-          { email: "new.user@example.com", password: "correct-horse", name: "New" },
-          deps,
-        ),
-      /Failed to create user/,
-    );
-    assert.equal(users.length, 1);
-    assert.equal(accounts.length, 1);
-    assert.equal(accounts[0].password, "hashed:correct-horse");
+    try {
+      const adapter = {
+        transaction: async <T>(cb: (trx: object) => Promise<T>) => cb({}),
+        options: { adapterConfig: { transaction: true } },
+      };
+      const result = await runCredentialTransaction(adapter, async () => {
+        await queueAfterTransactionHook(async () => {
+          throw new Error("hook failed");
+        });
+        return { id: "u1" };
+      });
+      assert.deepEqual(result, { id: "u1" });
+    } finally {
+      console.error = original;
+    }
+    assert.equal(errors.length, 1);
+    assert.match(String(errors[0][0]), /after-commit hook failed/);
   });
 
   it("does not hash or write when the password is too long", async () => {

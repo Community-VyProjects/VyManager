@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
-import { runWithTransaction } from "@better-auth/core/context";
 import { getAuth } from "@/lib/auth";
-import { createCredentialAccount } from "@/lib/credential-account";
+import { createCredentialAccount, runCredentialTransaction } from "@/lib/credential-account";
 import { ApiError } from "@/lib/types/api";
 
 /**
@@ -81,7 +80,7 @@ export async function POST(request: NextRequest) {
         createUser: (row, source) => ctx.internalAdapter.createUser(row, source),
         linkAccount: (account) => ctx.internalAdapter.linkAccount(account),
         hashPassword: (value) => ctx.password.hash(value),
-        runInTransaction: async (fn) => runWithTransaction(ctx.adapter, fn),
+        runInTransaction: async (fn) => runCredentialTransaction(ctx.adapter, fn),
         minPasswordLength: ctx.password.config.minPasswordLength,
         maxPasswordLength: ctx.password.config.maxPasswordLength,
       },
