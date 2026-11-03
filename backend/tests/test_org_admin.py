@@ -92,7 +92,6 @@ def test_org_admin_sees_org_sites_under_enforcement(monkeypatch):
     from routers.session.session import list_user_sites
 
     db = os.environ["DATABASE_URL"]
-    ids = ("u_ov", "o_ov", "s_ov", "o_ov2", "s_ov2")
 
     async def seed():
         conn = await asyncpg.connect(db)
