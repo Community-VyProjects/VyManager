@@ -64,3 +64,12 @@ def test_callers_do_not_use_get_all_mappers():
         and "get_all_mappers" in p.read_text()
     )
     assert offenders == []
+
+
+def test_versioned_vrf_sub_mappers_receive_requested_version():
+    # The registry must hand the device version to these mappers. Their
+    # 1.4 redistribute allowlists depend on it.
+    for feature in ("vrf_ospf", "vrf_isis", "vrf_bgp"):
+        for version in ("1.4", "1.5"):
+            mapper = CommandMapperRegistry.get_mapper(feature, version)
+            assert mapper.version == version, feature
