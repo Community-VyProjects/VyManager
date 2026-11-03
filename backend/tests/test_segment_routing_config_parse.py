@@ -53,8 +53,6 @@ def test_empty_tree():
 
 
 def test_registry_matches_factory():
-    import vyos_mappers  # noqa: F401
-
     factory = get_segment_routing_mapper("1.5").parse_config(_tree())
     registry = CommandMapperRegistry.get_mapper("segment_routing", "1.5").parse_config(_tree())
     assert registry["locators"][0]["block_len"] == factory["locators"][0]["block_len"]

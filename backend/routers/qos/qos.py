@@ -24,7 +24,6 @@ import inspect
 import logging
 import json
 from batch_dispatch import resolve_batch_method
-import vyos_mappers  # noqa: F401  registers CommandMapperRegistry features
 from vyos_mappers.base import CommandMapperRegistry
 
 logger = logging.getLogger(__name__)
