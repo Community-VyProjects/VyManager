@@ -52,8 +52,6 @@ def test_empty_tree_on_1_5():
 
 
 def test_registry_matches_factory():
-    import vyos_mappers  # noqa: F401
-
     factory = get_traffic_engineering_mapper("1.4.2").parse_config(_tree())
     registry = CommandMapperRegistry.get_mapper(
         "traffic_engineering", "1.4.2"

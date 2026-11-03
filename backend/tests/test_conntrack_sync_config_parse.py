@@ -61,8 +61,6 @@ def test_empty_tree():
 
 
 def test_registry_matches_factory():
-    import vyos_mappers  # noqa: F401
-
     factory = get_conntrack_sync_mapper("1.5").parse_config(_tree())
     registry = CommandMapperRegistry.get_mapper("conntrack_sync", "1.5").parse_config(_tree())
     assert registry["mcast_group"] == factory["mcast_group"] == "225.0.0.50"

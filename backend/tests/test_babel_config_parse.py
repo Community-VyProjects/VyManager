@@ -75,8 +75,6 @@ def test_empty_tree():
 
 
 def test_registry_matches_factory():
-    import vyos_mappers  # noqa: F401
-
     factory = get_babel_mapper("1.5").parse_config(_tree())
     registry = CommandMapperRegistry.get_mapper("babel", "1.5").parse_config(_tree())
     assert registry["parameters"]["diversity_factor"] == factory["parameters"]["diversity_factor"]

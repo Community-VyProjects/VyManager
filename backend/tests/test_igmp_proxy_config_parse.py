@@ -2,7 +2,6 @@
 
 import pytest
 
-import vyos_mappers  # noqa: F401  registers IgmpProxyMapper
 from vyos_mappers.base import CommandMapperRegistry
 from vyos_mappers.igmp_proxy import IgmpProxyMapper
 
