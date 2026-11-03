@@ -14,8 +14,8 @@
     "write-heading-ids": "docusaurus write-heading-ids",
     "typecheck": "tsc",
     "export-openapi": "node ./scripts/export-openapi.mjs",
-    "prebuild": "npm run export-openapi",
-    "prestart": "npm run export-openapi"
+    "prebuild": "node scripts/ensure-minimatch-callable.js && npm run export-openapi",
+    "prestart": "node scripts/ensure-minimatch-callable.js && npm run export-openapi"
   },
   "dependencies": {
     "@docusaurus/core": "^3.10.2",
@@ -64,7 +64,8 @@
     "uuid": "11.1.1",
     "http-cache-semantics": "4.3.0",
     "follow-redirects": "1.16.2",
-    "joi": "17.13.9"
+    "joi": "17.13.9",
+    "minimatch": "11.0.4"
   },
   "resolutions": {
     "tinypool": "2.1.2",
@@ -79,6 +80,7 @@
     "uuid": "11.1.1",
     "http-cache-semantics": "4.3.0",
     "follow-redirects": "1.16.2",
-    "joi": "17.13.9"
+    "joi": "17.13.9",
+    "minimatch": "11.0.4"
   }
 }
