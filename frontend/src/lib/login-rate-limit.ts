@@ -14,8 +14,6 @@ export const LOGIN_RATE_LIMIT = 10;
 export const LOGIN_RATE_WINDOW_MS = 60_000;
 /** Map size bound. A new client evicts the oldest key instead of being refused. */
 export const LOGIN_RATE_MAX_CLIENTS = 4096;
-/** Shared key when no socket peer was captured and no proxy is trusted. */
-export const DIRECT_CLIENT_KEY = "direct";
 
 const MAX_TRUSTED_PROXY_HOPS = 8;
 const LOOPBACK_PEERS = ["127.0.0.1", "::1"] as const;
@@ -73,16 +71,61 @@ export function trustedProxyHops(
   return value;
 }
 
-export function trustedProxyPeers(
-  raw: string | undefined = process.env.TRUSTED_PROXY_IPS,
-): ReadonlySet<string> {
-  const peers = new Set<string>(LOOPBACK_PEERS);
-  if (!raw) return peers;
-  for (const part of raw.split(",")) {
-    const item = normalizePeerAddress(part);
-    if (item) peers.add(item);
+type ProxyTrust = {
+  exact: Set<string>;
+  v4Cidrs: Array<{ base: number; bits: number }>;
+};
+
+function ipv4ToInt(value: string): number | null {
+  const parts = value.split(".");
+  if (parts.length !== 4) return null;
+  let packed = 0;
+  for (const part of parts) {
+    if (!/^\d{1,3}$/.test(part)) return null;
+    const octet = Number(part);
+    if (octet > 255) return null;
+    packed = (packed * 256 + octet) >>> 0;
   }
-  return peers;
+  return packed;
+}
+
+function isIpAddress(value: string): boolean {
+  return ipv4ToInt(value) != null || ipv6Groups(value.split("%")[0]) != null;
+}
+
+/** Exact addresses and IPv4 CIDRs. Junk, /0, and empty tokens are not trusted. */
+export function parseTrustedProxyIps(raw: string | undefined): ProxyTrust {
+  const exact = new Set<string>(LOOPBACK_PEERS);
+  const v4Cidrs: Array<{ base: number; bits: number }> = [];
+  if (!raw) return { exact, v4Cidrs };
+  for (const part of raw.split(",")) {
+    const token = part.trim();
+    if (!token || token.includes("%")) continue;
+    if (token.includes("/")) {
+      const [baseRaw, bitsRaw, extra] = token.split("/");
+      if (extra != null || !baseRaw || bitsRaw == null) continue;
+      const bits = Number(bitsRaw);
+      const base = ipv4ToInt(baseRaw);
+      if (!Number.isInteger(bits) || bits < 1 || bits > 32 || base == null) continue;
+      v4Cidrs.push({ base, bits });
+      continue;
+    }
+    const item = normalizePeerAddress(token);
+    if (item && isIpAddress(item)) exact.add(item);
+  }
+  return { exact, v4Cidrs };
+}
+
+export function peerIsTrustedProxy(peer: string, trust: ProxyTrust): boolean {
+  const normalized = normalizePeerAddress(peer);
+  if (!normalized || !isIpAddress(normalized)) return false;
+  if (trust.exact.has(normalized)) return true;
+  const packed = ipv4ToInt(normalized);
+  if (packed == null) return false;
+  return trust.v4Cidrs.some((cidr) => {
+    const mask = cidr.bits === 32 ? 0xffffffff : (0xffffffff << (32 - cidr.bits)) >>> 0;
+    return (packed & mask) === (cidr.base & mask);
+  });
 }
 
 function forwardedHopsRightToLeft(header: string | null): string[] {
@@ -98,23 +141,28 @@ function forwardedHopsRightToLeft(header: string | null): string[] {
 
 /**
  * Client address for the limiter, or null when a trusted hop count is set
- * but the socket peer was not captured. Null must not share one bucket:
- * that would let 10 attempts lock every sign-in.
+ * but the socket peer was not captured. The route must refuse that attempt.
+ * A shared fallback key would let 10 attempts lock every sign-in.
  *
- * Forwarded hops are used only when the peer is loopback or listed in
- * TRUSTED_PROXY_IPS. Otherwise the peer itself is the key.
+ * Forwarded hops are used only when the peer is loopback or matches
+ * TRUSTED_PROXY_IPS (exact address or IPv4 CIDR). Otherwise the peer
+ * itself is the key, so a client on the published port cannot choose it.
  */
 export function clientIpForRateLimit(input: {
   peerAddress: string | null;
   forwardedFor: string | null;
   trustedProxyHops: number;
-  trustedProxyPeers?: ReadonlySet<string>;
+  trustedProxyIps?: string;
 }): string | null {
   const peer = normalizePeerAddress(input.peerAddress);
+  if (!peer) return null;
   const hops = input.trustedProxyHops;
-  if (!peer) return hops <= 0 ? DIRECT_CLIENT_KEY : null;
-  const proxies = input.trustedProxyPeers ?? trustedProxyPeers();
-  if (hops <= 0 || !proxies.has(peer)) return rateLimitAddress(peer);
+  const trust = parseTrustedProxyIps(
+    input.trustedProxyIps !== undefined
+      ? input.trustedProxyIps
+      : process.env.TRUSTED_PROXY_IPS,
+  );
+  if (hops <= 0 || !peerIsTrustedProxy(peer, trust)) return rateLimitAddress(peer);
   const addrs = [peer, ...forwardedHopsRightToLeft(input.forwardedFor)];
   let index = 0;
   for (; index < addrs.length - 1; index++) {

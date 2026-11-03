@@ -45,16 +45,18 @@ describe("sign-in rate limit route", { concurrency: false }, () => {
   it("does not let a direct client rotate forwarded headers", async () => {
     const { POST } = await import("./[...all]/route");
     await withHops(undefined, async () => {
-      for (let i = 0; i < LOGIN_RATE_LIMIT; i++) {
-        const response = await POST(signIn(rotating(i, "203.0.113.50")));
-        assert.equal(response.status, 200, `attempt ${i + 1} must not be limited`);
-      }
-      const blocked = await POST(signIn(rotating(9, "203.0.113.99")));
-      assert.equal(blocked.status, 429);
-      const realIpOnly = await POST(
-        signIn(new Headers({ "x-real-ip": "198.51.100.77" })),
-      );
-      assert.equal(realIpOnly.status, 429);
+      await runWithClientPeer("203.0.113.10", async () => {
+        for (let i = 0; i < LOGIN_RATE_LIMIT; i++) {
+          const response = await POST(signIn(rotating(i, "203.0.113.50")));
+          assert.equal(response.status, 200, `attempt ${i + 1} must not be limited`);
+        }
+        const blocked = await POST(signIn(rotating(9, "203.0.113.99")));
+        assert.equal(blocked.status, 429);
+        const realIpOnly = await POST(
+          signIn(new Headers({ "x-real-ip": "198.51.100.77" })),
+        );
+        assert.equal(realIpOnly.status, 429);
+      });
     });
   });
 
@@ -89,13 +91,26 @@ describe("sign-in rate limit route", { concurrency: false }, () => {
     });
   });
 
-  it("does not lock every sign-in when the peer was not captured", async () => {
+  it("refuses sign-in and logs when the peer was not captured", async () => {
     const { POST } = await import("./[...all]/route");
-    await withHops("1", async () => {
-      for (let i = 0; i < LOGIN_RATE_LIMIT + 1; i++) {
+    const errors: unknown[][] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => {
+      errors.push(args);
+    };
+    try {
+      await withHops(undefined, async () => {
         const response = await POST(signIn(rotating(1, "203.0.113.50")));
-        assert.equal(response.status, 200);
-      }
-    });
+        assert.equal(response.status, 503);
+      });
+      await withHops("1", async () => {
+        const response = await POST(signIn(rotating(1, "203.0.113.50")));
+        assert.equal(response.status, 503);
+      });
+    } finally {
+      console.error = original;
+    }
+    assert.ok(errors.length >= 2);
+    assert.match(String(errors[0][0]), /no client peer/);
   });
 });

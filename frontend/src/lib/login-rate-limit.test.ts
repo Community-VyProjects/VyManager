@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  DIRECT_CLIENT_KEY,
   LOGIN_RATE_LIMIT,
   LOGIN_RATE_MAX_CLIENTS,
   LOGIN_RATE_WINDOW_MS,
   clientIpForRateLimit,
   createLoginRateLimiter,
+  parseTrustedProxyIps,
+  peerIsTrustedProxy,
   trustedProxyHops,
 } from "./login-rate-limit";
 
@@ -19,6 +20,34 @@ describe("trustedProxyHops", () => {
     assert.equal(trustedProxyHops("9"), 0);
     assert.equal(trustedProxyHops("1"), 1);
     assert.equal(trustedProxyHops(" 2 "), 2);
+  });
+});
+
+describe("trusted proxy list", () => {
+  it("accepts an IPv4 CIDR and rejects junk, /0, and empty tokens", () => {
+    const trust = parseTrustedProxyIps("172.18.0.0/16, not-an-ip, 0.0.0.0/0, , 10.1.1.1");
+    assert.equal(peerIsTrustedProxy("172.18.0.4", trust), true);
+    assert.equal(peerIsTrustedProxy("172.19.0.4", trust), false);
+    assert.equal(peerIsTrustedProxy("10.1.1.1", trust), true);
+    assert.equal(peerIsTrustedProxy("203.0.113.9", trust), false);
+    assert.equal(
+      clientIpForRateLimit({
+        peerAddress: "172.18.0.4",
+        forwardedFor: "9.9.9.9, 203.0.113.5",
+        trustedProxyHops: 1,
+        trustedProxyIps: "172.18.0.0/16",
+      }),
+      "203.0.113.5",
+    );
+    assert.equal(
+      clientIpForRateLimit({
+        peerAddress: "203.0.113.9",
+        forwardedFor: "9.9.9.9, 198.51.100.2",
+        trustedProxyHops: 1,
+        trustedProxyIps: "0.0.0.0/0, nope",
+      }),
+      "203.0.113.9",
+    );
   });
 });
 
@@ -45,14 +74,16 @@ describe("clientIpForRateLimit", () => {
         peerAddress: null,
         forwardedFor: "1.1.1.1, 203.0.113.5",
         trustedProxyHops: 0,
+        trustedProxyIps: "",
       }),
-      DIRECT_CLIENT_KEY,
+      null,
     );
     assert.equal(
       clientIpForRateLimit({
         peerAddress: null,
         forwardedFor: "203.0.113.5",
         trustedProxyHops: 1,
+        trustedProxyIps: "",
       }),
       null,
     );
@@ -64,6 +95,7 @@ describe("clientIpForRateLimit", () => {
         peerAddress: "203.0.113.10",
         forwardedFor: "1.1.1.1, 198.51.100.8",
         trustedProxyHops: 1,
+        trustedProxyIps: "",
       }),
       "203.0.113.10",
     );
@@ -72,7 +104,7 @@ describe("clientIpForRateLimit", () => {
         peerAddress: "10.0.0.8",
         forwardedFor: "9.9.9.9, 203.0.113.5",
         trustedProxyHops: 1,
-        trustedProxyPeers: new Set(["10.0.0.8", "127.0.0.1"]),
+        trustedProxyIps: "10.0.0.8",
       }),
       "203.0.113.5",
     );
@@ -133,13 +165,13 @@ describe("clientIpForRateLimit", () => {
   });
 
   it("does not put every user in the CDN bucket when two proxies append", () => {
-    const proxies = new Set(["10.0.0.2", "127.0.0.1"]);
+    const proxies = "10.0.0.2";
     assert.equal(
       clientIpForRateLimit({
         peerAddress: "10.0.0.2",
         forwardedFor: "9.9.9.9, 203.0.113.5, 198.51.100.2",
         trustedProxyHops: 2,
-        trustedProxyPeers: proxies,
+        trustedProxyIps: proxies,
       }),
       "203.0.113.5",
     );
@@ -148,7 +180,7 @@ describe("clientIpForRateLimit", () => {
         peerAddress: "10.0.0.2",
         forwardedFor: "9.9.9.9, 203.0.113.5, 198.51.100.2",
         trustedProxyHops: 1,
-        trustedProxyPeers: proxies,
+        trustedProxyIps: proxies,
       }),
       "198.51.100.2",
     );

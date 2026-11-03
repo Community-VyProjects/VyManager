@@ -58,7 +58,14 @@ export async function POST(request: NextRequest) {
   // Rate limit login attempts
   if (path.includes("/sign-in")) {
     const ip = getClientIp(request);
-    if (ip && !loginRateLimiter.allow(ip, Date.now())) {
+    if (!ip) {
+      console.error("[Auth] Sign-in rate limit has no client peer; refusing the attempt.");
+      return NextResponse.json(
+        { error: { message: "Unable to verify the client address. Please try again later." } },
+        { status: 503 },
+      );
+    }
+    if (!loginRateLimiter.allow(ip, Date.now())) {
       return NextResponse.json(
         { error: { message: "Too many login attempts. Please try again later." } },
         { status: 429 }
