@@ -69,3 +69,70 @@ def test_parse_ipv6_nexthop_match_leaves():
     assert match.ipv6_nexthop_prefix_list == "PL6"
     assert match.ipv6_nexthop_type == "blackhole"
     assert not hasattr(match, "ipv6_nexthop_prefix_len")
+
+
+def test_reorder_rewrites_ipv6_nexthop_match_leaves(monkeypatch):
+    """Drag-save deletes the rule and recreates it. Dropping a leaf here
+    wipes a value the batch save just wrote."""
+    from types import SimpleNamespace
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    captured = []
+
+    async def allow(*_args, **_kwargs):
+        return None
+
+    class Service:
+        def get_version(self):
+            return "1.5"
+
+        def execute_batch(self, batch):
+            captured.append(batch.get_operations())
+            return SimpleNamespace(status=200, result="", error=None)
+
+    monkeypatch.setattr("routers.route_map.route_map.require_write_permission", allow)
+    monkeypatch.setattr(
+        "routers.route_map.route_map.get_session_vyos_service",
+        lambda _req: Service(),
+    )
+
+    from routers.route_map.route_map import router
+
+    app = FastAPI()
+    app.include_router(router)
+    response = TestClient(app).post(
+        "/vyos/route-map/reorder",
+        json={
+            "route_map_name": "RM",
+            "rules": [
+                {
+                    "old_number": 10,
+                    "new_number": 20,
+                    "rule_data": {
+                        "rule_number": 10,
+                        "action": "permit",
+                        "match": {
+                            "ipv6_nexthop_access_list": "ACL6",
+                            "ipv6_nexthop_address": "2001:db8::1",
+                            "ipv6_nexthop_prefix_list": "PL6",
+                            "ipv6_nexthop_type": "blackhole",
+                        },
+                    },
+                }
+            ],
+        },
+    )
+    assert response.status_code == 200, response.text
+    ops = [(item["op"], item["path"]) for item in captured[0]]
+    rule = ["policy", "route-map", "RM", "rule", "20", "match", "ipv6", "nexthop"]
+    assert ("set", rule + ["access-list", "ACL6"]) in ops
+    assert ("set", rule + ["address", "2001:db8::1"]) in ops
+    assert ("set", rule + ["prefix-list", "PL6"]) in ops
+    assert ("set", rule + ["type", "blackhole"]) in ops
+    assert not any(
+        item["path"][6:9] == ["ipv6", "nexthop", "prefix-len"]
+        for item in captured[0]
+        if len(item["path"]) >= 9
+    )
