@@ -14,6 +14,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 SHOW = REPO / "backend/routers/show.py"
+BROADCASTER = REPO / "backend/dashboard_broadcaster.py"
 PPPOE_ROUTER = REPO / "backend/routers/pppoe_server/pppoe_server.py"
 SSE_HOOK = REPO / "frontend/src/hooks/useDashboardSSE.ts"
 PPPOE_API = REPO / "frontend/src/lib/api/pppoe-server.ts"
@@ -31,10 +32,10 @@ def test_frontend_conntrack_helper_is_gone():
 
 
 def test_stream_no_longer_advertises_or_accepts_the_conntrack_interest():
-    text = SHOW.read_text()
+    text = SHOW.read_text() + BROADCASTER.read_text()
     # The removed feature must not come back as a stream interest. Unrelated
     # channels may be added to the allowlist; conntrack may not.
-    from routers.show import _STREAM_INTERESTS
+    from dashboard_broadcaster import _STREAM_INTERESTS
 
     assert "pppoe-sessions" in _STREAM_INTERESTS
     assert not any("conn" in name for name in _STREAM_INTERESTS)
@@ -43,7 +44,7 @@ def test_stream_no_longer_advertises_or_accepts_the_conntrack_interest():
 
 
 def test_broadcaster_has_no_conntrack_sidecar():
-    text = SHOW.read_text()
+    text = SHOW.read_text() + BROADCASTER.read_text()
     for symbol in (
         "_conntrack_task",
         "_handle_conntrack_cycle",
@@ -51,7 +52,7 @@ def test_broadcaster_has_no_conntrack_sidecar():
         "fetch_conntrack_snapshot",
         "CONNTRACK_PER_IP_LIMIT",
     ):
-        assert symbol not in text, f"{symbol} still referenced in show.py"
+        assert symbol not in text, f"{symbol} still referenced"
 
 
 def test_pppoe_router_has_no_connections_endpoint():

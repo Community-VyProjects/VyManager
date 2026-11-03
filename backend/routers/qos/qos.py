@@ -542,7 +542,7 @@ def qos_gql_fields(key_literal: str, cake_targets: List[tuple]) -> List[str]:
     ``key_literal`` must be a JSON-encoded API key (``json.dumps(key)``). Returns a
     ``Shaper`` field (all shaper interfaces in one op) plus a ``Cake_<i>`` field
     per cake interface. The typed ops return structured JSON in ``data.result``.
-    Used by the dashboard broadcaster (routers/show.py) to fold QoS into the same
+    Used by the dashboard broadcaster (dashboard_broadcaster.py) to fold QoS into the same
     GraphQL call as interface counters.
     """
     fields = [

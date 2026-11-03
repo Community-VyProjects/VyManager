@@ -2,7 +2,7 @@
 
 import asyncio
 
-from routers.show import DeviceDataBroadcaster, _STREAM_INTERESTS
+from dashboard_broadcaster import DeviceDataBroadcaster, _STREAM_INTERESTS
 
 
 def test_stream_interests_allowlist():

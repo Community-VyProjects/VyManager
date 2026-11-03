@@ -22,7 +22,7 @@ from transceiver_status import (
     transceiver_fetch_timeout,
     transceiver_gql_fields,
 )
-from routers.show import DeviceDataBroadcaster, _STREAM_INTERESTS
+from dashboard_broadcaster import DeviceDataBroadcaster, _STREAM_INTERESTS
 
 
 # ---------------------------------------------------------------------------
@@ -230,7 +230,7 @@ def test_sweep_starts_once_and_is_not_restarted_every_cycle():
             started.append(list(interfaces))
             await asyncio.sleep(60)
 
-        import routers.show as show_module
+        import dashboard_broadcaster as show_module
 
         original = show_module._fetch_gql_transceivers
         show_module._fetch_gql_transceivers = fake_fetch
