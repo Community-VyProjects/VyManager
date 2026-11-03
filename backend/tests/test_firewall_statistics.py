@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException
 
+from dashboard_broadcaster import DeviceDataBroadcaster, _STREAM_INTERESTS
 from firewall_statistics import (
     FIREWALL_STATS_INTEREST,
     FirewallRuleCounter,
@@ -18,8 +19,6 @@ from firewall_statistics import (
 )
 from rbac_permissions import FeatureGroup, PermissionLevel
 from routers.show import (
-    DeviceDataBroadcaster,
-    _STREAM_INTERESTS,
     dashboard_stream,
     get_firewall_statistics,
     retain_firewall_interest,
@@ -136,7 +135,7 @@ def test_interested_subscriber_starts_a_fetch(monkeypatch):
     async def fake_fetch(service):
         return "Rulesets Statistics\n"
 
-    monkeypatch.setattr("routers.show.fetch_firewall_statistics_text", fake_fetch)
+    monkeypatch.setattr("dashboard_broadcaster.fetch_firewall_statistics_text", fake_fetch)
 
     async def scenario():
         broadcaster = DeviceDataBroadcaster("instance", service=object())

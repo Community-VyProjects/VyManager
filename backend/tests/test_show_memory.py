@@ -1,5 +1,5 @@
 """Regression tests for VyOS GraphQL RAM accounting (values in bytes)."""
-from routers.show import parse_gql_memory
+from dashboard_broadcaster import parse_gql_memory
 
 
 def test_live_vyos_rolling_memory_does_not_count_cache_twice():

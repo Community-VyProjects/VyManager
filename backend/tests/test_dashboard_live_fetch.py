@@ -9,8 +9,8 @@ import logging
 
 import httpx
 
-import routers.show as show
-from routers.show import DeviceDataBroadcaster
+import dashboard_broadcaster as pump
+from dashboard_broadcaster import DeviceDataBroadcaster
 
 
 class _Config:
@@ -45,10 +45,10 @@ class _BoomClient(_TimeoutClient):
 
 
 def test_fast_fetch_timeout_is_a_warning_not_an_exception(monkeypatch, caplog):
-    monkeypatch.setattr(show.httpx, "AsyncClient", _TimeoutClient)
+    monkeypatch.setattr(pump.httpx, "AsyncClient", _TimeoutClient)
 
     with caplog.at_level(logging.DEBUG):
-        result = asyncio.run(show._fetch_graphql_fast(_Service()))
+        result = asyncio.run(pump._fetch_graphql_fast(_Service()))
 
     assert result is None
     timeouts = [r for r in caplog.records if "timed out" in r.message]
@@ -58,10 +58,10 @@ def test_fast_fetch_timeout_is_a_warning_not_an_exception(monkeypatch, caplog):
 
 
 def test_fast_fetch_unexpected_error_still_logs_a_traceback(monkeypatch, caplog):
-    monkeypatch.setattr(show.httpx, "AsyncClient", _BoomClient)
+    monkeypatch.setattr(pump.httpx, "AsyncClient", _BoomClient)
 
     with caplog.at_level(logging.DEBUG):
-        result = asyncio.run(show._fetch_graphql_fast(_Service()))
+        result = asyncio.run(pump._fetch_graphql_fast(_Service()))
 
     assert result is None
     failures = [r for r in caplog.records if r.levelno >= logging.ERROR]
@@ -80,7 +80,7 @@ def _run_cycles(broadcaster, cycles, monkeypatch):
     async def refresh(self):
         return None
 
-    monkeypatch.setattr(show.asyncio, "sleep", sleep)
+    monkeypatch.setattr(pump.asyncio, "sleep", sleep)
     monkeypatch.setattr(DeviceDataBroadcaster, "_refresh_config_state", refresh)
     asyncio.run(broadcaster._run())
 
@@ -93,8 +93,8 @@ def test_fast_timeout_does_not_error_the_interface_card(monkeypatch):
     async def miss(*args, **kwargs):
         return None
 
-    monkeypatch.setattr(show, "_fetch_graphql_dashboard", miss)
-    monkeypatch.setattr(show, "_fetch_graphql_fast", miss)
+    monkeypatch.setattr(pump, "_fetch_graphql_dashboard", miss)
+    monkeypatch.setattr(pump, "_fetch_graphql_fast", miss)
     # Cycle 0 is the slow query. Cycle 1 is the fast counter query.
     _run_cycles(broadcaster, 2, monkeypatch)
 
@@ -115,8 +115,8 @@ def test_successful_fast_cycle_still_broadcasts_counters(monkeypatch):
     async def counters(*args, **kwargs):
         return {"InterfaceCounters": {"data": {"result": []}}}
 
-    monkeypatch.setattr(show, "_fetch_graphql_dashboard", miss)
-    monkeypatch.setattr(show, "_fetch_graphql_fast", counters)
+    monkeypatch.setattr(pump, "_fetch_graphql_dashboard", miss)
+    monkeypatch.setattr(pump, "_fetch_graphql_fast", counters)
     _run_cycles(broadcaster, 2, monkeypatch)
 
     events = []
@@ -170,7 +170,7 @@ def test_wrapped_timeout_is_a_warning(caplog):
         raise Unavailable("fallback failed") from httpx.ReadTimeout("timed out")
     except Unavailable as exc:
         with caplog.at_level(logging.DEBUG):
-            show._log_live_gql_failure("PPPoE sessions fetch", exc)
+            pump._log_live_gql_failure("PPPoE sessions fetch", exc)
 
     warnings = [r for r in caplog.records if "timed out" in r.message]
     assert warnings
