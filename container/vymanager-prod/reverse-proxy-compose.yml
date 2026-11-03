@@ -82,11 +82,14 @@ services:
   proxy:
     image: caddy:2
     container_name: vymanager-proxy
+    environment:
+      VYMANAGER_HOST: ${VYMANAGER_HOST:-vymanager.example.com}
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
     restart: unless-stopped
     networks:
       vymanager-network:
@@ -109,4 +112,6 @@ networks:
 
 volumes:
   postgres_data:
+    driver: local
+  caddy_data:
     driver: local
