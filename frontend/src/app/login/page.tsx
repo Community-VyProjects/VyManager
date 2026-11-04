@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+import localFont from "next/font/local";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { LanguageSelector } from "@/components/ui/language-selector";
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signIn, authClient } from "@/lib/auth-client";
 import { signOutFully } from "@/lib/logout";
-import { Shield, Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import { sessionService, AuthSessionInfo } from "@/lib/api/session";
 import { afterLoginPath } from "@/lib/appliance";
 import { ActiveSessionWarningModal } from "@/components/auth/ActiveSessionWarningModal";
@@ -20,6 +20,25 @@ import { OAuthProviderConfig } from "@/lib/api/oauth";
 import { ProviderIcon } from "@/components/authentication/ProviderIcon";
 import { WELL_KNOWN_PROVIDERS } from "@/lib/api/oauth";
 import { interpretSignInResult, leftoverPasswordSessions, mustEnrollTwoFactor, parseTwoFactorQuery } from "@/lib/two-factor";
+import { VortexCanvas, type VortexHandle } from "@/components/login/VortexCanvas";
+import styles from "@/components/login/login.module.css";
+
+// Served from the repo, so the page has no call out to a font CDN. Routers are
+// often managed from networks that cannot reach one.
+const manrope = localFont({
+  src: "./manrope-latin-wght-normal.woff2",
+  weight: "200 800",
+  display: "swap",
+});
+
+const SHAKE: Keyframe[] = [
+  { transform: "translateX(0)" },
+  { transform: "translateX(-7px)", offset: 0.2 },
+  { transform: "translateX(6px)", offset: 0.4 },
+  { transform: "translateX(-4px)", offset: 0.6 },
+  { transform: "translateX(2px)", offset: 0.8 },
+  { transform: "translateX(0)" },
+];
 
 export default function LoginPage() {
   const t = useTranslations("login");
@@ -28,6 +47,13 @@ export default function LoginPage() {
   const [appliance, setAppliance] = useState<boolean | null>(null);
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [forceEnroll, setForceEnroll] = useState(false);
+  const [host, setHost] = useState("");
+  const [leaving, setLeaving] = useState(false);
+  const vortex = useRef<VortexHandle>(null);
+
+  useEffect(() => {
+    setHost(window.location.host);
+  }, []);
 
   // Check if onboarding is needed first
   useEffect(() => {
@@ -82,6 +108,7 @@ export default function LoginPage() {
       // A failed OAuth callback redirects back here with ?error=oauth.
       if (params.get("error")) {
         setError(t("errors.ssoDenied"));
+        setErrorSeq((n) => n + 1);
       }
       const twoFactor = parseTwoFactorQuery(window.location.search);
       if (twoFactor.challenge) {
@@ -97,6 +124,11 @@ export default function LoginPage() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  // Counts failures, so a repeat of the same message still gets feedback.
+  const [errorSeq, setErrorSeq] = useState(0);
+  const refocusPassword = useRef(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
   const [showSessionWarning, setShowSessionWarning] = useState(false);
   const [otherSessions, setOtherSessions] = useState<AuthSessionInfo[]>([]);
 
@@ -111,6 +143,29 @@ export default function LoginPage() {
       .catch(() => setOauthProviders([]));
   }, []);
 
+  useEffect(() => {
+    vortex.current?.setBusy(isLoading || !!oauthLoading);
+  }, [isLoading, oauthLoading]);
+
+  const showError = (message: string, { retryPassword = false } = {}) => {
+    setError(message);
+    setErrorSeq((n) => n + 1);
+    refocusPassword.current = retryPassword;
+  };
+
+  useEffect(() => {
+    if (!errorSeq) return;
+    vortex.current?.fail();
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      formRef.current?.animate(SHAKE, { duration: 420, easing: "cubic-bezier(0.36, 0.07, 0.19, 0.97)" });
+    }
+    if (refocusPassword.current) {
+      refocusPassword.current = false;
+      passwordRef.current?.focus();
+      passwordRef.current?.select();
+    }
+  }, [errorSeq]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -124,7 +179,7 @@ export default function LoginPage() {
 
       const outcome = interpretSignInResult(result);
       if (outcome.kind === "error") {
-        setError(outcome.messageKey ? tm(outcome.messageKey) : outcome.message);
+        showError(outcome.messageKey ? tm(outcome.messageKey) : outcome.message, { retryPassword: true });
         setIsLoading(false);
         return;
       }
@@ -136,7 +191,7 @@ export default function LoginPage() {
 
       await finishLogin();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.generic"));
+      showError(err instanceof Error ? err.message : t("errors.generic"), { retryPassword: true });
       setIsLoading(false);
     }
   };
@@ -180,6 +235,12 @@ export default function LoginPage() {
       console.error("Failed to check active sessions:", err);
     }
 
+    await enterApp();
+  };
+
+  const enterApp = async () => {
+    setLeaving(true);
+    await vortex.current?.succeed();
     router.push(afterLoginPath(appliance));
   };
 
@@ -190,8 +251,9 @@ export default function LoginPage() {
         await sessionService.revokeSession(session.token);
       }
 
-      // Proceed to redirect
-      router.push(afterLoginPath(appliance));
+      // Proceed to redirect, with the prompt out of the way of the exit.
+      setShowSessionWarning(false);
+      await enterApp();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : t("errors.revokeFailed");
       throw new Error(errorMessage);
@@ -211,7 +273,7 @@ export default function LoginPage() {
         errorCallbackURL: "/login?error=oauth",
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.oauthFailed"));
+      showError(err instanceof Error ? err.message : t("errors.oauthFailed"));
       setOauthLoading(null);
     }
   };
@@ -221,232 +283,160 @@ export default function LoginPage() {
       await signOutFully();
       setShowSessionWarning(false);
       setOtherSessions([]);
-      setError(t("errors.loginCancelledRetry"));
+      setLeaving(false);
+      showError(t("errors.loginCancelledRetry"));
     } catch (err) {
       console.error("Failed to sign out:", err);
-      setError(t("errors.loginCancelled"));
+      showError(t("errors.loginCancelled"));
     }
   };
 
-  // Show loading while checking if onboarding is needed
-  if (checkingOnboarding) {
-    return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  // The background plays while onboarding is checked, so there is no spinner.
+  const showForm = !checkingOnboarding;
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-background relative overflow-hidden">
-      {/* Animated gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-background to-cyan-400/20 opacity-50" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-cyan-400/30 via-transparent to-transparent opacity-40" />
+    <div className={`${styles.page} ${leaving ? styles.leaving : ""}`}>
+      <VortexCanvas ref={vortex} alt={t("logoAlt")} />
 
-      {/* Animated grid pattern */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
-
-      <div className="absolute top-4 right-4 z-20">
+      {/* inert while leaving: the faded form must not be focused or submitted again. */}
+      <div className={styles.language} inert={leaving}>
         <LanguageSelector compact />
       </div>
 
-      {/* Login card */}
-      <div className="relative z-10 w-full max-w-md mx-4">
-        {/* Glass morphism card */}
-        <div className="backdrop-blur-xl bg-card/50 border border-border/50 rounded-2xl shadow-2xl p-8">
-          {/* Logo and title */}
-          <div className="flex flex-col items-center mb-8">
-            <div className="relative w-20 h-20 mb-4">
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 blur-xl" />
-              <div className="relative w-20 h-20 rounded-2xl overflow-hidden shadow-lg shadow-primary/10">
-                <Image
-                  src="/vy-icon.png"
-                  alt={t("logoAlt")}
-                  width={80}
-                  height={80}
-                  className="object-contain"
-                  priority
-                />
-              </div>
-            </div>
-            <h1 className="text-3xl font-bold text-foreground bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-              VyManager
-            </h1>
-            <p className="text-sm text-muted-foreground mt-2">
-              {t("subtitle")}
-            </p>
-          </div>
-
-          {/* Error message */}
-          {error && (
-            <div className="mb-6 p-3 rounded-lg bg-destructive/10 border border-destructive/50 flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-destructive">{error}</p>
-            </div>
-          )}
-
-          {forceEnroll ? (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground text-center">
-                {t("twoFactorRequired")}
-              </p>
-              <TwoFactorEnrollForm
-                password={formData.password}
-                onDone={() => finishLogin(true)}
-              />
-            </div>
-          ) : twoFactorMethods ? (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground text-center">
-                {t("twoFactorPrompt")}
-              </p>
-              <TwoFactorChallenge
-                methods={twoFactorMethods}
-                onVerified={() => finishLogin(true)}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full"
-                onClick={() => {
-                  setTwoFactorMethods(null);
-                  setError("");
-                }}
-              >
-                {t("backToPassword")}
-              </Button>
-            </div>
-          ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label
-                htmlFor="email"
-                className="text-sm font-medium text-foreground"
-              >
-                {t("email")}
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="admin@vymanager.local"
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
-                required
-                className="h-11 bg-background/50 border-border/50 focus:border-primary transition-colors"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label
-                htmlFor="password"
-                className="text-sm font-medium text-foreground"
-              >
-                {t("password")}
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder={t("passwordPlaceholder")}
-                value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
-                required
-                className="h-11 bg-background/50 border-border/50 focus:border-primary transition-colors"
-                disabled={isLoading}
-              />
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full h-11 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground shadow-lg shadow-primary/20 transition-all"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t("signingIn")}
-                </>
-              ) : (
-                t("signIn")
-              )}
-            </Button>
-
-          </form>
-          )}
-
-          {/* OAuth provider buttons */}
-          {oauthProviders.length > 0 && !twoFactorMethods && (
-            <>
-              <div className="relative my-4">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border/50" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card/80 px-2 text-muted-foreground backdrop-blur-sm">
-                    {t("orContinueWith")}
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid gap-2" style={{ gridTemplateColumns: oauthProviders.length === 1 ? "1fr" : "repeat(2, 1fr)" }}>
-                {oauthProviders.map((provider) => {
-                  const meta = WELL_KNOWN_PROVIDERS.find((p) => p.providerId === provider.providerId);
-                  const iconKey = meta?.iconKey ?? "custom";
-                  return (
-                    <Button
-                      key={provider.providerId}
-                      type="button"
-                      variant="outline"
-                      className="h-11 gap-2 bg-background/50 border-border/50"
-                      disabled={!!oauthLoading || isLoading}
-                      onClick={() => handleOAuthSignIn(provider.providerId)}
-                    >
-                      {oauthLoading === provider.providerId ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <ProviderIcon iconKey={iconKey} className="h-4 w-4" />
-                      )}
-                      <span className="text-sm">{provider.displayName}</span>
-                    </Button>
-                  );
-                })}
-              </div>
-            </>
-          )}
-
-          {/* Divider */}
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border/50" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">
-                {t("secureAccess")}
-              </span>
-            </div>
-          </div>
-
-          {/* Footer info */}
-          <div className="text-center space-y-2">
-            <p className="text-xs text-muted-foreground">
-              {t("encryptionNotice")}
-            </p>
-            <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground/60">
-              <Shield className="w-3 h-3" />
-              <span>{t("systemName")}</span>
-            </div>
-          </div>
+      <main className={styles.layout} inert={leaving}>
+        <div className={styles.brand}>
+          <p className={`${styles.wordmark} ${manrope.className}`}>VyManager</p>
+          <p className={styles.tagline}>{t("subtitle")}</p>
         </div>
 
-        {/* Bottom text */}
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          {t("termsNotice")}
-        </p>
-      </div>
+        <div className={styles.column}>
+          {showForm && (
+            <>
+              <div className={styles.panel}>
+                <h1 className={`${styles.heading} ${manrope.className}`}>{t("signIn")}</h1>
+                <p className={styles.host}>
+                  {host && t.rich("connectingTo", { host, strong: (chunks) => <strong>{chunks}</strong> })}
+                </p>
+
+                {error && (
+                  <div className={styles.error} role="alert">
+                    <AlertCircle aria-hidden="true" />
+                    <p>{error}</p>
+                  </div>
+                )}
+
+                {forceEnroll ? (
+                  <>
+                    <p className={styles.prompt}>{t("twoFactorRequired")}</p>
+                    <TwoFactorEnrollForm
+                      password={formData.password}
+                      onDone={() => finishLogin(true)}
+                    />
+                  </>
+                ) : twoFactorMethods ? (
+                  <>
+                    <p className={styles.prompt}>{t("twoFactorPrompt")}</p>
+                    <TwoFactorChallenge
+                      methods={twoFactorMethods}
+                      onVerified={() => finishLogin(true)}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="mt-2 w-full"
+                      onClick={() => {
+                        setTwoFactorMethods(null);
+                        setError("");
+                      }}
+                    >
+                      {t("backToPassword")}
+                    </Button>
+                  </>
+                ) : (
+                  <form ref={formRef} onSubmit={handleSubmit} className={styles.form}>
+                    <div className={styles.field}>
+                      <Label htmlFor="email">{t("email")}</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        autoComplete="username"
+                        autoFocus
+                        placeholder="admin@vymanager.local"
+                        value={formData.email}
+                        onChange={(e) => {
+                          setFormData({ ...formData, email: e.target.value });
+                          vortex.current?.pulse();
+                        }}
+                        required
+                        disabled={isLoading}
+                      />
+                    </div>
+
+                    <div className={styles.field}>
+                      <Label htmlFor="password">{t("password")}</Label>
+                      <Input
+                        ref={passwordRef}
+                        id="password"
+                        type="password"
+                        autoComplete="current-password"
+                        value={formData.password}
+                        onChange={(e) => {
+                          setFormData({ ...formData, password: e.target.value });
+                          vortex.current?.pulse();
+                        }}
+                        required
+                        disabled={isLoading}
+                      />
+                    </div>
+
+                    <Button type="submit" className={styles.submit} disabled={isLoading}>
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          {t("signingIn")}
+                        </>
+                      ) : (
+                        t("signIn")
+                      )}
+                    </Button>
+                  </form>
+                )}
+
+                {/* OAuth provider buttons */}
+                {oauthProviders.length > 0 && !twoFactorMethods && (
+                  <div className={styles.alternatives}>
+                    <p className={styles.alternativesLabel}>{t("orContinueWith")}</p>
+                    <div className={styles.providers} data-many={oauthProviders.length > 1}>
+                      {oauthProviders.map((provider) => {
+                        const meta = WELL_KNOWN_PROVIDERS.find((p) => p.providerId === provider.providerId);
+                        const iconKey = meta?.iconKey ?? "custom";
+                        return (
+                          <Button
+                            key={provider.providerId}
+                            type="button"
+                            variant="outline"
+                            className={styles.provider}
+                            disabled={!!oauthLoading || isLoading}
+                            onClick={() => handleOAuthSignIn(provider.providerId)}
+                          >
+                            {oauthLoading === provider.providerId ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <ProviderIcon iconKey={iconKey} className="h-4 w-4" />
+                            )}
+                            <span>{provider.displayName}</span>
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+            </>
+          )}
+        </div>
+      </main>
 
       {/* Active Session Warning Modal */}
       <ActiveSessionWarningModal

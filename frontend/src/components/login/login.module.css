@@ -1,0 +1,432 @@
+/*
+ * The login page is always dark, whatever theme the app is set to: the
+ * background is light on black. Theme variables are set inline on <html>, so
+ * they are overridden here rather than with a .dark class. The two-factor
+ * forms pick these up through the usual tokens.
+ */
+.page {
+  --ink: #02060f;
+  --signal: #38b6ff;
+  --signal-bright: #8ed6ff;
+  --ice: #e6f6ff;
+  --mist: #93a9bd;
+  --coral: #ff7a70;
+
+  --background: var(--ink);
+  --foreground: var(--ice);
+  --card: #0a1420;
+  --card-foreground: var(--ice);
+  --popover: #0a1420;
+  --popover-foreground: var(--ice);
+  --primary: var(--signal);
+  --primary-foreground: #02101d;
+  --secondary: #122131;
+  --secondary-foreground: var(--ice);
+  --muted: #122131;
+  --muted-foreground: var(--mist);
+  --accent: #122131;
+  --accent-foreground: var(--ice);
+  --destructive: var(--coral);
+  --border: rgb(142 214 255 / 0.2);
+  --input: rgb(142 214 255 / 0.24);
+  --ring: var(--signal);
+
+  position: relative;
+  isolation: isolate;
+  min-height: 100dvh;
+  background: var(--ink);
+  color: var(--ice);
+  overflow-x: hidden;
+}
+
+.canvas {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.fallbackMark {
+  position: fixed;
+  z-index: -2;
+  left: 30%;
+  top: 44%;
+  width: min(56vh, 38vw);
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 0 70px rgb(56 182 255 / 0.55));
+}
+
+.fallbackMark img {
+  width: 100%;
+  height: auto;
+}
+
+/* Keeps the form legible where the streams run behind it. */
+.page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    transparent 46%,
+    rgb(2 6 15 / 0.62) 66%,
+    rgb(2 6 15 / 0.84) 100%
+  );
+}
+
+.language {
+  position: fixed;
+  top: 20px;
+  right: 24px;
+  z-index: 20;
+}
+
+.layout {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, min(560px, 42vw));
+}
+
+.brand {
+  align-self: end;
+  padding: 0 0 clamp(32px, 6vh, 64px) clamp(32px, 5vw, 80px);
+  pointer-events: none;
+  animation: arrive 1.4s 1.1s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+
+.wordmark {
+  font-weight: 600;
+  font-size: clamp(2.75rem, 6.1vw, 6.25rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--ice);
+  text-shadow: 0 0 44px rgb(56 182 255 / 0.5);
+}
+
+.tagline {
+  margin-top: 16px;
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  color: var(--mist);
+  text-shadow: 0 0 10px var(--ink), 0 0 2px var(--ink);
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 80px clamp(32px, 6vw, 96px) 32px clamp(24px, 3vw, 48px);
+}
+
+.panel {
+  width: 100%;
+  max-width: 400px;
+  margin-block: auto;
+  animation: arrive 1.1s 1.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  transition: opacity 0.35s ease, filter 0.35s ease;
+}
+
+.leaving .panel,
+.leaving .brand,
+.leaving .language {
+  opacity: 0;
+  filter: blur(6px);
+  pointer-events: none;
+  transition: opacity 0.35s ease, filter 0.35s ease;
+}
+
+.heading {
+  font-weight: 600;
+  font-size: 2.125rem;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--ice);
+}
+
+.host {
+  margin-top: 12px;
+  min-height: 1.5em;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--mist);
+  overflow-wrap: anywhere;
+}
+
+.host strong {
+  font-weight: 500;
+  color: var(--signal-bright);
+}
+
+.error {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 24px;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--coral);
+}
+
+.error svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+}
+
+.form {
+  display: grid;
+  gap: 28px;
+  margin-top: 36px;
+}
+
+.field {
+  position: relative;
+  display: grid;
+  gap: 4px;
+}
+
+.field label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--mist);
+  transition: color 0.2s ease;
+}
+
+.field:focus-within label {
+  color: var(--signal-bright);
+}
+
+.field input {
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 1.125rem;
+  color: var(--ice);
+  caret-color: var(--signal);
+  outline: none;
+}
+
+.field input:focus-visible {
+  border: 0;
+  box-shadow: none;
+}
+
+.field input::placeholder {
+  color: rgb(147 169 189 / 0.55);
+}
+
+.field input:-webkit-autofill,
+.field input:-webkit-autofill:hover,
+.field input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--ice);
+  caret-color: var(--signal);
+  /* Chrome paints autofill over any background; this delays it indefinitely. */
+  transition: background-color 99999s linear;
+}
+
+/* The field's line: a resting hairline, and a beam that runs across on focus. */
+.field::before,
+.field::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 1px;
+  pointer-events: none;
+}
+
+.field::before {
+  background: rgb(142 214 255 / 0.28);
+}
+
+.field::after {
+  height: 2px;
+  background: var(--signal-bright);
+  box-shadow: 0 0 16px 1px var(--signal);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.field:focus-within::after {
+  transform: scaleX(1);
+}
+
+.submit {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 56px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: var(--signal);
+  color: #02101d;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  box-shadow: 0 0 44px -8px rgb(56 182 255 / 0.75);
+  transition: background 0.2s ease, box-shadow 0.25s ease, transform 0.12s ease;
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--signal-bright);
+  box-shadow: 0 0 60px -6px rgb(56 182 255 / 0.95);
+}
+
+.submit:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.submit:disabled {
+  opacity: 1;
+  background: var(--signal);
+}
+
+.submit:focus-visible,
+.provider:focus-visible {
+  outline: 2px solid var(--ice);
+  outline-offset: 3px;
+  box-shadow: none;
+}
+
+.alternatives {
+  margin-top: 32px;
+}
+
+.alternativesLabel {
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--mist);
+}
+
+.providers {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.providers[data-many="true"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.provider {
+  height: 52px;
+  gap: 10px;
+  border: 1px solid rgb(142 214 255 / 0.28);
+  border-radius: 999px;
+  background: rgb(2 6 15 / 0.35);
+  color: var(--ice);
+  font-size: 1rem;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.provider:hover:not(:disabled) {
+  border-color: var(--signal-bright);
+  background: rgb(56 182 255 / 0.12);
+  color: var(--ice);
+}
+
+/* An odd provider out takes the full row instead of leaving a hole. */
+.providers[data-many="true"] > :last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.provider span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prompt {
+  margin-top: 24px;
+  margin-bottom: 20px;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--mist);
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+  }
+}
+
+/* Keep in step with STACKED_BELOW in VortexCanvas.tsx. */
+@media (max-width: 959.98px) {
+  .page::before {
+    background: linear-gradient(
+      to bottom,
+      transparent 26dvh,
+      rgb(2 6 15 / 0.76) 46dvh,
+      rgb(2 6 15 / 0.9) 100%
+    );
+  }
+
+  .fallbackMark {
+    left: 50%;
+    top: max(44px, 7dvh);
+    width: min(54vw, 29dvh);
+    transform: translateX(-50%);
+  }
+
+  .language {
+    top: 12px;
+    right: 12px;
+  }
+
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    justify-items: center;
+  }
+
+  .brand {
+    align-self: start;
+    width: 100%;
+    max-width: 432px;
+    padding: calc(max(44px, 7dvh) + min(54vw, 29dvh) + 28px) 16px 0;
+  }
+
+  .wordmark {
+    font-size: clamp(2.25rem, 10.5vw, 3rem);
+    text-align: center;
+  }
+
+  .tagline {
+    margin-top: 8px;
+    font-size: 1rem;
+    text-align: center;
+  }
+
+  .column {
+    width: 100%;
+    max-width: 432px;
+    justify-content: flex-start;
+    padding: 36px 16px 28px;
+  }
+
+  .panel {
+    margin-block: 0;
+    max-width: none;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand,
+  .panel {
+    animation: none;
+  }
+
+  .field::after,
+  .submit {
+    transition: none;
+  }
+}
