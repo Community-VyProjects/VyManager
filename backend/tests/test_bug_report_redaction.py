@@ -113,6 +113,59 @@ def test_pem_redos_pathological_input_is_fast():
     assert elapsed < 1.0, f"redaction too slow on adversarial input: {elapsed:.3f}s"
 
 
+def _timed_redact(text):
+    import time
+
+    start = time.perf_counter()
+    out = redact(text)
+    return out, time.perf_counter() - start
+
+
+def test_pem_repeated_begin_without_end_is_fast():
+    # Each BEGIN with no END used to rescan to the end of the text: about 20 s
+    # here. A scan from BEGIN to the next END is linear.
+    evil = "-----BEGIN A-----" * 12000
+    out, elapsed = _timed_redact(evil)
+    assert elapsed < 1.0, f"redaction too slow on repeated BEGIN markers: {elapsed:.3f}s"
+    assert out == evil  # no END anywhere, so nothing is a block
+
+
+def test_secret_key_followed_by_long_whitespace_is_fast():
+    # "\s*['\"]?\s*[:=]" used to try every split of the whitespace run: about
+    # 19 s here, on a backend event loop that serves every other request.
+    for evil in ("password" + " " * 50000, "password '" + " " * 50000):
+        out, elapsed = _timed_redact(evil)
+        assert elapsed < 1.0, f"redaction too slow after a secret key: {elapsed:.3f}s"
+        assert out == evil  # no value follows, so nothing is redacted
+    _, elapsed = _timed_redact("password  " * 5000)
+    assert elapsed < 1.0, f"redaction too slow on repeated secret keys: {elapsed:.3f}s"
+
+
+def test_pem_block_ends_at_first_end_marker():
+    out = redact("a -----BEGIN A----- x -----END A----- b -----END A----- c")
+    assert out == f"a {REDACTED_PEM} b -----END A----- c"
+
+
+def test_pem_block_starts_at_first_begin_marker():
+    out = redact("-----BEGIN A----- one -----BEGIN B----- two -----END B----- tail")
+    assert out == f"{REDACTED_PEM} tail"
+
+
+def test_pem_begin_without_end_is_left_alone():
+    assert redact("x -----BEGIN A----- dangling") == "x -----BEGIN A----- dangling"
+
+
+def test_two_pem_blocks_keep_the_text_between_them():
+    out = redact("k1 -----BEGIN A-----s1-----END A----- mid -----BEGIN B-----s2-----END B----- end")
+    assert out == f"k1 {REDACTED_PEM} mid {REDACTED_PEM} end"
+
+
+def test_secret_value_after_a_separator_like_run_is_redacted():
+    # ':' and '=' after whitespace can start the value itself. The separator
+    # must still fall back to plain whitespace when the ':' reading fails.
+    assert redact("password :=x") == f"password {REDACTED}"
+
+
 def test_empty_string():
     assert redact("") == ""
 

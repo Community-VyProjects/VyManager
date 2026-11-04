@@ -27,19 +27,22 @@ REDACTED = "[REDACTED]"
 REDACTED_PEM = "[REDACTED CERTIFICATE/KEY]"
 REDACTED_IP = "[REDACTED PUBLIC IP]"
 
-# 1. PEM blocks — certificates and private keys. The label class is restricted
-#    to letters/digits/spaces (disjoint from '-') and bounded, so the engine
-#    cannot backtrack character-by-character — avoids the polynomial-time ReDoS
-#    that an unbounded "[^-]+" would allow on adversarial input.
-_PEM_RE = re.compile(
-    r"-----BEGIN [A-Za-z0-9 ]{1,64}-----.*?-----END [A-Za-z0-9 ]{1,64}-----",
-    re.DOTALL,
-)
+# 1. PEM blocks — certificates and private keys. A block runs from a BEGIN
+#    marker to the first END marker after it. This is a scan, not one
+#    "BEGIN.*?END" regex: that regex rescans to the end of the text from every
+#    BEGIN that has no END, which is quadratic on repeated BEGIN markers. The
+#    label class is bounded and disjoint from '-', so each marker is cheap.
+_PEM_BEGIN_RE = re.compile(r"-----BEGIN [A-Za-z0-9 ]{1,64}-----")
+_PEM_END_RE = re.compile(r"-----END [A-Za-z0-9 ]{1,64}-----")
 
 # 2. key: value / key = value secrets. The key is preserved, the value redacted.
 #    Matches VyOS-style (password 'xxx'), JSON ("token": "xxx") and env (API_KEY=xxx).
 #    The value run is matched deterministically (no closing-quote backreference),
 #    which both avoids backtracking and still scrubs unbalanced/unclosed quotes.
+#    The separator's whitespace runs are possessive: with plain "\s*...\s*" the
+#    engine tries every split of a long whitespace run after a key before
+#    failing, which is quadratic. Giving whitespace back never helps the quote
+#    or value groups, so possessive runs match exactly what greedy ones did.
 _SECRET_KEYS = (
     r"pre-?shared-?secret|preshared-?key|passphrase|password|passwd|"
     r"secret|client[-_]?secret|api[-_]?key|apikey|access[-_]?token|"
@@ -47,7 +50,7 @@ _SECRET_KEYS = (
 )
 _SECRET_KV_RE = re.compile(
     r"(?i)\b(" + _SECRET_KEYS + r")\b"      # 1: key
-    r"(\s*['\"]?\s*[:=]\s*|\s+)"            # 2: separator (':', '=', or whitespace)
+    r"(\s*+['\"]?\s*+[:=]\s*+|\s++)"        # 2: separator (':', '=', or whitespace)
     r"(['\"]?)"                             # 3: opening quote (maybe empty)
     r"([^\s'\"]{3,})"                       # 4: the secret value (a quote/space ends it)
 )
@@ -71,6 +74,24 @@ _IPV6_RE = re.compile(r"(?<![:.\w])(?:[0-9A-Fa-f]{0,4}:){2,7}[0-9A-Fa-f]{0,4}(?!
 # Carrier-grade NAT (RFC 6598). Not sensitive; some ipaddress versions do not
 # flag it as private, so keep it explicitly.
 _CGNAT = ipaddress.ip_network("100.64.0.0/10")
+
+
+def _redact_pem(text: str) -> str:
+    out = []
+    pos = 0
+    while True:
+        begin = _PEM_BEGIN_RE.search(text, pos)
+        if begin is None:
+            break
+        end = _PEM_END_RE.search(text, begin.end())
+        if end is None:
+            # No END after this BEGIN, so none after any later BEGIN either.
+            break
+        out.append(text[pos : begin.start()])
+        out.append(REDACTED_PEM)
+        pos = end.end()
+    out.append(text[pos:])
+    return "".join(out)
 
 
 def _redact_kv(m: Match[str]) -> str:
@@ -126,7 +147,7 @@ def redact(text: str) -> str:
     if not text:
         return text
 
-    text = _PEM_RE.sub(REDACTED_PEM, text)
+    text = _redact_pem(text)
     # Bearer runs before the key/value pass so that "Authorization: Bearer <tok>"
     # has the token removed (the kv pass alone would only redact the word "Bearer").
     text = _BEARER_RE.sub("Bearer " + REDACTED, text)
