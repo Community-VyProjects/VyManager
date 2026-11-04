@@ -395,7 +395,8 @@ def run_vrf_protocol_op(
         except (TypeError, ArityError):
             if verb != "delete":
                 raise
-            method = None
+            # A delete that does not fit the global method's arity (usually
+            # the leaf value is omitted) falls through to the mapper path.
         else:
             for op in inner.get_operations():
                 path = op.get("path") or []
