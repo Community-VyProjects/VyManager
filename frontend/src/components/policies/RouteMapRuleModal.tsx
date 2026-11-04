@@ -15,7 +15,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { AlertCircle, X, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import type { RouteMapRule, MatchConditions, SetActions } from "@/lib/api/route-map";
+import {
+  routeMapService,
+  type RouteMapCapabilities,
+  type RouteMapRule,
+  type MatchConditions,
+  type SetActions,
+} from "@/lib/api/route-map";
 import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
 import {
   nextRuleNumber,
@@ -78,6 +84,9 @@ export function RouteMapRuleModal({
   const [matchOrigin, setMatchOrigin] = useState("");
   const [matchPeer, setMatchPeer] = useState("");
   const [matchRpki, setMatchRpki] = useState("");
+  const [matchRpkiExtcommunity, setMatchRpkiExtcommunity] = useState("");
+  const [matchSourcePeer, setMatchSourcePeer] = useState("");
+  const [capabilities, setCapabilities] = useState<RouteMapCapabilities | null>(null);
 
   // Match Conditions - IP/IPv6 Address
   const [matchIpAddressAccessList, setMatchIpAddressAccessList] = useState("");
@@ -188,6 +197,10 @@ export function RouteMapRuleModal({
   useEffect(() => {
     if (open) {
       loadDropdownOptions();
+      routeMapService
+        .getCapabilities()
+        .then(setCapabilities)
+        .catch((err) => console.error("Error loading route-map capabilities:", err));
     }
   }, [open]);
 
@@ -391,6 +404,8 @@ export function RouteMapRuleModal({
     setMatchOrigin("");
     setMatchPeer("");
     setMatchRpki("");
+    setMatchRpkiExtcommunity("");
+    setMatchSourcePeer("");
     setMatchIpAddressAccessList("");
     setMatchIpAddressPrefixList("");
     setMatchIpAddressPrefixLen("");
@@ -493,6 +508,8 @@ export function RouteMapRuleModal({
     setMatchOrigin(match.origin || "");
     setMatchPeer(match.peer || "");
     setMatchRpki(match.rpki || "");
+    setMatchRpkiExtcommunity(match.rpki_extcommunity || "");
+    setMatchSourcePeer(match.source_peer || "");
     setMatchIpAddressAccessList(match.ip_address_access_list || "");
     setMatchIpAddressPrefixList(match.ip_address_prefix_list || "");
     setMatchIpAddressPrefixLen(match.ip_address_prefix_len !== null ? String(match.ip_address_prefix_len) : "");
@@ -626,6 +643,8 @@ export function RouteMapRuleModal({
       if (matchOrigin.trim()) match.origin = matchOrigin.trim();
       if (matchPeer.trim()) match.peer = matchPeer.trim();
       if (matchRpki.trim()) match.rpki = matchRpki.trim();
+      if (matchRpkiExtcommunity.trim()) match.rpki_extcommunity = matchRpkiExtcommunity.trim();
+      if (matchSourcePeer.trim()) match.source_peer = matchSourcePeer.trim();
       if (matchIpAddressAccessList.trim()) match.ip_address_access_list = matchIpAddressAccessList.trim();
       if (matchIpAddressPrefixList.trim()) match.ip_address_prefix_list = matchIpAddressPrefixList.trim();
       if (matchIpAddressPrefixLen.trim()) match.ip_address_prefix_len = parseInt(matchIpAddressPrefixLen);
@@ -945,6 +964,38 @@ export function RouteMapRuleModal({
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {capabilities?.features.match_rpki_extcommunity?.supported && (
+                      <div className="space-y-2">
+                        <Label htmlFor="matchRpkiExtcommunity">{t("match.rpkiExtcommunity")}</Label>
+                        <Select
+                          value={matchRpkiExtcommunity || "none"}
+                          onValueChange={(val) => setMatchRpkiExtcommunity(val === "none" ? "" : val)}
+                        >
+                          <SelectTrigger id="matchRpkiExtcommunity">
+                            <SelectValue placeholder={t("match.selectRpkiState")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">{tc("none")}</SelectItem>
+                            <SelectItem value="valid">{t("match.rpkiValid")}</SelectItem>
+                            <SelectItem value="invalid">{t("match.rpkiInvalid")}</SelectItem>
+                            <SelectItem value="notfound">{t("match.rpkiNotFound")}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {capabilities?.features.match_source_peer?.supported && (
+                      <div className="space-y-2">
+                        <Label htmlFor="matchSourcePeer">{t("match.sourcePeer")}</Label>
+                        <Input
+                          id="matchSourcePeer"
+                          placeholder={t("match.sourcePeerPlaceholder")}
+                          value={matchSourcePeer}
+                          onChange={(e) => setMatchSourcePeer(e.target.value)}
+                        />
+                      </div>
+                    )}
                   </div>
                 </AccordionContent>
               </AccordionItem>

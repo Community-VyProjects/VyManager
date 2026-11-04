@@ -2,7 +2,8 @@
 Route Map Router
 
 API endpoints for managing VyOS route-map configuration.
-Supports version-aware configuration for VyOS 1.4 and 1.5 (identical feature sets).
+Supports version-aware configuration for VyOS 1.4 and 1.5. Match leaves that
+exist on only one version are gated by the route-map mapper.
 """
 
 from fastapi import APIRouter, HTTPException, Request
@@ -40,6 +41,8 @@ class MatchConditions(BaseModel):
     origin: Optional[str] = None  # egp|igp|incomplete
     peer: Optional[str] = None
     rpki: Optional[str] = None  # invalid|notfound|valid
+    rpki_extcommunity: Optional[str] = None  # invalid|notfound|valid
+    source_peer: Optional[str] = None
 
     # IP/IPv6 Address
     ip_address_access_list: Optional[str] = None
@@ -328,6 +331,8 @@ def parse_match_conditions(match_data: dict) -> MatchConditions:
     match.origin = match_data.get("origin")
     match.peer = match_data.get("peer")
     match.rpki = match_data.get("rpki")
+    match.rpki_extcommunity = match_data.get("rpki-extcommunity")
+    match.source_peer = match_data.get("source-peer")
 
     # IP Address
     if "ip" in match_data and "address" in match_data["ip"]:
@@ -508,8 +513,16 @@ async def route_map_batch_configure(http_request: Request, body: RouteMapBatchRe
                         break
 
             method(*args)
+    except HTTPException:
+        raise
+    except ValueError as e:
+        # The mapper rejects a node this device version does not have.
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-        # Execute batch
+    try:
         response = service.execute_batch(builder)
 
         return VyOSResponse(
@@ -517,8 +530,6 @@ async def route_map_batch_configure(http_request: Request, body: RouteMapBatchRe
             data={"message": "Configuration updated"},
             error=response.error if response.error else None
         )
-    except HTTPException:
-        raise
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -618,6 +629,10 @@ async def reorder_route_map_rules(http_request: Request, body: ReorderRouteMapRe
                 builder.set_match_peer(body.route_map_name, str(new_number), match.peer)
             if match.rpki:
                 builder.set_match_rpki(body.route_map_name, str(new_number), match.rpki)
+            if match.rpki_extcommunity:
+                builder.set_match_rpki_extcommunity(body.route_map_name, str(new_number), match.rpki_extcommunity)
+            if match.source_peer:
+                builder.set_match_source_peer(body.route_map_name, str(new_number), match.source_peer)
 
             # IP/IPv6 Address matches
             if match.ip_address_access_list:
@@ -752,8 +767,14 @@ async def reorder_route_map_rules(http_request: Request, body: ReorderRouteMapRe
                 builder.set_table(body.route_map_name, str(new_number), str(set_actions.table))
             if set_actions.tag is not None:
                 builder.set_tag(body.route_map_name, str(new_number), str(set_actions.tag))
+    except ValueError as e:
+        # The mapper rejects a node this device version does not have.
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-        # Execute batch
+    try:
         response = service.execute_batch(builder)
 
         return VyOSResponse(

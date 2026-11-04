@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { VrfSelect } from "@/components/ui/vrf-select";
@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { AlertCircle } from "lucide-react";
 import { routeMapService } from "@/lib/api/route-map";
-import type { MatchConditions, SetActions } from "@/lib/api/route-map";
+import type { MatchConditions, RouteMapCapabilities, SetActions } from "@/lib/api/route-map";
 
 interface CreateRouteMapModalProps {
     open: boolean;
@@ -54,6 +54,9 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
     const [matchOrigin, setMatchOrigin] = useState("");
     const [matchPeer, setMatchPeer] = useState("");
     const [matchRpki, setMatchRpki] = useState("");
+    const [matchRpkiExtcommunity, setMatchRpkiExtcommunity] = useState("");
+    const [matchSourcePeer, setMatchSourcePeer] = useState("");
+    const [capabilities, setCapabilities] = useState<RouteMapCapabilities | null>(null);
 
     // Match Conditions - IP/IPv6 Address
     const [matchIpAddressAccessList, setMatchIpAddressAccessList] = useState("");
@@ -122,6 +125,14 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
     const [setTable, setSetTable] = useState("");
     const [setTag, setSetTag] = useState("");
 
+    useEffect(() => {
+        if (!open) return;
+        routeMapService
+            .getCapabilities()
+            .then(setCapabilities)
+            .catch((err) => console.error("Error loading route-map capabilities:", err));
+    }, [open]);
+
     const resetForm = () => {
         setName("");
         setDescription("");
@@ -145,6 +156,8 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
         setMatchOrigin("");
         setMatchPeer("");
         setMatchRpki("");
+        setMatchRpkiExtcommunity("");
+        setMatchSourcePeer("");
         setMatchIpAddressAccessList("");
         setMatchIpAddressPrefixList("");
         setMatchIpAddressPrefixLen("");
@@ -233,6 +246,8 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
             if (matchOrigin.trim()) match.origin = matchOrigin.trim();
             if (matchPeer.trim()) match.peer = matchPeer.trim();
             if (matchRpki.trim()) match.rpki = matchRpki.trim();
+            if (matchRpkiExtcommunity.trim()) match.rpki_extcommunity = matchRpkiExtcommunity.trim();
+            if (matchSourcePeer.trim()) match.source_peer = matchSourcePeer.trim();
             if (matchIpAddressAccessList.trim()) match.ip_address_access_list = matchIpAddressAccessList.trim();
             if (matchIpAddressPrefixList.trim()) match.ip_address_prefix_list = matchIpAddressPrefixList.trim();
             if (matchIpAddressPrefixLen.trim()) match.ip_address_prefix_len = parseInt(matchIpAddressPrefixLen);
@@ -554,6 +569,35 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
         </SelectContent>
         </Select>
         </div>
+
+        {capabilities?.features.match_rpki_extcommunity?.supported && (
+        <div className="space-y-2">
+        <Label htmlFor="matchRpkiExtcommunity">{t("create.rpkiExtcommunity")}</Label>
+        <Select value={matchRpkiExtcommunity || "none"} onValueChange={(v) => setMatchRpkiExtcommunity(v === "none" ? "" : v)}>
+        <SelectTrigger id="matchRpkiExtcommunity">
+        <SelectValue placeholder={t("create.selectRpkiState")} />
+        </SelectTrigger>
+        <SelectContent>
+        <SelectItem value="none">{tc("none")}</SelectItem>
+        <SelectItem value="valid">{t("create.rpkiValid")}</SelectItem>
+        <SelectItem value="invalid">{t("create.rpkiInvalid")}</SelectItem>
+        <SelectItem value="notfound">{t("create.rpkiNotFound")}</SelectItem>
+        </SelectContent>
+        </Select>
+        </div>
+        )}
+
+        {capabilities?.features.match_source_peer?.supported && (
+        <div className="space-y-2">
+        <Label htmlFor="matchSourcePeer">{t("create.sourcePeer")}</Label>
+        <Input
+        id="matchSourcePeer"
+        placeholder={t("create.sourcePeerPlaceholder")}
+        value={matchSourcePeer}
+        onChange={(e) => setMatchSourcePeer(e.target.value)}
+        />
+        </div>
+        )}
         </div>
         </AccordionContent>
         </AccordionItem>

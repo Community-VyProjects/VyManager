@@ -244,6 +244,26 @@ class RouteMapBatchBuilder(BatchBuilder):
         path = self.mappers[self.mapper_key].get_rule_path(name, rule) + ["match", "rpki"]
         return self.add_delete(path)
 
+    def set_match_rpki_extcommunity(self, name: str, rule: str, state: str) -> "RouteMapBatchBuilder":
+        """Set match RPKI extended community."""
+        path = self.mappers[self.mapper_key].get_match_rpki_extcommunity(name, rule, state)
+        return self.add_set(path)
+
+    def delete_match_rpki_extcommunity(self, name: str, rule: str) -> "RouteMapBatchBuilder":
+        """Delete match RPKI extended community."""
+        path = self.mappers[self.mapper_key].get_match_rpki_extcommunity_path(name, rule)
+        return self.add_delete(path)
+
+    def set_match_source_peer(self, name: str, rule: str, peer: str) -> "RouteMapBatchBuilder":
+        """Set match source peer."""
+        path = self.mappers[self.mapper_key].get_match_source_peer(name, rule, peer)
+        return self.add_set(path)
+
+    def delete_match_source_peer(self, name: str, rule: str) -> "RouteMapBatchBuilder":
+        """Delete match source peer."""
+        path = self.mappers[self.mapper_key].get_match_source_peer_path(name, rule)
+        return self.add_delete(path)
+
     # ========================================================================
     # Match Conditions - IP/IPv6 Address
     # ========================================================================
@@ -711,7 +731,7 @@ class RouteMapBatchBuilder(BatchBuilder):
 
     def get_capabilities(self) -> Dict[str, Any]:
         """Get capabilities for the current VyOS version."""
-        # Both 1.4 and 1.5 have identical route-map support
+        match_nodes = self.mappers[self.mapper_key].versioned_match_nodes()
         return {
             "version": self.version,
             "features": {
@@ -726,6 +746,14 @@ class RouteMapBatchBuilder(BatchBuilder):
                 "match_conditions": {
                     "supported": True,
                     "description": "Match conditions (AS path, community, IP, etc.)",
+                },
+                "match_rpki_extcommunity": {
+                    "supported": "rpki-extcommunity" in match_nodes,
+                    "description": "Match RPKI origin validation extended community",
+                },
+                "match_source_peer": {
+                    "supported": "source-peer" in match_nodes,
+                    "description": "Match BGP source peer",
                 },
                 "set_actions": {
                     "supported": True,
@@ -743,8 +771,5 @@ class RouteMapBatchBuilder(BatchBuilder):
                     "supported": True,
                     "description": "On-match actions (goto, next)",
                 },
-            },
-            "version_notes": {
-                "identical_versions": "VyOS 1.4 and 1.5 have identical route-map support",
             },
         }
