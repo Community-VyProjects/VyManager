@@ -21,6 +21,12 @@ export interface MatchConditions {
   rpki_extcommunity?: string | null;  // invalid|notfound|valid
   source_peer?: string | null;
 
+  // EVPN
+  evpn_default_route?: boolean;
+  evpn_rd?: string | null;
+  evpn_route_type?: string | null;  // one of capabilities.features.match_evpn.route_types
+  evpn_vni?: number | null;
+
   // IP/IPv6 Address
   ip_address_access_list?: string | null;
   ip_address_prefix_list?: string | null;
@@ -91,6 +97,10 @@ export interface SetActions {
   ipv6_nexthop_peer_address?: boolean;
   ipv6_nexthop_prefer_global?: boolean;
 
+  // EVPN
+  evpn_gateway_ipv4?: string | null;
+  evpn_gateway_ipv6?: string | null;
+
   // Route Properties
   distance?: number | null;
   metric?: string | null;
@@ -131,6 +141,7 @@ export interface RouteMapCapabilities {
     match_conditions: { supported: boolean; description: string };
     match_rpki_extcommunity: { supported: boolean; description: string };
     match_source_peer: { supported: boolean; description: string };
+    match_evpn: { supported: boolean; description: string; route_types: string[] };
     set_actions: { supported: boolean; description: string };
     bgp_attributes: { supported: boolean; description: string };
     call_continue: { supported: boolean; description: string };
@@ -515,6 +526,12 @@ export class RouteMapService {
     if (match.rpki_extcommunity) operations.push({ op: "set_match_rpki_extcommunity", value: match.rpki_extcommunity });
     if (match.source_peer) operations.push({ op: "set_match_source_peer", value: match.source_peer });
 
+    // EVPN
+    if (match.evpn_default_route) operations.push({ op: "set_match_evpn_default_route" });
+    if (match.evpn_rd) operations.push({ op: "set_match_evpn_rd", value: match.evpn_rd });
+    if (match.evpn_route_type) operations.push({ op: "set_match_evpn_route_type", value: match.evpn_route_type });
+    if (match.evpn_vni !== undefined && match.evpn_vni !== null) operations.push({ op: "set_match_evpn_vni", value: match.evpn_vni.toString() });
+
     // IP Address
     if (match.ip_address_access_list) operations.push({ op: "set_match_ip_address_access_list", value: match.ip_address_access_list });
     if (match.ip_address_prefix_list) operations.push({ op: "set_match_ip_address_prefix_list", value: match.ip_address_prefix_list });
@@ -566,6 +583,7 @@ export class RouteMapService {
     operations.push({ op: "delete_match_rpki" });
     if (stored?.rpki_extcommunity) operations.push({ op: "delete_match_rpki_extcommunity" });
     if (stored?.source_peer) operations.push({ op: "delete_match_source_peer" });
+    operations.push({ op: "delete_match_evpn" });
     operations.push({ op: "delete_match_ip_address" });
     operations.push({ op: "delete_match_ipv6_address" });
     operations.push({ op: "delete_match_ip_nexthop" });
@@ -650,6 +668,10 @@ export class RouteMapService {
     if (set.ipv6_nexthop_peer_address) operations.push({ op: "set_ipv6_nexthop_peer_address" });
     if (set.ipv6_nexthop_prefer_global) operations.push({ op: "set_ipv6_nexthop_prefer_global" });
 
+    // EVPN
+    if (set.evpn_gateway_ipv4) operations.push({ op: "set_evpn_gateway_ipv4", value: set.evpn_gateway_ipv4 });
+    if (set.evpn_gateway_ipv6) operations.push({ op: "set_evpn_gateway_ipv6", value: set.evpn_gateway_ipv6 });
+
     // Route Properties
     if (set.distance !== undefined && set.distance !== null) operations.push({ op: "set_distance", value: set.distance.toString() });
     if (set.metric) operations.push({ op: "set_metric", value: set.metric });
@@ -677,6 +699,7 @@ export class RouteMapService {
     operations.push({ op: "delete_set_weight" });
     operations.push({ op: "delete_set_ip_nexthop" });
     operations.push({ op: "delete_set_ipv6_nexthop" });
+    operations.push({ op: "delete_set_evpn" });
     operations.push({ op: "delete_set_distance" });
     operations.push({ op: "delete_set_metric" });
     operations.push({ op: "delete_set_metric_type" });

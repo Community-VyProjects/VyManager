@@ -137,6 +137,23 @@
     "tableNumber": "Table number",
     "tag": "Tag"
   },
+  "evpn": {
+    "section": "EVPN",
+    "routeType": "Route type",
+    "selectRouteType": "Select route type",
+    "routeTypeEad": "EAD (type 1)",
+    "routeTypeMacip": "MAC-IP (type 2)",
+    "routeTypeMulticast": "Multicast (type 3)",
+    "routeTypeEs": "Ethernet segment (type 4)",
+    "routeTypePrefix": "Prefix (type 5)",
+    "routeTypeNumbered": "Type {n}",
+    "vni": "VNI",
+    "rd": "Route distinguisher",
+    "rdPlaceholder": "65000:100 or 192.0.2.1:100",
+    "defaultRoute": "Default type-5 route",
+    "gatewayIpv4": "Gateway IPv4 address",
+    "gatewayIpv6": "Gateway IPv6 address"
+  },
   "advanced": {
     "intro": "Advanced rule flow control options for calling other route-maps or jumping to different rules.",
     "callRouteMap": "Call Route-Map",

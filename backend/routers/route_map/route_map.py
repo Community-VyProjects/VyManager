@@ -44,6 +44,12 @@ class MatchConditions(BaseModel):
     rpki_extcommunity: Optional[str] = None  # invalid|notfound|valid
     source_peer: Optional[str] = None
 
+    # EVPN
+    evpn_default_route: bool = False
+    evpn_rd: Optional[str] = None
+    evpn_route_type: Optional[str] = None  # values per device: capabilities match_evpn.route_types
+    evpn_vni: Optional[int] = None
+
     # IP/IPv6 Address
     ip_address_access_list: Optional[str] = None
     ip_address_prefix_list: Optional[str] = None
@@ -114,6 +120,10 @@ class SetActions(BaseModel):
     ipv6_nexthop_local: Optional[str] = None
     ipv6_nexthop_peer_address: bool = False
     ipv6_nexthop_prefer_global: bool = False
+
+    # EVPN
+    evpn_gateway_ipv4: Optional[str] = None
+    evpn_gateway_ipv6: Optional[str] = None
 
     # Route Properties
     distance: Optional[int] = None
@@ -334,6 +344,13 @@ def parse_match_conditions(match_data: dict) -> MatchConditions:
     match.rpki_extcommunity = match_data.get("rpki-extcommunity")
     match.source_peer = match_data.get("source-peer")
 
+    # EVPN
+    evpn = match_data.get("evpn", {})
+    match.evpn_default_route = "default-route" in evpn
+    match.evpn_rd = evpn.get("rd")
+    match.evpn_route_type = evpn.get("route-type")
+    match.evpn_vni = int(evpn["vni"]) if "vni" in evpn else None
+
     # IP Address
     if "ip" in match_data and "address" in match_data["ip"]:
         ip_addr = match_data["ip"]["address"]
@@ -454,6 +471,11 @@ def parse_set_actions(set_data: dict) -> SetActions:
         set_actions.ipv6_nexthop_local = ipv6_nh.get("local")
         set_actions.ipv6_nexthop_peer_address = "peer-address" in ipv6_nh
         set_actions.ipv6_nexthop_prefer_global = "prefer-global" in ipv6_nh
+
+    # EVPN
+    evpn_gateway = set_data.get("evpn", {}).get("gateway", {})
+    set_actions.evpn_gateway_ipv4 = evpn_gateway.get("ipv4")
+    set_actions.evpn_gateway_ipv6 = evpn_gateway.get("ipv6")
 
     # Route Properties
     set_actions.distance = int(set_data["distance"]) if "distance" in set_data else None
@@ -634,6 +656,16 @@ async def reorder_route_map_rules(http_request: Request, body: ReorderRouteMapRe
             if match.source_peer:
                 builder.set_match_source_peer(body.route_map_name, str(new_number), match.source_peer)
 
+            # EVPN matches
+            if match.evpn_default_route:
+                builder.set_match_evpn_default_route(body.route_map_name, str(new_number))
+            if match.evpn_rd:
+                builder.set_match_evpn_rd(body.route_map_name, str(new_number), match.evpn_rd)
+            if match.evpn_route_type:
+                builder.set_match_evpn_route_type(body.route_map_name, str(new_number), match.evpn_route_type)
+            if match.evpn_vni is not None:
+                builder.set_match_evpn_vni(body.route_map_name, str(new_number), str(match.evpn_vni))
+
             # IP/IPv6 Address matches
             if match.ip_address_access_list:
                 builder.set_match_ip_address_access_list(body.route_map_name, str(new_number), match.ip_address_access_list)
@@ -753,6 +785,12 @@ async def reorder_route_map_rules(http_request: Request, body: ReorderRouteMapRe
                 builder.set_ipv6_nexthop_local(body.route_map_name, str(new_number), set_actions.ipv6_nexthop_local)
             if set_actions.ipv6_nexthop_prefer_global:
                 builder.set_ipv6_nexthop_prefer_global(body.route_map_name, str(new_number))
+
+            # EVPN
+            if set_actions.evpn_gateway_ipv4:
+                builder.set_evpn_gateway_ipv4(body.route_map_name, str(new_number), set_actions.evpn_gateway_ipv4)
+            if set_actions.evpn_gateway_ipv6:
+                builder.set_evpn_gateway_ipv6(body.route_map_name, str(new_number), set_actions.evpn_gateway_ipv6)
 
             # Route properties
             if set_actions.distance is not None:

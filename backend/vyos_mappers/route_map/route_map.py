@@ -5,7 +5,7 @@ Handles command path generation for route-map configuration.
 Version-specific logic is in version-specific files.
 """
 
-from typing import FrozenSet, List
+from typing import FrozenSet, List, Tuple
 from ..base import BaseFeatureMapper
 
 
@@ -14,6 +14,11 @@ class RouteMapMapper(BaseFeatureMapper):
 
     # Match leaves that exist on 1.5 and not on 1.4 (validateTmplPath on both).
     _MATCH_1_5_ONLY = ("rpki-extcommunity", "source-peer")
+
+    # Values ``match evpn route-type`` accepts, from each build's node.def
+    # validator regex. 1.5 adds ead, es and the numeric 1-5 aliases.
+    _EVPN_ROUTE_TYPES_1_4 = ("macip", "multicast", "prefix")
+    _EVPN_ROUTE_TYPES_1_5 = ("ead", "macip", "multicast", "es", "prefix", "1", "2", "3", "4", "5")
 
     def __init__(self, version: str):
         """Initialize with VyOS version."""
@@ -24,6 +29,12 @@ class RouteMapMapper(BaseFeatureMapper):
         if "1.4" in self.version:
             return frozenset()
         return frozenset(self._MATCH_1_5_ONLY)
+
+    def evpn_route_types(self) -> Tuple[str, ...]:
+        """Values this device accepts for ``match evpn route-type``."""
+        if "1.4" in self.version:
+            return self._EVPN_ROUTE_TYPES_1_4
+        return self._EVPN_ROUTE_TYPES_1_5
 
     def _require_match(self, node: str) -> None:
         if node not in self.versioned_match_nodes():
@@ -136,6 +147,32 @@ class RouteMapMapper(BaseFeatureMapper):
     def get_match_source_peer_path(self, name: str, rule: str) -> List[str]:
         self._require_match("source-peer")
         return ["policy", "route-map", name, "rule", rule, "match", "source-peer"]
+
+    # ========================================================================
+    # Match Conditions - EVPN
+    # ========================================================================
+
+    def get_match_evpn_path(self, name: str, rule: str) -> List[str]:
+        """Match EVPN subtree."""
+        return ["policy", "route-map", name, "rule", rule, "match", "evpn"]
+
+    def get_match_evpn_default_route(self, name: str, rule: str) -> List[str]:
+        """Match the default EVPN type-5 route."""
+        return self.get_match_evpn_path(name, rule) + ["default-route"]
+
+    def get_match_evpn_rd(self, name: str, rule: str, rd: str) -> List[str]:
+        """Match EVPN route distinguisher."""
+        return self.get_match_evpn_path(name, rule) + ["rd", rd]
+
+    def get_match_evpn_route_type(self, name: str, rule: str, route_type: str) -> List[str]:
+        """Match EVPN route type."""
+        if route_type not in self.evpn_route_types():
+            raise ValueError(f"route-map match evpn route-type {route_type} is not supported on this device")
+        return self.get_match_evpn_path(name, rule) + ["route-type", route_type]
+
+    def get_match_evpn_vni(self, name: str, rule: str, vni: str) -> List[str]:
+        """Match EVPN VXLAN network identifier."""
+        return self.get_match_evpn_path(name, rule) + ["vni", vni]
 
     # ========================================================================
     # Match Conditions - IP/IPv6 Address
@@ -368,6 +405,22 @@ class RouteMapMapper(BaseFeatureMapper):
     def get_set_ipv6_nexthop_prefer_global(self, name: str, rule: str) -> List[str]:
         """Set IPv6 next-hop prefer global."""
         return ["policy", "route-map", name, "rule", rule, "set", "ipv6-next-hop", "prefer-global"]
+
+    # ========================================================================
+    # Set Actions - EVPN
+    # ========================================================================
+
+    def get_set_evpn_path(self, name: str, rule: str) -> List[str]:
+        """Set EVPN subtree."""
+        return ["policy", "route-map", name, "rule", rule, "set", "evpn"]
+
+    def get_set_evpn_gateway_ipv4(self, name: str, rule: str, gateway: str) -> List[str]:
+        """Set EVPN gateway IPv4 address."""
+        return self.get_set_evpn_path(name, rule) + ["gateway", "ipv4", gateway]
+
+    def get_set_evpn_gateway_ipv6(self, name: str, rule: str, gateway: str) -> List[str]:
+        """Set EVPN gateway IPv6 address."""
+        return self.get_set_evpn_path(name, rule) + ["gateway", "ipv6", gateway]
 
     # ========================================================================
     # Set Actions - Route Properties

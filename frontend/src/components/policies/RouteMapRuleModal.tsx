@@ -35,6 +35,15 @@ import { extcommunityListService } from "@/lib/api/extcommunity-list";
 import { largeCommunityListService } from "@/lib/api/large-community-list";
 import { accessListService } from "@/lib/api/access-list";
 import { prefixListService } from "@/lib/api/prefix-list";
+import { RouteMapEvpnMatchSection, RouteMapEvpnSetSection } from "./RouteMapEvpnSections";
+import {
+  emptyEvpnMatchDraft,
+  emptyEvpnSetDraft,
+  evpnMatchDraftFrom,
+  evpnMatchFields,
+  evpnSetDraftFrom,
+  evpnSetFields,
+} from "./route-map-evpn";
 
 interface RouteMapRuleModalProps {
   open: boolean;
@@ -86,6 +95,8 @@ export function RouteMapRuleModal({
   const [matchRpki, setMatchRpki] = useState("");
   const [matchRpkiExtcommunity, setMatchRpkiExtcommunity] = useState("");
   const [matchSourcePeer, setMatchSourcePeer] = useState("");
+  const [matchEvpn, setMatchEvpn] = useState(emptyEvpnMatchDraft);
+  const [setEvpn, setSetEvpn] = useState(emptyEvpnSetDraft);
   const [capabilities, setCapabilities] = useState<RouteMapCapabilities | null>(null);
 
   // Match Conditions - IP/IPv6 Address
@@ -406,6 +417,7 @@ export function RouteMapRuleModal({
     setMatchRpki("");
     setMatchRpkiExtcommunity("");
     setMatchSourcePeer("");
+    setMatchEvpn(emptyEvpnMatchDraft());
     setMatchIpAddressAccessList("");
     setMatchIpAddressPrefixList("");
     setMatchIpAddressPrefixLen("");
@@ -478,6 +490,7 @@ export function RouteMapRuleModal({
     setSetSrc("");
     setSetTable("");
     setSetTag("");
+    setSetEvpn(emptyEvpnSetDraft());
 
     setError(null);
   };
@@ -510,6 +523,7 @@ export function RouteMapRuleModal({
     setMatchRpki(match.rpki || "");
     setMatchRpkiExtcommunity(match.rpki_extcommunity || "");
     setMatchSourcePeer(match.source_peer || "");
+    setMatchEvpn(evpnMatchDraftFrom(match));
     setMatchIpAddressAccessList(match.ip_address_access_list || "");
     setMatchIpAddressPrefixList(match.ip_address_prefix_list || "");
     setMatchIpAddressPrefixLen(match.ip_address_prefix_len !== null ? String(match.ip_address_prefix_len) : "");
@@ -621,6 +635,7 @@ export function RouteMapRuleModal({
     setSetSrc(set.src || "");
     setSetTable(set.table !== null ? String(set.table) : "");
     setSetTag(set.tag !== null ? String(set.tag) : "");
+    setSetEvpn(evpnSetDraftFrom(set));
   };
 
 
@@ -645,6 +660,7 @@ export function RouteMapRuleModal({
       if (matchRpki.trim()) match.rpki = matchRpki.trim();
       if (matchRpkiExtcommunity.trim()) match.rpki_extcommunity = matchRpkiExtcommunity.trim();
       if (matchSourcePeer.trim()) match.source_peer = matchSourcePeer.trim();
+      Object.assign(match, evpnMatchFields(matchEvpn));
       if (matchIpAddressAccessList.trim()) match.ip_address_access_list = matchIpAddressAccessList.trim();
       if (matchIpAddressPrefixList.trim()) match.ip_address_prefix_list = matchIpAddressPrefixList.trim();
       if (matchIpAddressPrefixLen.trim()) match.ip_address_prefix_len = parseInt(matchIpAddressPrefixLen);
@@ -728,6 +744,7 @@ export function RouteMapRuleModal({
       if (setSrc.trim()) set.src = setSrc.trim();
       if (setTable.trim()) set.table = parseInt(setTable);
       if (setTag.trim()) set.tag = parseInt(setTag);
+      Object.assign(set, evpnSetFields(setEvpn));
 
       const draft: RouteMapRuleDraft = {
         ruleNumber,
@@ -999,6 +1016,16 @@ export function RouteMapRuleModal({
                   </div>
                 </AccordionContent>
               </AccordionItem>
+
+              <RouteMapEvpnMatchSection
+                value={matchEvpn}
+                onChange={setMatchEvpn}
+                routeTypes={
+                  capabilities?.features.match_evpn?.supported
+                    ? capabilities.features.match_evpn.route_types
+                    : undefined
+                }
+              />
 
               {/* IP/IPv6 Address */}
               <AccordionItem value="address">
@@ -1843,6 +1870,8 @@ export function RouteMapRuleModal({
                   </div>
                 </AccordionContent>
               </AccordionItem>
+
+              <RouteMapEvpnSetSection value={setEvpn} onChange={setSetEvpn} />
 
               {/* Route Properties */}
               <AccordionItem value="route-props">
