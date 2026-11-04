@@ -12,6 +12,8 @@ import ast
 import symtable
 from pathlib import Path
 
+from tests.annotation_names import annotation_names
+
 BACKEND = Path(__file__).resolve().parents[1]
 _SKIP_DIRS = {"venv", ".venv", "node_modules", "__pycache__"}
 _SCOPE_NODES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
@@ -26,27 +28,6 @@ def _bindings(node):
             yield alias.asname or alias.name.split(".")[0]
         else:
             yield alias.asname or alias.name
-
-
-def _annotation_names(annotation) -> set[str]:
-    """Names an annotation reads, including quoted ones such as ``"Foo"``.
-
-    ``symtable`` drops annotations under ``from __future__ import
-    annotations``, so they are collected from the AST instead.
-    """
-    names: set[str] = set()
-    if annotation is None:
-        return names
-    for sub in ast.walk(annotation):
-        if isinstance(sub, ast.Name):
-            names.add(sub.id)
-        elif isinstance(sub, ast.Constant) and isinstance(sub.value, str):
-            try:
-                parsed = ast.parse(sub.value, mode="eval")
-            except SyntaxError:
-                continue
-            names.update(n.id for n in ast.walk(parsed) if isinstance(n, ast.Name))
-    return names
 
 
 class _Scan:
@@ -106,7 +87,7 @@ class _Scan:
                 self._walk(child.body, table)
 
     def _read_annotation(self, table, annotation):
-        self.extra_reads += [(table, name) for name in _annotation_names(annotation)]
+        self.extra_reads += [(table, name) for name in annotation_names(annotation)]
 
     def _resolve(self, table, name):
         """The table whose binding a read of ``name`` in ``table`` reaches."""
