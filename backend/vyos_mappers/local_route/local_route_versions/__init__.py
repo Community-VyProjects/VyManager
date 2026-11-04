@@ -5,23 +5,8 @@ from .v1_4 import LocalRouteMapperV1_4
 from .v1_5 import LocalRouteMapperV1_5
 
 
-def get_local_route_mapper(version: str):
+def get_local_route_mapper(version: str) -> LocalRouteMapper:
     """Factory function to get appropriate mapper for version."""
-    base = LocalRouteMapper(version)
-
     if "1.4" in version:
-        version_specific = LocalRouteMapperV1_4()
-    elif "1.5" in version or "latest" in version:
-        version_specific = LocalRouteMapperV1_5()
-    else:
-        version_specific = LocalRouteMapperV1_5()  # Default to latest
-
-    # Merge base and version-specific mappers
-    class MergedMapper:
-        def __getattr__(self, name):
-            # Try version-specific first, fall back to base
-            if hasattr(version_specific, name):
-                return getattr(version_specific, name)
-            return getattr(base, name)
-
-    return MergedMapper()
+        return LocalRouteMapperV1_4(version)
+    return LocalRouteMapperV1_5(version)  # 1.5, latest, and unknown

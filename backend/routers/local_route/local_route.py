@@ -280,6 +280,9 @@ async def local_route_batch_configure(http_request: Request, body: LocalRouteBat
         )
     except HTTPException:
         raise
+    except ValueError as e:
+        # The mapper rejects a node this device version does not have.
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -373,6 +376,9 @@ async def local_route_reorder_rules(http_request: Request, body: LocalRouteReord
             data={"message": "Rules reordered successfully"},
             error=response.error if response.error else None,
         )
+    except ValueError as e:
+        # The mapper rejects a node this device version does not have.
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
