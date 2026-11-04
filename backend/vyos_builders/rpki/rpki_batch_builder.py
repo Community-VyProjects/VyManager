@@ -51,6 +51,10 @@ class RpkiBatchBuilder(BatchBuilder):
                     "supported": True,
                     "description": "Retry interval to reconnect to cache server (1-7200s, default 600)",
                 },
+                "cache_source_address": {
+                    "supported": "source-address" in self.m.versioned_cache_nodes(),
+                    "description": "Source address for cache server connections",
+                },
                 "ssh_transport": {
                     "supported": True,
                     "description": "SSH transport for cache server connections using PKI keys",

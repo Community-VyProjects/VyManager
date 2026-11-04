@@ -13,11 +13,23 @@ Config tree: vrf name <NAME> protocols rpki
 
 from typing import List
 
+from ..base import BaseFeatureMapper
 
-class VrfRpkiMapper:
-    """Mapper for VRF RPKI paths. VyOS 1.5+ only."""
+
+class VrfRpkiMapper(BaseFeatureMapper):
+    """Mapper for VRF RPKI paths.
+
+    ``vrf name <vrf> protocols rpki`` is INVALID on 1.4 and VALID on 1.5
+    (validateTmplPath on both), so every path raises on 1.4.
+    """
+
+    def is_supported(self) -> bool:
+        """Whether this device has the VRF RPKI subtree."""
+        return "1.4" not in self.version
 
     def _base(self, name: str) -> List[str]:
+        if not self.is_supported():
+            raise ValueError("vrf protocols rpki is not supported on this device")
         return ["vrf", "name", name, "protocols", "rpki"]
 
     # ========================================================================

@@ -247,7 +247,7 @@ class RouterAdvertBatchBuilder(BatchBuilder):
             "features": {
                 "interface": {"supported": True, "description": "RA listener interface"},
                 "auto_ignore": {"supported": True, "description": "IPv6 prefixes excluded from RAs (use with ::/64 wildcard)"},
-                "captive_portal": {"supported": is_1_5, "description": "Captive portal API endpoint (1.5+)"},
+                "captive_portal": {"supported": "captive-portal" in self.m.versioned_interface_nodes(), "description": "Captive portal API endpoint (1.5+)"},
                 "default_lifetime": {"supported": True, "description": "Default router lifetime (0 or 4-9000 seconds)"},
                 "default_preference": {"supported": True, "description": "Default router preference (low/medium/high)"},
                 "dnssl": {"supported": True, "description": "DNS search list domains"},
@@ -264,7 +264,7 @@ class RouterAdvertBatchBuilder(BatchBuilder):
                 "no_send_interval": {"supported": True, "description": "Suppress Advertisement Interval option in RAs"},
                 "other_config_flag": {"supported": True, "description": "O-flag: hosts use DHCPv6 for other configuration"},
                 "prefix": {"supported": True, "description": "IPv6 prefix advertised in RAs"},
-                "prefix_base_interface": {"supported": is_1_5, "description": "Combine prefix with address of interface (DHCPv6-PD, 1.5+)"},
+                "prefix_base_interface": {"supported": "base-interface" in self.m.versioned_prefix_nodes(), "description": "Combine prefix with address of interface (DHCPv6-PD, 1.5+)"},
                 "prefix_decrement_lifetime": {"supported": True, "description": "Decrement prefix lifetime since last RA (use with DHCPv6-PD)"},
                 "prefix_deprecate_prefix": {"supported": True, "description": "Deprecate prefix on shutdown"},
                 "prefix_no_autonomous_flag": {"supported": True, "description": "Prefix not usable for SLAAC"},

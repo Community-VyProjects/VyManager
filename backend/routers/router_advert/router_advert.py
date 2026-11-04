@@ -223,10 +223,21 @@ async def router_advert_batch_configure(http_request: Request, body: RouterAdver
                     args.extend(operation.value.split(","))
 
                 method(*args)
+    except HTTPException:
+        raise
+    except ValueError as e:
+        # The mapper rejects a node this device version does not have.
+        raise HTTPException(status_code=400, detail=str(e))
+    except AttributeError as e:
+        raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
+    except Exception:
+        logger.exception("Unhandled error in router_advert_batch_configure")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-        if builder.is_empty():
-            return VyOSResponse(success=True, data={"message": "No operations to execute"})
+    if builder.is_empty():
+        return VyOSResponse(success=True, data={"message": "No operations to execute"})
 
+    try:
         response = service.execute_batch(builder)
 
         return VyOSResponse(
@@ -235,9 +246,8 @@ async def router_advert_batch_configure(http_request: Request, body: RouterAdver
             error=response.error if response.error else None,
         )
     except HTTPException:
+        # execute_batch raises 409 while a commit-confirm is pending.
         raise
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
     except Exception:
         logger.exception("Unhandled error in router_advert_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")

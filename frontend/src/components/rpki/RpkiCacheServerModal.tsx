@@ -31,6 +31,7 @@ interface RpkiCacheServerModalProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (server: RpkiCacheServer) => Promise<void>;
   existingServer?: RpkiCacheServer | null;
+  sourceAddressSupported: boolean;
 }
 
 export function RpkiCacheServerModal({
@@ -38,6 +39,7 @@ export function RpkiCacheServerModal({
   onOpenChange,
   onSubmit,
   existingServer,
+  sourceAddressSupported,
 }: RpkiCacheServerModalProps) {
   const t = useTranslations("rpki");
   const tc = useTranslations("common");
@@ -200,15 +202,17 @@ export function RpkiCacheServerModal({
                   />
                 </div>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="rpki-source-address">{t("servers.sourceAddress")}</Label>
-                <Input
-                  id="rpki-source-address"
-                  value={sourceAddress}
-                  onChange={(e) => setSourceAddress(e.target.value)}
-                  placeholder={t("modal.sourceAddressPlaceholder")}
-                />
-              </div>
+              {sourceAddressSupported && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="rpki-source-address">{t("servers.sourceAddress")}</Label>
+                  <Input
+                    id="rpki-source-address"
+                    value={sourceAddress}
+                    onChange={(e) => setSourceAddress(e.target.value)}
+                    placeholder={t("modal.sourceAddressPlaceholder")}
+                  />
+                </div>
+              )}
             </div>
 
             {/* SSH Transport */}
