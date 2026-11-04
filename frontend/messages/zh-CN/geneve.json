@@ -51,8 +51,7 @@
     "eui64Hint": "每行一个 /64 前缀",
     "autoconf": "IPv6 SLAAC 自动配置",
     "noDefaultLinkLocal": "无默认链路本地地址",
-    "interfaceIdentifier": "接口标识符（SLAAC）",
-    "vyos15Only": "仅限 VyOS 1.5+"
+    "interfaceIdentifier": "接口标识符（SLAAC）"
   },
   "ip": {
     "adjustMss": "调整 MSS",

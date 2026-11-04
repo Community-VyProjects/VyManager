@@ -149,7 +149,7 @@
     "fragmentTitle": "Fragment Matching",
     "matchFrag": "Match fragmented packets",
     "matchNonFrag": "Match non-fragmented packets",
-    "greTitle": "GRE Matching (1.5+)",
+    "greTitle": "GRE Matching",
     "greKey": "GRE Key",
     "keyValue": "Key value",
     "greVersion": "GRE Version",

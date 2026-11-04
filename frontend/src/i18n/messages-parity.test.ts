@@ -40,6 +40,21 @@ function loadLocale(locale: string): Map<string, Record<string, string>> {
   return new Map(files.map((name) => [name, flatten(JSON.parse(readFileSync(join(dir, name), "utf8")))]));
 }
 
+// Config text never names a VyOS release. Capability flags decide what is
+// shown; only the instance version selector prints a version, and it is not
+// a catalog string.
+const VERSION_LABELS = [
+  /VyOS\s*v?\d+\.\d+/i,
+  /(?<![\d.])1\.\d+\s*\+/,
+  /(?<![\d.])1\.\d+(?:\s+|-)only/i,
+  /\b(?:on|in|requires?|since|from|before|after|until)\s+v?1\.\d+(?![\d.])/i,
+  /(?:equuleus|sagitta|circinus)\b/i,
+];
+
+function versionLabels(value: string): string[] {
+  return VERSION_LABELS.flatMap((pattern) => value.match(pattern)?.[0] ?? []);
+}
+
 function canonicalize(value: string): string {
   return value.replaceAll("…", "...").toLowerCase();
 }
@@ -346,6 +361,64 @@ describe("message catalogs", () => {
     assert.deepEqual(duplicates, []);
     for (const sentence of SHARED_CHROME) {
       assert.equal(found.has(sentence), true, sentence);
+    }
+  });
+
+  it("keeps VyOS version labels out of config text", () => {
+    const labelled: string[] = [];
+    for (const [locale, catalog] of catalogs) {
+      for (const [file, keys] of catalog) {
+        for (const [path, value] of Object.entries(keys)) {
+          const hits = versionLabels(value);
+          if (hits.length > 0) labelled.push(`${locale}/${file}:${path} [${hits.join(",")}] ${value}`);
+        }
+      }
+    }
+    assert.deepEqual(labelled, []);
+  });
+
+  it("recognizes the version labels config text used to carry", () => {
+    for (const value of [
+      "VyOS 1.5+ only",
+      "仅限 VyOS 1.5+",
+      "GRE Matching (1.5+)",
+      "GRE 匹配（1.5+）",
+      "Supported (1.5 +)",
+      "vyos 1.4",
+      "1.4 Only",
+      "1.4-only",
+      "Only on 1.4",
+      "Requires 1.5",
+      "require 1.5",
+      "Added in 1.4",
+      "Since 1.5",
+      "From 1.5",
+      "Before 1.4",
+      "After 1.4",
+      "Until 1.4",
+      "Removed on v1.5",
+      "VyOS v1.5",
+      "VyOS1.4",
+      "Sagitta only",
+      "Circinus",
+      "equuleus",
+    ]) {
+      assert.notDeepEqual(versionLabels(value), [], value);
+    }
+    for (const value of [
+      "e.g. 1.3.6.1.4.1.3317.1.2.2",
+      "Walk the tree in 1.3.6.1.2.1",
+      "Kernel 6.1.4+",
+      "MIB 2.1.4 only",
+      "Initial block duration; subsequent blocks grow ×1.5 (default {value}).",
+      "首次封禁时长；之后每次封禁时长增加至 1.5 倍（默认 {value}）。",
+      "Graph over a 2-minute rolling window",
+      "GRE Matching",
+      "VyOS",
+      "Retry within 1.5 seconds",
+      "Sagittal plane",
+    ]) {
+      assert.deepEqual(versionLabels(value), [], value);
     }
   });
 

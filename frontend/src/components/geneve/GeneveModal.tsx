@@ -590,7 +590,6 @@ export function GeneveModal({
                   onChange={(e) => setIpv6AddressInterfaceIdentifier(e.target.value)}
                   placeholder="::1"
                 />
-                <p className="text-xs text-muted-foreground">{t("addresses.vyos15Only")}</p>
               </div>
             )}
           </TabsContent>
