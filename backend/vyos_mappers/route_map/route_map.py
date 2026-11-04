@@ -20,6 +20,10 @@ class RouteMapMapper(BaseFeatureMapper):
     _EVPN_ROUTE_TYPES_1_4 = ("macip", "multicast", "prefix")
     _EVPN_ROUTE_TYPES_1_5 = ("ead", "macip", "multicast", "es", "prefix", "1", "2", "3", "4", "5")
 
+    # ``match evpn vni``: the VyOS node.def accepts 0-16777214 on both builds
+    # and FRR's grammar takes 1-16777215, so only the overlap commits.
+    EVPN_VNI_RANGE = (1, 16777214)
+
     def __init__(self, version: str):
         """Initialize with VyOS version."""
         super().__init__(version)
@@ -172,6 +176,9 @@ class RouteMapMapper(BaseFeatureMapper):
 
     def get_match_evpn_vni(self, name: str, rule: str, vni: str) -> List[str]:
         """Match EVPN VXLAN network identifier."""
+        low, high = self.EVPN_VNI_RANGE
+        if not (vni.isascii() and vni.isdigit()) or not low <= int(vni) <= high:
+            raise ValueError(f"route-map match evpn vni must be {low}-{high}")
         return self.get_match_evpn_path(name, rule) + ["vni", vni]
 
     # ========================================================================

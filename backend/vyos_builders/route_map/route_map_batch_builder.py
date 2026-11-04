@@ -781,6 +781,7 @@ class RouteMapBatchBuilder(BatchBuilder):
         """Get capabilities for the current VyOS version."""
         match_nodes = self.mappers[self.mapper_key].versioned_match_nodes()
         evpn_route_types = list(self.mappers[self.mapper_key].evpn_route_types())
+        vni_min, vni_max = self.mappers[self.mapper_key].EVPN_VNI_RANGE
         return {
             "version": self.version,
             "features": {
@@ -808,6 +809,8 @@ class RouteMapBatchBuilder(BatchBuilder):
                     "supported": True,
                     "description": "Match EVPN default route, RD, route type and VNI",
                     "route_types": evpn_route_types,
+                    "vni_min": vni_min,
+                    "vni_max": vni_max,
                 },
                 "set_actions": {
                     "supported": True,

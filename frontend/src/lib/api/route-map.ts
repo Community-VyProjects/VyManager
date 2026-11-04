@@ -141,7 +141,13 @@ export interface RouteMapCapabilities {
     match_conditions: { supported: boolean; description: string };
     match_rpki_extcommunity: { supported: boolean; description: string };
     match_source_peer: { supported: boolean; description: string };
-    match_evpn: { supported: boolean; description: string; route_types: string[] };
+    match_evpn: {
+      supported: boolean;
+      description: string;
+      route_types: string[];
+      vni_min: number;
+      vni_max: number;
+    };
     set_actions: { supported: boolean; description: string };
     bgp_attributes: { supported: boolean; description: string };
     call_continue: { supported: boolean; description: string };

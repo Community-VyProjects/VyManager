@@ -613,11 +613,7 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
         <RouteMapEvpnMatchSection
         value={matchEvpn}
         onChange={setMatchEvpn}
-        routeTypes={
-        capabilities?.features.match_evpn?.supported
-        ? capabilities.features.match_evpn.route_types
-        : undefined
-        }
+        capability={capabilities?.features.match_evpn}
         />
 
         {/* IP/IPv6 Address */}

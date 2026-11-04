@@ -8,6 +8,10 @@ Lab-checked with cli-shell-api validateTmplPath on 1.4 (100.64.64.50) and
 
 ``match evpn route-type`` values differ. Each build's node.def validator
 accepts macip, multicast and prefix on 1.4, and adds ead, es and 1-5 on 1.5.
+
+``match evpn vni``: the node.def validator takes 0-16777214 on both builds and
+the FRR grammar in bgpd (9.1.3 on 1.4, 10.6.1 on 1.5) is
+``match evpn vni (1-16777215)``, so 1-16777214 is what commits.
 """
 
 from types import SimpleNamespace
@@ -34,7 +38,9 @@ PATH_CASES = [
     ("set_match_evpn_rd", (NAME, RULE, "65000:100"), "set", MATCH_EVPN + ["rd", "65000:100"]),
     ("set_match_evpn_rd", (NAME, RULE, "192.0.2.1:100"), "set", MATCH_EVPN + ["rd", "192.0.2.1:100"]),
     ("set_match_evpn_route_type", (NAME, RULE, "prefix"), "set", MATCH_EVPN + ["route-type", "prefix"]),
+    ("set_match_evpn_vni", (NAME, RULE, "1"), "set", MATCH_EVPN + ["vni", "1"]),
     ("set_match_evpn_vni", (NAME, RULE, "100"), "set", MATCH_EVPN + ["vni", "100"]),
+    ("set_match_evpn_vni", (NAME, RULE, "16777214"), "set", MATCH_EVPN + ["vni", "16777214"]),
     ("delete_match_evpn", (NAME, RULE), "delete", MATCH_EVPN),
     ("set_evpn_gateway_ipv4", (NAME, RULE, "192.0.2.1"), "set", SET_EVPN + ["gateway", "ipv4", "192.0.2.1"]),
     ("set_evpn_gateway_ipv6", (NAME, RULE, "2001:db8::1"), "set", SET_EVPN + ["gateway", "ipv6", "2001:db8::1"]),
@@ -84,6 +90,15 @@ def test_unknown_route_type_rejected_on_1_5():
     assert builder.get_operations() == []
 
 
+@pytest.mark.parametrize("version", ["1.4", "1.5"])
+@pytest.mark.parametrize("vni", ["0", "16777215", "-1", "abc", "", " 1", "1.5", "\u0661", "\u00b2"])
+def test_vni_outside_committable_range_rejected(version, vni):
+    builder = RouteMapBatchBuilder(version=version)
+    with pytest.raises(ValueError, match="1-16777214"):
+        builder.set_match_evpn_vni(NAME, RULE, vni)
+    assert builder.get_operations() == []
+
+
 @pytest.mark.parametrize(
     "version, expected",
     [("1.4", ROUTE_TYPES_1_4), ("1.5", ["ead", "macip", "multicast", "es", "prefix", "1", "2", "3", "4", "5"])],
@@ -92,13 +107,16 @@ def test_capabilities_list_route_types(version, expected):
     feature = RouteMapBatchBuilder(version=version).get_capabilities()["features"]["match_evpn"]
     assert feature["supported"] is True
     assert feature["route_types"] == expected
+    assert (feature["vni_min"], feature["vni_max"]) == (1, 16777214)
 
 
 def test_capabilities_read_the_mapper_allowlist(monkeypatch):
     """A second handwritten list in get_capabilities() would ignore this."""
     monkeypatch.setattr(RouteMapMapper, "evpn_route_types", lambda self: ("prefix",))
+    monkeypatch.setattr(RouteMapMapper, "EVPN_VNI_RANGE", (5, 9))
     features = RouteMapBatchBuilder(version="1.5").get_capabilities()["features"]
     assert features["match_evpn"]["route_types"] == ["prefix"]
+    assert (features["match_evpn"]["vni_min"], features["match_evpn"]["vni_max"]) == (5, 9)
 
 
 def test_parse_reads_evpn_match():
@@ -198,6 +216,18 @@ def test_batch_rejects_newer_route_type_on_1_4_without_commit(monkeypatch):
     )
     assert response.status_code == 400, response.text
     assert "not supported on this device" in response.json()["detail"]
+    assert captured == []
+
+
+@pytest.mark.parametrize("version", ["1.4", "1.5"])
+def test_batch_rejects_vni_zero_without_commit(monkeypatch, version):
+    client, captured = _client(monkeypatch, version)
+    response = client.post(
+        "/vyos/route-map/batch",
+        json=_batch({"op": "set_match_evpn_vni", "value": "0"}),
+    )
+    assert response.status_code == 400, response.text
+    assert "1-16777214" in response.json()["detail"]
     assert captured == []
 
 

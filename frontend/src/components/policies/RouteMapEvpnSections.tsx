@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import type { RouteMapCapabilities } from "@/lib/api/route-map";
 import type { EvpnMatchDraft, EvpnSetDraft } from "./route-map-evpn";
 
 type RouteTypeLabelKey =
@@ -24,22 +25,23 @@ const ROUTE_TYPE_LABELS: Record<string, RouteTypeLabelKey> = {
 };
 
 /**
- * EVPN match conditions. ``routeTypes`` is the device's own list from the
- * route-map capabilities; the section stays hidden until it is known so the
- * select never offers a value this device rejects.
+ * EVPN match conditions. Route types and the VNI range come from the
+ * device's route-map capabilities; the section stays hidden until they are
+ * known so the form never offers a value this device rejects.
  */
 export function RouteMapEvpnMatchSection({
   value,
   onChange,
-  routeTypes,
+  capability,
 }: {
   value: EvpnMatchDraft;
   onChange: (next: EvpnMatchDraft) => void;
-  routeTypes: string[] | undefined;
+  capability: RouteMapCapabilities["features"]["match_evpn"] | undefined;
 }) {
   const t = useTranslations("routeMapRuleModal");
   const tc = useTranslations("common");
-  if (!routeTypes) return null;
+  if (!capability?.supported) return null;
+  const { route_types: routeTypes, vni_min: vniMin, vni_max: vniMax } = capability;
 
   const routeTypeLabel = (type: string) => {
     const key = ROUTE_TYPE_LABELS[type];
@@ -75,9 +77,9 @@ export function RouteMapEvpnMatchSection({
             <Input
               id="matchEvpnVni"
               type="number"
-              min={0}
-              max={16777214}
-              placeholder="0-16777214"
+              min={vniMin}
+              max={vniMax}
+              placeholder={`${vniMin}-${vniMax}`}
               value={value.vni}
               onChange={(e) => onChange({ ...value, vni: e.target.value })}
             />

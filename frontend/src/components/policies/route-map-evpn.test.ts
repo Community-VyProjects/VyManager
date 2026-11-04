@@ -29,7 +29,7 @@ describe("route-map EVPN draft", () => {
   });
 
   it("round-trips stored fields", () => {
-    const match = { evpn_default_route: true, evpn_rd: "65000:100", evpn_route_type: "macip", evpn_vni: 0 };
+    const match = { evpn_default_route: true, evpn_rd: "65000:100", evpn_route_type: "macip", evpn_vni: 1 };
     assert.deepEqual(evpnMatchFields(evpnMatchDraftFrom(match)), match);
     const set = { evpn_gateway_ipv4: "192.0.2.1", evpn_gateway_ipv6: "2001:db8::1" };
     assert.deepEqual(evpnSetFields(evpnSetDraftFrom(set)), set);
@@ -75,11 +75,5 @@ describe("route-map EVPN ops", () => {
     assert.ok(ops.includes("delete_match_evpn"));
     assert.ok(ops.includes("delete_set_evpn"));
     assert.ok(!ops.some((op) => op.startsWith("set_match_evpn") || op.startsWith("set_evpn")));
-  });
-
-  it("sends VNI 0", async () => {
-    const service = new RecordingRouteMap();
-    await service.addRule("RM", { rule_number: 10, match: { evpn_vni: 0 }, set: {} });
-    assert.ok(service.calls[0].operations.some((o) => o.op === "set_match_evpn_vni" && o.value === "0"));
   });
 });
