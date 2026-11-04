@@ -5,16 +5,29 @@ Handles command path generation for VyOS local route policy configuration.
 Version-specific logic is in version-specific files.
 """
 
-from typing import List
+from typing import FrozenSet, List
 from ..base import BaseFeatureMapper
 
 
 class LocalRouteMapper(BaseFeatureMapper):
     """Base mapper with common operations for local route policy"""
 
+    # Rule ``set`` actions that exist on 1.5 and not on 1.4 for both
+    # local-route and local-route6 (validateTmplPath on both). Version
+    # subclasses narrow this set.
+    _RULE_SET_VERSIONED = ("vrf",)
+
     def __init__(self, version: str):
         """Initialize with VyOS version."""
         super().__init__(version)
+
+    def versioned_rule_set_actions(self) -> FrozenSet[str]:
+        """Version-dependent rule ``set`` actions this device has."""
+        return frozenset(self._RULE_SET_VERSIONED)
+
+    def _require_rule_set(self, action: str) -> None:
+        if action not in self.versioned_rule_set_actions():
+            raise ValueError(f"local-route rule set {action} is not supported on this device")
 
     # ========================================================================
     # IPv4 Local Route - Rule Paths
@@ -133,11 +146,13 @@ class LocalRouteMapper(BaseFeatureMapper):
     def get_local_route_rule_set_vrf(
         self, rule_number: int, vrf: str
     ) -> List[str]:
-        """Get command path for IPv4 rule VRF (VyOS 1.5+)."""
+        """Get command path for IPv4 rule VRF."""
+        self._require_rule_set("vrf")
         return ["policy", "local-route", "rule", str(rule_number), "set", "vrf", vrf]
 
     def get_local_route_rule_set_vrf_path(self, rule_number: int) -> List[str]:
         """Get command path for IPv4 rule VRF (for deletion)."""
+        self._require_rule_set("vrf")
         return ["policy", "local-route", "rule", str(rule_number), "set", "vrf"]
 
     # ========================================================================
@@ -269,9 +284,11 @@ class LocalRouteMapper(BaseFeatureMapper):
     def get_local_route6_rule_set_vrf(
         self, rule_number: int, vrf: str
     ) -> List[str]:
-        """Get command path for IPv6 rule VRF (VyOS 1.5+)."""
+        """Get command path for IPv6 rule VRF."""
+        self._require_rule_set("vrf")
         return ["policy", "local-route6", "rule", str(rule_number), "set", "vrf", vrf]
 
     def get_local_route6_rule_set_vrf_path(self, rule_number: int) -> List[str]:
         """Get command path for IPv6 rule VRF (for deletion)."""
+        self._require_rule_set("vrf")
         return ["policy", "local-route6", "rule", str(rule_number), "set", "vrf"]

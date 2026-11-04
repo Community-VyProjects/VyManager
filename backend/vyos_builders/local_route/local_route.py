@@ -382,8 +382,8 @@ class LocalRouteBatchBuilder(BatchBuilder):
 
     def get_capabilities(self) -> Dict[str, Any]:
         """Get capabilities for the current VyOS version."""
-        # VRF support is only available in VyOS 1.5+
-        supports_vrf = "1.5" in self.version or "latest" in self.version
+        mapper = self.mappers[self.mapper_key]
+        supports_vrf = "vrf" in mapper.versioned_rule_set_actions()
 
         return {
             "version": self.version,

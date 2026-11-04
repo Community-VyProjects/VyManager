@@ -1,11 +1,12 @@
 """VyOS 1.5 specific commands for local route policy."""
 
+from ..local_route import LocalRouteMapper
 
-class LocalRouteMapperV1_5:
+
+class LocalRouteMapperV1_5(LocalRouteMapper):
     """Version-specific mapper for VyOS 1.5.
 
-    All commands are inherited from base mapper as 1.4 and 1.5
-    have identical local-route command syntax.
+    Uses the base mapper's full set of versioned rule ``set`` actions.
     """
 
     pass
