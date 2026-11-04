@@ -75,6 +75,7 @@ export interface SetActions {
   large_community_replace_values?: string[] | null;
   large_community_remove_all?: boolean;
   extcommunity_bandwidth?: string | null;
+  extcommunity_bandwidth_non_transitive?: boolean;  // only valid with extcommunity_bandwidth
   extcommunity_rt?: string | null;
   extcommunity_soo?: string | null;
   extcommunity_none?: boolean;
@@ -96,6 +97,7 @@ export interface SetActions {
   ipv6_nexthop_local?: string | null;
   ipv6_nexthop_peer_address?: boolean;
   ipv6_nexthop_prefer_global?: boolean;
+  l3vpn_nexthop_encapsulation_gre?: boolean;
 
   // EVPN
   evpn_gateway_ipv4?: string | null;
@@ -652,6 +654,10 @@ export class RouteMapService {
 
     // Extcommunity
     if (set.extcommunity_bandwidth) operations.push({ op: "set_extcommunity_bandwidth", value: set.extcommunity_bandwidth });
+    // VyOS rejects bandwidth-non-transitive at commit when bandwidth is unset.
+    if (set.extcommunity_bandwidth && set.extcommunity_bandwidth_non_transitive) {
+      operations.push({ op: "set_extcommunity_bandwidth_non_transitive" });
+    }
     if (set.extcommunity_rt) operations.push({ op: "set_extcommunity_rt", value: set.extcommunity_rt });
     if (set.extcommunity_soo) operations.push({ op: "set_extcommunity_soo", value: set.extcommunity_soo });
     if (set.extcommunity_none) operations.push({ op: "set_extcommunity_none" });
@@ -673,6 +679,7 @@ export class RouteMapService {
     if (set.ipv6_nexthop_local) operations.push({ op: "set_ipv6_nexthop_local", value: set.ipv6_nexthop_local });
     if (set.ipv6_nexthop_peer_address) operations.push({ op: "set_ipv6_nexthop_peer_address" });
     if (set.ipv6_nexthop_prefer_global) operations.push({ op: "set_ipv6_nexthop_prefer_global" });
+    if (set.l3vpn_nexthop_encapsulation_gre) operations.push({ op: "set_l3vpn_nexthop_encapsulation_gre" });
 
     // EVPN
     if (set.evpn_gateway_ipv4) operations.push({ op: "set_evpn_gateway_ipv4", value: set.evpn_gateway_ipv4 });
@@ -705,6 +712,7 @@ export class RouteMapService {
     operations.push({ op: "delete_set_weight" });
     operations.push({ op: "delete_set_ip_nexthop" });
     operations.push({ op: "delete_set_ipv6_nexthop" });
+    operations.push({ op: "delete_set_l3vpn_nexthop" });
     operations.push({ op: "delete_set_evpn" });
     operations.push({ op: "delete_set_distance" });
     operations.push({ op: "delete_set_metric" });

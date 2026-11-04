@@ -337,6 +337,10 @@ class RouteMapMapper(BaseFeatureMapper):
         """Set extcommunity bandwidth."""
         return ["policy", "route-map", name, "rule", rule, "set", "extcommunity", "bandwidth", bandwidth]
 
+    def get_set_extcommunity_bandwidth_non_transitive(self, name: str, rule: str) -> List[str]:
+        """Encode the extcommunity bandwidth as non-transitive. VyOS requires bandwidth too."""
+        return ["policy", "route-map", name, "rule", rule, "set", "extcommunity", "bandwidth-non-transitive"]
+
     def get_set_extcommunity_rt(self, name: str, rule: str, rt: str) -> List[str]:
         """Set extcommunity RT."""
         return ["policy", "route-map", name, "rule", rule, "set", "extcommunity", "rt", rt]
@@ -412,6 +416,14 @@ class RouteMapMapper(BaseFeatureMapper):
     def get_set_ipv6_nexthop_prefer_global(self, name: str, rule: str) -> List[str]:
         """Set IPv6 next-hop prefer global."""
         return ["policy", "route-map", name, "rule", rule, "set", "ipv6-next-hop", "prefer-global"]
+
+    def get_set_l3vpn_nexthop_path(self, name: str, rule: str) -> List[str]:
+        """Set L3VPN next-hop subtree."""
+        return ["policy", "route-map", name, "rule", rule, "set", "l3vpn-nexthop"]
+
+    def get_set_l3vpn_nexthop_encapsulation_gre(self, name: str, rule: str) -> List[str]:
+        """Accept L3VPN traffic over GRE encapsulation."""
+        return self.get_set_l3vpn_nexthop_path(name, rule) + ["encapsulation", "gre"]
 
     # ========================================================================
     # Set Actions - EVPN

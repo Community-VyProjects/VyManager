@@ -99,6 +99,7 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
     const [setLargeCommunityValue, setSetLargeCommunityValue] = useState("");
     const [setLargeCommunityAction, setSetLargeCommunityAction] = useState("");
     const [setExtcommunityBandwidth, setSetExtcommunityBandwidth] = useState("");
+    const [setExtcommunityBandwidthNonTransitive, setSetExtcommunityBandwidthNonTransitive] = useState(false);
     const [setExtcommunityRt, setSetExtcommunityRt] = useState("");
     const [setExtcommunitySoo, setSetExtcommunitySoo] = useState("");
     const [setExtcommunityNone, setSetExtcommunityNone] = useState(false);
@@ -120,6 +121,7 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
     const [setIpv6NexthopLocal, setSetIpv6NexthopLocal] = useState("");
     const [setIpv6NexthopPeerAddress, setSetIpv6NexthopPeerAddress] = useState(false);
     const [setIpv6NexthopPreferGlobal, setSetIpv6NexthopPreferGlobal] = useState(false);
+    const [setL3vpnNexthopGre, setSetL3vpnNexthopGre] = useState(false);
 
     // Set Actions - Route Properties
     const [setDistance, setSetDistance] = useState("");
@@ -191,6 +193,7 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
         setSetLargeCommunityValue("");
         setSetLargeCommunityAction("");
         setSetExtcommunityBandwidth("");
+        setSetExtcommunityBandwidthNonTransitive(false);
         setSetExtcommunityRt("");
         setSetExtcommunitySoo("");
         setSetExtcommunityNone(false);
@@ -208,6 +211,7 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
         setSetIpv6NexthopLocal("");
         setSetIpv6NexthopPeerAddress(false);
         setSetIpv6NexthopPreferGlobal(false);
+        setSetL3vpnNexthopGre(false);
         setSetDistance("");
         setSetMetric("");
         setSetMetricType("");
@@ -307,6 +311,7 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
                 }
             }
             if (setExtcommunityBandwidth.trim()) set.extcommunity_bandwidth = setExtcommunityBandwidth.trim();
+            set.extcommunity_bandwidth_non_transitive = setExtcommunityBandwidthNonTransitive && !!setExtcommunityBandwidth.trim();
             if (setExtcommunityRt.trim()) set.extcommunity_rt = setExtcommunityRt.trim();
             if (setExtcommunitySoo.trim()) set.extcommunity_soo = setExtcommunitySoo.trim();
             set.extcommunity_none = setExtcommunityNone;
@@ -329,6 +334,7 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
             if (setIpv6NexthopLocal.trim()) set.ipv6_nexthop_local = setIpv6NexthopLocal.trim();
             set.ipv6_nexthop_peer_address = setIpv6NexthopPeerAddress;
             set.ipv6_nexthop_prefer_global = setIpv6NexthopPreferGlobal;
+            set.l3vpn_nexthop_encapsulation_gre = setL3vpnNexthopGre;
             if (setDistance.trim()) set.distance = parseInt(setDistance);
             if (setMetric.trim()) set.metric = setMetric.trim();
             if (setMetricType.trim()) set.metric_type = setMetricType.trim();
@@ -953,6 +959,20 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
         value={setExtcommunityBandwidth}
         onChange={(e) => setSetExtcommunityBandwidth(e.target.value)}
         />
+        <div className="flex items-center space-x-2">
+        <Checkbox
+        id="setExtcommunityBandwidthNonTransitive"
+        checked={setExtcommunityBandwidthNonTransitive && !!setExtcommunityBandwidth.trim()}
+        onCheckedChange={(checked) => setSetExtcommunityBandwidthNonTransitive(checked as boolean)}
+        disabled={!setExtcommunityBandwidth.trim()}
+        />
+        <Label htmlFor="setExtcommunityBandwidthNonTransitive" className="text-sm font-normal">
+        {t("create.bandwidthNonTransitive")}
+        </Label>
+        </div>
+        {!setExtcommunityBandwidth.trim() && (
+        <p className="text-xs text-muted-foreground">{t("create.bandwidthNonTransitiveHint")}</p>
+        )}
         </div>
         <div className="space-y-2">
         <Label htmlFor="setExtcommunityRt">{t("create.routeTarget")}</Label>
@@ -1164,6 +1184,18 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
         {t("create.preferGlobal")}
         </Label>
         </div>
+        </div>
+
+        <h4 className="font-medium text-sm pt-4">{t("create.l3vpnNexthop")}</h4>
+        <div className="flex items-center space-x-2">
+        <Checkbox
+        id="setL3vpnNexthopGre"
+        checked={setL3vpnNexthopGre}
+        onCheckedChange={(checked) => setSetL3vpnNexthopGre(checked as boolean)}
+        />
+        <Label htmlFor="setL3vpnNexthopGre" className="text-sm font-normal">
+        {t("create.l3vpnNexthopGre")}
+        </Label>
         </div>
         </div>
         </AccordionContent>

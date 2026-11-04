@@ -552,6 +552,11 @@ class RouteMapBatchBuilder(BatchBuilder):
         path = self.mappers[self.mapper_key].get_set_extcommunity_bandwidth(name, rule, bandwidth)
         return self.add_set(path)
 
+    def set_extcommunity_bandwidth_non_transitive(self, name: str, rule: str) -> "RouteMapBatchBuilder":
+        """Encode the extcommunity bandwidth as non-transitive."""
+        path = self.mappers[self.mapper_key].get_set_extcommunity_bandwidth_non_transitive(name, rule)
+        return self.add_set(path)
+
     def set_extcommunity_rt(self, name: str, rule: str, rt: str) -> "RouteMapBatchBuilder":
         """Set extcommunity RT."""
         path = self.mappers[self.mapper_key].get_set_extcommunity_rt(name, rule, rt)
@@ -688,6 +693,16 @@ class RouteMapBatchBuilder(BatchBuilder):
     def delete_set_ipv6_nexthop(self, name: str, rule: str) -> "RouteMapBatchBuilder":
         """Delete set IPv6 next-hop."""
         path = self.mappers[self.mapper_key].get_rule_path(name, rule) + ["set", "ipv6-next-hop"]
+        return self.add_delete(path)
+
+    def set_l3vpn_nexthop_encapsulation_gre(self, name: str, rule: str) -> "RouteMapBatchBuilder":
+        """Accept L3VPN traffic over GRE encapsulation."""
+        path = self.mappers[self.mapper_key].get_set_l3vpn_nexthop_encapsulation_gre(name, rule)
+        return self.add_set(path)
+
+    def delete_set_l3vpn_nexthop(self, name: str, rule: str) -> "RouteMapBatchBuilder":
+        """Delete set L3VPN next-hop."""
+        path = self.mappers[self.mapper_key].get_set_l3vpn_nexthop_path(name, rule)
         return self.add_delete(path)
 
     # ========================================================================
