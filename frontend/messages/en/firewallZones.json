@@ -211,7 +211,7 @@
     "fragmentMatching": "Fragment Matching",
     "matchFragmented": "Match fragmented",
     "matchNonFragmented": "Match non-fragmented",
-    "greMatching": "GRE Matching (1.5+)",
+    "greMatching": "GRE Matching",
     "greKey": "GRE Key",
     "keyValue": "Key value",
     "greVersion": "GRE Version",

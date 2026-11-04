@@ -51,8 +51,7 @@
     "eui64Hint": "One /64 prefix per line",
     "autoconf": "IPv6 SLAAC Autoconf",
     "noDefaultLinkLocal": "No Default Link-Local",
-    "interfaceIdentifier": "Interface Identifier (SLAAC)",
-    "vyos15Only": "VyOS 1.5+ only"
+    "interfaceIdentifier": "Interface Identifier (SLAAC)"
   },
   "ip": {
     "adjustMss": "Adjust MSS",

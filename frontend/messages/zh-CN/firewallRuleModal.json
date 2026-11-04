@@ -149,7 +149,7 @@
     "fragmentTitle": "分片匹配",
     "matchFrag": "匹配分片数据包",
     "matchNonFrag": "匹配未分片数据包",
-    "greTitle": "GRE 匹配 (1.5+)",
+    "greTitle": "GRE 匹配",
     "greKey": "GRE 密钥",
     "keyValue": "密钥值",
     "greVersion": "GRE 版本",

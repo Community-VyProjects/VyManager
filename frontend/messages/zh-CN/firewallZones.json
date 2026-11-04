@@ -211,7 +211,7 @@
     "fragmentMatching": "分片匹配",
     "matchFragmented": "匹配分片包",
     "matchNonFragmented": "匹配非分片包",
-    "greMatching": "GRE 匹配（1.5+）",
+    "greMatching": "GRE 匹配",
     "greKey": "GRE 密钥",
     "keyValue": "密钥值",
     "greVersion": "GRE 版本",
