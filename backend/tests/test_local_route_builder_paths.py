@@ -168,7 +168,6 @@ def test_local_route_match_paths(method, args, op, expected_path, version):
     _run(version, method, args, op, expected_path)
 
 
-
 def test_every_local_route_op_has_a_golden_case():
     names = [case[0] for case in COMMON_CASES + VRF_CASES]
     assert len(names) == len(set(names))
