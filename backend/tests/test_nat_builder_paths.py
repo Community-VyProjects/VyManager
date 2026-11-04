@@ -2,15 +2,18 @@
 
 Every path checked with validateTmplPath on 1.4 (100.64.64.50) and 1.5
 (100.64.64.5), and every set value accepted by configure-mode set on both
-(then discarded). CGNAT and FQDN matches exist only on 1.5; their 1.4
-rejection is covered by test_nat_cgnat_version_gate.py and
-test_nat_fqdn_version_gate.py. Generated for issue #980; edit the tables
-directly if the mapper changes.
+(then discarded). CGNAT exists only on 1.5; its 1.4 rejection is covered by
+test_nat_cgnat_version_gate.py. FQDN matches and DNAT port-mapping are
+pinned in test_nat_fqdn_version_gate.py and test_nat_dnat_port_mapping.py;
+the coverage check counts those tables instead of restating them.
+Generated for issue #980; edit the tables directly if the mapper changes.
 """
 
 import pytest
 
 from tests.dispatchable_ops import dispatchable_ops
+from tests.test_nat_dnat_port_mapping import CASES as DNAT_PORT_MAPPING_CASES
+from tests.test_nat_fqdn_version_gate import BUILDER_CASES as FQDN_CASES
 from vyos_builders.nat.nat import NATBatchBuilder
 
 
@@ -42,7 +45,6 @@ COMMON_CASES = [
     ('delete_destination_rule_source_port', (10,), 'delete', ['nat', 'destination', 'rule', '10', 'source', 'port']),
     ('delete_destination_rule_translation_address', (10,), 'delete', ['nat', 'destination', 'rule', '10', 'translation', 'address']),
     ('delete_destination_rule_translation_options_address_mapping', (10,), 'delete', ['nat', 'destination', 'rule', '10', 'translation', 'options', 'address-mapping']),
-    ('delete_destination_rule_translation_options_port_mapping', (10,), 'delete', ['nat', 'destination', 'rule', '10', 'translation', 'options', 'port-mapping']),
     ('delete_destination_rule_translation_port', (10,), 'delete', ['nat', 'destination', 'rule', '10', 'translation', 'port']),
     ('delete_destination_rule_translation_redirect_port', (10,), 'delete', ['nat', 'destination', 'rule', '10', 'translation', 'redirect', 'port']),
     ('delete_source_rule', (10,), 'delete', ['nat', 'source', 'rule', '10']),
@@ -93,7 +95,6 @@ COMMON_CASES = [
     ('set_destination_rule_source_port', (10, '80'), 'set', ['nat', 'destination', 'rule', '10', 'source', 'port', '80']),
     ('set_destination_rule_translation_address', (10, '192.0.2.1'), 'set', ['nat', 'destination', 'rule', '10', 'translation', 'address', '192.0.2.1']),
     ('set_destination_rule_translation_options_address_mapping', (10, 'random'), 'set', ['nat', 'destination', 'rule', '10', 'translation', 'options', 'address-mapping', 'random']),
-    ('set_destination_rule_translation_options_port_mapping', (10, 'random'), 'set', ['nat', 'destination', 'rule', '10', 'translation', 'options', 'port-mapping', 'random']),
     ('set_destination_rule_translation_port', (10, '80'), 'set', ['nat', 'destination', 'rule', '10', 'translation', 'port', '80']),
     ('set_destination_rule_translation_redirect_port', (10, '80'), 'set', ['nat', 'destination', 'rule', '10', 'translation', 'redirect', 'port', '80']),
     ('set_source_rule', (10,), 'set', ['nat', 'source', 'rule', '10']),
@@ -145,10 +146,6 @@ V15_ONLY_CASES = [
     ('delete_cgnat_rule', (10,), 'delete', ['nat', 'cgnat', 'rule', '10']),
     ('delete_cgnat_rule_source_pool', (10,), 'delete', ['nat', 'cgnat', 'rule', '10', 'source', 'pool']),
     ('delete_cgnat_rule_translation_pool', (10,), 'delete', ['nat', 'cgnat', 'rule', '10', 'translation', 'pool']),
-    ('delete_destination_rule_destination_fqdn', (10,), 'delete', ['nat', 'destination', 'rule', '10', 'destination', 'fqdn']),
-    ('delete_destination_rule_source_fqdn', (10,), 'delete', ['nat', 'destination', 'rule', '10', 'source', 'fqdn']),
-    ('delete_source_rule_destination_fqdn', (10,), 'delete', ['nat', 'source', 'rule', '10', 'destination', 'fqdn']),
-    ('delete_source_rule_source_fqdn', (10,), 'delete', ['nat', 'source', 'rule', '10', 'source', 'fqdn']),
     ('set_cgnat_log_allocation', (), 'set', ['nat', 'cgnat', 'log-allocation']),
     ('set_cgnat_pool_external', ('POOL1',), 'set', ['nat', 'cgnat', 'pool', 'external', 'POOL1']),
     ('set_cgnat_pool_external_per_user_limit_port', ('POOL1', '80'), 'set', ['nat', 'cgnat', 'pool', 'external', 'POOL1', 'per-user-limit', 'port', '80']),
@@ -160,10 +157,6 @@ V15_ONLY_CASES = [
     ('set_cgnat_rule', (10,), 'set', ['nat', 'cgnat', 'rule', '10']),
     ('set_cgnat_rule_source_pool', (10, 'POOL1'), 'set', ['nat', 'cgnat', 'rule', '10', 'source', 'pool', 'POOL1']),
     ('set_cgnat_rule_translation_pool', (10, 'POOL1'), 'set', ['nat', 'cgnat', 'rule', '10', 'translation', 'pool', 'POOL1']),
-    ('set_destination_rule_destination_fqdn', (10, 'host.example.com'), 'set', ['nat', 'destination', 'rule', '10', 'destination', 'fqdn', 'host.example.com']),
-    ('set_destination_rule_source_fqdn', (10, 'host.example.com'), 'set', ['nat', 'destination', 'rule', '10', 'source', 'fqdn', 'host.example.com']),
-    ('set_source_rule_destination_fqdn', (10, 'host.example.com'), 'set', ['nat', 'source', 'rule', '10', 'destination', 'fqdn', 'host.example.com']),
-    ('set_source_rule_source_fqdn', (10, 'host.example.com'), 'set', ['nat', 'source', 'rule', '10', 'source', 'fqdn', 'host.example.com']),
 ]
 
 
@@ -173,6 +166,7 @@ def test_nat_v1_5_only_paths(method, args, op, expected_path):
 
 
 def test_every_nat_op_has_a_golden_case():
-    names = [case[0] for case in COMMON_CASES + V15_ONLY_CASES]
+    tables = COMMON_CASES + V15_ONLY_CASES + FQDN_CASES + DNAT_PORT_MAPPING_CASES
+    names = [case[0] for case in tables]
     assert len(names) == len(set(names))
     assert set(names) == dispatchable_ops(NATBatchBuilder(version="1.5"))

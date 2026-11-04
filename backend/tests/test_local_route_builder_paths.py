@@ -2,14 +2,16 @@
 
 Every path checked with validateTmplPath on 1.4 (100.64.64.50) and 1.5
 (100.64.64.5), and every set value accepted by configure-mode set on both
-(then discarded). ``set vrf`` exists only on 1.5; its 1.4 rejection is
-covered by test_local_route_vrf_version_gate.py.
+(then discarded). ``set vrf`` exists only on 1.5; its paths and 1.4
+rejection are pinned in test_local_route_vrf_version_gate.py, and the
+coverage check counts that table instead of restating it.
 """
 
 import pytest
 
 from routers.local_route.local_route import _parse_rule
 from tests.dispatchable_ops import dispatchable_ops
+from tests.test_local_route_vrf_version_gate import BUILDER_CASES as VRF_CASES
 from vyos_builders.local_route.local_route import LocalRouteBatchBuilder
 
 
@@ -166,21 +168,9 @@ def test_local_route_match_paths(method, args, op, expected_path, version):
     _run(version, method, args, op, expected_path)
 
 
-V15_ONLY_CASES = [
-    ('delete_local_route6_rule_set_vrf', (10,), 'delete', ['policy', 'local-route6', 'rule', '10', 'set', 'vrf']),
-    ('delete_local_route_rule_set_vrf', (10,), 'delete', ['policy', 'local-route', 'rule', '10', 'set', 'vrf']),
-    ('set_local_route6_rule_set_vrf', (10, 'blue'), 'set', ['policy', 'local-route6', 'rule', '10', 'set', 'vrf', 'blue']),
-    ('set_local_route_rule_set_vrf', (10, 'blue'), 'set', ['policy', 'local-route', 'rule', '10', 'set', 'vrf', 'blue']),
-]
-
-
-@pytest.mark.parametrize("method, args, op, expected_path", V15_ONLY_CASES)
-def test_local_route_v1_5_only_paths(method, args, op, expected_path):
-    _run("1.5", method, args, op, expected_path)
-
 
 def test_every_local_route_op_has_a_golden_case():
-    names = [case[0] for case in COMMON_CASES + V15_ONLY_CASES]
+    names = [case[0] for case in COMMON_CASES + VRF_CASES]
     assert len(names) == len(set(names))
     assert set(names) == dispatchable_ops(LocalRouteBatchBuilder(version="1.5"))
 
