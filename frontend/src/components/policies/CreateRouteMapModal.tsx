@@ -16,6 +16,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { AlertCircle } from "lucide-react";
 import { routeMapService } from "@/lib/api/route-map";
 import type { MatchConditions, RouteMapCapabilities, SetActions } from "@/lib/api/route-map";
+import { RouteMapEvpnMatchSection, RouteMapEvpnSetSection } from "./RouteMapEvpnSections";
+import { emptyEvpnMatchDraft, emptyEvpnSetDraft, evpnMatchFields, evpnSetFields } from "./route-map-evpn";
 
 interface CreateRouteMapModalProps {
     open: boolean;
@@ -56,6 +58,8 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
     const [matchRpki, setMatchRpki] = useState("");
     const [matchRpkiExtcommunity, setMatchRpkiExtcommunity] = useState("");
     const [matchSourcePeer, setMatchSourcePeer] = useState("");
+    const [matchEvpn, setMatchEvpn] = useState(emptyEvpnMatchDraft);
+    const [setEvpn, setSetEvpn] = useState(emptyEvpnSetDraft);
     const [capabilities, setCapabilities] = useState<RouteMapCapabilities | null>(null);
 
     // Match Conditions - IP/IPv6 Address
@@ -158,6 +162,7 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
         setMatchRpki("");
         setMatchRpkiExtcommunity("");
         setMatchSourcePeer("");
+        setMatchEvpn(emptyEvpnMatchDraft());
         setMatchIpAddressAccessList("");
         setMatchIpAddressPrefixList("");
         setMatchIpAddressPrefixLen("");
@@ -209,6 +214,7 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
         setSetSrc("");
         setSetTable("");
         setSetTag("");
+        setSetEvpn(emptyEvpnSetDraft());
 
         setError(null);
     };
@@ -248,6 +254,7 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
             if (matchRpki.trim()) match.rpki = matchRpki.trim();
             if (matchRpkiExtcommunity.trim()) match.rpki_extcommunity = matchRpkiExtcommunity.trim();
             if (matchSourcePeer.trim()) match.source_peer = matchSourcePeer.trim();
+            Object.assign(match, evpnMatchFields(matchEvpn));
             if (matchIpAddressAccessList.trim()) match.ip_address_access_list = matchIpAddressAccessList.trim();
             if (matchIpAddressPrefixList.trim()) match.ip_address_prefix_list = matchIpAddressPrefixList.trim();
             if (matchIpAddressPrefixLen.trim()) match.ip_address_prefix_len = parseInt(matchIpAddressPrefixLen);
@@ -328,6 +335,7 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
             if (setSrc.trim()) set.src = setSrc.trim();
             if (setTable.trim()) set.table = parseInt(setTable);
             if (setTag.trim()) set.tag = parseInt(setTag);
+            Object.assign(set, evpnSetFields(setEvpn));
 
             const rule: Record<string, unknown> = {
                 rule_number: parseInt(ruleNumber),
@@ -601,6 +609,12 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
         </div>
         </AccordionContent>
         </AccordionItem>
+
+        <RouteMapEvpnMatchSection
+        value={matchEvpn}
+        onChange={setMatchEvpn}
+        capability={capabilities?.features.match_evpn}
+        />
 
         {/* IP/IPv6 Address */}
         <AccordionItem value="address">
@@ -1154,6 +1168,8 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
         </div>
         </AccordionContent>
         </AccordionItem>
+
+        <RouteMapEvpnSetSection value={setEvpn} onChange={setSetEvpn} />
 
         {/* Route Properties */}
         <AccordionItem value="route-props">

@@ -265,6 +265,35 @@ class RouteMapBatchBuilder(BatchBuilder):
         return self.add_delete(path)
 
     # ========================================================================
+    # Match Conditions - EVPN
+    # ========================================================================
+
+    def set_match_evpn_default_route(self, name: str, rule: str) -> "RouteMapBatchBuilder":
+        """Set match EVPN default route."""
+        path = self.mappers[self.mapper_key].get_match_evpn_default_route(name, rule)
+        return self.add_set(path)
+
+    def set_match_evpn_rd(self, name: str, rule: str, rd: str) -> "RouteMapBatchBuilder":
+        """Set match EVPN route distinguisher."""
+        path = self.mappers[self.mapper_key].get_match_evpn_rd(name, rule, rd)
+        return self.add_set(path)
+
+    def set_match_evpn_route_type(self, name: str, rule: str, route_type: str) -> "RouteMapBatchBuilder":
+        """Set match EVPN route type."""
+        path = self.mappers[self.mapper_key].get_match_evpn_route_type(name, rule, route_type)
+        return self.add_set(path)
+
+    def set_match_evpn_vni(self, name: str, rule: str, vni: str) -> "RouteMapBatchBuilder":
+        """Set match EVPN VNI."""
+        path = self.mappers[self.mapper_key].get_match_evpn_vni(name, rule, vni)
+        return self.add_set(path)
+
+    def delete_match_evpn(self, name: str, rule: str) -> "RouteMapBatchBuilder":
+        """Delete all EVPN match conditions."""
+        path = self.mappers[self.mapper_key].get_match_evpn_path(name, rule)
+        return self.add_delete(path)
+
+    # ========================================================================
     # Match Conditions - IP/IPv6 Address
     # ========================================================================
 
@@ -726,12 +755,33 @@ class RouteMapBatchBuilder(BatchBuilder):
         return self.add_delete(path)
 
     # ========================================================================
+    # Set Actions - EVPN
+    # ========================================================================
+
+    def set_evpn_gateway_ipv4(self, name: str, rule: str, gateway: str) -> "RouteMapBatchBuilder":
+        """Set EVPN gateway IPv4 address."""
+        path = self.mappers[self.mapper_key].get_set_evpn_gateway_ipv4(name, rule, gateway)
+        return self.add_set(path)
+
+    def set_evpn_gateway_ipv6(self, name: str, rule: str, gateway: str) -> "RouteMapBatchBuilder":
+        """Set EVPN gateway IPv6 address."""
+        path = self.mappers[self.mapper_key].get_set_evpn_gateway_ipv6(name, rule, gateway)
+        return self.add_set(path)
+
+    def delete_set_evpn(self, name: str, rule: str) -> "RouteMapBatchBuilder":
+        """Delete all EVPN set actions."""
+        path = self.mappers[self.mapper_key].get_set_evpn_path(name, rule)
+        return self.add_delete(path)
+
+    # ========================================================================
     # Capabilities
     # ========================================================================
 
     def get_capabilities(self) -> Dict[str, Any]:
         """Get capabilities for the current VyOS version."""
         match_nodes = self.mappers[self.mapper_key].versioned_match_nodes()
+        evpn_route_types = list(self.mappers[self.mapper_key].evpn_route_types())
+        vni_min, vni_max = self.mappers[self.mapper_key].EVPN_VNI_RANGE
         return {
             "version": self.version,
             "features": {
@@ -754,6 +804,13 @@ class RouteMapBatchBuilder(BatchBuilder):
                 "match_source_peer": {
                     "supported": "source-peer" in match_nodes,
                     "description": "Match BGP source peer",
+                },
+                "match_evpn": {
+                    "supported": True,
+                    "description": "Match EVPN default route, RD, route type and VNI",
+                    "route_types": evpn_route_types,
+                    "vni_min": vni_min,
+                    "vni_max": vni_max,
                 },
                 "set_actions": {
                     "supported": True,

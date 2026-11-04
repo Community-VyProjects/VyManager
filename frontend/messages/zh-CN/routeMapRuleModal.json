@@ -137,6 +137,23 @@
     "tableNumber": "路由表编号",
     "tag": "标签"
   },
+  "evpn": {
+    "section": "EVPN",
+    "routeType": "路由类型",
+    "selectRouteType": "选择路由类型",
+    "routeTypeEad": "EAD（类型 1）",
+    "routeTypeMacip": "MAC-IP（类型 2）",
+    "routeTypeMulticast": "组播（类型 3）",
+    "routeTypeEs": "以太网段（类型 4）",
+    "routeTypePrefix": "前缀（类型 5）",
+    "routeTypeNumbered": "类型 {n}",
+    "vni": "VNI",
+    "rd": "路由区分符",
+    "rdPlaceholder": "65000:100 或 192.0.2.1:100",
+    "defaultRoute": "默认类型 5 路由",
+    "gatewayIpv4": "网关 IPv4 地址",
+    "gatewayIpv6": "网关 IPv6 地址"
+  },
   "advanced": {
     "intro": "高级规则流程控制选项，用于调用其他路由映射或跳转到其他规则。",
     "callRouteMap": "调用路由映射",
