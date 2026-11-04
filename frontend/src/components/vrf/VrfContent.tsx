@@ -67,6 +67,7 @@ export function VrfContent({
   const serviceCount = vrf.services.length;
 
   const is15 = capabilities.version_info.is_1_5;
+  const rpkiSupported = capabilities.features.rpki.supported;
 
   return (
     <div className="flex flex-col h-full">
@@ -243,7 +244,7 @@ export function VrfContent({
                   )}
                 </TabsTrigger>
 
-                {is15 && (
+                {rpkiSupported && (
                   <TabsTrigger
                     value="rpki"
                     className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4"
@@ -359,7 +360,7 @@ export function VrfContent({
                 />
               </TabsContent>
 
-              {is15 && (
+              {rpkiSupported && (
                 <TabsContent value="rpki" className="mt-0">
                   <VrfRpkiTab
                     vrf={vrf}

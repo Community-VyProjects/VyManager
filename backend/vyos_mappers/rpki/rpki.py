@@ -1,13 +1,26 @@
 """RPKI Protocol Command Mapper."""
-from typing import List
+from typing import FrozenSet, List
 from ..base import BaseFeatureMapper
 
 
 class RpkiMapper(BaseFeatureMapper):
     """Base mapper for RPKI (Resource Public Key Infrastructure) configuration paths."""
 
+    # Cache leaves that exist on 1.5 and not on 1.4 (validateTmplPath on both).
+    _CACHE_1_5_ONLY = ("source-address",)
+
     def __init__(self, version: str):
         super().__init__(version)
+
+    def versioned_cache_nodes(self) -> FrozenSet[str]:
+        """Version-dependent cache leaves this device has."""
+        if "1.4" in self.version:
+            return frozenset()
+        return frozenset(self._CACHE_1_5_ONLY)
+
+    def _require_cache(self, node: str) -> None:
+        if node not in self.versioned_cache_nodes():
+            raise ValueError(f"rpki cache {node} is not supported on this device")
 
     def _rpki(self) -> List[str]:
         return ["protocols", "rpki"]
@@ -35,9 +48,11 @@ class RpkiMapper(BaseFeatureMapper):
         return self._rpki() + ["cache", address, "preference"]
 
     def get_cache_source_address(self, address: str, source: str) -> List[str]:
+        self._require_cache("source-address")
         return self._rpki() + ["cache", address, "source-address", source]
 
     def get_cache_source_address_delete(self, address: str) -> List[str]:
+        self._require_cache("source-address")
         return self._rpki() + ["cache", address, "source-address"]
 
     def get_cache_ssh_key(self, address: str, key: str) -> List[str]:

@@ -138,7 +138,18 @@ async def rpki_batch_configure(http_request: Request, body: RpkiBatchRequest):
                     method(values[0], values[1])
                 else:
                     method(operation.value, "")
+    except HTTPException:
+        raise
+    except ValueError as e:
+        # The mapper rejects a node this device version does not have.
+        raise HTTPException(status_code=400, detail=str(e))
+    except AttributeError as e:
+        raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
+    except Exception:
+        logger.exception("Unhandled error in rpki_batch_configure")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
+    try:
         response = service.execute_batch(builder)
 
         return VyOSResponse(
@@ -146,8 +157,6 @@ async def rpki_batch_configure(http_request: Request, body: RpkiBatchRequest):
             data={"message": "RPKI configuration updated"},
             error=response.error if response.error else None,
         )
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
     except Exception:
         logger.exception("Unhandled error in rpki_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")

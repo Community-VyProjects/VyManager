@@ -211,7 +211,7 @@ class VrfBatchBuilder(
                     "description": "Static route configuration within VRF (IPv4 and IPv6)",
                 },
                 "rpki": {
-                    "supported": is_1_5,
+                    "supported": self.mappers["vrf_rpki"].is_supported(),
                     "description": "RPKI configuration within VRF (VyOS 1.5+ only)",
                 },
                 "failover": {

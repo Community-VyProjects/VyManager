@@ -49,7 +49,7 @@ export function RpkiContent() {
   const hasWritePermission = canWrite(FeatureGroup.RPKI);
 
   const [config, setConfig] = useState<RpkiConfig | null>(null);
-  const [, setCapabilities] = useState<RpkiCapabilities | null>(null);
+  const [capabilities, setCapabilities] = useState<RpkiCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"cache-servers" | "settings">("cache-servers");
@@ -105,6 +105,7 @@ export function RpkiContent() {
   // Stats
   // ============================================================================
 
+  const sourceAddressSupported = capabilities?.features.cache_source_address.supported ?? false;
   const cacheServerCount = config?.cache_servers.length ?? 0;
   const sshEnabledCount = config?.cache_servers.filter((s) => s.ssh != null).length ?? 0;
 
@@ -385,7 +386,9 @@ export function RpkiContent() {
                         <TableHead>{t("servers.address")}</TableHead>
                         <TableHead>{t("servers.port")}</TableHead>
                         <TableHead>{t("servers.preference")}</TableHead>
-                        <TableHead>{t("servers.sourceAddress")}</TableHead>
+                        {sourceAddressSupported && (
+                          <TableHead>{t("servers.sourceAddress")}</TableHead>
+                        )}
                         <TableHead>SSH</TableHead>
                         {hasWritePermission && <TableHead className="w-20" />}
                       </TableRow>
@@ -396,9 +399,11 @@ export function RpkiContent() {
                           <TableCell className="font-mono">{server.address}</TableCell>
                           <TableCell>{server.port ?? "—"}</TableCell>
                           <TableCell>{server.preference ?? "—"}</TableCell>
-                          <TableCell className="font-mono">
-                            {server.source_address ?? "—"}
-                          </TableCell>
+                          {sourceAddressSupported && (
+                            <TableCell className="font-mono">
+                              {server.source_address ?? "—"}
+                            </TableCell>
+                          )}
                           <TableCell>
                             {server.ssh ? (
                               <Badge variant="secondary" className="font-mono text-xs">
@@ -568,6 +573,7 @@ export function RpkiContent() {
         }}
         onSubmit={editingServer ? handleUpdateServer : handleCreateServer}
         existingServer={editingServer}
+        sourceAddressSupported={sourceAddressSupported}
       />
 
       <DeleteRpkiCacheServerModal

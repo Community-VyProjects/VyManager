@@ -39,15 +39,39 @@ Config tree:
       source-address <ipv6>         (multi)
 """
 
-from typing import List
+from typing import FrozenSet, List
 from ..base import BaseFeatureMapper
 
 BASE = ["service", "router-advert"]
 
 
 class RouterAdvertMapper(BaseFeatureMapper):
+    # Leaves that exist on 1.5 and not on 1.4 (validateTmplPath on both).
+    _INTERFACE_1_5_ONLY = ("captive-portal",)
+    _PREFIX_1_5_ONLY = ("base-interface",)
+
     def __init__(self, version: str):
         super().__init__(version)
+
+    def versioned_interface_nodes(self) -> FrozenSet[str]:
+        """Version-dependent interface leaves this device has."""
+        if "1.4" in self.version:
+            return frozenset()
+        return frozenset(self._INTERFACE_1_5_ONLY)
+
+    def versioned_prefix_nodes(self) -> FrozenSet[str]:
+        """Version-dependent prefix leaves this device has."""
+        if "1.4" in self.version:
+            return frozenset()
+        return frozenset(self._PREFIX_1_5_ONLY)
+
+    def _require_interface(self, node: str) -> None:
+        if node not in self.versioned_interface_nodes():
+            raise ValueError(f"router-advert interface {node} is not supported on this device")
+
+    def _require_prefix(self, node: str) -> None:
+        if node not in self.versioned_prefix_nodes():
+            raise ValueError(f"router-advert prefix {node} is not supported on this device")
 
     # ========================================================================
     # Interface paths
@@ -60,9 +84,11 @@ class RouterAdvertMapper(BaseFeatureMapper):
         return BASE + ["interface", interface, "auto-ignore", prefix]
 
     def get_interface_captive_portal(self, interface: str, value: str) -> List[str]:
+        self._require_interface("captive-portal")
         return BASE + ["interface", interface, "captive-portal", value]
 
     def get_interface_captive_portal_path(self, interface: str) -> List[str]:
+        self._require_interface("captive-portal")
         return BASE + ["interface", interface, "captive-portal"]
 
     def get_interface_default_lifetime(self, interface: str, value: str) -> List[str]:
@@ -148,9 +174,11 @@ class RouterAdvertMapper(BaseFeatureMapper):
         return BASE + ["interface", interface, "prefix", prefix]
 
     def get_prefix_base_interface(self, interface: str, prefix: str, value: str) -> List[str]:
+        self._require_prefix("base-interface")
         return BASE + ["interface", interface, "prefix", prefix, "base-interface", value]
 
     def get_prefix_base_interface_path(self, interface: str, prefix: str) -> List[str]:
+        self._require_prefix("base-interface")
         return BASE + ["interface", interface, "prefix", prefix, "base-interface"]
 
     def get_prefix_decrement_lifetime(self, interface: str, prefix: str) -> List[str]:

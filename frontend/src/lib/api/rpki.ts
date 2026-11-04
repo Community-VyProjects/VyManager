@@ -32,6 +32,7 @@ export interface RpkiCapabilities {
     expire_interval: { supported: boolean; description: string };
     polling_period: { supported: boolean; description: string };
     retry_interval: { supported: boolean; description: string };
+    cache_source_address: { supported: boolean; description: string };
     ssh_transport: { supported: boolean; description: string };
   };
   instance_name?: string;

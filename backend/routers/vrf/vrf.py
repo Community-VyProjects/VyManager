@@ -422,7 +422,18 @@ async def vrf_batch_configure(http_request: Request, body: VrfBatchRequest):
                     method(values[0], values[1])
                 else:
                     method(operation.value)
+    except HTTPException:
+        raise
+    except ValueError as e:
+        # The mapper rejects a node this device version does not have.
+        raise HTTPException(status_code=400, detail=str(e))
+    except AttributeError as e:
+        raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
+    except Exception:
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
+    try:
         response = service.execute_batch(builder)
 
         return VyOSResponse(
@@ -430,12 +441,6 @@ async def vrf_batch_configure(http_request: Request, body: VrfBatchRequest):
             data={"message": "VRF configuration updated"},
             error=response.error if response.error else None
         )
-    except HTTPException:
-        raise
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")

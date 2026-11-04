@@ -251,7 +251,7 @@ CommandMapperRegistry.register_feature("ospfv3", get_ospfv3_mapper)
 # VRF uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("vrf", get_vrf_mapper)
 # VRF sub-mappers. OSPF and BGP take version so redistribute nhrp can raise on 1.4.
-CommandMapperRegistry.register_feature("vrf_rpki", lambda v: VrfRpkiMapper())
+CommandMapperRegistry.register_feature("vrf_rpki", VrfRpkiMapper)
 CommandMapperRegistry.register_feature("vrf_ospf", VrfOspfMapper)
 CommandMapperRegistry.register_feature("vrf_ospfv3", lambda v: VrfOspfv3Mapper())
 CommandMapperRegistry.register_feature("vrf_isis", VrfIsisMapper)
