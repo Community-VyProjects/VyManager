@@ -1,12 +1,17 @@
 """Golden (method, args, op, expected_path) cases for LocalRouteBatchBuilder.
 
-fwmark, protocol, source port, and destination port exist on 1.4 and 1.5
-(validateTmplPath on 100.64.64.50 and 100.64.64.5).
+Every path checked with validateTmplPath on 1.4 (100.64.64.50) and 1.5
+(100.64.64.5), and every set value accepted by configure-mode set on both
+(then discarded). ``set vrf`` exists only on 1.5; its paths and 1.4
+rejection are pinned in test_local_route_vrf_version_gate.py, and the
+coverage check counts that table instead of restating it.
 """
 
 import pytest
 
 from routers.local_route.local_route import _parse_rule
+from tests.dispatchable_ops import dispatchable_ops
+from tests.test_local_route_vrf_version_gate import BUILDER_CASES as VRF_CASES
 from vyos_builders.local_route.local_route import LocalRouteBatchBuilder
 
 
@@ -138,6 +143,22 @@ COMMON_CASES = [
         "delete",
         ["policy", "local-route6", "rule", "10", "destination", "address"],
     ),
+    ('delete_local_route6_rule', (10,), 'delete', ['policy', 'local-route6', 'rule', '10']),
+    ('delete_local_route6_rule_inbound_interface', (10,), 'delete', ['policy', 'local-route6', 'rule', '10', 'inbound-interface']),
+    ('delete_local_route6_rule_set_table', (10,), 'delete', ['policy', 'local-route6', 'rule', '10', 'set', 'table']),
+    ('delete_local_route_rule', (10,), 'delete', ['policy', 'local-route', 'rule', '10']),
+    ('delete_local_route_rule_inbound_interface', (10,), 'delete', ['policy', 'local-route', 'rule', '10', 'inbound-interface']),
+    ('delete_local_route_rule_set_table', (10,), 'delete', ['policy', 'local-route', 'rule', '10', 'set', 'table']),
+    ('set_local_route6_rule', (10,), 'set', ['policy', 'local-route6', 'rule', '10']),
+    ('set_local_route6_rule_destination', (10, '2001:db8::8'), 'set', ['policy', 'local-route6', 'rule', '10', 'destination', 'address', '2001:db8::8']),
+    ('set_local_route6_rule_inbound_interface', (10, 'eth1'), 'set', ['policy', 'local-route6', 'rule', '10', 'inbound-interface', 'eth1']),
+    ('set_local_route6_rule_set_table', (10, '100'), 'set', ['policy', 'local-route6', 'rule', '10', 'set', 'table', '100']),
+    ('set_local_route6_rule_source', (10, '2001:db8::9'), 'set', ['policy', 'local-route6', 'rule', '10', 'source', 'address', '2001:db8::9']),
+    ('set_local_route_rule', (10,), 'set', ['policy', 'local-route', 'rule', '10']),
+    ('set_local_route_rule_destination', (10, '192.0.2.8'), 'set', ['policy', 'local-route', 'rule', '10', 'destination', 'address', '192.0.2.8']),
+    ('set_local_route_rule_inbound_interface', (10, 'eth1'), 'set', ['policy', 'local-route', 'rule', '10', 'inbound-interface', 'eth1']),
+    ('set_local_route_rule_set_table', (10, '100'), 'set', ['policy', 'local-route', 'rule', '10', 'set', 'table', '100']),
+    ('set_local_route_rule_source', (10, '192.0.2.9'), 'set', ['policy', 'local-route', 'rule', '10', 'source', 'address', '192.0.2.9']),
 ]
 
 
@@ -145,6 +166,12 @@ COMMON_CASES = [
 @pytest.mark.parametrize("version", ["1.4", "1.5"])
 def test_local_route_match_paths(method, args, op, expected_path, version):
     _run(version, method, args, op, expected_path)
+
+
+def test_every_local_route_op_has_a_golden_case():
+    names = [case[0] for case in COMMON_CASES + VRF_CASES]
+    assert len(names) == len(set(names))
+    assert set(names) == dispatchable_ops(LocalRouteBatchBuilder(version="1.5"))
 
 
 def test_capabilities_advertise_match_leaves():
