@@ -99,6 +99,7 @@ class SetActions(BaseModel):
     large_community_replace_values: Optional[List[str]] = None
     large_community_remove_all: bool = False
     extcommunity_bandwidth: Optional[str] = None
+    extcommunity_bandwidth_non_transitive: bool = False
     extcommunity_rt: Optional[str] = None
     extcommunity_soo: Optional[str] = None
     extcommunity_none: bool = False
@@ -120,6 +121,7 @@ class SetActions(BaseModel):
     ipv6_nexthop_local: Optional[str] = None
     ipv6_nexthop_peer_address: bool = False
     ipv6_nexthop_prefer_global: bool = False
+    l3vpn_nexthop_encapsulation_gre: bool = False
 
     # EVPN
     evpn_gateway_ipv4: Optional[str] = None
@@ -439,6 +441,7 @@ def parse_set_actions(set_data: dict) -> SetActions:
     if "extcommunity" in set_data:
         extc = set_data["extcommunity"]
         set_actions.extcommunity_bandwidth = extc.get("bandwidth")
+        set_actions.extcommunity_bandwidth_non_transitive = "bandwidth-non-transitive" in extc
         set_actions.extcommunity_rt = extc.get("rt")
         set_actions.extcommunity_soo = extc.get("soo")
         set_actions.extcommunity_none = "none" in extc
@@ -471,6 +474,9 @@ def parse_set_actions(set_data: dict) -> SetActions:
         set_actions.ipv6_nexthop_local = ipv6_nh.get("local")
         set_actions.ipv6_nexthop_peer_address = "peer-address" in ipv6_nh
         set_actions.ipv6_nexthop_prefer_global = "prefer-global" in ipv6_nh
+
+    l3vpn_encap = set_data.get("l3vpn-nexthop", {}).get("encapsulation", {})
+    set_actions.l3vpn_nexthop_encapsulation_gre = "gre" in l3vpn_encap
 
     # EVPN
     evpn_gateway = set_data.get("evpn", {}).get("gateway", {})
@@ -753,6 +759,8 @@ async def reorder_route_map_rules(http_request: Request, body: ReorderRouteMapRe
 
             if set_actions.extcommunity_bandwidth:
                 builder.set_extcommunity_bandwidth(body.route_map_name, str(new_number), set_actions.extcommunity_bandwidth)
+            if set_actions.extcommunity_bandwidth_non_transitive:
+                builder.set_extcommunity_bandwidth_non_transitive(body.route_map_name, str(new_number))
             if set_actions.extcommunity_rt:
                 builder.set_extcommunity_rt(body.route_map_name, str(new_number), set_actions.extcommunity_rt)
             if set_actions.extcommunity_soo:
@@ -785,6 +793,8 @@ async def reorder_route_map_rules(http_request: Request, body: ReorderRouteMapRe
                 builder.set_ipv6_nexthop_local(body.route_map_name, str(new_number), set_actions.ipv6_nexthop_local)
             if set_actions.ipv6_nexthop_prefer_global:
                 builder.set_ipv6_nexthop_prefer_global(body.route_map_name, str(new_number))
+            if set_actions.l3vpn_nexthop_encapsulation_gre:
+                builder.set_l3vpn_nexthop_encapsulation_gre(body.route_map_name, str(new_number))
 
             # EVPN
             if set_actions.evpn_gateway_ipv4:

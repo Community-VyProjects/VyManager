@@ -164,6 +164,7 @@ export function RouteMapRuleModal({
   // Large Community Remove All
   const [largeCommunityRemoveAll, setLargeCommunityRemoveAll] = useState(false);
   const [setExtcommunityBandwidth, setSetExtcommunityBandwidth] = useState("");
+  const [setExtcommunityBandwidthNonTransitive, setSetExtcommunityBandwidthNonTransitive] = useState(false);
   const [setExtcommunityRt, setSetExtcommunityRt] = useState("");
   const [setExtcommunitySoo, setSetExtcommunitySoo] = useState("");
   const [setExtcommunityNone, setSetExtcommunityNone] = useState(false);
@@ -185,6 +186,7 @@ export function RouteMapRuleModal({
   const [setIpv6NexthopLocal, setSetIpv6NexthopLocal] = useState("");
   const [setIpv6NexthopPeerAddress, setSetIpv6NexthopPeerAddress] = useState(false);
   const [setIpv6NexthopPreferGlobal, setSetIpv6NexthopPreferGlobal] = useState(false);
+  const [setL3vpnNexthopGre, setSetL3vpnNexthopGre] = useState(false);
 
   // Set Actions - Route Properties
   const [setDistance, setSetDistance] = useState("");
@@ -467,6 +469,7 @@ export function RouteMapRuleModal({
     setNewLargeCommunityReplace("");
     setLargeCommunityRemoveAll(false);
     setSetExtcommunityBandwidth("");
+    setSetExtcommunityBandwidthNonTransitive(false);
     setSetExtcommunityRt("");
     setSetExtcommunitySoo("");
     setSetExtcommunityNone(false);
@@ -484,6 +487,7 @@ export function RouteMapRuleModal({
     setSetIpv6NexthopLocal("");
     setSetIpv6NexthopPeerAddress(false);
     setSetIpv6NexthopPreferGlobal(false);
+    setSetL3vpnNexthopGre(false);
     setSetDistance("");
     setSetMetric("");
     setSetMetricType("");
@@ -601,6 +605,7 @@ export function RouteMapRuleModal({
     setLargeCommunityRemoveAll(set.large_community_remove_all || false);
 
     setSetExtcommunityBandwidth(set.extcommunity_bandwidth || "");
+    setSetExtcommunityBandwidthNonTransitive(set.extcommunity_bandwidth_non_transitive || false);
     setSetExtcommunityRt(set.extcommunity_rt || "");
     setSetExtcommunitySoo(set.extcommunity_soo || "");
     setSetExtcommunityNone(set.extcommunity_none || false);
@@ -629,6 +634,7 @@ export function RouteMapRuleModal({
     setSetIpv6NexthopLocal(set.ipv6_nexthop_local || "");
     setSetIpv6NexthopPeerAddress(set.ipv6_nexthop_peer_address || false);
     setSetIpv6NexthopPreferGlobal(set.ipv6_nexthop_prefer_global || false);
+    setSetL3vpnNexthopGre(set.l3vpn_nexthop_encapsulation_gre || false);
     setSetDistance(set.distance !== null ? String(set.distance) : "");
     setSetMetric(set.metric || "");
     setSetMetricType(set.metric_type || "");
@@ -716,6 +722,7 @@ export function RouteMapRuleModal({
         set.large_community_remove_all = true;
       }
       if (setExtcommunityBandwidth.trim()) set.extcommunity_bandwidth = setExtcommunityBandwidth.trim();
+      set.extcommunity_bandwidth_non_transitive = setExtcommunityBandwidthNonTransitive && !!setExtcommunityBandwidth.trim();
       if (setExtcommunityRt.trim()) set.extcommunity_rt = setExtcommunityRt.trim();
       if (setExtcommunitySoo.trim()) set.extcommunity_soo = setExtcommunitySoo.trim();
       set.extcommunity_none = setExtcommunityNone;
@@ -738,6 +745,7 @@ export function RouteMapRuleModal({
       if (setIpv6NexthopLocal.trim()) set.ipv6_nexthop_local = setIpv6NexthopLocal.trim();
       set.ipv6_nexthop_peer_address = setIpv6NexthopPeerAddress;
       set.ipv6_nexthop_prefer_global = setIpv6NexthopPreferGlobal;
+      set.l3vpn_nexthop_encapsulation_gre = setL3vpnNexthopGre;
       if (setDistance.trim()) set.distance = parseInt(setDistance);
       if (setMetric.trim()) set.metric = setMetric.trim();
       if (setMetricType.trim()) set.metric_type = setMetricType.trim();
@@ -1651,6 +1659,20 @@ export function RouteMapRuleModal({
                           value={setExtcommunityBandwidth}
                           onChange={(e) => setSetExtcommunityBandwidth(e.target.value)}
                         />
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="setExtcommunityBandwidthNonTransitive"
+                            checked={setExtcommunityBandwidthNonTransitive && !!setExtcommunityBandwidth.trim()}
+                            onCheckedChange={(checked) => setSetExtcommunityBandwidthNonTransitive(checked as boolean)}
+                            disabled={!setExtcommunityBandwidth.trim()}
+                          />
+                          <Label htmlFor="setExtcommunityBandwidthNonTransitive" className="text-sm font-normal">
+                            {t("set.bandwidthNonTransitive")}
+                          </Label>
+                        </div>
+                        {!setExtcommunityBandwidth.trim() && (
+                          <p className="text-xs text-muted-foreground">{t("set.bandwidthNonTransitiveHint")}</p>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="setExtcommunityRt">{t("set.routeTarget")}</Label>
@@ -1862,6 +1884,18 @@ export function RouteMapRuleModal({
                           {t("set.preferGlobal")}
                         </Label>
                       </div>
+                    </div>
+
+                    <h4 className="font-medium text-sm pt-4">{t("set.l3vpnNexthop")}</h4>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="setL3vpnNexthopGre"
+                        checked={setL3vpnNexthopGre}
+                        onCheckedChange={(checked) => setSetL3vpnNexthopGre(checked as boolean)}
+                      />
+                      <Label htmlFor="setL3vpnNexthopGre" className="text-sm font-normal">
+                        {t("set.l3vpnNexthopGre")}
+                      </Label>
                     </div>
                   </div>
                 </AccordionContent>
