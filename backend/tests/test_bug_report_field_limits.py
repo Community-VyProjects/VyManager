@@ -29,8 +29,17 @@ def test_diagnostics_field_accepts_its_limit_and_rejects_one_more(field, limit):
 
 
 def test_oversized_diagnostics_reject_the_whole_report():
-    with pytest.raises(ValidationError):
-        _report(include_diagnostics=True, diagnostics=Diagnostics.model_validate({"browser": "a" * 1025}))
+    # Raw JSON-shaped input, as the endpoint receives it: the nested limit must
+    # fail validation of the report itself.
+    payload = {
+        "title": "console crash",
+        "description": "repro steps here",
+        "include_diagnostics": True,
+        "diagnostics": {"browser": "a" * 1025},
+    }
+    with pytest.raises(ValidationError) as exc:
+        ReportRequest.model_validate(payload)
+    assert exc.value.errors()[0]["loc"] == ("diagnostics", "browser")
 
 
 def test_category_accepts_its_limit_and_rejects_one_more():
@@ -55,11 +64,19 @@ def test_preview_includes_diagnostics_at_their_limits(monkeypatch):
     assert f"- Page: {page}" in result.body
 
 
-def test_frontend_clips_to_the_same_limits():
+def _frontend_limits() -> dict:
     source = FRONTEND_API.read_text()
-    match = re.search(r"DIAGNOSTIC_LIMITS = \{ browser: (\d+), page: (\d+) \}", source)
-    assert match, "DIAGNOSTIC_LIMITS not found in frontend/src/lib/api/bug-report.ts"
-    assert int(match.group(1)) == DIAGNOSTIC_LIMITS["browser"]
-    assert int(match.group(2)) == DIAGNOSTIC_LIMITS["page"]
-    assert Diagnostics.model_fields["browser"].metadata[0].max_length == DIAGNOSTIC_LIMITS["browser"]
-    assert Diagnostics.model_fields["page"].metadata[0].max_length == DIAGNOSTIC_LIMITS["page"]
+    block = re.search(r"DIAGNOSTIC_LIMITS\s*=\s*\{(.*?)\}", source, re.DOTALL)
+    assert block, "DIAGNOSTIC_LIMITS not found in frontend/src/lib/api/bug-report.ts"
+    return {key: int(value) for key, value in re.findall(r"(\w+)\s*:\s*(\d+)", block.group(1))}
+
+
+def test_backend_accepts_exactly_what_the_frontend_clips_to():
+    # A frontend limit above the model's would turn long values into a 422; one
+    # below it would clip more than needed. Both sides must agree.
+    limits = _frontend_limits()
+    assert set(limits) == {"browser", "page"}
+    for field, limit in limits.items():
+        Diagnostics.model_validate({field: "a" * limit})
+        with pytest.raises(ValidationError):
+            Diagnostics.model_validate({field: "a" * (limit + 1)})
