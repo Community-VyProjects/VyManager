@@ -121,7 +121,6 @@
     "secondsOrInfinity": "seconds or infinity",
     "preferredLifetime": "Preferred Lifetime",
     "baseInterface": "Base Interface",
-    "baseInterfacePlaceholder": "e.g. eth1",
     "decrementLifetime": "Decrement Lifetime",
     "deprecatePrefix": "Deprecate on Shutdown",
     "noAutonomousFlag": "No Autonomous Flag",

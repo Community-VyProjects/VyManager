@@ -123,7 +123,6 @@
     "editTitle": "编辑 LDP 接口",
     "addTitle": "添加 LDP 接口",
     "selectPlaceholder": "选择接口...",
-    "namePlaceholder": "例如 eth0",
     "disableHello": "禁用建立 Hello",
     "disableHelloHelp": "在此接口上抑制 LDP Hello 消息"
   },

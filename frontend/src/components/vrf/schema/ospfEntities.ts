@@ -180,7 +180,7 @@ export const OSPF_INTERFACE_GROUP: EntityGroupSpec = {
   label: "Interface",
   rawKey: "interface",
   createOp: "vrf_ospf_interface",
-  idPlaceholder: "eth0",
+  interfaceIds: true,
   schema: INTERFACE_SCHEMA,
   children: [INTERFACE_MD5_GROUP],
 };

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Loader2, Shield } from "lucide-react";
 import { ipoeServerService, IPoEAuthMac, IPoEAuthInterface } from "@/lib/api/ipoe-server";
@@ -113,18 +114,8 @@ export function AuthMacModal({ open, onOpenChange, onSuccess, existingMac, prese
             {isEdit ? (
               <Input value={selectedIface} disabled />
             ) : (
-              <Input
-                value={selectedIface}
-                onChange={(e) => setSelectedIface(e.target.value)}
-                placeholder="eth0"
-                list="mac-iface-list"
-              />
+              <InterfaceSelect value={selectedIface} onValueChange={setSelectedIface} />
             )}
-            <datalist id="mac-iface-list">
-              {authInterfaces.map((ai) => (
-                <option key={ai.interface} value={ai.interface} />
-              ))}
-            </datalist>
           </div>
 
           <div className="space-y-2">

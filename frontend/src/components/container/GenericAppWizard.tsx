@@ -11,6 +11,7 @@ import {
 import { systemSettingsService } from "@/lib/api/system-settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Check, CheckCircle2, Loader2, XCircle } from "lucide-react";
@@ -441,6 +442,13 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
                       <span className="text-sm text-muted-foreground">{f.description}</span>
                     )}
                   </div>
+                )}
+
+                {f.type === "interface" && (
+                  <InterfaceSelect
+                    value={fieldValues[f.name] ?? ""}
+                    onValueChange={v => setFieldValues(prev => ({ ...prev, [f.name]: v }))}
+                  />
                 )}
 
                 {(f.type === "text" || f.type === "number") && (

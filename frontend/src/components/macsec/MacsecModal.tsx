@@ -928,15 +928,15 @@ export function MacsecModal({
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="mirrorIngress" className="text-xs">{t("modal.advanced.mirrorIngress")}</Label>
-                <Input id="mirrorIngress" value={mirrorIngress} onChange={(e) => setMirrorIngress(e.target.value)} className="h-8 text-sm" placeholder="eth1" />
+                <InterfaceSelect id="mirrorIngress" value={mirrorIngress} onValueChange={setMirrorIngress} noneOption={{ label: tc("none"), value: "" }} className="h-8 text-sm" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="mirrorEgress" className="text-xs">{t("modal.advanced.mirrorEgress")}</Label>
-                <Input id="mirrorEgress" value={mirrorEgress} onChange={(e) => setMirrorEgress(e.target.value)} className="h-8 text-sm" placeholder="eth1" />
+                <InterfaceSelect id="mirrorEgress" value={mirrorEgress} onValueChange={setMirrorEgress} noneOption={{ label: tc("none"), value: "" }} className="h-8 text-sm" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="redirect" className="text-xs">{t("modal.advanced.redirect")}</Label>
-                <Input id="redirect" value={redirect} onChange={(e) => setRedirect(e.target.value)} className="h-8 text-sm" placeholder="eth1" />
+                <InterfaceSelect id="redirect" value={redirect} onValueChange={setRedirect} noneOption={{ label: tc("none"), value: "" }} className="h-8 text-sm" />
               </div>
             </div>
           </TabsContent>

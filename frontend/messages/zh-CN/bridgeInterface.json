@@ -45,7 +45,6 @@
   "macOverride": "MAC 覆盖",
   "mirrorIngress": "入方向镜像",
   "mirrorEgress": "出方向镜像",
-  "targetInterface": "目标接口",
   "ipv4Settings": "IPv4 设置",
   "adjustMss": "调整 MSS",
   "adjustMssPlaceholder": "clamp-mss-to-pmtu 或数值",

@@ -13,6 +13,7 @@ import {
 import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -472,11 +473,11 @@ export function BfdPeerModal({
                   <Label htmlFor="bfd-peer-source-interface">
                     {t("peerModal.sourceInterface")}
                   </Label>
-                  <Input
+                  <InterfaceSelect
                     id="bfd-peer-source-interface"
                     value={sourceInterface}
-                    onChange={(e) => setSourceInterface(e.target.value)}
-                    placeholder={t("peerModal.sourceInterfacePlaceholder")}
+                    onValueChange={setSourceInterface}
+                    noneOption={{ label: tc("none"), value: "" }}
                   />
                   <p className="text-xs text-muted-foreground">
                     {t("peerModal.sourceInterfaceHelp")}

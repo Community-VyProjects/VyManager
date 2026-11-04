@@ -705,12 +705,7 @@ export function PppoeModal({
               </div>
               <div>
                 <Label htmlFor="pppoe-redirect">{t("basic.redirectInterface")}</Label>
-                <Input
-                  id="pppoe-redirect"
-                  value={redirect}
-                  onChange={(e) => setRedirect(e.target.value)}
-                  placeholder={t("basic.redirectPlaceholder")}
-                />
+                <InterfaceSelect id="pppoe-redirect" value={redirect} onValueChange={setRedirect} noneOption={{ label: tc("none"), value: "" }} />
               </div>
             </div>
 
@@ -1111,14 +1106,11 @@ export function PppoeModal({
                     >
                       <div>
                         <Label className="text-xs">{t("dhcpv6.interface")}</Label>
-                        <Input
+                        <InterfaceSelect
                           value={di.name ?? ""}
-                          onChange={(e) =>
-                            updatePdDelegatedIface(idx, ifaceIdx, {
-                              name: e.target.value,
-                            })
+                          onValueChange={(v) =>
+                            updatePdDelegatedIface(idx, ifaceIdx, { name: v })
                           }
-                          placeholder="eth1"
                         />
                       </div>
                       <div>

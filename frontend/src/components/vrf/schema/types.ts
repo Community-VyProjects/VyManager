@@ -33,6 +33,8 @@ export interface FieldSpec {
   capability?: string;
   /** Only render this field when the current entity id is one of these values. */
   entityIds?: string[];
+  /** The value is a router interface name: `text` renders a picker, `list` a multi-picker. */
+  interface?: boolean;
 }
 
 export interface SectionSpec {
@@ -60,6 +62,8 @@ export interface EntityGroupSpec {
   idPlaceholder?: string;
   /** When entity ids come from a fixed enum (e.g. address-family). */
   fixedIds?: SelectOption[];
+  /** Entity ids are router interface names; the add control is an interface picker. */
+  interfaceIds?: boolean;
   /** Fixed args that address this group (e.g. ["ipv4"] for redistribute IPv4), inserted before the entity id. */
   args?: string[];
   /** Optional nested entity groups (e.g. area → range + virtual-link). */

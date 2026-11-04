@@ -65,7 +65,6 @@
     "ipv6PrefixPlaceholder": "例如 2001:db8::/64",
     "disablePrefix": "禁用此前缀",
     "mode": "模式",
-    "fwdInterface": "转发接口",
-    "fwdInterfacePlaceholder": "例如 eth1"
+    "fwdInterface": "转发接口"
   }
 }

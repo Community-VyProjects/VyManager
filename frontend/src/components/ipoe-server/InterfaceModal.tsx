@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -148,7 +149,7 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>{t("interfaceModal.interfaceName")}</Label>
-            <Input value={ifaceName} onChange={(e) => setIfaceName(e.target.value)} placeholder="eth0" disabled={isEdit} />
+            <InterfaceSelect value={ifaceName} onValueChange={setIfaceName} disabled={isEdit} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">

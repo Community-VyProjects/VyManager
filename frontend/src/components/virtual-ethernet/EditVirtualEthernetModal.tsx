@@ -13,6 +13,7 @@ import {
 import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -317,7 +318,7 @@ function VifForm({
         </div>
         <div className="space-y-1">
           <Label className="text-xs">{t("form.redirect")}</Label>
-          <Input value={form.redirect} onChange={(e) => onChange({ redirect: e.target.value })} />
+          <InterfaceSelect value={form.redirect} onValueChange={(v) => onChange({ redirect: v })} noneOption={{ label: tc("none"), value: "" }} />
         </div>
         {showQos && (
           <>
@@ -346,11 +347,11 @@ function VifForm({
         )}
         <div className="space-y-1">
           <Label className="text-xs">{t("form.mirrorIngress")}</Label>
-          <Input value={form.mirror_ingress} onChange={(e) => onChange({ mirror_ingress: e.target.value })} />
+          <InterfaceSelect value={form.mirror_ingress} onValueChange={(v) => onChange({ mirror_ingress: v })} noneOption={{ label: tc("none"), value: "" }} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">{t("form.mirrorEgress")}</Label>
-          <Input value={form.mirror_egress} onChange={(e) => onChange({ mirror_egress: e.target.value })} />
+          <InterfaceSelect value={form.mirror_egress} onValueChange={(v) => onChange({ mirror_egress: v })} noneOption={{ label: tc("none"), value: "" }} />
         </div>
       </div>
 
@@ -1153,7 +1154,7 @@ export function EditVirtualEthernetModal({
                               <div className="space-y-1"><Label className="text-xs">MTU</Label><Input type="number" value={newVifC.mtu} onChange={(e) => setNewVifC((p) => ({ ...p, mtu: e.target.value }))} /></div>
                               <div className="space-y-1"><Label className="text-xs">MAC</Label><Input value={newVifC.mac} onChange={(e) => setNewVifC((p) => ({ ...p, mac: e.target.value }))} placeholder="xx:xx:xx:xx:xx:xx" /></div>
                               <div className="space-y-1"><Label className="text-xs">VRF</Label><VrfSelect value={newVifC.vrf} onValueChange={(v) => setNewVifC((p) => ({ ...p, vrf: v }))} /></div>
-                              <div className="space-y-1"><Label className="text-xs">{t("form.redirect")}</Label><Input value={newVifC.redirect} onChange={(e) => setNewVifC((p) => ({ ...p, redirect: e.target.value }))} /></div>
+                              <div className="space-y-1"><Label className="text-xs">{t("form.redirect")}</Label><InterfaceSelect value={newVifC.redirect} onValueChange={(v) => setNewVifC((p) => ({ ...p, redirect: v }))} noneOption={{ label: tc("none"), value: "" }} /></div>
                             </div>
                             <div className="flex items-center gap-3">
                               <div className="flex items-center gap-1"><Checkbox checked={newVifC.disabled} onCheckedChange={(c) => setNewVifC((p) => ({ ...p, disabled: !!c }))} id="vifc-disabled" /><Label htmlFor="vifc-disabled" className="text-xs font-normal">{t("form.disabled")}</Label></div>

@@ -89,7 +89,7 @@ const SUBNET_GROUP: EntityGroupSpec = {
       title: "Subnet",
       fields: [
         { op: "vrf_dhcpv6_subnet_description", label: "Description", type: "text", path: ["description"] },
-        { op: "vrf_dhcpv6_subnet_interface", label: "Interface", type: "text", path: ["interface"] },
+        { op: "vrf_dhcpv6_subnet_interface", label: "Interface", type: "text", path: ["interface"], interface: true },
         { op: "vrf_dhcpv6_subnet_id", label: "Subnet ID", type: "number", path: ["subnet-id"] },
       ],
     },
@@ -123,7 +123,7 @@ export const DHCPV6_SHARED_NETWORK_GROUP: EntityGroupSpec = {
       fields: [
         { op: "vrf_dhcpv6_shared_network_description", label: "Description", type: "text", path: ["description"] },
         { op: "vrf_dhcpv6_shared_network_disable", label: "Disable", type: "toggle", path: ["disable"] },
-        { op: "vrf_dhcpv6_shared_network_interface", label: "Interface", type: "text", path: ["interface"] },
+        { op: "vrf_dhcpv6_shared_network_interface", label: "Interface", type: "text", path: ["interface"], interface: true },
       ],
     },
     {

@@ -830,7 +830,7 @@ export function BondingModal({
               {showPrimary && (
                 <div className="space-y-2">
                   <Label htmlFor="primary">{t("primaryInterface")}</Label>
-                  <Input id="primary" value={primary} onChange={(e) => setPrimary(e.target.value)} placeholder={t("primaryPlaceholder")} />
+                  <InterfaceSelect id="primary" value={primary} onValueChange={setPrimary} interfaces={members.map((name) => ({ name, type: "ethernet", description: null }))} noneOption={{ label: tc("none"), value: "" }} />
                   <p className="text-xs text-muted-foreground">{t("primaryHint")}</p>
                 </div>
               )}
@@ -1067,11 +1067,11 @@ export function BondingModal({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>{t("ingress")}</Label>
-                  <Input value={mirrorIngress} onChange={(e) => setMirrorIngress(e.target.value)} placeholder={t("targetInterface")} />
+                  <InterfaceSelect value={mirrorIngress} onValueChange={setMirrorIngress} noneOption={{ label: tc("none"), value: "" }} />
                 </div>
                 <div className="space-y-2">
                   <Label>{t("egress")}</Label>
-                  <Input value={mirrorEgress} onChange={(e) => setMirrorEgress(e.target.value)} placeholder={t("targetInterface")} />
+                  <InterfaceSelect value={mirrorEgress} onValueChange={setMirrorEgress} noneOption={{ label: tc("none"), value: "" }} />
                 </div>
               </div>
             </div>
@@ -1187,7 +1187,7 @@ export function BondingModal({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>{t("redirect")}</Label>
-                  <Input value={redirect} onChange={(e) => setRedirect(e.target.value)} placeholder={t("targetInterface")} />
+                  <InterfaceSelect value={redirect} onValueChange={setRedirect} noneOption={{ label: tc("none"), value: "" }} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 mt-3">

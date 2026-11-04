@@ -43,7 +43,6 @@
     "macvlanMode": "MACVLAN 模式",
     "selectMode": "选择模式",
     "parentInterface": "父接口",
-    "parentPlaceholder": "例如 eth0",
     "mtuPlaceholder": "例如 1500",
     "noNameServer": "禁用域名服务器 (no-name-server)",
     "prefixPlaceholder": "例如 10.0.0.0/24",

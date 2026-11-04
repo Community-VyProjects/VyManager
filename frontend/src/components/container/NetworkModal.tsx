@@ -13,6 +13,7 @@ import {
 import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -190,7 +191,7 @@ export function NetworkModal({ open, onOpenChange, network, capabilities, onSubm
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="net-parent">{t("networkModal.parentInterface")}</Label>
-                  <Input id="net-parent" value={macvlanParent} onChange={e => setMacvlanParent(e.target.value)} placeholder={t("networkModal.parentPlaceholder")} className="font-mono" />
+                  <InterfaceSelect id="net-parent" value={macvlanParent} onValueChange={setMacvlanParent} className="font-mono" />
                 </div>
               </>
             )}

@@ -95,8 +95,6 @@
     "failoverMode": "故障转移模式",
     "perPacketBalancing": "逐包均衡",
     "exclude": "排除（绕过负载均衡）",
-    "selectOrType": "选择或输入",
-    "custom": "自定义…",
     "weight": "权重",
     "rateLimit": "速率限制",
     "burst": "突发",

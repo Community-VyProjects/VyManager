@@ -25,6 +25,7 @@ import type { ContainerConfig, ContainerCapabilities } from "./api/container";
 //     { name: "mode",     label: "Mode",            type: "select",
 //       default: "bridge", options: ["bridge", "host", "none"] },
 //     { name: "debug",    label: "Enable Debug",    type: "checkbox", default: false },
+//     { name: "iface",    label: "Interface",       type: "interface" }, // router interface picker
 //   ],
 //
 //   // Network step — omit this section to skip the network step entirely.
@@ -137,7 +138,7 @@ import type { ContainerConfig, ContainerCapabilities } from "./api/container";
 export interface AppField {
   name: string;
   label: string;
-  type: "text" | "number" | "select" | "checkbox";
+  type: "text" | "number" | "select" | "checkbox" | "interface";
   default?: string | number | boolean;
   placeholder?: string;
   description?: string;
@@ -481,9 +482,8 @@ export const APP_CATALOG: AppDef[] = [
         {
           name: "interface",
           label: "Network Interface",
-          type: "text",
+          type: "interface",
           default: "eth0",
-          placeholder: "eth0",
           description: "Interface to monitor (e.g., eth0, bond0, eth1).",
           required: true,
         },

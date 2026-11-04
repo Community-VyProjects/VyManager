@@ -826,11 +826,11 @@ export function BridgeModal({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t("mirrorIngress")}</Label>
-                <Input value={mirrorIngress} onChange={(e) => setMirrorIngress(e.target.value)} placeholder={t("targetInterface")} />
+                <InterfaceSelect value={mirrorIngress} onValueChange={setMirrorIngress} noneOption={{ label: tc("none"), value: "" }} />
               </div>
               <div className="space-y-2">
                 <Label>{t("mirrorEgress")}</Label>
-                <Input value={mirrorEgress} onChange={(e) => setMirrorEgress(e.target.value)} placeholder={t("targetInterface")} />
+                <InterfaceSelect value={mirrorEgress} onValueChange={setMirrorEgress} noneOption={{ label: tc("none"), value: "" }} />
               </div>
             </div>
           </TabsContent>
@@ -946,7 +946,7 @@ export function BridgeModal({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>{t("redirect")}</Label>
-                  <Input value={redirect} onChange={(e) => setRedirect(e.target.value)} placeholder={t("targetInterface")} />
+                  <InterfaceSelect value={redirect} onValueChange={setRedirect} noneOption={{ label: tc("none"), value: "" }} />
                 </div>
               </div>
             </div>

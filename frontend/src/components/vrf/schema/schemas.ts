@@ -72,7 +72,7 @@ export const ISIS_SCHEMA: SectionSpec[] = [
       { op: "vrf_isis_traffic_engineering_export", label: "TE export", type: "toggle", path: ["traffic-engineering", "export"], capability: "isis_fast_reroute" },
       { op: "vrf_isis_traffic_engineering_address", label: "TE router address", type: "text", path: ["traffic-engineering", "address"] },
       { op: "vrf_isis_segment_routing_maximum_label_depth", label: "SR max label depth", type: "number", path: ["segment-routing", "maximum-label-depth"] },
-      { op: "vrf_isis_segment_routing_srv6_interface", label: "SRv6 interface", type: "text", path: ["segment-routing", "srv6", "interface"], capability: "isis_fast_reroute" },
+      { op: "vrf_isis_segment_routing_srv6_interface", label: "SRv6 interface", type: "text", path: ["segment-routing", "srv6", "interface"], capability: "isis_fast_reroute", interface: true },
       { op: "vrf_isis_segment_routing_srv6_locator", label: "SRv6 locator", type: "text", path: ["segment-routing", "srv6", "locator"], capability: "isis_fast_reroute" },
     ],
   },

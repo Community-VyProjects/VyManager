@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InterfaceMultiSelect } from "@/components/ui/interface-multi-select";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -40,7 +41,6 @@ export function DHCPv6ServerGlobalModal({ open, config, caps, onClose, onSuccess
   const [globalNameServers, setGlobalNameServers] = useState<string[]>([]);
   const [nsInput, setNsInput] = useState("");
   const [listenInterfaces, setListenInterfaces] = useState<string[]>([]);
-  const [ifaceInput, setIfaceInput] = useState("");
   const [disableRouteAutoinstall, setDisableRouteAutoinstall] = useState(false);
 
   useEffect(() => {
@@ -52,7 +52,6 @@ export function DHCPv6ServerGlobalModal({ open, config, caps, onClose, onSuccess
     setGlobalNameServers([...config.global_name_servers]);
     setNsInput("");
     setListenInterfaces([...config.listen_interfaces]);
-    setIfaceInput("");
     setDisableRouteAutoinstall(config.disable_route_autoinstall);
   }, [open, config]);
 
@@ -66,18 +65,6 @@ export function DHCPv6ServerGlobalModal({ open, config, caps, onClose, onSuccess
 
   function removeNs(ns: string) {
     setGlobalNameServers((prev) => prev.filter((x) => x !== ns));
-  }
-
-  function addIface() {
-    const v = ifaceInput.trim();
-    if (v && !listenInterfaces.includes(v)) {
-      setListenInterfaces((prev) => [...prev, v]);
-    }
-    setIfaceInput("");
-  }
-
-  function removeIface(iface: string) {
-    setListenInterfaces((prev) => prev.filter((x) => x !== iface));
   }
 
   async function handleSubmit() {
@@ -168,29 +155,7 @@ export function DHCPv6ServerGlobalModal({ open, config, caps, onClose, onSuccess
             {caps.features.listen_interface.supported && (
               <div className="space-y-1.5">
                 <Label>{t("global.listenInterfaces")}</Label>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="eth0"
-                    value={ifaceInput}
-                    onChange={(e) => setIfaceInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addIface())}
-                  />
-                  <Button type="button" variant="outline" size="icon" onClick={addIface}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-                {listenInterfaces.length > 0 && (
-                  <div className="space-y-1 mt-1">
-                    {listenInterfaces.map((iface) => (
-                      <div key={iface} className="flex items-center justify-between px-2 py-1 rounded bg-muted/50 text-sm font-mono">
-                        <span>{iface}</span>
-                        <Button type="button" variant="ghost" size="icon" className="h-5 w-5" onClick={() => removeIface(iface)}>
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <InterfaceMultiSelect values={listenInterfaces} onChange={setListenInterfaces} />
               </div>
             )}
 

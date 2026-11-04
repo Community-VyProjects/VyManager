@@ -126,7 +126,6 @@
     "addNextHop": "添加下一跳",
     "addDhcpInterface": "添加 DHCP 接口",
     "none": "无。",
-    "interfaceNamePlaceholder": "接口名称",
     "nextHopAddressPlaceholder": "下一跳地址",
     "metric": "度量值",
     "onLink": "On-link",

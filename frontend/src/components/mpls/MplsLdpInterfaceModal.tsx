@@ -104,21 +104,13 @@ export function MplsLdpInterfaceModal({
               <p className="text-sm font-mono font-medium px-3 py-2 bg-muted rounded-md">
                 {existingInterface?.name}
               </p>
-            ) : availableInterfaces.length > 0 ? (
+            ) : (
               <InterfaceSelect
                 value={interfaceName}
                 onValueChange={setInterfaceName}
                 interfaces={availableInterfaces}
                 id="ldp-iface-name"
                 placeholder={t("interfaceModal.selectPlaceholder")}
-              />
-            ) : (
-              <input
-                id="ldp-iface-name"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                value={interfaceName}
-                onChange={(e) => setInterfaceName(e.target.value)}
-                placeholder={t("interfaceModal.namePlaceholder")}
               />
             )}
           </div>

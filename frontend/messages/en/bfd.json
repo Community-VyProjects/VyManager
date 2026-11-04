@@ -80,7 +80,6 @@
     "sourceAddressPlaceholder": "e.g. 192.0.2.10",
     "sourceAddressHelp": "Source IP address for BFD packets.",
     "sourceInterface": "Source Interface",
-    "sourceInterfacePlaceholder": "e.g. eth0",
     "sourceInterfaceHelp": "Source interface for BFD packets.",
     "vrfHelp": "VRF instance for this BFD peer."
   },
