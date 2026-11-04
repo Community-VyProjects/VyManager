@@ -30,7 +30,6 @@ const LOGO_PARTICLES = 110_000;
 const STREAM_PARTICLES = 70_000;
 const CORE_PARTICLES = 12_000;
 const FLOATS_PER_PARTICLE = 8;
-const PULSE_SLOTS = 4;
 const BLOOM_LEVELS = 4;
 const SUCCESS_SECONDS = 1.05;
 /** Navigation never waits longer than this, even if frames stop (hidden tab). */
@@ -61,7 +60,6 @@ uniform float uCollapse;
 uniform float uBurst;
 uniform float uExposure;
 uniform vec2 uTilt;
-uniform float uPulses[${PULSE_SLOTS}];
 
 out vec3 vColor;
 
@@ -137,19 +135,6 @@ void main() {
   pos = mix(dust, pos, e);
   pos.xy = rot((1.0 - e) * 2.6) * pos.xy;
   alpha *= smoothstep(0.0, 0.35, t);
-
-  // Pressing a key sends one ring out from the centre.
-  float planar = length(pos.xy);
-  float ring = 0.0;
-  for (int i = 0; i < ${PULSE_SLOTS}; i++) {
-    float age = uPulses[i];
-    if (age < 0.0) continue;
-    float d = planar - age * 1.7;
-    ring += exp(-d * d / 0.018) * exp(-age * 1.5);
-  }
-  pos.z += ring * 0.16;
-  pos.xy *= 1.0 + ring * 0.045;
-  glow += ring * 2.4;
 
   // Failed sign-in: the mark breaks apart, then pulls itself back together.
   float kick = uShatter * (0.12 + 1.5 * aSeed.w * aSeed.w * aSeed.x);
@@ -443,8 +428,6 @@ export class VortexEngine {
   private resolveSuccess: (() => void) | null = null;
   private successDeadline = 0;
   private lastActivity = 0;
-  private readonly pulses = new Float32Array(PULSE_SLOTS).fill(-1);
-  private nextPulse = 0;
 
   constructor(canvas: HTMLCanvasElement, options: VortexOptions) {
     this.canvas = canvas;
@@ -541,13 +524,6 @@ export class VortexEngine {
     this.lastActivity = performance.now();
     this.start();
   };
-
-  /** One ring out from the centre. Call on each keystroke. */
-  pulse() {
-    this.wake();
-    this.pulses[this.nextPulse] = 0;
-    this.nextPulse = (this.nextPulse + 1) % PULSE_SLOTS;
-  }
 
   /** Spin up while a sign-in is in flight. */
   setBusy(busy: boolean) {
@@ -718,12 +694,6 @@ export class VortexEngine {
     this.angle += (-0.075 - this.energy * 1.5) * dt;
     this.flow += (1 + this.energy * 6) * dt;
 
-    for (let i = 0; i < PULSE_SLOTS; i++) {
-      if (this.pulses[i] < 0) continue;
-      this.pulses[i] += dt;
-      if (this.pulses[i] > 2.6) this.pulses[i] = -1;
-    }
-
     if (this.succeededAt >= 0 && this.time - this.succeededAt >= SUCCESS_SECONDS) {
       this.finishSuccess();
     }
@@ -779,7 +749,6 @@ export class VortexEngine {
       -0.2 + Math.sin(this.time * 0.17) * 0.05,
       0.16 + Math.cos(this.time * 0.13) * 0.04,
     );
-    gl.uniform1fv(p.uniforms.uPulses, this.pulses);
     gl.bindVertexArray(this.vao);
     gl.drawArrays(gl.POINTS, 0, this.drawCount);
     gl.disable(gl.BLEND);
