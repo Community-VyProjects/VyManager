@@ -23,6 +23,9 @@ let nextFrame = 1;
 let win: CountingTarget;
 let doc: CountingTarget & { hidden: boolean };
 
+/** Every GPU object the fake context has handed out and not had deleted. */
+let live: Set<object>;
+
 function fakeGl(overrides: Record<string, unknown> = {}) {
   const methods: Record<string, unknown> = {
     getShaderParameter: () => true,
@@ -36,11 +39,25 @@ function fakeGl(overrides: Record<string, unknown> = {}) {
       get: (_target, name: string) => {
         if (name in methods) return methods[name];
         if (/^[A-Z0-9_]+$/.test(name)) return name;
+        if (/^create(Program|Shader|VertexArray|Buffer|Texture|Framebuffer)$/.test(name)) {
+          return () => {
+            const object = { kind: name.slice(6) };
+            live.add(object);
+            return object;
+          };
+        }
+        if (/^delete(Program|Shader|VertexArray|Buffer|Texture|Framebuffer)$/.test(name)) {
+          return (object: object | null) => {
+            if (object) live.delete(object);
+          };
+        }
         return () => ({});
       },
     },
   );
 }
+
+const liveKinds = () => [...live].map((o) => (o as { kind: string }).kind).sort();
 
 function fakeCanvas(gl: unknown) {
   const canvas = new CountingTarget() as CountingTarget & Record<string, unknown>;
@@ -67,6 +84,7 @@ async function until(condition: () => boolean) {
 const layout = () => ({ x: 400, y: 300, radius: 200 });
 
 beforeEach(() => {
+  live = new Set();
   clock = 0;
   frames = new Map();
   win = Object.assign(new CountingTarget(), {
@@ -178,12 +196,51 @@ describe("VortexEngine teardown", () => {
     assert.equal(win.listeners, 0);
   });
 
-  it("registers nothing when allocation throws in the constructor", () => {
+  it("registers nothing and frees what it made when allocation throws in the constructor", () => {
     const canvas = fakeCanvas(fakeGl({ createTexture: () => null }));
     assert.throws(() => new VortexEngine(canvas, { iconSrc: "/vy-icon.png", layout }));
     assert.equal(win.listeners, 0);
     assert.equal(doc.listeners, 0);
     assert.equal(canvas.listeners, 0);
+    assert.deepEqual(liveKinds(), []);
+  });
+
+  it("frees the programs it made when a later shader fails to compile", () => {
+    let compiled = 0;
+    const canvas = fakeCanvas(
+      fakeGl({ getShaderParameter: () => ++compiled < 5, getShaderInfoLog: () => "bad shader" }),
+    );
+    assert.throws(() => new VortexEngine(canvas, { iconSrc: "/vy-icon.png", layout }), /bad shader/);
+    assert.deepEqual(liveKinds(), []);
+  });
+
+  it("keeps compiled programs but frees their shaders", async () => {
+    const { engine } = await runningEngine();
+    assert.ok(liveKinds().includes("Program"));
+    assert.ok(!liveKinds().includes("Shader"));
+    engine.dispose();
+  });
+
+  it("frees every GPU object on dispose", async () => {
+    const { engine } = await runningEngine();
+    assert.ok(live.size > 0);
+    engine.dispose();
+    assert.deepEqual(liveKinds(), []);
+  });
+
+  it("frees every GPU object when the context is lost", async () => {
+    const { canvas } = await runningEngine();
+    canvas.dispatchEvent(new Event("webglcontextlost", { cancelable: true }));
+    assert.deepEqual(liveKinds(), []);
+  });
+
+  it("does not grow GPU objects across resizes", async () => {
+    const { engine } = await runningEngine();
+    const before = live.size;
+    win.dispatchEvent(new Event("resize"));
+    win.dispatchEvent(new Event("resize"));
+    assert.equal(live.size, before);
+    engine.dispose();
   });
 });
 

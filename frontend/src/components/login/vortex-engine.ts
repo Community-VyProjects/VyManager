@@ -286,23 +286,34 @@ interface Program {
 }
 
 function compile(gl: WebGL2RenderingContext, vertex: string, fragment: string): Program {
-  const shader = (type: number, source: string) => {
-    const s = gl.createShader(type);
-    if (!s) throw new Error("createShader failed");
-    gl.shaderSource(s, source);
-    gl.compileShader(s);
-    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS) && !gl.isContextLost()) {
-      throw new Error(gl.getShaderInfoLog(s) ?? "shader compile failed");
-    }
-    return s;
-  };
   const program = gl.createProgram();
   if (!program) throw new Error("createProgram failed");
-  gl.attachShader(program, shader(gl.VERTEX_SHADER, vertex));
-  gl.attachShader(program, shader(gl.FRAGMENT_SHADER, fragment));
-  gl.linkProgram(program);
-  if (!gl.getProgramParameter(program, gl.LINK_STATUS) && !gl.isContextLost()) {
-    throw new Error(gl.getProgramInfoLog(program) ?? "program link failed");
+  const shaders: WebGLShader[] = [];
+  try {
+    for (const [type, source] of [
+      [gl.VERTEX_SHADER, vertex],
+      [gl.FRAGMENT_SHADER, fragment],
+    ] as const) {
+      const s = gl.createShader(type);
+      if (!s) throw new Error("createShader failed");
+      shaders.push(s);
+      gl.shaderSource(s, source);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS) && !gl.isContextLost()) {
+        throw new Error(gl.getShaderInfoLog(s) ?? "shader compile failed");
+      }
+      gl.attachShader(program, s);
+    }
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS) && !gl.isContextLost()) {
+      throw new Error(gl.getProgramInfoLog(program) ?? "program link failed");
+    }
+  } catch (err) {
+    gl.deleteProgram(program);
+    throw err;
+  } finally {
+    // Attached shaders are freed with their program; nothing else needs them.
+    for (const s of shaders) gl.deleteShader(s);
   }
   const uniforms: Uniforms = {};
   const count = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS) as number;
@@ -400,7 +411,9 @@ export class VortexEngine {
   private downProgram!: Program;
   private upProgram!: Program;
   private compositeProgram!: Program;
+  private programs: Program[] = [];
   private vao: WebGLVertexArrayObject | null = null;
+  private particleBuffer: WebGLBuffer | null = null;
   private emptyVao: WebGLVertexArrayObject | null = null;
   private scene: Target | null = null;
   private mips: Target[] = [];
@@ -445,17 +458,27 @@ export class VortexEngine {
     if (!gl) throw new Error("WebGL2 is unavailable");
     this.gl = gl;
 
-    this.particleProgram = compile(gl, PARTICLE_VS, PARTICLE_FS);
-    this.downProgram = compile(gl, FULLSCREEN_VS, DOWN_FS);
-    this.upProgram = compile(gl, FULLSCREEN_VS, UP_FS);
-    this.compositeProgram = compile(gl, FULLSCREEN_VS, COMPOSITE_FS);
-    this.emptyVao = gl.createVertexArray();
-
-    this.hdr = Boolean(gl.getExtension("EXT_color_buffer_float") || gl.getExtension("EXT_color_buffer_half_float"));
-    this.internalFormat = this.hdr ? gl.RGBA16F : gl.RGBA8;
-
     // Allocate before listening, so a throw here leaves nothing registered.
-    this.resize();
+    try {
+      const program = (vertex: string, fragment: string) => {
+        const p = compile(gl, vertex, fragment);
+        this.programs.push(p);
+        return p;
+      };
+      this.particleProgram = program(PARTICLE_VS, PARTICLE_FS);
+      this.downProgram = program(FULLSCREEN_VS, DOWN_FS);
+      this.upProgram = program(FULLSCREEN_VS, UP_FS);
+      this.compositeProgram = program(FULLSCREEN_VS, COMPOSITE_FS);
+      this.emptyVao = gl.createVertexArray();
+
+      this.hdr = Boolean(gl.getExtension("EXT_color_buffer_float") || gl.getExtension("EXT_color_buffer_half_float"));
+      this.internalFormat = this.hdr ? gl.RGBA16F : gl.RGBA8;
+
+      this.resize();
+    } catch (err) {
+      this.releaseGpu();
+      throw err;
+    }
 
     canvas.addEventListener("webglcontextlost", this.handleContextLost);
     window.addEventListener("resize", this.handleResize);
@@ -475,8 +498,8 @@ export class VortexEngine {
       const gl = this.gl;
       this.vao = gl.createVertexArray();
       gl.bindVertexArray(this.vao);
-      const buffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      this.particleBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.particleBuffer);
       gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
       const stride = FLOATS_PER_PARTICLE * 4;
       gl.enableVertexAttribArray(0);
@@ -566,8 +589,29 @@ export class VortexEngine {
     document.removeEventListener("visibilitychange", this.handleVisibility);
     for (const type of ACTIVITY_EVENTS) window.removeEventListener(type, this.wake);
     this.finishSuccess();
-    // The context is left alive: React's strict mode re-mounts onto this same
-    // canvas, and a canvas that has lost its context cannot get another.
+    // The objects are freed but the context is left alive: React's strict mode
+    // re-mounts onto this same canvas, and a lost context cannot be replaced.
+    this.releaseGpu();
+  }
+
+  private releaseGpu() {
+    const gl = this.gl;
+    for (const p of this.programs) gl.deleteProgram(p.program);
+    this.programs = [];
+    gl.deleteVertexArray(this.vao);
+    gl.deleteVertexArray(this.emptyVao);
+    gl.deleteBuffer(this.particleBuffer);
+    this.vao = this.emptyVao = this.particleBuffer = null;
+    this.destroyTarget(this.scene);
+    this.mips.forEach((t) => this.destroyTarget(t));
+    this.scene = null;
+    this.mips = [];
+  }
+
+  private destroyTarget(target: Target | null) {
+    if (!target) return;
+    this.gl.deleteFramebuffer(target.framebuffer);
+    this.gl.deleteTexture(target.texture);
   }
 
   /** Tears down before handing over to the static fallback. */
@@ -594,23 +638,18 @@ export class VortexEngine {
   };
 
   private resize() {
-    const gl = this.gl;
     this.dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR) * this.qualityScale;
     this.width = Math.max(1, Math.round(window.innerWidth * this.dpr));
     this.height = Math.max(1, Math.round(window.innerHeight * this.dpr));
     this.canvas.width = this.width;
     this.canvas.height = this.height;
 
-    const destroy = (t: Target | null) => {
-      if (!t) return;
-      gl.deleteFramebuffer(t.framebuffer);
-      gl.deleteTexture(t.texture);
-    };
-    destroy(this.scene);
-    this.mips.forEach(destroy);
+    this.destroyTarget(this.scene);
+    this.mips.forEach((t) => this.destroyTarget(t));
+    this.scene = null;
+    this.mips = [];
 
     this.scene = this.createTarget(this.width, this.height);
-    this.mips = [];
     let w = this.width;
     let h = this.height;
     for (let i = 0; i < BLOOM_LEVELS; i++) {
@@ -624,7 +663,11 @@ export class VortexEngine {
     const gl = this.gl;
     const texture = gl.createTexture();
     const framebuffer = gl.createFramebuffer();
-    if (!texture || !framebuffer) throw new Error("could not allocate render target");
+    if (!texture || !framebuffer) {
+      gl.deleteTexture(texture);
+      gl.deleteFramebuffer(framebuffer);
+      throw new Error("could not allocate render target");
+    }
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.texStorage2D(gl.TEXTURE_2D, 1, this.internalFormat, width, height);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);

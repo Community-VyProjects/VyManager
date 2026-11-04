@@ -298,11 +298,12 @@ export default function LoginPage() {
     <div className={`${styles.page} ${leaving ? styles.leaving : ""}`}>
       <VortexCanvas ref={vortex} alt={t("logoAlt")} />
 
-      <div className={styles.language}>
+      {/* inert while leaving: the faded form must not be focused or submitted again. */}
+      <div className={styles.language} inert={leaving}>
         <LanguageSelector compact />
       </div>
 
-      <main className={styles.layout}>
+      <main className={styles.layout} inert={leaving}>
         <div className={styles.brand}>
           <p className={`${styles.wordmark} ${manrope.className}`}>VyManager</p>
           <p className={styles.tagline}>{t("subtitle")}</p>
@@ -402,7 +403,7 @@ export default function LoginPage() {
                 )}
 
                 {/* OAuth provider buttons */}
-                {oauthProviders.length > 0 && !twoFactorMethods && !forceEnroll && (
+                {oauthProviders.length > 0 && !twoFactorMethods && (
                   <div className={styles.alternatives}>
                     <p className={styles.alternativesLabel}>{t("orContinueWith")}</p>
                     <div className={styles.providers} data-many={oauthProviders.length > 1}>
