@@ -1,5 +1,5 @@
 """NAT mapper for VyOS 1.4."""
-from typing import List
+from typing import FrozenSet, List
 
 from ..nat import NATMapper
 
@@ -12,8 +12,12 @@ class NATMapper_v1_4(NATMapper):
     Source, destination and static NAT are fully supported. CGNAT
     (``nat cgnat ...``) only exists from VyOS 1.5, so every CGNAT path
     raises here — mirroring the firewall groups v1_4 mapper — instead of
-    emitting a path the device would reject at commit.
+    emitting a path the device would reject at commit. Source and
+    destination ``fqdn`` matches are 1.5-only as well.
     """
+
+    def versioned_rule_match_nodes(self) -> FrozenSet[str]:
+        return frozenset()
 
     def get_cgnat_log_allocation(self) -> List[str]:
         raise ValueError(_CGNAT_UNSUPPORTED)

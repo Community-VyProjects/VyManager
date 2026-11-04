@@ -1,13 +1,25 @@
 """Base NAT mapper for all VyOS versions."""
-from typing import List
+from typing import FrozenSet, List
 from ..base import BaseFeatureMapper
 
 
 class NATMapper(BaseFeatureMapper):
     """Base mapper for NAT configuration commands."""
 
+    # Source/destination match leaves that exist on 1.5 and not on 1.4
+    # (validateTmplPath on both). Version subclasses narrow this set.
+    _RULE_MATCH_VERSIONED = ("fqdn",)
+
     def __init__(self, version: str):
         super().__init__(version)
+
+    def versioned_rule_match_nodes(self) -> FrozenSet[str]:
+        """Version-dependent source/destination match leaves this device has."""
+        return frozenset(self._RULE_MATCH_VERSIONED)
+
+    def _require_rule_match(self, node: str) -> None:
+        if node not in self.versioned_rule_match_nodes():
+            raise ValueError(f"nat rule match {node} is not supported on this device")
 
     # ==================== Source NAT Commands ====================
 
@@ -149,18 +161,22 @@ class NATMapper(BaseFeatureMapper):
 
     def get_source_rule_source_fqdn(self, rule_number: int, fqdn: str) -> List[str]:
         """Get command path for source rule source FQDN."""
+        self._require_rule_match("fqdn")
         return ["nat", "source", "rule", str(rule_number), "source", "fqdn", fqdn]
 
     def get_source_rule_source_fqdn_path(self, rule_number: int) -> List[str]:
         """Get command path for source rule source FQDN (for deletion)."""
+        self._require_rule_match("fqdn")
         return ["nat", "source", "rule", str(rule_number), "source", "fqdn"]
 
     def get_source_rule_destination_fqdn(self, rule_number: int, fqdn: str) -> List[str]:
         """Get command path for source rule destination FQDN."""
+        self._require_rule_match("fqdn")
         return ["nat", "source", "rule", str(rule_number), "destination", "fqdn", fqdn]
 
     def get_source_rule_destination_fqdn_path(self, rule_number: int) -> List[str]:
         """Get command path for source rule destination FQDN (for deletion)."""
+        self._require_rule_match("fqdn")
         return ["nat", "source", "rule", str(rule_number), "destination", "fqdn"]
 
     def get_source_rule_translation_options_address_mapping(self, rule_number: int, value: str) -> List[str]:
@@ -327,18 +343,22 @@ class NATMapper(BaseFeatureMapper):
 
     def get_destination_rule_source_fqdn(self, rule_number: int, fqdn: str) -> List[str]:
         """Get command path for destination rule source FQDN."""
+        self._require_rule_match("fqdn")
         return ["nat", "destination", "rule", str(rule_number), "source", "fqdn", fqdn]
 
     def get_destination_rule_source_fqdn_path(self, rule_number: int) -> List[str]:
         """Get command path for destination rule source FQDN (for deletion)."""
+        self._require_rule_match("fqdn")
         return ["nat", "destination", "rule", str(rule_number), "source", "fqdn"]
 
     def get_destination_rule_destination_fqdn(self, rule_number: int, fqdn: str) -> List[str]:
         """Get command path for destination rule destination FQDN."""
+        self._require_rule_match("fqdn")
         return ["nat", "destination", "rule", str(rule_number), "destination", "fqdn", fqdn]
 
     def get_destination_rule_destination_fqdn_path(self, rule_number: int) -> List[str]:
         """Get command path for destination rule destination FQDN (for deletion)."""
+        self._require_rule_match("fqdn")
         return ["nat", "destination", "rule", str(rule_number), "destination", "fqdn"]
 
     def get_destination_rule_translation_options_address_mapping(self, rule_number: int, value: str) -> List[str]:
