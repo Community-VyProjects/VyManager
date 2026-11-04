@@ -1028,8 +1028,9 @@ class NATBatchBuilder(BatchBuilder):
     def get_capabilities(self) -> Dict[str, Any]:
         """Get capabilities for the current VyOS version."""
         is_v15 = "1.5" in self.version
+        fqdn_supported = "fqdn" in self.mappers[self.mapper_key].versioned_rule_match_nodes()
 
-        return {
+        capabilities = {
             "version": self.version,
             "version_info": {
                 "is_1_4": "1.4" in self.version,
@@ -1054,7 +1055,7 @@ class NATBatchBuilder(BatchBuilder):
                 }
             },
             "features": {
-                "fqdn": {"supported": is_v15, "description": "FQDN-based matching for source/destination"},
+                "fqdn": {"supported": fqdn_supported, "description": "FQDN-based matching for source/destination"},
                 "cgnat": {"supported": is_v15, "description": "Carrier-grade NAT with internal/external pools"},
                 "translation_options": {"supported": True, "description": "Translation address-mapping and port-mapping options"},
                 "translation_redirect": {"supported": True, "description": "Destination NAT redirect port"},
@@ -1204,3 +1205,8 @@ class NATBatchBuilder(BatchBuilder):
                 ] if is_v15 else []
             }
         }
+        if not fqdn_supported:
+            operations = capabilities["operations"]
+            for group in ("source_nat", "destination_nat"):
+                operations[group] = [op for op in operations[group] if not op.endswith("_fqdn")]
+        return capabilities

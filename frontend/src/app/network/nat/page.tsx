@@ -155,6 +155,7 @@ function NATPageInner() {
   const cgnatRules = config?.cgnat?.rules?.length ?? 0;
   const cgnatPools = (config?.cgnat?.external_pools?.length ?? 0) + (config?.cgnat?.internal_pools?.length ?? 0);
   const cgnatSupported = capabilities?.nat_types?.cgnat?.supported ?? false;
+  const fqdnSupported = capabilities?.features?.fqdn?.supported ?? false;
   const totalRules = totalSourceRules + totalDestinationRules + totalStaticRules + cgnatRules;
 
   const currentRules = selectedType === "cgnat" ? [] : hasChanges ? reorderedRules : (selectedType === "source" ? sourceRules : selectedType === "destination" ? destinationRules : staticRules);
@@ -898,6 +899,7 @@ function NATPageInner() {
         }}
         existing={editingSourceRule}
         onSuccess={() => fetchConfig(true)}
+        fqdnSupported={fqdnSupported}
       />
       <DestinationNATModal
         open={createDestOpen || !!editingDestRule}
@@ -909,6 +911,7 @@ function NATPageInner() {
         }}
         existing={editingDestRule}
         onSuccess={() => fetchConfig(true)}
+        fqdnSupported={fqdnSupported}
       />
       <StaticNATModal
         open={createStaticOpen || !!editingStaticRule}

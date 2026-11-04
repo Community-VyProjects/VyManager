@@ -23,9 +23,10 @@ interface DestinationNATModalProps {
   onOpenChange: (open: boolean) => void;
   existing?: DestinationNATRule | null;
   onSuccess: () => void;
+  fqdnSupported: boolean;
 }
 
-export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }: DestinationNATModalProps) {
+export function DestinationNATModal({ open, onOpenChange, existing, onSuccess, fqdnSupported }: DestinationNATModalProps) {
   const t = useTranslations("nat");
   const tc = useTranslations("common");
   const isEdit = !!existing;
@@ -969,10 +970,12 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
                     <RadioGroupItem value="group" id="source-group" />
                     <Label htmlFor="source-group">{t("form.firewallGroup")}</Label>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="fqdn" id="source-fqdn" />
-                    <Label htmlFor="source-fqdn">FQDN</Label>
-                  </div>
+                  {fqdnSupported && (
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="fqdn" id="source-fqdn" />
+                      <Label htmlFor="source-fqdn">FQDN</Label>
+                    </div>
+                  )}
                 </RadioGroup>
               </div>
 
@@ -1103,10 +1106,12 @@ export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }:
                     <RadioGroupItem value="group" id="dest-group" />
                     <Label htmlFor="dest-group">{t("form.firewallGroup")}</Label>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="fqdn" id="dest-fqdn" />
-                    <Label htmlFor="dest-fqdn">FQDN</Label>
-                  </div>
+                  {fqdnSupported && (
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="fqdn" id="dest-fqdn" />
+                      <Label htmlFor="dest-fqdn">FQDN</Label>
+                    </div>
+                  )}
                 </RadioGroup>
               </div>
 
