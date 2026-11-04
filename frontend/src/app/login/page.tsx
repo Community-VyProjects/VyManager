@@ -363,10 +363,7 @@ export default function LoginPage() {
                         autoFocus
                         placeholder="admin@vymanager.local"
                         value={formData.email}
-                        onChange={(e) => {
-                          setFormData({ ...formData, email: e.target.value });
-                          vortex.current?.pulse();
-                        }}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         required
                         disabled={isLoading}
                       />
@@ -380,10 +377,7 @@ export default function LoginPage() {
                         type="password"
                         autoComplete="current-password"
                         value={formData.password}
-                        onChange={(e) => {
-                          setFormData({ ...formData, password: e.target.value });
-                          vortex.current?.pulse();
-                        }}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         required
                         disabled={isLoading}
                       />

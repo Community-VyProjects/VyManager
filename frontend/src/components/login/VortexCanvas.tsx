@@ -6,7 +6,6 @@ import { VortexEngine, type VortexLayout } from "./vortex-engine";
 import styles from "./login.module.css";
 
 export interface VortexHandle {
-  pulse: () => void;
   setBusy: (busy: boolean) => void;
   fail: () => void;
   /** Resolves when it is time to navigate away. */
@@ -34,7 +33,6 @@ export const VortexCanvas = forwardRef<VortexHandle, { alt: string }>(function V
   useImperativeHandle(
     ref,
     () => ({
-      pulse: () => engineRef.current?.pulse(),
       setBusy: (busy) => engineRef.current?.setBusy(busy),
       fail: () => engineRef.current?.fail(),
       succeed: () => engineRef.current?.succeed() ?? Promise.resolve(),
