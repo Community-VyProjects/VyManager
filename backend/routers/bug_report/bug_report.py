@@ -193,15 +193,18 @@ class DevicePollResponse(BaseModel):
 
 
 class Diagnostics(BaseModel):
-    app_version: Optional[str] = None
-    vyos_version: Optional[str] = None
-    browser: Optional[str] = None
-    page: Optional[str] = None
+    # Bounded like the other report fields: these go through redaction and
+    # into the issue body. The modal clips browser and page to these limits
+    # (frontend/src/lib/api/bug-report.ts).
+    app_version: Optional[str] = Field(None, max_length=100)
+    vyos_version: Optional[str] = Field(None, max_length=100)
+    browser: Optional[str] = Field(None, max_length=1024)
+    page: Optional[str] = Field(None, max_length=2048)
 
 
 class ReportRequest(BaseModel):
     title: str = Field(..., min_length=3, max_length=200)
-    category: str = Field("bug")
+    category: str = Field("bug", max_length=32)
     description: str = Field(..., min_length=10, max_length=20000)
     include_diagnostics: bool = False
     diagnostics: Optional[Diagnostics] = None

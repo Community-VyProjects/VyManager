@@ -26,6 +26,20 @@ export interface Diagnostics {
   page?: string;
 }
 
+/** Same limits as Diagnostics in backend/routers/bug_report/bug_report.py. */
+export const DIAGNOSTIC_LIMITS = { browser: 1024, page: 2048 } as const;
+
+/**
+ * Diagnostics from the current browser, clipped so that an unusual user agent
+ * or a long path cannot make the backend reject the whole report.
+ */
+export function browserDiagnostics(userAgent?: string, pathname?: string): Diagnostics {
+  return {
+    browser: userAgent?.slice(0, DIAGNOSTIC_LIMITS.browser),
+    page: pathname?.slice(0, DIAGNOSTIC_LIMITS.page),
+  };
+}
+
 export interface ReportRequest {
   title: string;
   category: string;

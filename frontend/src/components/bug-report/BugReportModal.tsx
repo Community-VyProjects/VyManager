@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, CheckCircle2, ExternalLink, Github, Loader2, ShieldCheck } from "lucide-react";
 import {
+  browserDiagnostics,
   bugReportService,
   type ReportRequest,
   type ReportPreview,
@@ -150,10 +151,10 @@ export function BugReportModal({ open, onOpenChange }: BugReportModalProps) {
     error_text: errorText.trim() || undefined,
     include_diagnostics: includeDiagnostics,
     diagnostics: includeDiagnostics
-      ? {
-          browser: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
-          page: typeof window !== "undefined" ? window.location.pathname : undefined,
-        }
+      ? browserDiagnostics(
+          typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+          typeof window !== "undefined" ? window.location.pathname : undefined,
+        )
       : undefined,
   });
 
