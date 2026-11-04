@@ -20,6 +20,7 @@ import {
 import {
   VrfInstance,
   VrfCapabilities,
+  vrfOptionalTabs,
 } from "@/lib/api/vrf";
 import { VrfSettingsTab } from "./VrfSettingsTab";
 import { VrfStaticRoutesTab } from "./VrfStaticRoutesTab";
@@ -66,8 +67,7 @@ export function VrfContent({
   const protocolCount = vrf.protocols.length;
   const serviceCount = vrf.services.length;
 
-  const is15 = capabilities.version_info.is_1_5;
-  const rpkiSupported = capabilities.features.rpki.supported;
+  const optionalTabs = vrfOptionalTabs(capabilities.features);
 
   return (
     <div className="flex flex-col h-full">
@@ -244,7 +244,7 @@ export function VrfContent({
                   )}
                 </TabsTrigger>
 
-                {rpkiSupported && (
+                {optionalTabs.rpki && (
                   <TabsTrigger
                     value="rpki"
                     className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4"
@@ -258,7 +258,7 @@ export function VrfContent({
                   </TabsTrigger>
                 )}
 
-                {is15 && (
+                {optionalTabs.failover && (
                   <TabsTrigger
                     value="failover"
                     className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4"
@@ -272,7 +272,7 @@ export function VrfContent({
                   </TabsTrigger>
                 )}
 
-                {is15 && (
+                {optionalTabs.dhcp && (
                   <TabsTrigger
                     value="dhcp"
                     className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4"
@@ -286,7 +286,7 @@ export function VrfContent({
                   </TabsTrigger>
                 )}
 
-                {is15 && (
+                {optionalTabs.dhcpv6 && (
                   <TabsTrigger
                     value="dhcpv6"
                     className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4"
@@ -360,7 +360,7 @@ export function VrfContent({
                 />
               </TabsContent>
 
-              {rpkiSupported && (
+              {optionalTabs.rpki && (
                 <TabsContent value="rpki" className="mt-0">
                   <VrfRpkiTab
                     vrf={vrf}
@@ -371,7 +371,7 @@ export function VrfContent({
                 </TabsContent>
               )}
 
-              {is15 && (
+              {optionalTabs.failover && (
                 <TabsContent value="failover" className="mt-0">
                   <VrfFailoverTab
                     vrf={vrf}
@@ -382,7 +382,7 @@ export function VrfContent({
                 </TabsContent>
               )}
 
-              {is15 && (
+              {optionalTabs.dhcp && (
                 <TabsContent value="dhcp" className="mt-0">
                   <VrfDhcpTab
                     vrf={vrf}
@@ -393,7 +393,7 @@ export function VrfContent({
                 </TabsContent>
               )}
 
-              {is15 && (
+              {optionalTabs.dhcpv6 && (
                 <TabsContent value="dhcpv6" className="mt-0">
                   <VrfDhcpv6Tab
                     vrf={vrf}

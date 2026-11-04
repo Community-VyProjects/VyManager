@@ -851,23 +851,26 @@ const BOND_VLAN_FEATURES = [
  * Build an ethernet-shaped capabilities object describing what the bond VLAN
  * template tree supports, so the shared modals render the right fields.
  * - QoS exists only on `vif` (not vif-s/vif-c), gated per-scope in those modals.
- * - A few leaves are VyOS 1.5+ only.
+ * - Device-dependent leaves follow the bonding capability flags, so the VLAN
+ *   modals show exactly what the bond itself supports.
  * - `tcp_mss` is intentionally omitted; the clamp value is reachable via the
  *   adjust-mss text field instead.
  */
-export function bondingVlanCapabilities(version: string): EthernetCapabilities {
-  const is15 = !version.includes("1.4");
+export function bondingVlanCapabilities(
+  caps: Pick<BondingCapabilities, "version" | "features">,
+): EthernetCapabilities {
+  const supported = (key: string) => caps.features[key]?.supported ?? false;
   const vlan: Record<string, boolean> = {};
   for (const key of BOND_VLAN_FEATURES) vlan[key] = true;
-  vlan.vif_ipv6_address_interface_identifier = is15;
-  vlan.vif_dhcpv6_options_no_request_dns = is15;
-  vlan.vif_dhcpv6_options_no_request_domain_name = is15;
+  vlan.vif_ipv6_address_interface_identifier = supported("ipv6_address_interface_identifier");
+  vlan.vif_dhcpv6_options_no_request_dns = supported("dhcpv6_no_request_dns");
+  vlan.vif_dhcpv6_options_no_request_domain_name = supported("dhcpv6_no_request_domain_name");
   // QoS is not part of the vif-s / vif-c template subtree.
   vlan.vif_s_egress_qos = false;
   vlan.vif_s_ingress_qos = false;
   vlan.vif_c_egress_qos = false;
   vlan.vif_c_ingress_qos = false;
-  return { version, features: { vlan } } as unknown as EthernetCapabilities;
+  return { version: caps.version, features: { vlan } } as unknown as EthernetCapabilities;
 }
 
 /**

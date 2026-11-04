@@ -656,7 +656,7 @@ function InterfacesPageInner() {
   const activeVifC = isBondVlan ? bondVifC : allVifC;
   const vlanModalInterfaces = isBondVlan ? bondingInterfaces : interfaces;
   const vlanModalCapabilities = isBondVlan
-    ? (bondingCapabilities ? bondingVlanCapabilities(bondingCapabilities.version) : null)
+    ? (bondingCapabilities ? bondingVlanCapabilities(bondingCapabilities) : null)
     : capabilities;
   const vlanModalService = isBondVlan ? bondingVlanService : undefined;
 
