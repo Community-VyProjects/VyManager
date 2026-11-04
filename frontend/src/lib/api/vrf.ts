@@ -309,6 +309,23 @@ export interface VrfCapabilities {
   instance_id?: string;
 }
 
+export interface VrfOptionalTabs {
+  rpki: boolean;
+  failover: boolean;
+  dhcp: boolean;
+  dhcpv6: boolean;
+}
+
+/** Device-dependent VRF tabs, read from the capability flags only. */
+export function vrfOptionalTabs(features: VrfCapabilities["features"]): VrfOptionalTabs {
+  return {
+    rpki: features.rpki.supported,
+    failover: features.failover.supported,
+    dhcp: features.dhcp_server.supported,
+    dhcpv6: features.dhcpv6_server.supported,
+  };
+}
+
 // ============================================================================
 // Batch Operations
 // ============================================================================
