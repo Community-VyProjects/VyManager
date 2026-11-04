@@ -108,5 +108,5 @@ export async function submitRouteMapUpdate(
 ): Promise<VyOSResponse | null> {
   const config = buildRouteMapUpdate(draft, current);
   if (!config) return null;
-  return service.updateRule(name, current.rule_number, config);
+  return service.updateRule(name, current.rule_number, config, current.match);
 }

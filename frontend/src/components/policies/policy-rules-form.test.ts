@@ -507,4 +507,44 @@ describe("route-map rule", () => {
     );
     assert.equal(ops.some((op) => op.op.includes("prefix_len")), false);
   });
+
+  it("emits rpki-extcommunity and source-peer on create", async () => {
+    const service = new RecordingRouteMap();
+    const draft = emptyRouteMapRuleDraft();
+    draft.ruleNumber = 10;
+    draft.match = { rpki_extcommunity: "notfound", source_peer: "192.0.2.1" };
+    await submitRouteMapCreate("RM", draft, service);
+    const ops = service.calls[0].operations;
+    assert.ok(ops.some((op) => op.op === "set_match_rpki_extcommunity" && op.value === "notfound"));
+    assert.ok(ops.some((op) => op.op === "set_match_source_peer" && op.value === "192.0.2.1"));
+  });
+
+  it("clears stored rpki-extcommunity and source-peer on update", async () => {
+    const service = new RecordingRouteMap();
+    const stored: RouteMapRule = {
+      ...storedMap,
+      match: { as_path: "ASP", rpki_extcommunity: "valid", source_peer: "eth0" },
+    };
+    const draft = routeMapRuleDraftFrom(stored);
+    draft.match = { as_path: "ASP" };
+    await submitRouteMapUpdate("RM", stored, draft, service);
+    const ops = service.calls[0].operations.map((op) => op.op);
+    assert.ok(ops.includes("delete_match_rpki_extcommunity"));
+    assert.ok(ops.includes("delete_match_source_peer"));
+    assert.equal(ops.includes("set_match_rpki_extcommunity"), false);
+    assert.equal(ops.includes("set_match_source_peer"), false);
+  });
+
+  it("does not delete leaves the stored rule lacks", async () => {
+    // A device without these nodes never reports them, and the backend
+    // rejects a delete of a node the device does not have.
+    const service = new RecordingRouteMap();
+    const draft = routeMapRuleDraftFrom(storedMap);
+    draft.match = { as_path: "OTHER" };
+    await submitRouteMapUpdate("RM", storedMap, draft, service);
+    const ops = service.calls[0].operations.map((op) => op.op);
+    assert.ok(ops.includes("delete_match_as_path"));
+    assert.equal(ops.includes("delete_match_rpki_extcommunity"), false);
+    assert.equal(ops.includes("delete_match_source_peer"), false);
+  });
 });

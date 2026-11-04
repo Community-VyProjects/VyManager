@@ -18,6 +18,8 @@ export interface MatchConditions {
   origin?: string | null;  // egp|igp|incomplete
   peer?: string | null;
   rpki?: string | null;  // invalid|notfound|valid
+  rpki_extcommunity?: string | null;  // invalid|notfound|valid
+  source_peer?: string | null;
 
   // IP/IPv6 Address
   ip_address_access_list?: string | null;
@@ -127,13 +129,12 @@ export interface RouteMapCapabilities {
     basic: { supported: boolean; description: string };
     rules: { supported: boolean; description: string };
     match_conditions: { supported: boolean; description: string };
+    match_rpki_extcommunity: { supported: boolean; description: string };
+    match_source_peer: { supported: boolean; description: string };
     set_actions: { supported: boolean; description: string };
     bgp_attributes: { supported: boolean; description: string };
     call_continue: { supported: boolean; description: string };
     on_match: { supported: boolean; description: string };
-  };
-  version_notes: {
-    identical_versions: string;
   };
   device_name?: string;
 }
@@ -375,7 +376,7 @@ export class RouteMapService {
 
       // Match conditions - for simplicity, delete all and recreate
       if (rule.match) {
-        this.deleteMatchOperations(operations);
+        this.deleteMatchOperations(operations, originalRule?.match);
         this.addMatchOperations(operations, rule.match);
       }
 
@@ -444,11 +445,16 @@ export class RouteMapService {
   /**
    * Update an existing rule
    */
-  async updateRule(name: string, ruleNumber: number, rule: Partial<RouteMapRule>): Promise<VyOSResponse> {
+  async updateRule(
+    name: string,
+    ruleNumber: number,
+    rule: Partial<RouteMapRule>,
+    storedMatch: Partial<MatchConditions> | undefined,
+  ): Promise<VyOSResponse> {
     const operations: RouteMapBatchOperation[] = [];
 
     // Delete all existing match and set operations first
-    this.deleteMatchOperations(operations);
+    this.deleteMatchOperations(operations, storedMatch);
     this.deleteSetOperations(operations);
 
     // Rule description
@@ -506,6 +512,8 @@ export class RouteMapService {
     if (match.origin) operations.push({ op: "set_match_origin", value: match.origin });
     if (match.peer) operations.push({ op: "set_match_peer", value: match.peer });
     if (match.rpki) operations.push({ op: "set_match_rpki", value: match.rpki });
+    if (match.rpki_extcommunity) operations.push({ op: "set_match_rpki_extcommunity", value: match.rpki_extcommunity });
+    if (match.source_peer) operations.push({ op: "set_match_source_peer", value: match.source_peer });
 
     // IP Address
     if (match.ip_address_access_list) operations.push({ op: "set_match_ip_address_access_list", value: match.ip_address_access_list });
@@ -540,9 +548,13 @@ export class RouteMapService {
   }
 
   /**
-   * Delete all match condition operations
+   * Delete all match condition operations.
+   *
+   * rpki-extcommunity and source-peer do not exist on every device, and the
+   * backend rejects them where they do not. Delete them only when the stored
+   * rule has them, which a device without the node never does.
    */
-  private deleteMatchOperations(operations: RouteMapBatchOperation[]) {
+  private deleteMatchOperations(operations: RouteMapBatchOperation[], stored: Partial<MatchConditions> | undefined) {
     operations.push({ op: "delete_match_as_path" });
     operations.push({ op: "delete_match_community" });
     operations.push({ op: "delete_match_extcommunity" });
@@ -552,6 +564,8 @@ export class RouteMapService {
     operations.push({ op: "delete_match_origin" });
     operations.push({ op: "delete_match_peer" });
     operations.push({ op: "delete_match_rpki" });
+    if (stored?.rpki_extcommunity) operations.push({ op: "delete_match_rpki_extcommunity" });
+    if (stored?.source_peer) operations.push({ op: "delete_match_source_peer" });
     operations.push({ op: "delete_match_ip_address" });
     operations.push({ op: "delete_match_ipv6_address" });
     operations.push({ op: "delete_match_ip_nexthop" });

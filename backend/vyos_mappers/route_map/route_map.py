@@ -5,16 +5,29 @@ Handles command path generation for route-map configuration.
 Version-specific logic is in version-specific files.
 """
 
-from typing import List
+from typing import FrozenSet, List
 from ..base import BaseFeatureMapper
 
 
 class RouteMapMapper(BaseFeatureMapper):
     """Base mapper with common operations"""
 
+    # Match leaves that exist on 1.5 and not on 1.4 (validateTmplPath on both).
+    _MATCH_1_5_ONLY = ("rpki-extcommunity", "source-peer")
+
     def __init__(self, version: str):
         """Initialize with VyOS version."""
         super().__init__(version)
+
+    def versioned_match_nodes(self) -> FrozenSet[str]:
+        """Version-dependent match leaves this device has."""
+        if "1.4" in self.version:
+            return frozenset()
+        return frozenset(self._MATCH_1_5_ONLY)
+
+    def _require_match(self, node: str) -> None:
+        if node not in self.versioned_match_nodes():
+            raise ValueError(f"route-map match {node} is not supported on this device")
 
     # ========================================================================
     # Core Route Map Paths
@@ -107,6 +120,22 @@ class RouteMapMapper(BaseFeatureMapper):
     def get_match_rpki(self, name: str, rule: str, rpki: str) -> List[str]:
         """Match RPKI validation state."""
         return ["policy", "route-map", name, "rule", rule, "match", "rpki", rpki]
+
+    def get_match_rpki_extcommunity(self, name: str, rule: str, state: str) -> List[str]:
+        """Match RPKI origin validation extended community."""
+        return self.get_match_rpki_extcommunity_path(name, rule) + [state]
+
+    def get_match_rpki_extcommunity_path(self, name: str, rule: str) -> List[str]:
+        self._require_match("rpki-extcommunity")
+        return ["policy", "route-map", name, "rule", rule, "match", "rpki-extcommunity"]
+
+    def get_match_source_peer(self, name: str, rule: str, peer: str) -> List[str]:
+        """Match BGP source peer (address, interface, or peer-group)."""
+        return self.get_match_source_peer_path(name, rule) + [peer]
+
+    def get_match_source_peer_path(self, name: str, rule: str) -> List[str]:
+        self._require_match("source-peer")
+        return ["policy", "route-map", name, "rule", rule, "match", "source-peer"]
 
     # ========================================================================
     # Match Conditions - IP/IPv6 Address
