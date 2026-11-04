@@ -13,7 +13,7 @@ Lab-checked with cli-shell-api validateTmplPath on 1.4 (100.64.64.50) and
 from types import SimpleNamespace
 
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 from vyos_builders.router_advert.router_advert_batch_builder import RouterAdvertBatchBuilder
@@ -246,7 +246,10 @@ def test_batch_rejects_leaf_on_1_4_without_commit(monkeypatch, module, url, body
     assert captured == []
 
 
-@pytest.mark.parametrize("module, url, body, expected", ENDPOINT_CASES)
+SPLIT_ENDPOINT_CASES = [case for case in ENDPOINT_CASES if case[0] != VRF_MODULE]
+
+
+@pytest.mark.parametrize("module, url, body, expected", SPLIT_ENDPOINT_CASES)
 def test_batch_commit_value_error_stays_internal(monkeypatch, module, url, body, expected):
     """Only the build phase maps ValueError to 400. A commit-time error
     must not echo its message to the client."""
@@ -258,3 +261,32 @@ def test_batch_commit_value_error_stays_internal(monkeypatch, module, url, body,
     response = client.post(url, json=body)
     assert response.status_code == 500
     assert "secret" not in response.text
+
+
+@pytest.mark.parametrize("module, url, body, expected", ENDPOINT_CASES)
+def test_batch_commit_confirm_conflict_reaches_client(monkeypatch, module, url, body, expected):
+    """execute_batch raises 409 while a commit-confirm is pending. The
+    router must pass it through, not turn it into a 500."""
+
+    def pending(_batch):
+        raise HTTPException(status_code=409, detail="A commit-confirm is already active")
+
+    client, _ = _client(monkeypatch, module, "1.5", execute=pending)
+    response = client.post(url, json=body)
+    assert response.status_code == 409, response.text
+    assert response.json()["detail"] == "A commit-confirm is already active"
+
+
+def test_vrf_empty_batch_stays_400(monkeypatch):
+    """VyOSService.execute_batch raises ValueError on an empty batch. The
+    VRF router has no is_empty() check and has always answered 400."""
+
+    def execute(batch):
+        if batch.is_empty():
+            raise ValueError("Cannot execute empty batch")
+        return SimpleNamespace(status=200, result="", error=None)
+
+    client, _ = _client(monkeypatch, VRF_MODULE, "1.5", execute=execute)
+    response = client.post("/vyos/vrf/batch", json={"operations": []})
+    assert response.status_code == 400, response.text
+    assert response.json()["detail"] == "Cannot execute empty batch"

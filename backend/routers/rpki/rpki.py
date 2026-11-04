@@ -157,6 +157,9 @@ async def rpki_batch_configure(http_request: Request, body: RpkiBatchRequest):
             data={"message": "RPKI configuration updated"},
             error=response.error if response.error else None,
         )
+    except HTTPException:
+        # execute_batch raises 409 while a commit-confirm is pending.
+        raise
     except Exception:
         logger.exception("Unhandled error in rpki_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
