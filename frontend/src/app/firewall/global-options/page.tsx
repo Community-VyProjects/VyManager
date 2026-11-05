@@ -379,7 +379,7 @@ function FirewallGlobalOptionsPageInner() {
   const showBridgedTraffic = firewallFeatureSupported(capabilities, "bridged_traffic");
   const showTimeouts = firewallFeatureSupported(capabilities, "timeouts");
 
-  if (loading) {
+  if (loading && !config) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-96">
@@ -477,7 +477,7 @@ function FirewallGlobalOptionsPageInner() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => loadData()} disabled={saving}>
+            <Button variant="outline" size="sm" onClick={() => loadData()} disabled={saving || loading}>
               <RefreshCw className={cn("h-4 w-4 mr-1.5", loading && "animate-spin")} />
               {tc("refresh")}
             </Button>
