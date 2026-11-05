@@ -349,7 +349,8 @@ function TargetList({
       {targets.map((t, i) => (
         <div key={i} className="flex items-center gap-2">
           <Input className="h-7 font-mono" placeholder={tr("failoverModal.targetAddress")} value={t.address} disabled={disabled} onChange={(e) => update(i, { address: e.target.value })} />
-          <InterfaceSelect className="h-7" placeholder={tr("interface")} value={t.interface} disabled={disabled} onValueChange={(v) => update(i, { interface: v })} noneOption={{ label: tc("none"), value: "" }} />
+          {/* No column label here: the empty option reads "Interface" so the field keeps its hint, and picking it clears the value. */}
+          <InterfaceSelect className="h-7" value={t.interface} disabled={disabled} onValueChange={(v) => update(i, { interface: v })} noneOption={{ label: tr("interface"), value: "" }} />
           <VrfSelect className="h-7" placeholder="VRF" value={t.vrf} disabled={disabled} onValueChange={(v) => update(i, { vrf: v })} extraOptions={[{ label: tc("default"), value: "default" }]} />
           {!disabled && (
             <Button size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => setTargets(targets.filter((_, idx) => idx !== i))}>
