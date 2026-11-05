@@ -133,6 +133,16 @@ describe("interface-valued fields", () => {
     assert.deepEqual(offenders, []);
   });
 
+  it("pick the edit virtual-ethernet peer from configured veth interfaces", () => {
+    const source = readFileSync(join(SRC, "components/virtual-ethernet/EditVirtualEthernetModal.tsx"), "utf8");
+    const opening = source.lastIndexOf("<", source.indexOf('id="e-peerName"'));
+    const tag = source.slice(opening, source.indexOf("/>", opening) + 2);
+    assert.match(tag, /^<InterfaceSelect\b/);
+    assert.match(tag, /onValueChange=\{setPeerName\}/);
+    assert.match(tag, /filter=\{\(iface\) => \/\^veth\\d\+\$\/\.test\(iface\.name\) && iface\.name !== interfaceData\.name\}/);
+    assert.doesNotMatch(tag, /noneOption/);
+  });
+
   it("allowlists only entries that still exist", () => {
     for (const rel of ALLOWED_FILES) {
       assert.ok(walk(SRC).some((f) => relative(FRONTEND, f) === rel), rel);
