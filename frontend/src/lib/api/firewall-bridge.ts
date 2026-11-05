@@ -142,6 +142,7 @@ export interface BridgeCapabilities {
     output_chain: { supported: boolean; description: string };
     prerouting_chain: { supported: boolean; description: string };
     custom_chains: { supported: boolean; description: string };
+    rule_description: { supported: boolean; description: string };
     ethernet_type_matching: { supported: boolean; description: string };
     packet_modifications: { supported: boolean; description: string };
     notrack_action: { supported: boolean; description: string };
@@ -171,10 +172,6 @@ export interface BridgeCapabilities {
     inbound_interface: MatchingCriteria;
     outbound_interface: MatchingCriteria;
     ethernet_type: MatchingCriteria;
-  };
-  version_notes: {
-    full_support: boolean;
-    v14_limitations: string[];
   };
   instance_name?: string;
   instance_id?: string;

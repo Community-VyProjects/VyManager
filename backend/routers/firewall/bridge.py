@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
 from vyos_builders import BridgeFirewallBatchBuilder
+from vyos_mappers import CommandMapperRegistry
 from fastapi_permissions import require_read_permission, require_write_permission, FeatureGroup
 import logging
 logger = logging.getLogger(__name__)
@@ -334,12 +335,9 @@ async def get_bridge_config(request: Request, refresh: bool = False):
 
         bridge_config = full_config["firewall"]["bridge"]
         version = service.get_version()
-        is_v15 = "1.5" in version
-
-        # Define base chains to look for
-        base_chain_names = ["forward"]
-        if is_v15:
-            base_chain_names = ["forward", "input", "output", "prerouting"]
+        base_chain_names = CommandMapperRegistry.get_mapper(
+            "firewall_bridge", version
+        ).get_supported_chains()
 
         chains = []
         total_rules = 0
@@ -687,19 +685,8 @@ async def configure_bridge_batch(http_request: Request, request: BridgeBatchRequ
         chain = request.chain
         rule_number = request.rule_number
 
-        # Validate chain is valid for this VyOS version
-        is_v15 = "1.5" in version
-
-        # VyOS 1.5-only base chains that are NOT valid on 1.4
-        v15_only_base_chains = ["input", "output", "prerouting"]
-
-        # If trying to use a 1.5-only base chain on 1.4, reject it
-        # Custom chains (any name not in v15_only_base_chains and not "forward") are allowed on BOTH versions
-        if not is_v15 and chain in v15_only_base_chains:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Chain '{chain}' is only available in VyOS 1.5+. On VyOS 1.4, only 'forward' base chain and custom chains are supported."
-            )
+        # The mapper raises ValueError (400 below) for a base chain this
+        # device does not have.
 
         # Process each operation
         for operation in request.operations:

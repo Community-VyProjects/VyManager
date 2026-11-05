@@ -232,6 +232,7 @@ export function BridgeRuleModal({
     firewallFeatureSupported(capabilities, "time_based") ||
     firewallFeatureSupported(capabilities, "packet_modifications");
   const showEthernetType = firewallFeatureSupported(capabilities, "ethernet_type_matching");
+  const showRuleDescription = firewallFeatureSupported(capabilities, "rule_description");
 
   const resetForm = () => {
     setAction("accept");
@@ -591,15 +592,17 @@ export function BridgeRuleModal({
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="description">{tc("description")}</Label>
-              <Input
-                id="description"
-                placeholder={t("ruleModal.descriptionPlaceholder")}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </div>
+            {showRuleDescription && (
+              <div className="space-y-2">
+                <Label htmlFor="description">{tc("description")}</Label>
+                <Input
+                  id="description"
+                  placeholder={t("ruleModal.descriptionPlaceholder")}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
+              </div>
+            )}
 
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">

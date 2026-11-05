@@ -144,31 +144,252 @@ def test_bridge_v1_5_only_paths(method, args, op, expected_path):
     _run("1.5", method, args, op, expected_path)
 
 
-def test_bridge_capabilities_use_feature_flags():
-    caps14 = BridgeFirewallBatchBuilder(version="1.4").get_capabilities()
-    caps15 = BridgeFirewallBatchBuilder(version="1.5").get_capabilities()
-    assert caps14["features"]["protocol_matching"]["supported"] is False
-    assert caps15["features"]["protocol_matching"]["supported"] is True
-    assert caps14["features"]["ip_matching"]["supported"] is False
-    assert caps15["features"]["ip_matching"]["supported"] is True
-    assert "continue" not in caps14["supported_actions"]
-    assert "notrack" in caps15["supported_actions"]
+# Builder methods whose paths do not exist on either build yet (#1059).
+# 1.4 has no group or set subtree at all, so they must still raise there.
+UNPINNED_CASES = [
+    ('set_rule_source_group_address', ('forward', 10, 'G1')),
+    ('set_rule_source_group_network', ('forward', 10, 'G1')),
+    ('set_rule_destination_group_address', ('forward', 10, 'G1')),
+    ('set_rule_destination_group_network', ('forward', 10, 'G1')),
+    ('set_rule_set_vlan_priority', ('forward', 10, '3')),
+    ('delete_rule_set_vlan_priority', ('forward', 10)),
+]
+
+ARGS = {method: args for method, args, *_ in COMMON_CASES + V15_ONLY_CASES}
+
+# Capability flag -> builder methods that emit the paths it advertises.
+FEATURE_METHODS = {
+    'rule_description': ['set_rule_description', 'delete_rule_description'],
+    'ethernet_type_matching': ['set_rule_ethernet_type', 'delete_rule_ethernet_type', 'set_rule_vlan_ethernet_type'],
+    'packet_modifications': [
+        'set_rule_set_dscp', 'set_rule_set_mark', 'set_rule_set_connection_mark', 'set_rule_set_ttl',
+        'set_rule_set_hop_limit', 'set_rule_set_tcp_mss', 'delete_rule_set', 'delete_rule_set_dscp',
+        'delete_rule_set_mark',
+    ],
+    'protocol_matching': ['set_rule_protocol', 'delete_rule_protocol'],
+    'ip_matching': [
+        'set_rule_source_address', 'delete_rule_source_address',
+        'set_rule_destination_address', 'delete_rule_destination_address',
+    ],
+    'port_matching': [
+        'set_rule_source_port', 'delete_rule_source_port',
+        'set_rule_destination_port', 'delete_rule_destination_port',
+    ],
+    'firewall_groups': [
+        'set_rule_source_group_mac', 'set_rule_source_group_port',
+        'set_rule_destination_group_mac', 'set_rule_destination_group_port',
+    ],
+    'icmp_matching': [
+        'set_rule_icmp_type', 'set_rule_icmp_code', 'set_rule_icmp_type_name',
+        'set_rule_icmpv6_type', 'set_rule_icmpv6_code', 'set_rule_icmpv6_type_name',
+    ],
+    'tcp_flags': ['set_rule_tcp_flags', 'set_rule_tcp_flags_not', 'set_rule_tcp_mss'],
+    'rate_limiting': ['set_rule_limit_rate', 'set_rule_limit_burst', 'delete_rule_limit'],
+    'time_based': [
+        'set_rule_time_startdate', 'set_rule_time_stopdate', 'set_rule_time_starttime',
+        'set_rule_time_stoptime', 'set_rule_time_weekdays', 'delete_rule_time',
+    ],
+    'mark_matching': ['set_rule_mark', 'delete_rule_mark', 'set_rule_connection_mark'],
+    'dscp_matching': ['set_rule_dscp', 'set_rule_dscp_exclude'],
+    'fragment_matching': ['set_rule_fragment_match_frag', 'set_rule_fragment_match_non_frag'],
+    'ipsec_matching': [
+        'set_rule_ipsec_match_ipsec_in', 'set_rule_ipsec_match_ipsec_out',
+        'set_rule_ipsec_match_none_in', 'set_rule_ipsec_match_none_out',
+    ],
+    'ttl_matching': [
+        'set_rule_ttl_eq', 'set_rule_ttl_gt', 'set_rule_ttl_lt',
+        'set_rule_hop_limit_eq', 'set_rule_hop_limit_gt', 'set_rule_hop_limit_lt',
+    ],
+    'packet_type': ['set_rule_packet_type'],
+    'log_options': ['set_rule_log_options_level', 'set_rule_log_options_group', 'delete_rule_log_options'],
+}
+
+CRITERIA_METHODS = {
+    'source_mac': ['set_rule_source_mac', 'delete_rule_source_mac'],
+    'destination_mac': ['set_rule_destination_mac', 'delete_rule_destination_mac'],
+    'vlan_id': ['set_rule_vlan_id', 'delete_rule_vlan_id'],
+    'vlan_priority': ['set_rule_vlan_priority', 'delete_rule_vlan_priority'],
+    'inbound_interface': ['set_rule_inbound_interface', 'set_rule_inbound_interface_group'],
+    'outbound_interface': ['set_rule_outbound_interface', 'set_rule_outbound_interface_group'],
+    'ethernet_type': ['set_rule_ethernet_type'],
+    'protocol': ['set_rule_protocol'],
+    'source_address': ['set_rule_source_address'],
+    'destination_address': ['set_rule_destination_address'],
+    'source_port': ['set_rule_source_port'],
+    'destination_port': ['set_rule_destination_port'],
+    'icmp': ['set_rule_icmp_type', 'set_rule_icmp_code'],
+    'tcp_flags': ['set_rule_tcp_flags'],
+    'limit': ['set_rule_limit_rate'],
+    'time': ['set_rule_time_starttime'],
+}
+
+
+def _emits(version, method, args):
+    builder = BridgeFirewallBatchBuilder(version=version)
+    try:
+        getattr(builder, method)(*args)
+    except ValueError as exc:
+        assert "not supported" in str(exc)
+        assert builder.get_operations() == []
+        return False
+    return True
+
+
+def test_every_builder_path_method_is_pinned_once():
+    names = [c[0] for c in COMMON_CASES + V15_ONLY_CASES] + [c[0] for c in UNPINNED_CASES]
+    assert len(names) == len(set(names))
+    methods = {
+        m for m in dir(BridgeFirewallBatchBuilder)
+        if m.startswith(("set_", "delete_")) and callable(getattr(BridgeFirewallBatchBuilder, m))
+    }
+    assert methods == set(names)
 
 
 @pytest.mark.parametrize(
     "method, args",
-    [
-        ("set_rule_ethernet_type", ("forward", 10, "0x0800")),
-        ("delete_rule_ethernet_type", ("forward", 10)),
-        ("set_rule_vlan_ethernet_type", ("forward", 10, "0x0800")),
-    ],
+    [(c[0], c[1]) for c in V15_ONLY_CASES] + UNPINNED_CASES,
 )
-def test_bridge_ethernet_type_rejected_on_v1_4(method, args):
-    builder = BridgeFirewallBatchBuilder(version="1.4")
-    builder.set_rule("forward", 10)
-    with pytest.raises(ValueError, match="not supported"):
-        getattr(builder, method)(*args)
-    assert all("ethernet-type" not in item["path"] for item in builder.get_operations())
+def test_bridge_v1_5_only_paths_rejected_on_v1_4(method, args):
+    assert _emits("1.4", method, args) is False
+
+
+@pytest.mark.parametrize("version", ["1.4", "1.5"])
+@pytest.mark.parametrize("section, table", [("features", FEATURE_METHODS), ("matching_criteria", CRITERIA_METHODS)])
+def test_bridge_capability_flags_match_mapper_paths(version, section, table):
+    caps = BridgeFirewallBatchBuilder(version=version).get_capabilities()[section]
+    for flag, methods in table.items():
+        supported = caps[flag]["supported"]
+        for method in methods:
+            assert _emits(version, method, ARGS[method]) is supported, (version, flag, method)
+
+
+def test_bridge_capability_flags_follow_the_device_tree():
+    caps14 = BridgeFirewallBatchBuilder(version="1.4").get_capabilities()["features"]
+    caps15 = BridgeFirewallBatchBuilder(version="1.5").get_capabilities()["features"]
+    # 1.4 has log-options under a bridge rule; it has no rule description.
+    assert caps14["log_options"]["supported"] is True
+    assert caps14["rule_description"]["supported"] is False
+    assert all(flag["supported"] for flag in caps15.values())
+
+
+BASE_CHAINS = ["forward", "input", "output", "prerouting"]
+
+
+@pytest.mark.parametrize("version", ["1.4", "1.5"])
+@pytest.mark.parametrize("chain", BASE_CHAINS)
+def test_bridge_chain_flags_match_mapper_paths(version, chain):
+    caps = BridgeFirewallBatchBuilder(version=version).get_capabilities()
+    supported = caps["features"][f"{chain}_chain"]["supported"]
+    assert (chain in caps["supported_chains"]) is supported
+    for method, args in [
+        ("set_chain", (chain,)),
+        ("set_chain_default_action", (chain, "accept")),
+        ("set_rule", (chain, 10)),
+        ("set_rule_action", (chain, 10, "accept")),
+    ]:
+        assert _emits(version, method, args) is supported, (method, chain)
+    assert supported is (version == "1.5" or chain == "forward")
+
+
+@pytest.mark.parametrize("version", ["1.4", "1.5"])
+def test_bridge_custom_chains_on_both_versions(version):
+    assert _emits(version, "set_rule_action", ("MYCHAIN", 10, "drop")) is True
+
+
+ALL_ACTIONS = ["accept", "continue", "jump", "return", "drop", "queue", "notrack", "reject"]
+
+
+@pytest.mark.parametrize("version", ["1.4", "1.5"])
+@pytest.mark.parametrize("action", ALL_ACTIONS)
+def test_bridge_rule_actions_match_mapper(version, action):
+    caps = BridgeFirewallBatchBuilder(version=version).get_capabilities()
+    supported = action in caps["supported_actions"]
+    assert _emits(version, "set_rule_action", ("forward", 10, action)) is supported
+    assert caps["features"]["notrack_action"]["supported"] is ("notrack" in caps["supported_actions"])
+    # rule action node.def: 1.4 takes accept|continue|jump|return|drop|queue.
+    assert supported is (version == "1.5" or action not in ("notrack", "reject"))
+
+
+def test_bridge_batch_rejects_missing_nodes_on_v1_4(monkeypatch):
+    """A 1.4 rule description or a 1.5-only base chain is a 400 and never commits."""
+    from types import SimpleNamespace
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    executed = []
+
+    async def allow(*_args, **_kwargs):
+        return None
+
+    class Service:
+        def get_version(self):
+            return "1.4"
+
+        def execute_batch(self, batch):
+            executed.append(batch)
+            return SimpleNamespace(status=200, result="", error=None)
+
+    monkeypatch.setattr("routers.firewall.bridge.require_write_permission", allow)
+    monkeypatch.setattr(
+        "routers.firewall.bridge.get_session_vyos_service",
+        lambda _req: Service(),
+    )
+
+    from routers.firewall.bridge import router
+
+    app = FastAPI()
+    app.include_router(router)
+    client = TestClient(app)
+
+    for body in (
+        {"chain": "forward", "rule_number": 10,
+         "operations": [{"op": "set_rule"}, {"op": "set_rule_description", "value": "d"}]},
+        {"chain": "input", "rule_number": 10,
+         "operations": [{"op": "set_rule"}, {"op": "set_rule_action", "value": "accept"}]},
+        {"chain": "prerouting", "operations": [{"op": "delete_chain"}]},
+    ):
+        response = client.post("/vyos/firewall/bridge/batch", json=body)
+        assert response.status_code == 400, response.text
+        assert "not supported on this device" in response.json()["detail"]
+    assert executed == []
+
+
+def test_bridge_config_reads_the_mapper_chain_list(monkeypatch):
+    """GET /config parses exactly the base chains the mapper says exist."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    async def allow(*_args, **_kwargs):
+        return None
+
+    bridge = {
+        chain: {"filter": {"rule": {"10": {"action": "accept"}}}} for chain in BASE_CHAINS
+    }
+
+    class Service:
+        def get_full_config(self, refresh=False):
+            return {"firewall": {"bridge": bridge}}
+
+        def get_version(self):
+            return version
+
+    monkeypatch.setattr("routers.firewall.bridge.require_read_permission", allow)
+    monkeypatch.setattr(
+        "routers.firewall.bridge.get_session_vyos_service",
+        lambda _req: Service(),
+    )
+
+    from routers.firewall.bridge import router
+
+    app = FastAPI()
+    app.include_router(router)
+    client = TestClient(app)
+
+    for version, expected in (("1.4", ["forward"]), ("1.5", BASE_CHAINS)):
+        response = client.get("/vyos/firewall/bridge/config")
+        assert response.status_code == 200, response.text
+        assert [c["name"] for c in response.json()["chains"]] == expected
 
 
 def test_bridge_batch_and_reorder_reject_ethernet_type_on_v1_4(monkeypatch):
