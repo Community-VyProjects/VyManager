@@ -533,7 +533,7 @@ export function ComprehensiveVIFSModal({
                 {feat?.vif_redirect && (
                   <div className="space-y-2">
                     <Label htmlFor="redirect">{t("fields.redirect")}</Label>
-                    <Input id="redirect" placeholder="eth1" value={redirect} onChange={(e) => setRedirect(e.target.value)} />
+                    <InterfaceSelect id="redirect" value={redirect} onValueChange={setRedirect} noneOption={{ label: tc("none"), value: "" }} />
                     <p className="text-xs text-muted-foreground">{t("fields.redirectHelp")}</p>
                   </div>
                 )}
@@ -570,11 +570,11 @@ export function ComprehensiveVIFSModal({
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="mirror-ingress">{t("fields.mirrorIngress")}</Label>
-                    <Input id="mirror-ingress" placeholder="eth1" value={mirrorIngress} onChange={(e) => setMirrorIngress(e.target.value)} />
+                    <InterfaceSelect id="mirror-ingress" value={mirrorIngress} onValueChange={setMirrorIngress} noneOption={{ label: tc("none"), value: "" }} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="mirror-egress">{t("fields.mirrorEgress")}</Label>
-                    <Input id="mirror-egress" placeholder="eth1" value={mirrorEgress} onChange={(e) => setMirrorEgress(e.target.value)} />
+                    <InterfaceSelect id="mirror-egress" value={mirrorEgress} onValueChange={setMirrorEgress} noneOption={{ label: tc("none"), value: "" }} />
                   </div>
                 </div>
               )}

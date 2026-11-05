@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -157,10 +158,9 @@ export function WANInterfaceModal({ open, onOpenChange, iface, onSuccess }: Prop
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>{t("interface")} <span className="text-destructive">*</span></Label>
-              <Input
+              <InterfaceSelect
                 value={form.interface}
-                onChange={(e) => set("interface", e.target.value)}
-                placeholder="eth0"
+                onValueChange={(v) => set("interface", v)}
                 disabled={isEdit}
               />
             </div>

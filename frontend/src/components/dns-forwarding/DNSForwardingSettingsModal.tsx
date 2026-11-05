@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InterfaceMultiSelect } from "@/components/ui/interface-multi-select";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -327,13 +328,13 @@ export function DNSForwardingSettingsModal({
                   onRemove={(v) => removeFromList("source_addresses", v)}
                   placeholder={t("example", { value: "192.168.1.1" })}
                 />
-                <BadgeListInput
-                  label={t("content.dhcpInterfaces")}
-                  items={form.dhcp_interfaces}
-                  onAdd={(v) => addToList("dhcp_interfaces", v)}
-                  onRemove={(v) => removeFromList("dhcp_interfaces", v)}
-                  placeholder={t("example", { value: "eth0" })}
-                />
+                <div className="space-y-2">
+                  <Label>{t("content.dhcpInterfaces")}</Label>
+                  <InterfaceMultiSelect
+                    values={form.dhcp_interfaces}
+                    onChange={(dhcp_interfaces) => set({ dhcp_interfaces })}
+                  />
+                </div>
                 <BadgeListInput
                   label={t("settings.excludeThrottleAddresses")}
                   items={form.exclude_throttle_addresses}

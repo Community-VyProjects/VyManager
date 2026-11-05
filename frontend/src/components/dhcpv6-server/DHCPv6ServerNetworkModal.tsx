@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InterfaceMultiSelect } from "@/components/ui/interface-multi-select";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -102,10 +103,8 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
   const [netDsInput, setNetDsInput] = useState("");
   const [netInfoRefreshTime, setNetInfoRefreshTime] = useState("");
   const [netInterfaces, setNetInterfaces] = useState<string[]>([]);
-  const [netIfaceInput, setNetIfaceInput] = useState("");
   const [netCapwap, setNetCapwap] = useState("");
   const [subInterfaces, setSubInterfaces] = useState<string[]>([]);
-  const [subIfaceInput, setSubIfaceInput] = useState("");
   const [subCapwap, setSubCapwap] = useState("");
 
   // ── Subnet fields (create only) ──
@@ -165,7 +164,6 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
     setRange14Start(""); setRange14Stop(""); setRange14Prefix("");
     setRange14Temporary(false);
     setNetNsInput(""); setNetDsInput("");
-    setNetIfaceInput(""); setSubIfaceInput("");
 
     if (network) {
       setName(network.name);
@@ -335,15 +333,10 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                 </div>
 
                 {caps.features.shared_network_interface.supported && (
-                  <ListField
-                    label={t("subnetModal.interfaces")}
-                    placeholder="eth0"
-                    list={netInterfaces}
-                    input={netIfaceInput}
-                    setInput={setNetIfaceInput}
-                    onAdd={() => addToList(netInterfaces, setNetInterfaces, netIfaceInput, setNetIfaceInput)}
-                    onRemove={(item) => removeFromList(netInterfaces, setNetInterfaces, item)}
-                  />
+                  <div className="space-y-1.5">
+                    <Label>{t("subnetModal.interfaces")}</Label>
+                    <InterfaceMultiSelect values={netInterfaces} onChange={setNetInterfaces} />
+                  </div>
                 )}
 
                 {!isEditing && caps.features.capwap_controller.supported && (
@@ -375,15 +368,10 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                     </div>
 
                     {caps.features.subnet_interface.supported && (
-                      <ListField
-                        label={t("networkModal.subnetInterfaces")}
-                        placeholder="eth0"
-                        list={subInterfaces}
-                        input={subIfaceInput}
-                        setInput={setSubIfaceInput}
-                        onAdd={() => addToList(subInterfaces, setSubInterfaces, subIfaceInput, setSubIfaceInput)}
-                        onRemove={(item) => removeFromList(subInterfaces, setSubInterfaces, item)}
-                      />
+                      <div className="space-y-1.5">
+                        <Label>{t("networkModal.subnetInterfaces")}</Label>
+                        <InterfaceMultiSelect values={subInterfaces} onChange={setSubInterfaces} />
+                      </div>
                     )}
 
                     <div className="grid grid-cols-3 gap-2">

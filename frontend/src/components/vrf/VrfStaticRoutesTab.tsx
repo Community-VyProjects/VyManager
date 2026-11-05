@@ -7,6 +7,7 @@ import { VrfSelect } from "@/components/ui/vrf-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -400,10 +401,10 @@ export function VrfStaticRoutesTab({
             {(newType === "next-hop" || newType === "interface") && (
               <div className="space-y-2">
                 <Label>{newType === "interface" ? t("staticRoutes.interfaceNameLabel") : t("staticRoutes.interfaceOptionalLabel")}</Label>
-                <Input
-                  placeholder={t("example", { value: "eth0" })}
+                <InterfaceSelect
                   value={newInterface}
-                  onChange={(e) => setNewInterface(e.target.value)}
+                  onValueChange={setNewInterface}
+                  noneOption={newType === "next-hop" ? { label: tc("none"), value: "" } : undefined}
                 />
               </div>
             )}

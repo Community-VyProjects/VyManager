@@ -14,7 +14,7 @@ function frFields(): FieldSpec[] {
   for (const lvl of LEVELS) {
     out.push(
       { op: "vrf_isis_interface_fr_lfa_level_enable", args: [lvl], label: `LFA ${lvl} enable`, type: "toggle", path: ["fast-reroute", "lfa", lvl, "enable"], capability: "isis_fast_reroute" },
-      { op: "vrf_isis_interface_fr_lfa_level_exclude_interface", args: [lvl], label: `LFA ${lvl} exclude interfaces`, type: "list", path: ["fast-reroute", "lfa", lvl, "exclude", "interface"], capability: "isis_fast_reroute" },
+      { op: "vrf_isis_interface_fr_lfa_level_exclude_interface", args: [lvl], label: `LFA ${lvl} exclude interfaces`, type: "list", path: ["fast-reroute", "lfa", lvl, "exclude", "interface"], capability: "isis_fast_reroute", interface: true },
       { op: "vrf_isis_interface_fr_remote_lfa_level_maximum_metric", args: [lvl], label: `Remote-LFA ${lvl} max-metric`, type: "number", path: ["fast-reroute", "remote-lfa", lvl, "maximum-metric"], capability: "isis_fast_reroute" },
       { op: "vrf_isis_interface_fr_remote_lfa_level_tunnel_mpls_ldp", args: [lvl], label: `Remote-LFA ${lvl} mpls-ldp tunnel`, type: "toggle", path: ["fast-reroute", "remote-lfa", lvl, "tunnel", "mpls-ldp"], capability: "isis_fast_reroute" },
       { op: "vrf_isis_interface_fr_ti_lfa_level", args: [lvl], label: `TI-LFA ${lvl}`, type: "toggle", path: ["fast-reroute", "ti-lfa", lvl], capability: "isis_fast_reroute" },
@@ -62,7 +62,7 @@ export const ISIS_INTERFACE_GROUP: EntityGroupSpec = {
   label: "Interface",
   rawKey: "interface",
   createOp: "vrf_isis_interface",
-  idPlaceholder: "eth0",
+  interfaceIds: true,
   schema: INTERFACE_SCHEMA,
 };
 

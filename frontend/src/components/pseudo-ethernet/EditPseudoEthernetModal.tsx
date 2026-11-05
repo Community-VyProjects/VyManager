@@ -139,7 +139,7 @@ function VifForm({ form, onChange }: { form: VifFormState; onChange: (patch: Par
         </div>
         <div className="space-y-1">
           <Label className="text-xs">{t("form.redirect")}</Label>
-          <VrfSelect value={form.redirect} onValueChange={(v) => onChange({ redirect: v })} />
+          <InterfaceSelect value={form.redirect} onValueChange={(v) => onChange({ redirect: v })} noneOption={{ label: tc("none"), value: "" }} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">{t("form.egressQos")}</Label>
@@ -151,11 +151,11 @@ function VifForm({ form, onChange }: { form: VifFormState; onChange: (patch: Par
         </div>
         <div className="space-y-1">
           <Label className="text-xs">{t("form.mirrorIngress")}</Label>
-          <Input value={form.mirror_ingress} onChange={(e) => onChange({ mirror_ingress: e.target.value })} />
+          <InterfaceSelect value={form.mirror_ingress} onValueChange={(v) => onChange({ mirror_ingress: v })} noneOption={{ label: tc("none"), value: "" }} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">{t("form.mirrorEgress")}</Label>
-          <Input value={form.mirror_egress} onChange={(e) => onChange({ mirror_egress: e.target.value })} />
+          <InterfaceSelect value={form.mirror_egress} onValueChange={(v) => onChange({ mirror_egress: v })} noneOption={{ label: tc("none"), value: "" }} />
         </div>
       </div>
       <div className="space-y-1">
@@ -719,7 +719,7 @@ export function EditPseudoEthernetModal({
               </div>
               <div className="space-y-2">
                 <Label>{t("form.redirect")}</Label>
-                <VrfSelect value={redirect} onValueChange={setRedirect} />
+                <InterfaceSelect value={redirect} onValueChange={setRedirect} interfaces={allInterfaces} noneOption={{ label: tc("none"), value: "" }} />
               </div>
             </div>
 

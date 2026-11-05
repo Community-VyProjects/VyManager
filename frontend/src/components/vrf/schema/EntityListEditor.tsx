@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import {
   Dialog,
   DialogContent,
@@ -142,7 +143,18 @@ export function EntityListEditor({
             </Select>
           </div>
         )}
-        {canWrite && !group.fixedIds && (
+        {/* Picking an interface opens the editor; saving its fields creates the entity. */}
+        {canWrite && group.interfaceIds && (
+          <InterfaceSelect
+            className="h-8 w-[200px]"
+            value=""
+            disabled={busy}
+            filter={(iface) => !ids.includes(iface.name)}
+            placeholder={st.group(group, "add", `Add ${group.label}…`)}
+            onValueChange={(id) => id && setEditId(id)}
+          />
+        )}
+        {canWrite && !group.fixedIds && !group.interfaceIds && (
           <div className="flex items-center gap-2">
             <Input
               className="h-8 w-[180px]"

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InterfaceMultiSelect } from "@/components/ui/interface-multi-select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -124,7 +125,6 @@ export function DHCPv6ServerSubnetModal({
   const [ciscoTftpServers, setCiscoTftpServers] = useState<string[]>([]);
   const [ciscoInput, setCiscoInput] = useState("");
   const [interfaces, setInterfaces] = useState<string[]>([]);
-  const [ifaceInput, setIfaceInput] = useState("");
   const [capwap, setCapwap] = useState("");
 
   useEffect(() => {
@@ -172,7 +172,6 @@ export function DHCPv6ServerSubnetModal({
     }
     setNsInput(""); setDsInput(""); setNisInput(""); setNisplusInput("");
     setSipInput(""); setSntpInput(""); setCiscoInput("");
-    setIfaceInput("");
   }, [open, subnet, preselectedNetName, networks]);
 
   function addToList(
@@ -290,15 +289,10 @@ export function DHCPv6ServerSubnetModal({
               </div>
 
               {caps.features.subnet_interface.supported && (
-                <ListField
-                  label={t("subnetModal.interfaces")}
-                  placeholder="eth0"
-                  list={interfaces}
-                  input={ifaceInput}
-                  setInput={setIfaceInput}
-                  onAdd={() => addToList(ifaceInput, interfaces, setInterfaces, setIfaceInput)}
-                  onRemove={(item) => removeFromList(item, interfaces, setInterfaces)}
-                />
+                <div className="space-y-1.5">
+                  <Label>{t("subnetModal.interfaces")}</Label>
+                  <InterfaceMultiSelect values={interfaces} onChange={setInterfaces} />
+                </div>
               )}
 
               <div className="grid grid-cols-3 gap-3">

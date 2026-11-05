@@ -43,7 +43,6 @@
     "macvlanMode": "MACVLAN Mode",
     "selectMode": "Select mode",
     "parentInterface": "Parent Interface",
-    "parentPlaceholder": "e.g. eth0",
     "mtuPlaceholder": "e.g. 1500",
     "noNameServer": "Disable name server (no-name-server)",
     "prefixPlaceholder": "e.g. 10.0.0.0/24",

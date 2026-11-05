@@ -121,7 +121,6 @@
     "secondsOrInfinity": "秒数或 infinity",
     "preferredLifetime": "首选生存时间",
     "baseInterface": "基础接口",
-    "baseInterfacePlaceholder": "例如 eth1",
     "decrementLifetime": "递减生存时间",
     "deprecatePrefix": "关闭时弃用前缀",
     "noAutonomousFlag": "无自治标志",

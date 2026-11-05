@@ -1124,10 +1124,10 @@ function PrefixInlineForm({
       {baseIfaceSupported && (
         <div className="space-y-1.5">
           <Label className="text-xs">{t("modal.baseInterface")}</Label>
-          <Input
-            placeholder={t("modal.baseInterfacePlaceholder")}
+          <InterfaceSelect
             value={form.base_interface}
-            onChange={(e) => onChange({ ...form, base_interface: e.target.value })}
+            onValueChange={(v) => onChange({ ...form, base_interface: v })}
+            noneOption={{ label: tc("none"), value: "" }}
           />
         </div>
       )}

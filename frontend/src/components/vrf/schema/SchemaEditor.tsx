@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InterfaceSelect } from "@/components/ui/interface-select";
+import { InterfaceMultiSelect } from "@/components/ui/interface-multi-select";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -290,8 +292,32 @@ function FieldControl({
   const label = st.field(scope, field);
   const help = st.fieldHelp(scope, field);
 
+  if (field.type === "list" && field.interface) {
+    return (
+      <div className="space-y-1.5 col-span-2">
+        <Label className="text-xs">{label}</Label>
+        <InterfaceMultiSelect values={(value as string[]) || []} disabled={disabled} onChange={onChange} />
+      </div>
+    );
+  }
+
   if (field.type === "list") {
     return <ListField field={field} label={label} value={(value as string[]) || []} disabled={disabled} onChange={onChange} />;
+  }
+
+  if (field.type === "text" && field.interface) {
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}</Label>
+        <InterfaceSelect
+          value={(value as string) || ""}
+          disabled={disabled}
+          onValueChange={onChange}
+          noneOption={{ label: "—", value: "" }}
+        />
+        {help && <p className="text-[11px] text-muted-foreground">{help}</p>}
+      </div>
+    );
   }
 
   if (field.type === "toggle") {

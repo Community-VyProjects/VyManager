@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Loader2 } from "lucide-react";
@@ -139,11 +140,11 @@ export function NhrpTunnelModal({
                 {existingTunnel?.name}
               </p>
             ) : (
-              <Input
+              <InterfaceSelect
                 id="tunnel-name"
                 value={form.name}
-                onChange={(e) => update("name", e.target.value)}
-                placeholder={t("tunnelModal.namePlaceholder")}
+                onValueChange={(v) => update("name", v)}
+                filter={(iface) => /^tun\d+$/.test(iface.name)}
               />
             )}
           </div>

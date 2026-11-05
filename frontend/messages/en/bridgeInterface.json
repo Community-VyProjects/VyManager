@@ -45,7 +45,6 @@
   "macOverride": "MAC Override",
   "mirrorIngress": "Mirror Ingress",
   "mirrorEgress": "Mirror Egress",
-  "targetInterface": "Target interface",
   "ipv4Settings": "IPv4 Settings",
   "adjustMss": "Adjust MSS",
   "adjustMssPlaceholder": "clamp-mss-to-pmtu or value",

@@ -10,6 +10,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { showService, InterfaceName } from "@/lib/api/show";
+import {
+  fromSelectValue,
+  interfaceSelectOptions,
+  toSelectValue,
+} from "@/lib/interface-select-options";
 
 export interface InterfaceSelectProps {
   /** Currently selected interface name (or sentinel `noneOption.value`). */
@@ -34,8 +39,8 @@ export interface InterfaceSelectProps {
   emptyText?: string;
   /**
    * Optional sentinel option rendered at the top of the list (e.g. "None",
-   * "Any", "All"). Radix Select cannot use an empty-string value, so the
-   * value must be a non-empty sentinel such as "__none__".
+   * "Any", "All"). Use value "" for an optional field: picking it reports "",
+   * and an empty `value` shows it as selected.
    */
   noneOption?: { label: string; value: string };
 }
@@ -86,14 +91,21 @@ export function InterfaceSelect({
 
   let list = provided ? interfaces! : fetched;
   if (filter) list = list.filter(filter);
+  list = interfaceSelectOptions(list, value, noneOption?.value);
 
   return (
-    <Select value={value} onValueChange={onValueChange} disabled={disabled}>
+    <Select
+      value={toSelectValue(value, noneOption?.value)}
+      onValueChange={(v) => onValueChange(fromSelectValue(v))}
+      disabled={disabled}
+    >
       <SelectTrigger id={id} className={className}>
         <SelectValue placeholder={loading ? t("interfaceSelect.loading") : (placeholder ?? t("interfaceSelect.placeholder"))} />
       </SelectTrigger>
       <SelectContent>
-        {noneOption && <SelectItem value={noneOption.value}>{noneOption.label}</SelectItem>}
+        {noneOption && (
+          <SelectItem value={toSelectValue(noneOption.value, noneOption.value)}>{noneOption.label}</SelectItem>
+        )}
         {list.length === 0 && !noneOption ? (
           <div className="px-2 py-1.5 text-sm text-muted-foreground">{emptyText ?? t("interfaceSelect.empty")}</div>
         ) : (

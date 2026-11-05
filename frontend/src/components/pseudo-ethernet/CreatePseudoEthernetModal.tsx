@@ -430,10 +430,12 @@ export function CreatePseudoEthernetModal({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="redirect">{t("form.redirect")}</Label>
-                <VrfSelect
+                <InterfaceSelect
                   id="redirect"
                   value={redirect}
                   onValueChange={setRedirect}
+                  interfaces={allInterfaces}
+                  noneOption={{ label: tc("none"), value: "" }}
                 />
               </div>
             </div>
@@ -798,7 +800,7 @@ export function CreatePseudoEthernetModal({
                     </div>
                     {pd.interfaces.map((di, k) => (
                       <div key={k} className="flex gap-2 items-center">
-                        <Input className="flex-1" placeholder={t("form.interfacePlaceholder")} value={di.name ?? ""} onChange={(e) => setPdInstances((p) => p.map((r, j) => j === i ? { ...r, interfaces: r.interfaces.map((x, l) => l === k ? { ...x, name: e.target.value } : x) } : r))} />
+                        <InterfaceSelect className="flex-1" placeholder={t("form.interfacePlaceholder")} value={di.name ?? ""} onValueChange={(v) => setPdInstances((p) => p.map((r, j) => j === i ? { ...r, interfaces: r.interfaces.map((x, l) => l === k ? { ...x, name: v } : x) } : r))} interfaces={allInterfaces} />
                         <Input className="flex-1" placeholder={t("form.addressPlaceholderShort")} value={di.address ?? ""} onChange={(e) => setPdInstances((p) => p.map((r, j) => j === i ? { ...r, interfaces: r.interfaces.map((x, l) => l === k ? { ...x, address: e.target.value } : x) } : r))} />
                         <Input className="w-20" placeholder="SLA ID" value={di.sla_id ?? ""} onChange={(e) => setPdInstances((p) => p.map((r, j) => j === i ? { ...r, interfaces: r.interfaces.map((x, l) => l === k ? { ...x, sla_id: e.target.value } : x) } : r))} />
                         <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setPdInstances((p) => p.map((r, j) => j === i ? { ...r, interfaces: r.interfaces.filter((_, l) => l !== k) } : r))}>

@@ -14,7 +14,6 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { MplsLdpInterface } from "@/lib/api/mpls";
-import { showService, InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface MplsLdpInterfaceModalProps {
@@ -36,20 +35,8 @@ export function MplsLdpInterfaceModal({
 
   const [interfaceName, setInterfaceName] = useState("");
   const [disableHello, setDisableHello] = useState(false);
-  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Load available interfaces on open
-  useEffect(() => {
-    if (open && !isEditMode) {
-      showService.getAllInterfaces().then((res) => {
-        setAvailableInterfaces(res.interfaces);
-      }).catch(() => {
-        // Silently ignore — user can type manually via fallback
-      });
-    }
-  }, [open, isEditMode]);
 
   // Reset form on open
   useEffect(() => {
@@ -104,21 +91,12 @@ export function MplsLdpInterfaceModal({
               <p className="text-sm font-mono font-medium px-3 py-2 bg-muted rounded-md">
                 {existingInterface?.name}
               </p>
-            ) : availableInterfaces.length > 0 ? (
+            ) : (
               <InterfaceSelect
                 value={interfaceName}
                 onValueChange={setInterfaceName}
-                interfaces={availableInterfaces}
                 id="ldp-iface-name"
                 placeholder={t("interfaceModal.selectPlaceholder")}
-              />
-            ) : (
-              <input
-                id="ldp-iface-name"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                value={interfaceName}
-                onChange={(e) => setInterfaceName(e.target.value)}
-                placeholder={t("interfaceModal.namePlaceholder")}
               />
             )}
           </div>

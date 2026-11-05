@@ -12,6 +12,7 @@ import {
 import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertTriangle, Loader2, Plus, Trash2 } from "lucide-react";
@@ -246,6 +247,7 @@ function HopSection({
   disabled: boolean;
 }) {
   const t = useTranslations("vrf");
+  const tc = useTranslations("common");
   const update = (i: number, patch: Partial<Hop>) =>
     setHops(hops.map((h, idx) => (idx === i ? { ...h, ...patch } : h)));
 
@@ -264,13 +266,22 @@ function HopSection({
       {hops.map((hop, i) => (
         <div key={i} className="rounded-md border p-3 space-y-3">
           <div className="flex items-center gap-2">
-            <Input
-              className="h-8 font-mono"
-              placeholder={addLabel === "dhcp-interface" ? t("failoverModal.interfaceNamePlaceholder") : t("failoverModal.nextHopAddressPlaceholder")}
-              value={hop.address}
-              disabled={disabled}
-              onChange={(e) => update(i, { address: e.target.value })}
-            />
+            {addLabel === "dhcp-interface" ? (
+              <InterfaceSelect
+                className="h-8 font-mono"
+                value={hop.address}
+                disabled={disabled}
+                onValueChange={(v) => update(i, { address: v })}
+              />
+            ) : (
+              <Input
+                className="h-8 font-mono"
+                placeholder={t("failoverModal.nextHopAddressPlaceholder")}
+                value={hop.address}
+                disabled={disabled}
+                onChange={(e) => update(i, { address: e.target.value })}
+              />
+            )}
             {!disabled && (
               <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setHops(hops.filter((_, idx) => idx !== i))}>
                 <Trash2 className="h-3.5 w-3.5" />
@@ -278,7 +289,16 @@ function HopSection({
             )}
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <Field label={t("interface")} value={hop.interface} disabled={disabled} onChange={(v) => update(i, { interface: v })} />
+            <div className="space-y-1">
+              <Label className="text-[11px]">{t("interface")}</Label>
+              <InterfaceSelect
+                className="h-8"
+                value={hop.interface}
+                disabled={disabled}
+                onValueChange={(v) => update(i, { interface: v })}
+                noneOption={{ label: tc("none"), value: "" }}
+              />
+            </div>
             <Field label={t("failoverModal.metric")} value={hop.metric} disabled={disabled} type="number" onChange={(v) => update(i, { metric: v })} />
             <label className="flex items-center gap-2 text-xs mt-5">
               <input type="checkbox" className="h-4 w-4" checked={hop.onlink} disabled={disabled} onChange={(e) => update(i, { onlink: e.target.checked })} />
@@ -329,7 +349,8 @@ function TargetList({
       {targets.map((t, i) => (
         <div key={i} className="flex items-center gap-2">
           <Input className="h-7 font-mono" placeholder={tr("failoverModal.targetAddress")} value={t.address} disabled={disabled} onChange={(e) => update(i, { address: e.target.value })} />
-          <Input className="h-7" placeholder={tr("interface")} value={t.interface} disabled={disabled} onChange={(e) => update(i, { interface: e.target.value })} />
+          {/* No column label here: the empty option reads "Interface" so the field keeps its hint, and picking it clears the value. */}
+          <InterfaceSelect className="h-7" value={t.interface} disabled={disabled} onValueChange={(v) => update(i, { interface: v })} noneOption={{ label: tr("interface"), value: "" }} />
           <VrfSelect className="h-7" placeholder="VRF" value={t.vrf} disabled={disabled} onValueChange={(v) => update(i, { vrf: v })} extraOptions={[{ label: tc("default"), value: "default" }]} />
           {!disabled && (
             <Button size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => setTargets(targets.filter((_, idx) => idx !== i))}>

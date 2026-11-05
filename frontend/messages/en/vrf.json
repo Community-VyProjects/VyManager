@@ -126,7 +126,6 @@
     "addNextHop": "Add next-hop",
     "addDhcpInterface": "Add dhcp-interface",
     "none": "None.",
-    "interfaceNamePlaceholder": "Interface name",
     "nextHopAddressPlaceholder": "Next-hop address",
     "metric": "Metric",
     "onLink": "On-link",

@@ -13,6 +13,8 @@ import {
 import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InterfaceSelect } from "@/components/ui/interface-select";
+import { InterfaceMultiSelect } from "@/components/ui/interface-multi-select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -182,13 +184,14 @@ function TimestampFilterField({
         </p>
       </div>
       <div className="flex gap-2">
-        <Input
-          placeholder={t("settings.ifacePlaceholder")}
+        <InterfaceSelect
           value={iface}
-          onChange={(e) => {
-            setIface(e.target.value);
+          onValueChange={(v) => {
+            setIface(v);
             setFieldError(null);
           }}
+          filter={(i) => !values.some((ts) => ts.interface === i.name)}
+          noneOption={values.some((ts) => ts.interface === "all") ? undefined : { label: "all", value: "all" }}
           className="flex-1"
         />
         <Select value={filter} onValueChange={setFilter}>
@@ -329,14 +332,13 @@ export function NTPGlobalSettingsModal({
 
             <Separator />
 
-            <MultiValueField
-              label={t("settings.interfaces")}
-              description={t("settings.interfacesHint")}
-              placeholder={t("settings.interfacesPlaceholder")}
-              values={interfaces}
-              onAdd={(v) => setInterfaces((prev) => [...prev, v])}
-              onRemove={(v) => setInterfaces((prev) => prev.filter((i) => i !== v))}
-            />
+            <div className="space-y-2">
+              <div>
+                <Label className="text-sm font-medium">{t("settings.interfaces")}</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("settings.interfacesHint")}</p>
+              </div>
+              <InterfaceMultiSelect values={interfaces} onChange={setInterfaces} />
+            </div>
 
             <Separator />
 

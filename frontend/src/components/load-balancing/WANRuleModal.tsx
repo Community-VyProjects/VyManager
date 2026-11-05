@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
@@ -228,7 +229,8 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, capabi
     }
   };
 
-  const healthyInterfaces = interfaceHealth.map((i) => i.interface);
+  // Outbound interfaces only take effect when they have interface-health.
+  const healthInterfaceOptions = interfaceHealth.map((i) => ({ name: i.interface, type: "", description: null }));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -266,10 +268,9 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, capabi
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>{t("ruleModal.inboundInterface")}</Label>
-              <Input
+              <InterfaceSelect
                 value={form.inbound_interface}
-                onChange={(e) => set("inbound_interface", e.target.value)}
-                placeholder="eth0"
+                onValueChange={(v) => set("inbound_interface", v)}
               />
             </div>
             <div className="space-y-1.5">
@@ -324,28 +325,12 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, capabi
               <div key={idx} className="flex items-end gap-2">
                 <div className="flex-1 space-y-1">
                   <Label className="text-xs">{t("interface")}</Label>
-                  <Select
-                    value={iface.interface || "_custom"}
-                    onValueChange={(v) => setIface(idx, "interface", v === "_custom" ? "" : v)}
-                  >
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue placeholder={t("ruleModal.selectOrType")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {healthyInterfaces.map((hi) => (
-                        <SelectItem key={hi} value={hi}>{hi}</SelectItem>
-                      ))}
-                      <SelectItem value="_custom">{t("ruleModal.custom")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {(iface.interface === "" || !healthyInterfaces.includes(iface.interface)) && (
-                    <Input
-                      className="h-7 text-xs mt-1"
-                      value={iface.interface}
-                      onChange={(e) => setIface(idx, "interface", e.target.value)}
-                      placeholder="eth1"
-                    />
-                  )}
+                  <InterfaceSelect
+                    className="h-8 text-sm"
+                    value={iface.interface}
+                    onValueChange={(v) => setIface(idx, "interface", v)}
+                    interfaces={healthInterfaceOptions}
+                  />
                 </div>
                 <div className="w-20 space-y-1">
                   <Label className="text-xs">{t("ruleModal.weight")}</Label>

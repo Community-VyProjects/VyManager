@@ -1541,21 +1541,11 @@ export function ComprehensiveEthernetModal({
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="mirror-ingress">{t("modal.ingressInterface")}</Label>
-                      <Input
-                        id="mirror-ingress"
-                        placeholder="eth0"
-                        value={mirrorIngress}
-                        onChange={(e) => setMirrorIngress(e.target.value)}
-                      />
+                      <InterfaceSelect id="mirror-ingress" value={mirrorIngress} onValueChange={setMirrorIngress} noneOption={{ label: tc("none"), value: "" }} />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="mirror-egress">{t("modal.egressInterface")}</Label>
-                      <Input
-                        id="mirror-egress"
-                        placeholder="eth1"
-                        value={mirrorEgress}
-                        onChange={(e) => setMirrorEgress(e.target.value)}
-                      />
+                      <InterfaceSelect id="mirror-egress" value={mirrorEgress} onValueChange={setMirrorEgress} noneOption={{ label: tc("none"), value: "" }} />
                     </div>
                   </div>
                 </div>
@@ -1629,12 +1619,7 @@ export function ComprehensiveEthernetModal({
                   <h3 className="text-sm font-semibold">{t("modal.trafficRedirect")}</h3>
                   <div className="space-y-2">
                     <Label htmlFor="redirect">{t("modal.redirectTo")}</Label>
-                    <Input
-                      id="redirect"
-                      placeholder="eth1"
-                      value={redirect}
-                      onChange={(e) => setRedirect(e.target.value)}
-                    />
+                    <InterfaceSelect id="redirect" value={redirect} onValueChange={setRedirect} noneOption={{ label: tc("none"), value: "" }} />
                   </div>
                 </div>
               )}

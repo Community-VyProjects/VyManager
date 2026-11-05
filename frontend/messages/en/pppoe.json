@@ -46,7 +46,6 @@
     "serviceName": "Service Name",
     "serviceNamePlaceholder": "only connect to ACs advertising this service",
     "redirectInterface": "Redirect Interface",
-    "redirectPlaceholder": "destination interface for incoming packets",
     "disableInterface": "Administratively disable this interface"
   },
   "ppp": {

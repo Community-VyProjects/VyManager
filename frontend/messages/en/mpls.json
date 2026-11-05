@@ -123,7 +123,6 @@
     "editTitle": "Edit LDP Interface",
     "addTitle": "Add LDP Interface",
     "selectPlaceholder": "Select interface...",
-    "namePlaceholder": "e.g. eth0",
     "disableHello": "Disable Establish Hello",
     "disableHelloHelp": "Suppress LDP hello messages on this interface"
   },

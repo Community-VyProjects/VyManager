@@ -77,7 +77,7 @@ export const OSPFV3_INTERFACE_GROUP: EntityGroupSpec = {
   label: "Interface",
   rawKey: "interface",
   createOp: "vrf_ospfv3_interface",
-  idPlaceholder: "eth0",
+  interfaceIds: true,
   schema: [
     {
       title: "Settings",

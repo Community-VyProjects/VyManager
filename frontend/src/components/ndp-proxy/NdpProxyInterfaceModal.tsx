@@ -514,10 +514,9 @@ function PrefixInlineForm({
       {form.mode === "interface" && (
         <div className="space-y-1.5">
           <Label className="text-xs">{t("modal.fwdInterface")}</Label>
-          <Input
-            placeholder={t("modal.fwdInterfacePlaceholder")}
+          <InterfaceSelect
             value={form.interface}
-            onChange={(e) => onChange({ ...form, interface: e.target.value })}
+            onValueChange={(v) => onChange({ ...form, interface: v })}
           />
         </div>
       )}

@@ -95,8 +95,6 @@
     "failoverMode": "Failover mode",
     "perPacketBalancing": "Per-packet balancing",
     "exclude": "Exclude (bypass LB)",
-    "selectOrType": "Select or type",
-    "custom": "Custom…",
     "weight": "Weight",
     "rateLimit": "Rate Limit",
     "burst": "Burst",

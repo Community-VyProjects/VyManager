@@ -80,7 +80,6 @@
     "sourceAddressPlaceholder": "例如 192.0.2.10",
     "sourceAddressHelp": "BFD 报文的源 IP 地址。",
     "sourceInterface": "源接口",
-    "sourceInterfacePlaceholder": "例如 eth0",
     "sourceInterfaceHelp": "BFD 报文的源接口。",
     "vrfHelp": "此 BFD 对等体所属的 VRF 实例。"
   },
