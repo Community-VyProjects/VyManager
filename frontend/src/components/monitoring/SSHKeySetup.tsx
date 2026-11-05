@@ -290,7 +290,7 @@ save`}
         <Button
           variant="outline"
           onClick={handleResetHostKey}
-          disabled={resettingHostKey || loading}
+          disabled={resettingHostKey}
         >
           {resettingHostKey ? (
             <>
