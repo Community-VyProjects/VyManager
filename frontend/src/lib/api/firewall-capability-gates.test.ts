@@ -55,4 +55,15 @@ describe("firewallActionSupported", () => {
     assert.equal(firewallActionSupported(caps, "drop", "MY-CHAIN"), true);
     assert.equal(firewallActionSupported(caps, "notrack"), false);
   });
+
+  it("falls back to supported_actions for custom chains named like prototype members", () => {
+    const caps = {
+      supported_actions: ["accept", "drop"],
+      chain_actions: { forward: ["accept", "drop"] },
+    };
+    for (const chain of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+      assert.equal(firewallActionSupported(caps, "drop", chain), true, chain);
+      assert.equal(firewallActionSupported(caps, "notrack", chain), false, chain);
+    }
+  });
 });

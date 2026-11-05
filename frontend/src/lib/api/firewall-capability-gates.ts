@@ -20,6 +20,11 @@ export function firewallActionSupported(
   action: string,
   chain?: string,
 ): boolean {
-  const perChain = chain ? capabilities?.chain_actions?.[chain] : undefined;
+  const chainActions = capabilities?.chain_actions;
+  // Own keys only: a custom chain may be named "constructor" or "__proto__".
+  const perChain =
+    chain && chainActions && Object.prototype.hasOwnProperty.call(chainActions, chain)
+      ? chainActions[chain]
+      : undefined;
   return (perChain ?? capabilities?.supported_actions)?.includes(action) === true;
 }
