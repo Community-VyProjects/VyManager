@@ -232,6 +232,7 @@ export function BridgeRuleModal({
     firewallFeatureSupported(capabilities, "time_based") ||
     firewallFeatureSupported(capabilities, "packet_modifications");
   const showEthernetType = firewallFeatureSupported(capabilities, "ethernet_type_matching");
+  const showRuleDescription = firewallFeatureSupported(capabilities, "rule_description");
 
   const resetForm = () => {
     setAction("accept");
@@ -548,19 +549,19 @@ export function BridgeRuleModal({
                 <SelectContent>
                   <SelectItem value="accept">{t("actionOptions.accept")}</SelectItem>
                   <SelectItem value="drop">{t("actionOptions.drop")}</SelectItem>
-                  {firewallActionSupported(capabilities, "continue") && (
+                  {firewallActionSupported(capabilities, "continue", chain) && (
                     <SelectItem value="continue">{t("actionOptions.continue")}</SelectItem>
                   )}
-                  {firewallActionSupported(capabilities, "jump") && (
+                  {firewallActionSupported(capabilities, "jump", chain) && (
                     <SelectItem value="jump">{t("actionOptions.jump")}</SelectItem>
                   )}
-                  {firewallActionSupported(capabilities, "return") && (
+                  {firewallActionSupported(capabilities, "return", chain) && (
                     <SelectItem value="return">{t("actionOptions.return")}</SelectItem>
                   )}
-                  {firewallActionSupported(capabilities, "queue") && (
+                  {firewallActionSupported(capabilities, "queue", chain) && (
                     <SelectItem value="queue">{t("actionOptions.queue")}</SelectItem>
                   )}
-                  {firewallActionSupported(capabilities, "notrack") && (
+                  {firewallActionSupported(capabilities, "notrack", chain) && (
                     <SelectItem value="notrack">{t("actionOptions.notrack")}</SelectItem>
                   )}
                 </SelectContent>
@@ -579,7 +580,7 @@ export function BridgeRuleModal({
               </div>
             )}
 
-            {action === "queue" && firewallActionSupported(capabilities, "queue") && (
+            {action === "queue" && firewallActionSupported(capabilities, "queue", chain) && (
               <div className="space-y-2">
                 <Label htmlFor="queue">{t("ruleModal.queueNumber")}</Label>
                 <Input
@@ -591,15 +592,17 @@ export function BridgeRuleModal({
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="description">{tc("description")}</Label>
-              <Input
-                id="description"
-                placeholder={t("ruleModal.descriptionPlaceholder")}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </div>
+            {showRuleDescription && (
+              <div className="space-y-2">
+                <Label htmlFor="description">{tc("description")}</Label>
+                <Input
+                  id="description"
+                  placeholder={t("ruleModal.descriptionPlaceholder")}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
+              </div>
+            )}
 
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">

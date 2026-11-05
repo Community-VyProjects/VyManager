@@ -722,207 +722,96 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
 
     def get_capabilities(self) -> Dict[str, Any]:
         """
-        Get capabilities for the current VyOS version.
+        Get capabilities for the current device.
+
+        Every flag reads the mapper's node and value tables, so a flag is
+        on exactly when the mapper emits the path.
 
         Returns:
             Dictionary of supported features and operations
         """
-        is_v15 = "1.5" in self.version
+        mapper = self.mappers[self.mapper_key]
+        chains = mapper.get_supported_chains()
+        chain_actions = {chain: mapper.get_supported_rule_actions(chain) for chain in chains}
+        # Actions every base chain takes (custom chains take this set too).
+        actions = [
+            a for a in chain_actions["forward"] if all(a in v for v in chain_actions.values())
+        ]
+        node = mapper.has_rule_node
 
-        # Supported chains differ by version
-        supported_chains = ["forward"]
-        if is_v15:
-            supported_chains = ["forward", "input", "output", "prerouting"]
+        def flag(supported: bool, description: str) -> Dict[str, Any]:
+            return {"supported": supported, "description": description}
 
-        # Actions supported
-        base_actions = ["accept", "drop"]
-        if is_v15:
-            base_actions.extend(["continue", "jump", "return", "queue", "notrack"])
-
-        capabilities = {
+        return {
             "version": self.version,
             "features": {
-                "bridge_firewall": {
-                    "supported": True,
-                    "description": "Layer 2 bridge firewall"
-                },
-                "forward_chain": {
-                    "supported": True,
-                    "description": "Forward chain filtering"
-                },
-                "input_chain": {
-                    "supported": is_v15,
-                    "description": "Input chain (VyOS 1.5+)"
-                },
-                "output_chain": {
-                    "supported": is_v15,
-                    "description": "Output chain (VyOS 1.5+)"
-                },
-                "prerouting_chain": {
-                    "supported": is_v15,
-                    "description": "Prerouting chain (VyOS 1.5+)"
-                },
-                "custom_chains": {
-                    "supported": True,
-                    "description": "Custom named chains"
-                },
-                "ethernet_type_matching": {
-                    "supported": is_v15,
-                    "description": "Match by ethernet type (VyOS 1.5+)"
-                },
-                "packet_modifications": {
-                    "supported": is_v15,
-                    "description": "DSCP, mark, TTL, hop-limit, TCP MSS, VLAN priority modifications (VyOS 1.5+)"
-                },
-                "notrack_action": {
-                    "supported": is_v15,
-                    "description": "notrack action for connection tracking bypass (VyOS 1.5+)"
-                },
-                "protocol_matching": {
-                    "supported": is_v15,
-                    "description": "Match by protocol (tcp, udp, icmp, etc.) (VyOS 1.5+)"
-                },
-                "ip_matching": {
-                    "supported": is_v15,
-                    "description": "Match by source/destination IP address (VyOS 1.5+)"
-                },
-                "port_matching": {
-                    "supported": is_v15,
-                    "description": "Match by source/destination port (VyOS 1.5+)"
-                },
-                "firewall_groups": {
-                    "supported": is_v15,
-                    "description": "Match by firewall groups (address, network, port, MAC) (VyOS 1.5+)"
-                },
-                "icmp_matching": {
-                    "supported": is_v15,
-                    "description": "Match by ICMP/ICMPv6 type and code (VyOS 1.5+)"
-                },
-                "tcp_flags": {
-                    "supported": is_v15,
-                    "description": "Match by TCP flags (syn, ack, rst, etc.) (VyOS 1.5+)"
-                },
-                "rate_limiting": {
-                    "supported": is_v15,
-                    "description": "Rate limiting rules (VyOS 1.5+)"
-                },
-                "time_based": {
-                    "supported": is_v15,
-                    "description": "Time-based rules (VyOS 1.5+)"
-                },
-                "mark_matching": {
-                    "supported": is_v15,
-                    "description": "Match by firewall mark (VyOS 1.5+)"
-                },
-                "dscp_matching": {
-                    "supported": is_v15,
-                    "description": "Match by DSCP value (VyOS 1.5+)"
-                },
-                "fragment_matching": {
-                    "supported": is_v15,
-                    "description": "Match fragmented packets (VyOS 1.5+)"
-                },
-                "ipsec_matching": {
-                    "supported": is_v15,
-                    "description": "Match IPsec encapsulated packets (VyOS 1.5+)"
-                },
-                "ttl_matching": {
-                    "supported": is_v15,
-                    "description": "Match by TTL/hop-limit (VyOS 1.5+)"
-                },
-                "packet_type": {
-                    "supported": is_v15,
-                    "description": "Match by packet type (broadcast, multicast, etc.) (VyOS 1.5+)"
-                },
-                "log_options": {
-                    "supported": is_v15,
-                    "description": "Advanced logging options (VyOS 1.5+)"
-                }
+                "bridge_firewall": flag(True, "Layer 2 bridge firewall"),
+                "forward_chain": flag("forward" in chains, "Forward chain filtering"),
+                "input_chain": flag("input" in chains, "Input chain"),
+                "output_chain": flag("output" in chains, "Output chain"),
+                "prerouting_chain": flag("prerouting" in chains, "Prerouting chain"),
+                "custom_chains": flag(True, "Custom named chains"),
+                "rule_description": flag(node("description"), "Rule description"),
+                "ethernet_type_matching": flag(node("ethernet-type"), "Match by ethernet type"),
+                "packet_modifications": flag(
+                    node("set"), "DSCP, mark, TTL, hop-limit and TCP MSS modifications"
+                ),
+                "notrack_action": flag(
+                    any("notrack" in a for a in chain_actions.values()),
+                    "notrack action for connection tracking bypass",
+                ),
+                "protocol_matching": flag(node("protocol"), "Match by protocol (tcp, udp, icmp, etc.)"),
+                "ip_matching": flag(
+                    node("source", "address") and node("destination", "address"),
+                    "Match by source/destination IP address",
+                ),
+                "port_matching": flag(
+                    node("source", "port") and node("destination", "port"),
+                    "Match by source/destination port",
+                ),
+                "firewall_groups": flag(
+                    node("source", "group") and node("destination", "group"),
+                    "Match by firewall groups",
+                ),
+                "icmp_matching": flag(
+                    node("icmp") and node("icmpv6"), "Match by ICMP/ICMPv6 type and code"
+                ),
+                "tcp_flags": flag(node("tcp"), "Match by TCP flags (syn, ack, rst, etc.)"),
+                "rate_limiting": flag(node("limit"), "Rate limiting rules"),
+                "time_based": flag(node("time"), "Time-based rules"),
+                "mark_matching": flag(node("mark"), "Match by firewall mark"),
+                "dscp_matching": flag(node("dscp"), "Match by DSCP value"),
+                "fragment_matching": flag(node("fragment"), "Match fragmented packets"),
+                "ipsec_matching": flag(node("ipsec"), "Match IPsec encapsulated packets"),
+                "ttl_matching": flag(node("ttl") and node("hop-limit"), "Match by TTL/hop-limit"),
+                "packet_type": flag(node("packet-type"), "Match by packet type (broadcast, multicast, etc.)"),
+                "log_options": flag(node("log-options"), "Advanced logging options"),
             },
-            "supported_chains": supported_chains,
-            "supported_actions": base_actions,
+            "supported_chains": chains,
+            "supported_actions": actions,
+            "chain_actions": chain_actions,
             "matching_criteria": {
-                "source_mac": {
-                    "supported": True,
-                    "description": "Match by source MAC address"
-                },
-                "destination_mac": {
-                    "supported": True,
-                    "description": "Match by destination MAC address"
-                },
-                "vlan_id": {
-                    "supported": True,
-                    "description": "Match by VLAN ID"
-                },
-                "vlan_priority": {
-                    "supported": True,
-                    "description": "Match by VLAN priority (0-7)"
-                },
-                "inbound_interface": {
-                    "supported": True,
-                    "description": "Match by inbound interface"
-                },
-                "outbound_interface": {
-                    "supported": True,
-                    "description": "Match by outbound interface"
-                },
-                "ethernet_type": {
-                    "supported": is_v15,
-                    "description": "Match by ethernet type (VyOS 1.5+)"
-                },
-                "protocol": {
-                    "supported": is_v15,
-                    "description": "Match by protocol (VyOS 1.5+)"
-                },
-                "source_address": {
-                    "supported": is_v15,
-                    "description": "Match by source IP address (VyOS 1.5+)"
-                },
-                "destination_address": {
-                    "supported": is_v15,
-                    "description": "Match by destination IP address (VyOS 1.5+)"
-                },
-                "source_port": {
-                    "supported": is_v15,
-                    "description": "Match by source port (VyOS 1.5+)"
-                },
-                "destination_port": {
-                    "supported": is_v15,
-                    "description": "Match by destination port (VyOS 1.5+)"
-                },
-                "icmp": {
-                    "supported": is_v15,
-                    "description": "Match by ICMP type/code (VyOS 1.5+)"
-                },
-                "tcp_flags": {
-                    "supported": is_v15,
-                    "description": "Match by TCP flags (VyOS 1.5+)"
-                },
-                "limit": {
-                    "supported": is_v15,
-                    "description": "Rate limiting (VyOS 1.5+)"
-                },
-                "time": {
-                    "supported": is_v15,
-                    "description": "Time-based matching (VyOS 1.5+)"
-                }
+                "source_mac": flag(node("source", "mac-address"), "Match by source MAC address"),
+                "destination_mac": flag(
+                    node("destination", "mac-address"), "Match by destination MAC address"
+                ),
+                "vlan_id": flag(node("vlan", "id"), "Match by VLAN ID"),
+                "vlan_priority": flag(node("vlan", "priority"), "Match by VLAN priority (0-7)"),
+                "inbound_interface": flag(node("inbound-interface"), "Match by inbound interface"),
+                "outbound_interface": flag(node("outbound-interface"), "Match by outbound interface"),
+                "ethernet_type": flag(node("ethernet-type"), "Match by ethernet type"),
+                "protocol": flag(node("protocol"), "Match by protocol"),
+                "source_address": flag(node("source", "address"), "Match by source IP address"),
+                "destination_address": flag(
+                    node("destination", "address"), "Match by destination IP address"
+                ),
+                "source_port": flag(node("source", "port"), "Match by source port"),
+                "destination_port": flag(node("destination", "port"), "Match by destination port"),
+                "icmp": flag(node("icmp"), "Match by ICMP type/code"),
+                "tcp_flags": flag(node("tcp"), "Match by TCP flags"),
+                "limit": flag(node("limit"), "Rate limiting"),
+                "time": flag(node("time"), "Time-based matching"),
             },
-            "version_notes": {
-                "full_support": is_v15,
-                "v14_limitations": [] if is_v15 else [
-                    "Only forward chain supported",
-                    "No ethernet-type matching",
-                    "No protocol/IP/port matching",
-                    "No packet modifications (dscp, mark, vlan-priority)",
-                    "No ICMP/ICMPv6 matching",
-                    "No TCP flags matching",
-                    "No rate limiting",
-                    "No time-based rules"
-                ]
-            }
         }
-
-        return capabilities
-
 
 __all__ = ["BridgeFirewallBatchBuilder"]
