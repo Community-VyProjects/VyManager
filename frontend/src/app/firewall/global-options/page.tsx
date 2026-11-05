@@ -243,7 +243,8 @@ function FirewallGlobalOptionsPageInner() {
     const changed = Object.keys(currentValues).some(
       (key) => currentValues[key as keyof typeof currentValues] !== initialValues[key]
     );
-    setHasChanges(changed);
+    // Before a config has loaded there is nothing to diff against.
+    setHasChanges(config !== null && changed);
   }, [
     allPing, broadcastPing, ipSrcRoute, ipv6SrcRoute, receiveRedirects,
     ipv6ReceiveRedirects, sendRedirects, logMartians, sourceValidation,
@@ -254,7 +255,7 @@ function FirewallGlobalOptionsPageInner() {
     timeoutTcpEstablished, timeoutTcpFinWait, timeoutTcpLastAck,
     timeoutTcpSynRecv, timeoutTcpSynSent, timeoutTcpTimeWait,
     timeoutUdpOther, timeoutUdpStream, resolverCache, resolverInterval,
-    initialValues,
+    initialValues, config,
   ]);
 
   const loadData = useCallback(async (forceRefresh: boolean = true) => {
