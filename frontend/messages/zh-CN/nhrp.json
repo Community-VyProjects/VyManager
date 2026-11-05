@@ -60,7 +60,6 @@
     "editTitle": "编辑隧道设置",
     "addTitle": "添加 NHRP 隧道",
     "tunnelName": "隧道名称",
-    "namePlaceholder": "例如 tun0",
     "authPlaceholder": "口令（最多 8 个字符）",
     "holdingTimeSeconds": "保持时间（秒）",
     "redirect": "重定向",

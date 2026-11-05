@@ -60,7 +60,6 @@
     "editTitle": "Edit Tunnel Settings",
     "addTitle": "Add NHRP Tunnel",
     "tunnelName": "Tunnel Name",
-    "namePlaceholder": "e.g. tun0",
     "authPlaceholder": "Passphrase (max 8 chars)",
     "holdingTimeSeconds": "Holding Time (seconds)",
     "redirect": "Redirect",

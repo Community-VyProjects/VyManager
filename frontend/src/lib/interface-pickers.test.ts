@@ -133,15 +133,36 @@ describe("interface-valued fields", () => {
     assert.deepEqual(offenders, []);
   });
 
-  it("pick the edit virtual-ethernet peer from configured veth interfaces", () => {
-    const source = readFileSync(join(SRC, "components/virtual-ethernet/EditVirtualEthernetModal.tsx"), "utf8");
-    const opening = source.lastIndexOf("<", source.indexOf('id="e-peerName"'));
-    const tag = source.slice(opening, source.indexOf("/>", opening) + 2);
-    assert.match(tag, /^<InterfaceSelect\b/);
-    assert.match(tag, /onValueChange=\{setPeerName\}/);
-    assert.match(tag, /filter=\{\(iface\) => \/\^veth\\d\+\$\/\.test\(iface\.name\) && iface\.name !== interfaceData\.name\}/);
-    assert.doesNotMatch(tag, /noneOption/);
-  });
+  // Fields that must name an existing interface of one kind: the element id,
+  // the value handler, and the exact filter the picker must apply.
+  const KIND_PICKERS = [
+    {
+      file: "components/virtual-ethernet/EditVirtualEthernetModal.tsx",
+      id: "e-peerName",
+      handler: "onValueChange={setPeerName}",
+      filter: "filter={(iface) => /^veth\\d+$/.test(iface.name) && iface.name !== interfaceData.name}",
+    },
+    {
+      file: "components/nhrp/NhrpTunnelModal.tsx",
+      id: "tunnel-name",
+      handler: 'onValueChange={(v) => update("name", v)}',
+      filter: "filter={(iface) => /^tun\\d+$/.test(iface.name)}",
+    },
+  ];
+
+  for (const picker of KIND_PICKERS) {
+    it(`pick ${picker.id} from configured interfaces of its kind`, () => {
+      const source = readFileSync(join(SRC, picker.file), "utf8");
+      const at = source.indexOf(`id="${picker.id}"`);
+      assert.notEqual(at, -1, picker.id);
+      const opening = source.lastIndexOf("<", at);
+      const tag = source.slice(opening, source.indexOf("/>", opening) + 2);
+      assert.match(tag, /^<InterfaceSelect\b/);
+      assert.ok(tag.includes(picker.handler), picker.handler);
+      assert.ok(tag.includes(picker.filter), picker.filter);
+      assert.doesNotMatch(tag, /noneOption/);
+    });
+  }
 
   it("allowlists only entries that still exist", () => {
     for (const rel of ALLOWED_FILES) {
