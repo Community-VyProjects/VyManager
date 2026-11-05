@@ -46,7 +46,6 @@
     "serviceName": "服务名称",
     "serviceNamePlaceholder": "仅连接到通告此服务的 AC",
     "redirectInterface": "重定向接口",
-    "redirectPlaceholder": "入站数据包的目标接口",
     "disableInterface": "管理性禁用此接口"
   },
   "ppp": {
