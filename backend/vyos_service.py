@@ -15,29 +15,29 @@ from pyvyos.core.rest_client import ApiResponse
 import commit_confirm_state
 from config_state import clear_managed_config, set_managed_config
 from events.event_manager import event_manager, EVENT_CONFIG_DIFF, EVENT_COMMIT_CONFIRM
-from vyos_builders import (
-    EthernetBatchBuilder,
-    DummyBatchBuilder,
-    BondingBatchBuilder,
-    GeneveBatchBuilder,
-    InputBatchBuilder,
-    L2TPv3BatchBuilder,
-    LoopbackBatchBuilder,
-    MacsecBatchBuilder,
-    OpenvpnBatchBuilder,
-    PppoeBatchBuilder,
-    PseudoEthernetBatchBuilder,
-    SstpcBatchBuilder,
-    VirtualEthernetBatchBuilder,
-    VppBatchBuilder,
-    VtiBatchBuilder,
-    WirelessBatchBuilder,
-    FirewallGroupsBatchBuilder,
-    NATBatchBuilder,
-    DHCPBatchBuilder,
-    WireGuardBatchBuilder,
-    SystemPerformanceBatchBuilder,
+from vyos_builders.dhcp import DHCPBatchBuilder
+from vyos_builders.firewall import FirewallGroupsBatchBuilder
+from vyos_builders.interfaces import (
+    EthernetInterfaceBuilderMixin,
+    DummyInterfaceBuilderMixin,
+    BondingInterfaceBuilderMixin,
+    GeneveInterfaceBuilderMixin,
+    InputInterfaceBuilderMixin,
+    L2TPv3InterfaceBuilderMixin,
+    LoopbackInterfaceBuilderMixin,
+    MacsecInterfaceBuilderMixin,
+    OpenvpnInterfaceBuilderMixin,
+    PppoeInterfaceBuilderMixin,
+    PseudoEthernetInterfaceBuilderMixin,
+    SstpcInterfaceBuilderMixin,
+    VirtualEthernetInterfaceBuilderMixin,
+    VppInterfaceBuilderMixin,
+    VtiInterfaceBuilderMixin,
+    WirelessInterfaceBuilderMixin,
 )
+from vyos_builders.nat import NATBatchBuilder
+from vyos_builders.system import SystemPerformanceBatchBuilder
+from vyos_builders.wireguard import WireGuardBatchBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -93,133 +93,133 @@ class VyOSService:
         """Get the VyOS version for this device."""
         return self.config.version
 
-    def create_ethernet_batch(self) -> EthernetBatchBuilder:
+    def create_ethernet_batch(self) -> EthernetInterfaceBuilderMixin:
         """
         Create a batch builder for ethernet interfaces.
 
         The builder automatically uses correct command syntax based on version.
         """
-        return EthernetBatchBuilder(self.config.version)
+        return EthernetInterfaceBuilderMixin(self.config.version)
 
-    def create_dummy_batch(self) -> DummyBatchBuilder:
+    def create_dummy_batch(self) -> DummyInterfaceBuilderMixin:
         """
         Create a batch builder for dummy interfaces.
 
         The builder automatically uses correct command syntax based on version.
         """
-        return DummyBatchBuilder(self.config.version)
+        return DummyInterfaceBuilderMixin(self.config.version)
 
-    def create_input_batch(self) -> InputBatchBuilder:
+    def create_input_batch(self) -> InputInterfaceBuilderMixin:
         """
         Create a batch builder for input (IFB) interfaces.
 
         The builder automatically uses correct command syntax based on version.
         """
-        return InputBatchBuilder(self.config.version)
+        return InputInterfaceBuilderMixin(self.config.version)
 
-    def create_geneve_batch(self) -> GeneveBatchBuilder:
+    def create_geneve_batch(self) -> GeneveInterfaceBuilderMixin:
         """
         Create a batch builder for geneve interfaces.
 
         The builder automatically uses correct command syntax based on version.
         """
-        return GeneveBatchBuilder(self.config.version)
+        return GeneveInterfaceBuilderMixin(self.config.version)
 
-    def create_l2tpv3_batch(self) -> L2TPv3BatchBuilder:
+    def create_l2tpv3_batch(self) -> L2TPv3InterfaceBuilderMixin:
         """
         Create a batch builder for L2TPv3 interfaces.
 
         The builder automatically uses correct command syntax based on version.
         """
-        return L2TPv3BatchBuilder(self.config.version)
+        return L2TPv3InterfaceBuilderMixin(self.config.version)
 
-    def create_loopback_batch(self) -> LoopbackBatchBuilder:
+    def create_loopback_batch(self) -> LoopbackInterfaceBuilderMixin:
         """
         Create a batch builder for loopback interfaces.
 
         The builder automatically uses correct command syntax based on version.
         """
-        return LoopbackBatchBuilder(self.config.version)
+        return LoopbackInterfaceBuilderMixin(self.config.version)
 
-    def create_macsec_batch(self) -> MacsecBatchBuilder:
+    def create_macsec_batch(self) -> MacsecInterfaceBuilderMixin:
         """
         Create a batch builder for MACsec interfaces.
 
         The builder automatically uses correct command syntax based on version.
         """
-        return MacsecBatchBuilder(self.config.version)
+        return MacsecInterfaceBuilderMixin(self.config.version)
 
-    def create_openvpn_batch(self) -> OpenvpnBatchBuilder:
+    def create_openvpn_batch(self) -> OpenvpnInterfaceBuilderMixin:
         """
         Create a batch builder for OpenVPN interfaces.
 
         The builder automatically uses correct command syntax based on version.
         """
-        return OpenvpnBatchBuilder(self.config.version)
+        return OpenvpnInterfaceBuilderMixin(self.config.version)
 
-    def create_pppoe_batch(self) -> PppoeBatchBuilder:
+    def create_pppoe_batch(self) -> PppoeInterfaceBuilderMixin:
         """
         Create a batch builder for PPPoE interfaces.
 
         The builder automatically uses correct command syntax based on version.
         """
-        return PppoeBatchBuilder(self.config.version)
+        return PppoeInterfaceBuilderMixin(self.config.version)
 
-    def create_pseudo_ethernet_batch(self) -> PseudoEthernetBatchBuilder:
+    def create_pseudo_ethernet_batch(self) -> PseudoEthernetInterfaceBuilderMixin:
         """
         Create a batch builder for pseudo-ethernet (MacVLAN) interfaces.
 
         The builder automatically uses correct command syntax based on version.
         """
-        return PseudoEthernetBatchBuilder(self.config.version)
+        return PseudoEthernetInterfaceBuilderMixin(self.config.version)
 
-    def create_sstpc_batch(self) -> SstpcBatchBuilder:
+    def create_sstpc_batch(self) -> SstpcInterfaceBuilderMixin:
         """
         Create a batch builder for SSTPC interfaces.
 
         The builder automatically uses correct command syntax based on version.
         """
-        return SstpcBatchBuilder(self.config.version)
+        return SstpcInterfaceBuilderMixin(self.config.version)
 
-    def create_virtual_ethernet_batch(self) -> VirtualEthernetBatchBuilder:
+    def create_virtual_ethernet_batch(self) -> VirtualEthernetInterfaceBuilderMixin:
         """
         Create a batch builder for virtual-ethernet interfaces.
 
         The builder automatically uses correct command syntax based on version.
         """
-        return VirtualEthernetBatchBuilder(self.config.version)
+        return VirtualEthernetInterfaceBuilderMixin(self.config.version)
 
-    def create_vpp_batch(self) -> VppBatchBuilder:
+    def create_vpp_batch(self) -> VppInterfaceBuilderMixin:
         """
         Create a batch builder for VPP interfaces (VyOS 1.5+ only).
 
         The builder automatically uses correct command syntax based on version.
         """
-        return VppBatchBuilder(self.config.version)
+        return VppInterfaceBuilderMixin(self.config.version)
 
-    def create_vti_batch(self) -> VtiBatchBuilder:
+    def create_vti_batch(self) -> VtiInterfaceBuilderMixin:
         """
         Create a batch builder for VTI (Virtual Tunnel Interface) interfaces.
 
         The builder automatically uses correct command syntax based on version.
         """
-        return VtiBatchBuilder(self.config.version)
+        return VtiInterfaceBuilderMixin(self.config.version)
 
-    def create_wireless_batch(self) -> WirelessBatchBuilder:
+    def create_wireless_batch(self) -> WirelessInterfaceBuilderMixin:
         """
         Create a batch builder for wireless interfaces.
 
         The builder automatically uses correct command syntax based on version.
         """
-        return WirelessBatchBuilder(self.config.version)
+        return WirelessInterfaceBuilderMixin(self.config.version)
 
-    def create_bonding_batch(self) -> BondingBatchBuilder:
+    def create_bonding_batch(self) -> BondingInterfaceBuilderMixin:
         """
         Create a batch builder for bonding interfaces.
 
         The builder automatically uses correct command syntax based on version.
         """
-        return BondingBatchBuilder(self.config.version)
+        return BondingInterfaceBuilderMixin(self.config.version)
 
     def create_firewall_groups_batch(self) -> FirewallGroupsBatchBuilder:
         """
@@ -279,18 +279,18 @@ class VyOSService:
     def execute_batch(
         self,
         batch: Union[
-            EthernetBatchBuilder,
-            DummyBatchBuilder,
-            InputBatchBuilder,
+            EthernetInterfaceBuilderMixin,
+            DummyInterfaceBuilderMixin,
+            InputInterfaceBuilderMixin,
             FirewallGroupsBatchBuilder,
             NATBatchBuilder,
             DHCPBatchBuilder,
             WireGuardBatchBuilder,
             SystemPerformanceBatchBuilder,
-            LoopbackBatchBuilder,
-            MacsecBatchBuilder,
-            OpenvpnBatchBuilder,
-            PppoeBatchBuilder,
+            LoopbackInterfaceBuilderMixin,
+            MacsecInterfaceBuilderMixin,
+            OpenvpnInterfaceBuilderMixin,
+            PppoeInterfaceBuilderMixin,
         ],
     ) -> ApiResponse:
         """Execute a batch of operations using configure_multiple_op.

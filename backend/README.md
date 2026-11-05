@@ -617,10 +617,10 @@ from .interfaces.bridge_versions import get_bridge_mapper
 registry.register_versioned_feature("interface_bridge", get_bridge_mapper)
 ```
 
-**Builder** (`vyos_builders/__init__.py`):
+**Builder**: nothing to register. Callers import it from the package that
+owns it. The `vyos_builders` package root exports no builders.
 ```python
-from .interfaces.bridge import BridgeBatchBuilder
-__all__ = [..., "BridgeBatchBuilder"]
+from vyos_builders.interfaces.bridge import BridgeInterfaceBuilderMixin
 ```
 
 **Router** (`app.py`):
@@ -675,7 +675,6 @@ When adding a new feature (e.g., bridge interface, NAT, VPN), create these files
 **Registration:**
 ```
 ☐ vyos_mappers/__init__.py          - Register versioned mapper
-☐ vyos_builders/__init__.py         - Export builder
 ☐ app.py                             - Include router
 ```
 

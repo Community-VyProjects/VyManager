@@ -7,7 +7,7 @@ mirror the config-dict shape returned by ``get_full_config`` for the
 """
 
 from vyos_mappers.segment_routing.segment_routing_versions import get_segment_routing_mapper
-from vyos_builders import SegmentRoutingBatchBuilder
+from vyos_builders.segment_routing import SegmentRoutingBatchBuilder
 
 
 def make_builder(version="1.5"):

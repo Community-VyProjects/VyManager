@@ -19,7 +19,7 @@ from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from vyos_mappers import CommandMapperRegistry
-from vyos_builders import SystemBatchBuilder
+from vyos_builders.system import SystemBatchBuilder
 from utils.archive_url import (
     list_archive_files as _list_archive_files,
     fetch_archive_file_content,

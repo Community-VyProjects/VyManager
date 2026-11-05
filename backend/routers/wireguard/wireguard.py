@@ -11,7 +11,7 @@ Uses pyvyos generate method for key generation.
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
-from vyos_builders import WireGuardBatchBuilder
+from vyos_builders.wireguard import WireGuardBatchBuilder
 from vyos_mappers.wireguard import WireGuardMapper
 from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import require_read_permission, require_write_permission
