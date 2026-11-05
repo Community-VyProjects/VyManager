@@ -14,7 +14,6 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { MplsLdpInterface } from "@/lib/api/mpls";
-import { showService, InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface MplsLdpInterfaceModalProps {
@@ -36,20 +35,8 @@ export function MplsLdpInterfaceModal({
 
   const [interfaceName, setInterfaceName] = useState("");
   const [disableHello, setDisableHello] = useState(false);
-  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Load available interfaces on open
-  useEffect(() => {
-    if (open && !isEditMode) {
-      showService.getAllInterfaces().then((res) => {
-        setAvailableInterfaces(res.interfaces);
-      }).catch(() => {
-        // Silently ignore — user can type manually via fallback
-      });
-    }
-  }, [open, isEditMode]);
 
   // Reset form on open
   useEffect(() => {
@@ -108,7 +95,6 @@ export function MplsLdpInterfaceModal({
               <InterfaceSelect
                 value={interfaceName}
                 onValueChange={setInterfaceName}
-                interfaces={availableInterfaces}
                 id="ldp-iface-name"
                 placeholder={t("interfaceModal.selectPlaceholder")}
               />
