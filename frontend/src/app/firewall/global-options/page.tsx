@@ -379,6 +379,10 @@ function FirewallGlobalOptionsPageInner() {
   const showBridgedTraffic = firewallFeatureSupported(capabilities, "bridged_traffic");
   const showTimeouts = firewallFeatureSupported(capabilities, "timeouts");
 
+  // Lock the form while a load or save is in flight so a reload cannot
+  // overwrite edits made mid-request.
+  const formLocked = loading || saving;
+
   if (loading && !config) {
     return (
       <AppLayout>
@@ -413,7 +417,7 @@ function FirewallGlobalOptionsPageInner() {
         <span className="text-sm font-medium">{label}</span>
         {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
       </div>
-      <Select value={value} onValueChange={onChange}>
+      <Select disabled={formLocked} value={value} onValueChange={onChange}>
         <SelectTrigger className="w-[160px] h-8 text-xs">
           <SelectValue />
         </SelectTrigger>
@@ -477,16 +481,16 @@ function FirewallGlobalOptionsPageInner() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => loadData()} disabled={saving || loading}>
+            <Button variant="outline" size="sm" onClick={() => loadData()} disabled={formLocked || hasChanges}>
               <RefreshCw className={cn("h-4 w-4 mr-1.5", loading && "animate-spin")} />
               {tc("refresh")}
             </Button>
             {hasChanges && (
-              <Button variant="outline" size="sm" onClick={handleReset} disabled={saving}>
+              <Button variant="outline" size="sm" onClick={handleReset} disabled={formLocked}>
                 {t("reset")}
               </Button>
             )}
-            <Button size="sm" onClick={handleSave} disabled={saving || !hasChanges}>
+            <Button size="sm" onClick={handleSave} disabled={formLocked || !hasChanges}>
               {saving ? (
                 <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" />
               ) : (
@@ -658,7 +662,7 @@ function FirewallGlobalOptionsPageInner() {
                       {t("dns.resolverCacheDesc")}
                     </p>
                   </div>
-                  <Checkbox
+                  <Checkbox disabled={formLocked}
                     checked={resolverCache}
                     onCheckedChange={(c) => setResolverCache(c === true)}
                   />
@@ -673,7 +677,7 @@ function FirewallGlobalOptionsPageInner() {
                       {t("dns.resolverIntervalDesc")}
                     </p>
                   </div>
-                  <Input
+                  <Input disabled={formLocked}
                     type="number"
                     placeholder="300"
                     value={resolverInterval}
@@ -701,7 +705,7 @@ function FirewallGlobalOptionsPageInner() {
                   <div className="grid grid-cols-3 gap-2">
                     <div id="established-action" className="scroll-mt-24">
                       <Label className="text-xs text-muted-foreground">{t("statePolicies.action")}</Label>
-                      <Select value={establishedAction} onValueChange={setEstablishedAction}>
+                      <Select disabled={formLocked} value={establishedAction} onValueChange={setEstablishedAction}>
                         <SelectTrigger className="h-8 text-xs mt-1">
                           <SelectValue />
                         </SelectTrigger>
@@ -714,7 +718,7 @@ function FirewallGlobalOptionsPageInner() {
                     </div>
                     <div id="established-log-level" className="scroll-mt-24">
                       <Label className="text-xs text-muted-foreground">{t("statePolicies.logLevel")}</Label>
-                      <Select value={establishedLogLevel} onValueChange={setEstablishedLogLevel}>
+                      <Select disabled={formLocked} value={establishedLogLevel} onValueChange={setEstablishedLogLevel}>
                         <SelectTrigger className="h-8 text-xs mt-1">
                           <SelectValue />
                         </SelectTrigger>
@@ -727,7 +731,7 @@ function FirewallGlobalOptionsPageInner() {
                     </div>
                     <div id="established-log" className="flex items-end pb-1 scroll-mt-24">
                       <div className="flex items-center gap-1.5">
-                        <Checkbox
+                        <Checkbox disabled={formLocked}
                           id="est-log"
                           checked={establishedLog}
                           onCheckedChange={(c) => setEstablishedLog(c === true)}
@@ -746,7 +750,7 @@ function FirewallGlobalOptionsPageInner() {
                   <div className="grid grid-cols-3 gap-2">
                     <div>
                       <Label className="text-xs text-muted-foreground">{t("statePolicies.action")}</Label>
-                      <Select value={invalidAction} onValueChange={setInvalidAction}>
+                      <Select disabled={formLocked} value={invalidAction} onValueChange={setInvalidAction}>
                         <SelectTrigger className="h-8 text-xs mt-1">
                           <SelectValue />
                         </SelectTrigger>
@@ -759,7 +763,7 @@ function FirewallGlobalOptionsPageInner() {
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">{t("statePolicies.logLevel")}</Label>
-                      <Select value={invalidLogLevel} onValueChange={setInvalidLogLevel}>
+                      <Select disabled={formLocked} value={invalidLogLevel} onValueChange={setInvalidLogLevel}>
                         <SelectTrigger className="h-8 text-xs mt-1">
                           <SelectValue />
                         </SelectTrigger>
@@ -772,7 +776,7 @@ function FirewallGlobalOptionsPageInner() {
                     </div>
                     <div className="flex items-end pb-1">
                       <div className="flex items-center gap-1.5">
-                        <Checkbox
+                        <Checkbox disabled={formLocked}
                           id="inv-log"
                           checked={invalidLog}
                           onCheckedChange={(c) => setInvalidLog(c === true)}
@@ -791,7 +795,7 @@ function FirewallGlobalOptionsPageInner() {
                   <div className="grid grid-cols-3 gap-2">
                     <div>
                       <Label className="text-xs text-muted-foreground">{t("statePolicies.action")}</Label>
-                      <Select value={relatedAction} onValueChange={setRelatedAction}>
+                      <Select disabled={formLocked} value={relatedAction} onValueChange={setRelatedAction}>
                         <SelectTrigger className="h-8 text-xs mt-1">
                           <SelectValue />
                         </SelectTrigger>
@@ -804,7 +808,7 @@ function FirewallGlobalOptionsPageInner() {
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">{t("statePolicies.logLevel")}</Label>
-                      <Select value={relatedLogLevel} onValueChange={setRelatedLogLevel}>
+                      <Select disabled={formLocked} value={relatedLogLevel} onValueChange={setRelatedLogLevel}>
                         <SelectTrigger className="h-8 text-xs mt-1">
                           <SelectValue />
                         </SelectTrigger>
@@ -817,7 +821,7 @@ function FirewallGlobalOptionsPageInner() {
                     </div>
                     <div className="flex items-end pb-1">
                       <div className="flex items-center gap-1.5">
-                        <Checkbox
+                        <Checkbox disabled={formLocked}
                           id="rel-log"
                           checked={relatedLog}
                           onCheckedChange={(c) => setRelatedLog(c === true)}
@@ -838,14 +842,14 @@ function FirewallGlobalOptionsPageInner() {
                 <CardContent className="px-4 pb-3 pt-0">
                   <div className="flex items-center justify-between py-2 border-b border-border/50">
                     <span className="text-sm">{t("bridged.ipv4")}</span>
-                    <Checkbox
+                    <Checkbox disabled={formLocked}
                       checked={bridgedIpv4}
                       onCheckedChange={(c) => setBridgedIpv4(c === true)}
                     />
                   </div>
                   <div className="flex items-center justify-between py-2">
                     <span className="text-sm">{t("bridged.ipv6")}</span>
-                    <Checkbox
+                    <Checkbox disabled={formLocked}
                       checked={bridgedIpv6}
                       onCheckedChange={(c) => setBridgedIpv6(c === true)}
                     />
@@ -864,7 +868,7 @@ function FirewallGlobalOptionsPageInner() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label className="text-xs text-muted-foreground">{t("timeouts.icmp")}</Label>
-                      <Input
+                      <Input disabled={formLocked}
                         type="number"
                         placeholder="30"
                         value={timeoutIcmp}
@@ -874,7 +878,7 @@ function FirewallGlobalOptionsPageInner() {
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">{t("timeouts.other")}</Label>
-                      <Input
+                      <Input disabled={formLocked}
                         type="number"
                         placeholder="600"
                         value={timeoutOther}
@@ -890,35 +894,35 @@ function FirewallGlobalOptionsPageInner() {
                     <div className="grid grid-cols-4 gap-2">
                       <div>
                         <Label className="text-[10px] text-muted-foreground">{t("timeouts.established")}</Label>
-                        <Input type="number" placeholder="432000" value={timeoutTcpEstablished} onChange={(e) => setTimeoutTcpEstablished(e.target.value)} className="h-7 text-xs mt-0.5" />
+                        <Input disabled={formLocked} type="number" placeholder="432000" value={timeoutTcpEstablished} onChange={(e) => setTimeoutTcpEstablished(e.target.value)} className="h-7 text-xs mt-0.5" />
                       </div>
                       <div>
                         <Label className="text-[10px] text-muted-foreground">{t("timeouts.close")}</Label>
-                        <Input type="number" placeholder="10" value={timeoutTcpClose} onChange={(e) => setTimeoutTcpClose(e.target.value)} className="h-7 text-xs mt-0.5" />
+                        <Input disabled={formLocked} type="number" placeholder="10" value={timeoutTcpClose} onChange={(e) => setTimeoutTcpClose(e.target.value)} className="h-7 text-xs mt-0.5" />
                       </div>
                       <div>
                         <Label className="text-[10px] text-muted-foreground">{t("timeouts.closeWait")}</Label>
-                        <Input type="number" placeholder="60" value={timeoutTcpCloseWait} onChange={(e) => setTimeoutTcpCloseWait(e.target.value)} className="h-7 text-xs mt-0.5" />
+                        <Input disabled={formLocked} type="number" placeholder="60" value={timeoutTcpCloseWait} onChange={(e) => setTimeoutTcpCloseWait(e.target.value)} className="h-7 text-xs mt-0.5" />
                       </div>
                       <div>
                         <Label className="text-[10px] text-muted-foreground">{t("timeouts.finWait")}</Label>
-                        <Input type="number" placeholder="120" value={timeoutTcpFinWait} onChange={(e) => setTimeoutTcpFinWait(e.target.value)} className="h-7 text-xs mt-0.5" />
+                        <Input disabled={formLocked} type="number" placeholder="120" value={timeoutTcpFinWait} onChange={(e) => setTimeoutTcpFinWait(e.target.value)} className="h-7 text-xs mt-0.5" />
                       </div>
                       <div>
                         <Label className="text-[10px] text-muted-foreground">{t("timeouts.lastAck")}</Label>
-                        <Input type="number" placeholder="30" value={timeoutTcpLastAck} onChange={(e) => setTimeoutTcpLastAck(e.target.value)} className="h-7 text-xs mt-0.5" />
+                        <Input disabled={formLocked} type="number" placeholder="30" value={timeoutTcpLastAck} onChange={(e) => setTimeoutTcpLastAck(e.target.value)} className="h-7 text-xs mt-0.5" />
                       </div>
                       <div>
                         <Label className="text-[10px] text-muted-foreground">{t("timeouts.synRecv")}</Label>
-                        <Input type="number" placeholder="60" value={timeoutTcpSynRecv} onChange={(e) => setTimeoutTcpSynRecv(e.target.value)} className="h-7 text-xs mt-0.5" />
+                        <Input disabled={formLocked} type="number" placeholder="60" value={timeoutTcpSynRecv} onChange={(e) => setTimeoutTcpSynRecv(e.target.value)} className="h-7 text-xs mt-0.5" />
                       </div>
                       <div>
                         <Label className="text-[10px] text-muted-foreground">{t("timeouts.synSent")}</Label>
-                        <Input type="number" placeholder="120" value={timeoutTcpSynSent} onChange={(e) => setTimeoutTcpSynSent(e.target.value)} className="h-7 text-xs mt-0.5" />
+                        <Input disabled={formLocked} type="number" placeholder="120" value={timeoutTcpSynSent} onChange={(e) => setTimeoutTcpSynSent(e.target.value)} className="h-7 text-xs mt-0.5" />
                       </div>
                       <div>
                         <Label className="text-[10px] text-muted-foreground">{t("timeouts.timeWait")}</Label>
-                        <Input type="number" placeholder="120" value={timeoutTcpTimeWait} onChange={(e) => setTimeoutTcpTimeWait(e.target.value)} className="h-7 text-xs mt-0.5" />
+                        <Input disabled={formLocked} type="number" placeholder="120" value={timeoutTcpTimeWait} onChange={(e) => setTimeoutTcpTimeWait(e.target.value)} className="h-7 text-xs mt-0.5" />
                       </div>
                     </div>
                   </div>
@@ -929,11 +933,11 @@ function FirewallGlobalOptionsPageInner() {
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <Label className="text-[10px] text-muted-foreground">{t("timeouts.stream")}</Label>
-                        <Input type="number" placeholder="180" value={timeoutUdpStream} onChange={(e) => setTimeoutUdpStream(e.target.value)} className="h-7 text-xs mt-0.5" />
+                        <Input disabled={formLocked} type="number" placeholder="180" value={timeoutUdpStream} onChange={(e) => setTimeoutUdpStream(e.target.value)} className="h-7 text-xs mt-0.5" />
                       </div>
                       <div>
                         <Label className="text-[10px] text-muted-foreground">{t("timeouts.udpOther")}</Label>
-                        <Input type="number" placeholder="30" value={timeoutUdpOther} onChange={(e) => setTimeoutUdpOther(e.target.value)} className="h-7 text-xs mt-0.5" />
+                        <Input disabled={formLocked} type="number" placeholder="30" value={timeoutUdpOther} onChange={(e) => setTimeoutUdpOther(e.target.value)} className="h-7 text-xs mt-0.5" />
                       </div>
                     </div>
                   </div>
