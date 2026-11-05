@@ -929,7 +929,12 @@ export function EditVirtualEthernetModal({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="e-peerName">{t("form.peerName")}</Label>
-                <Input id="e-peerName" value={peerName} onChange={(e) => setPeerName(e.target.value)} placeholder="veth1" />
+                <InterfaceSelect
+                  id="e-peerName"
+                  value={peerName}
+                  onValueChange={setPeerName}
+                  filter={(iface) => /^veth\d+$/.test(iface.name) && iface.name !== interfaceData.name}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="e-description">{tc("description")}</Label>
