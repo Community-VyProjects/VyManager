@@ -16,10 +16,11 @@ _BASE_CHAINS = ("forward", "input", "output", "prerouting")
 _BASE_CHAINS_V14 = ("forward",)
 _BASE_CHAINS_V15 = _BASE_CHAINS
 
-# Rule actions per version (rule action node.def on both builds). 1.5
-# adds notrack and reject, which the device takes on the prerouting chain.
-_RULE_ACTIONS_V14 = ("accept", "continue", "jump", "return", "drop", "queue")
-_RULE_ACTIONS_V15 = _RULE_ACTIONS_V14 + ("notrack", "reject")
+# Rule actions (rule action node.def on both builds). Every chain on 1.4
+# and 1.5 takes these. Only the 1.5 prerouting chain adds notrack and
+# reject.
+_RULE_ACTIONS = ("accept", "continue", "jump", "return", "drop", "queue")
+_PREROUTING_RULE_ACTIONS_V15 = _RULE_ACTIONS + ("notrack", "reject")
 
 # Rule subtrees that exist on 1.5 and not on 1.4 (validateTmplPath on
 # both). Each entry is a path prefix under ``rule <n>``.
@@ -65,9 +66,11 @@ class BridgeFirewallMapper(BaseFeatureMapper):
         """Base chains this device has."""
         return list(_BASE_CHAINS_V15 if self._is_v15 else _BASE_CHAINS_V14)
 
-    def get_supported_rule_actions(self) -> List[str]:
-        """Rule actions this device accepts."""
-        return list(_RULE_ACTIONS_V15 if self._is_v15 else _RULE_ACTIONS_V14)
+    def get_supported_rule_actions(self, chain: str) -> List[str]:
+        """Rule actions this device accepts on ``chain`` (base or custom)."""
+        if self._is_v15 and chain == "prerouting":
+            return list(_PREROUTING_RULE_ACTIONS_V15)
+        return list(_RULE_ACTIONS)
 
     def has_rule_node(self, *tail: str) -> bool:
         """Whether ``rule <n> <tail...>`` exists on this device."""
@@ -147,8 +150,10 @@ class BridgeFirewallMapper(BaseFeatureMapper):
 
     def get_rule_action(self, chain: str, rule_number: int, action: str) -> List[str]:
         """Get command path for setting rule action."""
-        if action not in self.get_supported_rule_actions():
-            raise ValueError(f"Bridge firewall rule action {action} is not supported on this device")
+        if action not in self.get_supported_rule_actions(chain):
+            raise ValueError(
+                f"Bridge firewall rule action {action} is not supported on the {chain} chain of this device"
+            )
         return self._rule(chain, rule_number, "action", action)
 
     def get_rule_action_path(self, chain: str, rule_number: int) -> List[str]:

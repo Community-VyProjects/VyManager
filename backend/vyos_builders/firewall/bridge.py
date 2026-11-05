@@ -732,7 +732,11 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
         """
         mapper = self.mappers[self.mapper_key]
         chains = mapper.get_supported_chains()
-        actions = mapper.get_supported_rule_actions()
+        chain_actions = {chain: mapper.get_supported_rule_actions(chain) for chain in chains}
+        # Actions every base chain takes (custom chains take this set too).
+        actions = [
+            a for a in chain_actions["forward"] if all(a in v for v in chain_actions.values())
+        ]
         node = mapper.has_rule_node
 
         def flag(supported: bool, description: str) -> Dict[str, Any]:
@@ -753,7 +757,8 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
                     node("set"), "DSCP, mark, TTL, hop-limit and TCP MSS modifications"
                 ),
                 "notrack_action": flag(
-                    "notrack" in actions, "notrack action for connection tracking bypass"
+                    any("notrack" in a for a in chain_actions.values()),
+                    "notrack action for connection tracking bypass",
                 ),
                 "protocol_matching": flag(node("protocol"), "Match by protocol (tcp, udp, icmp, etc.)"),
                 "ip_matching": flag(
@@ -784,6 +789,7 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
             },
             "supported_chains": chains,
             "supported_actions": actions,
+            "chain_actions": chain_actions,
             "matching_criteria": {
                 "source_mac": flag(node("source", "mac-address"), "Match by source MAC address"),
                 "destination_mac": flag(

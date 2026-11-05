@@ -549,19 +549,19 @@ export function BridgeRuleModal({
                 <SelectContent>
                   <SelectItem value="accept">{t("actionOptions.accept")}</SelectItem>
                   <SelectItem value="drop">{t("actionOptions.drop")}</SelectItem>
-                  {firewallActionSupported(capabilities, "continue") && (
+                  {firewallActionSupported(capabilities, "continue", chain) && (
                     <SelectItem value="continue">{t("actionOptions.continue")}</SelectItem>
                   )}
-                  {firewallActionSupported(capabilities, "jump") && (
+                  {firewallActionSupported(capabilities, "jump", chain) && (
                     <SelectItem value="jump">{t("actionOptions.jump")}</SelectItem>
                   )}
-                  {firewallActionSupported(capabilities, "return") && (
+                  {firewallActionSupported(capabilities, "return", chain) && (
                     <SelectItem value="return">{t("actionOptions.return")}</SelectItem>
                   )}
-                  {firewallActionSupported(capabilities, "queue") && (
+                  {firewallActionSupported(capabilities, "queue", chain) && (
                     <SelectItem value="queue">{t("actionOptions.queue")}</SelectItem>
                   )}
-                  {firewallActionSupported(capabilities, "notrack") && (
+                  {firewallActionSupported(capabilities, "notrack", chain) && (
                     <SelectItem value="notrack">{t("actionOptions.notrack")}</SelectItem>
                   )}
                 </SelectContent>
@@ -580,7 +580,7 @@ export function BridgeRuleModal({
               </div>
             )}
 
-            {action === "queue" && firewallActionSupported(capabilities, "queue") && (
+            {action === "queue" && firewallActionSupported(capabilities, "queue", chain) && (
               <div className="space-y-2">
                 <Label htmlFor="queue">{t("ruleModal.queueNumber")}</Label>
                 <Input

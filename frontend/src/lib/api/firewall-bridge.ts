@@ -164,6 +164,7 @@ export interface BridgeCapabilities {
   };
   supported_chains: string[];
   supported_actions: string[];
+  chain_actions: Record<string, string[]>;
   matching_criteria: {
     source_mac: MatchingCriteria;
     destination_mac: MatchingCriteria;

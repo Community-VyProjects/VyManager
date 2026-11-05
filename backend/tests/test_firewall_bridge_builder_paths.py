@@ -297,17 +297,31 @@ def test_bridge_custom_chains_on_both_versions(version):
 
 
 ALL_ACTIONS = ["accept", "continue", "jump", "return", "drop", "queue", "notrack", "reject"]
+BASE_ACTIONS = ["accept", "continue", "jump", "return", "drop", "queue"]
 
 
 @pytest.mark.parametrize("version", ["1.4", "1.5"])
+@pytest.mark.parametrize("chain", BASE_CHAINS + ["MYCHAIN"])
 @pytest.mark.parametrize("action", ALL_ACTIONS)
-def test_bridge_rule_actions_match_mapper(version, action):
+def test_bridge_rule_actions_match_mapper(version, chain, action):
     caps = BridgeFirewallBatchBuilder(version=version).get_capabilities()
-    supported = action in caps["supported_actions"]
-    assert _emits(version, "set_rule_action", ("forward", 10, action)) is supported
-    assert caps["features"]["notrack_action"]["supported"] is ("notrack" in caps["supported_actions"])
-    # rule action node.def: 1.4 takes accept|continue|jump|return|drop|queue.
-    assert supported is (version == "1.5" or action not in ("notrack", "reject"))
+    if chain not in caps["supported_chains"] and chain != "MYCHAIN":
+        assert chain not in caps["chain_actions"]
+        return
+    listed = caps["chain_actions"].get(chain, caps["supported_actions"])
+    assert _emits(version, "set_rule_action", (chain, 10, action)) is (action in listed)
+    # Rule action node.def: every chain takes the base six; only the 1.5
+    # prerouting chain adds notrack and reject.
+    prerouting_extra = version == "1.5" and chain == "prerouting" and action in ("notrack", "reject")
+    assert (action in listed) is (action in BASE_ACTIONS or prerouting_extra)
+
+
+@pytest.mark.parametrize("version", ["1.4", "1.5"])
+def test_bridge_action_lists_and_notrack_flag(version):
+    caps = BridgeFirewallBatchBuilder(version=version).get_capabilities()
+    assert caps["supported_actions"] == BASE_ACTIONS
+    assert sorted(caps["chain_actions"]) == sorted(caps["supported_chains"])
+    assert caps["features"]["notrack_action"]["supported"] is (version == "1.5")
 
 
 def test_bridge_batch_rejects_missing_nodes_on_v1_4(monkeypatch):
