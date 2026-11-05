@@ -19,96 +19,96 @@ from fastapi import APIRouter, HTTPException, Request
 
 from batch_dispatch import INTERNAL_BUILDER_METHODS
 
-from vyos_builders import (
-    AccessListBatchBuilder,
-    AsPathListBatchBuilder,
-    BabelBatchBuilder,
-    BfdBatchBuilder,
-    BgpBatchBuilder,
-    CommunityListBatchBuilder,
-    DHCPBatchBuilder,
-    ExtCommunityListBatchBuilder,
-    FirewallGlobalOptionsBatchBuilder,
-    FirewallIPv4BatchBuilder,
-    FirewallIPv6BatchBuilder,
-    FirewallZonesBatchBuilder,
-    LargeCommunityListBatchBuilder,
-    LocalRouteBatchBuilder,
-    NAT64BatchBuilder,
-    NAT66BatchBuilder,
-    NATBatchBuilder,
-    OspfBatchBuilder,
-    Ospfv3BatchBuilder,
-    PrefixListBatchBuilder,
-    RipBatchBuilder,
-    RipNgBatchBuilder,
-    RouteMapBatchBuilder,
-    RpkiBatchBuilder,
-    SegmentRoutingBatchBuilder,
-    StaticRoutesBatchBuilder,
-    SystemBatchBuilder,
-    TrafficEngineeringBatchBuilder,
-    VrfBatchBuilder,
-)
-from vyos_builders import (
-    BondingBatchBuilder,
-    DummyBatchBuilder,
-    GeneveBatchBuilder,
-    InputBatchBuilder,
-    L2TPv3BatchBuilder,
-    LoopbackBatchBuilder,
-    MacsecBatchBuilder,
-    OpenvpnBatchBuilder,
-    PppoeBatchBuilder,
-    PseudoEthernetBatchBuilder,
-    SstpcBatchBuilder,
-    VirtualEthernetBatchBuilder,
-    VppBatchBuilder,
-    VtiBatchBuilder,
-    WirelessBatchBuilder,
-)
+from vyos_builders.access_list import AccessListBatchBuilder
+from vyos_builders.as_path_list import AsPathListBatchBuilder
+from vyos_builders.babel import BabelBatchBuilder
+from vyos_builders.bfd import BfdBatchBuilder
+from vyos_builders.bgp import BgpBatchBuilder
 from vyos_builders.broadcast_relay import BroadcastRelayBatchBuilder
+from vyos_builders.community_list import CommunityListBatchBuilder
 from vyos_builders.config_sync import ConfigSyncBatchBuilder
 from vyos_builders.conntrack_sync import ConntrackSyncBatchBuilder
 from vyos_builders.console_server import ConsoleServerBatchBuilder
 from vyos_builders.container import ContainerBatchBuilder
+from vyos_builders.dhcp import DHCPBatchBuilder
 from vyos_builders.dhcp_relay import DHCPRelayBatchBuilder
 from vyos_builders.dhcpv6_relay import DHCPv6RelayBatchBuilder
 from vyos_builders.dhcpv6_server import DHCPv6ServerBatchBuilder
 from vyos_builders.dns_dynamic import DNSDynamicBatchBuilder
 from vyos_builders.dns_forwarding import DNSForwardingBatchBuilder
 from vyos_builders.event_handler import EventHandlerBatchBuilder
+from vyos_builders.extcommunity_list import ExtCommunityListBatchBuilder
 from vyos_builders.failover import FailoverBatchBuilder
-from vyos_builders.firewall import FlowtablesBatchBuilder
+from vyos_builders.firewall import (
+    FirewallIPv4BatchBuilder,
+    FirewallIPv6BatchBuilder,
+    FirewallZonesBatchBuilder,
+    FlowtablesBatchBuilder,
+)
+from vyos_builders.firewall_global_options import FirewallGlobalOptionsBatchBuilder
 from vyos_builders.high_availability import HighAvailabilityBatchBuilder
 from vyos_builders.https import HTTPSBatchBuilder
 from vyos_builders.igmp_proxy import IgmpProxyBatchBuilder
+from vyos_builders.interfaces import (
+    BondingInterfaceBuilderMixin,
+    DummyInterfaceBuilderMixin,
+    GeneveInterfaceBuilderMixin,
+    InputInterfaceBuilderMixin,
+    L2TPv3InterfaceBuilderMixin,
+    LoopbackInterfaceBuilderMixin,
+    MacsecInterfaceBuilderMixin,
+    OpenvpnInterfaceBuilderMixin,
+    PppoeInterfaceBuilderMixin,
+    PseudoEthernetInterfaceBuilderMixin,
+    SstpcInterfaceBuilderMixin,
+    VirtualEthernetInterfaceBuilderMixin,
+    VppInterfaceBuilderMixin,
+    VtiInterfaceBuilderMixin,
+    WirelessInterfaceBuilderMixin,
+)
 from vyos_builders.interfaces.wwan import WwanInterfaceBatchBuilder
 from vyos_builders.ipoe_server import IPoEServerBatchBuilder
 from vyos_builders.ipsec import IPSecBatchBuilder
 from vyos_builders.isis import IsisBatchBuilder
 from vyos_builders.l2tp import L2TPBatchBuilder
+from vyos_builders.large_community_list import LargeCommunityListBatchBuilder
 from vyos_builders.lldp import LLDPBatchBuilder
 from vyos_builders.load_balancing import LoadBalancingBatchBuilder
+from vyos_builders.local_route import LocalRouteBatchBuilder
 from vyos_builders.mpls import MplsBatchBuilder
+from vyos_builders.nat import NATBatchBuilder
+from vyos_builders.nat64 import NAT64BatchBuilder
+from vyos_builders.nat66 import NAT66BatchBuilder
 from vyos_builders.ndp_proxy import NdpProxyBatchBuilder
 from vyos_builders.nhrp import NhrpBatchBuilder
 from vyos_builders.ntp import NTPBatchBuilder
 from vyos_builders.openfabric import OpenfabricBatchBuilder
+from vyos_builders.ospf import OspfBatchBuilder
+from vyos_builders.ospfv3 import Ospfv3BatchBuilder
 from vyos_builders.pim import PimBatchBuilder
 from vyos_builders.pim6 import Pim6BatchBuilder
 from vyos_builders.pki import PKIBatchBuilder
 from vyos_builders.pppoe_server import PPPoEServerBatchBuilder
+from vyos_builders.prefix_list import PrefixListBatchBuilder
 from vyos_builders.qos import QoSBatchBuilder
+from vyos_builders.rip import RipBatchBuilder
+from vyos_builders.ripng import RipNgBatchBuilder
+from vyos_builders.route_map import RouteMapBatchBuilder
 from vyos_builders.router_advert import RouterAdvertBatchBuilder
+from vyos_builders.rpki import RpkiBatchBuilder
 from vyos_builders.salt_minion import SaltMinionBatchBuilder
+from vyos_builders.segment_routing import SegmentRoutingBatchBuilder
 from vyos_builders.service_monitoring import ServiceMonitoringBatchBuilder
 from vyos_builders.sla import SLABatchBuilder
 from vyos_builders.snmp import SNMPBatchBuilder
 from vyos_builders.ssh import SSHBatchBuilder
+from vyos_builders.static_routes import StaticRoutesBatchBuilder
 from vyos_builders.suricata import SuricataBatchBuilder
+from vyos_builders.system import SystemBatchBuilder
 from vyos_builders.tftp_server import TFTPServerBatchBuilder
+from vyos_builders.traffic_engineering import TrafficEngineeringBatchBuilder
 from vyos_builders.tunnel import TunnelBatchBuilder
+from vyos_builders.vrf import VrfBatchBuilder
 from vyos_builders.vxlan import VxlanBatchBuilder
 from vyos_builders.webproxy import WebProxyBatchBuilder
 
@@ -201,21 +201,21 @@ _BUILDER_REGISTRY: dict[str, type] = {
     # Interface sub-types — "subject injection": their batch handler injects a
     # top-level field (the interface name) as the first arg of every op. See
     # _SUBJECT_FIELDS. (ethernet uses explicit dispatch and is excluded.)
-    "bonding": BondingBatchBuilder,
-    "dummy": DummyBatchBuilder,
-    "geneve": GeneveBatchBuilder,
-    "input": InputBatchBuilder,
-    "l2tpv3": L2TPv3BatchBuilder,
-    "loopback": LoopbackBatchBuilder,
-    "macsec": MacsecBatchBuilder,
-    "openvpn": OpenvpnBatchBuilder,
-    "pppoe": PppoeBatchBuilder,
-    "pseudo-ethernet": PseudoEthernetBatchBuilder,
-    "sstpc": SstpcBatchBuilder,
-    "virtual-ethernet": VirtualEthernetBatchBuilder,
-    "vpp": VppBatchBuilder,
-    "vti": VtiBatchBuilder,
-    "wireless": WirelessBatchBuilder,
+    "bonding": BondingInterfaceBuilderMixin,
+    "dummy": DummyInterfaceBuilderMixin,
+    "geneve": GeneveInterfaceBuilderMixin,
+    "input": InputInterfaceBuilderMixin,
+    "l2tpv3": L2TPv3InterfaceBuilderMixin,
+    "loopback": LoopbackInterfaceBuilderMixin,
+    "macsec": MacsecInterfaceBuilderMixin,
+    "openvpn": OpenvpnInterfaceBuilderMixin,
+    "pppoe": PppoeInterfaceBuilderMixin,
+    "pseudo-ethernet": PseudoEthernetInterfaceBuilderMixin,
+    "sstpc": SstpcInterfaceBuilderMixin,
+    "virtual-ethernet": VirtualEthernetInterfaceBuilderMixin,
+    "vpp": VppInterfaceBuilderMixin,
+    "vti": VtiInterfaceBuilderMixin,
+    "wireless": WirelessInterfaceBuilderMixin,
 }
 
 # Features whose batch handler injects a top-level body field as the first

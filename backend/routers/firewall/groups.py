@@ -10,7 +10,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
-from vyos_builders import FirewallGroupsBatchBuilder
+from vyos_builders.firewall import FirewallGroupsBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission, FeatureGroup
 import logging
 logger = logging.getLogger(__name__)

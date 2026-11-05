@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
 from vyos_mappers.base import CommandMapperRegistry
-from vyos_builders import BabelBatchBuilder
+from vyos_builders.babel import BabelBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import inspect
