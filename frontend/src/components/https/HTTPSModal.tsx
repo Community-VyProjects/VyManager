@@ -48,6 +48,7 @@ interface HTTPSModalProps {
   config: HTTPSConfig | null;
   corsIndependent: boolean;
   restContainer: boolean;
+  capsReady: boolean;
 }
 
 interface ApiKeyRow extends HTTPSApiKey {
@@ -71,7 +72,7 @@ const EMPTY_CONFIG: HTTPSConfig = {
   },
 };
 
-export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, restContainer }: HTTPSModalProps) {
+export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, restContainer, capsReady }: HTTPSModalProps) {
   const t = useTranslations("https");
   const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
@@ -283,7 +284,10 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, 
     };
 
     try {
-      const result = await httpsService.saveConfig(payload);
+      const result = await httpsService.saveConfig(payload, {
+        corsIndependent,
+        restContainer,
+      });
       if (!result.success) {
         setError(result.error ?? t("modal.errors.configurationFailed"));
         return;
@@ -813,7 +817,7 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, 
           <Button variant="outline" onClick={onClose} disabled={loading}>
             {tc("cancel")}
           </Button>
-          <Button onClick={handleSubmit} disabled={loading}>
+          <Button onClick={handleSubmit} disabled={loading || !capsReady}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {tc("save")}
           </Button>

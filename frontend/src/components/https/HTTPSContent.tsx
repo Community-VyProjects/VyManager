@@ -49,6 +49,7 @@ export function HTTPSContent() {
   const [config, setConfig] = useState<HTTPSConfig | null>(null);
   const [corsIndependent, setCorsIndependent] = useState(false);
   const [restContainer, setRestContainer] = useState(false);
+  const [capsReady, setCapsReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -64,6 +65,10 @@ export function HTTPSContent() {
       setConfig(data);
       setCorsIndependent(httpsCorsIndependent(caps));
       setRestContainer(httpsRestContainer(caps));
+      setCapsReady(caps !== null);
+      if (!caps) {
+        setError(t("content.loadFailed"));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : t("content.loadFailed"));
     } finally {
@@ -126,7 +131,7 @@ export function HTTPSContent() {
                 <RefreshCw className="h-4 w-4 mr-2" />
                 {tc("refresh")}
               </Button>
-              {hasWritePermission && (
+              {hasWritePermission && capsReady && (
                 <Button size="sm" onClick={() => setModalOpen(true)}>
                   <Pencil className="h-4 w-4 mr-2" />
                   {configured ? t("content.editConfiguration") : t("content.configureHttps")}
@@ -152,7 +157,7 @@ export function HTTPSContent() {
                 <p className="text-xs text-muted-foreground mb-4">
                   {t("content.notConfiguredHelp")}
                 </p>
-                {hasWritePermission && (
+                {hasWritePermission && capsReady && (
                   <Button size="sm" onClick={() => setModalOpen(true)}>
                     {t("content.configureHttps")}
                   </Button>
@@ -327,6 +332,7 @@ export function HTTPSContent() {
         config={config}
         corsIndependent={corsIndependent}
         restContainer={restContainer}
+        capsReady={capsReady}
       />
     </>
   );

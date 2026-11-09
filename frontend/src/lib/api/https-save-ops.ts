@@ -20,7 +20,7 @@ export function httpsRestContainer(
 ): boolean {
   const feature = capabilities?.features?.api_rest;
   if (!feature || typeof feature !== "object") return false;
-  return (feature as { supported?: boolean }).supported === true;
+  return (feature as { container?: boolean }).container === true;
 }
 
 export function buildHttpsSaveOps(

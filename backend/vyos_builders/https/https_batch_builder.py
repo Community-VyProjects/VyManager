@@ -107,7 +107,8 @@ class HTTPSBatchBuilder(BatchBuilder):
                     ),
                 },
                 "api_rest": {
-                    "supported": bool(self.m.get_api_rest()),
+                    "supported": True,
+                    "container": bool(self.m.get_api_rest()),
                     "description": "REST API endpoint",
                 },
                 "api_debug": {

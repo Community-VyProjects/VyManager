@@ -124,13 +124,14 @@ describe("https capability readers", () => {
     const caps = {
       features: {
         api_cors: { cors_scope: "api" },
-        api_rest: { supported: false },
+        api_rest: { supported: true, container: false },
       },
     };
     assert.equal(httpsCorsIndependent(caps), true);
     assert.equal(httpsRestContainer(caps), false);
     assert.equal(httpsCorsIndependent({ features: { api_cors: { cors_scope: "graphql" } } }), false);
-    assert.equal(httpsRestContainer({ features: { api_rest: { supported: true } } }), true);
+    assert.equal(httpsRestContainer({ features: { api_rest: { supported: true, container: true } } }), true);
+    assert.equal(httpsRestContainer({ features: { api_rest: { supported: true } } }), false);
     assert.equal(httpsCorsIndependent(null), false);
     assert.equal(httpsRestContainer(null), false);
   });
