@@ -908,6 +908,8 @@ def build_router(family: str) -> APIRouter:
             )
         except HTTPException:
             raise
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
             logger.exception("Unhandled error")
             raise HTTPException(status_code=500, detail="Internal server error")
@@ -1280,6 +1282,8 @@ def build_router(family: str) -> APIRouter:
             )
         except HTTPException:
             raise
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
             logger.exception("Unhandled error")
             raise HTTPException(status_code=500, detail="Internal server error")

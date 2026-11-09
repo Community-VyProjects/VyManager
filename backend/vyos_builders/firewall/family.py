@@ -4,8 +4,9 @@ Firewall address-family batch builder.
 One implementation parameterized by family (ipv4 or ipv6).
 """
 
-from typing import Dict, Any
+from typing import Any, Dict, cast
 from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.firewall.family import FirewallFamilyMapper
 from vyos_builders.base import BatchBuilder
 
 
@@ -1503,8 +1504,8 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
         Returns feature flags indicating which operations are supported.
         """
-        # Check if version is VyOS 1.5+
-        is_v15 = "1.5" in self.version or "latest" in self.version
+        mapper = cast(FirewallFamilyMapper, self.mappers[self.mapper_key])
+        node = mapper.has_rule_node
 
         return {
             "version": self.version,
@@ -1526,7 +1527,7 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
                     "description": "Address, network, and port group references",
                 },
                 "remote_group": {
-                    "supported": is_v15,
+                    "supported": node("remote-group"),
                     "description": "Remote group support",
                 },
                 "connection_state": {
@@ -1562,11 +1563,11 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
                     "description": "Jump to custom chains",
                 },
                 "prerouting_raw": {
-                    "supported": is_v15,
+                    "supported": node("prerouting-raw"),
                     "description": "Prerouting raw chain",
                 },
                 "gre_matching": {
-                    "supported": is_v15,
+                    "supported": node("gre"),
                     "description": "GRE header matching",
                 },
                 "ipsec_matching": {
@@ -1574,7 +1575,7 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
                     "description": "IPsec traffic matching",
                 },
                 "ipsec_directional": {
-                    "supported": is_v15,
+                    "supported": node("ipsec-directional"),
                     "description": "Directional IPsec matching",
                 },
                 "connection_mark": {

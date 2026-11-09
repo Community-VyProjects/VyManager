@@ -19,6 +19,7 @@ from vyos_builders.firewall import (
     FirewallIPv4BatchBuilder,
     FirewallIPv6BatchBuilder,
 )
+from vyos_mappers.firewall.zones import FirewallZonesMapper
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import logging
@@ -122,23 +123,22 @@ def _parse_zone(zone_name: str, zone_cfg: Dict[str, Any], version: str) -> Dict[
     """
     Parse a single zone config dict from VyOS JSON into a normalized structure.
 
-    Handles the difference between VyOS 1.4 (interface at zone level) and
-    VyOS 1.5 (member interface/vrf).
+    Interface and default-firewall shape come from the mapper allowlist, the
+    same set the capability flags read.
     """
-    is_v15 = "1.5" in version
+    nodes = FirewallZonesMapper(version).supported_zone_nodes()
 
     # Members / interfaces
     interfaces: List[str] = []
     vrfs: List[str] = []
 
-    if is_v15:
+    if "member-interface" in nodes:
         member = zone_cfg.get("member", {})
         raw_ifaces = member.get("interface", [])
         raw_vrfs = member.get("vrf", [])
         interfaces = raw_ifaces if isinstance(raw_ifaces, list) else [raw_ifaces]
         vrfs = raw_vrfs if isinstance(raw_vrfs, list) else [raw_vrfs]
     else:
-        # VyOS 1.4: interface node at zone level (multi-value: list or scalar)
         raw_ifaces = zone_cfg.get("interface", [])
         interfaces = raw_ifaces if isinstance(raw_ifaces, list) else [raw_ifaces]
 
@@ -165,9 +165,9 @@ def _parse_zone(zone_name: str, zone_cfg: Dict[str, Any], version: str) -> Dict[
             "firewall_ipv6_name": intra_fw.get("ipv6-name"),
         }
 
-    # Default firewall (VyOS 1.5 only)
+    # Default firewall
     default_firewall: Optional[Dict[str, Any]] = None
-    if is_v15:
+    if "default-firewall" in nodes:
         def_fw = zone_cfg.get("default-firewall", {})
         if def_fw:
             default_firewall = {

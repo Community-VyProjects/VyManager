@@ -4,8 +4,9 @@ Firewall Groups Batch Builder
 Provides all firewall group batch operations following the standard pattern.
 """
 
-from typing import Dict, Any
+from typing import Any, Dict, cast
 from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.firewall.groups import FirewallGroupsMapper
 from vyos_builders.base import BatchBuilder
 
 
@@ -470,23 +471,23 @@ class FirewallGroupsBatchBuilder(BatchBuilder):
         return self.add_delete(path)
 
     # ========================================================================
-    # Domain Group Operations (VyOS 1.5+ only)
+    # Domain Group Operations
     # ========================================================================
 
     def set_domain_group(self, group_name: str) -> "FirewallGroupsBatchBuilder":
-        """Create domain group (VyOS 1.5+ only)."""
+        """Create a domain group."""
         path = self.mappers[self.mapper_key].get_domain_group(group_name)
         return self.add_set(path)
 
     def delete_domain_group(self, group_name: str) -> "FirewallGroupsBatchBuilder":
-        """Delete domain group (VyOS 1.5+ only)."""
+        """Delete a domain group."""
         path = self.mappers[self.mapper_key].get_domain_group(group_name)
         return self.add_delete(path)
 
     def set_domain_group_description(
         self, group_name: str, description: str
     ) -> "FirewallGroupsBatchBuilder":
-        """Set domain group description (VyOS 1.5+ only)."""
+        """Set a domain group description."""
         path = self.mappers[self.mapper_key].get_domain_group_description(
             group_name, description
         )
@@ -495,42 +496,42 @@ class FirewallGroupsBatchBuilder(BatchBuilder):
     def delete_domain_group_description(
         self, group_name: str
     ) -> "FirewallGroupsBatchBuilder":
-        """Delete domain group description (VyOS 1.5+ only)."""
+        """Delete a domain group description."""
         path = self.mappers[self.mapper_key].get_domain_group_description_path(group_name)
         return self.add_delete(path)
 
     def set_domain_group_address(
         self, group_name: str, address: str
     ) -> "FirewallGroupsBatchBuilder":
-        """Add domain to domain group (VyOS 1.5+ only)."""
+        """Add a domain to a domain group."""
         path = self.mappers[self.mapper_key].get_domain_group_address(group_name, address)
         return self.add_set(path)
 
     def delete_domain_group_address(
         self, group_name: str, address: str
     ) -> "FirewallGroupsBatchBuilder":
-        """Remove domain from domain group (VyOS 1.5+ only)."""
+        """Remove a domain from a domain group."""
         path = self.mappers[self.mapper_key].get_domain_group_address(group_name, address)
         return self.add_delete(path)
 
     # ========================================================================
-    # Remote Group Operations (VyOS 1.5+ only)
+    # Remote Group Operations
     # ========================================================================
 
     def set_remote_group(self, group_name: str) -> "FirewallGroupsBatchBuilder":
-        """Create remote group (VyOS 1.5+ only)."""
+        """Create a remote group."""
         path = self.mappers[self.mapper_key].get_remote_group(group_name)
         return self.add_set(path)
 
     def delete_remote_group(self, group_name: str) -> "FirewallGroupsBatchBuilder":
-        """Delete remote group (VyOS 1.5+ only)."""
+        """Delete a remote group."""
         path = self.mappers[self.mapper_key].get_remote_group(group_name)
         return self.add_delete(path)
 
     def set_remote_group_description(
         self, group_name: str, description: str
     ) -> "FirewallGroupsBatchBuilder":
-        """Set remote group description (VyOS 1.5+ only)."""
+        """Set a remote group description."""
         path = self.mappers[self.mapper_key].get_remote_group_description(
             group_name, description
         )
@@ -539,21 +540,21 @@ class FirewallGroupsBatchBuilder(BatchBuilder):
     def delete_remote_group_description(
         self, group_name: str
     ) -> "FirewallGroupsBatchBuilder":
-        """Delete remote group description (VyOS 1.5+ only)."""
+        """Delete a remote group description."""
         path = self.mappers[self.mapper_key].get_remote_group_description_path(group_name)
         return self.add_delete(path)
 
     def set_remote_group_url(
         self, group_name: str, url: str
     ) -> "FirewallGroupsBatchBuilder":
-        """Set remote group URL (VyOS 1.5+ only)."""
+        """Set a remote group URL."""
         path = self.mappers[self.mapper_key].get_remote_group_url(group_name, url)
         return self.add_set(path)
 
     def delete_remote_group_url(
         self, group_name: str, url: str = None
     ) -> "FirewallGroupsBatchBuilder":
-        """Delete remote group URL (VyOS 1.5+ only).
+        """Delete a remote group URL.
 
         Args:
             group_name: Name of the remote group
@@ -573,56 +574,30 @@ class FirewallGroupsBatchBuilder(BatchBuilder):
         Returns:
             Dictionary of supported features and operations
         """
+        mapper = cast(FirewallGroupsMapper, self.mappers[self.mapper_key])
+        types = mapper.supported_group_types()
+
+        def type_flag(node: str, description: str, member_type: str) -> Dict[str, Any]:
+            return {
+                "supported": node in types,
+                "description": description,
+                "member_type": member_type,
+            }
+
         # Base capabilities for all versions
         capabilities = {
             "version": self.version,
             "version_number": _version_to_float(self.version),
             "group_types": {
-                "address_group": {
-                    "supported": True,
-                    "description": "IPv4 address group",
-                    "member_type": "address"
-                },
-                "ipv6_address_group": {
-                    "supported": True,
-                    "description": "IPv6 address group",
-                    "member_type": "address"
-                },
-                "network_group": {
-                    "supported": True,
-                    "description": "IPv4 network group",
-                    "member_type": "network"
-                },
-                "ipv6_network_group": {
-                    "supported": True,
-                    "description": "IPv6 network group",
-                    "member_type": "network"
-                },
-                "port_group": {
-                    "supported": True,
-                    "description": "Port group (TCP/UDP ports)",
-                    "member_type": "port"
-                },
-                "interface_group": {
-                    "supported": True,
-                    "description": "Interface group",
-                    "member_type": "interface"
-                },
-                "mac_group": {
-                    "supported": True,
-                    "description": "MAC address group",
-                    "member_type": "mac"
-                },
-                "domain_group": {
-                    "supported": self.version == "1.5",
-                    "description": "Domain name group (1.5+)",
-                    "member_type": "domain"
-                },
-                "remote_group": {
-                    "supported": self.version == "1.5",
-                    "description": "Remote address group (1.5+)",
-                    "member_type": "url"
-                }
+                "address_group": type_flag("address-group", "IPv4 address group", "address"),
+                "ipv6_address_group": type_flag("ipv6-address-group", "IPv6 address group", "address"),
+                "network_group": type_flag("network-group", "IPv4 network group", "network"),
+                "ipv6_network_group": type_flag("ipv6-network-group", "IPv6 network group", "network"),
+                "port_group": type_flag("port-group", "Port group (TCP/UDP ports)", "port"),
+                "interface_group": type_flag("interface-group", "Interface group", "interface"),
+                "mac_group": type_flag("mac-group", "MAC address group", "mac"),
+                "domain_group": type_flag("domain-group", "Domain name group", "domain"),
+                "remote_group": type_flag("remote-group", "Remote address group", "url"),
             },
             "operations": {
                 "address_group": [
@@ -684,8 +659,7 @@ class FirewallGroupsBatchBuilder(BatchBuilder):
             }
         }
 
-        # Add domain_group and remote_group operations for VyOS 1.5+
-        if self.version == "1.5":
+        if "domain-group" in types:
             capabilities["operations"]["domain_group"] = [
                 "set_domain_group",
                 "delete_domain_group",
@@ -694,6 +668,7 @@ class FirewallGroupsBatchBuilder(BatchBuilder):
                 "set_domain_group_description",
                 "delete_domain_group_description"
             ]
+        if "remote-group" in types:
             capabilities["operations"]["remote_group"] = [
                 "set_remote_group",
                 "delete_remote_group",
@@ -702,6 +677,23 @@ class FirewallGroupsBatchBuilder(BatchBuilder):
                 "set_remote_group_description",
                 "delete_remote_group_description"
             ]
+
+        op_nodes = {
+            "address_group": "address-group",
+            "ipv6_address_group": "ipv6-address-group",
+            "network_group": "network-group",
+            "ipv6_network_group": "ipv6-network-group",
+            "port_group": "port-group",
+            "interface_group": "interface-group",
+            "mac_group": "mac-group",
+            "domain_group": "domain-group",
+            "remote_group": "remote-group",
+        }
+        capabilities["operations"] = {
+            key: ops
+            for key, ops in capabilities["operations"].items()
+            if op_nodes[key] in types
+        }
 
         # Calculate statistics
         total_operations = sum(len(ops) for ops in capabilities["operations"].values())

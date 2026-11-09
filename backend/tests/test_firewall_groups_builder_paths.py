@@ -66,18 +66,18 @@ COMMON_CASES = [
     ('set_port_group_description', ('G1', 'd'), 'set', ['firewall', 'group', 'port-group', 'G1', 'description', 'd']),
     ('set_port_group_include', ('G1', 'G2'), 'set', ['firewall', 'group', 'port-group', 'G1', 'include', 'G2']),
     ('set_port_group_port', ('G1', '443'), 'set', ['firewall', 'group', 'port-group', 'G1', 'port', '443']),
-]
-
-V15_ONLY_CASES = [
     ('delete_domain_group', ('G1',), 'delete', ['firewall', 'group', 'domain-group', 'G1']),
     ('delete_domain_group_address', ('G1', '203.0.113.10'), 'delete', ['firewall', 'group', 'domain-group', 'G1', 'address', '203.0.113.10']),
     ('delete_domain_group_description', ('G1',), 'delete', ['firewall', 'group', 'domain-group', 'G1', 'description']),
-    ('delete_remote_group', ('G1',), 'delete', ['firewall', 'group', 'remote-group', 'G1']),
-    ('delete_remote_group_description', ('G1',), 'delete', ['firewall', 'group', 'remote-group', 'G1', 'description']),
-    ('delete_remote_group_url', ('G1', 'https://example.com/list.txt'), 'delete', ['firewall', 'group', 'remote-group', 'G1', 'url', 'https://example.com/list.txt']),
     ('set_domain_group', ('G1',), 'set', ['firewall', 'group', 'domain-group', 'G1']),
     ('set_domain_group_address', ('G1', '203.0.113.10'), 'set', ['firewall', 'group', 'domain-group', 'G1', 'address', '203.0.113.10']),
     ('set_domain_group_description', ('G1', 'd'), 'set', ['firewall', 'group', 'domain-group', 'G1', 'description', 'd']),
+]
+
+V15_ONLY_CASES = [
+    ('delete_remote_group', ('G1',), 'delete', ['firewall', 'group', 'remote-group', 'G1']),
+    ('delete_remote_group_description', ('G1',), 'delete', ['firewall', 'group', 'remote-group', 'G1', 'description']),
+    ('delete_remote_group_url', ('G1', 'https://example.com/list.txt'), 'delete', ['firewall', 'group', 'remote-group', 'G1', 'url', 'https://example.com/list.txt']),
     ('set_remote_group', ('G1',), 'set', ['firewall', 'group', 'remote-group', 'G1']),
     ('set_remote_group_description', ('G1', 'd'), 'set', ['firewall', 'group', 'remote-group', 'G1', 'description', 'd']),
     ('set_remote_group_url', ('G1', 'https://example.com/list.txt'), 'set', ['firewall', 'group', 'remote-group', 'G1', 'url', 'https://example.com/list.txt']),
@@ -100,4 +100,12 @@ def test_groups_common_paths(method, args, op, expected_path, version):
 @pytest.mark.parametrize("method, args, op, expected_path", V15_ONLY_CASES)
 def test_groups_v1_5_only_paths(method, args, op, expected_path):
     _run("1.5", method, args, op, expected_path)
+
+
+@pytest.mark.parametrize("method, args", [(c[0], c[1]) for c in V15_ONLY_CASES])
+def test_remote_group_rejected_on_1_4(method, args):
+    builder = FirewallGroupsBatchBuilder(version="1.4")
+    with pytest.raises(ValueError, match="not supported"):
+        getattr(builder, method)(*args)
+    assert builder.get_operations() == []
 

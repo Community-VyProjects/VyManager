@@ -396,7 +396,7 @@ async def configure_group_batch(http_request: Request, request: GroupBatchReques
     | `set_mac_group_mac` | Yes | Add MAC address (e.g., 00:11:22:33:44:55) |
     | `delete_mac_group_mac` | Yes | Remove MAC address |
 
-    **Domain Group Operations (VyOS 1.5+ only):**
+    **Domain Group Operations:**
 
     | Operation | Value Required | Description |
     |-----------|----------------|-------------|
@@ -407,7 +407,7 @@ async def configure_group_batch(http_request: Request, request: GroupBatchReques
     | `set_domain_group_address` | Yes | Add domain name (e.g., example.com) |
     | `delete_domain_group_address` | Yes | Remove domain name |
 
-    **Remote Group Operations (VyOS 1.5+ only):**
+    **Remote Group Operations:**
 
     | Operation | Value Required | Description |
     |-----------|----------------|-------------|
@@ -645,7 +645,7 @@ async def configure_group_batch(http_request: Request, request: GroupBatchReques
                     raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
                 batch.delete_mac_group_include(request.group_name, value)
 
-            # Domain Group (VyOS 1.5+ only)
+            # Domain group. The mapper rejects the path when the device lacks the node.
             elif op_type == "set_domain_group":
                 batch.set_domain_group(request.group_name)
             elif op_type == "delete_domain_group":
