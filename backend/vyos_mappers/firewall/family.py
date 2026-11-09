@@ -18,8 +18,10 @@ class FirewallFamilyMapper(BaseFeatureMapper):
         super().__init__(version)
         self.family = family
 
-    # Nodes that exist on 1.5 and not on 1.4 (validateTmplPath on both lab hosts).
+    # validateTmplPath on both lab hosts.
+    # ipsec-match is the non-directional form, present on 1.4 and absent on 1.5.
     _V14_ONLY_NODES = frozenset({"ipsec-match"})
+    # Present on 1.5 and absent on 1.4.
     _V15_ONLY_NODES = frozenset({
         "remote-group",
         "gre",

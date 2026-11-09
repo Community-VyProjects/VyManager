@@ -137,7 +137,56 @@ def test_family_flags_read_the_mapper_allowlist(monkeypatch):
     assert builder.get_operations() == []
 
 
-def test_prerouting_raw_generic_rule_rejected_on_1_4():
+def test_family_batch_maps_unsupported_nodes_to_400(monkeypatch):
+    """A 1.4 request for a missing node is 400 and never commits."""
+    from types import SimpleNamespace
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    executed = []
+
+    async def allow(*_args, **_kwargs):
+        return None
+
+    class Service:
+        def get_version(self):
+            return "1.4"
+
+        def execute_batch(self, batch):
+            executed.append(batch)
+            return SimpleNamespace(status=200, result="", error=None)
+
+    monkeypatch.setattr("routers.firewall.family.require_write_permission", allow)
+    monkeypatch.setattr(
+        "routers.firewall.family.get_session_vyos_service",
+        lambda _req: Service(),
+    )
+    from routers.firewall.ipv4 import router
+
+    app = FastAPI()
+    app.include_router(router)
+    client = TestClient(app)
+    batch = client.post(
+        "/vyos/firewall/ipv4/batch",
+        json={
+            "chain": "prerouting_raw",
+            "rule_number": 10,
+            "operations": [{"op": "set_rule_action", "value": "drop"}],
+        },
+    )
+    assert batch.status_code == 400, batch.text
+    assert "not supported" in batch.json()["detail"]
+    reorder = client.post(
+        "/vyos/firewall/ipv4/reorder",
+        json={
+            "chain": "prerouting_raw",
+            "rules": [{"old_number": 10, "new_number": 20, "rule_data": {}}],
+        },
+    )
+    assert reorder.status_code == 400, reorder.text
+    assert "not supported" in reorder.json()["detail"]
+    assert executed == []
     builder = FirewallFamilyBatchBuilder(version="1.4")
     with pytest.raises(ValueError, match="not supported"):
         builder.set_rule_action("prerouting_raw", 10, "drop", False)
