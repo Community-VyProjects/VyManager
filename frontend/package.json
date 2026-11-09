@@ -4,14 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run check:messages && npm run test:pickers && next build",
+    "build": "npm run check:messages && npm run test:pickers && npm run test:https-save && next build",
     "start": "next start",
     "postinstall": "node scripts/ensure-minimatch-callable.js",
     "prelint": "node scripts/ensure-minimatch-callable.js",
     "prebuild": "node scripts/ensure-minimatch-callable.js && node --test scripts/ensure-minimatch-callable.test.js",
-    "lint": "eslint && npm run check:messages && npm run test:pickers && node --test eslint-rules/no-untranslated-text.test.mjs scripts/ensure-minimatch-callable.test.js",
+    "lint": "eslint && npm run check:messages && npm run test:pickers && npm run test:https-save && node --test eslint-rules/no-untranslated-text.test.mjs scripts/ensure-minimatch-callable.test.js",
     "check:messages": "tsx --test src/i18n/messages-parity.test.ts src/i18n/config.test.ts",
     "test:pickers": "tsx --test src/lib/interface-pickers.test.ts src/lib/interface-select-options.test.ts",
+    "test:https-save": "tsx --test src/lib/api/https-save-ops.test.ts",
     "test:auth": "tsx --test src/lib/login-rate-limit.test.ts src/lib/client-peer.test.ts src/lib/credential-account.test.ts src/components/login/vortex-engine.test.ts src/lib/api/bug-report.test.ts && node --experimental-test-module-mocks --import tsx --test src/app/api/auth/login-rate-limit-route.test.ts src/app/api/internal/create-user/route.test.ts"
   },
   "prisma": {

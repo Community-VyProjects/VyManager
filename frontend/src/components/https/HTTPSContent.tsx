@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { httpsService, HTTPSConfig } from "@/lib/api/https";
+import { httpsCorsIndependent, httpsRestContainer } from "@/lib/api/https-save-ops";
 import { HTTPSModal } from "./HTTPSModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
@@ -34,7 +35,10 @@ function isConfigured(config: HTTPSConfig): boolean {
     !!config.certificates.dh_params ||
     config.api.keys.length > 0 ||
     config.api.rest.enabled ||
-    config.api.graphql.enabled
+    config.api.rest.debug ||
+    config.api.rest.strict ||
+    config.api.graphql.enabled ||
+    config.api.graphql.cors_allow_origins.length > 0
   );
 }
 
@@ -45,6 +49,9 @@ export function HTTPSContent() {
   const hasWritePermission = canWrite(FeatureGroup.HTTPS);
 
   const [config, setConfig] = useState<HTTPSConfig | null>(null);
+  const [corsIndependent, setCorsIndependent] = useState(false);
+  const [restContainer, setRestContainer] = useState(false);
+  const [capsReady, setCapsReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -53,8 +60,17 @@ export function HTTPSContent() {
     try {
       setLoading(true);
       setError(null);
-      const data = await httpsService.getConfig(refresh);
+      const [data, caps] = await Promise.all([
+        httpsService.getConfig(refresh),
+        httpsService.getCapabilities().catch(() => null),
+      ]);
       setConfig(data);
+      setCorsIndependent(httpsCorsIndependent(caps));
+      setRestContainer(httpsRestContainer(caps));
+      setCapsReady(caps !== null);
+      if (!caps) {
+        setError(t("content.loadFailed"));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : t("content.loadFailed"));
     } finally {
@@ -117,7 +133,7 @@ export function HTTPSContent() {
                 <RefreshCw className="h-4 w-4 mr-2" />
                 {tc("refresh")}
               </Button>
-              {hasWritePermission && (
+              {hasWritePermission && capsReady && (
                 <Button size="sm" onClick={() => setModalOpen(true)}>
                   <Pencil className="h-4 w-4 mr-2" />
                   {configured ? t("content.editConfiguration") : t("content.configureHttps")}
@@ -143,7 +159,7 @@ export function HTTPSContent() {
                 <p className="text-xs text-muted-foreground mb-4">
                   {t("content.notConfiguredHelp")}
                 </p>
-                {hasWritePermission && (
+                {hasWritePermission && capsReady && (
                   <Button size="sm" onClick={() => setModalOpen(true)}>
                     {t("content.configureHttps")}
                   </Button>
@@ -277,14 +293,24 @@ export function HTTPSContent() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-muted-foreground w-32 shrink-0">REST API</span>
-                      {config!.api.rest.enabled ? (
+                      {restContainer ? (
+                        config!.api.rest.enabled ? (
+                          <div className="flex gap-1">
+                            <Badge className="text-xs bg-green-500/10 text-green-600 border-green-500/20">{tc("enabled")}</Badge>
+                            {config!.api.rest.debug && <Badge variant="secondary" className="text-xs">{t("content.debug")}</Badge>}
+                            {config!.api.rest.strict && <Badge variant="secondary" className="text-xs">{t("content.strict")}</Badge>}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">{tc("disabled")}</span>
+                        )
+                      ) : (
                         <div className="flex gap-1">
-                          <Badge className="text-xs bg-green-500/10 text-green-600 border-green-500/20">{tc("enabled")}</Badge>
                           {config!.api.rest.debug && <Badge variant="secondary" className="text-xs">{t("content.debug")}</Badge>}
                           {config!.api.rest.strict && <Badge variant="secondary" className="text-xs">{t("content.strict")}</Badge>}
+                          {!config!.api.rest.debug && !config!.api.rest.strict && (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
                         </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">{tc("disabled")}</span>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
@@ -316,6 +342,9 @@ export function HTTPSContent() {
         onClose={() => setModalOpen(false)}
         onSuccess={handleSuccess}
         config={config}
+        corsIndependent={corsIndependent}
+        restContainer={restContainer}
+        capsReady={capsReady}
       />
     </>
   );

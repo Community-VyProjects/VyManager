@@ -46,6 +46,9 @@ interface HTTPSModalProps {
   onClose: () => void;
   onSuccess: () => void;
   config: HTTPSConfig | null;
+  corsIndependent: boolean;
+  restContainer: boolean;
+  capsReady: boolean;
 }
 
 interface ApiKeyRow extends HTTPSApiKey {
@@ -69,7 +72,7 @@ const EMPTY_CONFIG: HTTPSConfig = {
   },
 };
 
-export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps) {
+export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, restContainer, capsReady }: HTTPSModalProps) {
   const t = useTranslations("https");
   const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
@@ -281,7 +284,11 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
     };
 
     try {
-      const result = await httpsService.saveConfig(payload);
+      const result = await httpsService.saveConfig(payload, {
+        capsReady,
+        corsIndependent,
+        restContainer,
+      });
       if (!result.success) {
         setError(result.error ?? t("modal.errors.configurationFailed"));
         return;
@@ -636,6 +643,7 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
           <TabsContent value="rest" className="flex-1 overflow-hidden flex flex-col">
             <ScrollArea className="flex-1 pr-4">
               <div className="space-y-4 py-2">
+                {restContainer && (
                 <div className="flex items-center gap-3 p-3 rounded-md border">
                   <Checkbox
                     id="rest-enabled"
@@ -647,16 +655,17 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
                   />
                   <Label htmlFor="rest-enabled" className="font-medium cursor-pointer">{t("modal.enableRest")}</Label>
                 </div>
+                )}
 
-                <div className={`space-y-3 pl-3 border-l-2 ${restEnabled ? "border-primary/30" : "border-muted opacity-50"}`}>
+                <div className={`space-y-3 pl-3 border-l-2 ${!restContainer || restEnabled ? "border-primary/30" : "border-muted opacity-50"}`}>
                   <div className="flex items-center gap-2">
                     <Checkbox
                       id="rest-debug"
                       checked={restDebug}
-                      disabled={!restEnabled}
+                      disabled={restContainer && !restEnabled}
                       onCheckedChange={(v) => setRestDebug(!!v)}
                     />
-                    <Label htmlFor="rest-debug" className={restEnabled ? "cursor-pointer" : "cursor-not-allowed"}>
+                    <Label htmlFor="rest-debug" className={!restContainer || restEnabled ? "cursor-pointer" : "cursor-not-allowed"}>
                       {t("modal.debugLogging")}
                       <span className="block text-xs text-muted-foreground font-normal">{t("modal.debugLoggingHelp")}</span>
                     </Label>
@@ -666,10 +675,10 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
                     <Checkbox
                       id="rest-strict"
                       checked={restStrict}
-                      disabled={!restEnabled}
+                      disabled={restContainer && !restEnabled}
                       onCheckedChange={(v) => setRestStrict(!!v)}
                     />
-                    <Label htmlFor="rest-strict" className={restEnabled ? "cursor-pointer" : "cursor-not-allowed"}>
+                    <Label htmlFor="rest-strict" className={!restContainer || restEnabled ? "cursor-pointer" : "cursor-not-allowed"}>
                       {t("modal.strictPath")}
                       <span className="block text-xs text-muted-foreground font-normal">{t("modal.strictPathHelp")}</span>
                     </Label>
@@ -693,7 +702,7 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
                         setGraphqlIntrospection(false);
                         setGraphqlExpiration("");
                         setGraphqlSecretLength("");
-                        setCorsOrigins([]);
+                        if (!corsIndependent) setCorsOrigins([]);
                       }
                     }}
                   />
@@ -761,18 +770,19 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
                       </div>
                     </>
                   )}
+                </div>
 
-                  <div className="space-y-2">
-                    <Label>{t("modal.corsOrigins")}</Label>
+                <div className={`space-y-2 pl-3 border-l-2 ${corsIndependent || graphqlEnabled ? "border-primary/30" : "border-muted opacity-50"}`}>
+                  <Label>{t("modal.corsOrigins")}</Label>
                     <div className="flex gap-2">
                       <Input
                         placeholder="https://app.example.com"
                         value={corsInput}
-                        disabled={!graphqlEnabled}
+                        disabled={!graphqlEnabled && !corsIndependent}
                         onChange={(e) => setCorsInput(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCorsOrigin())}
                       />
-                      <Button type="button" size="sm" variant="outline" disabled={!graphqlEnabled} onClick={addCorsOrigin}>
+                      <Button type="button" size="sm" variant="outline" disabled={!graphqlEnabled && !corsIndependent} onClick={addCorsOrigin}>
                         <Plus className="h-4 w-4" />
                       </Button>
                     </div>
@@ -790,7 +800,6 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
                         ))}
                       </div>
                     )}
-                  </div>
                 </div>
               </div>
             </ScrollArea>
@@ -809,7 +818,7 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
           <Button variant="outline" onClick={onClose} disabled={loading}>
             {tc("cancel")}
           </Button>
-          <Button onClick={handleSubmit} disabled={loading}>
+          <Button onClick={handleSubmit} disabled={loading || !capsReady}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {tc("save")}
           </Button>

@@ -155,23 +155,31 @@ def _parse_api(raw: dict, mapper) -> Dict[str, Any]:
         graphql = _empty_graphql()
 
     if not cors_under_graphql:
-        cors_origins = _parse_multi((raw.get("cors") or {}).get("allow-origin"))
-        if cors_origins and graphql["enabled"]:
-            graphql = {**graphql, "cors_allow_origins": cors_origins}
+        # 1.4 CORS is an api child, not a graphql child. Keep it when graphql
+        # is absent so a delete-and-rebuild save does not drop it.
+        cors_raw = raw.get("cors")
+        if isinstance(cors_raw, dict):
+            cors_origins = _parse_multi(cors_raw.get("allow-origin"))
+            if cors_origins:
+                graphql = {**graphql, "cors_allow_origins": cors_origins}
 
     if _rest_is_container(mapper):
-        rest_raw = raw.get("rest", {}) or {}
-        # A missing rest node becomes {} and still counts as enabled.
+        # Presence is key membership. raw.get("rest", {}) invents a dict for
+        # a missing node, and isinstance(that, dict) is always true.
+        rest_node = raw["rest"] if "rest" in raw else None
+        rest_raw = rest_node if isinstance(rest_node, dict) else {}
         rest = {
-            "enabled": bool(rest_raw) or isinstance(rest_raw, dict),
-            "debug": "debug" in rest_raw if isinstance(rest_raw, dict) else False,
-            "strict": "strict" in rest_raw if isinstance(rest_raw, dict) else False,
+            "enabled": "rest" in raw,
+            "debug": "debug" in rest_raw,
+            "strict": "strict" in rest_raw,
         }
     else:
+        # 1.4 has no api/rest node. Do not infer one from keys, debug, or
+        # strict. Those flags are siblings of the key list.
         debug = "debug" in raw
         strict = "strict" in raw
         rest = {
-            "enabled": debug or strict or bool(raw.get("keys")),
+            "enabled": False,
             "debug": debug,
             "strict": strict,
         }
