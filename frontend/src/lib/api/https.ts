@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import { buildHttpsSaveOps } from "./https-save-ops";
+import { buildHttpsSaveOps, httpsCorsIndependent, httpsRestContainer } from "./https-save-ops";
 
 export interface HTTPSCertificates {
   certificate?: string | null;
@@ -78,8 +78,12 @@ class HTTPSService {
   }
 
   async saveConfig(config: HTTPSConfig): Promise<VyOSResponse> {
+    const caps = await this.getCapabilities();
     const result = await apiClient.post<VyOSResponse>("/vyos/https/batch", {
-      operations: buildHttpsSaveOps(config),
+      operations: buildHttpsSaveOps(config, {
+        corsIndependent: httpsCorsIndependent(caps),
+        restContainer: httpsRestContainer(caps),
+      }),
     });
     return result;
   }

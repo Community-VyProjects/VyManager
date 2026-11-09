@@ -10,7 +10,23 @@ export function httpsCorsIndependent(
   return (feature as CorsFeature).cors_scope === "api";
 }
 
-export function buildHttpsSaveOps(config: HTTPSConfig): BatchOperation[] {
+export interface HttpsSaveOptions {
+  corsIndependent?: boolean;
+  restContainer?: boolean;
+}
+
+export function httpsRestContainer(
+  capabilities: Pick<HTTPSCapabilities, "features"> | null | undefined,
+): boolean {
+  const feature = capabilities?.features?.api_rest;
+  if (!feature || typeof feature !== "object") return false;
+  return (feature as { supported?: boolean }).supported === true;
+}
+
+export function buildHttpsSaveOps(
+  config: HTTPSConfig,
+  options: HttpsSaveOptions = {},
+): BatchOperation[] {
   const ops: BatchOperation[] = [{ op: "delete_https" }];
 
   for (const addr of config.listen_addresses) {
@@ -58,14 +74,16 @@ export function buildHttpsSaveOps(config: HTTPSConfig): BatchOperation[] {
   for (const k of config.api.keys) {
     ops.push({ op: "set_api_key", value: `${k.id},${k.key}` });
   }
-  if (config.api.rest.enabled) {
+  const restContainer = options.restContainer === true;
+  if (restContainer && config.api.rest.enabled) {
     ops.push({ op: "set_api_rest" });
-    if (config.api.rest.debug) {
-      ops.push({ op: "set_api_debug" });
-    }
-    if (config.api.rest.strict) {
-      ops.push({ op: "set_api_strict" });
-    }
+  }
+  const emitRestFlags = restContainer ? config.api.rest.enabled : true;
+  if (emitRestFlags && config.api.rest.debug) {
+    ops.push({ op: "set_api_debug" });
+  }
+  if (emitRestFlags && config.api.rest.strict) {
+    ops.push({ op: "set_api_strict" });
   }
   if (config.api.graphql.enabled) {
     if (config.api.graphql.introspection) {
@@ -86,10 +104,13 @@ export function buildHttpsSaveOps(config: HTTPSConfig): BatchOperation[] {
       });
     }
   }
-  // CORS is not a graphql child on every device. Emit it from the list, not
-  // from graphql.enabled, or a 1.4 save drops api/cors/allow-origin.
-  for (const origin of config.api.graphql.cors_allow_origins) {
-    ops.push({ op: "set_api_cors_allow_origin", value: origin });
+  // 1.4 CORS is an api child. 1.5 CORS lives under graphql, so emitting it
+  // while GraphQL is off creates the graphql node.
+  const emitCors = options.corsIndependent === true || config.api.graphql.enabled;
+  if (emitCors) {
+    for (const origin of config.api.graphql.cors_allow_origins) {
+      ops.push({ op: "set_api_cors_allow_origin", value: origin });
+    }
   }
 
   return ops;

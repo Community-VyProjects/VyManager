@@ -177,24 +177,36 @@ def test_1_5_does_not_read_api_level_cors():
     assert parsed["api"]["rest"]["enabled"] is False
 
 
-def test_api_keys_do_not_enable_rest():
+def test_1_5_keys_do_not_enable_rest():
     tree = {
         "service": {
             "https": {"api": {"keys": {"id": {"k": {"key": "secret"}}}}}
         }
     }
-    parsed_14 = get_https_mapper("1.4").parse_config(tree)
-    parsed_15 = get_https_mapper("1.5").parse_config(tree)
-    assert parsed_14["api"]["keys"] == [{"id": "k", "key": "secret"}]
-    assert parsed_14["api"]["rest"]["enabled"] is False
-    assert parsed_15["api"]["rest"]["enabled"] is False
+    parsed = get_https_mapper("1.5").parse_config(tree)
+    assert parsed["api"]["keys"] == [{"id": "k", "key": "secret"}]
+    assert parsed["api"]["rest"]["enabled"] is False
 
 
-def test_1_4_strict_enables_rest_without_keys():
-    tree = {"service": {"https": {"api": {"strict": {}}}}}
+def test_1_4_keys_enable_classic_api():
+    tree = {
+        "service": {
+            "https": {"api": {"keys": {"id": {"k": {"key": "secret"}}}}}
+        }
+    }
     parsed = get_https_mapper("1.4").parse_config(tree)
     assert parsed["api"]["rest"] == {
         "enabled": True,
+        "debug": False,
+        "strict": False,
+    }
+
+
+def test_1_4_strict_without_keys_does_not_enable_rest():
+    tree = {"service": {"https": {"api": {"strict": {}}}}}
+    parsed = get_https_mapper("1.4").parse_config(tree)
+    assert parsed["api"]["rest"] == {
+        "enabled": False,
         "debug": False,
         "strict": True,
     }

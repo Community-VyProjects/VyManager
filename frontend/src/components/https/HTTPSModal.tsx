@@ -47,6 +47,7 @@ interface HTTPSModalProps {
   onSuccess: () => void;
   config: HTTPSConfig | null;
   corsIndependent: boolean;
+  restContainer: boolean;
 }
 
 interface ApiKeyRow extends HTTPSApiKey {
@@ -70,7 +71,7 @@ const EMPTY_CONFIG: HTTPSConfig = {
   },
 };
 
-export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent }: HTTPSModalProps) {
+export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, restContainer }: HTTPSModalProps) {
   const t = useTranslations("https");
   const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
@@ -637,6 +638,7 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent }
           <TabsContent value="rest" className="flex-1 overflow-hidden flex flex-col">
             <ScrollArea className="flex-1 pr-4">
               <div className="space-y-4 py-2">
+                {restContainer && (
                 <div className="flex items-center gap-3 p-3 rounded-md border">
                   <Checkbox
                     id="rest-enabled"
@@ -648,16 +650,17 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent }
                   />
                   <Label htmlFor="rest-enabled" className="font-medium cursor-pointer">{t("modal.enableRest")}</Label>
                 </div>
+                )}
 
-                <div className={`space-y-3 pl-3 border-l-2 ${restEnabled ? "border-primary/30" : "border-muted opacity-50"}`}>
+                <div className={`space-y-3 pl-3 border-l-2 ${!restContainer || restEnabled ? "border-primary/30" : "border-muted opacity-50"}`}>
                   <div className="flex items-center gap-2">
                     <Checkbox
                       id="rest-debug"
                       checked={restDebug}
-                      disabled={!restEnabled}
+                      disabled={restContainer && !restEnabled}
                       onCheckedChange={(v) => setRestDebug(!!v)}
                     />
-                    <Label htmlFor="rest-debug" className={restEnabled ? "cursor-pointer" : "cursor-not-allowed"}>
+                    <Label htmlFor="rest-debug" className={!restContainer || restEnabled ? "cursor-pointer" : "cursor-not-allowed"}>
                       {t("modal.debugLogging")}
                       <span className="block text-xs text-muted-foreground font-normal">{t("modal.debugLoggingHelp")}</span>
                     </Label>
@@ -667,10 +670,10 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent }
                     <Checkbox
                       id="rest-strict"
                       checked={restStrict}
-                      disabled={!restEnabled}
+                      disabled={restContainer && !restEnabled}
                       onCheckedChange={(v) => setRestStrict(!!v)}
                     />
-                    <Label htmlFor="rest-strict" className={restEnabled ? "cursor-pointer" : "cursor-not-allowed"}>
+                    <Label htmlFor="rest-strict" className={!restContainer || restEnabled ? "cursor-pointer" : "cursor-not-allowed"}>
                       {t("modal.strictPath")}
                       <span className="block text-xs text-muted-foreground font-normal">{t("modal.strictPathHelp")}</span>
                     </Label>

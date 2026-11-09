@@ -90,3 +90,13 @@ V14_ONLY_CASES = [
 @pytest.mark.parametrize("method, args, op, expected_path", V14_ONLY_CASES)
 def test_https_v1_4_only_paths(method, args, op, expected_path):
     _run("1.4", method, args, op, expected_path)
+
+
+def test_https_capability_flags_follow_mapper_paths():
+    caps_14 = HTTPSBatchBuilder("1.4").get_capabilities()["features"]
+    caps_15 = HTTPSBatchBuilder("1.5").get_capabilities()["features"]
+    assert caps_14["api_rest"]["supported"] is False
+    assert caps_15["api_rest"]["supported"] is True
+    assert caps_14["api_cors"]["cors_scope"] == "api"
+    assert caps_15["api_cors"]["cors_scope"] == "graphql"
+

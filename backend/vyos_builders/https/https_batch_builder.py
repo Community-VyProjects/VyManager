@@ -100,10 +100,14 @@ class HTTPSBatchBuilder(BatchBuilder):
                 "api_cors": {
                     "supported": True,
                     "description": "CORS allow-origin list",
-                    "cors_scope": "graphql" if is_1_5 else "api",
+                    "cors_scope": (
+                        "graphql"
+                        if "graphql" in self.m.get_api_cors_allow_origins_delete()
+                        else "api"
+                    ),
                 },
                 "api_rest": {
-                    "supported": True,
+                    "supported": bool(self.m.get_api_rest()),
                     "description": "REST API endpoint",
                 },
                 "api_debug": {
