@@ -129,18 +129,31 @@ def test_version_keys_come_from_mapper():
     assert parsed_15["listen_addresses"] == parsed_14["listen_addresses"]
 
 
-def test_1_5_rest_enabled_without_rest_node():
+def test_1_5_missing_rest_node_is_disabled():
     tree = {"service": {"https": {"api": {"graphql": {"introspection": {}}}}}}
     parsed_15 = get_https_mapper("1.5").parse_config(tree)
     parsed_14 = get_https_mapper("1.4").parse_config(tree)
-    assert parsed_15["api"]["rest"]["enabled"] is True
-    assert parsed_15["api"]["rest"]["debug"] is False
+    assert parsed_15["api"]["rest"] == {
+        "enabled": False,
+        "debug": False,
+        "strict": False,
+    }
     assert parsed_15["api"]["graphql"]["introspection"] is True
     assert parsed_14["api"]["rest"]["enabled"] is False
     assert parsed_14["api"]["graphql"]["cors_allow_origins"] == []
 
 
-def test_1_4_drops_api_cors_when_graphql_disabled():
+def test_1_5_empty_rest_node_is_enabled():
+    tree = {"service": {"https": {"api": {"rest": {}}}}}
+    parsed = get_https_mapper("1.5").parse_config(tree)
+    assert parsed["api"]["rest"] == {
+        "enabled": True,
+        "debug": False,
+        "strict": False,
+    }
+
+
+def test_1_4_keeps_api_cors_without_graphql():
     tree = {
         "service": {
             "https": {"api": {"cors": {"allow-origin": "https://x.example"}}}
@@ -148,8 +161,44 @@ def test_1_4_drops_api_cors_when_graphql_disabled():
     }
     parsed = get_https_mapper("1.4").parse_config(tree)
     assert parsed["api"]["graphql"]["enabled"] is False
+    assert parsed["api"]["graphql"]["cors_allow_origins"] == ["https://x.example"]
+    assert parsed["api"]["rest"]["enabled"] is False
+
+
+def test_1_5_does_not_read_api_level_cors():
+    tree = {
+        "service": {
+            "https": {"api": {"cors": {"allow-origin": "https://x.example"}}}
+        }
+    }
+    parsed = get_https_mapper("1.5").parse_config(tree)
+    assert parsed["api"]["graphql"]["enabled"] is False
     assert parsed["api"]["graphql"]["cors_allow_origins"] == []
     assert parsed["api"]["rest"]["enabled"] is False
+
+
+def test_api_keys_do_not_enable_rest():
+    tree = {
+        "service": {
+            "https": {"api": {"keys": {"id": {"k": {"key": "secret"}}}}}
+        }
+    }
+    parsed_14 = get_https_mapper("1.4").parse_config(tree)
+    parsed_15 = get_https_mapper("1.5").parse_config(tree)
+    assert parsed_14["api"]["keys"] == [{"id": "k", "key": "secret"}]
+    assert parsed_14["api"]["rest"]["enabled"] is False
+    assert parsed_15["api"]["rest"]["enabled"] is False
+
+
+def test_1_4_strict_enables_rest_without_keys():
+    tree = {"service": {"https": {"api": {"strict": {}}}}}
+    parsed = get_https_mapper("1.4").parse_config(tree)
+    assert parsed["api"]["rest"] == {
+        "enabled": True,
+        "debug": False,
+        "strict": True,
+    }
+    assert parsed["api"]["keys"] == []
 
 
 def test_empty_tree():

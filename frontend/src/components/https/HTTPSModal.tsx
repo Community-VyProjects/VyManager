@@ -46,6 +46,7 @@ interface HTTPSModalProps {
   onClose: () => void;
   onSuccess: () => void;
   config: HTTPSConfig | null;
+  corsIndependent: boolean;
 }
 
 interface ApiKeyRow extends HTTPSApiKey {
@@ -69,7 +70,7 @@ const EMPTY_CONFIG: HTTPSConfig = {
   },
 };
 
-export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps) {
+export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent }: HTTPSModalProps) {
   const t = useTranslations("https");
   const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
@@ -693,7 +694,7 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
                         setGraphqlIntrospection(false);
                         setGraphqlExpiration("");
                         setGraphqlSecretLength("");
-                        setCorsOrigins([]);
+                        if (!corsIndependent) setCorsOrigins([]);
                       }
                     }}
                   />
@@ -761,18 +762,19 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
                       </div>
                     </>
                   )}
+                </div>
 
-                  <div className="space-y-2">
-                    <Label>{t("modal.corsOrigins")}</Label>
+                <div className={`space-y-2 pl-3 border-l-2 ${corsIndependent || graphqlEnabled ? "border-primary/30" : "border-muted opacity-50"}`}>
+                  <Label>{t("modal.corsOrigins")}</Label>
                     <div className="flex gap-2">
                       <Input
                         placeholder="https://app.example.com"
                         value={corsInput}
-                        disabled={!graphqlEnabled}
+                        disabled={!graphqlEnabled && !corsIndependent}
                         onChange={(e) => setCorsInput(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCorsOrigin())}
                       />
-                      <Button type="button" size="sm" variant="outline" disabled={!graphqlEnabled} onClick={addCorsOrigin}>
+                      <Button type="button" size="sm" variant="outline" disabled={!graphqlEnabled && !corsIndependent} onClick={addCorsOrigin}>
                         <Plus className="h-4 w-4" />
                       </Button>
                     </div>
@@ -790,7 +792,6 @@ export function HTTPSModal({ open, onClose, onSuccess, config }: HTTPSModalProps
                         ))}
                       </div>
                     )}
-                  </div>
                 </div>
               </div>
             </ScrollArea>

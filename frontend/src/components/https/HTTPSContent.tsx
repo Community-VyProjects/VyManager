@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { httpsService, HTTPSConfig } from "@/lib/api/https";
+import { httpsCorsIndependent } from "@/lib/api/https-save-ops";
 import { HTTPSModal } from "./HTTPSModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
@@ -34,7 +35,8 @@ function isConfigured(config: HTTPSConfig): boolean {
     !!config.certificates.dh_params ||
     config.api.keys.length > 0 ||
     config.api.rest.enabled ||
-    config.api.graphql.enabled
+    config.api.graphql.enabled ||
+    config.api.graphql.cors_allow_origins.length > 0
   );
 }
 
@@ -45,6 +47,7 @@ export function HTTPSContent() {
   const hasWritePermission = canWrite(FeatureGroup.HTTPS);
 
   const [config, setConfig] = useState<HTTPSConfig | null>(null);
+  const [corsIndependent, setCorsIndependent] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -53,8 +56,12 @@ export function HTTPSContent() {
     try {
       setLoading(true);
       setError(null);
-      const data = await httpsService.getConfig(refresh);
+      const [data, caps] = await Promise.all([
+        httpsService.getConfig(refresh),
+        httpsService.getCapabilities().catch(() => null),
+      ]);
       setConfig(data);
+      setCorsIndependent(httpsCorsIndependent(caps));
     } catch (err) {
       setError(err instanceof Error ? err.message : t("content.loadFailed"));
     } finally {
@@ -303,6 +310,16 @@ export function HTTPSContent() {
                         <span className="text-xs text-muted-foreground">{tc("disabled")}</span>
                       )}
                     </div>
+                    {config!.api.graphql.cors_allow_origins.length > 0 && (
+                      <div>
+                        <span className="text-muted-foreground text-xs">{t("modal.corsOrigins")}</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {config!.api.graphql.cors_allow_origins.map((origin) => (
+                            <Badge key={origin} variant="outline" className="font-mono text-xs">{origin}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -316,6 +333,7 @@ export function HTTPSContent() {
         onClose={() => setModalOpen(false)}
         onSuccess={handleSuccess}
         config={config}
+        corsIndependent={corsIndependent}
       />
     </>
   );
