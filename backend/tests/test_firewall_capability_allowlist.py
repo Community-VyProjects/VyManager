@@ -27,6 +27,51 @@ def test_domain_group_flag_follows_the_device_tree():
     assert "remote_group" in FirewallGroupsBatchBuilder(version="1.5").get_capabilities()["operations"]
 
 
+def test_group_path_follows_the_mapper_allowlist(monkeypatch):
+    """Path methods must follow the same set the capability flag reads."""
+    monkeypatch.setattr(
+        FirewallGroupsMapper,
+        "supported_group_types",
+        lambda self: frozenset({"domain-group"}),
+    )
+    builder = FirewallGroupsBatchBuilder(version="1.5")
+    with pytest.raises(ValueError, match="not supported"):
+        builder.set_address_group("G1")
+    assert builder.get_operations() == []
+    builder.set_domain_group("G1")
+    assert builder.get_operations()[0]["path"] == ["firewall", "group", "domain-group", "G1"]
+
+
+def test_nondirectional_ipsec_follows_the_allowlist():
+    builder = FirewallFamilyBatchBuilder(version="1.4")
+    with pytest.raises(ValueError, match="not supported"):
+        builder.set_rule_ipsec_match_ipsec("prerouting_raw", 10, False)
+    assert builder.get_operations() == []
+    builder.set_rule_ipsec_match_ipsec("forward", 10, False)
+    assert builder.get_operations()[0]["path"][-2:] == ["ipsec", "match-ipsec"]
+    other = FirewallFamilyBatchBuilder(version="1.5")
+    with pytest.raises(ValueError, match="not supported"):
+        other.set_rule_ipsec_match_ipsec("forward", 10, False)
+    assert other.get_operations() == []
+
+
+def test_zone_parse_uses_the_mapper_allowlist():
+    from routers.firewall.zones import _parse_zone
+    cfg = {
+        "member": {"interface": ["eth1"], "vrf": ["blue"]},
+        "default-firewall": {"name": "RS1"},
+        "interface": ["eth9"],
+    }
+    latest = _parse_zone("LAN", cfg, "latest")
+    assert latest["interfaces"] == ["eth1"]
+    assert latest["vrfs"] == ["blue"]
+    assert latest["default_firewall"]["name"] == "RS1"
+    v14 = _parse_zone("LAN", cfg, "1.4")
+    assert v14["interfaces"] == ["eth9"]
+    assert v14["vrfs"] == []
+    assert v14["default_firewall"] is None
+
+
 def test_group_flags_read_the_mapper_allowlist(monkeypatch):
     """A second handwritten version check in get_capabilities() would ignore this."""
     monkeypatch.setattr(

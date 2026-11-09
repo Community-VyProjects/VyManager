@@ -22,22 +22,27 @@ class FirewallGroupsMapper(BaseFeatureMapper):
 
     def get_address_group(self, group_name: str) -> List[str]:
         """Get command path for creating address group."""
+        self._require_group_type("address-group")
         return ["firewall", "group", "address-group", group_name]
 
     def get_address_group_description(self, group_name: str, description: str) -> List[str]:
         """Get command path for setting address group description."""
+        self._require_group_type("address-group")
         return ["firewall", "group", "address-group", group_name, "description", description]
 
     def get_address_group_description_path(self, group_name: str) -> List[str]:
         """Get command path for address group description (for deletion)."""
+        self._require_group_type("address-group")
         return ["firewall", "group", "address-group", group_name, "description"]
 
     def get_address_group_address(self, group_name: str, address: str) -> List[str]:
         """Get command path for adding address to group."""
+        self._require_group_type("address-group")
         return ["firewall", "group", "address-group", group_name, "address", address]
 
     def get_address_group_include(self, group_name: str, include_group: str) -> List[str]:
         """Get command path for including another address group."""
+        self._require_group_type("address-group")
         return ["firewall", "group", "address-group", group_name, "include", include_group]
 
     # ========================================================================
@@ -46,22 +51,27 @@ class FirewallGroupsMapper(BaseFeatureMapper):
 
     def get_ipv6_address_group(self, group_name: str) -> List[str]:
         """Get command path for creating IPv6 address group."""
+        self._require_group_type("ipv6-address-group")
         return ["firewall", "group", "ipv6-address-group", group_name]
 
     def get_ipv6_address_group_description(self, group_name: str, description: str) -> List[str]:
         """Get command path for setting IPv6 address group description."""
+        self._require_group_type("ipv6-address-group")
         return ["firewall", "group", "ipv6-address-group", group_name, "description", description]
 
     def get_ipv6_address_group_description_path(self, group_name: str) -> List[str]:
         """Get command path for IPv6 address group description (for deletion)."""
+        self._require_group_type("ipv6-address-group")
         return ["firewall", "group", "ipv6-address-group", group_name, "description"]
 
     def get_ipv6_address_group_address(self, group_name: str, address: str) -> List[str]:
         """Get command path for adding IPv6 address to group."""
+        self._require_group_type("ipv6-address-group")
         return ["firewall", "group", "ipv6-address-group", group_name, "address", address]
 
     def get_ipv6_address_group_include(self, group_name: str, include_group: str) -> List[str]:
         """Get command path for including another IPv6 address group."""
+        self._require_group_type("ipv6-address-group")
         return ["firewall", "group", "ipv6-address-group", group_name, "include", include_group]
 
     # ========================================================================
@@ -70,22 +80,27 @@ class FirewallGroupsMapper(BaseFeatureMapper):
 
     def get_network_group(self, group_name: str) -> List[str]:
         """Get command path for creating network group."""
+        self._require_group_type("network-group")
         return ["firewall", "group", "network-group", group_name]
 
     def get_network_group_description(self, group_name: str, description: str) -> List[str]:
         """Get command path for setting network group description."""
+        self._require_group_type("network-group")
         return ["firewall", "group", "network-group", group_name, "description", description]
 
     def get_network_group_description_path(self, group_name: str) -> List[str]:
         """Get command path for network group description (for deletion)."""
+        self._require_group_type("network-group")
         return ["firewall", "group", "network-group", group_name, "description"]
 
     def get_network_group_network(self, group_name: str, network: str) -> List[str]:
         """Get command path for adding network to group."""
+        self._require_group_type("network-group")
         return ["firewall", "group", "network-group", group_name, "network", network]
 
     def get_network_group_include(self, group_name: str, include_group: str) -> List[str]:
         """Get command path for including another network group."""
+        self._require_group_type("network-group")
         return ["firewall", "group", "network-group", group_name, "include", include_group]
 
     # ========================================================================
@@ -94,22 +109,27 @@ class FirewallGroupsMapper(BaseFeatureMapper):
 
     def get_ipv6_network_group(self, group_name: str) -> List[str]:
         """Get command path for creating IPv6 network group."""
+        self._require_group_type("ipv6-network-group")
         return ["firewall", "group", "ipv6-network-group", group_name]
 
     def get_ipv6_network_group_description(self, group_name: str, description: str) -> List[str]:
         """Get command path for setting IPv6 network group description."""
+        self._require_group_type("ipv6-network-group")
         return ["firewall", "group", "ipv6-network-group", group_name, "description", description]
 
     def get_ipv6_network_group_description_path(self, group_name: str) -> List[str]:
         """Get command path for IPv6 network group description (for deletion)."""
+        self._require_group_type("ipv6-network-group")
         return ["firewall", "group", "ipv6-network-group", group_name, "description"]
 
     def get_ipv6_network_group_network(self, group_name: str, network: str) -> List[str]:
         """Get command path for adding IPv6 network to group."""
+        self._require_group_type("ipv6-network-group")
         return ["firewall", "group", "ipv6-network-group", group_name, "network", network]
 
     def get_ipv6_network_group_include(self, group_name: str, include_group: str) -> List[str]:
         """Get command path for including another IPv6 network group."""
+        self._require_group_type("ipv6-network-group")
         return ["firewall", "group", "ipv6-network-group", group_name, "include", include_group]
 
     # ========================================================================
@@ -118,22 +138,27 @@ class FirewallGroupsMapper(BaseFeatureMapper):
 
     def get_port_group(self, group_name: str) -> List[str]:
         """Get command path for creating port group."""
+        self._require_group_type("port-group")
         return ["firewall", "group", "port-group", group_name]
 
     def get_port_group_description(self, group_name: str, description: str) -> List[str]:
         """Get command path for setting port group description."""
+        self._require_group_type("port-group")
         return ["firewall", "group", "port-group", group_name, "description", description]
 
     def get_port_group_description_path(self, group_name: str) -> List[str]:
         """Get command path for port group description (for deletion)."""
+        self._require_group_type("port-group")
         return ["firewall", "group", "port-group", group_name, "description"]
 
     def get_port_group_port(self, group_name: str, port: str) -> List[str]:
         """Get command path for adding port to group."""
+        self._require_group_type("port-group")
         return ["firewall", "group", "port-group", group_name, "port", port]
 
     def get_port_group_include(self, group_name: str, include_group: str) -> List[str]:
         """Get command path for including another port group."""
+        self._require_group_type("port-group")
         return ["firewall", "group", "port-group", group_name, "include", include_group]
 
     # ========================================================================
@@ -142,22 +167,27 @@ class FirewallGroupsMapper(BaseFeatureMapper):
 
     def get_interface_group(self, group_name: str) -> List[str]:
         """Get command path for creating interface group."""
+        self._require_group_type("interface-group")
         return ["firewall", "group", "interface-group", group_name]
 
     def get_interface_group_description(self, group_name: str, description: str) -> List[str]:
         """Get command path for setting interface group description."""
+        self._require_group_type("interface-group")
         return ["firewall", "group", "interface-group", group_name, "description", description]
 
     def get_interface_group_description_path(self, group_name: str) -> List[str]:
         """Get command path for interface group description (for deletion)."""
+        self._require_group_type("interface-group")
         return ["firewall", "group", "interface-group", group_name, "description"]
 
     def get_interface_group_interface(self, group_name: str, interface: str) -> List[str]:
         """Get command path for adding interface to group."""
+        self._require_group_type("interface-group")
         return ["firewall", "group", "interface-group", group_name, "interface", interface]
 
     def get_interface_group_include(self, group_name: str, include_group: str) -> List[str]:
         """Get command path for including another interface group."""
+        self._require_group_type("interface-group")
         return ["firewall", "group", "interface-group", group_name, "include", include_group]
 
     # ========================================================================
@@ -166,22 +196,27 @@ class FirewallGroupsMapper(BaseFeatureMapper):
 
     def get_mac_group(self, group_name: str) -> List[str]:
         """Get command path for creating MAC group."""
+        self._require_group_type("mac-group")
         return ["firewall", "group", "mac-group", group_name]
 
     def get_mac_group_description(self, group_name: str, description: str) -> List[str]:
         """Get command path for setting MAC group description."""
+        self._require_group_type("mac-group")
         return ["firewall", "group", "mac-group", group_name, "description", description]
 
     def get_mac_group_description_path(self, group_name: str) -> List[str]:
         """Get command path for MAC group description (for deletion)."""
+        self._require_group_type("mac-group")
         return ["firewall", "group", "mac-group", group_name, "description"]
 
     def get_mac_group_mac(self, group_name: str, mac: str) -> List[str]:
         """Get command path for adding MAC address to group."""
+        self._require_group_type("mac-group")
         return ["firewall", "group", "mac-group", group_name, "mac-address", mac]
 
     def get_mac_group_include(self, group_name: str, include_group: str) -> List[str]:
         """Get command path for including another MAC group."""
+        self._require_group_type("mac-group")
         return ["firewall", "group", "mac-group", group_name, "include", include_group]
 
     # ========================================================================

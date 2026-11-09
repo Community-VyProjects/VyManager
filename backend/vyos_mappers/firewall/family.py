@@ -5,7 +5,7 @@ One implementation parameterized by family (ipv4 or ipv6).
 Version-specific logic is in family_versions.
 """
 
-from typing import FrozenSet, List
+from typing import List
 from ..base import BaseFeatureMapper
 
 
@@ -19,6 +19,7 @@ class FirewallFamilyMapper(BaseFeatureMapper):
         self.family = family
 
     # Nodes that exist on 1.5 and not on 1.4 (validateTmplPath on both lab hosts).
+    _V14_ONLY_NODES = frozenset({"ipsec-match"})
     _V15_ONLY_NODES = frozenset({
         "remote-group",
         "gre",
@@ -30,7 +31,7 @@ class FirewallFamilyMapper(BaseFeatureMapper):
         """True when this device has the named firewall rule node."""
         if "1.4" in self.version:
             return node not in self._V15_ONLY_NODES
-        return True
+        return node not in self._V14_ONLY_NODES
 
     def _require_rule_node(self, node: str) -> None:
         if not self.has_rule_node(node):
@@ -1524,6 +1525,34 @@ class FirewallFamilyMapper(BaseFeatureMapper):
 
     def get_rule_hop_limit_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
         return self.get_rule_ttl_path(chain, rule_number, is_custom)
+
+    def get_rule_ipsec_match_ipsec(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Non-directional IPsec match-ipsec."""
+        self._require_rule_node("ipsec-match")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "ipsec", "match-ipsec"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "ipsec", "match-ipsec"]
+
+    def get_rule_ipsec_match_ipsec_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Non-directional IPsec match-ipsec (for deletion)."""
+        self._require_rule_node("ipsec-match")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "ipsec", "match-ipsec"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "ipsec", "match-ipsec"]
+
+    def get_rule_ipsec_match_none(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Non-directional IPsec match-none."""
+        self._require_rule_node("ipsec-match")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "ipsec", "match-none"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "ipsec", "match-none"]
+
+    def get_rule_ipsec_match_none_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Non-directional IPsec match-none (for deletion)."""
+        self._require_rule_node("ipsec-match")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "ipsec", "match-none"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "ipsec", "match-none"]
 
     def get_rule_ipsec_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
         """Get path for the IPsec node (for deleting the whole node)."""
