@@ -90,16 +90,15 @@ describe("buildHttpsSaveOps", () => {
     );
   });
 
-  it("does not emit the REST container when that node is unsupported", () => {
+  it("emits 1.4 debug and strict when REST is not a container and not enabled", () => {
     const ops = buildHttpsSaveOps(config({
       api: api({
-        keys: [{ id: "k", key: "secret" }],
-        rest: { enabled: true, debug: false, strict: true },
+        rest: { enabled: false, debug: true, strict: true },
       }),
-    }), { capsReady: true, restContainer: false });
+    }), { capsReady: true, restContainer: false, corsIndependent: true });
     assert.deepEqual(
       ops.map((op) => op.op),
-      ["delete_https", "set_api_key", "set_api_strict"],
+      ["delete_https", "set_api_debug", "set_api_strict"],
     );
   });
 
