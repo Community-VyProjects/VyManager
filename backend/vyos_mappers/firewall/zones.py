@@ -9,7 +9,7 @@ VyOS 1.4 vs 1.5 differences:
 - Default firewall: 1.5 adds `default-firewall name/ipv6-name` (not in 1.4)
 """
 
-from typing import List
+from typing import FrozenSet, List
 from ..base import BaseFeatureMapper
 
 
@@ -18,6 +18,29 @@ class FirewallZonesMapper(BaseFeatureMapper):
 
     def __init__(self, version: str):
         super().__init__(version)
+
+    # validateTmplPath on both lab hosts. 1.4 assigns interfaces at the zone
+    # level. 1.5 uses member interface, member vrf, and default-firewall.
+    _ZONE_NODES_V14 = frozenset({"interface"})
+    _ZONE_NODES_V15 = frozenset({"member-interface", "member-vrf", "default-firewall"})
+
+    def supported_zone_nodes(self) -> FrozenSet[str]:
+        """Zone nodes this device has."""
+        if "1.4" in self.version:
+            return self._ZONE_NODES_V14
+        return self._ZONE_NODES_V15
+
+    def _require_zone_node(self, node: str) -> None:
+        if node not in self.supported_zone_nodes():
+            raise ValueError(f"firewall zone {node} is not supported on this device")
+
+    def assigned_interface_path(self, zone_name: str, interface: str) -> List[str]:
+        """Path used to assign an interface. Version subclasses own the shape."""
+        raise NotImplementedError
+
+    def assigned_vrf_path(self, zone_name: str, vrf: str) -> List[str]:
+        """Path used to assign a VRF. Version subclasses own the shape."""
+        raise NotImplementedError
 
     # ========================================================================
     # Zone Operations

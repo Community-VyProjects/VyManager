@@ -20,39 +20,55 @@ class FirewallZonesMapper_v1_5(FirewallZonesMapper):
     # ========================================================================
 
     def get_zone_member_interface(self, zone_name: str, interface: str) -> List[str]:
-        """Get command path for adding an interface to a zone (VyOS 1.5)."""
+        """Add an interface under member."""
+        self._require_zone_node("member-interface")
         return ["firewall", "zone", zone_name, "member", "interface", interface]
 
     def get_zone_member_interface_path(self, zone_name: str) -> List[str]:
-        """Get command path for member interface node (for deletion, VyOS 1.5)."""
+        """Member interface node (for deletion)."""
+        self._require_zone_node("member-interface")
         return ["firewall", "zone", zone_name, "member", "interface"]
 
     def get_zone_member_vrf(self, zone_name: str, vrf: str) -> List[str]:
-        """Get command path for adding a VRF to a zone (VyOS 1.5)."""
+        """Add a VRF under member."""
+        self._require_zone_node("member-vrf")
         return ["firewall", "zone", zone_name, "member", "vrf", vrf]
 
     def get_zone_member_vrf_path(self, zone_name: str) -> List[str]:
-        """Get command path for member vrf node (for deletion, VyOS 1.5)."""
+        """Member vrf node (for deletion)."""
+        self._require_zone_node("member-vrf")
         return ["firewall", "zone", zone_name, "member", "vrf"]
+
+    def assigned_interface_path(self, zone_name: str, interface: str) -> List[str]:
+        """Path used to assign an interface on this device."""
+        return self.get_zone_member_interface(zone_name, interface)
+
+    def assigned_vrf_path(self, zone_name: str, vrf: str) -> List[str]:
+        """Path used to assign a VRF on this device."""
+        return self.get_zone_member_vrf(zone_name, vrf)
 
     # ========================================================================
     # Default Firewall Operations (VyOS 1.5+ only)
     # ========================================================================
 
     def get_zone_default_firewall_name(self, zone_name: str, ruleset: str) -> List[str]:
-        """Get command path for default-firewall IPv4 ruleset (VyOS 1.5)."""
+        """Default-firewall IPv4 ruleset."""
+        self._require_zone_node("default-firewall")
         return ["firewall", "zone", zone_name, "default-firewall", "name", ruleset]
 
     def get_zone_default_firewall_name_path(self, zone_name: str) -> List[str]:
-        """Get command path for default-firewall name node (for deletion)."""
+        """Default-firewall name node (for deletion)."""
+        self._require_zone_node("default-firewall")
         return ["firewall", "zone", zone_name, "default-firewall", "name"]
 
     def get_zone_default_firewall_ipv6_name(self, zone_name: str, ruleset: str) -> List[str]:
-        """Get command path for default-firewall IPv6 ruleset (VyOS 1.5)."""
+        """Default-firewall IPv6 ruleset."""
+        self._require_zone_node("default-firewall")
         return ["firewall", "zone", zone_name, "default-firewall", "ipv6-name", ruleset]
 
     def get_zone_default_firewall_ipv6_name_path(self, zone_name: str) -> List[str]:
-        """Get command path for default-firewall ipv6-name node (for deletion)."""
+        """Default-firewall ipv6-name node (for deletion)."""
+        self._require_zone_node("default-firewall")
         return ["firewall", "zone", zone_name, "default-firewall", "ipv6-name"]
 
     # ========================================================================
@@ -60,8 +76,6 @@ class FirewallZonesMapper_v1_5(FirewallZonesMapper):
     # ========================================================================
 
     def get_zone_interface(self, zone_name: str, interface: str) -> List[str]:
-        """Not used in VyOS 1.5 — use get_zone_member_interface instead."""
-        raise ValueError(
-            "Use member interface in VyOS 1.5. "
-            "Call get_zone_member_interface() instead."
-        )
+        """Zone-level interface is not on this device."""
+        self._require_zone_node("interface")
+        raise ValueError("firewall zone interface is not supported on this device")

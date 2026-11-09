@@ -5,7 +5,7 @@ One implementation parameterized by family (ipv4 or ipv6).
 Version-specific logic is in family_versions.
 """
 
-from typing import List
+from typing import FrozenSet, List
 from ..base import BaseFeatureMapper
 
 
@@ -17,6 +17,41 @@ class FirewallFamilyMapper(BaseFeatureMapper):
             raise ValueError(f"unsupported firewall family: {family}")
         super().__init__(version)
         self.family = family
+
+    # Nodes that exist on 1.5 and not on 1.4 (validateTmplPath on both lab hosts).
+    _V15_ONLY_NODES = frozenset({
+        "remote-group",
+        "gre",
+        "prerouting-raw",
+        "ipsec-directional",
+    })
+    _V15_METHOD_PREFIXES = (
+        ("get_rule_gre", "gre"),
+        ("get_prerouting_raw", "prerouting-raw"),
+        ("get_rule_ipsec_match_ipsec_in", "ipsec-directional"),
+        ("get_rule_ipsec_match_ipsec_out", "ipsec-directional"),
+        ("get_rule_ipsec_match_none_in", "ipsec-directional"),
+        ("get_rule_ipsec_match_none_out", "ipsec-directional"),
+    )
+
+    def has_rule_node(self, node: str) -> bool:
+        """True when this device has the named firewall rule node."""
+        if "1.4" in self.version:
+            return node not in self._V15_ONLY_NODES
+        return True
+
+    def _require_rule_node(self, node: str) -> None:
+        if not self.has_rule_node(node):
+            raise ValueError(f"firewall {node} is not supported on this device")
+
+    def __getattr__(self, name: str):
+        for prefix, node in self._V15_METHOD_PREFIXES:
+            if name.startswith(prefix):
+                def _missing(*_args, _node=node, **_kwargs):
+                    self._require_rule_node(_node)
+                    raise ValueError(f"firewall {_node} is not supported on this device")
+                return _missing
+        raise AttributeError(f"{type(self).__name__!r} object has no attribute {name!r}")
 
     def _base_chain_parts(self, chain: str) -> List[str]:
         if chain in ("prerouting", "prerouting_raw"):
@@ -436,25 +471,29 @@ class FirewallFamilyMapper(BaseFeatureMapper):
         return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "destination", "group", "domain-group"]
 
     def get_rule_source_group_remote(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> List[str]:
-        """Get command path for setting source remote group (VyOS 1.5+ only)."""
+        """Get command path for setting source remote group."""
+        self._require_rule_node("remote-group")
         if is_custom:
             return ["firewall", self.family, "name", chain, "rule", str(rule_number), "source", "group", "remote-group", group_name]
         return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "source", "group", "remote-group", group_name]
 
     def get_rule_source_group_remote_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
-        """Get command path for source remote group (for deletion) (VyOS 1.5+ only)."""
+        """Get command path for source remote group (for deletion)."""
+        self._require_rule_node("remote-group")
         if is_custom:
             return ["firewall", self.family, "name", chain, "rule", str(rule_number), "source", "group", "remote-group"]
         return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "source", "group", "remote-group"]
 
     def get_rule_destination_group_remote(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> List[str]:
-        """Get command path for setting destination remote group (VyOS 1.5+ only)."""
+        """Get command path for setting destination remote group."""
+        self._require_rule_node("remote-group")
         if is_custom:
             return ["firewall", self.family, "name", chain, "rule", str(rule_number), "destination", "group", "remote-group", group_name]
         return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "destination", "group", "remote-group", group_name]
 
     def get_rule_destination_group_remote_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
-        """Get command path for destination remote group (for deletion) (VyOS 1.5+ only)."""
+        """Get command path for destination remote group (for deletion)."""
+        self._require_rule_node("remote-group")
         if is_custom:
             return ["firewall", self.family, "name", chain, "rule", str(rule_number), "destination", "group", "remote-group"]
         return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "destination", "group", "remote-group"]

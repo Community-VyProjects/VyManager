@@ -8,8 +8,9 @@ Handles version differences transparently:
 - VyOS 1.5: interfaces under `member interface/vrf`, plus `default-firewall`
 """
 
-from typing import Dict, Any
+from typing import Any, Dict, cast
 from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.firewall.zones import FirewallZonesMapper
 from vyos_builders.base import BatchBuilder
 
 
@@ -117,43 +118,30 @@ class FirewallZonesBatchBuilder(BatchBuilder):
     def set_zone_interface(
         self, zone_name: str, interface: str
     ) -> "FirewallZonesBatchBuilder":
-        """Add interface to zone (VyOS 1.4: zone interface; 1.5: member interface)."""
-        if "1.5" in self.version:
-            path = self.mappers[self.mapper_key].get_zone_member_interface(zone_name, interface)
-        else:
-            path = self.mappers[self.mapper_key].get_zone_interface(zone_name, interface)
-        return self.add_set(path)
+        """Add an interface to a zone."""
+        mapper = cast(FirewallZonesMapper, self.mappers[self.mapper_key])
+        return self.add_set(mapper.assigned_interface_path(zone_name, interface))
 
     def delete_zone_interface(
         self, zone_name: str, interface: str
     ) -> "FirewallZonesBatchBuilder":
-        """Remove interface from zone."""
-        if "1.5" in self.version:
-            path = self.mappers[self.mapper_key].get_zone_member_interface(zone_name, interface)
-        else:
-            path = self.mappers[self.mapper_key].get_zone_interface(zone_name, interface)
-        return self.add_delete(path)
+        """Remove an interface from a zone."""
+        mapper = cast(FirewallZonesMapper, self.mappers[self.mapper_key])
+        return self.add_delete(mapper.assigned_interface_path(zone_name, interface))
 
     def set_zone_member_vrf(
         self, zone_name: str, vrf: str
     ) -> "FirewallZonesBatchBuilder":
-        """Add VRF to zone (VyOS 1.5 only: member vrf; 1.4: use set_zone_interface with VRF name)."""
-        if "1.5" in self.version:
-            path = self.mappers[self.mapper_key].get_zone_member_vrf(zone_name, vrf)
-        else:
-            # VyOS 1.4: VRF names go into the same `interface` multi-value node
-            path = self.mappers[self.mapper_key].get_zone_interface(zone_name, vrf)
-        return self.add_set(path)
+        """Add a VRF to a zone."""
+        mapper = cast(FirewallZonesMapper, self.mappers[self.mapper_key])
+        return self.add_set(mapper.assigned_vrf_path(zone_name, vrf))
 
     def delete_zone_member_vrf(
         self, zone_name: str, vrf: str
     ) -> "FirewallZonesBatchBuilder":
-        """Remove VRF from zone."""
-        if "1.5" in self.version:
-            path = self.mappers[self.mapper_key].get_zone_member_vrf(zone_name, vrf)
-        else:
-            path = self.mappers[self.mapper_key].get_zone_interface(zone_name, vrf)
-        return self.add_delete(path)
+        """Remove a VRF from a zone."""
+        mapper = cast(FirewallZonesMapper, self.mappers[self.mapper_key])
+        return self.add_delete(mapper.assigned_vrf_path(zone_name, vrf))
 
     # ========================================================================
     # Default Firewall (VyOS 1.5 only)
@@ -337,27 +325,32 @@ class FirewallZonesBatchBuilder(BatchBuilder):
     # ========================================================================
 
     def get_capabilities(self) -> Dict[str, Any]:
-        """Get version-aware capabilities for firewall zones."""
-        is_v15 = "1.5" in self.version
+        """Get capabilities for the current device."""
+        mapper = cast(FirewallZonesMapper, self.mappers[self.mapper_key])
+        nodes = mapper.supported_zone_nodes()
+
+        def flag(node: str, description: str) -> Dict[str, Any]:
+            return {"supported": node in nodes, "description": description}
+
         return {
             "version": self.version,
             "features": {
-                "default_firewall": {
-                    "supported": is_v15,
-                    "description": "Apply a firewall ruleset to default-action traffic",
-                },
-                "member_interface": {
-                    "supported": is_v15,
-                    "description": "Assign interfaces via member hierarchy (VyOS 1.5+)",
-                },
-                "member_vrf": {
-                    "supported": is_v15,
-                    "description": "Assign VRFs via member hierarchy (VyOS 1.5+)",
-                },
-                "interface_direct": {
-                    "supported": not is_v15,
-                    "description": "Assign interfaces directly at zone level (VyOS 1.4)",
-                },
+                "default_firewall": flag(
+                    "default-firewall",
+                    "Apply a firewall ruleset to default-action traffic",
+                ),
+                "member_interface": flag(
+                    "member-interface",
+                    "Assign interfaces under the member node",
+                ),
+                "member_vrf": flag(
+                    "member-vrf",
+                    "Assign VRFs under the member node",
+                ),
+                "interface_direct": flag(
+                    "interface",
+                    "Assign interfaces directly on the zone",
+                ),
                 "from_zone_firewall": {
                     "supported": True,
                     "description": "Apply firewall rulesets to traffic from another zone",

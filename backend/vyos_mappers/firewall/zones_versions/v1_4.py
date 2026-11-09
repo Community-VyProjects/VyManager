@@ -19,33 +19,35 @@ class FirewallZonesMapper_v1_4(FirewallZonesMapper):
     # ========================================================================
 
     def get_zone_interface(self, zone_name: str, interface: str) -> List[str]:
-        """Get command path for adding an interface to a zone (VyOS 1.4)."""
+        """Add an interface at the zone level."""
+        self._require_zone_node("interface")
         return ["firewall", "zone", zone_name, "interface", interface]
 
     def get_zone_interface_path(self, zone_name: str) -> List[str]:
-        """Get command path for zone interface node (for deletion, VyOS 1.4)."""
+        """Zone interface node (for deletion)."""
+        self._require_zone_node("interface")
         return ["firewall", "zone", zone_name, "interface"]
 
-    # ========================================================================
-    # Unsupported in VyOS 1.4
-    # ========================================================================
+    def assigned_interface_path(self, zone_name: str, interface: str) -> List[str]:
+        """Path used to assign an interface on this device."""
+        return self.get_zone_interface(zone_name, interface)
+
+    def assigned_vrf_path(self, zone_name: str, vrf: str) -> List[str]:
+        """1.4 stores a VRF name in the same interface node."""
+        return self.get_zone_interface(zone_name, vrf)
 
     def get_zone_member_interface(self, zone_name: str, interface: str) -> List[str]:
-        """Not available in VyOS 1.4 — use get_zone_interface instead."""
-        raise ValueError(
-            "member interface requires VyOS 1.5+. Use interface directly in VyOS 1.4."
-        )
+        self._require_zone_node("member-interface")
+        raise ValueError("firewall zone member-interface is not supported on this device")
 
     def get_zone_member_vrf(self, zone_name: str, vrf: str) -> List[str]:
-        """Not available in VyOS 1.4 — use get_zone_interface with VRF name."""
-        raise ValueError(
-            "member vrf requires VyOS 1.5+. Add VRF names via interface in VyOS 1.4."
-        )
+        self._require_zone_node("member-vrf")
+        raise ValueError("firewall zone member-vrf is not supported on this device")
 
     def get_zone_default_firewall_name(self, zone_name: str, ruleset: str) -> List[str]:
-        """Not available in VyOS 1.4."""
-        raise ValueError("default-firewall requires VyOS 1.5+.")
+        self._require_zone_node("default-firewall")
+        raise ValueError("firewall zone default-firewall is not supported on this device")
 
     def get_zone_default_firewall_ipv6_name(self, zone_name: str, ruleset: str) -> List[str]:
-        """Not available in VyOS 1.4."""
-        raise ValueError("default-firewall requires VyOS 1.5+.")
+        self._require_zone_node("default-firewall")
+        raise ValueError("firewall zone default-firewall is not supported on this device")
