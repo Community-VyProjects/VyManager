@@ -83,8 +83,48 @@ def test_family_flags_read_the_mapper_allowlist(monkeypatch):
     caps = FirewallFamilyBatchBuilder(version="1.4").get_capabilities()["features"]
     assert caps["gre_matching"]["supported"] is True
     assert caps["remote_group"]["supported"] is False
-    assert caps["prerouting_raw"]["supported"] is False
-    assert caps["ipsec_directional"]["supported"] is False
+    builder = FirewallFamilyBatchBuilder(version="1.4")
+    builder.set_rule_gre_key("forward", 10, "1", False)
+    assert builder.get_operations()[0]["path"][-3:] == ["gre", "key", "1"]
+    builder.clear()
+    with pytest.raises(ValueError, match="not supported"):
+        builder.set_rule_source_group_remote("forward", 10, "RG", False)
+    assert builder.get_operations() == []
+
+
+def test_prerouting_raw_generic_rule_rejected_on_1_4():
+    builder = FirewallFamilyBatchBuilder(version="1.4")
+    with pytest.raises(ValueError, match="not supported"):
+        builder.set_rule_action("prerouting_raw", 10, "drop", False)
+    assert builder.get_operations() == []
+
+
+def test_zone_path_follows_the_mapper_allowlist(monkeypatch):
+    """Path methods must follow the same set the capability flag reads."""
+    monkeypatch.setattr(
+        FirewallZonesMapper,
+        "supported_zone_nodes",
+        lambda self: frozenset({"interface"}),
+    )
+    builder = FirewallZonesBatchBuilder(version="1.5")
+    builder.set_zone_interface("LAN", "eth1")
+    assert builder.get_operations()[0]["path"] == ["firewall", "zone", "LAN", "interface", "eth1"]
+    builder.clear()
+    with pytest.raises(ValueError, match="not supported"):
+        builder.delete_zone_default_firewall_name("LAN")
+    assert builder.get_operations() == []
+
+
+def test_zone_delete_paths_raise_on_the_other_version():
+    builder = FirewallZonesBatchBuilder(version="1.4")
+    with pytest.raises(ValueError, match="not supported"):
+        builder.delete_zone_default_firewall_name("LAN")
+    assert builder.get_operations() == []
+    from vyos_mappers.firewall.zones_versions import get_firewall_zones_mapper
+    with pytest.raises(ValueError, match="not supported"):
+        get_firewall_zones_mapper("1.5").get_zone_interface_path("LAN")
+    with pytest.raises(ValueError, match="not supported"):
+        get_firewall_zones_mapper("1.4").get_zone_member_interface_path("LAN")
 
 
 @pytest.mark.parametrize(

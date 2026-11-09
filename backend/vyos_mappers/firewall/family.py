@@ -25,14 +25,6 @@ class FirewallFamilyMapper(BaseFeatureMapper):
         "prerouting-raw",
         "ipsec-directional",
     })
-    _V15_METHOD_PREFIXES = (
-        ("get_rule_gre", "gre"),
-        ("get_prerouting_raw", "prerouting-raw"),
-        ("get_rule_ipsec_match_ipsec_in", "ipsec-directional"),
-        ("get_rule_ipsec_match_ipsec_out", "ipsec-directional"),
-        ("get_rule_ipsec_match_none_in", "ipsec-directional"),
-        ("get_rule_ipsec_match_none_out", "ipsec-directional"),
-    )
 
     def has_rule_node(self, node: str) -> bool:
         """True when this device has the named firewall rule node."""
@@ -44,17 +36,9 @@ class FirewallFamilyMapper(BaseFeatureMapper):
         if not self.has_rule_node(node):
             raise ValueError(f"firewall {node} is not supported on this device")
 
-    def __getattr__(self, name: str):
-        for prefix, node in self._V15_METHOD_PREFIXES:
-            if name.startswith(prefix):
-                def _missing(*_args, _node=node, **_kwargs):
-                    self._require_rule_node(_node)
-                    raise ValueError(f"firewall {_node} is not supported on this device")
-                return _missing
-        raise AttributeError(f"{type(self).__name__!r} object has no attribute {name!r}")
-
     def _base_chain_parts(self, chain: str) -> List[str]:
         if chain in ("prerouting", "prerouting_raw"):
+            self._require_rule_node("prerouting-raw")
             return ["prerouting", "raw"]
         return [chain, "filter"]
 
@@ -1540,3 +1524,248 @@ class FirewallFamilyMapper(BaseFeatureMapper):
 
     def get_rule_hop_limit_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
         return self.get_rule_ttl_path(chain, rule_number, is_custom)
+
+    def get_rule_ipsec_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for the IPsec node (for deleting the whole node)."""
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "ipsec"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "ipsec"]
+
+    def get_rule_ipsec_match_ipsec_in(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for IPsec match-ipsec-in (VyOS 1.5)."""
+        self._require_rule_node("ipsec-directional")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "ipsec", "match-ipsec-in"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "ipsec", "match-ipsec-in"]
+
+    def get_rule_ipsec_match_ipsec_in_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for IPsec match-ipsec-in (for deletion)."""
+        self._require_rule_node("ipsec-directional")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "ipsec", "match-ipsec-in"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "ipsec", "match-ipsec-in"]
+
+    def get_rule_ipsec_match_ipsec_out(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for IPsec match-ipsec-out (VyOS 1.5)."""
+        self._require_rule_node("ipsec-directional")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "ipsec", "match-ipsec-out"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "ipsec", "match-ipsec-out"]
+
+    def get_rule_ipsec_match_ipsec_out_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for IPsec match-ipsec-out (for deletion)."""
+        self._require_rule_node("ipsec-directional")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "ipsec", "match-ipsec-out"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "ipsec", "match-ipsec-out"]
+
+    def get_rule_ipsec_match_none_in(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for IPsec match-none-in (VyOS 1.5)."""
+        self._require_rule_node("ipsec-directional")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "ipsec", "match-none-in"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "ipsec", "match-none-in"]
+
+    def get_rule_ipsec_match_none_in_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for IPsec match-none-in (for deletion)."""
+        self._require_rule_node("ipsec-directional")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "ipsec", "match-none-in"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "ipsec", "match-none-in"]
+
+    def get_rule_ipsec_match_none_out(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for IPsec match-none-out (VyOS 1.5)."""
+        self._require_rule_node("ipsec-directional")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "ipsec", "match-none-out"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "ipsec", "match-none-out"]
+
+    def get_rule_ipsec_match_none_out_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for IPsec match-none-out (for deletion)."""
+        self._require_rule_node("ipsec-directional")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "ipsec", "match-none-out"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "ipsec", "match-none-out"]
+
+    def get_rule_gre_key(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> List[str]:
+        """Get path for GRE key value."""
+        self._require_rule_node("gre")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "gre", "key", value]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "gre", "key", value]
+
+    def get_rule_gre_key_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for GRE key (for deletion)."""
+        self._require_rule_node("gre")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "gre", "key"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "gre", "key"]
+
+    def get_rule_gre_version(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> List[str]:
+        """Get path for GRE version value."""
+        self._require_rule_node("gre")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "gre", "version", value]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "gre", "version", value]
+
+    def get_rule_gre_version_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for GRE version (for deletion)."""
+        self._require_rule_node("gre")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "gre", "version"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "gre", "version"]
+
+    def get_rule_gre_inner_proto(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> List[str]:
+        """Get path for GRE inner-proto value."""
+        self._require_rule_node("gre")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "gre", "inner-proto", value]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "gre", "inner-proto", value]
+
+    def get_rule_gre_inner_proto_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for GRE inner-proto (for deletion)."""
+        self._require_rule_node("gre")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "gre", "inner-proto"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "gre", "inner-proto"]
+
+    def get_rule_gre_flags_checksum(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for GRE flags checksum."""
+        self._require_rule_node("gre")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "gre", "flags", "checksum"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "gre", "flags", "checksum"]
+
+    def get_rule_gre_flags_checksum_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for GRE flags checksum (for deletion)."""
+        self._require_rule_node("gre")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "gre", "flags", "checksum"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "gre", "flags", "checksum"]
+
+    def get_rule_gre_flags_checksum_unset(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for GRE flags checksum unset."""
+        self._require_rule_node("gre")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "gre", "flags", "checksum", "unset"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "gre", "flags", "checksum", "unset"]
+
+    def get_rule_gre_flags_checksum_unset_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for GRE flags checksum unset (for deletion)."""
+        self._require_rule_node("gre")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "gre", "flags", "checksum", "unset"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "gre", "flags", "checksum", "unset"]
+
+    def get_rule_gre_flags_key(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for GRE flags key."""
+        self._require_rule_node("gre")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "gre", "flags", "key"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "gre", "flags", "key"]
+
+    def get_rule_gre_flags_key_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for GRE flags key (for deletion)."""
+        self._require_rule_node("gre")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "gre", "flags", "key"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "gre", "flags", "key"]
+
+    def get_rule_gre_flags_key_unset(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for GRE flags key unset."""
+        self._require_rule_node("gre")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "gre", "flags", "key", "unset"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "gre", "flags", "key", "unset"]
+
+    def get_rule_gre_flags_key_unset_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for GRE flags key unset (for deletion)."""
+        self._require_rule_node("gre")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "gre", "flags", "key", "unset"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "gre", "flags", "key", "unset"]
+
+    def get_rule_gre_flags_sequence(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for GRE flags sequence."""
+        self._require_rule_node("gre")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "gre", "flags", "sequence"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "gre", "flags", "sequence"]
+
+    def get_rule_gre_flags_sequence_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for GRE flags sequence (for deletion)."""
+        self._require_rule_node("gre")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "gre", "flags", "sequence"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "gre", "flags", "sequence"]
+
+    def get_rule_gre_flags_sequence_unset(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for GRE flags sequence unset."""
+        self._require_rule_node("gre")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "gre", "flags", "sequence", "unset"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "gre", "flags", "sequence", "unset"]
+
+    def get_rule_gre_flags_sequence_unset_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for GRE flags sequence unset (for deletion)."""
+        self._require_rule_node("gre")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "gre", "flags", "sequence", "unset"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "gre", "flags", "sequence", "unset"]
+
+    def get_rule_gre_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get path for GRE node (for deleting entire gre node)."""
+        self._require_rule_node("gre")
+        if is_custom:
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "gre"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "gre"]
+
+    def get_prerouting_raw_rule(self, rule_number: int) -> List[str]:
+        """Get path for prerouting raw rule."""
+        self._require_rule_node("prerouting-raw")
+        return ["firewall", self.family, "prerouting", "raw", "rule", str(rule_number)]
+
+    def get_prerouting_raw_rule_path(self, rule_number: int) -> List[str]:
+        """Get path for prerouting raw rule (for deletion)."""
+        self._require_rule_node("prerouting-raw")
+        return ["firewall", self.family, "prerouting", "raw", "rule", str(rule_number)]
+
+    def get_prerouting_raw_default_action(self, action: str) -> List[str]:
+        """Get path for prerouting raw default action."""
+        self._require_rule_node("prerouting-raw")
+        return ["firewall", self.family, "prerouting", "raw", "default-action", action]
+
+    def get_prerouting_raw_default_action_path(self) -> List[str]:
+        """Get path for prerouting raw default action (for deletion)."""
+        self._require_rule_node("prerouting-raw")
+        return ["firewall", self.family, "prerouting", "raw", "default-action"]
+
+    def get_prerouting_raw_description(self, description: str) -> List[str]:
+        """Get path for prerouting raw description."""
+        self._require_rule_node("prerouting-raw")
+        return ["firewall", self.family, "prerouting", "raw", "description", description]
+
+    def get_prerouting_raw_description_path(self) -> List[str]:
+        """Get path for prerouting raw description (for deletion)."""
+        self._require_rule_node("prerouting-raw")
+        return ["firewall", self.family, "prerouting", "raw", "description"]
+
+    def get_prerouting_raw_default_log(self) -> List[str]:
+        """Get path for prerouting raw default-log."""
+        self._require_rule_node("prerouting-raw")
+        return ["firewall", self.family, "prerouting", "raw", "default-log"]
+
+    def get_prerouting_raw_default_log_path(self) -> List[str]:
+        """Get path for prerouting raw default-log (for deletion)."""
+        self._require_rule_node("prerouting-raw")
+        return ["firewall", self.family, "prerouting", "raw", "default-log"]
+
+    def get_prerouting_raw_default_jump_target(self, target: str) -> List[str]:
+        """Get path for prerouting raw default-jump-target."""
+        self._require_rule_node("prerouting-raw")
+        return ["firewall", self.family, "prerouting", "raw", "default-jump-target", target]
+
+    def get_prerouting_raw_default_jump_target_path(self) -> List[str]:
+        """Get path for prerouting raw default-jump-target (for deletion)."""
+        self._require_rule_node("prerouting-raw")
+        return ["firewall", self.family, "prerouting", "raw", "default-jump-target"]
