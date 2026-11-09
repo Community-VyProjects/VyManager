@@ -11,6 +11,7 @@ export function httpsCorsIndependent(
 }
 
 export interface HttpsSaveOptions {
+  capsReady?: boolean;
   corsIndependent?: boolean;
   restContainer?: boolean;
 }
@@ -27,6 +28,9 @@ export function buildHttpsSaveOps(
   config: HTTPSConfig,
   options: HttpsSaveOptions = {},
 ): BatchOperation[] {
+  if (options.capsReady !== true) {
+    throw new Error("HTTPS capabilities are required before save");
+  }
   const ops: BatchOperation[] = [{ op: "delete_https" }];
 
   for (const addr of config.listen_addresses) {

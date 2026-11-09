@@ -113,7 +113,7 @@ def test_version_keys_come_from_mapper():
     }
     assert parsed_14["api"]["graphql"]["cors_allow_origins"] == ["https://old.example"]
     assert parsed_14["api"]["rest"] == {
-        "enabled": True,
+        "enabled": False,
         "debug": True,
         "strict": False,
     }
@@ -188,15 +188,16 @@ def test_1_5_keys_do_not_enable_rest():
     assert parsed["api"]["rest"]["enabled"] is False
 
 
-def test_1_4_keys_enable_classic_api():
+def test_1_4_keys_do_not_enable_rest():
     tree = {
         "service": {
             "https": {"api": {"keys": {"id": {"k": {"key": "secret"}}}}}
         }
     }
     parsed = get_https_mapper("1.4").parse_config(tree)
+    assert parsed["api"]["keys"] == [{"id": "k", "key": "secret"}]
     assert parsed["api"]["rest"] == {
-        "enabled": True,
+        "enabled": False,
         "debug": False,
         "strict": False,
     }

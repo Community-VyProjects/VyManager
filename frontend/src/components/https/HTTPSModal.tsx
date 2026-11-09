@@ -285,6 +285,7 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, 
 
     try {
       const result = await httpsService.saveConfig(payload, {
+        capsReady,
         corsIndependent,
         restContainer,
       });

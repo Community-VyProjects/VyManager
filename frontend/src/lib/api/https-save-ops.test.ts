@@ -49,7 +49,7 @@ describe("buildHttpsSaveOps", () => {
           cors_allow_origins: ["https://x.example"],
         },
       }),
-    }), { corsIndependent: true, restContainer: false });
+    }), { capsReady: true, corsIndependent: true, restContainer: false });
     assert.deepEqual(
       ops.filter((op) => op.op.startsWith("set_api_")),
       [{ op: "set_api_cors_allow_origin", value: "https://x.example" }],
@@ -66,7 +66,7 @@ describe("buildHttpsSaveOps", () => {
           cors_allow_origins: ["https://x.example"],
         },
       }),
-    }), { corsIndependent: false, restContainer: true });
+    }), { capsReady: true, corsIndependent: false, restContainer: true });
     assert.deepEqual(ops.map((op) => op.op), ["delete_https"]);
   });
 
@@ -80,7 +80,7 @@ describe("buildHttpsSaveOps", () => {
           cors_allow_origins: ["https://x.example"],
         },
       }),
-    }), { corsIndependent: false, restContainer: true });
+    }), { capsReady: true, corsIndependent: false, restContainer: true });
     assert.deepEqual(
       ops.filter((op) => op.op.includes("cors") || op.op.includes("graphql")),
       [
@@ -96,7 +96,7 @@ describe("buildHttpsSaveOps", () => {
         keys: [{ id: "k", key: "secret" }],
         rest: { enabled: true, debug: false, strict: true },
       }),
-    }), { restContainer: false });
+    }), { capsReady: true, restContainer: false });
     assert.deepEqual(
       ops.map((op) => op.op),
       ["delete_https", "set_api_key", "set_api_strict"],
@@ -106,15 +106,26 @@ describe("buildHttpsSaveOps", () => {
   it("emits the REST container only when the node exists and REST is enabled", () => {
     const off = buildHttpsSaveOps(config({
       api: api({ rest: { enabled: false, debug: true, strict: false } }),
-    }), { restContainer: true });
+    }), { capsReady: true, restContainer: true });
     assert.equal(off.some((op) => op.op.startsWith("set_api_")), false);
 
     const on = buildHttpsSaveOps(config({
       api: api({ rest: { enabled: true, debug: false, strict: true } }),
-    }), { restContainer: true });
+    }), { capsReady: true, restContainer: true });
     assert.deepEqual(
       on.filter((op) => op.op.startsWith("set_api_")),
       [{ op: "set_api_rest" }, { op: "set_api_strict" }],
+    );
+  });
+
+  it("refuses to build a save when capabilities were not loaded", () => {
+    assert.throws(
+      () => buildHttpsSaveOps(config(), { corsIndependent: false, restContainer: false }),
+      /capabilities are required/,
+    );
+    assert.throws(
+      () => buildHttpsSaveOps(config(), { capsReady: false, corsIndependent: true, restContainer: false }),
+      /capabilities are required/,
     );
   });
 });

@@ -35,6 +35,8 @@ function isConfigured(config: HTTPSConfig): boolean {
     !!config.certificates.dh_params ||
     config.api.keys.length > 0 ||
     config.api.rest.enabled ||
+    config.api.rest.debug ||
+    config.api.rest.strict ||
     config.api.graphql.enabled ||
     config.api.graphql.cors_allow_origins.length > 0
   );
@@ -291,14 +293,24 @@ export function HTTPSContent() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-muted-foreground w-32 shrink-0">REST API</span>
-                      {config!.api.rest.enabled ? (
+                      {restContainer ? (
+                        config!.api.rest.enabled ? (
+                          <div className="flex gap-1">
+                            <Badge className="text-xs bg-green-500/10 text-green-600 border-green-500/20">{tc("enabled")}</Badge>
+                            {config!.api.rest.debug && <Badge variant="secondary" className="text-xs">{t("content.debug")}</Badge>}
+                            {config!.api.rest.strict && <Badge variant="secondary" className="text-xs">{t("content.strict")}</Badge>}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">{tc("disabled")}</span>
+                        )
+                      ) : (
                         <div className="flex gap-1">
-                          <Badge className="text-xs bg-green-500/10 text-green-600 border-green-500/20">{tc("enabled")}</Badge>
                           {config!.api.rest.debug && <Badge variant="secondary" className="text-xs">{t("content.debug")}</Badge>}
                           {config!.api.rest.strict && <Badge variant="secondary" className="text-xs">{t("content.strict")}</Badge>}
+                          {!config!.api.rest.debug && !config!.api.rest.strict && (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
                         </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">{tc("disabled")}</span>
                       )}
                     </div>
                     <div className="flex items-center gap-2">

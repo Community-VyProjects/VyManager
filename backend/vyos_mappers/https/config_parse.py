@@ -174,13 +174,12 @@ def _parse_api(raw: dict, mapper) -> Dict[str, Any]:
             "strict": "strict" in rest_raw,
         }
     else:
-        # 1.4 has no api/rest node. The classic API is unavailable without a
-        # key; debug and strict are flags on api, not the enable switch.
-        # 1.5 must not use this branch: a missing rest node is not enabled.
+        # 1.4 has no api/rest node. Do not infer one from keys, debug, or
+        # strict. Those flags are siblings of the key list.
         debug = "debug" in raw
         strict = "strict" in raw
         rest = {
-            "enabled": any(item.get("key") for item in keys),
+            "enabled": False,
             "debug": debug,
             "strict": strict,
         }
