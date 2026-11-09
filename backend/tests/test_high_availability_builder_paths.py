@@ -125,3 +125,32 @@ COMMON_CASES = [
 @pytest.mark.parametrize("version", ["1.4", "1.5"])
 def test_high_availability_common_paths(method, args, op, expected_path, version):
     _run(version, method, args, op, expected_path)
+
+
+@pytest.mark.parametrize("version", ["1.4", "1.5"])
+def test_forward_method_dr_is_rejected(version):
+    builder = HighAvailabilityBatchBuilder(version=version)
+    with pytest.raises(ValueError, match="not supported on this device"):
+        builder.set_virtual_server_forward_method("G0", "dr")
+    assert builder.get_operations() == []
+
+
+@pytest.mark.parametrize("version", ["1.4", "1.5"])
+@pytest.mark.parametrize("method", ["direct", "nat", "tunnel"])
+def test_forward_method_allowlist_emits_the_token(version, method):
+    builder = HighAvailabilityBatchBuilder(version=version)
+    builder.set_virtual_server_forward_method("G0", method)
+    assert builder.get_operations() == [{
+        "op": "set",
+        "path": ["high-availability", "virtual-server", "G0", "forward-method", method],
+    }]
+
+
+def test_capabilities_read_the_forward_method_allowlist(monkeypatch):
+    """A second handwritten list in get_capabilities() would ignore this."""
+    from vyos_mappers.high_availability.high_availability import HighAvailabilityMapper
+
+    monkeypatch.setattr(HighAvailabilityMapper, "forward_methods", lambda self: ("tunnel",))
+    for version in ("1.4", "1.5"):
+        caps = HighAvailabilityBatchBuilder(version=version).get_capabilities()
+        assert caps["forward_methods"] == ["tunnel"]

@@ -22,12 +22,13 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { AlertCircle, Loader2, Plus, Server, Trash2 } from "lucide-react";
-import type { VirtualServer, RealServer } from "@/lib/api/high-availability";
+import type { HACapabilities, VirtualServer, RealServer } from "@/lib/api/high-availability";
 
 interface VirtualServerModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   existingServer?: VirtualServer | null;
+  capabilities?: HACapabilities | null;
   onSubmit: (vs: VirtualServer) => Promise<void>;
 }
 
@@ -119,10 +120,18 @@ export function VirtualServerModal({
   open,
   onOpenChange,
   existingServer,
+  capabilities,
   onSubmit,
 }: VirtualServerModalProps) {
   const t = useTranslations("highAvailability");
   const tc = useTranslations("common");
+  // Device token is "direct". "DR" is the keepalived name, not the CLI value.
+  const forwardLabels: Record<string, string> = {
+    direct: t("vsModal.forwardDr"),
+    nat: "NAT",
+    tunnel: t("vsModal.forwardTunnel"),
+  };
+  const forwardMethods = capabilities?.forward_methods ?? [];
   const isEdit = !!existingServer;
   const [form, setForm] = useState<FormState>(emptyForm());
   const [loading, setLoading] = useState(false);
@@ -267,9 +276,11 @@ export function VirtualServerModal({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">{tc("default")}</SelectItem>
-                    <SelectItem value="dr">{t("vsModal.forwardDr")}</SelectItem>
-                    <SelectItem value="nat">NAT</SelectItem>
-                    <SelectItem value="tunnel">{t("vsModal.forwardTunnel")}</SelectItem>
+                    {forwardMethods.map((method) => (
+                      <SelectItem key={method} value={method}>
+                        {forwardLabels[method] ?? method}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

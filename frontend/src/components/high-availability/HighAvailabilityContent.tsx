@@ -1054,6 +1054,7 @@ export function HighAvailabilityContent() {
         open={vsModal}
         onOpenChange={(o) => { setVsModal(o); if (!o) setEditingVS(null); }}
         existingServer={editingVS}
+        capabilities={capabilities}
         onSubmit={editingVS ? handleUpdateVS : handleCreateVS}
       />
 
