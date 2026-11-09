@@ -104,6 +104,7 @@ export interface HAConfig {
 
 export interface HACapabilities {
   version: string;
+  forward_methods: string[];
   features: {
     vrrp: { supported: boolean; description: string };
     virtual_server: { supported: boolean; description: string };

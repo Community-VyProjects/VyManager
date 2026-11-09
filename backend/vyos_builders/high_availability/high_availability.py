@@ -416,9 +416,11 @@ class HighAvailabilityBatchBuilder(BatchBuilder):
     # =========================================================================
 
     def get_capabilities(self) -> Dict[str, Any]:
+        mapper = self.mappers[self.mapper_key]
         is_1_5 = "1.4" not in self.version
         return {
             "version": self.version,
+            "forward_methods": list(mapper.forward_methods()),
             "features": {
                 "vrrp": {
                     "supported": True,

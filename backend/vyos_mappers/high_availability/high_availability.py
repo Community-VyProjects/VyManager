@@ -1,7 +1,11 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 
 
 class HighAvailabilityMapper:
+    # Both lab builds accept only these tokens. `dr` is the keepalived name,
+    # not a CLI value, and validate-value rejects it.
+    _FORWARD_METHODS = ("direct", "nat", "tunnel")
+
     def __init__(self, version: str):
         self.version = version
         self._base = ["high-availability"]
@@ -216,7 +220,12 @@ class HighAvailabilityMapper:
     def get_virtual_server_delay_loop_path(self, name: str, value: str) -> List[str]:
         return self._base + ["virtual-server", name, "delay-loop", value]
 
+    def forward_methods(self) -> Tuple[str, ...]:
+        return self._FORWARD_METHODS
+
     def get_virtual_server_forward_method_path(self, name: str, method: str) -> List[str]:
+        if method not in self.forward_methods():
+            raise ValueError(f"forward-method {method} is not supported on this device")
         return self._base + ["virtual-server", name, "forward-method", method]
 
     def get_virtual_server_fwmark_path(self, name: str, value: str) -> List[str]:
