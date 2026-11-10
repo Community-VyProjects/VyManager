@@ -18,7 +18,7 @@ from vyos_mappers.interfaces.geneve_versions.v1_4 import GeneveMapper_v1_4
 from vyos_mappers.interfaces.geneve_versions.v1_5 import GeneveMapper_v1_5
 
 REPO = Path(__file__).resolve().parents[2]
-MODAL = REPO / "frontend/src/components/geneve/GeneveModal.tsx"
+MODAL = REPO / "frontend/src/components/interfaces/GeneveModal.tsx"
 
 IFACE = "gnv0"
 IID = "::1"

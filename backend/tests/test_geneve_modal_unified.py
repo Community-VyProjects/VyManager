@@ -9,13 +9,17 @@ from pathlib import Path
 from tests.en_message import en_message
 
 REPO = Path(__file__).resolve().parents[2]
-COMP = REPO / "frontend/src/components/geneve"
+COMP = REPO / "frontend/src/components/interfaces"
 PAGE = REPO / "frontend/src/app/network/interfaces/page.tsx"
+OLD = REPO / "frontend/src/components/geneve"
 
 
 def test_cloned_create_edit_files_are_gone():
+    assert not OLD.exists()
     assert not (COMP / "CreateGeneveModal.tsx").exists()
     assert not (COMP / "EditGeneveModal.tsx").exists()
+    assert (COMP / "GeneveModal.tsx").exists()
+    assert (COMP / "DeleteGeneveModal.tsx").exists()
 
 
 def test_unified_modal_has_existing_and_both_ops():
@@ -31,6 +35,9 @@ def test_unified_modal_has_existing_and_both_ops():
 
 def test_interfaces_page_uses_unified_modal():
     page = PAGE.read_text()
+    assert 'from "@/components/interfaces/GeneveModal"' in page
+    assert 'from "@/components/interfaces/DeleteGeneveModal"' in page
+    assert 'from "@/components/geneve/' not in page
     assert "GeneveModal" in page
     assert 'from "@/components/geneve/CreateGeneveModal"' not in page
     assert "<CreateGeneveModal" not in page

@@ -7,13 +7,17 @@ They are now LoopbackModal with existing?: LoopbackInterface | null.
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-COMP = REPO / "frontend/src/components/loopback"
+COMP = REPO / "frontend/src/components/interfaces"
 PAGE = REPO / "frontend/src/app/network/interfaces/page.tsx"
+OLD = REPO / "frontend/src/components/loopback"
 
 
 def test_cloned_create_edit_files_are_gone():
+    assert not OLD.exists()
     assert not (COMP / "CreateLoopbackModal.tsx").exists()
     assert not (COMP / "EditLoopbackModal.tsx").exists()
+    assert (COMP / "LoopbackModal.tsx").exists()
+    assert (COMP / "DeleteLoopbackModal.tsx").exists()
 
 
 def test_unified_modal_has_existing_and_both_ops():
@@ -28,6 +32,9 @@ def test_unified_modal_has_existing_and_both_ops():
 
 def test_interfaces_page_uses_unified_modal():
     page = PAGE.read_text()
+    assert 'from "@/components/interfaces/LoopbackModal"' in page
+    assert 'from "@/components/interfaces/DeleteLoopbackModal"' in page
+    assert 'from "@/components/loopback/' not in page
     assert "LoopbackModal" in page
     assert 'from "@/components/loopback/CreateLoopbackModal"' not in page
     assert "<CreateLoopbackModal" not in page

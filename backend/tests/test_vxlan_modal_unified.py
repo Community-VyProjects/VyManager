@@ -7,18 +7,24 @@ They are now VxlanModal with existing?: VxlanInterface | null.
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-COMP = REPO / "frontend/src/components/vxlan"
+COMP = REPO / "frontend/src/components/interfaces"
 PAGE = REPO / "frontend/src/app/network/interfaces/page.tsx"
+OLD = REPO / "frontend/src/components/vxlan"
 
 
 def test_cloned_create_edit_files_are_gone():
+    assert not OLD.exists()
     assert not (COMP / "CreateVxlanModal.tsx").exists()
     assert not (COMP / "EditVxlanModal.tsx").exists()
+    assert (COMP / "VxlanModal.tsx").exists()
+    assert (COMP / "DeleteVxlanModal.tsx").exists()
 
 
 def test_interfaces_page_uses_unified_modal():
     page = PAGE.read_text()
-    assert 'from "@/components/vxlan/VxlanModal"' in page
+    assert 'from "@/components/interfaces/VxlanModal"' in page
+    assert 'from "@/components/interfaces/DeleteVxlanModal"' in page
+    assert 'from "@/components/vxlan/' not in page
     assert "<VxlanModal" in page
     assert 'from "@/components/vxlan/CreateVxlanModal"' not in page
     assert "<CreateVxlanModal" not in page

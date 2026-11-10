@@ -10,15 +10,21 @@ from pathlib import Path
 from tests.en_message import en_message
 
 REPO = Path(__file__).resolve().parents[2]
-COMP = REPO / "frontend/src/components/bridge"
+COMP = REPO / "frontend/src/components/interfaces"
 PAGE = REPO / "frontend/src/app/network/interfaces/page.tsx"
+OLD = REPO / "frontend/src/components/bridge"
 
 
 def test_cloned_create_edit_files_are_gone():
+    assert not OLD.exists()
     assert not (COMP / "CreateBridgeModal.tsx").exists()
     assert not (COMP / "EditBridgeModal.tsx").exists()
     assert not (COMP / "CreateBridgeVifModal.tsx").exists()
     assert not (COMP / "EditBridgeVifModal.tsx").exists()
+    assert (COMP / "BridgeModal.tsx").exists()
+    assert (COMP / "DeleteBridgeModal.tsx").exists()
+    assert (COMP / "BridgeVifModal.tsx").exists()
+    assert (COMP / "DeleteBridgeVifModal.tsx").exists()
 
 
 def test_unified_bridge_modal_has_existing_and_both_ops():
@@ -45,6 +51,11 @@ def test_unified_vif_modal_has_existing_and_both_ops():
 
 def test_interfaces_page_uses_unified_modals():
     page = PAGE.read_text()
+    assert 'from "@/components/interfaces/BridgeModal"' in page
+    assert 'from "@/components/interfaces/DeleteBridgeModal"' in page
+    assert 'from "@/components/interfaces/BridgeVifModal"' in page
+    assert 'from "@/components/interfaces/DeleteBridgeVifModal"' in page
+    assert 'from "@/components/bridge/' not in page
     assert "BridgeModal" in page
     assert "BridgeVifModal" in page
     assert 'from "@/components/bridge/CreateBridgeModal"' not in page

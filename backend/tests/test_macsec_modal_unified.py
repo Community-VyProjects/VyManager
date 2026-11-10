@@ -9,13 +9,17 @@ from pathlib import Path
 from tests.en_message import en_message
 
 REPO = Path(__file__).resolve().parents[2]
-COMP = REPO / "frontend/src/components/macsec"
+COMP = REPO / "frontend/src/components/interfaces"
 PAGE = REPO / "frontend/src/app/network/interfaces/page.tsx"
+OLD = REPO / "frontend/src/components/macsec"
 
 
 def test_cloned_create_edit_files_are_gone():
+    assert not OLD.exists()
     assert not (COMP / "CreateMacsecModal.tsx").exists()
     assert not (COMP / "EditMacsecModal.tsx").exists()
+    assert (COMP / "MacsecModal.tsx").exists()
+    assert (COMP / "DeleteMacsecModal.tsx").exists()
 
 
 def test_unified_modal_has_existing_and_both_ops():
@@ -31,6 +35,9 @@ def test_unified_modal_has_existing_and_both_ops():
 
 def test_interfaces_page_uses_unified_modal():
     page = PAGE.read_text()
+    assert 'from "@/components/interfaces/MacsecModal"' in page
+    assert 'from "@/components/interfaces/DeleteMacsecModal"' in page
+    assert 'from "@/components/macsec/' not in page
     assert "MacsecModal" in page
     assert 'from "@/components/macsec/CreateMacsecModal"' not in page
     assert "<CreateMacsecModal" not in page
