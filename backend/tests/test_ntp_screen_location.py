@@ -4,7 +4,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 COMP = REPO / "frontend/src/components/service/ntp"
-PAGE = REPO / "frontend/src/app/(dashboard)/service/ntp/page.tsx"
+PAGE = REPO / "frontend/src/app/service/ntp/page.tsx"
 OLD = REPO / "frontend/src/components/ntp"
 
 
