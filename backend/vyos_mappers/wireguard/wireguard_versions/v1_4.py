@@ -1,11 +1,14 @@
-"""VyOS 1.4 specific WireGuard commands."""
+"""VyOS 1.4 WireGuard mapper.
+
+``interfaces wireguard peer host-name`` does not exist on 1.4. This class
+does not gain that path method.
+"""
+
+from ..wireguard import WireGuardMapper
 
 
+class WireGuardMapperV1_4(WireGuardMapper):
+    """VyOS 1.4 WireGuard mapper."""
 
-class WireGuardMapperV1_4:
-    """Version-specific mapper for VyOS 1.4 (Sagitta)."""
-
-    # VyOS 1.4 and 1.5 have identical WireGuard command syntax
-    # This file exists for future compatibility if commands diverge
-
-    pass
+    def __init__(self, version: str):
+        super().__init__(version)

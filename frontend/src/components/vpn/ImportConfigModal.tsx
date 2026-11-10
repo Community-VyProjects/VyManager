@@ -454,6 +454,7 @@ export function ImportConfigModal({
   onOpenChange,
   onSuccess,
   existingInterfaces,
+  capabilities,
 }: ImportConfigModalProps) {
   const t = useTranslations("wireguardTools");
   const tc = useTranslations("common");
@@ -538,7 +539,9 @@ export function ImportConfigModal({
             persistent_keepalive: peer.persistent_keepalive,
             address: peer.endpoint_address,
             port: peer.endpoint_port,
-            host_name: peer.endpoint_hostname,
+            ...(capabilities?.features.peer_host_name.supported
+              ? { host_name: peer.endpoint_hostname }
+              : {}),
           })),
       });
       onSuccess();

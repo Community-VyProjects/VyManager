@@ -288,6 +288,17 @@ describe("buildPeerCreateConfig", () => {
       host_name: "vpn.example.com",
     });
   });
+
+  it("omits host_name when the leaf is not supported", () => {
+    const draft: PeerDraft = {
+      ...peerDraftFrom(storedPeer),
+      name: "phone",
+      publicKey: "PUB",
+      allowedIps: "10.0.0.3/32",
+      hostName: "vpn.example.com",
+    };
+    assert.equal("host_name" in buildPeerCreateConfig(draft, false), false);
+  });
 });
 
 describe("buildPeerUpdateConfig", () => {

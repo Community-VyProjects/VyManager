@@ -43,6 +43,7 @@ export interface WireGuardCapabilities {
     wireguard: { supported: boolean; description: string };
     key_generation: { supported: boolean; description: string };
     per_client_thread: { supported: boolean; description: string };
+    peer_host_name: { supported: boolean; description: string };
     peer_required_on_create: { supported: boolean; description: string };
   };
   version_notes: {

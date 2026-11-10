@@ -150,7 +150,6 @@
     "endpointAddress": "Endpoint IP Address",
     "endpointAddressHint": "IP address of the remote peer. Use this OR hostname below.",
     "endpointHostname": "Endpoint Hostname",
-    "endpointHostnameHint": "Hostname of the remote peer. Use this OR IP address above.",
     "endpointPort": "Endpoint Port",
     "endpointPortHint": "UDP port on the remote peer. Default: {port}",
     "keepalive": "Persistent Keepalive (seconds)",

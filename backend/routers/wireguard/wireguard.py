@@ -180,43 +180,44 @@ async def wireguard_interface_batch(request: Request, body: WireGuardInterfaceBa
 
         builder = WireGuardBatchBuilder(version=version)
 
-        for operation in body.operations:
-            method_name = operation.op
-            method = resolve_batch_method(builder, method_name)
+        try:
+            for operation in body.operations:
+                method_name = operation.op
+                method = resolve_batch_method(builder, method_name)
 
+                sig = inspect.signature(method)
+                params = list(sig.parameters.keys())
 
-            sig = inspect.signature(method)
-            params = list(sig.parameters.keys())
+                # Build arguments
+                args = []
+                if "interface" in params:
+                    args.append(body.interface)
+                if operation.value and len(params) > len(args):
+                    args.append(operation.value)
 
-            # Build arguments
-            args = []
-            if "interface" in params:
-                args.append(body.interface)
-            if operation.value and len(params) > len(args):
-                args.append(operation.value)
+                method(*args)
 
-            method(*args)
+            # Process optional peer operations (for atomic interface+peer creation on VyOS 1.4)
+            if body.peers:
+                for peer_group in body.peers:
+                    for operation in peer_group.operations:
+                        peer_method_name = operation.op
+                        peer_method = resolve_batch_method(builder, peer_method_name)
 
-        # Process optional peer operations (for atomic interface+peer creation on VyOS 1.4)
-        if body.peers:
-            for peer_group in body.peers:
-                for operation in peer_group.operations:
-                    peer_method_name = operation.op
-                    peer_method = resolve_batch_method(builder, peer_method_name)
+                        sig = inspect.signature(peer_method)
+                        params = list(sig.parameters.keys())
 
+                        args = []
+                        if "interface" in params:
+                            args.append(body.interface)
+                        if "peer" in params:
+                            args.append(peer_group.peer)
+                        if operation.value and len(params) > len(args):
+                            args.append(operation.value)
 
-                    sig = inspect.signature(peer_method)
-                    params = list(sig.parameters.keys())
-
-                    args = []
-                    if "interface" in params:
-                        args.append(body.interface)
-                    if "peer" in params:
-                        args.append(peer_group.peer)
-                    if operation.value and len(params) > len(args):
-                        args.append(operation.value)
-
-                    peer_method(*args)
+                        peer_method(*args)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
         # Execute batch
         response = service.execute_batch(builder)
@@ -254,24 +255,26 @@ async def wireguard_peer_batch(request: Request, body: WireGuardPeerBatchRequest
 
         builder = WireGuardBatchBuilder(version=version)
 
-        for operation in body.operations:
-            method_name = operation.op
-            method = resolve_batch_method(builder, method_name)
+        try:
+            for operation in body.operations:
+                method_name = operation.op
+                method = resolve_batch_method(builder, method_name)
 
+                sig = inspect.signature(method)
+                params = list(sig.parameters.keys())
 
-            sig = inspect.signature(method)
-            params = list(sig.parameters.keys())
+                # Build arguments
+                args = []
+                if "interface" in params:
+                    args.append(body.interface)
+                if "peer" in params:
+                    args.append(body.peer)
+                if operation.value and len(params) > len(args):
+                    args.append(operation.value)
 
-            # Build arguments
-            args = []
-            if "interface" in params:
-                args.append(body.interface)
-            if "peer" in params:
-                args.append(body.peer)
-            if operation.value and len(params) > len(args):
-                args.append(operation.value)
-
-            method(*args)
+                method(*args)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
         # Execute batch
         response = service.execute_batch(builder)

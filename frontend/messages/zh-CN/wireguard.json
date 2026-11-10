@@ -150,7 +150,6 @@
     "endpointAddress": "端点 IP 地址",
     "endpointAddressHint": "远程对等体的 IP 地址。与下方的主机名二选一。",
     "endpointHostname": "端点主机名",
-    "endpointHostnameHint": "远程对等体的主机名。与上方的 IP 地址二选一。",
     "endpointPort": "端点端口",
     "endpointPortHint": "远程对等体上的 UDP 端口。默认：{port}",
     "keepalive": "持久保活（秒）",
