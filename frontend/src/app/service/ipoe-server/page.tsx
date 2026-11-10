@@ -54,7 +54,7 @@ import {
   IPPoolModal,
   IPv6PoolModal,
   AdvancedSettingsModal,
-} from "@/components/ipoe-server";
+} from "@/components/service/ipoe-server";
 
 function IPoEPageInner() {
   const t = useTranslations("ipoeServer");

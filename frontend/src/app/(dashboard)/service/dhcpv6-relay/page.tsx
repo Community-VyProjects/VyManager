@@ -1,7 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/layout/AppLayout";
-import { DHCPv6RelayContent } from "@/components/dhcpv6-relay/DHCPv6RelayContent";
+import { DHCPv6RelayContent } from "@/components/service/dhcpv6-relay/DHCPv6RelayContent";
 
 export default function DHCPv6RelayPage() {
   return (

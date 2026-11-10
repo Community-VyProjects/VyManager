@@ -12,9 +12,9 @@ from tests.en_message import en_message
 from vyos_builders.bgp.bgp_batch_builder import BgpBatchBuilder
 
 REPO = Path(__file__).resolve().parents[2]
-MODAL = REPO / "frontend/src/components/webproxy/WebProxyTimePeriodModal.tsx"
-CONTENT = REPO / "frontend/src/components/webproxy/WebProxyContent.tsx"
-RELAY = REPO / "frontend/src/components/dhcp-relay/DHCPRelayModal.tsx"
+MODAL = REPO / "frontend/src/components/service/webproxy/WebProxyTimePeriodModal.tsx"
+CONTENT = REPO / "frontend/src/components/service/webproxy/WebProxyContent.tsx"
+RELAY = REPO / "frontend/src/components/service/dhcp-relay/DHCPRelayModal.tsx"
 
 
 def catalog_message(locale: str, catalog: str, key: str) -> str:
@@ -122,7 +122,7 @@ def test_leftover_strings_resolve_catalog_leaves():
     assert catalog_message("zh-CN", "sharedUi.json", "theme.names.dark") == "深色"
     assert catalog_message("zh-CN", "sharedUi.json", "theme.names.emerald") == "翡翠"
 
-    sla = (REPO / "frontend/src/components/sla/SLAContent.tsx").read_text()
+    sla = (REPO / "frontend/src/components/service/sla/SLAContent.tsx").read_text()
     assert 't("content.owampFullName")' in sla
     assert 't("content.twampFullName")' in sla
     assert en_message(REPO, "sla.json", "content.owampFullName") == "One-Way Active Measurement Protocol"

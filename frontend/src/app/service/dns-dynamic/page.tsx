@@ -1,7 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/layout/AppLayout";
-import { DNSDynamicContent } from "@/components/dns-dynamic/DNSDynamicContent";
+import { DNSDynamicContent } from "@/components/service/dns-dynamic/DNSDynamicContent";
 
 export default function DNSDynamicPage() {
   return (

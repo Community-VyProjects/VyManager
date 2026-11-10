@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { SuricataContent } from "@/components/suricata/SuricataContent";
+import { SuricataContent } from "@/components/service/suricata/SuricataContent";
 
 function SuricataPageInner() {
   return (
