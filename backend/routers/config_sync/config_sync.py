@@ -1,7 +1,7 @@
 """Config-Sync Service Router.
 
 API endpoints for managing VyOS primary/secondary configuration synchronization.
-The template structure is identical between VyOS 1.4 and 1.5.
+``section system login`` exists only on 1.5.
 
 Endpoints:
   GET  /vyos/config-sync/capabilities  — version-aware feature flags
@@ -122,6 +122,7 @@ class ConfigSyncSections(BaseModel):
     system_static_host_mapping: bool = False
     system_sysctl: bool = False
     system_time_zone: bool = False
+    system_login: bool = False
 
 
 class ConfigSyncConfig(BaseModel):
@@ -229,6 +230,7 @@ _SYSTEM_SUBTYPES: Dict[str, str] = {
     "static-host-mapping": "static_host_mapping",
     "sysctl": "sysctl",
     "time-zone": "time_zone",
+    "login": "login",
 }
 
 

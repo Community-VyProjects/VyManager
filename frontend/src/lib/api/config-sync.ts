@@ -80,6 +80,7 @@ export interface ConfigSyncSections {
   system: boolean;
   system_conntrack: boolean;
   system_flow_accounting: boolean;
+  system_login: boolean;
   system_option: boolean;
   system_sflow: boolean;
   system_static_host_mapping: boolean;
@@ -95,8 +96,9 @@ export interface ConfigSyncConfig {
 
 export interface ConfigSyncCapabilities {
   version: string;
-  features: Record<string, unknown>;
-  version_info: { is_1_4: boolean; is_1_5: boolean };
+  features: {
+    system_login: { supported: boolean };
+  };
 }
 
 export interface VyOSResponse {
@@ -129,7 +131,7 @@ export function defaultSections(): ConfigSyncSections {
     service_dhcpv6_relay: false, service_dhcpv6_server: false, service_dns: false, service_lldp: false,
     service_mdns: false, service_monitoring: false, service_ndp_proxy: false, service_ntp: false,
     service_snmp: false, service_tftp_server: false, service_webproxy: false,
-    system: false, system_conntrack: false, system_flow_accounting: false,
+    system: false, system_conntrack: false, system_flow_accounting: false, system_login: false,
     system_option: false, system_sflow: false, system_static_host_mapping: false, system_sysctl: false,
     system_time_zone: false,
   };
@@ -289,6 +291,12 @@ class ConfigSyncService {
       if (wasOn !== isOn) {
         ops.push({ op: isOn ? "set_section_sub" : "delete_section_sub", value: `${parent},${vyosName}` });
       }
+    }
+
+    const oldLogin = (oldSections as unknown as Record<string, boolean>).system_login ?? false;
+    const newLogin = (newSections as unknown as Record<string, boolean>).system_login ?? false;
+    if (oldLogin !== newLogin) {
+      ops.push({ op: newLogin ? "set_section_system_login" : "delete_section_system_login" });
     }
 
     if (ops.length === 0) {

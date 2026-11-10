@@ -110,6 +110,7 @@
     "system": "系统",
     "system_conntrack": "连接跟踪",
     "system_flow_accounting": "流量统计",
+    "system_login": "登录",
     "system_option": "选项",
     "system_sflow": "sFlow",
     "system_static_host_mapping": "静态主机映射",

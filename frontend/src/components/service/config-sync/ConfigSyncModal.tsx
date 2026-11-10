@@ -20,6 +20,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { AlertTriangle, Eye, EyeOff, Loader2 } from "lucide-react";
 import {
+  ConfigSyncCapabilities,
   ConfigSyncConfig,
   ConfigSyncSections,
   defaultSections,
@@ -29,11 +30,12 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   config: ConfigSyncConfig | null;
+  capabilities: ConfigSyncCapabilities | null;
   onSuccess: () => void;
   onSubmit: (data: ConfigSyncConfig) => Promise<void>;
 }
 
-export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmit }: Props) {
+export function ConfigSyncModal({ open, onOpenChange, config, capabilities, onSuccess, onSubmit }: Props) {
   const t = useTranslations("configSync");
   const tc = useTranslations("common");
   const [activeTab, setActiveTab] = useState<"connection" | "sections">("connection");
@@ -48,6 +50,7 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const showSystemLogin = capabilities?.features.system_login.supported ?? false;
 
   useEffect(() => {
     if (open) {
@@ -88,7 +91,9 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
           port: port ? parseInt(port, 10) : null,
           timeout: timeout ? parseInt(timeout, 10) : null,
         },
-        sections,
+        sections: showSystemLogin
+          ? sections
+          : { ...sections, system_login: config?.sections.system_login ?? false },
       };
       await onSubmit(updated);
       onOpenChange(false);
@@ -411,6 +416,7 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
                     {([
                       "system_conntrack",
                       "system_flow_accounting",
+                      ...(showSystemLogin ? ["system_login" as const] : []),
                       "system_option",
                       "system_sflow",
                       "system_static_host_mapping",

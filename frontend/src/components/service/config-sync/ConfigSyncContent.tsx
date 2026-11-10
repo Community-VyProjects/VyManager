@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Pencil, RefreshCwOff, Key, CheckCircle2 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { configSyncService, ConfigSyncConfig, ConfigSyncSections } from "@/lib/api/config-sync";
+import { configSyncService, ConfigSyncCapabilities, ConfigSyncConfig, ConfigSyncSections } from "@/lib/api/config-sync";
 import { ConfigSyncModal } from "./ConfigSyncModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
@@ -30,7 +30,7 @@ const SECTION_GROUPS: SectionGroup[] = [
   { parent: "protocols", parentKey: "protocols", subKeys: ["protocols_babel","protocols_bfd","protocols_bgp","protocols_failover","protocols_igmp_proxy","protocols_isis","protocols_mpls","protocols_nhrp","protocols_ospf","protocols_ospfv3","protocols_pim","protocols_pim6","protocols_rip","protocols_ripng","protocols_rpki","protocols_segment_routing","protocols_static"] },
   { parent: "qos", parentKey: "qos", subKeys: ["qos_interface","qos_policy"] },
   { parent: "service", parentKey: "service", subKeys: ["service_console_server","service_dhcp_relay","service_dhcp_server","service_dhcpv6_relay","service_dhcpv6_server","service_dns","service_lldp","service_mdns","service_monitoring","service_ndp_proxy","service_ntp","service_snmp","service_tftp_server","service_webproxy"] },
-  { parent: "system", parentKey: "system", subKeys: ["system_conntrack","system_flow_accounting","system_option","system_sflow","system_static_host_mapping","system_sysctl","system_time_zone"] },
+  { parent: "system", parentKey: "system", subKeys: ["system_conntrack","system_flow_accounting","system_login","system_option","system_sflow","system_static_host_mapping","system_sysctl","system_time_zone"] },
 ];
 
 export function ConfigSyncContent() {
@@ -40,6 +40,7 @@ export function ConfigSyncContent() {
   const hasWritePermission = canWrite(FeatureGroup.CONFIG_SYNC);
 
   const [config, setConfig] = useState<ConfigSyncConfig | null>(null);
+  const [capabilities, setCapabilities] = useState<ConfigSyncCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -48,8 +49,12 @@ export function ConfigSyncContent() {
     try {
       setLoading(true);
       setError(null);
-      const data = await configSyncService.getConfig(refresh);
+      const [data, caps] = await Promise.all([
+        configSyncService.getConfig(refresh),
+        configSyncService.getCapabilities().catch(() => null),
+      ]);
       setConfig(data);
+      setCapabilities(caps);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("content.loadFailed"));
     } finally {
@@ -216,9 +221,11 @@ export function ConfigSyncContent() {
                     {/* Grouped sections */}
                     {sections && SECTION_GROUPS.map((group) => {
                       const parentOn = (sections as unknown as Record<string, boolean>)[group.parentKey];
-                      const activeSubs = group.subKeys.filter(
-                        (k) => (sections as unknown as Record<string, boolean>)[k]
-                      );
+                      const showSystemLogin = capabilities?.features.system_login.supported ?? false;
+                      const activeSubs = group.subKeys.filter((k) => {
+                        if (k === "system_login" && !showSystemLogin) return false;
+                        return (sections as unknown as Record<string, boolean>)[k];
+                      });
                       if (!parentOn && activeSubs.length === 0) return null;
                       return (
                         <div key={group.parent} className="flex flex-wrap gap-1 items-center">
@@ -250,6 +257,7 @@ export function ConfigSyncContent() {
         open={modalOpen}
         onOpenChange={setModalOpen}
         config={isConfigured ? config : null}
+        capabilities={capabilities}
         onSuccess={() => {}}
         onSubmit={handleSave}
       />
