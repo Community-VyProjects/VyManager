@@ -1,19 +1,23 @@
 """
 BFD Protocol Command Mapper
 
-Handles command path generation for BFD (Bidirectional Forwarding Detection) configuration.
-Version-specific logic is in version-specific files.
+protocols bfd is the same on VyOS 1.4 and 1.5. One class holds the commands.
 """
 
-from typing import List
+from typing import Any, Dict, List
 from ..base import BaseFeatureMapper
 
 
 class BfdMapper(BaseFeatureMapper):
-    """Base mapper with common operations shared between VyOS 1.4 and 1.5."""
+    """Mapper for protocols bfd. Identical on VyOS 1.4 and 1.5."""
 
     def __init__(self, version: str):
         super().__init__(version)
+
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_bfd_config
+
+        return parse_bfd_config(self, full_config)
 
     # ========================================================================
     # Peer Paths

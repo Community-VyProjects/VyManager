@@ -58,7 +58,6 @@ from .wireguard.wireguard_versions import get_wireguard_mapper
 from .babel import BabelMapper
 from .babel.babel_versions import get_babel_mapper
 from .bfd import BfdMapper
-from .bfd.bfd_versions import get_bfd_mapper
 from .bgp import BgpMapper
 from .bgp.bgp_versions import get_bgp_mapper
 from .failover import FailoverMapper
@@ -236,8 +235,8 @@ CommandMapperRegistry.register_feature("firewall_flowtables", FlowtablesMapper)
 CommandMapperRegistry.register_feature("firewall_zones", get_firewall_zones_mapper)
 # Babel uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("babel", get_babel_mapper)
-# BFD uses factory for version-specific mappers
-CommandMapperRegistry.register_feature("bfd", get_bfd_mapper)
+# BFD uses the shared class (no version differences)
+CommandMapperRegistry.register_feature("bfd", BfdMapper)
 # BGP uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("bgp", get_bgp_mapper)
 # Failover uses factory for version-specific mappers
