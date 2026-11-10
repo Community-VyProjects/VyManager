@@ -19,6 +19,7 @@ interface DeleteBabelInterfaceModalProps {
   onOpenChange: (open: boolean) => void;
   interfaceName: string;
   onConfirm: () => Promise<void>;
+  variant?: "interface" | "filter";
 }
 
 export function DeleteBabelInterfaceModal({
@@ -26,6 +27,7 @@ export function DeleteBabelInterfaceModal({
   onOpenChange,
   interfaceName,
   onConfirm,
+  variant = "interface",
 }: DeleteBabelInterfaceModalProps) {
   const t = useTranslations("babel");
   const tc = useTranslations("common");
@@ -44,9 +46,11 @@ export function DeleteBabelInterfaceModal({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t("delete.title")}</AlertDialogTitle>
+          <AlertDialogTitle>
+            {variant === "filter" ? t("delete.filterTitle") : t("delete.title")}
+          </AlertDialogTitle>
           <AlertDialogDescription>
-            {t.rich("delete.description", {
+            {t.rich(variant === "filter" ? "delete.filterDescription" : "delete.description", {
               name: interfaceName,
               mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
             })}
@@ -65,6 +69,8 @@ export function DeleteBabelInterfaceModal({
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {tc("deleting")}
               </>
+            ) : variant === "filter" ? (
+              t("delete.filterConfirm")
             ) : (
               tc("deleteInterface")
             )}

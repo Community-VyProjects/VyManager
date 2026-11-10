@@ -69,10 +69,6 @@ export interface BabelCapabilities {
     distribute_list: { supported: boolean; description: string };
     redistribute_nhrp: { supported: boolean; description: string };
   };
-  version_info: {
-    is_1_4: boolean;
-    is_1_5: boolean;
-  };
   redistribute_protocols: {
     ipv4: string[];
     ipv6: string[];
@@ -435,6 +431,15 @@ class BabelService {
   ): Promise<VyOSResponse> {
     const operations: BabelBatchOperation[] = [];
     const prefix = `distribute_list_${af}_iface`;
+    if (
+      original &&
+      !updated.access_list_in &&
+      !updated.access_list_out &&
+      !updated.prefix_list_in &&
+      !updated.prefix_list_out
+    ) {
+      return this.deleteDistributeListInterface(af, { interface: interfaceName });
+    }
     const orig = original || { interface: interfaceName, access_list_in: null, access_list_out: null, prefix_list_in: null, prefix_list_out: null };
 
     if (updated.access_list_in !== orig.access_list_in) {
@@ -474,6 +479,22 @@ class BabelService {
     }
 
     return this.batchConfigure({ operations });
+  }
+
+  async createDistributeListInterface(
+    af: "ipv4" | "ipv6",
+    entry: DistributeListInterfaceFilter
+  ): Promise<VyOSResponse> {
+    return this.updateDistributeListInterface(af, entry.interface, null, entry);
+  }
+
+  async deleteDistributeListInterface(
+    af: "ipv4" | "ipv6",
+    entry: DistributeListInterfaceFilter
+  ): Promise<VyOSResponse> {
+    return this.batchConfigure({
+      operations: [{ op: `delete_distribute_list_${af}_iface`, value: entry.interface }],
+    });
   }
 }
 

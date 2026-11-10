@@ -89,3 +89,24 @@ def test_nhrp_capability_reads_the_mapper(monkeypatch):
     with pytest.raises(ValueError, match="not supported"):
         builder.set_redistribute_ipv4("nhrp")
     assert builder.get_operations() == []
+
+
+def test_capabilities_do_not_read_a_version_string():
+    caps = BabelBatchBuilder(version="2026.09.23-rolling").get_capabilities()
+    assert "version_info" not in caps
+    text = Path(__file__).resolve().parents[1].joinpath(
+        "vyos_builders", "babel", "babel_batch_builder.py"
+    ).read_text()
+    assert "version_info" not in text
+    assert "1.5" not in text
+    assert "1.4" not in text
+
+
+def test_delete_interface_filter_removes_the_tag_node():
+    builder = BabelBatchBuilder(version="2026.09.23-rolling")
+    builder.delete_distribute_list_ipv4_iface("eth0")
+    builder.delete_distribute_list_ipv6_iface("eth1")
+    assert builder.get_operations() == [
+        {"op": "delete", "path": ["protocols", "babel", "distribute-list", "ipv4", "interface", "eth0"]},
+        {"op": "delete", "path": ["protocols", "babel", "distribute-list", "ipv6", "interface", "eth1"]},
+    ]
