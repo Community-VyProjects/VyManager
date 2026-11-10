@@ -14,6 +14,7 @@ Uses session-based architecture - VyOS instance comes from user's active session
 """
 
 from fastapi import APIRouter, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any, Literal
 from session_vyos_service import get_session_vyos_service
@@ -332,7 +333,7 @@ async def pki_batch_configure(http_request: Request, request: PKIBatchRequest):
                 data={"message": "No operations to execute"},
             )
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
@@ -476,7 +477,7 @@ async def generate_ca(http_request: Request, request: GenerateCARequest):
         if request.system_install:
             builder.set_ca_system_install(request.name)
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
@@ -556,7 +557,7 @@ async def generate_key_pair(http_request: Request, request: GenerateKeyPairReque
         if request.encrypt_key:
             builder.set_key_pair_private_password_protected(request.name)
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
@@ -613,7 +614,7 @@ async def generate_dh(http_request: Request, request: GenerateDHRequest):
         builder.create_dh(request.name)
         builder.set_dh_parameters(request.name, params_pem)
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
@@ -815,7 +816,7 @@ async def generate_certificate(http_request: Request, request: GenerateCertifica
         if request.encrypt_key:
             batch_builder.set_certificate_private_password_protected(request.name)
 
-        response = service.execute_batch(batch_builder)
+        response = await run_in_threadpool(service.execute_batch, batch_builder)
 
         return VyOSResponse(
             success=response.status == 200,
@@ -850,8 +851,9 @@ async def generate_openvpn_shared_secret(http_request: Request, request: Generat
     try:
         service = get_session_vyos_service(http_request)
 
-        response = service.device.generate(
-            path=["pki", "openvpn", "shared-secret", "install", request.name]
+        response = await run_in_threadpool(
+            service.device.generate,
+            path=["pki", "openvpn", "shared-secret", "install", request.name],
         )
 
         if response.status != 200:
@@ -935,7 +937,7 @@ async def generate_openssh(http_request: Request, request: GenerateOpenSSHReques
             builder.set_openssh_public_key(request.name, pub_key_data)
             builder.set_openssh_private_key(request.name, priv_pem)
 
-            response = service.execute_batch(builder)
+            response = await run_in_threadpool(service.execute_batch, builder)
 
             if response.status == 200:
                 return VyOSResponse(
@@ -947,7 +949,7 @@ async def generate_openssh(http_request: Request, request: GenerateOpenSSHReques
             if fmt_name == "OpenSSH":
                 cleanup = PKIBatchBuilder(version=version)
                 cleanup.delete_openssh(request.name)
-                service.execute_batch(cleanup)
+                await run_in_threadpool(service.execute_batch, cleanup)
 
         # Both formats failed
         return VyOSResponse(

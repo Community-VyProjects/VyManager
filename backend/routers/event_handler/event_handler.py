@@ -155,7 +155,7 @@ async def event_handler_batch_configure(
                 elif operation.value:
                     method(operation.value)
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
             data={"message": "Event handler configuration updated"},

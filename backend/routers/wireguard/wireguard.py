@@ -9,6 +9,7 @@ Uses pyvyos generate method for key generation.
 """
 
 from fastapi import APIRouter, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from vyos_builders.wireguard import WireGuardBatchBuilder
@@ -220,7 +221,7 @@ async def wireguard_interface_batch(request: Request, body: WireGuardInterfaceBa
             raise HTTPException(status_code=400, detail=str(e))
 
         # Execute batch
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
@@ -277,7 +278,7 @@ async def wireguard_peer_batch(request: Request, body: WireGuardPeerBatchRequest
             raise HTTPException(status_code=400, detail=str(e))
 
         # Execute batch
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
