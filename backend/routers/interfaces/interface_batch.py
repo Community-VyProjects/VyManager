@@ -81,7 +81,21 @@ def run_interface_batch(service: Any, batch: Any, request: BatchRequest) -> VyOS
         for op in request.operations:
             method = resolve_batch_method(batch, op.op)
             _invoke(method, request.interface, op.op, op.value)
+    except HTTPException:
+        raise
+    except (NotImplementedError, ValueError) as e:
+        # Builders raise NotImplementedError or ValueError for version-gated
+        # operations; map that to 400 before execute_batch runs.
+        logger.info("Unsupported operation for this VyOS version: %s", e)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Operation is not supported on this VyOS version: {e}",
+        )
+    except Exception:
+        logger.exception("Unhandled error in batch_configure")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
+    try:
         response = service.execute_batch(batch)
         return VyOSResponse(
             success=response.status == 200,
@@ -90,14 +104,6 @@ def run_interface_batch(service: Any, batch: Any, request: BatchRequest) -> VyOS
         )
     except HTTPException:
         raise
-    except (NotImplementedError, ValueError) as e:
-        # Builders raise NotImplementedError or ValueError for version-gated
-        # operations; the dispatcher maps that to a 400 for the family.
-        logger.info("Unsupported operation for this VyOS version: %s", e)
-        raise HTTPException(
-            status_code=400,
-            detail=f"Operation is not supported on this VyOS version: {e}",
-        )
     except Exception:
         logger.exception("Unhandled error in batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
