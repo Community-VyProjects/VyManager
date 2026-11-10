@@ -68,9 +68,9 @@ import { sstpcService, type SstpcInterface, type SstpcCapabilities } from "@/lib
 import { SstpcModal } from "@/components/sstpc/SstpcModal";
 import { DeleteSstpcModal } from "@/components/sstpc/DeleteSstpcModal";
 import { virtualEthernetService, type VirtualEthernetInterface, type VirtualEthernetCapabilities } from "@/lib/api/virtual-ethernet";
-import { CreateVirtualEthernetModal } from "@/components/virtual-ethernet/CreateVirtualEthernetModal";
-import { EditVirtualEthernetModal } from "@/components/virtual-ethernet/EditVirtualEthernetModal";
-import { DeleteVirtualEthernetModal } from "@/components/virtual-ethernet/DeleteVirtualEthernetModal";
+import { CreateVirtualEthernetModal } from "@/components/interfaces/CreateVirtualEthernetModal";
+import { EditVirtualEthernetModal } from "@/components/interfaces/EditVirtualEthernetModal";
+import { DeleteVirtualEthernetModal } from "@/components/interfaces/DeleteVirtualEthernetModal";
 import { vppService, type VppCapabilities, type VppBondingConfig, type VppBridgeConfig, type VppGreConfig, type VppIpipConfig, type VppLoopbackConfig, type VppVxlanConfig, type VppXconnectConfig, type VppSubType, type VppAnyConfig, getVppSubType } from "@/lib/api/vpp";
 import { VppModal } from "@/components/vpp/VppModal";
 import { DeleteVppModal } from "@/components/vpp/DeleteVppModal";
