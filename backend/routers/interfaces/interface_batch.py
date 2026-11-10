@@ -90,9 +90,9 @@ def run_interface_batch(service: Any, batch: Any, request: BatchRequest) -> VyOS
         )
     except HTTPException:
         raise
-    except NotImplementedError as e:
-        # Builders raise NotImplementedError for version-gated operations; the
-        # dispatcher owns mapping that to a 400 for the whole interface family.
+    except (NotImplementedError, ValueError) as e:
+        # Builders raise NotImplementedError or ValueError for version-gated
+        # operations; the dispatcher maps that to a 400 for the family.
         logger.info("Unsupported operation for this VyOS version: %s", e)
         raise HTTPException(
             status_code=400,

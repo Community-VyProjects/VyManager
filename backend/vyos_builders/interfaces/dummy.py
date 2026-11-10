@@ -5,9 +5,10 @@ Provides all dummy interface batch operations.
 Dummy interfaces do not support physical properties like speed/duplex.
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, cast
 from vyos_mappers import CommandMapperRegistry
 from vyos_builders.base import BatchBuilder
+from vyos_mappers.interfaces.dummy import DummyInterfaceMapper
 
 
 class DummyInterfaceBuilderMixin(BatchBuilder):
@@ -38,12 +39,18 @@ class DummyInterfaceBuilderMixin(BatchBuilder):
     def operation_count(self) -> int:
         return len(self._operations)
 
+    def _mapper(self) -> DummyInterfaceMapper:
+        return cast(DummyInterfaceMapper, self.mappers[self.interface_mapper_key])
+
+    def _require_interface_node(self, node: str) -> None:
+        self._mapper()._require_interface_node(node)
+
     # ========================================================================
     # Capabilities
     # ========================================================================
 
     def get_capabilities(self) -> Dict[str, Any]:
-        is_v15 = "1.5" in self.version or "latest" in self.version
+        nodes = self._mapper().versioned_interface_nodes()
         return {
             "version": self.version,
             "features": {
@@ -59,8 +66,8 @@ class DummyInterfaceBuilderMixin(BatchBuilder):
                 "ipv6_address_no_default_link_local": {"supported": True, "description": "Remove default link-local address"},
                 "mirror": {"supported": True, "description": "Mirror ingress/egress traffic"},
                 "redirect": {"supported": True, "description": "Redirect incoming packets to destination interface"},
-                "mac": {"supported": is_v15, "description": "MAC address configuration (VyOS 1.5+)"},
-                "netns": {"supported": is_v15, "description": "Network namespace assignment (VyOS 1.5+)"},
+                "mac": {"supported": "mac" in nodes, "description": "MAC address configuration"},
+                "netns": {"supported": "netns" in nodes, "description": "Network namespace assignment"},
             },
         }
 
@@ -197,17 +204,21 @@ class DummyInterfaceBuilderMixin(BatchBuilder):
     # ========================================================================
 
     def set_mac(self, interface: str, mac: str) -> "DummyInterfaceBuilderMixin":
-        path = self.mappers[self.interface_mapper_key].get_mac(interface, mac)
+        self._require_interface_node("mac")
+        path = getattr(self._mapper(), "get_mac")(interface, mac)
         return self.add_set(path)
 
     def delete_mac(self, interface: str) -> "DummyInterfaceBuilderMixin":
-        path = self.mappers[self.interface_mapper_key].get_mac_path(interface)
+        self._require_interface_node("mac")
+        path = getattr(self._mapper(), "get_mac_path")(interface)
         return self.add_delete(path)
 
     def set_netns(self, interface: str, netns: str) -> "DummyInterfaceBuilderMixin":
-        path = self.mappers[self.interface_mapper_key].get_netns(interface, netns)
+        self._require_interface_node("netns")
+        path = getattr(self._mapper(), "get_netns")(interface, netns)
         return self.add_set(path)
 
     def delete_netns(self, interface: str) -> "DummyInterfaceBuilderMixin":
-        path = self.mappers[self.interface_mapper_key].get_netns_path(interface)
+        self._require_interface_node("netns")
+        path = getattr(self._mapper(), "get_netns_path")(interface)
         return self.add_delete(path)

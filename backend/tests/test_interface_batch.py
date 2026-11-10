@@ -165,3 +165,19 @@ def test_version_gate_not_implemented_becomes_400():
         run_interface_batch(service, Gated(), req)
     assert ei.value.status_code == 400
     assert "not supported" in ei.value.detail
+
+
+def test_version_gate_value_error_becomes_400():
+    class Gated(FakeBuilder):
+        def set_interface_disable(self, interface):
+            raise ValueError("dummy mac is not supported on this device")
+
+    service = FakeService()
+    req = BatchRequest(
+        interface="eth0",
+        operations=[BatchOperation(op="set_interface_disable")],
+    )
+    with pytest.raises(HTTPException) as ei:
+        run_interface_batch(service, Gated(), req)
+    assert ei.value.status_code == 400
+    assert "not supported on this device" in ei.value.detail

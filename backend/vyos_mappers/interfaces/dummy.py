@@ -6,7 +6,7 @@ Dummy interfaces do not support physical properties like speed/duplex.
 Provides both command path generation (for writes) and config parsing (for reads).
 """
 
-from typing import List, Dict, Any
+from typing import FrozenSet, List, Dict, Any
 from ..base import BaseFeatureMapper
 
 
@@ -16,6 +16,23 @@ class DummyInterfaceMapper(BaseFeatureMapper):
     def __init__(self, version: str):
         super().__init__(version)
         self.interface_type = "dummy"
+
+    def versioned_interface_nodes(self) -> FrozenSet[str]:
+        """1.5-only dummy leaves this device has.
+
+        MAC and netns live on the 1.5 subclass as path methods. Capabilities
+        and builders read this set instead of the version string.
+        """
+        nodes = []
+        if callable(getattr(self, "get_mac", None)):
+            nodes.append("mac")
+        if callable(getattr(self, "get_netns", None)):
+            nodes.append("netns")
+        return frozenset(nodes)
+
+    def _require_interface_node(self, node: str) -> None:
+        if node not in self.versioned_interface_nodes():
+            raise ValueError(f"dummy {node} is not supported on this device")
 
     # ========================================================================
     # Internal helpers
