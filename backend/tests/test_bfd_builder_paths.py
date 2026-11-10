@@ -3,6 +3,9 @@
 Paths checked with validateTmplPath on 1.4 (100.64.64.50) and 1.5 (100.64.64.5).
 """
 
+import ast
+from pathlib import Path
+
 import pytest
 
 from vyos_builders.bfd.bfd_batch_builder import BfdBatchBuilder
@@ -282,3 +285,37 @@ def test_bfd_builder_paths(method, args, op, expected_path, version):
     getattr(builder, method)(*args)
     ops = builder.get_operations()
     assert [(item["op"], item["path"]) for item in ops] == [(op, expected_path)]
+
+
+def test_bfd_batch_execute_runs_off_the_event_loop():
+    """execute_batch blocks. It must go through run_in_threadpool, like NTP."""
+    router = Path(__file__).resolve().parents[1] / "routers" / "bfd" / "bfd.py"
+    tree = ast.parse(router.read_text())
+    handler = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "bfd_batch_configure"
+    )
+    direct = [
+        node
+        for node in ast.walk(handler)
+        if isinstance(node, ast.Call) and getattr(node.func, "attr", None) == "execute_batch"
+    ]
+    assert not direct, "execute_batch must not run on the event loop"
+    offloaded = []
+    for node in ast.walk(handler):
+        if not isinstance(node, ast.Await):
+            continue
+        call = node.value
+        if not isinstance(call, ast.Call):
+            continue
+        func = call.func
+        if not (isinstance(func, ast.Name) and func.id == "run_in_threadpool"):
+            continue
+        if (
+            call.args
+            and isinstance(call.args[0], ast.Attribute)
+            and call.args[0].attr == "execute_batch"
+        ):
+            offloaded.append(node)
+    assert len(offloaded) == 1, "execute_batch must go through run_in_threadpool"
