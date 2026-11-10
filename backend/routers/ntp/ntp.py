@@ -159,7 +159,7 @@ async def ntp_batch_configure(http_request: Request, body: NTPBatchRequest):
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
             data={"message": "NTP configuration updated"},

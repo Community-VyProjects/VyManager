@@ -168,9 +168,35 @@ def test_value_error_is_caught_only_around_the_op_loop():
 
     assert 400 in status_codes, "ValueError must map to HTTP 400"
 
-    execute_calls = [
+    direct_calls = [
         node
         for node in ast.walk(handler)
         if isinstance(node, ast.Call) and getattr(node.func, "attr", None) == "execute_batch"
     ]
-    assert execute_calls, "batch route must still call execute_batch"
+    assert not direct_calls, "execute_batch must not run on the event loop"
+
+    offloaded = []
+    for node in ast.walk(handler):
+        if not isinstance(node, ast.Await):
+            continue
+        call = node.value
+        if not isinstance(call, ast.Call):
+            continue
+        func = call.func
+        if not (isinstance(func, ast.Name) and func.id == "run_in_threadpool"):
+            continue
+        if (
+            call.args
+            and isinstance(call.args[0], ast.Attribute)
+            and call.args[0].attr == "execute_batch"
+        ):
+            offloaded.append(node)
+    assert len(offloaded) == 1, "execute_batch must go through run_in_threadpool"
+
+    value_error_lines = set()
+    for try_node in value_error_tries:
+        value_error_lines.update(range(try_node.lineno, try_node.end_lineno + 1))
+    for node in offloaded:
+        assert node.lineno not in value_error_lines, (
+            "ValueError handler must not wrap execute_batch"
+        )
