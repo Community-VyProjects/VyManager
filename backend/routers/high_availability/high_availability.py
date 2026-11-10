@@ -1,5 +1,6 @@
 import inspect
 from fastapi import APIRouter, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Optional, Any, Dict
 
@@ -73,7 +74,7 @@ async def batch_configure(http_request: Request, request: BatchRequest):
     if batch.is_empty():
         return VyOSResponse(success=True)
 
-    response = service.execute_batch(batch)
+    response = await run_in_threadpool(service.execute_batch, batch)
     return VyOSResponse(
         success=response.status == 200,
         error=response.error if response.status != 200 else None,

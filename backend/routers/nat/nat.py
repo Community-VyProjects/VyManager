@@ -660,7 +660,7 @@ async def batch_configure_nat(http_request: Request, request: NATBatchRequest):
             )
 
         # Execute the batch
-        response = service.execute_batch(batch)
+        response = await run_in_threadpool(service.execute_batch, batch)
 
         # Handle empty string result (convert to None for Pydantic validation)
         identifier = request.rule_number if request.rule_number is not None else request.item_name
@@ -886,7 +886,7 @@ async def reorder_nat_rules(http_request: Request, request: ReorderNATRequest):
             )
 
         # Execute the entire batch in a single commit
-        response = service.execute_batch(batch)
+        response = await run_in_threadpool(service.execute_batch, batch)
 
         # Handle response
         result_data = response.result
