@@ -158,8 +158,6 @@ async def ntp_batch_configure(http_request: Request, body: NTPBatchRequest):
                         method(operation.value)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
-        except AttributeError as e:
-            raise HTTPException(status_code=400, detail=f"Unknown operation: {e}")
 
         response = service.execute_batch(builder)
         return VyOSResponse(
@@ -169,6 +167,8 @@ async def ntp_batch_configure(http_request: Request, body: NTPBatchRequest):
         )
     except HTTPException:
         raise
+    except AttributeError as e:
+        raise HTTPException(status_code=400, detail=f"Unknown operation: {e}")
     except Exception:
         logger.exception("Unhandled error in ntp_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
