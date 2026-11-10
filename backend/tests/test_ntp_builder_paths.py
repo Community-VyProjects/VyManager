@@ -163,6 +163,8 @@ def test_value_error_is_caught_only_around_the_op_loop():
             func = call.func
             name = getattr(func, "attr", None) or getattr(func, "id", None)
             assert name != "execute_batch", "ValueError handler must not wrap execute_batch"
+        for exc in try_node.handlers:
+            assert "AttributeError" not in _handler_names(exc)
 
     assert 400 in status_codes, "ValueError must map to HTTP 400"
 
