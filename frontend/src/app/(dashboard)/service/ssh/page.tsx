@@ -1,7 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/layout/AppLayout";
-import { SSHContent } from "@/components/ssh/SSHContent";
+import { SSHContent } from "@/components/service/ssh/SSHContent";
 
 export default function SSHPage() {
   return (

@@ -1,7 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/layout/AppLayout";
-import { TFTPServerContent } from "@/components/tftp-server/TFTPServerContent";
+import { TFTPServerContent } from "@/components/service/tftp-server/TFTPServerContent";
 
 export default function TFTPServerPage() {
   return (
