@@ -17,7 +17,9 @@ class GeneveMapper_v1_5(GeneveInterfaceMapper):
 
     # --- IPv6 address interface-identifier - VyOS 1.5 only ---
     def get_ipv6_address_interface_identifier(self, interface: str, value: str) -> List[str]:
+        self._require_interface_node("ipv6_address_interface_identifier")
         return self._base(interface) + ["ipv6", "address", "interface-identifier", value]
 
     def get_ipv6_address_interface_identifier_path(self, interface: str) -> List[str]:
+        self._require_interface_node("ipv6_address_interface_identifier")
         return self._base(interface) + ["ipv6", "address", "interface-identifier"]

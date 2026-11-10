@@ -5,7 +5,7 @@ Handles GENEVE (Generic Network Virtualization Encapsulation) interface commands
 Provides both command path generation (for writes) and config parsing (for reads).
 """
 
-from typing import List, Dict, Any
+from typing import FrozenSet, List, Dict, Any
 from ..base import BaseFeatureMapper
 
 
@@ -15,6 +15,22 @@ class GeneveInterfaceMapper(BaseFeatureMapper):
     def __init__(self, version: str):
         super().__init__(version)
         self.interface_type = "geneve"
+
+    def versioned_interface_nodes(self) -> FrozenSet[str]:
+        """1.5-only geneve leaves this device has.
+
+        IPv6 address interface-identifier lives on the 1.5 subclass as a
+        path method. Capabilities and builders read this set instead of the
+        version string.
+        """
+        nodes = []
+        if callable(getattr(self, "get_ipv6_address_interface_identifier", None)):
+            nodes.append("ipv6_address_interface_identifier")
+        return frozenset(nodes)
+
+    def _require_interface_node(self, node: str) -> None:
+        if node not in self.versioned_interface_nodes():
+            raise ValueError(f"geneve {node} is not supported on this device")
 
     # ========================================================================
     # Internal helpers

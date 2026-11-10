@@ -50,6 +50,7 @@ export function GeneveModal({
   const t = useTranslations("geneve");
   const tc = useTranslations("common");
   const isEdit = !!existing;
+  const identifierSupported = capabilities?.features.ipv6_address_interface_identifier?.supported ?? false;
   // General
   const [name, setName] = useState("gnv0");
   const [description, setDescription] = useState("");
@@ -294,7 +295,9 @@ export function GeneveModal({
         ipv6_address_autoconf: ipv6AddressAutoconf,
         ipv6_address_eui64: eui64List,
         ipv6_address_no_default_link_local: ipv6AddressNoDefaultLinkLocal,
-        ipv6_address_interface_identifier: ipv6AddressInterfaceIdentifier.trim() || null,
+        ...(identifierSupported
+          ? { ipv6_address_interface_identifier: ipv6AddressInterfaceIdentifier.trim() || null }
+          : {}),
         mirror_ingress: mirrorIngress.trim() || null,
         mirror_egress: mirrorEgress.trim() || null,
         redirect: redirect.trim() || null,
@@ -352,7 +355,9 @@ export function GeneveModal({
       if (eui64List.length > 0) config.ipv6_address_eui64 = eui64List;
       if (ipv6AddressAutoconf) config.ipv6_address_autoconf = true;
       if (ipv6AddressNoDefaultLinkLocal) config.ipv6_address_no_default_link_local = true;
-      if (ipv6AddressInterfaceIdentifier.trim()) config.ipv6_address_interface_identifier = ipv6AddressInterfaceIdentifier.trim();
+      if (identifierSupported && ipv6AddressInterfaceIdentifier.trim()) {
+        config.ipv6_address_interface_identifier = ipv6AddressInterfaceIdentifier.trim();
+      }
 
       // IP Settings
       if (ipAdjustMss.trim()) config.ip_adjust_mss = ipAdjustMss.trim();
@@ -581,7 +586,7 @@ export function GeneveModal({
               <Label htmlFor="noDefaultLinkLocal" className="font-normal">{t("addresses.noDefaultLinkLocal")}</Label>
             </div>
 
-            {capabilities?.features.ipv6_address_interface_identifier?.supported && (
+            {identifierSupported && (
               <div className="space-y-2">
                 <Label htmlFor="interfaceIdentifier">{t("addresses.interfaceIdentifier")}</Label>
                 <Input
