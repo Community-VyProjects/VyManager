@@ -1,8 +1,8 @@
 """Read-model for NTP config.
 
 Mappers own VyOS tree shape. Routers call parse_config and do not rebuild
-the tree. Version keys come from the mapper (MergedMapper), not from
-hardcoded 1.4/1.5 branches here.
+the tree. The method lives on NTPMapper so the subclass instance keeps
+its version.
 """
 
 from typing import Any, Dict, List
