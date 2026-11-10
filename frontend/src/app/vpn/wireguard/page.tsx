@@ -869,6 +869,7 @@ export default function WireGuardPage() {
             }}
             interfaceData={currentInterface}
             existing={editingPeer}
+            hostNameSupported={capabilities?.features.peer_host_name.supported ?? false}
             onSuccess={() => {
               setEditingPeer(null);
               fetchConfig(true);

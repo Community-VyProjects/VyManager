@@ -5,7 +5,7 @@ Handles command path generation for WireGuard VPN configuration.
 Version-specific logic is in version-specific files.
 """
 
-from typing import List, Dict, Any
+from typing import Any, Dict, FrozenSet, List
 
 
 class WireGuardMapper:
@@ -14,6 +14,21 @@ class WireGuardMapper:
     def __init__(self, version: str):
         """Initialize with VyOS version."""
         self.version = version
+
+    def versioned_nodes(self) -> FrozenSet[str]:
+        """1.5-only WireGuard leaves this device has.
+
+        Peer host-name lives on the 1.5 subclass as a path method.
+        Capabilities and builders read this set instead of the version string.
+        """
+        nodes = []
+        if callable(getattr(self, "get_peer_host_name", None)):
+            nodes.append("peer_host_name")
+        return frozenset(nodes)
+
+    def _require_node(self, node: str) -> None:
+        if node not in self.versioned_nodes():
+            raise ValueError(f"wireguard {node} is not supported on this device")
 
     # ========================================================================
     # Interface Commands
@@ -94,10 +109,6 @@ class WireGuardMapper:
     def get_peer_disable(self, interface: str, peer: str) -> List[str]:
         """Disable peer."""
         return ["interfaces", "wireguard", interface, "peer", peer, "disable"]
-
-    def get_peer_host_name(self, interface: str, peer: str, hostname: str) -> List[str]:
-        """Set peer endpoint hostname."""
-        return ["interfaces", "wireguard", interface, "peer", peer, "host-name", hostname]
 
     # ========================================================================
     # Config Parsing

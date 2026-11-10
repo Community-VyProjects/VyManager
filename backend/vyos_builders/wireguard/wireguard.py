@@ -5,9 +5,10 @@ Provides all batch operations for WireGuard VPN configuration.
 Handles version-specific differences through the mapper layer.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, cast
 from vyos_mappers import CommandMapperRegistry
 from vyos_builders.base import BatchBuilder
+from vyos_mappers.wireguard import WireGuardMapper
 
 
 class WireGuardBatchBuilder(BatchBuilder):
@@ -19,6 +20,9 @@ class WireGuardBatchBuilder(BatchBuilder):
 
         self.mapper_key = "wireguard"
         self.mappers = {self.mapper_key: CommandMapperRegistry.get_mapper(self.mapper_key, version)}
+
+    def _mapper(self) -> WireGuardMapper:
+        return cast(WireGuardMapper, self.mappers[self.mapper_key])
 
     # ========================================================================
     # Core Batch Operations
@@ -237,12 +241,16 @@ class WireGuardBatchBuilder(BatchBuilder):
 
     def set_peer_host_name(self, interface: str, peer: str, hostname: str) -> "WireGuardBatchBuilder":
         """Set peer endpoint hostname."""
-        path = self.mappers[self.mapper_key].get_peer_host_name(interface, peer, hostname)
+        mapper = self._mapper()
+        mapper._require_node("peer_host_name")
+        path = getattr(mapper, "get_peer_host_name")(interface, peer, hostname)
         return self.add_set(path)
 
     def delete_peer_host_name(self, interface: str, peer: str) -> "WireGuardBatchBuilder":
         """Delete peer endpoint hostname."""
-        path = self.mappers[self.mapper_key].get_peer_path(interface, peer) + ["host-name"]
+        mapper = self._mapper()
+        mapper._require_node("peer_host_name")
+        path = getattr(mapper, "get_peer_host_name_delete")(interface, peer)
         return self.add_delete(path)
 
     # ========================================================================
@@ -252,6 +260,7 @@ class WireGuardBatchBuilder(BatchBuilder):
     def get_capabilities(self) -> Dict[str, Any]:
         """Get capabilities for the current VyOS version."""
         is_v14 = "1.4" in self.version and "1.5" not in self.version
+        nodes = self._mapper().versioned_nodes()
         return {
             "version": self.version,
             "features": {
@@ -270,6 +279,10 @@ class WireGuardBatchBuilder(BatchBuilder):
                 "per_client_thread": {
                     "supported": True,
                     "description": "Per-client threading for performance",
+                },
+                "peer_host_name": {
+                    "supported": "peer_host_name" in nodes,
+                    "description": "Peer endpoint hostname",
                 },
                 "peer_required_on_create": {
                     "supported": is_v14,

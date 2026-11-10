@@ -46,6 +46,7 @@ interface PeerModalProps {
   onSuccess: () => void;
   interfaceData: WireGuardInterface | null;
   existing?: WireGuardPeer | null;
+  hostNameSupported?: boolean;
 }
 
 export function PeerModal({
@@ -54,6 +55,7 @@ export function PeerModal({
   onSuccess,
   interfaceData,
   existing,
+  hostNameSupported = false,
 }: PeerModalProps) {
   const t = useTranslations("wireguard");
   const tc = useTranslations("common");
@@ -167,7 +169,7 @@ export function PeerModal({
   };
 
   const submitCreate = async (target: WireGuardInterface) =>
-    wireguardService.createPeer(target.name, buildPeerCreateConfig(draft()));
+    wireguardService.createPeer(target.name, buildPeerCreateConfig(draft(), hostNameSupported));
 
   // Only the fields the operator actually changed are sent, so an untouched
   // leaf is never rewritten and a cleared one is deleted.
@@ -176,7 +178,7 @@ export function PeerModal({
     current: WireGuardPeer,
     peerName: string
   ) => {
-    const newConfig = buildPeerUpdateConfig(draft(), current);
+    const newConfig = buildPeerUpdateConfig(draft(), current, hostNameSupported);
 
     // Nothing changed: no write to send.
     if (newConfig === null) {
@@ -407,7 +409,7 @@ export function PeerModal({
               </p>
             </div>
 
-            {/* Endpoint Hostname */}
+            {hostNameSupported && (
             <div className="space-y-2">
               <Label htmlFor="peer-hostname">{t("peerModal.endpointHostname")}</Label>
               <Input
@@ -416,10 +418,8 @@ export function PeerModal({
                 onChange={(e) => setHostName(e.target.value)}
                 placeholder="vpn.example.com"
               />
-              <p className="text-xs text-muted-foreground">
-                {t("peerModal.endpointHostnameHint")}
-              </p>
             </div>
+            )}
 
             {/* Endpoint Port */}
             <div className="space-y-2">

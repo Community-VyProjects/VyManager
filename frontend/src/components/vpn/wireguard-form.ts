@@ -266,7 +266,10 @@ export function validatePeer(
   return null;
 }
 
-export function buildPeerCreateConfig(draft: PeerDraft): PeerCreateConfig {
+export function buildPeerCreateConfig(
+  draft: PeerDraft,
+  hostNameSupported = true,
+): PeerCreateConfig {
   const config: PeerCreateConfig = {
     name: draft.name.trim(),
     public_key: draft.publicKey.trim(),
@@ -281,7 +284,7 @@ export function buildPeerCreateConfig(draft: PeerDraft): PeerCreateConfig {
   }
   if (draft.description.trim()) config.description = draft.description.trim();
   if (draft.disabled) config.disabled = true;
-  if (draft.hostName.trim()) config.host_name = draft.hostName.trim();
+  if (hostNameSupported && draft.hostName.trim()) config.host_name = draft.hostName.trim();
 
   return config;
 }
@@ -293,6 +296,7 @@ export function buildPeerCreateConfig(draft: PeerDraft): PeerCreateConfig {
 export function buildPeerUpdateConfig(
   draft: PeerDraft,
   current: WireGuardPeer,
+  hostNameSupported = true,
 ): PeerUpdateConfig | null {
   const updated: PeerUpdateConfig = {};
 
@@ -334,7 +338,7 @@ export function buildPeerUpdateConfig(
     updated.disabled = draft.disabled;
   }
 
-  if (draft.hostName.trim() !== (current.host_name || "")) {
+  if (hostNameSupported && draft.hostName.trim() !== (current.host_name || "")) {
     updated.host_name = draft.hostName.trim() || null;
   }
 
