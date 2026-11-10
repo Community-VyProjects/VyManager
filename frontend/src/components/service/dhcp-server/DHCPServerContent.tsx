@@ -1,8 +1,5 @@
 "use client";
 
-export const dynamic = 'force-dynamic';
-
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Card } from "@/components/ui/card";
 import {
   Dialog,
@@ -36,7 +33,6 @@ import {
 import { Plus, Search, RefreshCw, AlertCircle, Server, Network, Clock, Pencil, Trash2, MapPin, Activity, Wifi, Monitor, Globe, Settings2, Loader2, Power, PowerOff } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   dhcpService,
@@ -49,17 +45,17 @@ import {
 } from "@/lib/api/dhcp";
 import { cn } from "@/lib/utils";
 import { ClickableSubnet } from "@/components/ui/clickable-items";
-import { DHCPServerModal } from "@/components/services/DHCPServerModal";
-import { DeleteDHCPModal } from "@/components/services/DeleteDHCPModal";
-import { DeleteStaticMappingModal } from "@/components/services/DeleteStaticMappingModal";
-import { AddLeaseToStaticMappingModal } from "@/components/services/AddLeaseToStaticMappingModal";
-import { RangeModal } from "@/components/services/RangeModal";
-import { StaticMappingModal } from "@/components/services/StaticMappingModal";
-import { DHCPServerSettingsModal } from "@/components/services/DHCPServerSettingsModal";
-import { DHCPFailoverModal } from "@/components/services/DHCPFailoverModal";
-import { DHCPDdnsModal } from "@/components/services/DHCPDdnsModal";
-import { DHCPNetworkOptionsModal } from "@/components/services/DHCPNetworkOptionsModal";
-import { DHCPClientClassModal } from "@/components/services/DHCPClientClassModal";
+import { DHCPServerModal } from "./DHCPServerModal";
+import { DeleteDHCPModal } from "./DeleteDHCPModal";
+import { DeleteStaticMappingModal } from "./DeleteStaticMappingModal";
+import { AddLeaseToStaticMappingModal } from "./AddLeaseToStaticMappingModal";
+import { RangeModal } from "./RangeModal";
+import { StaticMappingModal } from "./StaticMappingModal";
+import { DHCPServerSettingsModal } from "./DHCPServerSettingsModal";
+import { DHCPFailoverModal } from "./DHCPFailoverModal";
+import { DHCPDdnsModal } from "./DHCPDdnsModal";
+import { DHCPNetworkOptionsModal } from "./DHCPNetworkOptionsModal";
+import { DHCPClientClassModal } from "./DHCPClientClassModal";
 import { ChevronRight } from "lucide-react";
 
 function formatLease(
@@ -93,7 +89,7 @@ function isIpInSubnet(ip: string, cidr: string): boolean {
   return ((ipInt >>> 0) & maskInt) === ((subnetInt >>> 0) & maskInt);
 }
 
-function DHCPPageInner() {
+export function DHCPServerContent() {
   const t = useTranslations("dhcpServer");
   const tc = useTranslations("common");
   const searchParams = useSearchParams();
@@ -388,20 +384,17 @@ function DHCPPageInner() {
 
   if (loading) {
     return (
-      <AppLayout>
         <div className="flex items-center justify-center h-full">
           <div className="text-center space-y-4">
             <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
             <p className="text-muted-foreground">{t("page.loading")}</p>
           </div>
         </div>
-      </AppLayout>
     );
   }
 
   if (error) {
     return (
-      <AppLayout>
         <div className="flex items-center justify-center h-full">
           <div className="text-center space-y-4">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
@@ -413,12 +406,10 @@ function DHCPPageInner() {
             </Button>
           </div>
         </div>
-      </AppLayout>
     );
   }
 
   return (
-    <AppLayout>
       <div className="flex h-full overflow-hidden">
         {/* Sidebar */}
         <div className="w-72 border-r border-border bg-card/50 flex flex-col">
@@ -1624,14 +1615,6 @@ function DHCPPageInner() {
           </DialogContent>
         </Dialog>
       </div>
-    </AppLayout>
   );
 }
 
-export default function DHCPPage() {
-  return (
-    <Suspense>
-      <DHCPPageInner />
-    </Suspense>
-  );
-}

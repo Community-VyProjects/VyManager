@@ -60,7 +60,7 @@ function navigateToResult(
     "bgp-peer-group": "/routing/unicast-protocols?protocol=bgp&tab=peer-groups",
     "vrf-instance": "/network/vrf",
     "wireguard-peer": "/vpn/wireguard",
-    "dhcp-subnet": "/network/dhcp",
+    "dhcp-subnet": "/service/dhcp-server",
     "host-mapping": "/system/settings?tab=hostmap",
     "system-user": "/system/settings?tab=users",
     "config-entity": "/",

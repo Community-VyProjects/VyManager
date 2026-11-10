@@ -10,6 +10,7 @@ import type { SearchIndexer, SearchResult } from "../types";
 import type { SearchI18n } from "../i18n";
 
 const FEATURE_NETWORK = "Network";
+const FEATURE_SERVICE = "Service";
 const FEATURE_VRF = "VRF";
 
 const VRF_TABS = [
@@ -88,9 +89,9 @@ function indexDhcp(config: Awaited<ReturnType<typeof dhcpService.getConfig>>, i1
             ranges: String(subnet.ranges.length),
           }),
           kind: "dhcp-subnet",
-          feature: FEATURE_NETWORK,
+          feature: FEATURE_SERVICE,
           subcategory: `DHCP · ${l("Subnets")}`,
-          href: buildHref("/network/dhcp", { section: "subnets" }),
+          href: buildHref("/service/dhcp-server", { section: "subnets" }),
           icon: Network,
           keywords: ["dhcp", l("subnet"), network.name],
           data: { network, subnet },
@@ -105,9 +106,9 @@ function indexDhcp(config: Awaited<ReturnType<typeof dhcpService.getConfig>>, i1
             subtitle: `DHCP · ${l("Range")} · ${subnet.subnet}`,
             description: [range.start, range.stop].filter(Boolean).join(" – ") || i18n.t("network.dhcpRange"),
             kind: "dhcp-range",
-            feature: FEATURE_NETWORK,
+            feature: FEATURE_SERVICE,
             subcategory: `DHCP · ${l("Ranges")}`,
-            href: buildHref("/network/dhcp", { section: "ranges" }),
+            href: buildHref("/service/dhcp-server", { section: "ranges" }),
             icon: Network,
             keywords: ["dhcp", l("range"), subnet.subnet, range.range_id],
             data: { subnet: subnet.subnet, range },
@@ -123,9 +124,9 @@ function indexDhcp(config: Awaited<ReturnType<typeof dhcpService.getConfig>>, i1
             subtitle: `DHCP · ${l("Static Mapping")} · ${subnet.subnet}`,
             description: [mapping.ip_address, mapping.mac_address].filter(Boolean).join(" · "),
             kind: "dhcp-static",
-            feature: FEATURE_NETWORK,
+            feature: FEATURE_SERVICE,
             subcategory: `DHCP · ${l("Static Mappings")}`,
-            href: buildHref("/network/dhcp", { section: "static" }),
+            href: buildHref("/service/dhcp-server", { section: "static" }),
             icon: Network,
             keywords: ["dhcp", l("static"), mapping.name, mapping.mac_address ?? ""],
             data: { subnet: subnet.subnet, mapping },
@@ -144,9 +145,9 @@ function indexDhcp(config: Awaited<ReturnType<typeof dhcpService.getConfig>>, i1
           authoritative: String(network.authoritative),
         }),
         kind: "dhcp-subnet",
-        feature: FEATURE_NETWORK,
+        feature: FEATURE_SERVICE,
         subcategory: `DHCP · ${l("Servers")}`,
-        href: buildHref("/network/dhcp", { section: "servers" }),
+        href: buildHref("/service/dhcp-server", { section: "servers" }),
         icon: Network,
         keywords: ["dhcp", l("server"), l("shared network"), network.name],
         data: network,
