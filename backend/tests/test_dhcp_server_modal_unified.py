@@ -8,8 +8,8 @@ The create wizard (new network vs add subnet) stays on the create path.
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-COMP = REPO / "frontend/src/components/services"
-PAGE = REPO / "frontend/src/app/network/dhcp/page.tsx"
+COMP = REPO / "frontend/src/components/service/dhcp-server"
+PAGE = REPO / "frontend/src/components/service/dhcp-server/DHCPServerContent.tsx"
 
 
 def test_cloned_create_edit_files_are_gone():
@@ -19,10 +19,10 @@ def test_cloned_create_edit_files_are_gone():
 
 def test_dhcp_page_uses_unified_modal():
     page = PAGE.read_text()
-    assert 'from "@/components/services/DHCPServerModal"' in page
+    assert 'from "./DHCPServerModal"' in page
     assert "<DHCPServerModal" in page
     for gone in ("CreateDHCPServerModal", "EditDHCPServerModal"):
-        assert f'from "@/components/services/{gone}"' not in page
+        assert f'from "./{gone}"' not in page
         assert f"<{gone}" not in page
 
 
@@ -37,7 +37,7 @@ def test_modal_uses_shared_mode_helpers():
 def test_form_logic_lives_in_a_tested_module():
     """Draft, validators, and submit builders have their own tests.
 
-    Run them with: npx tsx --test src/components/services/dhcp-server-form.test.ts
+    Run them with: npx tsx --test src/components/service/dhcp-server/dhcp-server-form.test.ts
     """
     assert (COMP / "dhcp-server-form.ts").exists()
     assert (COMP / "dhcp-server-form.test.ts").exists()

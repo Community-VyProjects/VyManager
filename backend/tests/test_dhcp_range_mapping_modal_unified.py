@@ -9,8 +9,8 @@ existing?: { network, subnet, mapping } | null.
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-COMP = REPO / "frontend/src/components/services"
-PAGE = REPO / "frontend/src/app/network/dhcp/page.tsx"
+COMP = REPO / "frontend/src/components/service/dhcp-server"
+PAGE = REPO / "frontend/src/components/service/dhcp-server/DHCPServerContent.tsx"
 
 
 def test_cloned_create_edit_files_are_gone():
@@ -22,9 +22,9 @@ def test_cloned_create_edit_files_are_gone():
 
 def test_dhcp_page_uses_unified_modals():
     page = PAGE.read_text()
-    assert 'from "@/components/services/RangeModal"' in page
+    assert 'from "./RangeModal"' in page
     assert "<RangeModal" in page
-    assert 'from "@/components/services/StaticMappingModal"' in page
+    assert 'from "./StaticMappingModal"' in page
     assert "<StaticMappingModal" in page
     for gone in (
         "AddRangeModal",
@@ -32,7 +32,7 @@ def test_dhcp_page_uses_unified_modals():
         "AddStaticMappingModal",
         "EditStaticMappingModal",
     ):
-        assert f'from "@/components/services/{gone}"' not in page
+        assert f'from "./{gone}"' not in page
         assert f"<{gone}" not in page
 
 
@@ -52,7 +52,7 @@ def test_modals_use_shared_mode_helpers():
 def test_form_logic_lives_in_a_tested_module():
     """The draft, validators and submit builders have their own tests.
 
-    Run them with: npx tsx --test src/components/services/dhcp-form.test.ts
+    Run them with: npx tsx --test src/components/service/dhcp-server/dhcp-form.test.ts
     (node --test cannot resolve the extensionless .ts import).
     """
     assert (COMP / "dhcp-form.ts").exists()

@@ -83,6 +83,12 @@ FEATURES = (
         ("DHCPv6ServerContent.tsx", "DHCPv6ServerGlobalModal.tsx"),
     ),
     (
+        "dhcp-server",
+        REPO / "frontend/src/app/service/dhcp-server/page.tsx",
+        "DHCPServerContent",
+        ("DHCPServerContent.tsx", "DHCPServerModal.tsx", "RangeModal.tsx"),
+    ),
+    (
         "dns-dynamic",
         REPO / "frontend/src/app/service/dns-dynamic/page.tsx",
         "DNSDynamicContent",
@@ -182,11 +188,20 @@ def test_pppoe_dashboard_card_imports_chart_from_service():
     assert 'from "@/components/pppoe-server' not in text
 
 
+def test_dhcp_server_left_the_loose_services_directory():
+    assert not (REPO / "frontend/src/components/services").exists()
+    assert not (REPO / "frontend/src/app/network/dhcp").exists()
+    nav = (REPO / "frontend/src/lib/navigation.ts").read_text()
+    assert 'href: "/service/dhcp-server"' in nav
+    assert "/network/dhcp" not in nav
+
+
 def test_service_pages_share_one_source_directory():
     assert not (REPO / "frontend/src/app/(dashboard)/service").exists()
     pages = list((REPO / "frontend/src/app/service").glob("*/page.tsx"))
     assert {page.parent.name for page in pages} >= {
         "dhcp-relay",
+        "dhcp-server",
         "dhcpv6-relay",
         "lldp",
         "monitoring",
