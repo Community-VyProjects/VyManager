@@ -149,7 +149,7 @@ export function CreateCommunityListModal({
                   disabled={loading}
                 />
                 <p className="text-xs text-muted-foreground">
-                  {t("asPath.regexHelp")}
+                  {t("community.regexHelp")}
                 </p>
               </div>
 

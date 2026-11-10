@@ -13,4 +13,4 @@ Routing policy objects: access lists, prefix lists, route maps, policy-based rou
 - **Route Maps** — rules with match conditions and set actions.
 - **Route (PBR)** — policy-based routing for IPv4 (`route`) and IPv6 (`route6`). Rules combine match conditions with set actions and can be disabled individually. Each policy has an "Applied Interfaces" card with a dialog to attach or detach interfaces, including VLAN sub-interfaces.
 - **Local Route** — flat rule tables (IPv4/IPv6) directing traffic by source/destination/interface into routing tables or VRFs.
-- **BGP AS Path / Community / Extended Community / Large Community** — regex-based BGP filter lists with permit/deny rules. The extended-community page classifies each pattern (route target, site of origin, plain regex) with a badge.
+- **AS Path List / Community / Extended Community / Large Community** — regex-based BGP filter lists with permit/deny rules. The extended-community page classifies each pattern (route target, site of origin, plain regex) with a badge.

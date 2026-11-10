@@ -47,7 +47,7 @@ GONE = (
 PAGE_IMPORTS = (
     (PAGES / "route/page.tsx", "RouteRuleModal"),
     (PAGES / "local-route/page.tsx", "LocalRouteModal"),
-    (PAGES / "bgp-as/page.tsx", "AsPathListRuleModal"),
+    (PAGES / "as-path-list/page.tsx", "AsPathListRuleModal"),
     (PAGES / "bgp-community/page.tsx", "CommunityListRuleModal"),
     (PAGES / "bgp-large-community/page.tsx", "LargeCommunityListRuleModal"),
     (PAGES / "bgp-extended-community/page.tsx", "ExtCommunityListRuleModal"),

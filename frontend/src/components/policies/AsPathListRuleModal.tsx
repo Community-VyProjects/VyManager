@@ -36,7 +36,7 @@ export function AsPathListRuleModal({
   asPathListName,
   existing,
 }: AsPathListRuleModalProps) {
-  const t = useTranslations("bgpLists");
+  const t = useTranslations("asPathList");
   const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
   const [loading, setLoading] = useState(false);

@@ -4,6 +4,7 @@
 import accessList from "./accessList.json";
 import admin from "./admin.json";
 import appsCatalog from "./appsCatalog.json";
+import asPathList from "./asPathList.json";
 import authentication from "./authentication.json";
 import babel from "./babel.json";
 import backupBugReport from "./backupBugReport.json";
@@ -141,6 +142,7 @@ const messages = {
   accessList,
   admin,
   appsCatalog,
+  asPathList,
   authentication,
   babel,
   backupBugReport,

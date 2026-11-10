@@ -17,7 +17,7 @@ describe("navTitleKey", () => {
     assert.equal(navTitleKey("Dashboard"), "dashboard");
     assert.equal(navTitleKey("Static & Failover"), "staticFailover");
     assert.equal(navTitleKey("DHCPv6 Server"), "dhcpv6Server");
-    assert.equal(navTitleKey("BGP AS"), "bgpAs");
+    assert.equal(navTitleKey("AS Path List"), "asPathList");
   });
 });
 
