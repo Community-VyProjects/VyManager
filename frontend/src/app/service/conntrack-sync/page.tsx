@@ -1,6 +1,6 @@
 "use client";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { ConntrackSyncContent } from "@/components/conntrack-sync/ConntrackSyncContent";
+import { ConntrackSyncContent } from "@/components/service/conntrack-sync/ConntrackSyncContent";
 
 export default function ConntrackSyncPage() {
   return (
