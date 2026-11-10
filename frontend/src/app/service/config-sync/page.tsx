@@ -1,7 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/layout/AppLayout";
-import { ConfigSyncContent } from "@/components/config-sync/ConfigSyncContent";
+import { ConfigSyncContent } from "@/components/service/config-sync/ConfigSyncContent";
 
 export default function ConfigSyncPage() {
   return (

@@ -1,4 +1,4 @@
-"""SSH, SNMP, LLDP, TFTP server, DNS forwarding, and broadcast relay screens live under components/service."""
+"""SSH, SNMP, LLDP, TFTP server, DNS forwarding, broadcast relay, and config sync screens live under components/service."""
 
 from pathlib import Path
 
@@ -45,6 +45,12 @@ FEATURES = (
             "BroadcastRelayInstanceModal.tsx",
             "DeleteBroadcastRelayInstanceModal.tsx",
         ),
+    ),
+    (
+        "config-sync",
+        REPO / "frontend/src/app/service/config-sync/page.tsx",
+        "ConfigSyncContent",
+        ("ConfigSyncContent.tsx", "ConfigSyncModal.tsx"),
     ),
 )
 
