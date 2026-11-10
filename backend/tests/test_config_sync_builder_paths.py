@@ -6,6 +6,7 @@ on the 1.5 subclass. The factory returns the shared mapper on 1.4.
 Capabilities and builder ops read that allowlist.
 """
 
+import ast
 import pytest
 from pathlib import Path
 
@@ -19,6 +20,7 @@ from vyos_mappers.config_sync.config_sync_versions.v1_5 import ConfigSyncMapperV
 REPO = Path(__file__).resolve().parents[2]
 MODAL = REPO / "frontend/src/components/service/config-sync/ConfigSyncModal.tsx"
 CLIENT = REPO / "frontend/src/lib/api/config-sync.ts"
+ROUTER = Path(__file__).resolve().parents[1] / "routers" / "config_sync" / "config_sync.py"
 
 BASE = ["service", "config-sync"]
 
@@ -141,3 +143,63 @@ def test_modal_gates_system_login_on_capability():
     client = CLIENT.read_text()
     assert "set_section_system_login" in client
     assert "delete_section_system_login" in client
+
+
+def _handler_names(exc):
+    names = set()
+    etype = exc.type
+    if isinstance(etype, ast.Name):
+        names.add(etype.id)
+    elif isinstance(etype, ast.Tuple):
+        names.update(e.id for e in etype.elts if isinstance(e, ast.Name))
+    return names
+
+
+def test_execute_batch_runs_in_a_threadpool():
+    """VyOS I/O must not run on the event loop. An empty batch stays a 500."""
+    tree = ast.parse(ROUTER.read_text())
+    handler = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "config_sync_batch_configure"
+    )
+
+    direct_calls = [
+        node
+        for node in ast.walk(handler)
+        if isinstance(node, ast.Call) and getattr(node.func, "attr", None) == "execute_batch"
+    ]
+    assert not direct_calls, "execute_batch must not run on the event loop"
+
+    offloaded = []
+    for node in ast.walk(handler):
+        if not isinstance(node, ast.Await):
+            continue
+        call = node.value
+        if not isinstance(call, ast.Call):
+            continue
+        func = call.func
+        if not (isinstance(func, ast.Name) and func.id == "run_in_threadpool"):
+            continue
+        if (
+            call.args
+            and isinstance(call.args[0], ast.Attribute)
+            and call.args[0].attr == "execute_batch"
+        ):
+            offloaded.append(node)
+    assert len(offloaded) == 1
+
+    value_error_lines = set()
+    for node in ast.walk(handler):
+        if not isinstance(node, ast.Try):
+            continue
+        for exc in node.handlers:
+            if isinstance(exc, ast.ExceptHandler) and "ValueError" in _handler_names(exc):
+                end = node.end_lineno or node.lineno
+                value_error_lines.update(range(node.lineno, end + 1))
+                for call in ast.walk(node):
+                    if isinstance(call, ast.Call):
+                        name = getattr(call.func, "attr", None) or getattr(call.func, "id", None)
+                        assert name != "execute_batch"
+    for node in offloaded:
+        assert node.lineno not in value_error_lines
