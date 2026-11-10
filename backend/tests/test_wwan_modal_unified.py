@@ -9,18 +9,24 @@ from pathlib import Path
 from tests.en_message import en_message
 
 REPO = Path(__file__).resolve().parents[2]
-COMP = REPO / "frontend/src/components/wwan"
+COMP = REPO / "frontend/src/components/interfaces"
 PAGE = REPO / "frontend/src/app/network/interfaces/page.tsx"
+OLD = REPO / "frontend/src/components/wwan"
 
 
 def test_cloned_create_edit_files_are_gone():
+    assert not OLD.exists()
     assert not (COMP / "CreateWwanModal.tsx").exists()
     assert not (COMP / "EditWwanModal.tsx").exists()
+    assert (COMP / "WwanModal.tsx").exists()
+    assert (COMP / "DeleteWwanModal.tsx").exists()
 
 
 def test_interfaces_page_uses_unified_modal():
     page = PAGE.read_text()
-    assert 'from "@/components/wwan/WwanModal"' in page
+    assert 'from "@/components/interfaces/WwanModal"' in page
+    assert 'from "@/components/interfaces/DeleteWwanModal"' in page
+    assert 'from "@/components/wwan/' not in page
     assert "<WwanModal" in page
     assert 'from "@/components/wwan/CreateWwanModal"' not in page
     assert "<CreateWwanModal" not in page

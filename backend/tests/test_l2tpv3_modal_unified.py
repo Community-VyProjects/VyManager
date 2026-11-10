@@ -9,13 +9,17 @@ from pathlib import Path
 from tests.en_message import en_message
 
 REPO = Path(__file__).resolve().parents[2]
-COMP = REPO / "frontend/src/components/l2tpv3"
+COMP = REPO / "frontend/src/components/interfaces"
 PAGE = REPO / "frontend/src/app/network/interfaces/page.tsx"
+OLD = REPO / "frontend/src/components/l2tpv3"
 
 
 def test_cloned_create_edit_files_are_gone():
+    assert not OLD.exists()
     assert not (COMP / "CreateL2TPv3Modal.tsx").exists()
     assert not (COMP / "EditL2TPv3Modal.tsx").exists()
+    assert (COMP / "L2TPv3Modal.tsx").exists()
+    assert (COMP / "DeleteL2TPv3Modal.tsx").exists()
 
 
 def test_unified_modal_has_existing_and_both_ops():
@@ -31,6 +35,9 @@ def test_unified_modal_has_existing_and_both_ops():
 
 def test_interfaces_page_uses_unified_modal():
     page = PAGE.read_text()
+    assert 'from "@/components/interfaces/L2TPv3Modal"' in page
+    assert 'from "@/components/interfaces/DeleteL2TPv3Modal"' in page
+    assert 'from "@/components/l2tpv3/' not in page
     assert "L2TPv3Modal" in page
     assert 'from "@/components/l2tpv3/CreateL2TPv3Modal"' not in page
     assert "<CreateL2TPv3Modal" not in page

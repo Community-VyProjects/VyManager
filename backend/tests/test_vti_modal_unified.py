@@ -7,18 +7,24 @@ They are now VtiModal with existing?: VtiInterface | null.
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-COMP = REPO / "frontend/src/components/vti"
+COMP = REPO / "frontend/src/components/interfaces"
 PAGE = REPO / "frontend/src/app/network/interfaces/page.tsx"
+OLD = REPO / "frontend/src/components/vti"
 
 
 def test_cloned_create_edit_files_are_gone():
+    assert not OLD.exists()
     assert not (COMP / "CreateVtiModal.tsx").exists()
     assert not (COMP / "EditVtiModal.tsx").exists()
+    assert (COMP / "VtiModal.tsx").exists()
+    assert (COMP / "DeleteVtiModal.tsx").exists()
 
 
 def test_interfaces_page_uses_unified_modal():
     page = PAGE.read_text()
-    assert 'from "@/components/vti/VtiModal"' in page
+    assert 'from "@/components/interfaces/VtiModal"' in page
+    assert 'from "@/components/interfaces/DeleteVtiModal"' in page
+    assert 'from "@/components/vti/' not in page
     assert "<VtiModal" in page
     assert 'from "@/components/vti/CreateVtiModal"' not in page
     assert "<CreateVtiModal" not in page

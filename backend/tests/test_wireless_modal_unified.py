@@ -7,18 +7,24 @@ They are now WirelessModal with existing?: WirelessInterface | null.
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-COMP = REPO / "frontend/src/components/wireless"
+COMP = REPO / "frontend/src/components/interfaces"
 PAGE = REPO / "frontend/src/app/network/interfaces/page.tsx"
+OLD = REPO / "frontend/src/components/wireless"
 
 
 def test_cloned_create_edit_files_are_gone():
+    assert not OLD.exists()
     assert not (COMP / "CreateWirelessModal.tsx").exists()
     assert not (COMP / "EditWirelessModal.tsx").exists()
+    assert (COMP / "WirelessModal.tsx").exists()
+    assert (COMP / "DeleteWirelessModal.tsx").exists()
 
 
 def test_interfaces_page_uses_unified_modal():
     page = PAGE.read_text()
-    assert 'from "@/components/wireless/WirelessModal"' in page
+    assert 'from "@/components/interfaces/WirelessModal"' in page
+    assert 'from "@/components/interfaces/DeleteWirelessModal"' in page
+    assert 'from "@/components/wireless/' not in page
     assert "<WirelessModal" in page
     assert 'from "@/components/wireless/CreateWirelessModal"' not in page
     assert "<CreateWirelessModal" not in page
