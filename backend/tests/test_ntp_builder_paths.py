@@ -17,7 +17,7 @@ from vyos_mappers.ntp.ntp_versions.v1_4 import NTPMapperV1_4
 from vyos_mappers.ntp.ntp_versions.v1_5 import NTPMapperV1_5
 
 REPO = Path(__file__).resolve().parents[2]
-MODAL = REPO / "frontend/src/components/ntp/NTPGlobalSettingsModal.tsx"
+MODAL = REPO / "frontend/src/components/service/ntp/NTPGlobalSettingsModal.tsx"
 ROUTER = Path(__file__).resolve().parents[1] / "routers" / "ntp" / "ntp.py"
 
 BASE = ["service", "ntp"]
