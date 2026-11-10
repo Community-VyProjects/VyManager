@@ -4,9 +4,10 @@ GENEVE Interface Batch Builder
 Provides all GENEVE (Generic Network Virtualization Encapsulation) interface batch operations.
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, cast
 from vyos_mappers import CommandMapperRegistry
 from vyos_builders.base import BatchBuilder
+from vyos_mappers.interfaces.geneve import GeneveInterfaceMapper
 
 
 class GeneveInterfaceBuilderMixin(BatchBuilder):
@@ -37,12 +38,18 @@ class GeneveInterfaceBuilderMixin(BatchBuilder):
     def operation_count(self) -> int:
         return len(self._operations)
 
+    def _mapper(self) -> GeneveInterfaceMapper:
+        return cast(GeneveInterfaceMapper, self.mappers[self.interface_mapper_key])
+
+    def _require_interface_node(self, node: str) -> None:
+        self._mapper()._require_interface_node(node)
+
     # ========================================================================
     # Capabilities
     # ========================================================================
 
     def get_capabilities(self) -> Dict[str, Any]:
-        is_v15 = "1.5" in self.version or "latest" in self.version
+        nodes = self._mapper().versioned_interface_nodes()
         return {
             "version": self.version,
             "features": {
@@ -80,7 +87,10 @@ class GeneveInterfaceBuilderMixin(BatchBuilder):
                 "ipv6_address_autoconf": {"supported": True, "description": "SLAAC auto-configuration"},
                 "ipv6_address_eui64": {"supported": True, "description": "IPv6 EUI-64 address generation"},
                 "ipv6_address_no_default_link_local": {"supported": True, "description": "Remove default link-local address"},
-                "ipv6_address_interface_identifier": {"supported": is_v15, "description": "SLAAC interface identifier (VyOS 1.5+)"},
+                "ipv6_address_interface_identifier": {
+                    "supported": "ipv6_address_interface_identifier" in nodes,
+                    "description": "SLAAC interface identifier",
+                },
                 "mirror": {"supported": True, "description": "Mirror ingress/egress traffic"},
                 "redirect": {"supported": True, "description": "Redirect incoming packets to destination interface"},
             },
@@ -388,11 +398,13 @@ class GeneveInterfaceBuilderMixin(BatchBuilder):
 
     # --- VyOS 1.5+ only ---
     def set_ipv6_address_interface_identifier(self, interface: str, value: str) -> "GeneveInterfaceBuilderMixin":
-        path = self.mappers[self.interface_mapper_key].get_ipv6_address_interface_identifier(interface, value)
+        self._require_interface_node("ipv6_address_interface_identifier")
+        path = getattr(self._mapper(), "get_ipv6_address_interface_identifier")(interface, value)
         return self.add_set(path)
 
     def delete_ipv6_address_interface_identifier(self, interface: str) -> "GeneveInterfaceBuilderMixin":
-        path = self.mappers[self.interface_mapper_key].get_ipv6_address_interface_identifier_path(interface)
+        self._require_interface_node("ipv6_address_interface_identifier")
+        path = getattr(self._mapper(), "get_ipv6_address_interface_identifier_path")(interface)
         return self.add_delete(path)
 
     # ========================================================================
