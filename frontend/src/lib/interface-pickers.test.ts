@@ -137,7 +137,7 @@ describe("interface-valued fields", () => {
   // the value handler, and the exact filter the picker must apply.
   const KIND_PICKERS = [
     {
-      file: "components/virtual-ethernet/EditVirtualEthernetModal.tsx",
+      file: "components/interfaces/EditVirtualEthernetModal.tsx",
       id: "e-peerName",
       handler: "onValueChange={setPeerName}",
       filter: "filter={(iface) => /^veth\\d+$/.test(iface.name) && iface.name !== interfaceData.name}",
