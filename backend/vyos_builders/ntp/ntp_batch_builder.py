@@ -19,26 +19,23 @@ Structure:
     vrf <name>                   # Single value — VRF instance
 
 Version differences:
-  1.4 and 1.5 share identical NTP config paths — no version-specific overrides.
+  timestamp interface receive-filter exists only on 1.5. Path methods live
+  on the 1.5 mapper subclass. Capabilities and ops read that allowlist.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, cast
 from vyos_mappers import CommandMapperRegistry
 from vyos_builders.base import BatchBuilder
+from vyos_mappers.ntp.ntp import NTPMapper
 
 
 class NTPBatchBuilder(BatchBuilder):
     def __init__(self, version: str):
         super().__init__(version)
-        self.m = CommandMapperRegistry.get_mapper("ntp", version)
-
-    # -----------------------------------------------------------------------
-    # Capabilities
-    # -----------------------------------------------------------------------
+        self.m = cast(NTPMapper, CommandMapperRegistry.get_mapper("ntp", version))
 
     def get_capabilities(self) -> Dict[str, Any]:
-        is_1_4 = "1.4" in self.version
-        is_1_5 = not is_1_4
+        nodes = self.m.versioned_nodes()
 
         return {
             "version": self.version,
@@ -83,14 +80,10 @@ class NTPBatchBuilder(BatchBuilder):
                     "description": "Bind NTP service to a VRF instance",
                 },
                 "timestamp_receive_filter": {
-                    "supported": is_1_5,
+                    "supported": "timestamp_receive_filter" in nodes,
                     "description": "Per-interface NIC receive timestamp filter",
                     "values": ["all", "ntp", "ptp", "none"],
                 },
-            },
-            "version_info": {
-                "is_1_4": is_1_4,
-                "is_1_5": is_1_5,
             },
         }
 
@@ -224,8 +217,12 @@ class NTPBatchBuilder(BatchBuilder):
 
     def set_timestamp_interface_receive_filter(self, iface: str, value: str) -> "NTPBatchBuilder":
         """Set the NIC receive timestamp filter on an interface (all|ntp|ptp|none)."""
-        return self.add_set(self.m.get_timestamp_interface_receive_filter(iface, value))
+        self.m._require_node("timestamp_receive_filter")
+        path = getattr(self.m, "get_timestamp_interface_receive_filter")(iface, value)
+        return self.add_set(path)
 
     def delete_timestamp_interface_receive_filter(self, iface: str) -> "NTPBatchBuilder":
         """Remove the receive timestamp filter from an interface."""
-        return self.add_delete(self.m.get_timestamp_interface_receive_filter_delete(iface))
+        self.m._require_node("timestamp_receive_filter")
+        path = getattr(self.m, "get_timestamp_interface_receive_filter_delete")(iface)
+        return self.add_delete(path)

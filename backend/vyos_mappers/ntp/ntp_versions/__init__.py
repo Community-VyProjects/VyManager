@@ -1,29 +1,16 @@
 """Factory for version-specific NTP mappers."""
+
 from ..ntp import NTPMapper
 from .v1_4 import NTPMapperV1_4
 from .v1_5 import NTPMapperV1_5
 
 
-def get_ntp_mapper(version: str):
-    """Return a version-merged NTP mapper."""
-    base = NTPMapper(version)
+def get_ntp_mapper(version: str) -> NTPMapper:
+    """Return the NTP mapper for this device.
 
+    Substring match like the other factories: a rolling string such as
+    ``2025.rolling`` is 1.5. Only a string that contains ``1.4`` is 1.4.
+    """
     if "1.4" in version:
-        version_specific = NTPMapperV1_4()
-    else:
-        version_specific = NTPMapperV1_5()
-
-    class MergedMapper:
-        # parse_config must live here. A method on NTPMapper is bound to
-        # `base`, so mapper.version would not fall through on the call.
-        def parse_config(self, full_config):
-            from ..config_parse import parse_config as parse_ntp_config
-
-            return parse_ntp_config(self, full_config)
-
-        def __getattr__(self, name):
-            if hasattr(version_specific, name):
-                return getattr(version_specific, name)
-            return getattr(base, name)
-
-    return MergedMapper()
+        return NTPMapperV1_4(version)
+    return NTPMapperV1_5(version)

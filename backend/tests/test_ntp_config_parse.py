@@ -1,5 +1,6 @@
 """NTP GET /config parse lives on the mapper (issue #966)."""
 
+from vyos_mappers.ntp.ntp import NTPMapper
 from vyos_mappers.ntp.ntp_versions import get_ntp_mapper
 
 
@@ -42,9 +43,11 @@ def _empty():
     }
 
 
-def test_parse_config_is_explicit_and_version_falls_through():
+def test_parse_config_is_on_the_subclass_instance():
     mapper = get_ntp_mapper("1.4")
-    assert "parse_config" in type(mapper).__dict__
+    assert isinstance(mapper, NTPMapper)
+    assert "parse_config" in NTPMapper.__dict__
+    assert "__getattr__" not in type(mapper).__dict__
     assert mapper.version == "1.4"
     assert get_ntp_mapper("1.5").version == "1.5"
 

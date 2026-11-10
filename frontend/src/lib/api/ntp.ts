@@ -48,7 +48,6 @@ export interface NTPCapabilities {
       values: string[];
     };
   };
-  version_info: { is_1_4: boolean; is_1_5: boolean };
 }
 
 export interface BatchOperation {

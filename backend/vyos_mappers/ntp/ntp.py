@@ -1,5 +1,5 @@
 """NTP Service Command Mapper."""
-from typing import List
+from typing import Any, Dict, FrozenSet, List
 from ..base import BaseFeatureMapper
 
 BASE = ["service", "ntp"]
@@ -8,6 +8,26 @@ BASE = ["service", "ntp"]
 class NTPMapper(BaseFeatureMapper):
     def __init__(self, version: str):
         super().__init__(version)
+
+    def versioned_nodes(self) -> FrozenSet[str]:
+        """1.5-only NTP leaves this device has.
+
+        Timestamp receive-filter lives on the 1.5 subclass as path methods.
+        Capabilities and builders read this set instead of the version string.
+        """
+        nodes = []
+        if callable(getattr(self, "get_timestamp_interface_receive_filter", None)):
+            nodes.append("timestamp_receive_filter")
+        return frozenset(nodes)
+
+    def _require_node(self, node: str) -> None:
+        if node not in self.versioned_nodes():
+            raise ValueError(f"ntp {node} is not supported on this device")
+
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_ntp_config
+
+        return parse_ntp_config(self, full_config)
 
     # ========================================================================
     # Global
@@ -87,16 +107,6 @@ class NTPMapper(BaseFeatureMapper):
 
     def get_server_prefer(self, name: str) -> List[str]:
         return BASE + ["server", name, "prefer"]
-
-    # ========================================================================
-    # Timestamp interface receive-filter (single value, VyOS 1.5+)
-    # ========================================================================
-
-    def get_timestamp_interface_receive_filter(self, iface: str, value: str) -> List[str]:
-        return BASE + ["timestamp", "interface", iface, "receive-filter", value]
-
-    def get_timestamp_interface_receive_filter_delete(self, iface: str) -> List[str]:
-        return BASE + ["timestamp", "interface", iface, "receive-filter"]
 
     # ========================================================================
     # VRF (single value)

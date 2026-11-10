@@ -3,7 +3,8 @@
 API endpoints for managing VyOS NTP (Network Time Protocol) configuration.
 
 Version differences:
-  1.4 and 1.5 — identical NTP configuration paths; no version-specific behavior.
+  timestamp interface receive-filter exists only on 1.5. The mapper subclass
+  owns that path. This router does not branch on the version string.
 
 Endpoints:
   GET  /vyos/ntp/capabilities  — version-aware feature flags
@@ -136,24 +137,29 @@ async def ntp_batch_configure(http_request: Request, body: NTPBatchRequest):
         service = get_session_vyos_service(http_request)
         builder = NTPBatchBuilder(version=service.get_version())
 
-        for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
+        try:
+            for operation in body.operations:
+                method = resolve_batch_method(builder, operation.op)
+                sig = inspect.signature(method)
+                params = [p for p in sig.parameters.keys() if p != "self"]
 
-            if len(params) == 0:
-                method()
-            elif len(params) == 1:
-                if operation.value is not None:
-                    method(operation.value)
-                else:
+                if len(params) == 0:
                     method()
-            elif len(params) >= 2:
-                if operation.value and "," in operation.value:
-                    parts = operation.value.split(",", len(params) - 1)
-                    method(*parts)
-                elif operation.value:
-                    method(operation.value)
+                elif len(params) == 1:
+                    if operation.value is not None:
+                        method(operation.value)
+                    else:
+                        method()
+                elif len(params) >= 2:
+                    if operation.value and "," in operation.value:
+                        parts = operation.value.split(",", len(params) - 1)
+                        method(*parts)
+                    elif operation.value:
+                        method(operation.value)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except AttributeError as e:
+            raise HTTPException(status_code=400, detail=f"Unknown operation: {e}")
 
         response = service.execute_batch(builder)
         return VyOSResponse(
@@ -163,10 +169,6 @@ async def ntp_batch_configure(http_request: Request, body: NTPBatchRequest):
         )
     except HTTPException:
         raise
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {e}")
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
     except Exception:
         logger.exception("Unhandled error in ntp_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
