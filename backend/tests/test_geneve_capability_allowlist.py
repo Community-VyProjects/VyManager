@@ -5,7 +5,6 @@ is INVALID on 1.4 (100.64.64.4) and VALID on 1.5 (100.64.64.5). Path methods
 live on the 1.5 subclass. Capabilities and builder ops read that set.
 """
 
-import re
 from pathlib import Path
 
 import pytest
