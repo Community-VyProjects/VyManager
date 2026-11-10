@@ -1,10 +1,5 @@
 {
   "types": {
-    "asPath": {
-      "title": "AS Path List",
-      "name": "AS path list",
-      "modalName": "AS path list"
-    },
     "community": {
       "title": "Community List",
       "name": "community list",
@@ -77,17 +72,6 @@
     "deletingRule": "Deleting rule {number} from {listType}: {name}",
     "patternLabel": "Pattern:",
     "failedToDeleteRule": "Failed to delete rule"
-  },
-  "asPath": {
-    "pageTitle": "BGP AS Path",
-    "failedToLoad": "Failed to load AS path lists",
-    "errorLoading": "Error Loading AS Path Lists",
-    "noMatch": "No AS path lists match your search",
-    "noneConfigured": "No AS path lists configured",
-    "createToStart": "Create an AS path list to get started",
-    "selectFromSidebar": "Select an AS path list from the sidebar to view its rules",
-    "nameRequired": "AS path list name is required",
-    "regexHelp": "Regular expression to match AS paths (e.g., \"64501 64502\")"
   },
   "community": {
     "pageTitle": "BGP Community",

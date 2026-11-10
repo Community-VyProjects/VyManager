@@ -163,7 +163,7 @@ export const configSources: ConfigSourceDefinition[] = [
   {
     id: "bgp-as-path",
     feature: "Policies",
-    hrefBase: "/policies/bgp-as",
+    hrefBase: "/policies/as-path-list",
     fetch: () => asPathListService.getConfig(),
   },
   {

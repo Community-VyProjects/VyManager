@@ -1,10 +1,5 @@
 {
   "types": {
-    "asPath": {
-      "title": "AS 路径列表",
-      "name": "AS 路径列表",
-      "modalName": "AS 路径列表"
-    },
     "community": {
       "title": "团体列表",
       "name": "团体列表",
@@ -77,17 +72,6 @@
     "deletingRule": "正在从{listType} {name} 中删除规则 {number}",
     "patternLabel": "模式：",
     "failedToDeleteRule": "删除规则失败"
-  },
-  "asPath": {
-    "pageTitle": "BGP AS 路径",
-    "failedToLoad": "加载 AS 路径列表失败",
-    "errorLoading": "加载 AS 路径列表出错",
-    "noMatch": "没有匹配搜索的 AS 路径列表",
-    "noneConfigured": "未配置 AS 路径列表",
-    "createToStart": "创建一个 AS 路径列表以开始使用",
-    "selectFromSidebar": "从侧边栏选择一个 AS 路径列表以查看其规则",
-    "nameRequired": "AS 路径列表名称为必填项",
-    "regexHelp": "用于匹配 AS 路径的正则表达式（例如 \"64501 64502\"）"
   },
   "community": {
     "pageTitle": "BGP 团体",

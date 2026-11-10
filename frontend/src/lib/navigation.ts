@@ -230,7 +230,7 @@ export const navigation: NavItem[] = [
           { id: "ipv4", title: "IPv4", href: "/policies/local-route", description: "IPv4 local routes", searchParams: { section: "ipv4" } },
           { id: "ipv6", title: "IPv6", href: "/policies/local-route", description: "IPv6 local routes", searchParams: { section: "ipv6" } },
         ] },
-      { title: "BGP AS", href: "/policies/bgp-as", requiredPermission: FeatureGroup.BGP_AS_PATH },
+      { title: "AS Path List", href: "/policies/as-path-list", requiredPermission: FeatureGroup.BGP_AS_PATH },
       { title: "BGP Community", href: "/policies/bgp-community", requiredPermission: FeatureGroup.BGP_COMMUNITY },
       { title: "BGP Extended Community", href: "/policies/bgp-extended-community", requiredPermission: FeatureGroup.BGP_EXTENDED_COMMUNITY },
       { title: "BGP Large Community", href: "/policies/bgp-large-community", requiredPermission: FeatureGroup.BGP_LARGE_COMMUNITY },

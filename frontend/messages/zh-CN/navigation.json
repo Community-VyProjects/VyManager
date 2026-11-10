@@ -1,7 +1,7 @@
 {
   "accessList": "访问列表",
   "administration": "管理",
-  "bgpAs": "BGP AS 路径",
+  "asPathList": "AS 路径列表",
   "bgpCommunity": "BGP 团体",
   "bgpExtendedCommunity": "BGP 扩展团体",
   "bgpLargeCommunity": "BGP 大型团体",

@@ -35,7 +35,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 // Sortable row component
 function AsPathListRuleRow({ rule, onEdit, onDelete }: { rule: AsPathListRule; onEdit: (rule: AsPathListRule) => void; onDelete: (rule: AsPathListRule) => void }) {
-  const t = useTranslations("bgpLists");
+  const t = useTranslations("asPathList");
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: rule.rule_number,
   });
@@ -86,8 +86,8 @@ function AsPathListRuleRow({ rule, onEdit, onDelete }: { rule: AsPathListRule; o
   );
 }
 
-export default function BGPASPage() {
-  const t = useTranslations("bgpLists");
+export default function AsPathListPage() {
+  const t = useTranslations("asPathList");
   const tc = useTranslations("common");
   const [asPathLists, setAsPathLists] = useState<AsPathList[]>([]);
   const [loading, setLoading] = useState(true);

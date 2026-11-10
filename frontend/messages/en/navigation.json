@@ -1,7 +1,7 @@
 {
   "accessList": "Access List",
   "administration": "Administration",
-  "bgpAs": "BGP AS",
+  "asPathList": "AS Path List",
   "bgpCommunity": "BGP Community",
   "bgpExtendedCommunity": "BGP Extended Community",
   "bgpLargeCommunity": "BGP Large Community",

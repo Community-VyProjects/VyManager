@@ -22,7 +22,7 @@ export function EditAsPathListModal({
   onSuccess,
   asPathList,
 }: EditAsPathListModalProps) {
-  const t = useTranslations("bgpLists");
+  const t = useTranslations("asPathList");
   const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
