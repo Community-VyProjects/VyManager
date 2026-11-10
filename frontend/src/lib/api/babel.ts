@@ -113,6 +113,7 @@ class BabelService {
 
   async batchConfigure(request: BabelBatchRequest): Promise<VyOSResponse> {
     const result = await apiClient.post<VyOSResponse>("/vyos/babel/batch", request);
+    if (!result.success) throw new Error(result.error || "Operation failed");
     await this.refreshConfig();
     return result;
   }
