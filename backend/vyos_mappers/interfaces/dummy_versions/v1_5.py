@@ -18,14 +18,18 @@ class DummyMapper_v1_5(DummyInterfaceMapper):
 
     # --- MAC address - VyOS 1.5 only ---
     def get_mac(self, interface: str, mac: str) -> List[str]:
+        self._require_interface_node("mac")
         return self._base(interface) + ["mac", mac]
 
     def get_mac_path(self, interface: str) -> List[str]:
+        self._require_interface_node("mac")
         return self._base(interface) + ["mac"]
 
     # --- Network namespace - VyOS 1.5 only ---
     def get_netns(self, interface: str, netns: str) -> List[str]:
+        self._require_interface_node("netns")
         return self._base(interface) + ["netns", netns]
 
     def get_netns_path(self, interface: str) -> List[str]:
+        self._require_interface_node("netns")
         return self._base(interface) + ["netns"]
