@@ -1,7 +1,9 @@
 """BFD GET /config parse lives on the mapper (issue #966)."""
 
+from pathlib import Path
+
 from vyos_mappers.base import CommandMapperRegistry
-from vyos_mappers.bfd.bfd_versions import get_bfd_mapper
+from vyos_mappers.bfd import BfdMapper
 
 
 def _tree():
@@ -38,7 +40,7 @@ def _tree():
 
 
 def test_parse_distinctive_fields():
-    parsed = get_bfd_mapper("1.5").parse_config(_tree())
+    parsed = BfdMapper("1.5").parse_config(_tree())
     peers = {item["address"]: item for item in parsed["peers"]}
     peer = peers["192.0.2.1"]
     assert peer["echo_mode"] is True
@@ -62,23 +64,30 @@ def test_parse_distinctive_fields():
 
 
 def test_empty_tree():
-    parsed = get_bfd_mapper("1.4").parse_config({})
+    parsed = BfdMapper("1.4").parse_config({})
     assert parsed == {"peers": [], "profiles": []}
-    assert get_bfd_mapper("1.5").parse_config({"protocols": {"bfd": None}}) == {
+    assert BfdMapper("1.5").parse_config({"protocols": {"bfd": None}}) == {
         "peers": [],
         "profiles": [],
     }
 
 
-def test_registry_matches_factory():
-    factory = get_bfd_mapper("1.5").parse_config(_tree())
+def test_registry_returns_shared_mapper():
+    """Labs match, so the registry must not wrap a merge proxy."""
+    for version in ("1.4", "1.4.3", "1.5", "2026.09.23-rolling"):
+        mapper = CommandMapperRegistry.get_mapper("bfd", version)
+        assert type(mapper) is BfdMapper
+        assert mapper.version == version
+    direct = BfdMapper("1.5").parse_config(_tree())
     registry = CommandMapperRegistry.get_mapper("bfd", "1.5").parse_config(_tree())
-    assert registry["peers"][0]["profile"] == factory["peers"][0]["profile"] == "fast"
+    assert registry["peers"][0]["profile"] == direct["peers"][0]["profile"] == "fast"
+    versions = Path(__file__).resolve().parents[1] / "vyos_mappers" / "bfd" / "bfd_versions"
+    assert not versions.exists()
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):
     tree = _tree()
-    expected = get_bfd_mapper("1.5").parse_config(tree)
+    expected = BfdMapper("1.5").parse_config(tree)
 
     async def allow(*_args, **_kwargs):
         return None
