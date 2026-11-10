@@ -65,7 +65,7 @@ export function AsPathListRuleModal({
   const handleSubmit = async () => {
     const validationError = validateRegexListRule(draft);
     if (validationError) {
-      setError(t(`validation.${validationError}`));
+      setError(t("validation.regexRequired"));
       return;
     }
 
