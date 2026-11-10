@@ -255,8 +255,10 @@ export function BabelContent() {
     if (!config || !distListIpv4Draft || !distListIpv6Draft) return;
     try {
       setSavingDistList(true);
-      await babelService.updateDistributeListGlobal("ipv4", config.distribute_list.ipv4, distListIpv4Draft);
-      await babelService.updateDistributeListGlobal("ipv6", config.distribute_list.ipv6, distListIpv6Draft);
+      await babelService.updateDistributeListGlobals(
+        { original: config.distribute_list.ipv4, updated: distListIpv4Draft },
+        { original: config.distribute_list.ipv6, updated: distListIpv6Draft },
+      );
       await loadData(true);
       setEditingDistList(false);
       setDistListIpv4Draft(null);

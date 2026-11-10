@@ -271,7 +271,6 @@ class BabelMapper(BaseFeatureMapper):
             "interface", interface, "prefix-list", "out", prefix_list
         ]
 
-
     def get_distribute_list_ipv4_iface_access_list_in_delete(self, interface: str) -> List[str]:
         return [
             "protocols", "babel", "distribute-list", "ipv4",
