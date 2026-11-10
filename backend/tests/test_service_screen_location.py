@@ -1,4 +1,4 @@
-"""SSH, SNMP, LLDP, TFTP server, and DNS forwarding screens live under components/service."""
+"""SSH, SNMP, LLDP, TFTP server, DNS forwarding, and broadcast relay screens live under components/service."""
 
 from pathlib import Path
 
@@ -35,6 +35,16 @@ FEATURES = (
         REPO / "frontend/src/app/service/dns-forwarding/page.tsx",
         "DNSForwardingContent",
         ("DNSForwardingContent.tsx", "DNSForwardingSettingsModal.tsx", "DNSForwardingDomainModal.tsx"),
+    ),
+    (
+        "broadcast-relay",
+        REPO / "frontend/src/app/service/broadcast-relay/page.tsx",
+        "BroadcastRelayContent",
+        (
+            "BroadcastRelayContent.tsx",
+            "BroadcastRelayInstanceModal.tsx",
+            "DeleteBroadcastRelayInstanceModal.tsx",
+        ),
     ),
 )
 
