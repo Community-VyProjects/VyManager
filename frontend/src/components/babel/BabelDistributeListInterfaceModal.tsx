@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { InterfaceSelect } from "@/components/ui/interface-select";
+import { BabelListSelect } from "./BabelListSelect";
 import { useTranslations } from "next-intl";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { DistributeListInterfaceFilter } from "@/lib/api/babel";
@@ -37,11 +38,6 @@ interface BabelDistributeListInterfaceModalProps {
   existingIpv6: string[];
   accessListNames: { ipv4: string[]; ipv6: string[] };
   prefixListNames: { ipv4: string[]; ipv6: string[] };
-}
-
-function withCurrent(names: string[], current: string): string[] {
-  if (current && !names.includes(current)) return [current, ...names];
-  return names;
 }
 
 export function BabelDistributeListInterfaceModal({
@@ -147,25 +143,6 @@ export function BabelDistributeListInterfaceModal({
   const aclNames = family === "ipv4" ? accessListNames.ipv4 : accessListNames.ipv6;
   const plNames = family === "ipv4" ? prefixListNames.ipv4 : prefixListNames.ipv6;
 
-  const renderListSelect = (
-    value: string,
-    onChange: (next: string) => void,
-    id: string,
-    names: string[],
-  ) => (
-    <Select value={value || "none"} onValueChange={(next) => onChange(next === "none" ? "" : next)}>
-      <SelectTrigger id={id}>
-        <SelectValue placeholder={tc("none")} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="none">{tc("none")}</SelectItem>
-        {withCurrent(names, value).map((name) => (
-          <SelectItem key={name} value={name} className="font-mono">{name}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -209,19 +186,19 @@ export function BabelDistributeListInterfaceModal({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="babel-dl-acl-in">{t("distributeList.accessListIn")}</Label>
-              {renderListSelect(aclIn, setAclIn, "babel-dl-acl-in", aclNames)}
+              <BabelListSelect id="babel-dl-acl-in" value={aclIn} names={aclNames} onChange={setAclIn} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="babel-dl-acl-out">{t("distributeList.accessListOut")}</Label>
-              {renderListSelect(aclOut, setAclOut, "babel-dl-acl-out", aclNames)}
+              <BabelListSelect id="babel-dl-acl-out" value={aclOut} names={aclNames} onChange={setAclOut} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="babel-dl-pl-in">{t("distributeList.prefixListIn")}</Label>
-              {renderListSelect(plIn, setPlIn, "babel-dl-pl-in", plNames)}
+              <BabelListSelect id="babel-dl-pl-in" value={plIn} names={plNames} onChange={setPlIn} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="babel-dl-pl-out">{t("distributeList.prefixListOut")}</Label>
-              {renderListSelect(plOut, setPlOut, "babel-dl-pl-out", plNames)}
+              <BabelListSelect id="babel-dl-pl-out" value={plOut} names={plNames} onChange={setPlOut} />
             </div>
           </div>
         </div>

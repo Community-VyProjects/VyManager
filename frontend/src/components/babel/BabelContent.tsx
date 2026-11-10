@@ -9,13 +9,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 import {
   Table,
@@ -55,6 +48,7 @@ import {
   BabelDistributeListInterfaceModal,
   type BabelDistributeListInterfaceDraft,
 } from "./BabelDistributeListInterfaceModal";
+import { BabelListSelect } from "./BabelListSelect";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import { useTranslations } from "next-intl";
@@ -307,28 +301,17 @@ export function BabelContent() {
     setDraft: (next: DistributeListFilter) => void,
   ) => {
     const value = (editingDistList ? draft?.[field] : saved?.[field]) ?? "";
-    const options = value && !names.includes(value) ? [value, ...names] : names;
     return (
       <div>
         <Label className="text-sm">{label}</Label>
-        {editingDistList && draft ? (
-          <Select
-            value={value || "none"}
-            onValueChange={(next) => setDraft({ ...draft, [field]: next === "none" ? null : next })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder={tc("none")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">{tc("none")}</SelectItem>
-              {options.map((name) => (
-                <SelectItem key={name} value={name} className="font-mono">{name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <Input value={value} disabled placeholder={tc("none")} className="font-mono" />
-        )}
+        <BabelListSelect
+          value={value}
+          names={names}
+          disabled={!editingDistList || !draft}
+          onChange={(next) => {
+            if (draft) setDraft({ ...draft, [field]: next || null });
+          }}
+        />
       </div>
     );
   };

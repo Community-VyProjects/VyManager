@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,7 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2 } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 interface DeleteBabelInterfaceModalProps {
@@ -32,11 +32,19 @@ export function DeleteBabelInterfaceModal({
   const t = useTranslations("babel");
   const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) setError(null);
+  }, [open]);
 
   const handleConfirm = async () => {
     setLoading(true);
+    setError(null);
     try {
       await onConfirm();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -57,10 +65,20 @@ export function DeleteBabelInterfaceModal({
           </AlertDialogDescription>
         </AlertDialogHeader>
 
+        {error && (
+          <div className="flex items-start gap-2 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span className="whitespace-pre-wrap">{error}</span>
+          </div>
+        )}
+
         <AlertDialogFooter>
           <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction
-            onClick={handleConfirm}
+            onClick={(e) => {
+              e.preventDefault();
+              handleConfirm();
+            }}
             disabled={loading}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
