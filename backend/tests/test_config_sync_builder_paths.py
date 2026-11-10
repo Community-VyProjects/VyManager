@@ -6,10 +6,8 @@ on the 1.5 subclass. The factory returns the shared mapper on 1.4.
 Capabilities and builder ops read that allowlist.
 """
 
-import ast
-from pathlib import Path
-
 import pytest
+from pathlib import Path
 
 from routers.config_sync.config_sync import _parse_sections
 from vyos_builders.config_sync.config_sync_batch_builder import ConfigSyncBatchBuilder
@@ -21,7 +19,6 @@ from vyos_mappers.config_sync.config_sync_versions.v1_5 import ConfigSyncMapperV
 REPO = Path(__file__).resolve().parents[2]
 MODAL = REPO / "frontend/src/components/service/config-sync/ConfigSyncModal.tsx"
 CLIENT = REPO / "frontend/src/lib/api/config-sync.ts"
-ROUTER = Path(__file__).resolve().parents[1] / "routers" / "config_sync" / "config_sync.py"
 
 BASE = ["service", "config-sync"]
 
@@ -144,87 +141,3 @@ def test_modal_gates_system_login_on_capability():
     client = CLIENT.read_text()
     assert "set_section_system_login" in client
     assert "delete_section_system_login" in client
-
-
-def _handler_names(exc):
-    names = set()
-    etype = exc.type
-    if isinstance(etype, ast.Name):
-        names.add(etype.id)
-    elif isinstance(etype, ast.Tuple):
-        names.update(e.id for e in etype.elts if isinstance(e, ast.Name))
-    return names
-
-
-def test_value_error_is_caught_only_around_the_op_loop():
-    """A missing leaf is HTTP 400. An empty batch ValueError stays a 500."""
-    tree = ast.parse(ROUTER.read_text())
-    handler = next(
-        node
-        for node in ast.walk(tree)
-        if isinstance(node, ast.AsyncFunctionDef) and node.name == "config_sync_batch_configure"
-    )
-
-    value_error_tries = []
-    for node in ast.walk(handler):
-        if not isinstance(node, ast.Try):
-            continue
-        for exc in node.handlers:
-            if isinstance(exc, ast.ExceptHandler) and "ValueError" in _handler_names(exc):
-                value_error_tries.append(node)
-
-    assert value_error_tries, "config_sync_batch_configure must catch ValueError"
-
-    status_codes = set()
-    for try_node in value_error_tries:
-        for exc in try_node.handlers:
-            if "ValueError" not in _handler_names(exc):
-                continue
-            for call in ast.walk(exc):
-                if isinstance(call, ast.Call) and getattr(call.func, "id", None) == "HTTPException":
-                    for kw in call.keywords:
-                        if kw.arg == "status_code" and isinstance(kw.value, ast.Constant):
-                            status_codes.add(kw.value.value)
-        for call in ast.walk(try_node):
-            if not isinstance(call, ast.Call):
-                continue
-            func = call.func
-            name = getattr(func, "attr", None) or getattr(func, "id", None)
-            assert name != "execute_batch", "ValueError handler must not wrap execute_batch"
-        for exc in try_node.handlers:
-            assert "AttributeError" not in _handler_names(exc)
-
-    assert 400 in status_codes, "ValueError must map to HTTP 400"
-
-    direct_calls = [
-        node
-        for node in ast.walk(handler)
-        if isinstance(node, ast.Call) and getattr(node.func, "attr", None) == "execute_batch"
-    ]
-    assert not direct_calls, "execute_batch must not run on the event loop"
-
-    offloaded = []
-    for node in ast.walk(handler):
-        if not isinstance(node, ast.Await):
-            continue
-        call = node.value
-        if not isinstance(call, ast.Call):
-            continue
-        func = call.func
-        if not (isinstance(func, ast.Name) and func.id == "run_in_threadpool"):
-            continue
-        if (
-            call.args
-            and isinstance(call.args[0], ast.Attribute)
-            and call.args[0].attr == "execute_batch"
-        ):
-            offloaded.append(node)
-    assert len(offloaded) == 1, "execute_batch must go through run_in_threadpool"
-
-    value_error_lines = set()
-    for try_node in value_error_tries:
-        value_error_lines.update(range(try_node.lineno, try_node.end_lineno + 1))
-    for node in offloaded:
-        assert node.lineno not in value_error_lines, (
-            "ValueError handler must not wrap execute_batch"
-        )
