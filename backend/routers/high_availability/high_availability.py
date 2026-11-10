@@ -41,7 +41,7 @@ async def get_capabilities(request: Request):
 async def get_config(request: Request, refresh: bool = False):
     await require_read_permission(request, FeatureGroup.HIGH_AVAILABILITY)
     service = get_session_vyos_service(request)
-    full_config = service.get_full_config(refresh=refresh)
+    full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
     from vyos_mappers import CommandMapperRegistry
     mapper = CommandMapperRegistry.get_mapper("high_availability", service.get_version())
     return mapper.parse_config(full_config)

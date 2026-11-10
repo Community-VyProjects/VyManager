@@ -3,6 +3,7 @@
 Same rule as NTP and BFD: execute_batch goes through run_in_threadpool.
 generate_openvpn_shared_secret has no execute_batch; its blocking call is
 device.generate, and that call is offloaded the same way.
+get_full_config on the named config handlers is offloaded the same way.
 """
 
 import ast
@@ -30,6 +31,15 @@ OFFLOADED = [
     ("generate_certificate", "routers/pki/pki.py", "execute_batch", 1),
     ("generate_openvpn_shared_secret", "routers/pki/pki.py", "generate", 1),
     ("generate_openssh", "routers/pki/pki.py", "execute_batch", 2),
+]
+
+# handler, file, blocking attribute, expected offload count
+CONFIG_OFFLOADED = [
+    ("get_pki_config", "routers/pki/pki.py", "get_full_config", 1),
+    ("reveal_pki_value", "routers/pki/pki.py", "get_full_config", 1),
+    ("generate_certificate", "routers/pki/pki.py", "get_full_config", 1),
+    ("get_wireguard_config", "routers/wireguard/wireguard.py", "get_full_config", 1),
+    ("get_config", "routers/high_availability/high_availability.py", "get_full_config", 1),
 ]
 
 
@@ -76,6 +86,19 @@ def _offloaded(handler: ast.AST, attr: str) -> list[ast.Await]:
     ids=[row[0] for row in OFFLOADED],
 )
 def test_named_handler_runs_blocking_io_off_the_event_loop(name, rel, attr, count):
+    handler = _handler(BACKEND / rel, name)
+    assert not _direct_calls(handler, attr), f"{attr} must not run on the event loop"
+    assert len(_offloaded(handler, attr)) == count, (
+        f"{attr} must go through run_in_threadpool"
+    )
+
+
+@pytest.mark.parametrize(
+    "name,rel,attr,count",
+    CONFIG_OFFLOADED,
+    ids=[row[0] for row in CONFIG_OFFLOADED],
+)
+def test_named_config_handler_reads_config_off_the_event_loop(name, rel, attr, count):
     handler = _handler(BACKEND / rel, name)
     assert not _direct_calls(handler, attr), f"{attr} must not run on the event loop"
     assert len(_offloaded(handler, attr)) == count, (

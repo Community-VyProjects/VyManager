@@ -113,7 +113,7 @@ async def get_wireguard_config(request: Request, refresh: bool = False):
         version = service.get_version()
 
         # Fetch configuration from VyOS
-        full_config = service.get_full_config(refresh=refresh)
+        full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
 
         # Parse raw VyOS config into generalized structure
         mapper = WireGuardMapper(version)
