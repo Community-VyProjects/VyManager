@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CardSizeMenu } from "@/components/dashboard/CardSizeMenu";
 import { pppoeServerService, type PPPoESessionsResponse } from "@/lib/api/pppoe-server";
-import { PPPoEStatsChart, type PPPoEStatsPoint } from "@/components/pppoe-server/PPPoEStatsChart";
+import { PPPoEStatsChart, type PPPoEStatsPoint } from "@/components/service/pppoe-server/PPPoEStatsChart";
 import { useDashboardData } from "@/contexts/DashboardDataContext";
 import { cardPixelHeight, DEFAULT_HEIGHT } from "@/lib/dashboard-layout";
 

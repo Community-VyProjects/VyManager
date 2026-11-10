@@ -1,7 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/layout/AppLayout";
-import { WebProxyContent } from "@/components/webproxy/WebProxyContent";
+import { WebProxyContent } from "@/components/service/webproxy/WebProxyContent";
 
 export default function WebProxyPage() {
   return (

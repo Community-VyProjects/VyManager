@@ -51,7 +51,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useColumnVisibility, type ColumnDef } from "@/hooks/useColumnVisibility";
 import { ColumnToggleButton } from "@/components/column-toggle/ColumnToggleButton";
-import { SessionLabelRegistryDialog } from "@/components/pppoe-server/SessionLabelRegistryDialog";
+import { SessionLabelRegistryDialog } from "@/components/service/pppoe-server/SessionLabelRegistryDialog";
 import {
   pppoeServerService,
   type PPPoEConfigResponse,
@@ -81,8 +81,8 @@ import {
   PPPOptionsModal,
   AdvancedSettingsModal,
   PPPoEStatsChart,
-} from "@/components/pppoe-server";
-import type { PPPoEStatsPoint } from "@/components/pppoe-server/PPPoEStatsChart";
+} from "@/components/service/pppoe-server";
+import type { PPPoEStatsPoint } from "@/components/service/pppoe-server/PPPoEStatsChart";
 
 function sessionMetricValue(session: SessionWithRates, field?: string): number {
   if (field === "tx_bytes") return session.tx_bytes ?? 0;

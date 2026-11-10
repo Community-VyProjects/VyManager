@@ -1,7 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/layout/AppLayout";
-import { HTTPSContent } from "@/components/https/HTTPSContent";
+import { HTTPSContent } from "@/components/service/https/HTTPSContent";
 
 export default function HTTPSPage() {
   return (

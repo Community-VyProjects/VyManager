@@ -13,7 +13,7 @@ from vyos_builders.pppoe_server.pppoe_server_batch_builder import PPPoEServerBat
 from vyos_mappers.pppoe_server.pppoe_server import PPPoEServerMapper
 
 REPO = Path(__file__).resolve().parents[2]
-MODAL = REPO / "frontend/src/components/pppoe-server/InterfaceModal.tsx"
+MODAL = REPO / "frontend/src/components/service/pppoe-server/InterfaceModal.tsx"
 API = REPO / "frontend/src/lib/api/pppoe-server.ts"
 ROUTER = REPO / "backend/routers/pppoe_server/pppoe_server.py"
 
