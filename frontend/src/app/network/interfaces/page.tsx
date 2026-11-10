@@ -35,8 +35,8 @@ import { bondingService, bondingVlanService, bondingVlanCapabilities, bondVifToV
 import { BondingModal } from "@/components/bonding/BondingModal";
 import { DeleteBondingModal } from "@/components/bonding/DeleteBondingModal";
 import { dummyService, type DummyInterface, type DummyCapabilities } from "@/lib/api/dummy";
-import { DummyModal } from "@/components/dummy/DummyModal";
-import { DeleteDummyModal } from "@/components/dummy/DeleteDummyModal";
+import { DummyModal } from "@/components/interfaces/DummyModal";
+import { DeleteDummyModal } from "@/components/interfaces/DeleteDummyModal";
 import { geneveService, type GeneveInterface, type GeneveCapabilities } from "@/lib/api/geneve";
 import { GeneveModal } from "@/components/geneve/GeneveModal";
 import { DeleteGeneveModal } from "@/components/geneve/DeleteGeneveModal";

@@ -19,7 +19,7 @@ from vyos_mappers.interfaces.dummy_versions.v1_4 import DummyMapper_v1_4
 from vyos_mappers.interfaces.dummy_versions.v1_5 import DummyMapper_v1_5
 
 REPO = Path(__file__).resolve().parents[2]
-MODAL = REPO / "frontend/src/components/dummy/DummyModal.tsx"
+MODAL = REPO / "frontend/src/components/interfaces/DummyModal.tsx"
 
 MAC = "00:11:22:33:44:55"
 NETNS = "ns1"
