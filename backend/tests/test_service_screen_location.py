@@ -8,25 +8,25 @@ SERVICE = REPO / "frontend/src/components/service"
 FEATURES = (
     (
         "ssh",
-        REPO / "frontend/src/app/(dashboard)/service/ssh/page.tsx",
+        REPO / "frontend/src/app/service/ssh/page.tsx",
         "SSHContent",
         ("SSHContent.tsx", "SSHAlgorithmsModal.tsx", "SSHAuthenticationModal.tsx"),
     ),
     (
         "snmp",
-        REPO / "frontend/src/app/(dashboard)/service/snmp/page.tsx",
+        REPO / "frontend/src/app/service/snmp/page.tsx",
         "SNMPContent",
         ("SNMPContent.tsx", "SNMPCommunityModal.tsx", "SNMPv3UserModal.tsx"),
     ),
     (
         "lldp",
-        REPO / "frontend/src/app/(dashboard)/service/lldp/page.tsx",
+        REPO / "frontend/src/app/service/lldp/page.tsx",
         "LLDPContent",
         ("LLDPContent.tsx", "LLDPSettingsModal.tsx", "LLDPInterfaceModal.tsx"),
     ),
     (
         "tftp-server",
-        REPO / "frontend/src/app/(dashboard)/service/tftp-server/page.tsx",
+        REPO / "frontend/src/app/service/tftp-server/page.tsx",
         "TFTPServerContent",
         ("TFTPServerContent.tsx", "TFTPServerGeneralModal.tsx", "TFTPServerListenAddressModal.tsx"),
     ),
@@ -66,13 +66,13 @@ FEATURES = (
     ),
     (
         "dhcp-relay",
-        REPO / "frontend/src/app/(dashboard)/service/dhcp-relay/page.tsx",
+        REPO / "frontend/src/app/service/dhcp-relay/page.tsx",
         "DHCPRelayContent",
         ("DHCPRelayContent.tsx", "DHCPRelayModal.tsx"),
     ),
     (
         "dhcpv6-relay",
-        REPO / "frontend/src/app/(dashboard)/service/dhcpv6-relay/page.tsx",
+        REPO / "frontend/src/app/service/dhcpv6-relay/page.tsx",
         "DHCPv6RelayContent",
         ("DHCPv6RelayContent.tsx", "DHCPv6RelayModal.tsx"),
     ),
@@ -102,7 +102,7 @@ FEATURES = (
     ),
     (
         "ndp-proxy",
-        REPO / "frontend/src/app/(dashboard)/service/ndp-proxy/page.tsx",
+        REPO / "frontend/src/app/service/ndp-proxy/page.tsx",
         "NdpProxyContent",
         ("NdpProxyContent.tsx", "NdpProxyInterfaceModal.tsx"),
     ),
@@ -114,25 +114,25 @@ FEATURES = (
     ),
     (
         "router-advert",
-        REPO / "frontend/src/app/(dashboard)/service/router-advert/page.tsx",
+        REPO / "frontend/src/app/service/router-advert/page.tsx",
         "RouterAdvertContent",
         ("RouterAdvertContent.tsx", "RouterAdvertInterfaceModal.tsx"),
     ),
     (
         "salt-minion",
-        REPO / "frontend/src/app/(dashboard)/service/salt-minion/page.tsx",
+        REPO / "frontend/src/app/service/salt-minion/page.tsx",
         "SaltMinionContent",
         ("SaltMinionContent.tsx", "SaltMinionSettingsModal.tsx"),
     ),
     (
         "sla",
-        REPO / "frontend/src/app/(dashboard)/service/sla/page.tsx",
+        REPO / "frontend/src/app/service/sla/page.tsx",
         "SLAContent",
         ("SLAContent.tsx", "SLASettingsModal.tsx"),
     ),
     (
         "suricata",
-        REPO / "frontend/src/app/(dashboard)/service/suricata/page.tsx",
+        REPO / "frontend/src/app/service/suricata/page.tsx",
         "SuricataContent",
         ("SuricataContent.tsx", "SuricataEditor.tsx"),
     ),
@@ -182,10 +182,30 @@ def test_pppoe_dashboard_card_imports_chart_from_service():
     assert 'from "@/components/pppoe-server' not in text
 
 
+def test_service_pages_share_one_source_directory():
+    assert not (REPO / "frontend/src/app/(dashboard)/service").exists()
+    pages = list((REPO / "frontend/src/app/service").glob("*/page.tsx"))
+    assert {page.parent.name for page in pages} >= {
+        "dhcp-relay",
+        "dhcpv6-relay",
+        "lldp",
+        "monitoring",
+        "ndp-proxy",
+        "ntp",
+        "router-advert",
+        "salt-minion",
+        "sla",
+        "snmp",
+        "ssh",
+        "suricata",
+        "tftp-server",
+    }
+
+
 def test_service_monitoring_screens_live_under_service():
     assert not (REPO / "frontend/src/components/service-monitoring").exists()
     assert (REPO / "frontend/src/components/monitoring").is_dir()
     assert (SERVICE / "monitoring" / "ServiceMonitoringContent.tsx").exists()
-    text = (REPO / "frontend/src/app/(dashboard)/service/monitoring/page.tsx").read_text()
+    text = (REPO / "frontend/src/app/service/monitoring/page.tsx").read_text()
     assert 'from "@/components/service/monitoring/ServiceMonitoringContent"' in text
     assert "service-monitoring" not in text
