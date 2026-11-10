@@ -9,13 +9,17 @@ from pathlib import Path
 from tests.en_message import en_message
 
 REPO = Path(__file__).resolve().parents[2]
-COMP = REPO / "frontend/src/components/dummy"
+COMP = REPO / "frontend/src/components/interfaces"
 PAGE = REPO / "frontend/src/app/network/interfaces/page.tsx"
+OLD = REPO / "frontend/src/components/dummy"
 
 
 def test_cloned_create_edit_files_are_gone():
+    assert not OLD.exists()
     assert not (COMP / "CreateDummyModal.tsx").exists()
     assert not (COMP / "EditDummyModal.tsx").exists()
+    assert (COMP / "DummyModal.tsx").exists()
+    assert (COMP / "DeleteDummyModal.tsx").exists()
 
 
 def test_unified_modal_has_existing_and_both_ops():
@@ -31,6 +35,9 @@ def test_unified_modal_has_existing_and_both_ops():
 
 def test_interfaces_page_uses_unified_modal():
     page = PAGE.read_text()
+    assert 'from "@/components/interfaces/DummyModal"' in page
+    assert 'from "@/components/interfaces/DeleteDummyModal"' in page
+    assert 'from "@/components/dummy/' not in page
     assert "DummyModal" in page
     assert 'from "@/components/dummy/CreateDummyModal"' not in page
     assert "<CreateDummyModal" not in page
