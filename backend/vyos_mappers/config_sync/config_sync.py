@@ -1,5 +1,5 @@
 """Config-Sync Service Command Mapper."""
-from typing import List
+from typing import FrozenSet, List
 from ..base import BaseFeatureMapper
 
 BASE = ["service", "config-sync"]
@@ -28,6 +28,21 @@ SECTION_SUBTYPES = {
 class ConfigSyncMapper(BaseFeatureMapper):
     def __init__(self, version: str):
         super().__init__(version)
+
+    def versioned_nodes(self) -> FrozenSet[str]:
+        """1.5-only config-sync leaves this device has.
+
+        Section system login lives on the 1.5 subclass as path methods.
+        Capabilities and builders read this set instead of the version string.
+        """
+        nodes = []
+        if callable(getattr(self, "get_section_system_login", None)):
+            nodes.append("system_login")
+        return frozenset(nodes)
+
+    def _require_node(self, node: str) -> None:
+        if node not in self.versioned_nodes():
+            raise ValueError(f"config-sync {node} is not supported on this device")
 
     # ========================================================================
     # Service-level

@@ -29,29 +29,30 @@ Structure:
         console-server | dhcp-relay | dhcp-server | dhcpv6-relay | dhcpv6-server
         dns | lldp | mdns | monitoring | ndp-proxy | ntp | snmp | tftp-server | webproxy
       system                      # Presence flag (or parent for subtypes)
-                conntrack | flow-accounting | option | sflow
+                conntrack | flow-accounting | login | option | sflow
         static-host-mapping | sysctl | time-zone
 
-The template structure is identical between VyOS 1.4 and 1.5.
+``section system login`` exists only on 1.5. Path methods live on the
+1.5 mapper subclass. Capabilities and ops read that allowlist.
 """
 
-from typing import Dict, Any
+from typing import Any, Dict, cast
 from vyos_mappers import CommandMapperRegistry
 from vyos_builders.base import BatchBuilder
+from vyos_mappers.config_sync.config_sync import ConfigSyncMapper
 
 
 class ConfigSyncBatchBuilder(BatchBuilder):
     def __init__(self, version: str):
         super().__init__(version)
-        self.m = CommandMapperRegistry.get_mapper("config_sync", version)
+        self.m = cast(ConfigSyncMapper, CommandMapperRegistry.get_mapper("config_sync", version))
 
     # -----------------------------------------------------------------------
     # Capabilities
     # -----------------------------------------------------------------------
 
     def get_capabilities(self) -> Dict[str, Any]:
-        is_1_4 = "1.4" in self.version
-        is_1_5 = not is_1_4
+        nodes = self.m.versioned_nodes()
 
         return {
             "version": self.version,
@@ -79,10 +80,10 @@ class ConfigSyncBatchBuilder(BatchBuilder):
                         "interfaces", "protocols", "qos", "service", "system",
                     ],
                 },
-            },
-            "version_info": {
-                "is_1_4": is_1_4,
-                "is_1_5": is_1_5,
+                "system_login": {
+                    "supported": "system_login" in nodes,
+                    "description": "Synchronize system user login",
+                },
             },
         }
 
@@ -155,3 +156,19 @@ class ConfigSyncBatchBuilder(BatchBuilder):
     def delete_section_sub(self, section_name: str, sub_name: str) -> "ConfigSyncBatchBuilder":
         """Disable a sub-section."""
         return self.add_delete(self.m.get_section_sub(section_name, sub_name))
+
+    # -----------------------------------------------------------------------
+    # Section system login (VyOS 1.5+)
+    # -----------------------------------------------------------------------
+
+    def set_section_system_login(self) -> "ConfigSyncBatchBuilder":
+        """Enable sync of system user login. Absent on 1.4."""
+        self.m._require_node("system_login")
+        path = getattr(self.m, "get_section_system_login")()
+        return self.add_set(path)
+
+    def delete_section_system_login(self) -> "ConfigSyncBatchBuilder":
+        """Disable sync of system user login. Absent on 1.4."""
+        self.m._require_node("system_login")
+        path = getattr(self.m, "get_section_system_login_delete")()
+        return self.add_delete(path)

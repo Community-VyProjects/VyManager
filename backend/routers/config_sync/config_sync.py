@@ -1,7 +1,7 @@
 """Config-Sync Service Router.
 
 API endpoints for managing VyOS primary/secondary configuration synchronization.
-The template structure is identical between VyOS 1.4 and 1.5.
+``section system login`` exists only on 1.5.
 
 Endpoints:
   GET  /vyos/config-sync/capabilities  — version-aware feature flags
@@ -122,6 +122,7 @@ class ConfigSyncSections(BaseModel):
     system_static_host_mapping: bool = False
     system_sysctl: bool = False
     system_time_zone: bool = False
+    system_login: bool = False
 
 
 class ConfigSyncConfig(BaseModel):
@@ -229,6 +230,7 @@ _SYSTEM_SUBTYPES: Dict[str, str] = {
     "static-host-mapping": "static_host_mapping",
     "sysctl": "sysctl",
     "time-zone": "time_zone",
+    "login": "login",
 }
 
 
@@ -367,26 +369,29 @@ async def config_sync_batch_configure(
         service = get_session_vyos_service(http_request)
         builder = ConfigSyncBatchBuilder(version=service.get_version())
 
-        for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
+        try:
+            for operation in body.operations:
+                method = resolve_batch_method(builder, operation.op)
+                sig = inspect.signature(method)
+                params = [p for p in sig.parameters.keys() if p != "self"]
 
-            if len(params) == 0:
-                method()
-            elif len(params) == 1:
-                if operation.value is not None:
-                    method(operation.value)
-                else:
+                if len(params) == 0:
                     method()
-            elif len(params) >= 2:
-                if operation.value and "," in operation.value:
-                    parts = operation.value.split(",", len(params) - 1)
-                    method(*parts)
-                elif operation.value:
-                    method(operation.value)
+                elif len(params) == 1:
+                    if operation.value is not None:
+                        method(operation.value)
+                    else:
+                        method()
+                elif len(params) >= 2:
+                    if operation.value and "," in operation.value:
+                        parts = operation.value.split(",", len(params) - 1)
+                        method(*parts)
+                    elif operation.value:
+                        method(operation.value)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
             data={"message": "Config-Sync configuration updated"},
@@ -394,7 +399,7 @@ async def config_sync_batch_configure(
         )
     except HTTPException:
         raise
-    except (AttributeError, ValueError) as e:
+    except AttributeError as e:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {e}")
     except Exception:
         logger.exception("Unhandled error in config_sync_batch_configure")
