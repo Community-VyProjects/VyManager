@@ -130,7 +130,7 @@ async def get_pki_config(request: Request, refresh: bool = False):
         service = get_session_vyos_service(request)
         version = service.get_version()
 
-        full_config = service.get_full_config(refresh=refresh)
+        full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
 
         mapper = PKIMapper(version)
         config = mapper.parse_config(full_config)
@@ -231,7 +231,7 @@ async def reveal_pki_value(http_request: Request, request: PKIRevealRequest):
     try:
         service = get_session_vyos_service(http_request)
         version = service.get_version()
-        full_config = service.get_full_config(refresh=False)
+        full_config = await run_in_threadpool(service.get_full_config, refresh=False)
 
         mapper = PKIMapper(version)
         config = mapper.parse_config(full_config)
@@ -677,7 +677,7 @@ async def generate_certificate(http_request: Request, request: GenerateCertifica
         # Get VyOS config to read CA cert and private key
         service = get_session_vyos_service(http_request)
         version = service.get_version()
-        full_config = service.get_full_config(refresh=False)
+        full_config = await run_in_threadpool(service.get_full_config, refresh=False)
 
         mapper = PKIMapper(version)
         config = mapper.parse_config(full_config)
