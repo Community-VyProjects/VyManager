@@ -1,4 +1,4 @@
-"""SSH, SNMP, LLDP, TFTP server, DNS forwarding, broadcast relay, config sync, and conntrack sync screens live under components/service."""
+"""SSH, SNMP, LLDP, TFTP server, DNS forwarding, broadcast relay, config sync, conntrack sync, and console server screens live under components/service."""
 
 from pathlib import Path
 
@@ -57,6 +57,12 @@ FEATURES = (
         REPO / "frontend/src/app/service/conntrack-sync/page.tsx",
         "ConntrackSyncContent",
         ("ConntrackSyncContent.tsx", "ConntrackSyncModal.tsx"),
+    ),
+    (
+        "console-server",
+        REPO / "frontend/src/app/service/console-server/page.tsx",
+        "ConsoleServerContent",
+        ("ConsoleServerContent.tsx", "ConsoleServerModal.tsx"),
     ),
 )
 
