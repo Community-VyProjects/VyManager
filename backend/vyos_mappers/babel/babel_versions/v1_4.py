@@ -1,12 +1,14 @@
-"""VyOS 1.4 specific Babel protocol commands."""
+"""VyOS 1.4 Babel mapper.
+
+``protocols babel redistribute ipv4 nhrp`` and ``ipv6 nhrp`` do not exist
+on 1.4. This class does not gain those protocols.
+"""
+
+from ..babel import BabelMapper
 
 
-class BabelMapperV1_4:
-    """
-    Version-specific mapper for VyOS 1.4.
+class BabelMapperV1_4(BabelMapper):
+    """VyOS 1.4 Babel mapper."""
 
-    VyOS 1.4 Babel does NOT support:
-    - redistribute ipv4 nhrp
-    - redistribute ipv6 nhrp
-    """
-    pass
+    def __init__(self, version: str):
+        super().__init__(version)

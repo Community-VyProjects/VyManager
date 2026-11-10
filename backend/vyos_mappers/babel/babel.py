@@ -5,7 +5,7 @@ Handles command path generation for Babel routing protocol configuration.
 Version-specific logic is in version-specific files.
 """
 
-from typing import FrozenSet, List
+from typing import Any, Dict, FrozenSet, List
 from ..base import BaseFeatureMapper
 
 
@@ -23,14 +23,10 @@ class BabelMapper(BaseFeatureMapper):
         super().__init__(version)
 
     def redistribute_ipv4_protocols(self) -> FrozenSet[str]:
-        if "1.4" in self.version:
-            return self._REDIST_IPV4
-        return self._REDIST_IPV4 | {"nhrp"}
+        return self._REDIST_IPV4
 
     def redistribute_ipv6_protocols(self) -> FrozenSet[str]:
-        if "1.4" in self.version:
-            return self._REDIST_IPV6
-        return self._REDIST_IPV6 | {"nhrp"}
+        return self._REDIST_IPV6
 
     def _require_redistribute_ipv4(self, protocol: str) -> None:
         if protocol not in self.redistribute_ipv4_protocols():
@@ -211,3 +207,8 @@ class BabelMapper(BaseFeatureMapper):
             "protocols", "babel", "distribute-list", "ipv6",
             "interface", interface, "prefix-list", "out", prefix_list
         ]
+
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_babel_config
+
+        return parse_babel_config(self, full_config)
