@@ -32,8 +32,8 @@ import { tunnelService, type TunnelInterface, type TunnelCapabilities } from "@/
 import { TunnelModal } from "@/components/tunnel/TunnelModal";
 import { DeleteTunnelModal } from "@/components/tunnel/DeleteTunnelModal";
 import { bondingService, bondingVlanService, bondingVlanCapabilities, bondVifToVlanShape, type BondingInterface, type BondingCapabilities } from "@/lib/api/bonding";
-import { BondingModal } from "@/components/bonding/BondingModal";
-import { DeleteBondingModal } from "@/components/bonding/DeleteBondingModal";
+import { BondingModal } from "@/components/interfaces/BondingModal";
+import { DeleteBondingModal } from "@/components/interfaces/DeleteBondingModal";
 import { dummyService, type DummyInterface, type DummyCapabilities } from "@/lib/api/dummy";
 import { DummyModal } from "@/components/interfaces/DummyModal";
 import { DeleteDummyModal } from "@/components/interfaces/DeleteDummyModal";

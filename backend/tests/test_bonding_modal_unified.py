@@ -9,13 +9,17 @@ from pathlib import Path
 from tests.en_message import en_message
 
 REPO = Path(__file__).resolve().parents[2]
-COMP = REPO / "frontend/src/components/bonding"
+COMP = REPO / "frontend/src/components/interfaces"
 PAGE = REPO / "frontend/src/app/network/interfaces/page.tsx"
+OLD = REPO / "frontend/src/components/bonding"
 
 
 def test_cloned_create_edit_files_are_gone():
+    assert not OLD.exists()
     assert not (COMP / "CreateBondingModal.tsx").exists()
     assert not (COMP / "EditBondingModal.tsx").exists()
+    assert (COMP / "BondingModal.tsx").exists()
+    assert (COMP / "DeleteBondingModal.tsx").exists()
 
 
 def test_unified_modal_has_existing_and_both_ops():
@@ -31,6 +35,9 @@ def test_unified_modal_has_existing_and_both_ops():
 
 def test_interfaces_page_uses_unified_modal():
     page = PAGE.read_text()
+    assert 'from "@/components/interfaces/BondingModal"' in page
+    assert 'from "@/components/interfaces/DeleteBondingModal"' in page
+    assert 'from "@/components/bonding/' not in page
     assert "BondingModal" in page
     assert 'from "@/components/bonding/CreateBondingModal"' not in page
     assert "<CreateBondingModal" not in page
