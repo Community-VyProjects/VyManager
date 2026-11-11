@@ -22,7 +22,6 @@ export interface ConsoleServerConfig {
 export interface ConsoleServerCapabilities {
   version: string;
   features: Record<string, unknown>;
-  version_info: { is_1_4: boolean; is_1_5: boolean };
 }
 
 export interface BatchOperation {

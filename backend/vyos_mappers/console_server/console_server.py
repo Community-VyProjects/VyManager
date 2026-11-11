@@ -36,9 +36,6 @@ class ConsoleServerMapper(BaseFeatureMapper):
     def get_device_delete(self, device: str) -> List[str]:
         return BASE + ["device", device]
 
-    def get_devices_delete(self) -> List[str]:
-        return BASE + ["device"]
-
     # device/<name>/alias
     def get_device_alias(self, device: str, alias: str) -> List[str]:
         return BASE + ["device", device, "alias", alias]
@@ -77,9 +74,6 @@ class ConsoleServerMapper(BaseFeatureMapper):
     # device/<name>/ssh/port
     def get_device_ssh_port(self, device: str, port: str) -> List[str]:
         return BASE + ["device", device, "ssh", "port", port]
-
-    def get_device_ssh_port_delete(self, device: str) -> List[str]:
-        return BASE + ["device", device, "ssh", "port"]
 
     def get_device_ssh_delete(self, device: str) -> List[str]:
         return BASE + ["device", device, "ssh"]
