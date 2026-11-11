@@ -160,32 +160,62 @@ class IPSecBatchBuilder(BatchBuilder):
     def set_esp_group_compression(self, name: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_esp_group_compression_path(name))
 
+    def delete_esp_group_compression(self, name: str) -> "IPSecBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_esp_group_compression_path(name))
+
     def set_esp_group_disable_rekey(self, name: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_esp_group_disable_rekey_path(name))
+
+    def delete_esp_group_disable_rekey(self, name: str) -> "IPSecBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_esp_group_disable_rekey_path(name))
 
     def set_esp_group_life_bytes(self, name: str, value: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_esp_group_life_bytes_path(name, value))
 
+    def delete_esp_group_life_bytes(self, name: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_esp_group_life_bytes_path(name, ""))
+
     def set_esp_group_life_packets(self, name: str, value: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_esp_group_life_packets_path(name, value))
+
+    def delete_esp_group_life_packets(self, name: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_esp_group_life_packets_path(name, ""))
 
     def set_esp_group_lifetime(self, name: str, value: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_esp_group_lifetime_path(name, value))
 
+    def delete_esp_group_lifetime(self, name: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_esp_group_lifetime_path(name, ""))
+
     def set_esp_group_mode(self, name: str, mode: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_esp_group_mode_path(name, mode))
+
+    def delete_esp_group_mode(self, name: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_esp_group_mode_path(name, ""))
 
     def set_esp_group_pfs(self, name: str, pfs: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_esp_group_pfs_path(name, pfs))
 
+    def delete_esp_group_pfs(self, name: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_esp_group_pfs_path(name, ""))
+
     def create_esp_group_proposal(self, name: str, proposal: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_esp_group_proposal_path(name, proposal))
+
+    def delete_esp_group_proposal(self, name: str, proposal: str) -> "IPSecBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_esp_group_proposal_path(name, proposal))
 
     def set_esp_group_proposal_encryption(self, name: str, proposal: str, encryption: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_esp_group_proposal_encryption_path(name, proposal, encryption))
 
+    def delete_esp_group_proposal_encryption(self, name: str, proposal: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_esp_group_proposal_encryption_path(name, proposal, ""))
+
     def set_esp_group_proposal_hash(self, name: str, proposal: str, hash_alg: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_esp_group_proposal_hash_path(name, proposal, hash_alg))
+
+    def delete_esp_group_proposal_hash(self, name: str, proposal: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_esp_group_proposal_hash_path(name, proposal, ""))
 
     # ========================================================================
     # IKE Group
@@ -200,44 +230,86 @@ class IPSecBatchBuilder(BatchBuilder):
     def set_ike_group_close_action(self, name: str, action: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ike_group_close_action_path(name, action))
 
+    def delete_ike_group_close_action(self, name: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_ike_group_close_action_path(name, ""))
+
     def set_ike_group_dpd_action(self, name: str, action: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ike_group_dpd_action_path(name, action))
+
+    def delete_ike_group_dpd_action(self, name: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_ike_group_dpd_action_path(name, ""))
 
     def set_ike_group_dpd_interval(self, name: str, interval: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ike_group_dpd_interval_path(name, interval))
 
+    def delete_ike_group_dpd_interval(self, name: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_ike_group_dpd_interval_path(name, ""))
+
     def set_ike_group_dpd_timeout(self, name: str, timeout: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ike_group_dpd_timeout_path(name, timeout))
+
+    def delete_ike_group_dpd_timeout(self, name: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_ike_group_dpd_timeout_path(name, ""))
 
     def set_ike_group_disable_mobike(self, name: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ike_group_disable_mobike_path(name))
 
+    def delete_ike_group_disable_mobike(self, name: str) -> "IPSecBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_ike_group_disable_mobike_path(name))
+
     def set_ike_group_ikev2_reauth(self, name: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ike_group_ikev2_reauth_path(name))
+
+    def delete_ike_group_ikev2_reauth(self, name: str) -> "IPSecBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_ike_group_ikev2_reauth_path(name))
 
     def set_ike_group_key_exchange(self, name: str, key_exchange: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ike_group_key_exchange_path(name, key_exchange))
 
+    def delete_ike_group_key_exchange(self, name: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_ike_group_key_exchange_path(name, ""))
+
     def set_ike_group_lifetime(self, name: str, lifetime: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ike_group_lifetime_path(name, lifetime))
+
+    def delete_ike_group_lifetime(self, name: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_ike_group_lifetime_path(name, ""))
 
     def set_ike_group_mode(self, name: str, mode: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ike_group_mode_path(name, mode))
 
+    def delete_ike_group_mode(self, name: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_ike_group_mode_path(name, ""))
+
     def create_ike_group_proposal(self, name: str, proposal: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ike_group_proposal_path(name, proposal))
+
+    def delete_ike_group_proposal(self, name: str, proposal: str) -> "IPSecBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_ike_group_proposal_path(name, proposal))
 
     def set_ike_group_proposal_dh_group(self, name: str, proposal: str, dh_group: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ike_group_proposal_dh_group_path(name, proposal, dh_group))
 
+    def delete_ike_group_proposal_dh_group(self, name: str, proposal: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_ike_group_proposal_dh_group_path(name, proposal, ""))
+
     def set_ike_group_proposal_encryption(self, name: str, proposal: str, encryption: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ike_group_proposal_encryption_path(name, proposal, encryption))
+
+    def delete_ike_group_proposal_encryption(self, name: str, proposal: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_ike_group_proposal_encryption_path(name, proposal, ""))
 
     def set_ike_group_proposal_hash(self, name: str, proposal: str, hash_alg: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ike_group_proposal_hash_path(name, proposal, hash_alg))
 
+    def delete_ike_group_proposal_hash(self, name: str, proposal: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_ike_group_proposal_hash_path(name, proposal, ""))
+
     def set_ike_group_proposal_prf(self, name: str, proposal: str, prf: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ike_group_proposal_prf_path(name, proposal, prf))
+
+    def delete_ike_group_proposal_prf(self, name: str, proposal: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_ike_group_proposal_prf_path(name, proposal, ""))
 
     # ========================================================================
     # Site-to-Site Peer
@@ -597,11 +669,20 @@ class IPSecBatchBuilder(BatchBuilder):
     def set_ra_pool_prefix(self, pool: str, prefix: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_pool_prefix_path(pool, prefix))
 
+    def delete_ra_pool_prefix(self, pool: str, prefix: str) -> "IPSecBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_ra_pool_prefix_path(pool, prefix))
+
     def set_ra_pool_name_server(self, pool: str, server: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_pool_name_server_path(pool, server))
 
+    def delete_ra_pool_name_server(self, pool: str, server: str) -> "IPSecBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_ra_pool_name_server_path(pool, server))
+
     def set_ra_pool_exclude(self, pool: str, exclude: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_pool_exclude_path(pool, exclude))
+
+    def delete_ra_pool_exclude(self, pool: str, exclude: str) -> "IPSecBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_ra_pool_exclude_path(pool, exclude))
 
     # Pool Range (1.5 only)
     def set_ra_pool_range_start(self, pool: str, start: str) -> "IPSecBatchBuilder":
@@ -613,6 +694,16 @@ class IPSecBatchBuilder(BatchBuilder):
         mapper = self.mappers[self.mapper_key]
         mapper._require_node("pool_range")
         return self.add_set(getattr(mapper, "get_ra_pool_range_stop_path")(pool, stop))
+
+    def delete_ra_pool_range_start(self, pool: str) -> "IPSecBatchBuilder":
+        mapper = self.mappers[self.mapper_key]
+        mapper._require_node("pool_range")
+        return self._delete_value_node(getattr(mapper, "get_ra_pool_range_start_path")(pool, ""))
+
+    def delete_ra_pool_range_stop(self, pool: str) -> "IPSecBatchBuilder":
+        mapper = self.mappers[self.mapper_key]
+        mapper._require_node("pool_range")
+        return self._delete_value_node(getattr(mapper, "get_ra_pool_range_stop_path")(pool, ""))
 
     # ========================================================================
     # Capabilities
@@ -646,10 +737,22 @@ class IPSecBatchBuilder(BatchBuilder):
                 "ike_groups": {
                     "supported": True,
                     "description": "IKE group configuration",
+                    "key_exchange": mapper.ike_key_exchange_values(),
+                    "mode": mapper.ike_mode_values(),
+                    "close_action": mapper.ike_close_action_values(),
+                    "dpd_action": mapper.ike_dpd_action_values(),
+                    "encryption": mapper.proposal_encryption_values(),
+                    "hash": mapper.proposal_hash_values(),
+                    "dh_group": mapper.ike_dh_group_values(),
+                    "prf": mapper.proposal_prf_values(),
                 },
                 "esp_groups": {
                     "supported": True,
                     "description": "ESP group configuration",
+                    "mode": mapper.esp_mode_values(),
+                    "pfs": mapper.esp_pfs_values(),
+                    "encryption": mapper.proposal_encryption_values(),
+                    "hash": mapper.proposal_hash_values(),
                 },
                 "retransmission_options": {
                     "supported": "retransmission" in nodes,

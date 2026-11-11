@@ -39,19 +39,18 @@ interface ProposalRow {
   hash: string;
 }
 
-const ENCRYPTION_OPTIONS = ["aes128", "aes256", "aes128gcm128", "aes256gcm128", "3des", "chacha20poly1305"];
-const HASH_OPTIONS = ["sha1", "sha256", "sha384", "sha512", "md5"];
-const PFS_OPTIONS = ["enable", "disable", "dh-group1", "dh-group2", "dh-group5", "dh-group14", "dh-group15", "dh-group16", "dh-group19", "dh-group20", "dh-group21", "dh-group24", "dh-group25", "dh-group26", "dh-group27", "dh-group28", "dh-group31"];
-
 export function ESPGroupModal({
   open,
   onOpenChange,
   onSuccess,
+  capabilities,
   existingGroup,
 }: ESPGroupModalProps) {
   const t = useTranslations("ipsecSettings");
   const tc = useTranslations("common");
   const isEdit = !!existingGroup;
+  const esp = capabilities?.features.esp_groups;
+  const pick = (value: string) => (value === "_none" ? "" : value);
 
   const [name, setName] = useState("");
   const [lifetime, setLifetime] = useState("3600");
@@ -72,21 +71,19 @@ export function ESPGroupModal({
     if (open) {
       if (existingGroup) {
         setName(existingGroup.name);
-        setLifetime(existingGroup.lifetime || "3600");
-        setMode(existingGroup.mode || "tunnel");
-        setPfs(existingGroup.pfs || "dh-group14");
+        setLifetime(existingGroup.lifetime || "");
+        setMode(existingGroup.mode || "");
+        setPfs(existingGroup.pfs || "");
         setCompression(existingGroup.compression || false);
         setDisableRekey(existingGroup.disable_rekey || false);
         setLifeBytes(existingGroup.life_bytes || "");
         setLifePackets(existingGroup.life_packets || "");
         setProposals(
-          existingGroup.proposals.length > 0
-            ? existingGroup.proposals.map((p) => ({
-                id: p.number,
-                encryption: p.encryption || "aes256",
-                hash: p.hash || "sha256",
-              }))
-            : [{ id: "1", encryption: "aes256", hash: "sha256" }]
+          (existingGroup.proposals || []).map((p) => ({
+            id: p.number,
+            encryption: p.encryption || "",
+            hash: p.hash || "",
+          }))
         );
       } else {
         setName("");
@@ -104,12 +101,12 @@ export function ESPGroupModal({
   }, [open, existingGroup]);
 
   const addProposal = () => {
-    const nextNum = String(Math.max(...proposals.map((p) => parseInt(p.id)), 0) + 1);
-    setProposals([...proposals, { id: nextNum, encryption: "aes256", hash: "sha256" }]);
+    const nextNum = String(Math.max(0, ...proposals.map((p) => parseInt(p.id) || 0)) + 1);
+    setProposals([...proposals, { id: nextNum, encryption: "", hash: "" }]);
   };
 
   const removeProposal = (id: string) => {
-    if (proposals.length > 1) setProposals(proposals.filter((p) => p.id !== id));
+    setProposals(proposals.filter((p) => p.id !== id));
   };
 
   const updateProposal = (id: string, field: keyof ProposalRow, value: string) => {
@@ -123,9 +120,7 @@ export function ESPGroupModal({
     setError(null);
 
     try {
-      if (isEdit) await ipsecService.deleteESPGroup(existingGroup!.name);
-
-      const result = await ipsecService.createESPGroup(name.trim(), {
+      const payload = {
         lifetime: lifetime || undefined,
         mode: mode || undefined,
         pfs: pfs || undefined,
@@ -138,7 +133,10 @@ export function ESPGroupModal({
           encryption: p.encryption || undefined,
           hash: p.hash || undefined,
         })),
-      });
+      };
+      const result = isEdit && existingGroup
+        ? await ipsecService.updateESPGroup(name.trim(), payload, existingGroup)
+        : await ipsecService.createESPGroup(name.trim(), payload);
 
       if (result.success) {
         onOpenChange(false);
@@ -179,20 +177,21 @@ export function ESPGroupModal({
             </div>
             <div className="space-y-2">
               <Label>{t("shared.mode")}</Label>
-              <Select value={mode} onValueChange={setMode}>
+              <Select value={mode || "_none"} onValueChange={(v) => setMode(pick(v))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="tunnel">{t("esp.modeTunnel")}</SelectItem>
-                  <SelectItem value="transport">{t("esp.modeTransport")}</SelectItem>
+                  <SelectItem value="_none">{tc("default")}</SelectItem>
+                  {(esp?.mode || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label>PFS</Label>
-              <Select value={pfs} onValueChange={setPfs}>
+              <Select value={pfs || "_none"} onValueChange={(v) => setPfs(pick(v))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {PFS_OPTIONS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                  <SelectItem value="_none">{tc("default")}</SelectItem>
+                  {(esp?.pfs || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -233,23 +232,25 @@ export function ESPGroupModal({
                 <div className="text-xs text-muted-foreground font-mono w-6 text-center pt-5">#{p.id}</div>
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">{t("shared.encryption")}</Label>
-                  <Select value={p.encryption} onValueChange={(v) => updateProposal(p.id, "encryption", v)}>
+                  <Select value={p.encryption || "_none"} onValueChange={(v) => updateProposal(p.id, "encryption", pick(v))}>
                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {ENCRYPTION_OPTIONS.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                      <SelectItem value="_none">{tc("default")}</SelectItem>
+                      {(esp?.encryption || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">{t("shared.hash")}</Label>
-                  <Select value={p.hash} onValueChange={(v) => updateProposal(p.id, "hash", v)}>
+                  <Select value={p.hash || "_none"} onValueChange={(v) => updateProposal(p.id, "hash", pick(v))}>
                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {HASH_OPTIONS.map((h) => <SelectItem key={h} value={h}>{h}</SelectItem>)}
+                      <SelectItem value="_none">{tc("default")}</SelectItem>
+                      {(esp?.hash || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
-                <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:bg-destructive/10" onClick={() => removeProposal(p.id)} disabled={proposals.length <= 1}>
+                <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:bg-destructive/10" onClick={() => removeProposal(p.id)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>

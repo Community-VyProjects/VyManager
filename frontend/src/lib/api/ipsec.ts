@@ -219,8 +219,26 @@ export interface IPSecCapabilities {
       tunnel_protocols: string[];
     };
     remote_access: { supported: boolean; description: string };
-    ike_groups: { supported: boolean; description: string };
-    esp_groups: { supported: boolean; description: string };
+    ike_groups: {
+      supported: boolean;
+      description: string;
+      key_exchange: string[];
+      mode: string[];
+      close_action: string[];
+      dpd_action: string[];
+      encryption: string[];
+      hash: string[];
+      dh_group: string[];
+      prf: string[];
+    };
+    esp_groups: {
+      supported: boolean;
+      description: string;
+      mode: string[];
+      pfs: string[];
+      encryption: string[];
+      hash: string[];
+    };
     retransmission_options: { supported: boolean; description: string };
     pool_range: { supported: boolean; description: string };
     always_send_cert: { supported: boolean; description: string };
@@ -317,6 +335,61 @@ class IPSecService {
     return this.batchConfigure(name, [{ op: "delete_ike_group" }]);
   }
 
+  async updateIKEGroup(
+    name: string,
+    config: {
+      key_exchange?: string; lifetime?: string; mode?: string; close_action?: string;
+      dpd_action?: string; dpd_interval?: string; dpd_timeout?: string;
+      disable_mobike?: boolean; ikev2_reauth?: boolean;
+      proposals?: Array<{ number: string; encryption?: string; hash?: string; dh_group?: string; prf?: string }>;
+    },
+    existing: IKEGroup
+  ): Promise<VyOSResponse> {
+    const ops: BatchOperation[] = [{ op: "create_ike_group" }];
+    const leaf = (setOp: string, deleteOp: string, next?: string, prev?: string | null) => {
+      if (next && next !== prev) ops.push({ op: setOp, value: next });
+      else if (!next && prev) ops.push({ op: deleteOp });
+    };
+    const flag = (setOp: string, deleteOp: string, next?: boolean, prev?: boolean) => {
+      if (next && !prev) ops.push({ op: setOp });
+      else if (!next && prev) ops.push({ op: deleteOp });
+    };
+    leaf("set_ike_group_key_exchange", "delete_ike_group_key_exchange", config.key_exchange, existing.key_exchange);
+    leaf("set_ike_group_lifetime", "delete_ike_group_lifetime", config.lifetime, existing.lifetime);
+    leaf("set_ike_group_mode", "delete_ike_group_mode", config.mode, existing.mode);
+    leaf("set_ike_group_close_action", "delete_ike_group_close_action", config.close_action, existing.close_action);
+    leaf("set_ike_group_dpd_action", "delete_ike_group_dpd_action", config.dpd_action, existing.dpd_action);
+    leaf("set_ike_group_dpd_interval", "delete_ike_group_dpd_interval", config.dpd_interval, existing.dpd_interval);
+    leaf("set_ike_group_dpd_timeout", "delete_ike_group_dpd_timeout", config.dpd_timeout, existing.dpd_timeout);
+    flag("set_ike_group_disable_mobike", "delete_ike_group_disable_mobike", config.disable_mobike, existing.disable_mobike);
+    flag("set_ike_group_ikev2_reauth", "delete_ike_group_ikev2_reauth", config.ikev2_reauth, existing.ikev2_reauth);
+    const prevByNumber = new Map((existing.proposals || []).map((proposal) => [String(proposal.number), proposal]));
+    const nextByNumber = new Map((config.proposals || []).map((proposal) => [String(proposal.number), proposal]));
+    for (const number of prevByNumber.keys()) {
+      if (!nextByNumber.has(number)) ops.push({ op: "delete_ike_group_proposal", value: number });
+    }
+    for (const [number, next] of nextByNumber) {
+      const prev = prevByNumber.get(number);
+      if (!prev) {
+        ops.push({ op: "create_ike_group_proposal", value: number });
+        if (next.encryption) ops.push({ op: "set_ike_group_proposal_encryption", value: `${number}|${next.encryption}` });
+        if (next.hash) ops.push({ op: "set_ike_group_proposal_hash", value: `${number}|${next.hash}` });
+        if (next.dh_group) ops.push({ op: "set_ike_group_proposal_dh_group", value: `${number}|${next.dh_group}` });
+        if (next.prf) ops.push({ op: "set_ike_group_proposal_prf", value: `${number}|${next.prf}` });
+        continue;
+      }
+      const field = (setOp: string, deleteOp: string, nextValue?: string, prevValue?: string | null) => {
+        if (nextValue && nextValue !== prevValue) ops.push({ op: setOp, value: `${number}|${nextValue}` });
+        else if (!nextValue && prevValue) ops.push({ op: deleteOp, value: number });
+      };
+      field("set_ike_group_proposal_encryption", "delete_ike_group_proposal_encryption", next.encryption, prev.encryption);
+      field("set_ike_group_proposal_hash", "delete_ike_group_proposal_hash", next.hash, prev.hash);
+      field("set_ike_group_proposal_dh_group", "delete_ike_group_proposal_dh_group", next.dh_group, prev.dh_group);
+      field("set_ike_group_proposal_prf", "delete_ike_group_proposal_prf", next.prf, prev.prf);
+    }
+    return this.batchConfigure(name, ops);
+  }
+
   // ==========================================================================
   // ESP Group Operations
   // ==========================================================================
@@ -351,6 +424,54 @@ class IPSecService {
 
   async deleteESPGroup(name: string): Promise<VyOSResponse> {
     return this.batchConfigure(name, [{ op: "delete_esp_group" }]);
+  }
+
+  async updateESPGroup(
+    name: string,
+    config: {
+      lifetime?: string; mode?: string; pfs?: string; compression?: boolean; disable_rekey?: boolean;
+      life_bytes?: string; life_packets?: string;
+      proposals?: Array<{ number: string; encryption?: string; hash?: string }>;
+    },
+    existing: ESPGroup
+  ): Promise<VyOSResponse> {
+    const ops: BatchOperation[] = [{ op: "create_esp_group" }];
+    const leaf = (setOp: string, deleteOp: string, next?: string, prev?: string | null) => {
+      if (next && next !== prev) ops.push({ op: setOp, value: next });
+      else if (!next && prev) ops.push({ op: deleteOp });
+    };
+    const flag = (setOp: string, deleteOp: string, next?: boolean, prev?: boolean) => {
+      if (next && !prev) ops.push({ op: setOp });
+      else if (!next && prev) ops.push({ op: deleteOp });
+    };
+    leaf("set_esp_group_lifetime", "delete_esp_group_lifetime", config.lifetime, existing.lifetime);
+    leaf("set_esp_group_mode", "delete_esp_group_mode", config.mode, existing.mode);
+    leaf("set_esp_group_pfs", "delete_esp_group_pfs", config.pfs, existing.pfs);
+    leaf("set_esp_group_life_bytes", "delete_esp_group_life_bytes", config.life_bytes, existing.life_bytes);
+    leaf("set_esp_group_life_packets", "delete_esp_group_life_packets", config.life_packets, existing.life_packets);
+    flag("set_esp_group_compression", "delete_esp_group_compression", config.compression, existing.compression);
+    flag("set_esp_group_disable_rekey", "delete_esp_group_disable_rekey", config.disable_rekey, existing.disable_rekey);
+    const prevByNumber = new Map((existing.proposals || []).map((proposal) => [String(proposal.number), proposal]));
+    const nextByNumber = new Map((config.proposals || []).map((proposal) => [String(proposal.number), proposal]));
+    for (const number of prevByNumber.keys()) {
+      if (!nextByNumber.has(number)) ops.push({ op: "delete_esp_group_proposal", value: number });
+    }
+    for (const [number, next] of nextByNumber) {
+      const prev = prevByNumber.get(number);
+      if (!prev) {
+        ops.push({ op: "create_esp_group_proposal", value: number });
+        if (next.encryption) ops.push({ op: "set_esp_group_proposal_encryption", value: `${number}|${next.encryption}` });
+        if (next.hash) ops.push({ op: "set_esp_group_proposal_hash", value: `${number}|${next.hash}` });
+        continue;
+      }
+      const field = (setOp: string, deleteOp: string, nextValue?: string, prevValue?: string | null) => {
+        if (nextValue && nextValue !== prevValue) ops.push({ op: setOp, value: `${number}|${nextValue}` });
+        else if (!nextValue && prevValue) ops.push({ op: deleteOp, value: number });
+      };
+      field("set_esp_group_proposal_encryption", "delete_esp_group_proposal_encryption", next.encryption, prev.encryption);
+      field("set_esp_group_proposal_hash", "delete_esp_group_proposal_hash", next.hash, prev.hash);
+    }
+    return this.batchConfigure(name, ops);
   }
 
   // ==========================================================================
@@ -864,6 +985,30 @@ class IPSecService {
 
   async deleteRAPool(name: string): Promise<VyOSResponse> {
     return this.batchConfigure(name, [{ op: "delete_ra_pool" }]);
+  }
+
+  async updateRAPool(
+    name: string,
+    config: { prefix?: string[]; name_servers?: string[]; exclude?: string[]; range_start?: string; range_stop?: string },
+    existing: RAPool
+  ): Promise<VyOSResponse> {
+    const ops: BatchOperation[] = [{ op: "create_ra_pool" }];
+    const multi = (setOp: string, deleteOp: string, next: string[] = [], prev: string[] = []) => {
+      const nextSet = new Set(next);
+      const prevSet = new Set(prev);
+      for (const value of prev) if (!nextSet.has(value)) ops.push({ op: deleteOp, value });
+      for (const value of next) if (!prevSet.has(value)) ops.push({ op: setOp, value });
+    };
+    const leaf = (setOp: string, deleteOp: string, next?: string, prev?: string | null) => {
+      if (next && next !== prev) ops.push({ op: setOp, value: next });
+      else if (!next && prev) ops.push({ op: deleteOp });
+    };
+    multi("set_ra_pool_prefix", "delete_ra_pool_prefix", config.prefix, existing.prefix);
+    multi("set_ra_pool_name_server", "delete_ra_pool_name_server", config.name_servers, existing.name_servers);
+    multi("set_ra_pool_exclude", "delete_ra_pool_exclude", config.exclude, existing.exclude);
+    leaf("set_ra_pool_range_start", "delete_ra_pool_range_start", config.range_start, existing.range_start);
+    leaf("set_ra_pool_range_stop", "delete_ra_pool_range_stop", config.range_stop, existing.range_stop);
+    return this.batchConfigure(name, ops);
   }
 
   // ==========================================================================

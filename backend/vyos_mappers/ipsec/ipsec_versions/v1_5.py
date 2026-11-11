@@ -32,6 +32,16 @@ class IPSecMapperV1_5(IPSecMapper):
     def childless_values(self) -> List[str]:
         return ["allow", "prefer", "force", "never"]
 
+    def ike_dh_group_values(self) -> List[str]:
+        return ["1", "2", "5", *[str(n) for n in range(14, 36)]]
+
+    def esp_pfs_values(self) -> List[str]:
+        return [
+            "enable", "dh-group1", "dh-group2", "dh-group5",
+            *[f"dh-group{n}" for n in range(14, 36)],
+            "disable",
+        ]
+
     def get_options_retransmission_attempts_path(self, attempts: str) -> List[str]:
         return ["vpn", "ipsec", "options", "retransmission", "attempts", attempts]
 

@@ -76,15 +76,16 @@ export function PoolModal({
     setError(null);
 
     try {
-      if (isEdit) await ipsecService.deleteRAPool(existingPool!.name);
-
-      const result = await ipsecService.createRAPool(name.trim(), {
+      const payload = {
         prefix: prefix ? splitValues(prefix) : undefined,
         name_servers: nameServers ? splitValues(nameServers) : undefined,
         exclude: exclude ? splitValues(exclude) : undefined,
         range_start: rangeStart || undefined,
         range_stop: rangeStop || undefined,
-      });
+      };
+      const result = isEdit && existingPool
+        ? await ipsecService.updateRAPool(name.trim(), payload, existingPool)
+        : await ipsecService.createRAPool(name.trim(), payload);
 
       if (result.success) {
         onOpenChange(false);
@@ -118,7 +119,6 @@ export function PoolModal({
           <div className="space-y-2">
             <Label>{t("pool.prefixes")}</Label>
             <Input value={prefix} onChange={(e) => setPrefix(e.target.value)} placeholder="10.10.0.0/24, 10.10.1.0/24" />
-            <p className="text-xs text-muted-foreground">{t("pool.prefixesHelp")}</p>
           </div>
           <div className="space-y-2">
             <Label>{t("pool.dnsServers")}</Label>
@@ -127,7 +127,6 @@ export function PoolModal({
           <div className="space-y-2">
             <Label>{t("pool.exclude")}</Label>
             <Input value={exclude} onChange={(e) => setExclude(e.target.value)} placeholder="10.10.0.1, 10.10.0.254" />
-            <p className="text-xs text-muted-foreground">{t("pool.excludeHelp")}</p>
           </div>
           {capabilities?.features.pool_range.supported && (
             <div className="grid grid-cols-2 gap-4">

@@ -45,6 +45,55 @@ class IPSecMapper(BaseFeatureMapper):
             "hip", "shim6", "wesp", "rohc", "ethernet", "mptcp",
         ]
 
+    def ike_key_exchange_values(self) -> List[str]:
+        return ["ikev1", "ikev2"]
+
+    def ike_mode_values(self) -> List[str]:
+        return ["main", "aggressive"]
+
+    def ike_close_action_values(self) -> List[str]:
+        return ["none", "trap", "start"]
+
+    def ike_dpd_action_values(self) -> List[str]:
+        return ["trap", "clear", "restart"]
+
+    def proposal_encryption_values(self) -> List[str]:
+        return [
+            "null", "aes128", "aes192", "aes256", "aes128ctr", "aes192ctr", "aes256ctr",
+            "aes128ccm64", "aes192ccm64", "aes256ccm64", "aes128ccm96", "aes192ccm96",
+            "aes256ccm96", "aes128ccm128", "aes192ccm128", "aes256ccm128", "aes128gcm64",
+            "aes192gcm64", "aes256gcm64", "aes128gcm96", "aes192gcm96", "aes256gcm96",
+            "aes128gcm128", "aes192gcm128", "aes256gcm128", "aes128gmac", "aes192gmac",
+            "aes256gmac", "3des", "blowfish128", "blowfish192", "blowfish256",
+            "camellia128", "camellia192", "camellia256", "camellia128ctr", "camellia192ctr",
+            "camellia256ctr", "camellia128ccm64", "camellia192ccm64", "camellia256ccm64",
+            "camellia128ccm96", "camellia192ccm96", "camellia256ccm96", "camellia128ccm128",
+            "camellia192ccm128", "camellia256ccm128", "serpent128", "serpent192", "serpent256",
+            "twofish128", "twofish192", "twofish256", "cast128", "chacha20poly1305",
+        ]
+
+    def proposal_hash_values(self) -> List[str]:
+        return [
+            "md5", "md5_128", "sha1", "sha1_160", "sha256", "sha256_96", "sha384", "sha512",
+            "aesxcbc", "aescmac", "aes128gmac", "aes192gmac", "aes256gmac",
+        ]
+
+    def proposal_prf_values(self) -> List[str]:
+        return ["prfmd5", "prfsha1", "prfaesxcbc", "prfaescmac", "prfsha256", "prfsha384", "prfsha512"]
+
+    def ike_dh_group_values(self) -> List[str]:
+        return ["1", "2", "5", *[str(n) for n in range(14, 33)]]
+
+    def esp_mode_values(self) -> List[str]:
+        return ["tunnel", "transport"]
+
+    def esp_pfs_values(self) -> List[str]:
+        return [
+            "enable", "dh-group1", "dh-group2", "dh-group5",
+            *[f"dh-group{n}" for n in range(14, 33)],
+            "disable",
+        ]
+
     # ========================================================================
     # Base path
     # ========================================================================
