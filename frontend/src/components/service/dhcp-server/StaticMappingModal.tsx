@@ -137,7 +137,7 @@ export function StaticMappingModal({
           existing.mapping.name,
         );
         const updated = await submitMappingUpdate(existing, draft, undefined, follow);
-        const updateError = failedSaveMessage(updated, "Failed to update static mapping");
+        const updateError = failedSaveMessage(updated, t("mapping.updateFailed"));
         if (updateError) {
           setError(updateError);
           return;
@@ -150,7 +150,7 @@ export function StaticMappingModal({
           draft.name.trim(),
         );
         const created = await submitMappingCreate(network.name, draft, undefined, follow);
-        const createError = failedSaveMessage(created, "Failed to create static mapping");
+        const createError = failedSaveMessage(created, t("mapping.createFailed"));
         if (createError) {
           setError(createError);
           return;

@@ -213,7 +213,7 @@ export function DHCPDdnsModal({
             </Button>
           </div>
           <Select
-            value={domain.key_name || undefined}
+            value={domain.key_name || "__none__"}
             onValueChange={(v) =>
               updateDomain(kind, index, { key_name: v === "__none__" ? "" : v })
             }

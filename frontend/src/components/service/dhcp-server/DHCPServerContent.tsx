@@ -47,6 +47,7 @@ import { cn } from "@/lib/utils";
 import { ClickableSubnet } from "@/components/ui/clickable-items";
 import { DHCPServerModal } from "./DHCPServerModal";
 import { DeleteDHCPModal } from "./DeleteDHCPModal";
+import { failedSaveMessage } from "./dhcp-save";
 import { DeleteStaticMappingModal } from "./DeleteStaticMappingModal";
 import { AddLeaseToStaticMappingModal } from "./AddLeaseToStaticMappingModal";
 import { RangeModal } from "./RangeModal";
@@ -151,6 +152,16 @@ export function DHCPServerContent() {
   const [clearLeaseLoading, setClearLeaseLoading] = useState(false);
   const [clearLeaseError, setClearLeaseError] = useState<string | null>(null);
 
+  // Delete range confirmation state
+  const [deleteRangeTarget, setDeleteRangeTarget] = useState<{
+    subnet: string;
+    range_id: string;
+    start: string;
+    stop: string;
+  } | null>(null);
+  const [deleteRangeLoading, setDeleteRangeLoading] = useState(false);
+  const [deleteRangeError, setDeleteRangeError] = useState<string | null>(null);
+
   // Range modal state
   const [addingRange, setAddingRange] = useState(false);
   const [editingRange, setEditingRange] = useState<{
@@ -245,13 +256,32 @@ export function DHCPServerContent() {
     }
   };
 
-  const handleDeleteRange = async (subnet: string, rangeId: string) => {
-    if (!currentNetwork) return;
+  const closeDeleteRange = () => {
+    setDeleteRangeTarget(null);
+    setDeleteRangeError(null);
+  };
+
+  const handleConfirmDeleteRange = async () => {
+    if (!currentNetwork || !deleteRangeTarget) return;
+    setDeleteRangeLoading(true);
+    setDeleteRangeError(null);
     try {
-      await dhcpServerService.deleteRange(currentNetwork.name, subnet, rangeId);
+      const result = await dhcpServerService.deleteRange(
+        currentNetwork.name,
+        deleteRangeTarget.subnet,
+        deleteRangeTarget.range_id,
+      );
+      const deleteError = failedSaveMessage(result, t("range.deleteFailed"));
+      if (deleteError) {
+        setDeleteRangeError(deleteError);
+        return;
+      }
+      closeDeleteRange();
       fetchConfig(true);
     } catch (err) {
-      console.error("Error deleting range:", err);
+      setDeleteRangeError(err instanceof Error ? err.message : t("range.deleteFailed"));
+    } finally {
+      setDeleteRangeLoading(false);
     }
   };
 
@@ -964,7 +994,14 @@ export function DHCPServerContent() {
                                           variant="ghost"
                                           size="icon"
                                           className="h-8 w-8 hover:bg-destructive/10"
-                                          onClick={() => handleDeleteRange(range.subnet, range.range_id)}
+                                          onClick={() =>
+                                            setDeleteRangeTarget({
+                                              subnet: range.subnet,
+                                              range_id: range.range_id,
+                                              start: range.start ?? "",
+                                              stop: range.stop ?? "",
+                                            })
+                                          }
                                         >
                                           <Trash2 className="h-4 w-4 text-destructive" />
                                         </Button>
@@ -1614,7 +1651,47 @@ export function DHCPServerContent() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <Dialog
+          open={!!deleteRangeTarget}
+          onOpenChange={(open) => {
+            if (!open && !deleteRangeLoading) closeDeleteRange();
+          }}
+        >
+          <DialogContent className="sm:max-w-[420px]">
+            <DialogHeader>
+              <DialogTitle>{t("range.deleteTitle")}</DialogTitle>
+              <DialogDescription>
+                {t.rich("range.deleteDescription", {
+                  id: deleteRangeTarget?.range_id ?? "",
+                  start: deleteRangeTarget?.start ?? "",
+                  stop: deleteRangeTarget?.stop ?? "",
+                  subnet: deleteRangeTarget?.subnet ?? "",
+                  mono: (chunks) => <span className="font-mono">{chunks}</span>,
+                })}
+              </DialogDescription>
+            </DialogHeader>
+
+            {deleteRangeError && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0" />
+                <p className="text-sm text-destructive">{deleteRangeError}</p>
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" onClick={closeDeleteRange} disabled={deleteRangeLoading}>
+                {tc("cancel")}
+              </Button>
+              <Button variant="destructive" onClick={handleConfirmDeleteRange} disabled={deleteRangeLoading}>
+                {deleteRangeLoading
+                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{tc("deleting")}</>
+                  : tc("delete")
+                }
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
   );
 }
-

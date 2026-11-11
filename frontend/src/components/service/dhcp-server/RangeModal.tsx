@@ -128,7 +128,7 @@ export function RangeModal({
           existing.range.range_id,
         );
         const updated = await submitRangeUpdate(network.name, existing, draft, dhcpServerService, follow);
-        const updateError = failedSaveMessage(updated, "Failed to save range");
+        const updateError = failedSaveMessage(updated, t("range.updateFailed"));
         if (updateError) {
           setError(updateError);
           return;
@@ -137,7 +137,7 @@ export function RangeModal({
         const rangeId = nextRangeId(network, draft.subnet);
         const follow = catalogCreateOps("set_range_catalog", rangeLeaves, catalogDraft, rangeId);
         const created = await submitRangeCreate(network.name, draft, rangeId, dhcpServerService, follow);
-        const createError = failedSaveMessage(created, "Failed to create range");
+        const createError = failedSaveMessage(created, t("range.createFailed"));
         if (createError) {
           setError(createError);
           return;

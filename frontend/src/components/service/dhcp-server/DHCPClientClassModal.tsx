@@ -62,12 +62,11 @@ export function DHCPClientClassModal({
   const saveDraft = async () => {
     const name = draft.name.trim();
     if (!/^[-_a-zA-Z0-9][\w\-.+]*$/.test(name)) {
-      setError("Class name may only contain letters, numbers, and . _ - +");
+      setError(t("clientClass.nameInvalid"));
       return;
     }
-    const duplicate = duplicateClassName(name, rows, draft.originalName);
-    if (duplicate) {
-      setError(duplicate);
+    if (duplicateClassName(name, rows, draft.originalName)) {
+      setError(t("clientClass.nameTaken"));
       return;
     }
     setLoading(true);
@@ -79,7 +78,7 @@ export function DHCPClientClassModal({
         network_name: "_global",
         operations,
       });
-      const saveError = failedSaveMessage(result, "Failed to save client class");
+      const saveError = failedSaveMessage(result, t("clientClass.saveFailed"));
       if (saveError) {
         setError(saveError);
         return;
@@ -87,7 +86,7 @@ export function DHCPClientClassModal({
       onSuccess();
       setDraft(emptyDraft());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save client class");
+      setError(err instanceof Error ? err.message : t("clientClass.saveFailed"));
     } finally {
       setLoading(false);
     }

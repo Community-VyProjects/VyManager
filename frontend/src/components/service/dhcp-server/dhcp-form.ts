@@ -150,14 +150,6 @@ export async function submitRangeUpdate(
   if (unchanged && extra.length === 0) {
     return null;
   }
-  if (unchanged) {
-    return service.batchConfigure({
-      network_name: networkName,
-      subnet: stored.subnet,
-      operations: extra,
-    });
-  }
-
   return service.batchConfigure({
     network_name: networkName,
     subnet: stored.subnet,

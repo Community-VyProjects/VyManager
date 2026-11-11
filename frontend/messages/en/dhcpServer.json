@@ -35,7 +35,10 @@
     "startIpHelp": "The first IP address in the range",
     "stopIp": "Stop IP Address",
     "stopIpHelp": "The last IP address in the range",
-    "create": "Create Range"
+    "create": "Create Range",
+    "deleteTitle": "Delete DHCP Range",
+    "deleteDescription": "Delete range <mono>{id}</mono> ({start} - {stop}) from <mono>{subnet}</mono>?",
+    "deleteFailed": "Failed to delete range"
   },
   "mapping": {
     "updateFailed": "Failed to update static mapping",
@@ -346,7 +349,10 @@
     "remoteId": "Relay remote-id",
     "new": "New",
     "save": "Save class",
-    "deleteFailed": "Failed to delete client class"
+    "deleteFailed": "Failed to delete client class",
+    "nameInvalid": "Class name may only contain letters, numbers, and . _ - +",
+    "nameTaken": "A client class with that name already exists",
+    "saveFailed": "Failed to save client class"
   },
   "networkOptions": {
     "title": "{name} options",
