@@ -118,7 +118,7 @@ COMMON_CASES = [
     ('set_s2s_peer_disable', ('G0',), 'set', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'disable']),
     ('set_s2s_peer_force_udp_encapsulation', ('G0',), 'set', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'force-udp-encapsulation']),
     ('set_s2s_peer_ike_group', ('G0', '5'), 'set', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'ike-group', '5']),
-    ('set_s2s_peer_ikev2_reauth', ('G0',), 'set', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'ikev2-reauth']),
+    ('set_s2s_peer_ikev2_reauth', ('G0', 'yes'), 'set', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'ikev2-reauth', 'yes']),
     ('set_s2s_peer_local_address', ('G0', '192.0.2.1'), 'set', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'local-address', '192.0.2.1']),
     ('set_s2s_peer_remote_address', ('G0', '192.0.2.1'), 'set', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'remote-address', '192.0.2.1']),
     ('set_s2s_peer_replay_window', ('G0', '5'), 'set', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'replay-window', '5']),

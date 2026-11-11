@@ -116,7 +116,7 @@ export interface SiteToSitePeer {
   dhcp_interface?: string | null;
   connection_type?: string | null;
   force_udp_encapsulation?: boolean;
-  ikev2_reauth?: boolean;
+  ikev2_reauth?: string | null;
   replay_window?: string | null;
   virtual_address?: string[];
   unique?: string | null;
@@ -374,7 +374,7 @@ class IPSecService {
     auth_rsa_passphrase?: string;
     force_udp_encapsulation?: boolean;
     disabled?: boolean;
-    ikev2_reauth?: boolean;
+    ikev2_reauth?: string;
     replay_window?: string;
     virtual_addresses?: string[];
     use_x509_id?: boolean;
@@ -423,7 +423,7 @@ class IPSecService {
     if (writableSecret(config.auth_rsa_passphrase)) ops.push({ op: "set_s2s_peer_auth_rsa_passphrase", value: writableSecret(config.auth_rsa_passphrase) });
     if (config.force_udp_encapsulation) ops.push({ op: "set_s2s_peer_force_udp_encapsulation" });
     if (config.disabled) ops.push({ op: "set_s2s_peer_disable" });
-    if (config.ikev2_reauth) ops.push({ op: "set_s2s_peer_ikev2_reauth" });
+    if (config.ikev2_reauth) ops.push({ op: "set_s2s_peer_ikev2_reauth", value: config.ikev2_reauth });
     if (config.replay_window) ops.push({ op: "set_s2s_peer_replay_window", value: config.replay_window });
     if (config.virtual_addresses) {
       for (const address of config.virtual_addresses) ops.push({ op: "set_s2s_peer_virtual_address", value: address });
@@ -473,7 +473,7 @@ class IPSecService {
     auth_rsa_passphrase?: string;
     force_udp_encapsulation?: boolean;
     disabled?: boolean;
-    ikev2_reauth?: boolean;
+    ikev2_reauth?: string;
     replay_window?: string;
     virtual_addresses?: string[];
     use_x509_id?: boolean;
@@ -584,7 +584,7 @@ class IPSecService {
       else if (!next && prev) drop(deleteOp);
     };
     flag("set_s2s_peer_disable", "delete_s2s_peer_disable", config.disabled, existing.disabled);
-    flag("set_s2s_peer_ikev2_reauth", "delete_s2s_peer_ikev2_reauth", config.ikev2_reauth, existing.ikev2_reauth);
+    leaf("set_s2s_peer_ikev2_reauth", "delete_s2s_peer_ikev2_reauth", config.ikev2_reauth, existing.ikev2_reauth);
     flag("set_s2s_peer_auth_use_x509_id", "delete_s2s_peer_auth_use_x509_id", config.use_x509_id, oldAuth.use_x509_id);
     leaf("set_s2s_peer_replay_window", "delete_s2s_peer_replay_window", config.replay_window, existing.replay_window);
     leaf("set_s2s_peer_unique", "delete_s2s_peer_unique", config.unique, existing.unique);

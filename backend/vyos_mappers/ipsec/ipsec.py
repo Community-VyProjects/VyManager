@@ -210,8 +210,8 @@ class IPSecMapper(BaseFeatureMapper):
     def get_s2s_peer_force_udp_encapsulation_path(self, peer: str) -> List[str]:
         return ["vpn", "ipsec", "site-to-site", "peer", peer, "force-udp-encapsulation"]
 
-    def get_s2s_peer_ikev2_reauth_path(self, peer: str) -> List[str]:
-        return ["vpn", "ipsec", "site-to-site", "peer", peer, "ikev2-reauth"]
+    def get_s2s_peer_ikev2_reauth_path(self, peer: str, value: str) -> List[str]:
+        return ["vpn", "ipsec", "site-to-site", "peer", peer, "ikev2-reauth", value]
 
     def get_s2s_peer_replay_window_path(self, peer: str, value: str) -> List[str]:
         return ["vpn", "ipsec", "site-to-site", "peer", peer, "replay-window", value]
@@ -526,7 +526,7 @@ class IPSecMapper(BaseFeatureMapper):
             "dhcp_interface": config.get("dhcp-interface"),
             "connection_type": config.get("connection-type"),
             "force_udp_encapsulation": "force-udp-encapsulation" in config,
-            "ikev2_reauth": "ikev2-reauth" in config,
+            "ikev2_reauth": config.get("ikev2-reauth"),
             "replay_window": config.get("replay-window"),
             "virtual_address": self._normalize_to_list(config.get("virtual-address")),
             "unique": config.get("unique"),

@@ -300,11 +300,11 @@ class IPSecBatchBuilder(BatchBuilder):
     def delete_s2s_peer_force_udp_encapsulation(self, peer: str) -> "IPSecBatchBuilder":
         return self.add_delete(self.mappers[self.mapper_key].get_s2s_peer_force_udp_encapsulation_path(peer))
 
-    def set_s2s_peer_ikev2_reauth(self, peer: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_s2s_peer_ikev2_reauth_path(peer))
+    def set_s2s_peer_ikev2_reauth(self, peer: str, value: str) -> "IPSecBatchBuilder":
+        return self.add_set(self.mappers[self.mapper_key].get_s2s_peer_ikev2_reauth_path(peer, value))
 
     def delete_s2s_peer_ikev2_reauth(self, peer: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_s2s_peer_ikev2_reauth_path(peer))
+        return self._delete_value_node(self.mappers[self.mapper_key].get_s2s_peer_ikev2_reauth_path(peer, ""))
 
     def set_s2s_peer_replay_window(self, peer: str, value: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_s2s_peer_replay_window_path(peer, value))

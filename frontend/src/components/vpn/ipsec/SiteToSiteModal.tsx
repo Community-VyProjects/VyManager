@@ -80,7 +80,7 @@ export function SiteToSiteModal({
   const [dhcpInterface, setDhcpInterface] = useState("");
   const [forceUdp, setForceUdp] = useState(false);
   const [disabled, setDisabled] = useState(false);
-  const [ikev2Reauth, setIkev2Reauth] = useState(false);
+  const [ikev2Reauth, setIkev2Reauth] = useState("");
   const [replayWindow, setReplayWindow] = useState("");
   const [virtualAddresses, setVirtualAddresses] = useState("");
   const [unique, setUnique] = useState("");
@@ -136,7 +136,7 @@ export function SiteToSiteModal({
         setDhcpInterface(existingPeer.dhcp_interface || "");
         setForceUdp(existingPeer.force_udp_encapsulation || false);
         setDisabled(existingPeer.disabled || false);
-        setIkev2Reauth(existingPeer.ikev2_reauth || false);
+        setIkev2Reauth(existingPeer.ikev2_reauth || "");
         setReplayWindow(existingPeer.replay_window || "");
         setVirtualAddresses((existingPeer.virtual_address || []).join(", "));
         setUnique(existingPeer.unique || "");
@@ -181,7 +181,7 @@ export function SiteToSiteModal({
         setDhcpInterface("");
         setForceUdp(false);
         setDisabled(false);
-        setIkev2Reauth(false);
+        setIkev2Reauth("");
         setReplayWindow("");
         setVirtualAddresses("");
         setUnique("");
@@ -264,7 +264,7 @@ export function SiteToSiteModal({
         auth_rsa_passphrase: authMode === "rsa" ? (authRsaPassphrase || undefined) : undefined,
         force_udp_encapsulation: forceUdp,
         disabled,
-        ikev2_reauth: ikev2Reauth,
+        ikev2_reauth: ikev2Reauth || undefined,
         replay_window: replayWindow || undefined,
         virtual_addresses: virtualAddresses.split(",").map((a) => a.trim()).filter(Boolean),
         use_x509_id: authMode === "x509" ? useX509Id : false,
@@ -375,7 +375,7 @@ export function SiteToSiteModal({
                 <Select value={connectionType || "_none"} onValueChange={(v) => setConnectionType(v === "_none" ? "" : v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="_none">{tc("none")}</SelectItem>
+                    <SelectItem value="_none">{tc("default")}</SelectItem>
                     {connectionTypes.map((value) => <SelectItem key={value} value={value}>{connectionLabel(value)}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -399,9 +399,17 @@ export function SiteToSiteModal({
               <Checkbox id="peerDisable" checked={disabled} onCheckedChange={(c) => setDisabled(c === true)} />
               <Label htmlFor="peerDisable" className="cursor-pointer text-sm">{t("s2sModal.disable")}</Label>
             </div>
-            <div className="flex items-center gap-2">
-              <Checkbox id="ikev2Reauth" checked={ikev2Reauth} onCheckedChange={(c) => setIkev2Reauth(c === true)} />
-              <Label htmlFor="ikev2Reauth" className="cursor-pointer text-sm">{t("s2sModal.ikev2Reauth")}</Label>
+            <div className="space-y-2">
+              <Label>{t("s2sModal.ikev2Reauth")}</Label>
+              <Select value={ikev2Reauth || "_none"} onValueChange={(v) => setIkev2Reauth(v === "_none" ? "" : v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">{tc("default")}</SelectItem>
+                  <SelectItem value="yes">yes</SelectItem>
+                  <SelectItem value="no">no</SelectItem>
+                  <SelectItem value="inherit">inherit</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
