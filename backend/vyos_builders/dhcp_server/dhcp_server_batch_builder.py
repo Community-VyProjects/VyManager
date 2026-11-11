@@ -415,15 +415,6 @@ class DHCPServerBatchBuilder(BatchBuilder):
         )
         return self.add_set(path)
 
-    def delete_subnet_range_start(
-        self, network_name: str, subnet: str, range_id: str
-    ) -> "DHCPServerBatchBuilder":
-        """Delete subnet range start address."""
-        path = self.mappers[self.mapper_key].get_subnet_range_start_path(
-            network_name, subnet, range_id
-        )
-        return self.add_delete(path)
-
     def set_subnet_range_stop(
         self, network_name: str, subnet: str, range_id: str, stop: str
     ) -> "DHCPServerBatchBuilder":
@@ -432,15 +423,6 @@ class DHCPServerBatchBuilder(BatchBuilder):
             network_name, subnet, range_id, stop
         )
         return self.add_set(path)
-
-    def delete_subnet_range_stop(
-        self, network_name: str, subnet: str, range_id: str
-    ) -> "DHCPServerBatchBuilder":
-        """Delete subnet range stop address."""
-        path = self.mappers[self.mapper_key].get_subnet_range_stop_path(
-            network_name, subnet, range_id
-        )
-        return self.add_delete(path)
 
     # ========================================================================
     # Exclude Operations

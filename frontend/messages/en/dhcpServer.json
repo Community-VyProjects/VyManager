@@ -135,7 +135,8 @@
       "tsigKeyIncomplete": "Each TSIG key needs an algorithm, and a new key needs a secret",
       "dnsServerAddress": "Each DNS server needs an address",
       "unknownKey": "A domain uses a TSIG key that is not configured",
-      "duplicateName": "Each TSIG key, domain, and DNS server needs a unique name"
+      "duplicateName": "Each TSIG key, domain, and DNS server needs a unique name",
+      "missingName": "Each TSIG key, domain, and DNS server needs a name"
     }
   },
   "subnetForm": {

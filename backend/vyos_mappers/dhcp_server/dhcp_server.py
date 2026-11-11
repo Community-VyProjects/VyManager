@@ -346,15 +346,6 @@ class DHCPServerMapper(BaseFeatureMapper):
             "subnet", subnet, "range", range_id, "start", start
         ]
 
-    def get_subnet_range_start_path(
-        self, network_name: str, subnet: str, range_id: str
-    ) -> List[str]:
-        """Get command path for range start deletion."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "range", range_id, "start"
-        ]
-
     def get_subnet_range_stop(
         self, network_name: str, subnet: str, range_id: str, stop: str
     ) -> List[str]:
@@ -362,15 +353,6 @@ class DHCPServerMapper(BaseFeatureMapper):
         return [
             "service", "dhcp-server", "shared-network-name", network_name,
             "subnet", subnet, "range", range_id, "stop", stop
-        ]
-
-    def get_subnet_range_stop_path(
-        self, network_name: str, subnet: str, range_id: str
-    ) -> List[str]:
-        """Get command path for range stop deletion."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "range", range_id, "stop"
         ]
 
     # ==================== Exclude Commands ====================

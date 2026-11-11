@@ -135,7 +135,8 @@
       "tsigKeyIncomplete": "每个 TSIG 密钥都需要算法，新密钥还需要密钥值",
       "dnsServerAddress": "每个 DNS 服务器都需要地址",
       "unknownKey": "某个域使用了未配置的 TSIG 密钥",
-      "duplicateName": "每个 TSIG 密钥、域和 DNS 服务器的名称都必须唯一"
+      "duplicateName": "每个 TSIG 密钥、域和 DNS 服务器的名称都必须唯一",
+      "missingName": "每个 TSIG 密钥、域和 DNS 服务器都需要名称"
     }
   },
   "subnetForm": {

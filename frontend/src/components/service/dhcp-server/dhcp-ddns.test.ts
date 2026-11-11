@@ -61,6 +61,18 @@ describe("ddnsProblem", () => {
     assert.equal(ddnsProblem(base(), servers), "duplicateName");
   });
 
+  it("rejects a cleared name instead of dropping the entry", () => {
+    const key = { ...base(), tsig_keys: [{ name: " ", algorithm: "sha256", secret: "" }] };
+    const domain = { ...base(), forward_domains: [{ name: "", key_name: "K1", dns_servers: [] }] };
+    const server = {
+      ...base(),
+      forward_domains: [{ name: "example.com", dns_servers: [{ id: "", address: "192.0.2.1" }] }],
+    };
+    assert.equal(ddnsProblem(base(), key), "missingName");
+    assert.equal(ddnsProblem(base(), domain), "missingName");
+    assert.equal(ddnsProblem(base(), server), "missingName");
+  });
+
   it("needs an address on each DNS server", () => {
     const next = {
       ...base(),

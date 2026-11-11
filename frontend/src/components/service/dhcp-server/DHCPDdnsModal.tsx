@@ -231,7 +231,7 @@ export function DHCPDdnsModal({
             </SelectContent>
           </Select>
           {domain.dns_servers.map((server, sidx) => (
-            <div key={server.id} className="flex gap-2">
+            <div key={sidx} className="flex gap-2">
               <Input
                 className="w-16 font-mono"
                 value={server.id}
