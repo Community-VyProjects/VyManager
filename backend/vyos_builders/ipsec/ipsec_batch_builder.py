@@ -144,12 +144,6 @@ class IPSecBatchBuilder(BatchBuilder):
     def delete_auth_psk_dhcp_interface(self, name: str, interface: str) -> "IPSecBatchBuilder":
         return self.add_delete(self.mappers[self.mapper_key].get_auth_psk_dhcp_interface_path(name, interface))
 
-    # Authentication - PPK (1.5 only)
-
-    # ========================================================================
-    # ESP Group
-    # ========================================================================
-
     def create_esp_group(self, name: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_esp_group_path(name))
 
@@ -374,8 +368,6 @@ class IPSecBatchBuilder(BatchBuilder):
 
     def delete_s2s_peer_auth_rsa_passphrase(self, peer: str) -> "IPSecBatchBuilder":
         return self._delete_value_node(self.mappers[self.mapper_key].get_s2s_peer_auth_rsa_passphrase_path(peer, ""))
-
-    # Site-to-Site Peer Authentication - PPK (1.5 only)
 
     def set_s2s_peer_childless(self, peer: str, value: str) -> "IPSecBatchBuilder":
         mapper = self.mappers[self.mapper_key]
@@ -611,22 +603,6 @@ class IPSecBatchBuilder(BatchBuilder):
         mapper = self.mappers[self.mapper_key]
         mapper._require_node("pool_range")
         return self.add_set(getattr(mapper, "get_ra_pool_range_stop_path")(pool, stop))
-
-    # ========================================================================
-    # Remote Access - DHCP
-    # ========================================================================
-
-    # ========================================================================
-    # Remote Access - RADIUS
-    # ========================================================================
-
-    # ========================================================================
-    # Profile
-    # ========================================================================
-
-    # ========================================================================
-    # Capabilities
-    # ========================================================================
 
     def get_capabilities(self) -> Dict[str, Any]:
         mapper = self.mappers[self.mapper_key]

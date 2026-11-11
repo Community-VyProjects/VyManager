@@ -298,9 +298,6 @@ class IPSecMapper(BaseFeatureMapper):
     def get_ra_connection_description_path(self, conn: str, description: str) -> List[str]:
         return ["vpn", "ipsec", "remote-access", "connection", conn, "description", description]
 
-    def get_ra_connection_disable_path(self, conn: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "connection", conn, "disable"]
-
     def get_ra_connection_esp_group_path(self, conn: str, esp_group: str) -> List[str]:
         return ["vpn", "ipsec", "remote-access", "connection", conn, "esp-group", esp_group]
 
@@ -357,22 +354,6 @@ class IPSecMapper(BaseFeatureMapper):
 
     def get_ra_pool_exclude_path(self, pool: str, exclude: str) -> List[str]:
         return ["vpn", "ipsec", "remote-access", "pool", pool, "exclude", exclude]
-
-    # ========================================================================
-    # Remote Access - DHCP
-    # ========================================================================
-
-    # ========================================================================
-    # Remote Access - RADIUS
-    # ========================================================================
-
-    # ========================================================================
-    # Profile
-    # ========================================================================
-
-    # ========================================================================
-    # Config Parsing
-    # ========================================================================
 
     def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
         """Parse IPSec configuration from VyOS full config."""
@@ -596,10 +577,6 @@ class IPSecMapper(BaseFeatureMapper):
                 "local_id": auth.get("local-id"),
                 "remote_id": auth.get("remote-id"),
                 "use_x509_id": "use-x509-id" in auth,
-                "ppk": {
-                    "id": (auth.get("ppk") or {}).get("id") if isinstance(auth.get("ppk"), dict) else None,
-                    "required": isinstance(auth.get("ppk"), dict) and "required" in auth.get("ppk"),
-                },
                 "x509": {
                     "ca_certificate": self._normalize_to_list(x509.get("ca-certificate")),
                     "certificate": x509.get("certificate"),

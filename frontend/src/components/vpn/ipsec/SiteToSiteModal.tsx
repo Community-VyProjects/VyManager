@@ -267,7 +267,7 @@ export function SiteToSiteModal({
         ikev2_reauth: ikev2Reauth,
         replay_window: replayWindow || undefined,
         virtual_addresses: virtualAddresses.split(",").map((a) => a.trim()).filter(Boolean),
-        use_x509_id: useX509Id,
+        use_x509_id: authMode === "x509" ? useX509Id : false,
         unique: capabilities?.features.site_to_site.unique ? (unique || undefined) : undefined,
         childless: capabilities?.features.site_to_site.childless ? (childless || undefined) : undefined,
         vti_bind: vtiBind || undefined,

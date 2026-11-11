@@ -84,10 +84,6 @@ export interface S2SPeerAuth {
   local_id?: string | null;
   remote_id?: string | null;
   use_x509_id?: boolean;
-  ppk?: {
-    id?: string | null;
-    required?: boolean;
-  };
   x509?: {
     ca_certificate?: string[];
     certificate?: string | null;
@@ -200,9 +196,13 @@ export interface IPSecProfile {
   disabled?: boolean;
   ike_group?: string | null;
   esp_group?: string | null;
-  auth_mode?: string | null;
-  auth_psk?: string | null;
-  bind_tunnels?: string[];
+  authentication?: {
+    mode?: string | null;
+    pre_shared_secret?: string | null;
+  };
+  bind?: {
+    tunnel?: string[];
+  };
 }
 
 export interface IPSecOptions {
@@ -423,8 +423,6 @@ class IPSecService {
     use_x509_id?: boolean;
     unique?: string;
     childless?: string;
-    ppk_id?: string;
-    ppk_required?: boolean;
     vti_bind?: string;
     vti_esp_group?: string;
     vti_ts_local_prefix?: string[];
@@ -524,8 +522,6 @@ class IPSecService {
     use_x509_id?: boolean;
     unique?: string;
     childless?: string;
-    ppk_id?: string;
-    ppk_required?: boolean;
     vti_bind?: string;
     vti_esp_group?: string;
     vti_ts_local_prefix?: string[];
@@ -934,7 +930,7 @@ class IPSecService {
     secret?: string;
     secret_type?: string;
     dhcp_interfaces?: string[];
-  }, existing: { identities?: string[]; secret_type?: string | null; dhcp_interface?: string[] | string | null }): Promise<VyOSResponse> {
+  }, existing: AuthPSK): Promise<VyOSResponse> {
     const ops: BatchOperation[] = [{ op: "create_auth_psk" }];
     const nextIds = config.identities || [];
     const oldIds = existing.identities || [];
@@ -952,9 +948,7 @@ class IPSecService {
       ops.push({ op: "delete_auth_psk_secret_type" });
     }
     const nextIfaces = config.dhcp_interfaces || [];
-    const oldIfaces = Array.isArray(existing.dhcp_interface)
-      ? existing.dhcp_interface
-      : existing.dhcp_interface ? [existing.dhcp_interface] : [];
+    const oldIfaces = existing.dhcp_interface || [];
     for (const iface of oldIfaces) {
       if (!nextIfaces.includes(iface)) ops.push({ op: "delete_auth_psk_dhcp_interface", value: iface });
     }

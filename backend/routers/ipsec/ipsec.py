@@ -10,7 +10,7 @@ Uses session-based architecture - VyOS instance comes from user's active session
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, cast
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.ipsec import IPSecBatchBuilder
 from vyos_mappers.ipsec import IPSecMapper
@@ -72,8 +72,7 @@ async def get_ipsec_capabilities(request: Request):
     """
     Get IPSec capabilities based on device VyOS version.
 
-    Returns feature flags indicating which operations are supported,
-    including version-specific features like PPK and retransmission options.
+    Returns feature flags for the leaves this device supports.
     """
     await require_read_permission(request, FeatureGroup.IPSEC)
     try:
@@ -103,8 +102,7 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
     - ESP groups
     - Site-to-site peers with tunnels
     - Remote access connections and pools
-    - Authentication (PSK, PPK)
-    - Profiles
+    - Authentication (PSK)
     - Global options and logging
     """
     await require_read_permission(request, FeatureGroup.IPSEC)
@@ -114,9 +112,7 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
 
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
 
-        mapper = CommandMapperRegistry.get_mapper("ipsec", version)
-        if not isinstance(mapper, IPSecMapper):
-            raise HTTPException(status_code=500, detail="Internal server error")
+        mapper = cast(IPSecMapper, CommandMapperRegistry.get_mapper("ipsec", version))
         config = mapper.parse_config(full_config)
 
         # Convert to list format for frontend consumption
