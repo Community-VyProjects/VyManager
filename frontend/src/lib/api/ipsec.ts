@@ -468,6 +468,158 @@ class IPSecService {
     return this.batchConfigure(name, ops);
   }
 
+  async updateS2SPeer(name: string, config: {
+    ike_group?: string;
+    default_esp_group?: string;
+    local_address?: string;
+    remote_addresses?: string[];
+    description?: string;
+    connection_type?: string;
+    dhcp_interface?: string;
+    auth_mode?: string;
+    auth_local_id?: string;
+    auth_remote_id?: string;
+    auth_x509_ca_cert?: string;
+    auth_x509_cert?: string;
+    auth_x509_passphrase?: string;
+    auth_rsa_local_key?: string;
+    auth_rsa_remote_key?: string;
+    auth_rsa_passphrase?: string;
+    force_udp_encapsulation?: boolean;
+    vti_bind?: string;
+    vti_esp_group?: string;
+    vti_ts_local_prefix?: string[];
+    vti_ts_remote_prefix?: string[];
+    tunnels?: Array<{
+      number: string;
+      esp_group?: string;
+      local_prefix?: string[];
+      remote_prefix?: string[];
+      protocol?: string;
+    }>;
+  }, existing: SiteToSitePeer): Promise<VyOSResponse> {
+    const ops: BatchOperation[] = [{ op: "create_s2s_peer" }];
+    const drop = (op: string, value?: string) => {
+      ops.push(value === undefined ? { op } : { op, value });
+    };
+    const text = (value?: string | null) => (value || "").trim();
+    const leaf = (setOp: string, deleteOp: string, next?: string, prev?: string | null) => {
+      const nv = text(next);
+      const ov = text(prev);
+      if (!nv && ov) drop(deleteOp);
+      else if (nv && nv !== ov) ops.push({ op: setOp, value: nv });
+    };
+    const secret = (setOp: string, deleteOp: string, next?: string, prev?: string | null) => {
+      if (next === MASKED_SECRET) return;
+      const nv = writableSecret(next);
+      if (!nv && text(prev)) drop(deleteOp);
+      else if (nv) ops.push({ op: setOp, value: nv });
+    };
+    const multi = (
+      setOp: string,
+      deleteOp: string,
+      next: string[] = [],
+      prev: string[] = [],
+      join = "",
+    ) => {
+      for (const old of prev) {
+        if (!next.includes(old)) drop(deleteOp, join ? `${join}|${old}` : old);
+      }
+      for (const item of next) {
+        if (!prev.includes(item)) ops.push({ op: setOp, value: join ? `${join}|${item}` : item });
+      }
+    };
+
+    leaf("set_s2s_peer_description", "delete_s2s_peer_description", config.description, existing.description);
+    if (config.ike_group && config.ike_group !== existing.ike_group) {
+      ops.push({ op: "set_s2s_peer_ike_group", value: config.ike_group });
+    }
+    leaf("set_s2s_peer_default_esp_group", "delete_s2s_peer_default_esp_group", config.default_esp_group, existing.default_esp_group);
+    leaf("set_s2s_peer_local_address", "delete_s2s_peer_local_address", config.local_address, existing.local_address);
+    leaf("set_s2s_peer_dhcp_interface", "delete_s2s_peer_dhcp_interface", config.dhcp_interface, existing.dhcp_interface);
+    if (config.connection_type && config.connection_type !== existing.connection_type) {
+      ops.push({ op: "set_s2s_peer_connection_type", value: config.connection_type });
+    }
+    multi("set_s2s_peer_remote_address", "delete_s2s_peer_remote_address", config.remote_addresses || [], existing.remote_address || []);
+
+    const oldAuth = existing.authentication || {};
+    if (config.auth_mode && config.auth_mode !== oldAuth.mode) {
+      ops.push({ op: "set_s2s_peer_auth_mode", value: config.auth_mode });
+    }
+    leaf("set_s2s_peer_auth_local_id", "delete_s2s_peer_auth_local_id", config.auth_local_id, oldAuth.local_id);
+    leaf("set_s2s_peer_auth_remote_id", "delete_s2s_peer_auth_remote_id", config.auth_remote_id, oldAuth.remote_id);
+
+    const oldX509 = oldAuth.x509 || {};
+    const oldRsa = oldAuth.rsa || {};
+    if (config.auth_mode === "x509") {
+      multi(
+        "set_s2s_peer_auth_x509_ca_cert",
+        "delete_s2s_peer_auth_x509_ca_cert",
+        config.auth_x509_ca_cert ? [config.auth_x509_ca_cert] : [],
+        oldX509.ca_certificate || [],
+      );
+      leaf("set_s2s_peer_auth_x509_cert", "delete_s2s_peer_auth_x509_cert", config.auth_x509_cert, oldX509.certificate);
+      secret("set_s2s_peer_auth_x509_passphrase", "delete_s2s_peer_auth_x509_passphrase", config.auth_x509_passphrase, oldX509.passphrase);
+    } else {
+      for (const ca of oldX509.ca_certificate || []) drop("delete_s2s_peer_auth_x509_ca_cert", ca);
+      if (oldX509.certificate) drop("delete_s2s_peer_auth_x509_cert");
+      if (oldX509.passphrase) drop("delete_s2s_peer_auth_x509_passphrase");
+    }
+    if (config.auth_mode === "rsa") {
+      leaf("set_s2s_peer_auth_rsa_local_key", "delete_s2s_peer_auth_rsa_local_key", config.auth_rsa_local_key, oldRsa.local_key);
+      leaf("set_s2s_peer_auth_rsa_remote_key", "delete_s2s_peer_auth_rsa_remote_key", config.auth_rsa_remote_key, oldRsa.remote_key);
+      secret("set_s2s_peer_auth_rsa_passphrase", "delete_s2s_peer_auth_rsa_passphrase", config.auth_rsa_passphrase, oldRsa.passphrase);
+    } else {
+      if (oldRsa.local_key) drop("delete_s2s_peer_auth_rsa_local_key");
+      if (oldRsa.remote_key) drop("delete_s2s_peer_auth_rsa_remote_key");
+      if (oldRsa.passphrase) drop("delete_s2s_peer_auth_rsa_passphrase");
+    }
+
+    if (config.force_udp_encapsulation && !existing.force_udp_encapsulation) {
+      ops.push({ op: "set_s2s_peer_force_udp_encapsulation" });
+    } else if (!config.force_udp_encapsulation && existing.force_udp_encapsulation) {
+      drop("delete_s2s_peer_force_udp_encapsulation");
+    }
+
+    const oldVti = existing.vti || {};
+    if (config.vti_bind) {
+      leaf("set_s2s_peer_vti_bind", "delete_s2s_peer_vti_bind", config.vti_bind, oldVti.bind);
+      leaf("set_s2s_peer_vti_esp_group", "delete_s2s_peer_vti_esp_group", config.vti_esp_group, oldVti.esp_group);
+      multi("set_s2s_peer_vti_ts_local_prefix", "delete_s2s_peer_vti_ts_local_prefix", config.vti_ts_local_prefix || [], oldVti.traffic_selector?.local_prefix || []);
+      multi("set_s2s_peer_vti_ts_remote_prefix", "delete_s2s_peer_vti_ts_remote_prefix", config.vti_ts_remote_prefix || [], oldVti.traffic_selector?.remote_prefix || []);
+    } else {
+      if (oldVti.bind) drop("delete_s2s_peer_vti_bind");
+      if (oldVti.esp_group) drop("delete_s2s_peer_vti_esp_group");
+      for (const prefix of oldVti.traffic_selector?.local_prefix || []) drop("delete_s2s_peer_vti_ts_local_prefix", prefix);
+      for (const prefix of oldVti.traffic_selector?.remote_prefix || []) drop("delete_s2s_peer_vti_ts_remote_prefix", prefix);
+    }
+
+    const nextTunnels = config.tunnels || [];
+    const kept = new Set(nextTunnels.map((tunnel) => tunnel.number));
+    for (const old of existing.tunnels || []) {
+      if (!kept.has(old.number)) drop("delete_s2s_peer_tunnel", old.number);
+    }
+    for (const tunnel of nextTunnels) {
+      const old = (existing.tunnels || []).find((item) => item.number === tunnel.number);
+      ops.push({ op: "create_s2s_peer_tunnel", value: tunnel.number });
+      if (old) {
+        multi("set_s2s_peer_tunnel_local_prefix", "delete_s2s_peer_tunnel_local_prefix", tunnel.local_prefix || [], old.local_prefix || [], tunnel.number);
+        multi("set_s2s_peer_tunnel_remote_prefix", "delete_s2s_peer_tunnel_remote_prefix", tunnel.remote_prefix || [], old.remote_prefix || [], tunnel.number);
+        if (!tunnel.esp_group && old.esp_group) drop("delete_s2s_peer_tunnel_esp_group", tunnel.number);
+        else if (tunnel.esp_group && tunnel.esp_group !== old.esp_group) {
+          ops.push({ op: "set_s2s_peer_tunnel_esp_group", value: `${tunnel.number}|${tunnel.esp_group}` });
+        }
+        if (!tunnel.protocol && old.protocol) drop("delete_s2s_peer_tunnel_protocol", tunnel.number);
+        else if (tunnel.protocol && tunnel.protocol !== old.protocol) {
+          ops.push({ op: "set_s2s_peer_tunnel_protocol", value: `${tunnel.number}|${tunnel.protocol}` });
+        }
+      } else {
+        ops.push(...this.buildS2STunnelOps(tunnel.number, tunnel).slice(1));
+      }
+    }
+    return this.batchConfigure(name, ops);
+  }
+
   async deleteS2SPeer(name: string): Promise<VyOSResponse> {
     return this.batchConfigure(name, [{ op: "delete_s2s_peer" }]);
   }

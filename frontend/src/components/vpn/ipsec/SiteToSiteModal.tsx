@@ -202,33 +202,7 @@ export function SiteToSiteModal({
         };
       });
 
-      if (isEdit && existingPeer) {
-        const keptTunnels = new Set(tunnelConfigs.map((t) => t.number));
-        const cleanup: { op: string; value?: string }[] = [];
-        for (const tunnel of existingPeer.tunnels || []) {
-          if (!keptTunnels.has(tunnel.number)) {
-            cleanup.push({ op: "delete_s2s_peer_tunnel", value: tunnel.number });
-          }
-        }
-        for (const addr of existingPeer.remote_address || []) {
-          if (!remoteAddrs.includes(addr)) {
-            cleanup.push({ op: "delete_s2s_peer_remote_address", value: addr });
-          }
-        }
-        if (!forceUdp && existingPeer.force_udp_encapsulation) {
-          cleanup.push({ op: "delete_s2s_peer_force_udp_encapsulation" });
-        }
-        if (cleanup.length > 0) {
-          const cleaned = await ipsecService.batchConfigure(existingPeer.name, cleanup);
-          if (!cleaned.success) {
-            setError(cleaned.error || t("s2sModal.createFailed"));
-            setLoading(false);
-            return;
-          }
-        }
-      }
-
-      const result = await ipsecService.createS2SPeer(name.trim(), {
+      const payload = {
         ike_group: ikeGroup || undefined,
         default_esp_group: defaultEspGroup || undefined,
         local_address: localAddress || undefined,
@@ -255,7 +229,10 @@ export function SiteToSiteModal({
           ? (vtiTsRemotePrefix.split(",").map((p) => p.trim()).filter(Boolean) || undefined)
           : undefined,
         tunnels: tunnelConfigs.length > 0 ? tunnelConfigs : undefined,
-      });
+      };
+      const result = isEdit && existingPeer
+        ? await ipsecService.updateS2SPeer(existingPeer.name, payload, existingPeer)
+        : await ipsecService.createS2SPeer(name.trim(), payload);
 
       if (!result.success) {
         setError(result.error || t("s2sModal.createFailed"));
