@@ -31,7 +31,9 @@
     "types": {
       "s2sPeer": "站点到站点对端",
       "connection": "连接",
-      "pool": "地址池"
+      "pool": "地址池",
+      "radiusServer": "RADIUS 服务器",
+      "profile": "配置文件"
     },
     "s2s": {
       "title": "站点到站点对端",
@@ -104,7 +106,27 @@
       "base": "基数",
       "timeout": "超时",
       "interfaces": "接口",
-      "noInterfaces": "尚未配置接口"
+      "noInterfaces": "尚未配置接口",
+      "optionsInterface": "选项接口",
+      "dhcpInterface": "DHCP 接口",
+      "dhcpServer": "DHCP 服务器",
+      "nasIdentifier": "NAS 标识符",
+      "radiusTimeout": "RADIUS 超时"
+    },
+    "profiles": "配置文件",
+    "ppk": {
+      "title": "后量子密钥",
+      "add": "添加 PPK",
+      "empty": "未配置后量子密钥"
+    },
+    "radius": {
+      "title": "RADIUS 服务器",
+      "add": "添加服务器",
+      "empty": "未配置 RADIUS 服务器"
+    },
+    "profile": {
+      "add": "添加配置文件",
+      "empty": "未配置配置文件"
     }
   },
   "deleteModal": {
@@ -136,11 +158,9 @@
     "remoteAddresses": "远端地址",
     "commaSeparated": "多个值用逗号分隔",
     "connectionType": "连接类型",
-    "initiate": "发起",
-    "respond": "响应",
-    "trap": "触发",
-    "disable": "禁用",
     "ikev2Reauth": "IKEv2 重新认证",
+    "ppk": "PPK",
+    "ppkRequired": "要求 PPK",
     "replayWindow": "重放窗口",
     "virtualAddress": "虚拟地址",
     "useX509Id": "使用 X.509 ID",
@@ -189,6 +209,28 @@
     "noLocalUsers": "尚未配置本地用户",
     "usernamePlaceholder": "用户名",
     "passwordPlaceholder": "密码",
-    "createConnection": "创建连接"
+    "createConnection": "创建连接",
+    "eapId": "EAP ID"
+  },
+  "profileModal": {
+    "nameRequired": "配置文件名称为必填项",
+    "saveFailed": "保存配置文件失败",
+    "titleEdit": "编辑配置文件",
+    "titleCreate": "创建配置文件",
+    "description": "为 DMVPN 隧道配置 IPSec 配置文件。",
+    "bindTunnels": "绑定的隧道"
+  },
+  "radiusModal": {
+    "addressRequired": "服务器地址为必填项",
+    "keyRequired": "共享密钥为必填项",
+    "saveFailed": "保存 RADIUS 服务器失败",
+    "titleEdit": "编辑 RADIUS 服务器",
+    "titleCreate": "添加 RADIUS 服务器",
+    "description": "配置用于远程访问认证的 RADIUS 服务器。",
+    "address": "服务器地址",
+    "key": "共享密钥",
+    "keepCurrent": "留空以保留当前值",
+    "port": "端口",
+    "disableAccounting": "禁用计费"
   }
 }

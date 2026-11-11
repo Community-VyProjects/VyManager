@@ -26,7 +26,7 @@ class IPSecMapper(BaseFeatureMapper):
         return ["base64", "plaintext"]
 
     def unique_values(self) -> List[str]:
-        return []
+        return ["never", "keep", "replace"]
 
     def childless_values(self) -> List[str]:
         return []
@@ -115,6 +115,12 @@ class IPSecMapper(BaseFeatureMapper):
     def ra_pool_values(self) -> List[str]:
         return ["dhcp", "radius"]
 
+    def profile_auth_modes(self) -> List[str]:
+        return ["pre-shared-secret"]
+
+    def esn_values(self) -> List[str]:
+        return []
+
     # ========================================================================
     # Base path
     # ========================================================================
@@ -154,6 +160,9 @@ class IPSecMapper(BaseFeatureMapper):
 
     def get_options_virtual_ip_path(self) -> List[str]:
         return ["vpn", "ipsec", "options", "virtual-ip"]
+
+    def get_options_interface_path(self, interface: str) -> List[str]:
+        return ["vpn", "ipsec", "options", "interface", interface]
 
     # ========================================================================
     # Authentication - PSK
@@ -397,6 +406,27 @@ class IPSecMapper(BaseFeatureMapper):
     def get_ra_connection_pool_path(self, conn: str, pool: str) -> List[str]:
         return ["vpn", "ipsec", "remote-access", "connection", conn, "pool", pool]
 
+    def get_ra_connection_disable_path(self, conn: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "connection", conn, "disable"]
+
+    def get_ra_connection_dhcp_interface_path(self, conn: str, interface: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "connection", conn, "dhcp-interface", interface]
+
+    def get_ra_connection_replay_window_path(self, conn: str, value: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "connection", conn, "replay-window", value]
+
+    def get_ra_connection_timeout_path(self, conn: str, value: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "connection", conn, "timeout", value]
+
+    def get_ra_connection_unique_path(self, conn: str, value: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "connection", conn, "unique", value]
+
+    def get_ra_connection_local_prefix_path(self, conn: str, prefix: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "connection", conn, "local", "prefix", prefix]
+
+    def get_ra_connection_local_port_path(self, conn: str, port: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "connection", conn, "local", "port", port]
+
     # Remote Access Connection Authentication
     def get_ra_connection_auth_server_mode_path(self, conn: str, mode: str) -> List[str]:
         return ["vpn", "ipsec", "remote-access", "connection", conn, "authentication", "server-mode", mode]
@@ -415,6 +445,12 @@ class IPSecMapper(BaseFeatureMapper):
 
     def get_ra_connection_auth_x509_cert_path(self, conn: str, cert: str) -> List[str]:
         return ["vpn", "ipsec", "remote-access", "connection", conn, "authentication", "x509", "certificate", cert]
+
+    def get_ra_connection_auth_eap_id_path(self, conn: str, eap_id: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "connection", conn, "authentication", "eap-id", eap_id]
+
+    def get_ra_connection_auth_x509_passphrase_path(self, conn: str, passphrase: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "connection", conn, "authentication", "x509", "passphrase", passphrase]
 
     # Remote Access Connection Authentication - Local Users
     def get_ra_connection_auth_local_user_path(self, conn: str, username: str) -> List[str]:
@@ -443,6 +479,66 @@ class IPSecMapper(BaseFeatureMapper):
         return ["vpn", "ipsec", "remote-access", "pool", pool, "exclude", exclude]
 
     # ========================================================================
+    # Remote Access - DHCP
+    # ========================================================================
+
+    def get_ra_dhcp_interface_path(self, interface: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "dhcp", "interface", interface]
+
+    def get_ra_dhcp_server_path(self, server: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "dhcp", "server", server]
+
+    # ========================================================================
+    # Remote Access - RADIUS
+    # ========================================================================
+
+    def get_ra_radius_nas_identifier_path(self, identifier: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "radius", "nas-identifier", identifier]
+
+    def get_ra_radius_timeout_path(self, timeout: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "radius", "timeout", timeout]
+
+    def get_ra_radius_server_path(self, server: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "radius", "server", server]
+
+    def get_ra_radius_server_key_path(self, server: str, key: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "radius", "server", server, "key", key]
+
+    def get_ra_radius_server_port_path(self, server: str, port: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "radius", "server", server, "port", port]
+
+    def get_ra_radius_server_disable_path(self, server: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "radius", "server", server, "disable"]
+
+    def get_ra_radius_server_disable_accounting_path(self, server: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "radius", "server", server, "disable-accounting"]
+
+    # ========================================================================
+    # Profile
+    # ========================================================================
+
+    def get_profile_path(self, name: str) -> List[str]:
+        return ["vpn", "ipsec", "profile", name]
+
+    def get_profile_disable_path(self, name: str) -> List[str]:
+        return ["vpn", "ipsec", "profile", name, "disable"]
+
+    def get_profile_ike_group_path(self, name: str, ike_group: str) -> List[str]:
+        return ["vpn", "ipsec", "profile", name, "ike-group", ike_group]
+
+    def get_profile_esp_group_path(self, name: str, esp_group: str) -> List[str]:
+        return ["vpn", "ipsec", "profile", name, "esp-group", esp_group]
+
+    def get_profile_auth_mode_path(self, name: str, mode: str) -> List[str]:
+        return ["vpn", "ipsec", "profile", name, "authentication", "mode", mode]
+
+    def get_profile_auth_psk_path(self, name: str, secret: str) -> List[str]:
+        return ["vpn", "ipsec", "profile", name, "authentication", "pre-shared-secret", secret]
+
+    def get_profile_bind_tunnel_path(self, name: str, tunnel: str) -> List[str]:
+        return ["vpn", "ipsec", "profile", name, "bind", "tunnel", tunnel]
+
+    # ========================================================================
     # Config Parsing
     # ========================================================================
 
@@ -455,8 +551,11 @@ class IPSecMapper(BaseFeatureMapper):
             "remote_access": {
                 "connections": {},
                 "pools": {},
+                "radius": {},
+                "dhcp": {},
             },
-            "authentication": {"psk": {}},
+            "profiles": {},
+            "authentication": {"psk": {}, "ppk": {}},
             "options": {},
             "log": {},
             "interfaces": [],
@@ -493,6 +592,7 @@ class IPSecMapper(BaseFeatureMapper):
             "disable_route_autoinstall": "disable-route-autoinstall" in options,
             "flexvpn": "flexvpn" in options,
             "virtual_ip": "virtual-ip" in options,
+            "interface": options.get("interface") if isinstance(options.get("interface"), str) else None,
             "retransmission_attempts": (options.get("retransmission") or {}).get("attempts") if isinstance(options.get("retransmission"), dict) else None,
             "retransmission_base": (options.get("retransmission") or {}).get("base") if isinstance(options.get("retransmission"), dict) else None,
             "retransmission_timeout": (options.get("retransmission") or {}).get("timeout") if isinstance(options.get("retransmission"), dict) else None,
@@ -508,6 +608,14 @@ class IPSecMapper(BaseFeatureMapper):
                 "secret": psk_data.get("secret"),
                 "secret_type": psk_data.get("secret-type"),
                 "dhcp_interface": self._normalize_to_list(psk_data.get("dhcp-interface")),
+            }
+        for ppk_name, ppk_data in (auth_config.get("ppk") or {}).items():
+            ppk_data = ppk_data or {}
+            result["authentication"]["ppk"][ppk_name] = {
+                "name": ppk_name,
+                "identities": self._normalize_to_list(ppk_data.get("id")),
+                "secret": ppk_data.get("secret"),
+                "secret_type": ppk_data.get("secret-type"),
             }
 
         # Parse ESP groups
@@ -531,6 +639,40 @@ class IPSecMapper(BaseFeatureMapper):
         for pool_name, pool_config in ra_config.get("pool", {}).items():
             result["remote_access"]["pools"][pool_name] = self._parse_ra_pool(pool_name, pool_config)
 
+        dhcp_config = ra_config.get("dhcp") or {}
+        result["remote_access"]["dhcp"] = {
+            "interface": dhcp_config.get("interface") if isinstance(dhcp_config.get("interface"), str) else None,
+            "server": dhcp_config.get("server") if isinstance(dhcp_config.get("server"), str) else None,
+        }
+        radius_config = ra_config.get("radius") or {}
+        servers = []
+        for server, server_config in (radius_config.get("server") or {}).items():
+            server_config = server_config or {}
+            servers.append({
+                "address": server,
+                "key": server_config.get("key"),
+                "port": server_config.get("port"),
+                "disabled": "disable" in server_config,
+                "disable_accounting": "disable-accounting" in server_config,
+            })
+        result["remote_access"]["radius"] = {
+            "nas_identifier": radius_config.get("nas-identifier"),
+            "timeout": radius_config.get("timeout"),
+            "servers": servers,
+        }
+        for profile_name, profile_config in (ipsec_config.get("profile") or {}).items():
+            profile_config = profile_config or {}
+            auth = profile_config.get("authentication") or {}
+            result["profiles"][profile_name] = {
+                "name": profile_name,
+                "disabled": "disable" in profile_config,
+                "ike_group": profile_config.get("ike-group"),
+                "esp_group": profile_config.get("esp-group"),
+                "auth_mode": auth.get("mode"),
+                "auth_psk": auth.get("pre-shared-secret"),
+                "bind_tunnels": self._normalize_to_list((profile_config.get("bind") or {}).get("tunnel")),
+            }
+
         return result
 
     def _parse_esp_group(self, name: str, config: Dict[str, Any]) -> Dict[str, Any]:
@@ -540,6 +682,7 @@ class IPSecMapper(BaseFeatureMapper):
                 "number": prop_num,
                 "encryption": prop_config.get("encryption"),
                 "hash": prop_config.get("hash"),
+                "esn": prop_config.get("esn"),
             }
         return {
             "name": name,
@@ -562,6 +705,7 @@ class IPSecMapper(BaseFeatureMapper):
                 "encryption": prop_config.get("encryption"),
                 "hash": prop_config.get("hash"),
                 "prf": prop_config.get("prf"),
+                "esn": prop_config.get("esn"),
             }
         dpd = config.get("dead-peer-detection", {})
         return {
@@ -617,6 +761,8 @@ class IPSecMapper(BaseFeatureMapper):
             "childless": config.get("childless"),
             "authentication": {
                 "mode": auth.get("mode"),
+                "ppk_id": (auth.get("ppk") or {}).get("id") if isinstance(auth.get("ppk"), dict) else None,
+                "ppk_required": "required" in (auth.get("ppk") or {}),
                 "local_id": auth.get("local-id"),
                 "remote_id": auth.get("remote-id"),
                 "use_x509_id": "use-x509-id" in auth,
@@ -667,6 +813,19 @@ class IPSecMapper(BaseFeatureMapper):
             "auth_always_send_cert": "always-send-cert" in auth,
             "auth_x509_ca_cert": self._normalize_to_list(x509.get("ca-certificate")),
             "auth_x509_cert": x509.get("certificate"),
+            "auth_x509_passphrase": x509.get("passphrase"),
+            "auth_eap_id": auth.get("eap-id"),
+            "auth_ppk_id": (auth.get("ppk") or {}).get("id") if isinstance(auth.get("ppk"), dict) else None,
+            "auth_ppk_required": "required" in (auth.get("ppk") or {}),
+            "disabled": "disable" in config,
+            "dhcp_interface": config.get("dhcp-interface") if isinstance(config.get("dhcp-interface"), str) else None,
+            "replay_window": config.get("replay-window"),
+            "timeout": config.get("timeout"),
+            "unique": config.get("unique"),
+            "local_prefix": self._normalize_to_list((config.get("local") or {}).get("prefix")),
+            "local_port": (config.get("local") or {}).get("port"),
+            "bind": config.get("bind") if isinstance(config.get("bind"), str) else None,
+            "childless": config.get("childless"),
             "local_users": local_users,
         }
 

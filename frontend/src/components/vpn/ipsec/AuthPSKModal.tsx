@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, Key, Eye, EyeOff, RefreshCw } from "lucide-react";
-import { ipsecService, AuthPSK, IPSecCapabilities } from "@/lib/api/ipsec";
+import { ipsecService, AuthPSK, AuthPPK, IPSecCapabilities } from "@/lib/api/ipsec";
 import { showService, InterfaceName } from "@/lib/api/show";
 import { InterfaceMultiSelect } from "@/components/ui/interface-multi-select";
 import { ApiError } from "@/lib/types/api";
@@ -31,8 +31,9 @@ interface AuthPSKModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  existingPSK: AuthPSK | null;
+  existingPSK: AuthPSK | AuthPPK | null;
   capabilities: IPSecCapabilities | null;
+  kind?: "psk" | "ppk";
 }
 
 export function AuthPSKModal({
@@ -41,10 +42,12 @@ export function AuthPSKModal({
   onSuccess,
   existingPSK,
   capabilities,
+  kind = "psk",
 }: AuthPSKModalProps) {
   const t = useTranslations("ipsecSettings");
   const tc = useTranslations("common");
   const isEdit = !!existingPSK;
+  const isPpk = kind === "ppk";
 
   const [name, setName] = useState("");
   const [secret, setSecret] = useState("");
@@ -75,7 +78,7 @@ export function AuthPSKModal({
         setSecret("");
         setIdentities((existingPSK.identities || []).join("\n"));
         setSecretType(existingPSK.secret_type || "");
-        setDhcpInterfaces(existingPSK.dhcp_interface || []);
+        setDhcpInterfaces(isPpk ? [] : (existingPSK as AuthPSK).dhcp_interface || []);
       } else {
         setName("");
         setSecret("");
@@ -86,10 +89,10 @@ export function AuthPSKModal({
       setShowSecret(false);
       setError(null);
     }
-  }, [open, existingPSK]);
+  }, [open, existingPSK, isPpk]);
 
   const handleSubmit = async () => {
-    if (!name.trim()) { setError(t("psk.nameRequired")); return; }
+    if (!name.trim()) { setError(isPpk ? t("shared.nameRequired") : t("psk.nameRequired")); return; }
     if (!isEdit && !secret.trim()) { setError(t("psk.secretRequired")); return; }
 
     setLoading(true);
@@ -101,20 +104,29 @@ export function AuthPSKModal({
         identities: ids.length > 0 ? ids : undefined,
         secret: secret || undefined,
         secret_type: secretType || undefined,
-        dhcp_interfaces: dhcpInterfaces,
       };
-      const result = isEdit && existingPSK
-        ? await ipsecService.updateAuthPSK(existingPSK.name, payload, existingPSK)
-        : await ipsecService.createAuthPSK(name.trim(), payload);
+      let result;
+      if (isPpk) {
+        const existingPPK = existingPSK as AuthPPK | null;
+        result = isEdit && existingPPK
+          ? await ipsecService.updateAuthPPK(existingPPK.name, payload, existingPPK)
+          : await ipsecService.createAuthPPK(name.trim(), payload);
+      } else {
+        const pskPayload = { ...payload, dhcp_interfaces: dhcpInterfaces };
+        const existing = existingPSK as AuthPSK | null;
+        result = isEdit && existing
+          ? await ipsecService.updateAuthPSK(existing.name, pskPayload, existing)
+          : await ipsecService.createAuthPSK(name.trim(), pskPayload);
+      }
 
       if (result.success) {
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || t("psk.saveFailed"));
+        setError(result.error || (isPpk ? t("ppk.saveFailed") : t("psk.saveFailed")));
       }
     } catch (err) {
-      setError((err as ApiError).message || t("psk.saveFailed"));
+      setError((err as ApiError).message || (isPpk ? t("ppk.saveFailed") : t("psk.saveFailed")));
     } finally {
       setLoading(false);
     }
@@ -126,15 +138,17 @@ export function AuthPSKModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Key className="h-5 w-5 text-primary" />
-            {isEdit ? t("psk.titleEdit") : t("psk.titleCreate")}
+            {isPpk
+              ? (isEdit ? t("ppk.titleEdit") : t("ppk.titleCreate"))
+              : (isEdit ? t("psk.titleEdit") : t("psk.titleCreate"))}
           </DialogTitle>
-          <DialogDescription>{t("psk.description")}</DialogDescription>
+          <DialogDescription>{isPpk ? t("ppk.description") : t("psk.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>{tc("name")}</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="psk-1" disabled={isEdit} />
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={isPpk ? "ppk-1" : "psk-1"} disabled={isEdit} />
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -164,7 +178,7 @@ export function AuthPSKModal({
               placeholder={"@local-id\n@remote-id\n192.168.1.1"}
               rows={4}
             />
-            <p className="text-xs text-muted-foreground">{t("psk.identitiesHelp")}</p>
+            {!isPpk && <p className="text-xs text-muted-foreground">{t("psk.identitiesHelp")}</p>}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -179,14 +193,16 @@ export function AuthPSKModal({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>{t("psk.dhcpInterface")}</Label>
-              <InterfaceMultiSelect
-                values={dhcpInterfaces}
-                onChange={setDhcpInterfaces}
-                interfaces={allInterfaces}
-              />
-            </div>
+            {!isPpk && (
+              <div className="space-y-2">
+                <Label>{t("psk.dhcpInterface")}</Label>
+                <InterfaceMultiSelect
+                  values={dhcpInterfaces}
+                  onChange={setDhcpInterfaces}
+                  interfaces={allInterfaces}
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -200,7 +216,7 @@ export function AuthPSKModal({
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : tc("creating")}</> : isEdit ? tc("saveChanges") : t("psk.create")}
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEdit ? tc("saving") : tc("creating")}</> : isEdit ? tc("saveChanges") : isPpk ? t("ppk.create") : t("psk.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

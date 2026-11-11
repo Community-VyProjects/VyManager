@@ -97,6 +97,8 @@ export function SiteToSiteModal({
   const [authRsaLocalKey, setAuthRsaLocalKey] = useState("");
   const [authRsaRemoteKey, setAuthRsaRemoteKey] = useState("");
   const [authRsaPassphrase, setAuthRsaPassphrase] = useState("");
+  const [ppkId, setPpkId] = useState("");
+  const [ppkRequired, setPpkRequired] = useState(false);
   const [pkiCas, setPkiCas] = useState<string[]>([]);
   const [pkiCerts, setPkiCerts] = useState<string[]>([]);
   const [pkiKeys, setPkiKeys] = useState<string[]>([]);
@@ -145,6 +147,8 @@ export function SiteToSiteModal({
         setAuthMode(auth?.mode || "pre-shared-secret");
         setAuthLocalId(auth?.local_id || "");
         setAuthRemoteId(auth?.remote_id || "");
+        setPpkId(auth?.ppk_id || "");
+        setPpkRequired(auth?.ppk_required || false);
         setUseX509Id(auth?.use_x509_id || false);
         setCaCerts(auth?.x509?.ca_certificate || []);
         setAuthX509Cert(auth?.x509?.certificate || "");
@@ -189,6 +193,8 @@ export function SiteToSiteModal({
         setAuthMode("pre-shared-secret");
         setAuthLocalId("");
         setAuthRemoteId("");
+        setPpkId("");
+        setPpkRequired(false);
         setUseX509Id(false);
         setCaCerts([]);
         setAuthX509Cert("");
@@ -256,6 +262,8 @@ export function SiteToSiteModal({
         auth_mode: authMode || undefined,
         auth_local_id: authLocalId || undefined,
         auth_remote_id: authRemoteId || undefined,
+        auth_ppk_id: capabilities?.features.site_to_site.ppk ? (ppkId || undefined) : undefined,
+        auth_ppk_required: capabilities?.features.site_to_site.ppk ? ppkRequired : undefined,
         auth_x509_ca_certs: authMode === "x509" ? caCerts : undefined,
         auth_x509_cert: authMode === "x509" ? (authX509Cert || undefined) : undefined,
         auth_x509_passphrase: authMode === "x509" ? (authX509Passphrase || undefined) : undefined,
@@ -300,13 +308,6 @@ export function SiteToSiteModal({
   };
 
   const connectionTypes = capabilities?.features.site_to_site.connection_types || [];
-  const connectionLabel = (value: string) => {
-    if (value === "initiate") return t("s2sModal.initiate");
-    if (value === "respond") return t("s2sModal.respond");
-    if (value === "trap") return t("s2sModal.trap");
-    if (value === "none") return tc("none");
-    return value;
-  };
   const s2s = capabilities?.features.site_to_site;
 
   return (
@@ -376,7 +377,7 @@ export function SiteToSiteModal({
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="_none">{tc("default")}</SelectItem>
-                    {connectionTypes.map((value) => <SelectItem key={value} value={value}>{connectionLabel(value)}</SelectItem>)}
+                    {connectionTypes.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -397,7 +398,7 @@ export function SiteToSiteModal({
             </div>
             <div className="flex items-center gap-2">
               <Checkbox id="peerDisable" checked={disabled} onCheckedChange={(c) => setDisabled(c === true)} />
-              <Label htmlFor="peerDisable" className="cursor-pointer text-sm">{t("s2sModal.disable")}</Label>
+              <Label htmlFor="peerDisable" className="cursor-pointer text-sm">{tc("disabled")}</Label>
             </div>
             <div className="space-y-2">
               <Label>{t("s2sModal.ikev2Reauth")}</Label>
@@ -467,6 +468,18 @@ export function SiteToSiteModal({
                 <Input value={authRemoteId} onChange={(e) => setAuthRemoteId(e.target.value)} placeholder="@remote-id" />
               </div>
             </div>
+            {s2s?.ppk && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>{t("s2sModal.ppk")}</Label>
+                  <Input value={ppkId} onChange={(e) => setPpkId(e.target.value)} />
+                </div>
+                <div className="flex items-center gap-2 pt-7">
+                  <Checkbox id="ppkRequired" checked={ppkRequired} onCheckedChange={(c) => setPpkRequired(c === true)} />
+                  <Label htmlFor="ppkRequired" className="cursor-pointer text-sm">{t("s2sModal.ppkRequired")}</Label>
+                </div>
+              </div>
+            )}
             {authMode === "x509" && (
               <>
                 <div className="flex items-center gap-2">
@@ -603,7 +616,7 @@ export function SiteToSiteModal({
                   </div>
                   <div className="flex items-center gap-2">
                     <Checkbox id={`tun-disable-${tun.number}`} checked={tun.disabled} onCheckedChange={(c) => setTunnels(tunnels.map((row) => row.number === tun.number ? { ...row, disabled: c === true } : row))} />
-                    <Label htmlFor={`tun-disable-${tun.number}`} className="cursor-pointer text-sm">{t("s2sModal.disable")}</Label>
+                    <Label htmlFor={`tun-disable-${tun.number}`} className="cursor-pointer text-sm">{tc("disabled")}</Label>
                   </div>
                 </div>
               ))

@@ -24,6 +24,7 @@ import {
 import { AlertCircle, Loader2, Plus, Trash2, Shield } from "lucide-react";
 import { ipsecService, ESPGroup, IPSecCapabilities } from "@/lib/api/ipsec";
 import { ApiError } from "@/lib/types/api";
+import { cn } from "@/lib/utils";
 
 interface ESPGroupModalProps {
   open: boolean;
@@ -37,6 +38,7 @@ interface ProposalRow {
   id: string;
   encryption: string;
   hash: string;
+  esn: string;
 }
 
 export function ESPGroupModal({
@@ -50,6 +52,7 @@ export function ESPGroupModal({
   const tc = useTranslations("common");
   const isEdit = !!existingGroup;
   const esp = capabilities?.features.esp_groups;
+  const esnValues = esp?.esn || [];
   const pick = (value: string) => (value === "_none" ? "" : value);
 
   const [name, setName] = useState("");
@@ -61,7 +64,7 @@ export function ESPGroupModal({
   const [lifeBytes, setLifeBytes] = useState("");
   const [lifePackets, setLifePackets] = useState("");
   const [proposals, setProposals] = useState<ProposalRow[]>([
-    { id: "1", encryption: "aes256", hash: "sha256" },
+    { id: "1", encryption: "aes256", hash: "sha256", esn: "" },
   ]);
 
   const [loading, setLoading] = useState(false);
@@ -83,6 +86,7 @@ export function ESPGroupModal({
             id: p.number,
             encryption: p.encryption || "",
             hash: p.hash || "",
+            esn: p.esn || "",
           }))
         );
       } else {
@@ -94,7 +98,7 @@ export function ESPGroupModal({
         setDisableRekey(false);
         setLifeBytes("");
         setLifePackets("");
-        setProposals([{ id: "1", encryption: "aes256", hash: "sha256" }]);
+        setProposals([{ id: "1", encryption: "aes256", hash: "sha256", esn: "" }]);
       }
       setError(null);
     }
@@ -102,7 +106,7 @@ export function ESPGroupModal({
 
   const addProposal = () => {
     const nextNum = String(Math.max(0, ...proposals.map((p) => parseInt(p.id) || 0)) + 1);
-    setProposals([...proposals, { id: nextNum, encryption: "", hash: "" }]);
+    setProposals([...proposals, { id: nextNum, encryption: "", hash: "", esn: "" }]);
   };
 
   const removeProposal = (id: string) => {
@@ -132,6 +136,7 @@ export function ESPGroupModal({
           number: p.id,
           encryption: p.encryption || undefined,
           hash: p.hash || undefined,
+          esn: p.esn || undefined,
         })),
       };
       const result = isEdit && existingGroup
@@ -228,7 +233,7 @@ export function ESPGroupModal({
               </Button>
             </div>
             {proposals.map((p) => (
-              <div key={p.id} className="grid grid-cols-[auto_1fr_1fr_auto] gap-2 items-end rounded-lg border p-3">
+              <div key={p.id} className={cn("grid gap-2 items-end rounded-lg border p-3", esnValues.length > 0 ? "grid-cols-[auto_1fr_1fr_1fr_auto]" : "grid-cols-[auto_1fr_1fr_auto]")}>
                 <div className="text-xs text-muted-foreground font-mono w-6 text-center pt-5">#{p.id}</div>
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">{t("shared.encryption")}</Label>
@@ -250,6 +255,18 @@ export function ESPGroupModal({
                     </SelectContent>
                   </Select>
                 </div>
+                {esnValues.length > 0 && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">{t("shared.esn")}</Label>
+                    <Select value={p.esn || "_none"} onValueChange={(v) => updateProposal(p.id, "esn", pick(v))}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none">{tc("default")}</SelectItem>
+                        {esnValues.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:bg-destructive/10" onClick={() => removeProposal(p.id)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>

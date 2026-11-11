@@ -10,6 +10,7 @@ export interface IPSecProposal {
   hash?: string | null;
   dh_group?: string | null;
   prf?: string | null;
+  esn?: string | null;
 }
 
 // ---- Live operational status (dashboard SSE + page refresh) ----
@@ -84,6 +85,8 @@ export interface S2SPeerAuth {
   local_id?: string | null;
   remote_id?: string | null;
   use_x509_id?: boolean;
+  ppk_id?: string | null;
+  ppk_required?: boolean;
   x509?: {
     ca_certificate?: string[];
     certificate?: string | null;
@@ -146,6 +149,19 @@ export interface RAConnection {
   auth_always_send_cert?: boolean;
   auth_x509_ca_cert?: string[];
   auth_x509_cert?: string | null;
+  auth_x509_passphrase?: string | null;
+  auth_eap_id?: string | null;
+  auth_ppk_id?: string | null;
+  auth_ppk_required?: boolean;
+  disabled?: boolean;
+  dhcp_interface?: string | null;
+  replay_window?: string | null;
+  timeout?: string | null;
+  unique?: string | null;
+  local_prefix?: string[];
+  local_port?: string | null;
+  bind?: string | null;
+  childless?: string | null;
   local_users: RALocalUser[];
 }
 
@@ -156,6 +172,42 @@ export interface RAPool {
   exclude?: string[];
   range_start?: string | null;
   range_stop?: string | null;
+}
+
+export interface IPSecProfile {
+  name: string;
+  disabled?: boolean;
+  ike_group?: string | null;
+  esp_group?: string | null;
+  auth_mode?: string | null;
+  auth_psk?: string | null;
+  bind_tunnels?: string[];
+}
+
+export interface RARadiusServer {
+  address: string;
+  key?: string | null;
+  port?: string | null;
+  disabled?: boolean;
+  disable_accounting?: boolean;
+}
+
+export interface RADhcp {
+  interface?: string | null;
+  server?: string | null;
+}
+
+export interface RARadius {
+  nas_identifier?: string | null;
+  timeout?: string | null;
+  servers?: RARadiusServer[];
+}
+
+export interface AuthPPK {
+  name: string;
+  identities?: string[];
+  secret?: string | null;
+  secret_type?: string | null;
 }
 
 export interface AuthPSK {
@@ -170,6 +222,7 @@ export interface IPSecOptions {
   disable_route_autoinstall?: boolean;
   flexvpn?: boolean;
   virtual_ip?: boolean;
+  interface?: string | null;
   retransmission_attempts?: string | null;
   retransmission_base?: string | null;
   retransmission_timeout?: string | null;
@@ -187,9 +240,13 @@ export interface IPSecConfigResponse {
   remote_access: {
     connections: RAConnection[];
     pools: RAPool[];
+    dhcp: RADhcp;
+    radius: RARadius;
   };
+  profiles: IPSecProfile[];
   authentication: {
     psk: AuthPSK[];
+    ppk: AuthPPK[];
   };
   options: IPSecOptions;
   log: IPSecLog;
@@ -201,12 +258,13 @@ export interface IPSecConfigResponse {
     site_to_site_peers: number;
     remote_access_connections: number;
     remote_access_pools: number;
+    profiles: number;
   };
 }
 
 export interface IPSecCapabilities {
   features: {
-    ipsec: { supported: boolean; description: string; psk_secret_types: string[]; log_levels: string[]; log_subsystems: string[] };
+    ipsec: { supported: boolean; description: string; psk_secret_types: string[]; log_levels: string[]; log_subsystems: string[]; ppk: boolean };
     site_to_site: {
       supported: boolean;
       description: string;
@@ -218,8 +276,9 @@ export interface IPSecCapabilities {
       ikev2_reauth_values: string[];
       tunnel_protocols: string[];
       auth_modes: string[];
+      ppk: boolean;
     };
-    remote_access: { supported: boolean; description: string; server_modes: string[]; client_modes: string[]; pool_values: string[] };
+    remote_access: { supported: boolean; description: string; server_modes: string[]; client_modes: string[]; pool_values: string[]; unique_values: string[]; bind: boolean; childless: boolean; ppk: boolean };
     ike_groups: {
       supported: boolean;
       description: string;
@@ -231,6 +290,7 @@ export interface IPSecCapabilities {
       hash: string[];
       dh_group: string[];
       prf: string[];
+      esn: string[];
     };
     esp_groups: {
       supported: boolean;
@@ -239,7 +299,9 @@ export interface IPSecCapabilities {
       pfs: string[];
       encryption: string[];
       hash: string[];
+      esn: string[];
     };
+    profiles: { supported: boolean; description: string; auth_modes: string[] };
     retransmission_options: { supported: boolean; description: string };
     pool_range: { supported: boolean; description: string };
     always_send_cert: { supported: boolean; description: string };
@@ -308,7 +370,7 @@ class IPSecService {
     dpd_timeout?: string;
     disable_mobike?: boolean;
     ikev2_reauth?: boolean;
-    proposals?: Array<{ number: string; encryption?: string; hash?: string; dh_group?: string; prf?: string }>;
+    proposals?: Array<{ number: string; encryption?: string; hash?: string; dh_group?: string; prf?: string; esn?: string }>;
   }): Promise<VyOSResponse> {
     const ops: BatchOperation[] = [{ op: "create_ike_group" }];
     if (config.key_exchange) ops.push({ op: "set_ike_group_key_exchange", value: config.key_exchange });
@@ -327,6 +389,7 @@ class IPSecService {
         if (p.hash) ops.push({ op: "set_ike_group_proposal_hash", value: `${p.number}|${p.hash}` });
         if (p.dh_group) ops.push({ op: "set_ike_group_proposal_dh_group", value: `${p.number}|${p.dh_group}` });
         if (p.prf) ops.push({ op: "set_ike_group_proposal_prf", value: `${p.number}|${p.prf}` });
+        if (p.esn) ops.push({ op: "set_ike_group_proposal_esn", value: `${p.number}|${p.esn}` });
       }
     }
     return this.batchConfigure(name, ops);
@@ -342,7 +405,7 @@ class IPSecService {
       key_exchange?: string; lifetime?: string; mode?: string; close_action?: string;
       dpd_action?: string; dpd_interval?: string; dpd_timeout?: string;
       disable_mobike?: boolean; ikev2_reauth?: boolean;
-      proposals?: Array<{ number: string; encryption?: string; hash?: string; dh_group?: string; prf?: string }>;
+      proposals?: Array<{ number: string; encryption?: string; hash?: string; dh_group?: string; prf?: string; esn?: string }>;
     },
     existing: IKEGroup
   ): Promise<VyOSResponse> {
@@ -377,6 +440,7 @@ class IPSecService {
         if (next.hash) ops.push({ op: "set_ike_group_proposal_hash", value: `${number}|${next.hash}` });
         if (next.dh_group) ops.push({ op: "set_ike_group_proposal_dh_group", value: `${number}|${next.dh_group}` });
         if (next.prf) ops.push({ op: "set_ike_group_proposal_prf", value: `${number}|${next.prf}` });
+        if (next.esn) ops.push({ op: "set_ike_group_proposal_esn", value: `${number}|${next.esn}` });
         continue;
       }
       const field = (setOp: string, deleteOp: string, nextValue?: string, prevValue?: string | null) => {
@@ -387,6 +451,7 @@ class IPSecService {
       field("set_ike_group_proposal_hash", "delete_ike_group_proposal_hash", next.hash, prev.hash);
       field("set_ike_group_proposal_dh_group", "delete_ike_group_proposal_dh_group", next.dh_group, prev.dh_group);
       field("set_ike_group_proposal_prf", "delete_ike_group_proposal_prf", next.prf, prev.prf);
+      field("set_ike_group_proposal_esn", "delete_ike_group_proposal_esn", next.esn, prev.esn);
     }
     return this.batchConfigure(name, ops);
   }
@@ -403,7 +468,7 @@ class IPSecService {
     disable_rekey?: boolean;
     life_bytes?: string;
     life_packets?: string;
-    proposals?: Array<{ number: string; encryption?: string; hash?: string }>;
+    proposals?: Array<{ number: string; encryption?: string; hash?: string; esn?: string }>;
   }): Promise<VyOSResponse> {
     const ops: BatchOperation[] = [{ op: "create_esp_group" }];
     if (config.lifetime) ops.push({ op: "set_esp_group_lifetime", value: config.lifetime });
@@ -418,6 +483,7 @@ class IPSecService {
         ops.push({ op: "create_esp_group_proposal", value: p.number });
         if (p.encryption) ops.push({ op: "set_esp_group_proposal_encryption", value: `${p.number}|${p.encryption}` });
         if (p.hash) ops.push({ op: "set_esp_group_proposal_hash", value: `${p.number}|${p.hash}` });
+        if (p.esn) ops.push({ op: "set_esp_group_proposal_esn", value: `${p.number}|${p.esn}` });
       }
     }
     return this.batchConfigure(name, ops);
@@ -432,7 +498,7 @@ class IPSecService {
     config: {
       lifetime?: string; mode?: string; pfs?: string; compression?: boolean; disable_rekey?: boolean;
       life_bytes?: string; life_packets?: string;
-      proposals?: Array<{ number: string; encryption?: string; hash?: string }>;
+      proposals?: Array<{ number: string; encryption?: string; hash?: string; esn?: string }>;
     },
     existing: ESPGroup
   ): Promise<VyOSResponse> {
@@ -463,6 +529,7 @@ class IPSecService {
         ops.push({ op: "create_esp_group_proposal", value: number });
         if (next.encryption) ops.push({ op: "set_esp_group_proposal_encryption", value: `${number}|${next.encryption}` });
         if (next.hash) ops.push({ op: "set_esp_group_proposal_hash", value: `${number}|${next.hash}` });
+        if (next.esn) ops.push({ op: "set_esp_group_proposal_esn", value: `${number}|${next.esn}` });
         continue;
       }
       const field = (setOp: string, deleteOp: string, nextValue?: string, prevValue?: string | null) => {
@@ -471,6 +538,7 @@ class IPSecService {
       };
       field("set_esp_group_proposal_encryption", "delete_esp_group_proposal_encryption", next.encryption, prev.encryption);
       field("set_esp_group_proposal_hash", "delete_esp_group_proposal_hash", next.hash, prev.hash);
+      field("set_esp_group_proposal_esn", "delete_esp_group_proposal_esn", next.esn, prev.esn);
     }
     return this.batchConfigure(name, ops);
   }
@@ -490,6 +558,8 @@ class IPSecService {
     auth_mode?: string;
     auth_local_id?: string;
     auth_remote_id?: string;
+    auth_ppk_id?: string;
+    auth_ppk_required?: boolean;
     auth_x509_ca_certs?: string[];
     auth_x509_cert?: string;
     auth_x509_passphrase?: string;
@@ -533,6 +603,8 @@ class IPSecService {
     if (config.connection_type) ops.push({ op: "set_s2s_peer_connection_type", value: config.connection_type });
     if (config.dhcp_interface) ops.push({ op: "set_s2s_peer_dhcp_interface", value: config.dhcp_interface });
     if (config.auth_mode) ops.push({ op: "set_s2s_peer_auth_mode", value: config.auth_mode });
+    if (config.auth_ppk_id) ops.push({ op: "set_s2s_peer_auth_ppk_id", value: config.auth_ppk_id });
+    if (config.auth_ppk_required) ops.push({ op: "set_s2s_peer_auth_ppk_required" });
     if (config.auth_local_id) ops.push({ op: "set_s2s_peer_auth_local_id", value: config.auth_local_id });
     if (config.auth_remote_id) ops.push({ op: "set_s2s_peer_auth_remote_id", value: config.auth_remote_id });
     if (config.auth_x509_ca_certs) {
@@ -589,6 +661,8 @@ class IPSecService {
     auth_mode?: string;
     auth_local_id?: string;
     auth_remote_id?: string;
+    auth_ppk_id?: string;
+    auth_ppk_required?: boolean;
     auth_x509_ca_certs?: string[];
     auth_x509_cert?: string;
     auth_x509_passphrase?: string;
@@ -671,6 +745,9 @@ class IPSecService {
     }
     leaf("set_s2s_peer_auth_local_id", "delete_s2s_peer_auth_local_id", config.auth_local_id, oldAuth.local_id);
     leaf("set_s2s_peer_auth_remote_id", "delete_s2s_peer_auth_remote_id", config.auth_remote_id, oldAuth.remote_id);
+    leaf("set_s2s_peer_auth_ppk_id", "delete_s2s_peer_auth_ppk_id", config.auth_ppk_id, oldAuth.ppk_id);
+    if (config.auth_ppk_required && !oldAuth.ppk_required) ops.push({ op: "set_s2s_peer_auth_ppk_required" });
+    else if (!config.auth_ppk_required && oldAuth.ppk_required) ops.push({ op: "delete_s2s_peer_auth_ppk_required" });
 
     const oldX509 = oldAuth.x509 || {};
     const oldRsa = oldAuth.rsa || {};
@@ -822,6 +899,19 @@ class IPSecService {
     auth_psk?: string;
     auth_x509_ca_certs?: string[];
     auth_x509_cert?: string;
+    auth_x509_passphrase?: string;
+    auth_eap_id?: string;
+    auth_ppk_id?: string;
+    auth_ppk_required?: boolean;
+    disabled?: boolean;
+    dhcp_interface?: string;
+    replay_window?: string;
+    timeout?: string;
+    unique?: string;
+    local_prefix?: string[];
+    local_port?: string;
+    bind?: string;
+    childless?: string;
     auth_always_send_cert?: boolean;
     local_users?: { username: string; password?: string; disabled?: boolean }[];
   }): Promise<VyOSResponse> {
@@ -845,6 +935,19 @@ class IPSecService {
       }
     }
     if (config.auth_x509_cert) ops.push({ op: "set_ra_connection_auth_x509_cert", value: config.auth_x509_cert });
+    if (writableSecret(config.auth_x509_passphrase)) ops.push({ op: "set_ra_connection_auth_x509_passphrase", value: writableSecret(config.auth_x509_passphrase) });
+    if (config.auth_eap_id) ops.push({ op: "set_ra_connection_auth_eap_id", value: config.auth_eap_id });
+    if (config.auth_ppk_id) ops.push({ op: "set_ra_connection_auth_ppk_id", value: config.auth_ppk_id });
+    if (config.auth_ppk_required) ops.push({ op: "set_ra_connection_auth_ppk_required" });
+    if (config.disabled) ops.push({ op: "set_ra_connection_disable" });
+    if (config.dhcp_interface) ops.push({ op: "set_ra_connection_dhcp_interface", value: config.dhcp_interface });
+    if (config.replay_window) ops.push({ op: "set_ra_connection_replay_window", value: config.replay_window });
+    if (config.timeout) ops.push({ op: "set_ra_connection_timeout", value: config.timeout });
+    if (config.unique) ops.push({ op: "set_ra_connection_unique", value: config.unique });
+    for (const prefix of config.local_prefix || []) ops.push({ op: "set_ra_connection_local_prefix", value: prefix });
+    if (config.local_port) ops.push({ op: "set_ra_connection_local_port", value: config.local_port });
+    if (config.bind) ops.push({ op: "set_ra_connection_bind", value: config.bind });
+    if (config.childless) ops.push({ op: "set_ra_connection_childless", value: config.childless });
     if (config.auth_always_send_cert) ops.push({ op: "set_ra_connection_auth_always_send_cert" });
     if (config.local_users) {
       for (const user of config.local_users) {
@@ -869,6 +972,19 @@ class IPSecService {
     auth_psk?: string;
     auth_x509_ca_certs?: string[];
     auth_x509_cert?: string;
+    auth_x509_passphrase?: string;
+    auth_eap_id?: string;
+    auth_ppk_id?: string;
+    auth_ppk_required?: boolean;
+    disabled?: boolean;
+    dhcp_interface?: string;
+    replay_window?: string;
+    timeout?: string;
+    unique?: string;
+    local_prefix?: string[];
+    local_port?: string;
+    bind?: string;
+    childless?: string;
     auth_always_send_cert?: boolean;
     local_users?: { username: string; password?: string; disabled?: boolean }[];
   }, existing: RAConnection): Promise<VyOSResponse> {
@@ -895,6 +1011,32 @@ class IPSecService {
     diffLeaf("set_ra_connection_auth_client_mode", "delete_ra_connection_auth_client_mode", config.auth_client_mode, existing.auth_client_mode);
     diffLeaf("set_ra_connection_auth_local_id", "delete_ra_connection_auth_local_id", config.auth_local_id, existing.auth_local_id);
     diffLeaf("set_ra_connection_auth_x509_cert", "delete_ra_connection_auth_x509_cert", config.auth_x509_cert, existing.auth_x509_cert);
+    if (config.auth_server_mode && config.auth_server_mode !== "x509" && existing.auth_x509_passphrase) {
+      ops.push({ op: "delete_ra_connection_auth_x509_passphrase" });
+    } else if (config.auth_x509_passphrase !== MASKED_SECRET) {
+      const passphrase = writableSecret(config.auth_x509_passphrase);
+      if (passphrase) ops.push({ op: "set_ra_connection_auth_x509_passphrase", value: passphrase });
+      else if (existing.auth_x509_passphrase) ops.push({ op: "delete_ra_connection_auth_x509_passphrase" });
+    }
+    diffLeaf("set_ra_connection_auth_eap_id", "delete_ra_connection_auth_eap_id", config.auth_eap_id, existing.auth_eap_id);
+    diffLeaf("set_ra_connection_auth_ppk_id", "delete_ra_connection_auth_ppk_id", config.auth_ppk_id, existing.auth_ppk_id);
+    if (config.auth_ppk_required && !existing.auth_ppk_required) ops.push({ op: "set_ra_connection_auth_ppk_required" });
+    else if (!config.auth_ppk_required && existing.auth_ppk_required) ops.push({ op: "delete_ra_connection_auth_ppk_required" });
+    if (config.disabled && !existing.disabled) ops.push({ op: "set_ra_connection_disable" });
+    else if (!config.disabled && existing.disabled) ops.push({ op: "delete_ra_connection_disable" });
+    diffLeaf("set_ra_connection_dhcp_interface", "delete_ra_connection_dhcp_interface", config.dhcp_interface, existing.dhcp_interface);
+    diffLeaf("set_ra_connection_replay_window", "delete_ra_connection_replay_window", config.replay_window, existing.replay_window);
+    diffLeaf("set_ra_connection_timeout", "delete_ra_connection_timeout", config.timeout, existing.timeout);
+    diffLeaf("set_ra_connection_unique", "delete_ra_connection_unique", config.unique, existing.unique);
+    diffLeaf("set_ra_connection_local_port", "delete_ra_connection_local_port", config.local_port, existing.local_port);
+    diffLeaf("set_ra_connection_bind", "delete_ra_connection_bind", config.bind, existing.bind);
+    diffLeaf("set_ra_connection_childless", "delete_ra_connection_childless", config.childless, existing.childless);
+    for (const old of existing.local_prefix || []) {
+      if (!(config.local_prefix || []).includes(old)) ops.push({ op: "delete_ra_connection_local_prefix", value: old });
+    }
+    for (const item of config.local_prefix || []) {
+      if (!(existing.local_prefix || []).includes(item)) ops.push({ op: "set_ra_connection_local_prefix", value: item });
+    }
 
     // X.509 CA cert is a multi-value node: replacing requires deleting the old value.
     {
@@ -1006,6 +1148,139 @@ class IPSecService {
     leaf("set_ra_pool_range_start", "delete_ra_pool_range_start", config.range_start, existing.range_start);
     leaf("set_ra_pool_range_stop", "delete_ra_pool_range_stop", config.range_stop, existing.range_stop);
     return this.batchConfigure(name, ops);
+  }
+
+  // ==========================================================================
+  // Profile Operations
+  // ==========================================================================
+
+  async createProfile(name: string, config: {
+    disabled?: boolean;
+    ike_group?: string;
+    esp_group?: string;
+    auth_mode?: string;
+    auth_psk?: string;
+    bind_tunnels?: string[];
+  }): Promise<VyOSResponse> {
+    const ops: BatchOperation[] = [{ op: "create_profile" }];
+    if (config.disabled) ops.push({ op: "set_profile_disable" });
+    if (config.ike_group) ops.push({ op: "set_profile_ike_group", value: config.ike_group });
+    if (config.esp_group) ops.push({ op: "set_profile_esp_group", value: config.esp_group });
+    if (config.auth_mode) ops.push({ op: "set_profile_auth_mode", value: config.auth_mode });
+    if (writableSecret(config.auth_psk)) ops.push({ op: "set_profile_auth_psk", value: writableSecret(config.auth_psk) });
+    for (const tunnel of config.bind_tunnels || []) ops.push({ op: "set_profile_bind_tunnel", value: tunnel });
+    return this.batchConfigure(name, ops);
+  }
+
+  async updateProfile(name: string, config: {
+    disabled?: boolean;
+    ike_group?: string;
+    esp_group?: string;
+    auth_mode?: string;
+    auth_psk?: string;
+    bind_tunnels?: string[];
+  }, existing: IPSecProfile): Promise<VyOSResponse> {
+    const ops: BatchOperation[] = [{ op: "create_profile" }];
+    const leaf = (setOp: string, deleteOp: string, next?: string, prev?: string | null) => {
+      if (next && next !== prev) ops.push({ op: setOp, value: next });
+      else if (!next && prev) ops.push({ op: deleteOp });
+    };
+    if (config.disabled && !existing.disabled) ops.push({ op: "set_profile_disable" });
+    else if (!config.disabled && existing.disabled) ops.push({ op: "delete_profile_disable" });
+    leaf("set_profile_ike_group", "delete_profile_ike_group", config.ike_group, existing.ike_group);
+    leaf("set_profile_esp_group", "delete_profile_esp_group", config.esp_group, existing.esp_group);
+    leaf("set_profile_auth_mode", "delete_profile_auth_mode", config.auth_mode, existing.auth_mode);
+    if (config.auth_psk !== MASKED_SECRET) {
+      const secret = writableSecret(config.auth_psk);
+      if (secret) ops.push({ op: "set_profile_auth_psk", value: secret });
+      else if (existing.auth_psk) ops.push({ op: "delete_profile_auth_psk" });
+    }
+    const nextTunnels = config.bind_tunnels || [];
+    const prevTunnels = existing.bind_tunnels || [];
+    for (const tunnel of prevTunnels) if (!nextTunnels.includes(tunnel)) ops.push({ op: "delete_profile_bind_tunnel", value: tunnel });
+    for (const tunnel of nextTunnels) if (!prevTunnels.includes(tunnel)) ops.push({ op: "set_profile_bind_tunnel", value: tunnel });
+    return this.batchConfigure(name, ops);
+  }
+
+  async deleteProfile(name: string): Promise<VyOSResponse> {
+    return this.batchConfigure(name, [{ op: "delete_profile" }]);
+  }
+
+  // ==========================================================================
+  // Remote Access RADIUS Server Operations
+  // ==========================================================================
+
+  async createRARadiusServer(address: string, config: {
+    key?: string;
+    port?: string;
+    disabled?: boolean;
+    disable_accounting?: boolean;
+  }): Promise<VyOSResponse> {
+    const ops: BatchOperation[] = [{ op: "create_ra_radius_server" }];
+    if (writableSecret(config.key)) ops.push({ op: "set_ra_radius_server_key", value: writableSecret(config.key) });
+    if (config.port) ops.push({ op: "set_ra_radius_server_port", value: config.port });
+    if (config.disabled) ops.push({ op: "set_ra_radius_server_disable" });
+    if (config.disable_accounting) ops.push({ op: "set_ra_radius_server_disable_accounting" });
+    return this.batchConfigure(address, ops);
+  }
+
+  async updateRARadiusServer(address: string, config: {
+    key?: string;
+    port?: string;
+    disabled?: boolean;
+    disable_accounting?: boolean;
+  }, existing: RARadiusServer): Promise<VyOSResponse> {
+    const ops: BatchOperation[] = [{ op: "create_ra_radius_server" }];
+    const key = writableSecret(config.key);
+    if (key) ops.push({ op: "set_ra_radius_server_key", value: key });
+    if (config.port && config.port !== existing.port) ops.push({ op: "set_ra_radius_server_port", value: config.port });
+    else if (!config.port && existing.port) ops.push({ op: "delete_ra_radius_server_port" });
+    if (config.disabled && !existing.disabled) ops.push({ op: "set_ra_radius_server_disable" });
+    else if (!config.disabled && existing.disabled) ops.push({ op: "delete_ra_radius_server_disable" });
+    if (config.disable_accounting && !existing.disable_accounting) ops.push({ op: "set_ra_radius_server_disable_accounting" });
+    else if (!config.disable_accounting && existing.disable_accounting) ops.push({ op: "delete_ra_radius_server_disable_accounting" });
+    return this.batchConfigure(address, ops);
+  }
+
+  async deleteRARadiusServer(address: string): Promise<VyOSResponse> {
+    return this.batchConfigure(address, [{ op: "delete_ra_radius_server" }]);
+  }
+
+  // ==========================================================================
+  // Authentication PPK Operations (1.5)
+  // ==========================================================================
+
+  async createAuthPPK(name: string, config: {
+    identities?: string[];
+    secret?: string;
+    secret_type?: string;
+  }): Promise<VyOSResponse> {
+    const ops: BatchOperation[] = [{ op: "create_auth_ppk" }];
+    for (const id of config.identities || []) ops.push({ op: "set_auth_ppk_id", value: id });
+    if (writableSecret(config.secret)) ops.push({ op: "set_auth_ppk_secret", value: writableSecret(config.secret) });
+    if (config.secret_type) ops.push({ op: "set_auth_ppk_secret_type", value: config.secret_type });
+    return this.batchConfigure(name, ops);
+  }
+
+  async updateAuthPPK(name: string, config: {
+    identities?: string[];
+    secret?: string;
+    secret_type?: string;
+  }, existing: AuthPPK): Promise<VyOSResponse> {
+    const ops: BatchOperation[] = [{ op: "create_auth_ppk" }];
+    const nextIds = config.identities || [];
+    const oldIds = existing.identities || [];
+    for (const id of oldIds) if (!nextIds.includes(id)) ops.push({ op: "delete_auth_ppk_id", value: id });
+    for (const id of nextIds) if (!oldIds.includes(id)) ops.push({ op: "set_auth_ppk_id", value: id });
+    const secret = writableSecret(config.secret);
+    if (secret) ops.push({ op: "set_auth_ppk_secret", value: secret });
+    if (config.secret_type && config.secret_type !== existing.secret_type) ops.push({ op: "set_auth_ppk_secret_type", value: config.secret_type });
+    else if (!config.secret_type && existing.secret_type) ops.push({ op: "delete_auth_ppk_secret_type" });
+    return this.batchConfigure(name, ops);
+  }
+
+  async deleteAuthPPK(name: string): Promise<VyOSResponse> {
+    return this.batchConfigure(name, [{ op: "delete_auth_ppk" }]);
   }
 
   // ==========================================================================

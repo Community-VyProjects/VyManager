@@ -102,8 +102,9 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
     - IKE groups
     - ESP groups
     - Site-to-site peers with tunnels
-    - Remote access connections and pools
-    - Authentication (PSK)
+    - Remote access connections, pools, DHCP and RADIUS
+    - Profiles
+    - Authentication (PSK and PPK)
     - Global options and logging
     """
     await require_read_permission(request, FeatureGroup.IPSEC)
@@ -165,6 +166,8 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
             masked = {**data}
             if masked.get("auth_psk"):
                 masked["auth_psk"] = "***"
+            if masked.get("auth_x509_passphrase"):
+                masked["auth_x509_passphrase"] = "***"
             local_users = []
             for user in masked.get("local_users") or []:
                 user = {**user}
@@ -186,6 +189,28 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
                 masked["secret"] = "***"
             psk_entries.append(masked)
 
+        ppk_entries = []
+        for name, data in config.get("authentication", {}).get("ppk", {}).items():
+            masked = {**data}
+            if masked.get("secret"):
+                masked["secret"] = "***"
+            ppk_entries.append(masked)
+
+        profiles = []
+        for name, data in config.get("profiles", {}).items():
+            masked = {**data}
+            if masked.get("auth_psk"):
+                masked["auth_psk"] = "***"
+            profiles.append(masked)
+
+        radius = config.get("remote_access", {}).get("radius") or {}
+        radius_servers = []
+        for server in radius.get("servers") or []:
+            masked = {**server}
+            if masked.get("key"):
+                masked["key"] = "***"
+            radius_servers.append(masked)
+
         return {
             "ike_groups": ike_groups,
             "esp_groups": esp_groups,
@@ -193,9 +218,13 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
             "remote_access": {
                 "connections": ra_connections,
                 "pools": ra_pools,
+                "dhcp": config.get("remote_access", {}).get("dhcp") or {},
+                "radius": {**radius, "servers": radius_servers},
             },
+            "profiles": profiles,
             "authentication": {
                 "psk": psk_entries,
+                "ppk": ppk_entries,
             },
             "options": config.get("options", {}),
             "log": config.get("log", {}),
@@ -207,6 +236,7 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
                 "site_to_site_peers": len(site_to_site_peers),
                 "remote_access_connections": len(ra_connections),
                 "remote_access_pools": len(ra_pools),
+                "profiles": len(profiles),
             },
         }
     except HTTPException:

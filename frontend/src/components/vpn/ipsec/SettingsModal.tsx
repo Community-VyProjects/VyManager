@@ -23,12 +23,15 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, Settings } from "lucide-react";
 import { InterfaceMultiSelect } from "@/components/ui/interface-multi-select";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import {
   ipsecService,
   IPSecOptions,
   IPSecLog,
   IPSecCapabilities,
   BatchOperation,
+  RADhcp,
+  RARadius,
 } from "@/lib/api/ipsec";
 import { showService, InterfaceName } from "@/lib/api/show";
 import { ApiError } from "@/lib/types/api";
@@ -42,6 +45,8 @@ interface SettingsModalProps {
   currentLog: IPSecLog;
   currentInterfaces: string[];
   disableUniqreqids: boolean;
+  currentDhcp: RADhcp;
+  currentRadius: RARadius;
 }
 
 export function SettingsModal({
@@ -53,6 +58,8 @@ export function SettingsModal({
   currentLog,
   currentInterfaces,
   disableUniqreqids: currentDisableUniqreqids,
+  currentDhcp,
+  currentRadius,
 }: SettingsModalProps) {
   const t = useTranslations("ipsecSettings");
   const tc = useTranslations("common");
@@ -64,6 +71,7 @@ export function SettingsModal({
   const [virtualIp, setVirtualIp] = useState(false);
   const [disableUniqreqids, setDisableUniqreqids] = useState(false);
   const [interfaces, setInterfaces] = useState<string[]>([]);
+  const [optionsInterface, setOptionsInterface] = useState("");
 
   // Logging
   const [logLevel, setLogLevel] = useState("");
@@ -73,6 +81,12 @@ export function SettingsModal({
   const [retransmissionAttempts, setRetransmissionAttempts] = useState("");
   const [retransmissionBase, setRetransmissionBase] = useState("");
   const [retransmissionTimeout, setRetransmissionTimeout] = useState("");
+
+  // Remote access DHCP and RADIUS
+  const [dhcpInterface, setDhcpInterface] = useState("");
+  const [dhcpServer, setDhcpServer] = useState("");
+  const [nasIdentifier, setNasIdentifier] = useState("");
+  const [radiusTimeout, setRadiusTimeout] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,14 +102,19 @@ export function SettingsModal({
       setVirtualIp(currentOptions.virtual_ip || false);
       setDisableUniqreqids(currentDisableUniqreqids);
       setInterfaces(currentInterfaces);
+      setOptionsInterface(currentOptions.interface || "");
       setLogLevel(currentLog.level || "");
       setLogSubsystems(currentLog.subsystems || []);
       setRetransmissionAttempts(currentOptions.retransmission_attempts || "");
       setRetransmissionBase(currentOptions.retransmission_base || "");
       setRetransmissionTimeout(currentOptions.retransmission_timeout || "");
+      setDhcpInterface(currentDhcp.interface || "");
+      setDhcpServer(currentDhcp.server || "");
+      setNasIdentifier(currentRadius.nas_identifier || "");
+      setRadiusTimeout(currentRadius.timeout || "");
       setError(null);
     }
-  }, [open, currentOptions, currentLog, currentInterfaces, currentDisableUniqreqids]);
+  }, [open, currentOptions, currentLog, currentInterfaces, currentDisableUniqreqids, currentDhcp, currentRadius]);
 
   const toggleSubsystem = (sub: string) => {
     setLogSubsystems((prev) =>
@@ -137,11 +156,17 @@ export function SettingsModal({
         if (!currentSubs.includes(newSub)) ops.push({ op: "set_log_subsystem", item_name: newSub });
       }
 
+      const leaf = (next: string, prev: string, setOp: string, deleteOp: string) => {
+        if (!next && prev) ops.push({ op: deleteOp });
+        else if (next && next !== prev) ops.push({ op: setOp, item_name: next });
+      };
+      leaf(optionsInterface, currentOptions.interface || "", "set_options_interface", "delete_options_interface");
+      leaf(dhcpInterface, currentDhcp.interface || "", "set_ra_dhcp_interface", "delete_ra_dhcp_interface");
+      leaf(dhcpServer.trim(), currentDhcp.server || "", "set_ra_dhcp_server", "delete_ra_dhcp_server");
+      leaf(nasIdentifier.trim(), currentRadius.nas_identifier || "", "set_ra_radius_nas_identifier", "delete_ra_radius_nas_identifier");
+      leaf(radiusTimeout.trim(), currentRadius.timeout || "", "set_ra_radius_timeout", "delete_ra_radius_timeout");
+
       if (capabilities?.features.retransmission_options.supported) {
-        const leaf = (next: string, prev: string, setOp: string, deleteOp: string) => {
-          if (!next && prev) ops.push({ op: deleteOp });
-          else if (next && next !== prev) ops.push({ op: setOp, item_name: next });
-        };
         leaf(retransmissionAttempts, currentOptions.retransmission_attempts || "", "set_options_retransmission_attempts", "delete_options_retransmission_attempts");
         leaf(retransmissionBase, currentOptions.retransmission_base || "", "set_options_retransmission_base", "delete_options_retransmission_base");
         leaf(retransmissionTimeout, currentOptions.retransmission_timeout || "", "set_options_retransmission_timeout", "delete_options_retransmission_timeout");
@@ -210,6 +235,15 @@ export function SettingsModal({
             <Label>{t("settings.interfaces")}</Label>
             <InterfaceMultiSelect values={interfaces} onChange={setInterfaces} interfaces={allInterfaces} />
           </div>
+          <div className="space-y-2">
+            <Label>{t("settings.optionsInterface")}</Label>
+            <InterfaceSelect
+              value={optionsInterface}
+              onValueChange={setOptionsInterface}
+              interfaces={allInterfaces}
+              noneOption={{ label: tc("none"), value: "" }}
+            />
+          </div>
 
           {/* Logging */}
           <div className="space-y-3">
@@ -237,6 +271,34 @@ export function SettingsModal({
                     <Label htmlFor={`sub-${sub}`} className="cursor-pointer text-xs font-mono">{sub}</Label>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Remote access DHCP and RADIUS */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">{t("settings.remoteAccess")}</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">{t("psk.dhcpInterface")}</Label>
+                <InterfaceSelect
+                  value={dhcpInterface}
+                  onValueChange={setDhcpInterface}
+                  interfaces={allInterfaces}
+                  noneOption={{ label: tc("none"), value: "" }}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">{t("settings.dhcpServer")}</Label>
+                <Input value={dhcpServer} onChange={(e) => setDhcpServer(e.target.value)} placeholder="192.0.2.1" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">{t("settings.nasIdentifier")}</Label>
+                <Input value={nasIdentifier} onChange={(e) => setNasIdentifier(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">{t("settings.radiusTimeout")}</Label>
+                <Input value={radiusTimeout} onChange={(e) => setRadiusTimeout(e.target.value)} placeholder={tc("default")} />
               </div>
             </div>
           </div>

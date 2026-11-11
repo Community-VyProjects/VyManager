@@ -24,6 +24,7 @@ import {
 import { AlertCircle, Loader2, Plus, Trash2, Shield } from "lucide-react";
 import { ipsecService, IKEGroup, IPSecCapabilities } from "@/lib/api/ipsec";
 import { ApiError } from "@/lib/types/api";
+import { cn } from "@/lib/utils";
 
 interface IKEGroupModalProps {
   open: boolean;
@@ -39,6 +40,7 @@ interface ProposalRow {
   hash: string;
   dh_group: string;
   prf: string;
+  esn: string;
 }
 
 export function IKEGroupModal({
@@ -52,6 +54,7 @@ export function IKEGroupModal({
   const tc = useTranslations("common");
   const isEdit = !!existingGroup;
   const ike = capabilities?.features.ike_groups;
+  const esnValues = ike?.esn || [];
   const pick = (value: string) => (value === "_none" ? "" : value);
 
   const [name, setName] = useState("");
@@ -65,7 +68,7 @@ export function IKEGroupModal({
   const [disableMobike, setDisableMobike] = useState(false);
   const [ikev2Reauth, setIkev2Reauth] = useState(false);
   const [proposals, setProposals] = useState<ProposalRow[]>([
-    { id: "1", encryption: "aes256", hash: "sha256", dh_group: "14", prf: "" },
+    { id: "1", encryption: "aes256", hash: "sha256", dh_group: "14", prf: "", esn: "" },
   ]);
 
   const [loading, setLoading] = useState(false);
@@ -91,6 +94,7 @@ export function IKEGroupModal({
             hash: p.hash || "",
             dh_group: p.dh_group || "",
             prf: p.prf || "",
+            esn: p.esn || "",
           }))
         );
       } else {
@@ -104,7 +108,7 @@ export function IKEGroupModal({
         setDpdTimeout("");
         setDisableMobike(false);
         setIkev2Reauth(false);
-        setProposals([{ id: "1", encryption: "aes256", hash: "sha256", dh_group: "14", prf: "" }]);
+        setProposals([{ id: "1", encryption: "aes256", hash: "sha256", dh_group: "14", prf: "", esn: "" }]);
       }
       setError(null);
     }
@@ -112,7 +116,7 @@ export function IKEGroupModal({
 
   const addProposal = () => {
     const nextNum = String(Math.max(0, ...proposals.map((p) => parseInt(p.id) || 0)) + 1);
-    setProposals([...proposals, { id: nextNum, encryption: "", hash: "", dh_group: "", prf: "" }]);
+    setProposals([...proposals, { id: nextNum, encryption: "", hash: "", dh_group: "", prf: "", esn: "" }]);
   };
 
   const removeProposal = (id: string) => {
@@ -149,6 +153,7 @@ export function IKEGroupModal({
           hash: p.hash || undefined,
           dh_group: p.dh_group || undefined,
           prf: p.prf || undefined,
+          esn: p.esn || undefined,
         })),
       };
       const result = isEdit && existingGroup
@@ -283,7 +288,7 @@ export function IKEGroupModal({
               </Button>
             </div>
             {proposals.map((p) => (
-              <div key={p.id} className="grid grid-cols-[auto_1fr_1fr_1fr_1fr_auto] gap-2 items-end rounded-lg border p-3">
+              <div key={p.id} className={cn("grid gap-2 items-end rounded-lg border p-3", esnValues.length > 0 ? "grid-cols-[auto_1fr_1fr_1fr_1fr_1fr_auto]" : "grid-cols-[auto_1fr_1fr_1fr_1fr_auto]")}>
                 <div className="text-xs text-muted-foreground font-mono w-6 text-center pt-5">#{p.id}</div>
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">{t("shared.encryption")}</Label>
@@ -325,6 +330,18 @@ export function IKEGroupModal({
                     </SelectContent>
                   </Select>
                 </div>
+                {esnValues.length > 0 && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">{t("shared.esn")}</Label>
+                    <Select value={p.esn || "_none"} onValueChange={(v) => updateProposal(p.id, "esn", pick(v))}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none">{tc("default")}</SelectItem>
+                        {esnValues.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <Button
                   type="button"
                   variant="ghost"

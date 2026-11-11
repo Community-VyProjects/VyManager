@@ -6,3 +6,5 @@ export { PoolModal } from "./PoolModal";
 export { AuthPSKModal } from "./AuthPSKModal";
 export { DeleteConfirmModal } from "./DeleteConfirmModal";
 export { SettingsModal } from "./SettingsModal";
+export { ProfileModal } from "./ProfileModal";
+export { RadiusServerModal } from "./RadiusServerModal";
