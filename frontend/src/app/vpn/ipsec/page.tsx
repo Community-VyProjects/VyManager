@@ -251,7 +251,7 @@ function IPSecPageInner() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-6 gap-3 mt-4">
+          <div className="grid grid-cols-5 gap-3 mt-4">
             <Card className="p-3">
               <div className="flex items-center gap-2">
                 <Network className="h-4 w-4 text-blue-500" />
@@ -518,7 +518,7 @@ function IPSecPageInner() {
                             <TableCell>{conn.ike_group || "-"}</TableCell>
                             <TableCell>{conn.esp_group || "-"}</TableCell>
                             <TableCell>{(conn.pools || []).join(", ") || "-"}</TableCell>
-                            <TableCell><Badge variant="outline" className="text-xs">{conn.auth_server_mode || "psk"}</Badge></TableCell>
+                            <TableCell><Badge variant="outline" className="text-xs">{conn.auth_server_mode || "x509"}</Badge></TableCell>
                             {hasWrite && (
                               <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

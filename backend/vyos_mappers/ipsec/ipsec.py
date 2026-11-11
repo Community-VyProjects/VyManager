@@ -112,6 +112,9 @@ class IPSecMapper(BaseFeatureMapper):
     def ra_client_modes(self) -> List[str]:
         return ["x509", "eap-tls", "eap-mschapv2", "eap-radius"]
 
+    def ra_pool_values(self) -> List[str]:
+        return ["dhcp", "radius"]
+
     # ========================================================================
     # Base path
     # ========================================================================

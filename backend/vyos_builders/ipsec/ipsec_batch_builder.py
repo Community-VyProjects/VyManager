@@ -738,6 +738,7 @@ class IPSecBatchBuilder(BatchBuilder):
                     "description": "Remote access IPSec VPN",
                     "server_modes": mapper.ra_server_modes(),
                     "client_modes": mapper.ra_client_modes(),
+                    "pool_values": mapper.ra_pool_values(),
                 },
                 "ike_groups": {
                     "supported": True,

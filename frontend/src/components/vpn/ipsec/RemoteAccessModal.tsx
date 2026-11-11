@@ -63,6 +63,10 @@ export function RemoteAccessModal({
   const t = useTranslations("ipsec");
   const tc = useTranslations("common");
   const isEdit = !!existingConnection;
+  const poolChoices = [
+    ...(capabilities?.features.remote_access.pool_values || []),
+    ...pools.map((pool) => pool.name).filter((name) => !(capabilities?.features.remote_access.pool_values || []).includes(name)),
+  ];
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -228,18 +232,18 @@ export function RemoteAccessModal({
             </div>
             <div className="space-y-2">
               <Label>{t("page.pools")}</Label>
-              {pools.length > 0 ? (
+              {poolChoices.length > 0 ? (
                 <div className="space-y-2">
-                  {pools.map((pool) => (
-                    <div key={pool.name} className="flex items-center gap-2">
+                  {poolChoices.map((name) => (
+                    <div key={name} className="flex items-center gap-2">
                       <Checkbox
-                        id={`pool-${pool.name}`}
-                        checked={selectedPools.includes(pool.name)}
+                        id={`pool-${name}`}
+                        checked={selectedPools.includes(name)}
                         onCheckedChange={(checked) => {
-                          setSelectedPools(checked ? [...selectedPools, pool.name] : selectedPools.filter((name) => name !== pool.name));
+                          setSelectedPools(checked ? [...selectedPools, name] : selectedPools.filter((item) => item !== name));
                         }}
                       />
-                        <Label htmlFor={`pool-${pool.name}`} className="cursor-pointer text-sm">{pool.name}</Label>
+                      <Label htmlFor={`pool-${name}`} className="cursor-pointer text-sm">{name}</Label>
                     </div>
                   ))}
                 </div>

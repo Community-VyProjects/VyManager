@@ -219,7 +219,7 @@ export interface IPSecCapabilities {
       tunnel_protocols: string[];
       auth_modes: string[];
     };
-    remote_access: { supported: boolean; description: string; server_modes: string[]; client_modes: string[] };
+    remote_access: { supported: boolean; description: string; server_modes: string[]; client_modes: string[]; pool_values: string[] };
     ike_groups: {
       supported: boolean;
       description: string;
