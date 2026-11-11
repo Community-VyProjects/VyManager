@@ -20,7 +20,7 @@ export function DeleteCommunityListModal({
   onSuccess,
   communityList,
 }: DeleteCommunityListModalProps) {
-  const t = useTranslations("bgpLists");
+  const t = useTranslations("communityList");
   const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

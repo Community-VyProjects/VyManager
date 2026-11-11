@@ -169,19 +169,19 @@ export const configSources: ConfigSourceDefinition[] = [
   {
     id: "bgp-community",
     feature: "Policies",
-    hrefBase: "/policies/bgp-community",
+    hrefBase: "/policies/community-list",
     fetch: () => communityListService.getConfig(),
   },
   {
     id: "bgp-ext-community",
     feature: "Policies",
-    hrefBase: "/policies/bgp-extended-community",
+    hrefBase: "/policies/extcommunity-list",
     fetch: () => extcommunityListService.getConfig(),
   },
   {
     id: "bgp-large-community",
     feature: "Policies",
-    hrefBase: "/policies/bgp-large-community",
+    hrefBase: "/policies/large-community-list",
     fetch: () => largeCommunityListService.getConfig(),
   },
   {

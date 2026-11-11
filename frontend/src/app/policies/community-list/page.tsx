@@ -23,19 +23,19 @@ import {
 import { DndContext, type DragStartEvent, type DragEndEvent, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { largeCommunityListService, LargeCommunityList, LargeCommunityListRule, LargeCommunityListCapabilities } from "@/lib/api/large-community-list";
-import { CreateLargeCommunityListModal } from "@/components/policies/CreateLargeCommunityListModal";
-import { EditLargeCommunityListModal } from "@/components/policies/EditLargeCommunityListModal";
-import { DeleteLargeCommunityListModal } from "@/components/policies/DeleteLargeCommunityListModal";
-import { LargeCommunityListRuleModal } from "@/components/policies/LargeCommunityListRuleModal";
-import { DeleteLargeCommunityListRuleModal } from "@/components/policies/DeleteLargeCommunityListRuleModal";
-import { LargeCommunityListReorderBanner } from "@/components/policies/LargeCommunityListReorderBanner";
+import { communityListService, CommunityList, CommunityListRule, CommunityListCapabilities } from "@/lib/api/community-list";
+import { CreateCommunityListModal } from "@/components/policies/CreateCommunityListModal";
+import { EditCommunityListModal } from "@/components/policies/EditCommunityListModal";
+import { DeleteCommunityListModal } from "@/components/policies/DeleteCommunityListModal";
+import { CommunityListRuleModal } from "@/components/policies/CommunityListRuleModal";
+import { DeleteCommunityListRuleModal } from "@/components/policies/DeleteCommunityListRuleModal";
+import { CommunityListReorderBanner } from "@/components/policies/CommunityListReorderBanner";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 // Sortable row component
-function LargeCommunityListRuleRow({ rule, onEdit, onDelete }: { rule: LargeCommunityListRule; onEdit: (rule: LargeCommunityListRule) => void; onDelete: (rule: LargeCommunityListRule) => void }) {
-  const t = useTranslations("bgpLists");
+function CommunityListRuleRow({ rule, onEdit, onDelete }: { rule: CommunityListRule; onEdit: (rule: CommunityListRule) => void; onDelete: (rule: CommunityListRule) => void }) {
+  const t = useTranslations("communityList");
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: rule.rule_number,
   });
@@ -86,32 +86,32 @@ function LargeCommunityListRuleRow({ rule, onEdit, onDelete }: { rule: LargeComm
   );
 }
 
-export default function BGPLargeCommunityPage() {
-  const t = useTranslations("bgpLists");
+export default function CommunityListPage() {
+  const t = useTranslations("communityList");
   const tc = useTranslations("common");
-  const [largeCommunityLists, setLargeCommunityLists] = useState<LargeCommunityList[]>([]);
+  const [communityLists, setCommunityLists] = useState<CommunityList[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [capabilities, setCapabilities] = useState<LargeCommunityListCapabilities | null>(null);
+  const [capabilities, setCapabilities] = useState<CommunityListCapabilities | null>(null);
 
-  const [selectedLargeCommunityList, setSelectedLargeCommunityList] = useState<string | null>(null);
+  const [selectedCommunityList, setSelectedCommunityList] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [ruleSearchQuery, setRuleSearchQuery] = useState("");
 
   // Modal states
-  const [showCreateLargeCommunityListModal, setShowCreateLargeCommunityListModal] = useState(false);
-  const [showEditLargeCommunityListModal, setShowEditLargeCommunityListModal] = useState(false);
-  const [showDeleteLargeCommunityListModal, setShowDeleteLargeCommunityListModal] = useState(false);
-  const [selectedLargeCommunityListObj, setSelectedLargeCommunityListObj] = useState<LargeCommunityList | null>(null);
+  const [showCreateCommunityListModal, setShowCreateCommunityListModal] = useState(false);
+  const [showEditCommunityListModal, setShowEditCommunityListModal] = useState(false);
+  const [showDeleteCommunityListModal, setShowDeleteCommunityListModal] = useState(false);
+  const [selectedCommunityListObj, setSelectedCommunityListObj] = useState<CommunityList | null>(null);
 
   const [showCreateRuleModal, setShowCreateRuleModal] = useState(false);
   const [showEditRuleModal, setShowEditRuleModal] = useState(false);
   const [showDeleteRuleModal, setShowDeleteRuleModal] = useState(false);
-  const [selectedRule, setSelectedRule] = useState<LargeCommunityListRule | null>(null);
+  const [selectedRule, setSelectedRule] = useState<CommunityListRule | null>(null);
 
   // Drag and drop states
-  const [reorderedRules, setReorderedRules] = useState<LargeCommunityListRule[]>([]);
-  const [, setOriginalRules] = useState<LargeCommunityListRule[]>([]);
+  const [reorderedRules, setReorderedRules] = useState<CommunityListRule[]>([]);
+  const [, setOriginalRules] = useState<CommunityListRule[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
   const [, setActiveId] = useState<number | null>(null);
   const [savingReorder, setSavingReorder] = useState(false);
@@ -130,10 +130,10 @@ export default function BGPLargeCommunityPage() {
       setLoading(true);
       setError(null);
       const [config, caps] = await Promise.all([
-        largeCommunityListService.getConfig(refresh),
-        largeCommunityListService.getCapabilities(),
+        communityListService.getConfig(refresh),
+        communityListService.getCapabilities(),
       ]);
-      setLargeCommunityLists(config.large_community_lists);
+      setCommunityLists(config.community_lists);
       setCapabilities(caps);
 
       // Reset reorder state
@@ -141,13 +141,13 @@ export default function BGPLargeCommunityPage() {
       setReorderedRules([]);
       setOriginalRules([]);
 
-      // Auto-select first large community list if none selected
-      if (config.large_community_lists.length > 0) {
-        setSelectedLargeCommunityList((prev) => prev ?? config.large_community_lists[0].name);
+      // Auto-select first community list if none selected
+      if (config.community_lists.length > 0) {
+        setSelectedCommunityList((prev) => prev ?? config.community_lists[0].name);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("largeCommunity.failedToLoad"));
-      console.error("Error fetching large community list config:", err);
+      setError(err instanceof Error ? err.message : t("community.failedToLoad"));
+      console.error("Error fetching community list config:", err);
     } finally {
       setLoading(false);
     }
@@ -157,15 +157,15 @@ export default function BGPLargeCommunityPage() {
     fetchData();
   }, [fetchData]);
 
-  const selectedLargeCommunityListData = largeCommunityLists.find((cl) => cl.name === selectedLargeCommunityList);
+  const selectedCommunityListData = communityLists.find((cl) => cl.name === selectedCommunityList);
 
   // Get current rules (reordered or original)
   const currentRules = hasChanges && reorderedRules.length > 0
     ? reorderedRules
-    : selectedLargeCommunityListData?.rules || [];
+    : selectedCommunityListData?.rules || [];
 
-  // Filter large community lists based on search
-  const filteredLargeCommunityLists = largeCommunityLists.filter((cl) => {
+  // Filter community lists based on search
+  const filteredCommunityLists = communityLists.filter((cl) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -213,15 +213,15 @@ export default function BGPLargeCommunityPage() {
   };
 
   const handleSaveReorder = async () => {
-    if (!selectedLargeCommunityList || reorderedRules.length === 0) return;
+    if (!selectedCommunityList || reorderedRules.length === 0) return;
 
     setSavingReorder(true);
     try {
       // Calculate new sequential rule numbers starting from the lowest existing number
       const startingNumber = Math.min(...reorderedRules.map(r => r.rule_number));
 
-      await largeCommunityListService.reorderRules(
-        selectedLargeCommunityList,
+      await communityListService.reorderRules(
+        selectedCommunityList,
         reorderedRules.map((r, index) => ({
           old_number: r.rule_number,
           new_number: startingNumber + index,
@@ -247,43 +247,43 @@ export default function BGPLargeCommunityPage() {
     setOriginalRules([]);
   };
 
-  const handleLargeCommunityListSelect = (name: string) => {
-    // Reset reorder state when changing large community lists
+  const handleCommunityListSelect = (name: string) => {
+    // Reset reorder state when changing community lists
     if (hasChanges) {
       setHasChanges(false);
       setReorderedRules([]);
       setOriginalRules([]);
     }
-    setSelectedLargeCommunityList(name);
+    setSelectedCommunityList(name);
     setRuleSearchQuery("");
   };
 
-  const handleDeleteLargeCommunityList = (largeCommunityList: LargeCommunityList) => {
-    setSelectedLargeCommunityListObj(largeCommunityList);
-    setShowDeleteLargeCommunityListModal(true);
+  const handleDeleteCommunityList = (communityList: CommunityList) => {
+    setSelectedCommunityListObj(communityList);
+    setShowDeleteCommunityListModal(true);
   };
 
-  const handleLargeCommunityListDeleted = () => {
-    // If deleted large community list was selected, select another one
-    if (selectedLargeCommunityList === selectedLargeCommunityListObj?.name) {
-      const remaining = largeCommunityLists.filter((cl) => cl.name !== selectedLargeCommunityListObj?.name);
-      setSelectedLargeCommunityList(remaining.length > 0 ? remaining[0].name : null);
+  const handleCommunityListDeleted = () => {
+    // If deleted community list was selected, select another one
+    if (selectedCommunityList === selectedCommunityListObj?.name) {
+      const remaining = communityLists.filter((cl) => cl.name !== selectedCommunityListObj?.name);
+      setSelectedCommunityList(remaining.length > 0 ? remaining[0].name : null);
     }
     fetchData(true);
   };
 
-  const handleEditRule = (rule: LargeCommunityListRule) => {
+  const handleEditRule = (rule: CommunityListRule) => {
     setSelectedRule(rule);
     setShowEditRuleModal(true);
   };
 
-  const handleDeleteRule = (rule: LargeCommunityListRule) => {
+  const handleDeleteRule = (rule: CommunityListRule) => {
     setSelectedRule(rule);
     setShowDeleteRuleModal(true);
   };
 
   const ruleIds = filteredRules.map((r) => r.rule_number);
-  const totalRules = largeCommunityLists.reduce((sum, cl) => sum + cl.rules.length, 0);
+  const totalRules = communityLists.reduce((sum, cl) => sum + cl.rules.length, 0);
 
   if (loading) {
     return (
@@ -301,7 +301,7 @@ export default function BGPLargeCommunityPage() {
         <div className="flex items-center justify-center h-full">
           <div className="text-center space-y-4">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-            <h2 className="text-xl font-semibold text-foreground">{t("largeCommunity.errorLoading")}</h2>
+            <h2 className="text-xl font-semibold text-foreground">{t("community.errorLoading")}</h2>
             <p className="text-muted-foreground max-w-md">{error}</p>
             <Button onClick={() => fetchData(true)} variant="outline">
               <RefreshCw className="h-4 w-4 mr-2" />
@@ -316,7 +316,7 @@ export default function BGPLargeCommunityPage() {
   return (
     <AppLayout>
       <div className="flex h-full">
-        {/* Left Sidebar - Large Community Lists */}
+        {/* Left Sidebar - Community Lists */}
         <div className="w-80 border-r border-border bg-card/50 flex flex-col">
           <div className="p-6 pb-4 shrink-0">
             <div className="flex items-center gap-3 mb-6">
@@ -324,14 +324,14 @@ export default function BGPLargeCommunityPage() {
                 <ListFilter className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-foreground">{t("largeCommunity.pageTitle")}</h1>
+                <h1 className="text-lg font-semibold text-foreground">{t("community.pageTitle")}</h1>
                 <p className="text-xs text-muted-foreground">
-                  {t("shared.listSummary", { lists: largeCommunityLists.length, rules: totalRules })}
+                  {t("shared.listSummary", { lists: communityLists.length, rules: totalRules })}
                 </p>
               </div>
             </div>
 
-            {/* Search Large Community Lists */}
+            {/* Search Community Lists */}
             <div className="relative mb-4">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -343,62 +343,62 @@ export default function BGPLargeCommunityPage() {
             </div>
 
             <Button
-              onClick={() => setShowCreateLargeCommunityListModal(true)}
+              onClick={() => setShowCreateCommunityListModal(true)}
               className="w-full"
               size="sm"
             >
               <Plus className="h-4 w-4 mr-2" />
-              {t("shared.createList", { listType: t("types.largeCommunity.title") })}
+              {t("shared.createList", { listType: t("types.community.title") })}
             </Button>
           </div>
 
           <Separator className="shrink-0" />
 
-          {/* Large Community List List */}
+          {/* Community List List */}
           <ScrollArea className="flex-1 px-3 min-h-0">
             <div className="space-y-1 py-3">
-              {filteredLargeCommunityLists.length === 0 ? (
+              {filteredCommunityLists.length === 0 ? (
                 <div className="px-2 py-8 text-center">
                   <p className="text-sm text-muted-foreground">
-                    {searchQuery ? t("largeCommunity.noMatch") : t("largeCommunity.noneConfigured")}
+                    {searchQuery ? t("community.noMatch") : t("community.noneConfigured")}
                   </p>
                   {!searchQuery && (
                     <Button
                       variant="link"
                       size="sm"
-                      onClick={() => setShowCreateLargeCommunityListModal(true)}
+                      onClick={() => setShowCreateCommunityListModal(true)}
                       className="mt-2"
                     >
-                      {t("shared.createFirst", { listType: t("types.largeCommunity.name") })}
+                      {t("shared.createFirst", { listType: t("types.community.name") })}
                     </Button>
                   )}
                 </div>
               ) : (
-                filteredLargeCommunityLists.map((largeCommunityList) => (
+                filteredCommunityLists.map((communityList) => (
                   <div
-                    key={largeCommunityList.name}
+                    key={communityList.name}
                     className={cn(
                       "group relative rounded-lg transition-all",
-                      selectedLargeCommunityList === largeCommunityList.name
+                      selectedCommunityList === communityList.name
                         ? "bg-accent text-accent-foreground shadow-sm"
                         : "hover:bg-accent/50"
                     )}
                   >
                     <button
-                      onClick={() => handleLargeCommunityListSelect(largeCommunityList.name)}
+                      onClick={() => handleCommunityListSelect(communityList.name)}
                       className="w-full text-left px-3 py-2.5 pr-10"
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-medium text-sm font-mono truncate">
-                          {largeCommunityList.name}
+                          {communityList.name}
                         </span>
                         <Badge variant="secondary" className="ml-2 shrink-0">
-                          {largeCommunityList.rules.length}
+                          {communityList.rules.length}
                         </Badge>
                       </div>
-                      {largeCommunityList.description && (
+                      {communityList.description && (
                         <p className="text-xs text-muted-foreground truncate">
-                          {largeCommunityList.description}
+                          {communityList.description}
                         </p>
                       )}
                     </button>
@@ -409,7 +409,7 @@ export default function BGPLargeCommunityPage() {
                         className="h-7 w-7 p-0 text-destructive hover:text-destructive"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteLargeCommunityList(largeCommunityList);
+                          handleDeleteCommunityList(communityList);
                         }}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -424,7 +424,7 @@ export default function BGPLargeCommunityPage() {
 
         {/* Main Content Area - Rules Table */}
         <div className="flex-1 flex flex-col">
-          {selectedLargeCommunityListData ? (
+          {selectedCommunityListData ? (
             <>
               {/* Header */}
               <div className="p-6 pb-4 border-b border-border">
@@ -432,22 +432,22 @@ export default function BGPLargeCommunityPage() {
                   <div>
                     <div className="flex items-center gap-3">
                       <h2 className="text-2xl font-bold text-foreground font-mono">
-                        {selectedLargeCommunityListData.name}
+                        {selectedCommunityListData.name}
                       </h2>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          setSelectedLargeCommunityListObj(selectedLargeCommunityListData);
-                          setShowEditLargeCommunityListModal(true);
+                          setSelectedCommunityListObj(selectedCommunityListData);
+                          setShowEditCommunityListModal(true);
                         }}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
                     </div>
-                    {selectedLargeCommunityListData.description && (
+                    {selectedCommunityListData.description && (
                       <p className="text-sm text-muted-foreground mt-1">
-                        {selectedLargeCommunityListData.description}
+                        {selectedCommunityListData.description}
                       </p>
                     )}
                   </div>
@@ -477,7 +477,7 @@ export default function BGPLargeCommunityPage() {
 
               {/* Reorder Banner */}
               {hasChanges && (
-                <LargeCommunityListReorderBanner
+                <CommunityListReorderBanner
                   onSave={handleSaveReorder}
                   onCancel={handleCancelReorder}
                   saving={savingReorder}
@@ -497,7 +497,7 @@ export default function BGPLargeCommunityPage() {
                       <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
                         {ruleSearchQuery
                           ? t("shared.adjustSearch")
-                          : t("shared.addRulesHint", { listType: t("types.largeCommunity.name") })}
+                          : t("shared.addRulesHint", { listType: t("types.community.name") })}
                       </p>
                       {!ruleSearchQuery && (
                         <Button onClick={() => setShowCreateRuleModal(true)}>
@@ -533,7 +533,7 @@ export default function BGPLargeCommunityPage() {
                               strategy={verticalListSortingStrategy}
                             >
                               {filteredRules.map((rule) => (
-                                <LargeCommunityListRuleRow
+                                <CommunityListRuleRow
                                   key={rule.rule_number}
                                   rule={rule}
                                   onEdit={handleEditRule}
@@ -554,17 +554,17 @@ export default function BGPLargeCommunityPage() {
               <div className="text-center space-y-4">
                 <ListFilter className="h-16 w-16 text-muted-foreground mx-auto" />
                 <h2 className="text-xl font-semibold text-foreground">
-                  {t("shared.noneSelected", { listType: t("types.largeCommunity.title") })}
+                  {t("shared.noneSelected", { listType: t("types.community.title") })}
                 </h2>
                 <p className="text-muted-foreground max-w-md">
-                  {largeCommunityLists.length === 0
-                    ? t("largeCommunity.createToStart")
-                    : t("largeCommunity.selectFromSidebar")}
+                  {communityLists.length === 0
+                    ? t("community.createToStart")
+                    : t("community.selectFromSidebar")}
                 </p>
-                {largeCommunityLists.length === 0 && (
-                  <Button onClick={() => setShowCreateLargeCommunityListModal(true)}>
+                {communityLists.length === 0 && (
+                  <Button onClick={() => setShowCreateCommunityListModal(true)}>
                     <Plus className="h-4 w-4 mr-2" />
-                    {t("shared.createList", { listType: t("types.largeCommunity.title") })}
+                    {t("shared.createList", { listType: t("types.community.title") })}
                   </Button>
                 )}
               </div>
@@ -573,35 +573,35 @@ export default function BGPLargeCommunityPage() {
         </div>
       </div>
 
-      {/* Large Community List Modals */}
-      <CreateLargeCommunityListModal
-        open={showCreateLargeCommunityListModal}
-        onOpenChange={setShowCreateLargeCommunityListModal}
+      {/* Community List Modals */}
+      <CreateCommunityListModal
+        open={showCreateCommunityListModal}
+        onOpenChange={setShowCreateCommunityListModal}
         onSuccess={() => fetchData(true)}
       />
 
-      {selectedLargeCommunityListObj && (
+      {selectedCommunityListObj && (
         <>
-          <EditLargeCommunityListModal
-            open={showEditLargeCommunityListModal}
-            onOpenChange={setShowEditLargeCommunityListModal}
+          <EditCommunityListModal
+            open={showEditCommunityListModal}
+            onOpenChange={setShowEditCommunityListModal}
             onSuccess={() => fetchData(true)}
-            largeCommunityList={selectedLargeCommunityListObj}
+            communityList={selectedCommunityListObj}
           />
 
-          <DeleteLargeCommunityListModal
-            open={showDeleteLargeCommunityListModal}
-            onOpenChange={setShowDeleteLargeCommunityListModal}
-            onSuccess={handleLargeCommunityListDeleted}
-            largeCommunityList={selectedLargeCommunityListObj}
+          <DeleteCommunityListModal
+            open={showDeleteCommunityListModal}
+            onOpenChange={setShowDeleteCommunityListModal}
+            onSuccess={handleCommunityListDeleted}
+            communityList={selectedCommunityListObj}
           />
         </>
       )}
 
       {/* Rule Modals */}
-      {selectedLargeCommunityList && (
+      {selectedCommunityList && (
         <>
-          <LargeCommunityListRuleModal
+          <CommunityListRuleModal
             open={showCreateRuleModal || (showEditRuleModal && !!selectedRule)}
             onOpenChange={(open) => {
               if (!open) {
@@ -610,18 +610,18 @@ export default function BGPLargeCommunityPage() {
               }
             }}
             onSuccess={() => fetchData(true)}
-            largeCommunityListName={selectedLargeCommunityList}
+            communityListName={selectedCommunityList}
             existing={showEditRuleModal ? selectedRule : null}
             capabilities={capabilities}
           />
 
           {selectedRule && (
             <>
-              <DeleteLargeCommunityListRuleModal
+              <DeleteCommunityListRuleModal
                 open={showDeleteRuleModal}
                 onOpenChange={setShowDeleteRuleModal}
                 onSuccess={() => fetchData(true)}
-                largeCommunityListName={selectedLargeCommunityList}
+                communityListName={selectedCommunityList}
                 rule={selectedRule}
               />
             </>

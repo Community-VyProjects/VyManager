@@ -36,7 +36,7 @@ export function LargeCommunityListRuleModal({
   largeCommunityListName,
   existing,
 }: LargeCommunityListRuleModalProps) {
-  const t = useTranslations("bgpLists");
+  const t = useTranslations("largeCommunityList");
   const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
   const [loading, setLoading] = useState(false);

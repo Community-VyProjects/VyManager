@@ -17,7 +17,7 @@ export function CommunityListReorderBanner({
   saving,
   count,
 }: CommunityListReorderBannerProps) {
-  const t = useTranslations("bgpLists");
+  const t = useTranslations("communityList");
   const tc = useTranslations("common");
   return (
     <div className="bg-primary/10 border-y border-primary/20 px-6 py-3">

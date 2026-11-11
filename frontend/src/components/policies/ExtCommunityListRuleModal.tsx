@@ -35,7 +35,7 @@ export function ExtCommunityListRuleModal({
   extcommunityListName,
   existing,
 }: ExtCommunityListRuleModalProps) {
-  const t = useTranslations("bgpLists");
+  const t = useTranslations("extcommunityList");
   const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
   const [loading, setLoading] = useState(false);

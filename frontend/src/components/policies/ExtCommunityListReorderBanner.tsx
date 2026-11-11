@@ -17,7 +17,7 @@ export function ExtCommunityListReorderBanner({
   saving,
   count,
 }: ExtCommunityListReorderBannerProps) {
-  const t = useTranslations("bgpLists");
+  const t = useTranslations("extcommunityList");
   const tc = useTranslations("common");
   return (
     <div className="bg-primary/10 border-y border-primary/20 px-6 py-3">

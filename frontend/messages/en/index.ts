@@ -10,11 +10,11 @@ import babel from "./babel.json";
 import backupBugReport from "./backupBugReport.json";
 import bfd from "./bfd.json";
 import bgp from "./bgp.json";
-import bgpLists from "./bgpLists.json";
 import bonding from "./bonding.json";
 import bridgeInterface from "./bridgeInterface.json";
 import broadcastRelay from "./broadcastRelay.json";
 import common from "./common.json";
+import communityList from "./communityList.json";
 import configChanges from "./configChanges.json";
 import configSync from "./configSync.json";
 import conntrackSync from "./conntrackSync.json";
@@ -32,6 +32,7 @@ import dnsForwarding from "./dnsForwarding.json";
 import dummy from "./dummy.json";
 import ethernet from "./ethernet.json";
 import eventHandler from "./eventHandler.json";
+import extcommunityList from "./extcommunityList.json";
 import failover from "./failover.json";
 import firewallBridge from "./firewallBridge.json";
 import firewallCommon from "./firewallCommon.json";
@@ -56,6 +57,7 @@ import isis from "./isis.json";
 import l2tp from "./l2tp.json";
 import l2tpv3 from "./l2tpv3.json";
 import language from "./language.json";
+import largeCommunityList from "./largeCommunityList.json";
 import lldp from "./lldp.json";
 import localRoute from "./localRoute.json";
 import login from "./login.json";
@@ -148,11 +150,11 @@ const messages = {
   backupBugReport,
   bfd,
   bgp,
-  bgpLists,
   bonding,
   bridgeInterface,
   broadcastRelay,
   common,
+  communityList,
   configChanges,
   configSync,
   conntrackSync,
@@ -170,6 +172,7 @@ const messages = {
   dummy,
   ethernet,
   eventHandler,
+  extcommunityList,
   failover,
   firewallBridge,
   firewallCommon,
@@ -194,6 +197,7 @@ const messages = {
   l2tp,
   l2tpv3,
   language,
+  largeCommunityList,
   lldp,
   localRoute,
   login,

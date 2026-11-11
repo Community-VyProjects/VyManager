@@ -36,7 +36,7 @@ export function CommunityListRuleModal({
   communityListName,
   existing,
 }: CommunityListRuleModalProps) {
-  const t = useTranslations("bgpLists");
+  const t = useTranslations("communityList");
   const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
   const [loading, setLoading] = useState(false);
@@ -65,7 +65,7 @@ export function CommunityListRuleModal({
   const handleSubmit = async () => {
     const validationError = validateRegexListRule(draft);
     if (validationError) {
-      setError(t(`validation.${validationError}`));
+      setError(t("validation.regexRequired"));
       return;
     }
 
