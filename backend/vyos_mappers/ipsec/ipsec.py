@@ -8,7 +8,6 @@ Version-specific logic is in version-specific files.
 from typing import List, Dict, Any, FrozenSet
 from ..base import BaseFeatureMapper
 
-
 class IPSecMapper(BaseFeatureMapper):
     """Base mapper with common IPSec operations."""
 
@@ -62,9 +61,6 @@ class IPSecMapper(BaseFeatureMapper):
 
     def get_options_flexvpn_path(self) -> List[str]:
         return ["vpn", "ipsec", "options", "flexvpn"]
-
-    def get_options_interface_path(self, interface: str) -> List[str]:
-        return ["vpn", "ipsec", "options", "interface", interface]
 
     def get_options_virtual_ip_path(self) -> List[str]:
         return ["vpn", "ipsec", "options", "virtual-ip"]
@@ -311,26 +307,8 @@ class IPSecMapper(BaseFeatureMapper):
     def get_ra_connection_local_address_path(self, conn: str, address: str) -> List[str]:
         return ["vpn", "ipsec", "remote-access", "connection", conn, "local-address", address]
 
-    def get_ra_connection_dhcp_interface_path(self, conn: str, interface: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "connection", conn, "dhcp-interface", interface]
-
     def get_ra_connection_pool_path(self, conn: str, pool: str) -> List[str]:
         return ["vpn", "ipsec", "remote-access", "connection", conn, "pool", pool]
-
-    def get_ra_connection_replay_window_path(self, conn: str, value: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "connection", conn, "replay-window", value]
-
-    def get_ra_connection_timeout_path(self, conn: str, value: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "connection", conn, "timeout", value]
-
-    def get_ra_connection_unique_path(self, conn: str, value: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "connection", conn, "unique", value]
-
-    def get_ra_connection_local_prefix_path(self, conn: str, prefix: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "connection", conn, "local", "prefix", prefix]
-
-    def get_ra_connection_local_port_path(self, conn: str, port: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "connection", conn, "local", "port", port]
 
     # Remote Access Connection Authentication
     def get_ra_connection_auth_server_mode_path(self, conn: str, mode: str) -> List[str]:
@@ -342,9 +320,6 @@ class IPSecMapper(BaseFeatureMapper):
     def get_ra_connection_auth_local_id_path(self, conn: str, local_id: str) -> List[str]:
         return ["vpn", "ipsec", "remote-access", "connection", conn, "authentication", "local-id", local_id]
 
-    def get_ra_connection_auth_eap_id_path(self, conn: str, eap_id: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "connection", conn, "authentication", "eap-id", eap_id]
-
     def get_ra_connection_auth_psk_path(self, conn: str, secret: str) -> List[str]:
         return ["vpn", "ipsec", "remote-access", "connection", conn, "authentication", "pre-shared-secret", secret]
 
@@ -353,9 +328,6 @@ class IPSecMapper(BaseFeatureMapper):
 
     def get_ra_connection_auth_x509_cert_path(self, conn: str, cert: str) -> List[str]:
         return ["vpn", "ipsec", "remote-access", "connection", conn, "authentication", "x509", "certificate", cert]
-
-    def get_ra_connection_auth_x509_passphrase_path(self, conn: str, passphrase: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "connection", conn, "authentication", "x509", "passphrase", passphrase]
 
     # Remote Access Connection Authentication - Local Users
     def get_ra_connection_auth_local_user_path(self, conn: str, username: str) -> List[str]:
@@ -387,36 +359,9 @@ class IPSecMapper(BaseFeatureMapper):
     # Remote Access - DHCP
     # ========================================================================
 
-    def get_ra_dhcp_interface_path(self, interface: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "dhcp", "interface", interface]
-
-    def get_ra_dhcp_server_path(self, server: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "dhcp", "server", server]
-
     # ========================================================================
     # Remote Access - RADIUS
     # ========================================================================
-
-    def get_ra_radius_nas_identifier_path(self, identifier: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "radius", "nas-identifier", identifier]
-
-    def get_ra_radius_timeout_path(self, timeout: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "radius", "timeout", timeout]
-
-    def get_ra_radius_server_path(self, server: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "radius", "server", server]
-
-    def get_ra_radius_server_key_path(self, server: str, key: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "radius", "server", server, "key", key]
-
-    def get_ra_radius_server_port_path(self, server: str, port: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "radius", "server", server, "port", port]
-
-    def get_ra_radius_server_disable_path(self, server: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "radius", "server", server, "disable"]
-
-    def get_ra_radius_server_disable_accounting_path(self, server: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "radius", "server", server, "disable-accounting"]
 
     # ========================================================================
     # Profile
@@ -424,24 +369,6 @@ class IPSecMapper(BaseFeatureMapper):
 
     def get_profile_path(self, name: str) -> List[str]:
         return ["vpn", "ipsec", "profile", name]
-
-    def get_profile_disable_path(self, name: str) -> List[str]:
-        return ["vpn", "ipsec", "profile", name, "disable"]
-
-    def get_profile_ike_group_path(self, name: str, ike_group: str) -> List[str]:
-        return ["vpn", "ipsec", "profile", name, "ike-group", ike_group]
-
-    def get_profile_esp_group_path(self, name: str, esp_group: str) -> List[str]:
-        return ["vpn", "ipsec", "profile", name, "esp-group", esp_group]
-
-    def get_profile_auth_mode_path(self, name: str, mode: str) -> List[str]:
-        return ["vpn", "ipsec", "profile", name, "authentication", "mode", mode]
-
-    def get_profile_auth_psk_path(self, name: str, secret: str) -> List[str]:
-        return ["vpn", "ipsec", "profile", name, "authentication", "pre-shared-secret", secret]
-
-    def get_profile_bind_tunnel_path(self, name: str, tunnel: str) -> List[str]:
-        return ["vpn", "ipsec", "profile", name, "bind", "tunnel", tunnel]
 
     # ========================================================================
     # Config Parsing

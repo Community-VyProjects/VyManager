@@ -238,7 +238,7 @@ async def batch_configure(http_request: Request, request: NAT64BatchRequest):
                         method(rule_number, pool_number)
                     else:
                         # (rule_number, value)
-                        if op_value is None:
+                        if not op_value:
                             raise HTTPException(
                                 status_code=400,
                                 detail=f"Operation {op_name} requires a value"
@@ -251,7 +251,7 @@ async def batch_configure(http_request: Request, request: NAT64BatchRequest):
                             status_code=400,
                             detail=f"Operation {op_name} requires pool_number"
                         )
-                    if op_value is None:
+                    if not op_value:
                         raise HTTPException(
                             status_code=400,
                             detail=f"Operation {op_name} requires a value"

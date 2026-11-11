@@ -37,7 +37,6 @@ COMMON_CASES = [
     ('delete_ra_connection_auth_x509_ca_cert', ('G0', 'G0'), 'delete', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'authentication', 'x509', 'ca-certificate', 'G0']),
     ('delete_ra_connection_auth_x509_cert', ('G0', 'G0'), 'delete', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'authentication', 'x509', 'certificate', 'G0']),
     ('delete_ra_connection_description', ('G0', 'lab'), 'delete', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'description', 'lab']),
-    ('delete_ra_connection_disable', ('G0',), 'delete', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'disable']),
     ('delete_ra_connection_esp_group', ('G0', '5'), 'delete', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'esp-group', '5']),
     ('delete_ra_connection_ike_group', ('G0', '5'), 'delete', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'ike-group', '5']),
     ('delete_ra_connection_local_address', ('G0', '192.0.2.1'), 'delete', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'local-address', '192.0.2.1']),
@@ -96,7 +95,6 @@ COMMON_CASES = [
     ('set_ra_connection_auth_x509_ca_cert', ('G0', 'G0'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'authentication', 'x509', 'ca-certificate', 'G0']),
     ('set_ra_connection_auth_x509_cert', ('G0', 'G0'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'authentication', 'x509', 'certificate', 'G0']),
     ('set_ra_connection_description', ('G0', 'lab'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'description', 'lab']),
-    ('set_ra_connection_disable', ('G0',), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'disable']),
     ('set_ra_connection_esp_group', ('G0', '5'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'esp-group', '5']),
     ('set_ra_connection_ike_group', ('G0', '5'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'ike-group', '5']),
     ('set_ra_connection_local_address', ('G0', '192.0.2.1'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'local-address', '192.0.2.1']),
@@ -191,6 +189,6 @@ def test_capabilities_follow_the_mapper_allowlist(monkeypatch):
     caps = builder.get_capabilities()
     assert "version_notes" not in caps
     assert "version" not in caps
-    assert caps["features"]["childless"]["supported"] is True
-    assert caps["features"]["ppk"]["supported"] is False
+    assert caps["features"]["site_to_site"]["childless"] is True
+    assert caps["features"]["site_to_site"]["ppk"] is False
     assert caps["features"]["site_to_site"]["connection_types"] == ["initiate", "trap", "none"]

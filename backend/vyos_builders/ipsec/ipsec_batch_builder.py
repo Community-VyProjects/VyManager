@@ -139,10 +139,10 @@ class IPSecBatchBuilder(BatchBuilder):
         return self.add_set(self.mappers[self.mapper_key].get_auth_psk_dhcp_interface_path(name, interface))
 
     def delete_auth_psk_secret_type(self, name: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_auth_psk_secret_type_path(name, "")[:-1])
+        return self._delete_value_node(self.mappers[self.mapper_key].get_auth_psk_secret_type_path(name, ""))
 
     def delete_auth_psk_dhcp_interface(self, name: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_auth_psk_dhcp_interface_path(name, "")[:-1])
+        return self._delete_value_node(self.mappers[self.mapper_key].get_auth_psk_dhcp_interface_path(name, ""))
 
     # Authentication - PPK (1.5 only)
 
@@ -309,7 +309,7 @@ class IPSecBatchBuilder(BatchBuilder):
         return self.add_set(self.mappers[self.mapper_key].get_s2s_peer_replay_window_path(peer, value))
 
     def delete_s2s_peer_replay_window(self, peer: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_s2s_peer_replay_window_path(peer, "")[:-1])
+        return self._delete_value_node(self.mappers[self.mapper_key].get_s2s_peer_replay_window_path(peer, ""))
 
     def set_s2s_peer_virtual_address(self, peer: str, address: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_s2s_peer_virtual_address_path(peer, address))
@@ -384,7 +384,7 @@ class IPSecBatchBuilder(BatchBuilder):
     def delete_s2s_peer_auth_ppk_id(self, peer: str) -> "IPSecBatchBuilder":
         mapper = self.mappers[self.mapper_key]
         mapper._require_node("s2s_ppk")
-        return self.add_delete(getattr(mapper, "get_s2s_peer_auth_ppk_id_path")(peer, "")[:-1])
+        return self._delete_value_node(getattr(mapper, "get_s2s_peer_auth_ppk_id_path")(peer, ""))
 
     def set_s2s_peer_auth_ppk_required(self, peer: str) -> "IPSecBatchBuilder":
         mapper = self.mappers[self.mapper_key]
@@ -404,7 +404,7 @@ class IPSecBatchBuilder(BatchBuilder):
     def delete_s2s_peer_childless(self, peer: str) -> "IPSecBatchBuilder":
         mapper = self.mappers[self.mapper_key]
         mapper._require_node("childless")
-        return self.add_delete(getattr(mapper, "get_s2s_peer_childless_path")(peer, "")[:-1])
+        return self._delete_value_node(getattr(mapper, "get_s2s_peer_childless_path")(peer, ""))
 
     def set_s2s_peer_unique(self, peer: str, value: str) -> "IPSecBatchBuilder":
         mapper = self.mappers[self.mapper_key]
@@ -414,7 +414,7 @@ class IPSecBatchBuilder(BatchBuilder):
     def delete_s2s_peer_unique(self, peer: str) -> "IPSecBatchBuilder":
         mapper = self.mappers[self.mapper_key]
         mapper._require_node("s2s_unique")
-        return self.add_delete(getattr(mapper, "get_s2s_peer_unique_path")(peer, "")[:-1])
+        return self._delete_value_node(getattr(mapper, "get_s2s_peer_unique_path")(peer, ""))
 
     # Site-to-Site Tunnel
     def create_s2s_peer_tunnel(self, peer: str, tunnel: str) -> "IPSecBatchBuilder":
@@ -447,7 +447,7 @@ class IPSecBatchBuilder(BatchBuilder):
         return self.add_set(self.mappers[self.mapper_key].get_s2s_peer_tunnel_local_port_path(peer, tunnel, port))
 
     def delete_s2s_peer_tunnel_local_port(self, peer: str, tunnel: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_s2s_peer_tunnel_local_port_path(peer, tunnel, "")[:-1])
+        return self._delete_value_node(self.mappers[self.mapper_key].get_s2s_peer_tunnel_local_port_path(peer, tunnel, ""))
 
     def set_s2s_peer_tunnel_remote_prefix(self, peer: str, tunnel: str, prefix: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_s2s_peer_tunnel_remote_prefix_path(peer, tunnel, prefix))
@@ -459,13 +459,13 @@ class IPSecBatchBuilder(BatchBuilder):
         return self.add_set(self.mappers[self.mapper_key].get_s2s_peer_tunnel_remote_port_path(peer, tunnel, port))
 
     def delete_s2s_peer_tunnel_remote_port(self, peer: str, tunnel: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_s2s_peer_tunnel_remote_port_path(peer, tunnel, "")[:-1])
+        return self._delete_value_node(self.mappers[self.mapper_key].get_s2s_peer_tunnel_remote_port_path(peer, tunnel, ""))
 
     def set_s2s_peer_tunnel_priority(self, peer: str, tunnel: str, priority: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_s2s_peer_tunnel_priority_path(peer, tunnel, priority))
 
     def delete_s2s_peer_tunnel_priority(self, peer: str, tunnel: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_s2s_peer_tunnel_priority_path(peer, tunnel, "")[:-1])
+        return self._delete_value_node(self.mappers[self.mapper_key].get_s2s_peer_tunnel_priority_path(peer, tunnel, ""))
 
     def set_s2s_peer_tunnel_protocol(self, peer: str, tunnel: str, protocol: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_s2s_peer_tunnel_protocol_path(peer, tunnel, protocol))
@@ -512,12 +512,6 @@ class IPSecBatchBuilder(BatchBuilder):
 
     def set_ra_connection_description(self, conn: str, description: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_connection_description_path(conn, description))
-
-    def set_ra_connection_disable(self, conn: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_connection_disable_path(conn))
-
-    def delete_ra_connection_disable(self, conn: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ra_connection_disable_path(conn))
 
     def delete_ra_connection_description(self, conn: str, description: str) -> "IPSecBatchBuilder":
         return self.add_delete(self.mappers[self.mapper_key].get_ra_connection_description_path(conn, description))
@@ -687,30 +681,13 @@ class IPSecBatchBuilder(BatchBuilder):
                     "supported": True,
                     "description": "ESP group configuration",
                 },
-                "profiles": {
-                    "supported": True,
-                    "description": "IPSec VPN profiles",
-                },
-                "ppk": {
-                    "supported": "s2s_ppk" in nodes,
-                    "description": "Post-quantum Pre-shared Keys",
-                },
                 "retransmission_options": {
                     "supported": "retransmission" in nodes,
                     "description": "Retransmission tuning",
                 },
-                "childless": {
-                    "supported": "childless" in nodes,
-                    "values": ["allow", "prefer", "force", "never"],
-                    "description": "Childless IKE SA",
-                },
                 "pool_range": {
                     "supported": "pool_range" in nodes,
                     "description": "Pool address range with start/stop",
-                },
-                "connection_bind": {
-                    "supported": "connection_bind" in nodes,
-                    "description": "Bind remote-access connection to interface",
                 },
                 "always_send_cert": {
                     "supported": "always_send_cert" in nodes,

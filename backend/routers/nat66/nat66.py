@@ -340,15 +340,13 @@ async def batch_configure(http_request: Request, request: NAT66BatchRequest):
             try:
                 if len(params) == 1:
                     method(rule_number)
-                elif len(params) == 2 and op_value is not None:
+                elif len(params) == 2 and op_value:
                     method(rule_number, op_value)
-                elif len(params) == 2 and op_value is None:
+                elif len(params) == 2:
                     raise HTTPException(status_code=400, detail=f"Operation {op_name} requires a value")
-                elif len(params) == 3 and op_value is not None:
-                    # For group operations: (rule_number, group_type, value)
-                    # The group_type is embedded in the op_name, and value has format "group_type:value"
+                elif len(params) == 3 and op_value:
                     parts = op_value.split(":", 1)
-                    if len(parts) == 2:
+                    if len(parts) == 2 and parts[0] and parts[1]:
                         method(rule_number, parts[0], parts[1])
                     else:
                         raise HTTPException(

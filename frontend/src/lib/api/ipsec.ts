@@ -264,12 +264,8 @@ export interface IPSecCapabilities {
     remote_access: { supported: boolean; description: string };
     ike_groups: { supported: boolean; description: string };
     esp_groups: { supported: boolean; description: string };
-    profiles: { supported: boolean; description: string };
-    ppk: { supported: boolean; description: string };
     retransmission_options: { supported: boolean; description: string };
-    childless: { supported: boolean; description: string; values: string[] };
     pool_range: { supported: boolean; description: string };
-    connection_bind: { supported: boolean; description: string };
     always_send_cert: { supported: boolean; description: string };
   };
 }
