@@ -181,8 +181,6 @@ interface DHCPFieldCapability {
 }
 
 export interface DHCPCapabilitiesResponse {
-  version: string;
-  has_subnet_id: boolean;
   fields: {
     // Basic fields
     subnet: DHCPFieldCapability;
@@ -222,6 +220,7 @@ export interface DHCPCapabilitiesResponse {
     hostfile_update: DHCPFieldCapability;
     host_decl_name: DHCPFieldCapability;
     static_mapping_duid: DHCPFieldCapability;
+    static_mapping_description: DHCPFieldCapability;
     failover: DHCPFieldCapability;
     failover_certificate: DHCPFieldCapability;
     dynamic_dns_update_leaf: DHCPFieldCapability;
@@ -231,14 +230,6 @@ export interface DHCPCapabilitiesResponse {
     client_class?: DHCPFieldCapability;
   };
   catalog?: DhcpCatalog;
-  version_notes: {
-    subnet_id_required: boolean;
-    option_prefix: boolean;
-    subnet_failover_removed: boolean;
-    time_offset_requires_option_prefix: boolean;
-    mac_key: string;
-    shared_network_option_prefix: boolean;
-  };
   device_name?: string;
 }
 

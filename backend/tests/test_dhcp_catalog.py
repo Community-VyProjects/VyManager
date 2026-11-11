@@ -2,13 +2,13 @@
 
 import pytest
 
-from vyos_builders.dhcp.dhcp import DHCPBatchBuilder
-from vyos_mappers.dhcp.dhcp import DHCPMapper
+from vyos_builders.dhcp.dhcp_batch_builder import DHCPBatchBuilder
+from vyos_mappers.dhcp.dhcp_versions import get_dhcp_mapper
 from vyos_mappers.dhcp.dhcp_catalog import parse_scope
 
 
 def test_ignore_client_id_is_15_only_and_not_under_option():
-    mapper = DHCPMapper("1.5")
+    mapper = get_dhcp_mapper("1.5")
     path = mapper.catalog_set(
         "subnet", "ignore-client-id", ("LAN", "192.168.9.0/24")
     )
@@ -18,16 +18,16 @@ def test_ignore_client_id_is_15_only_and_not_under_option():
     ]
     assert "option" not in path
     with pytest.raises(ValueError, match="not supported"):
-        DHCPMapper("1.4").catalog_set("subnet", "ignore-client-id", ("LAN", "192.168.9.0/24"))
+        get_dhcp_mapper("1.4").catalog_set("subnet", "ignore-client-id", ("LAN", "192.168.9.0/24"))
     with pytest.raises(ValueError, match="not supported"):
-        DHCPMapper("1.4").catalog_delete("subnet", "ignore-client-id", ("LAN", "192.168.9.0/24"))
+        get_dhcp_mapper("1.4").catalog_delete("subnet", "ignore-client-id", ("LAN", "192.168.9.0/24"))
 
 
 def test_bootfile_size_path_differs_by_version():
-    v14 = DHCPMapper("1.4").catalog_set(
+    v14 = get_dhcp_mapper("1.4").catalog_set(
         "subnet", "bootfile-size", ("LAN", "192.168.1.0/24"), ("4",)
     )
-    v15 = DHCPMapper("1.5").catalog_set(
+    v15 = get_dhcp_mapper("1.5").catalog_set(
         "subnet", "bootfile-size", ("LAN", "192.168.1.0/24"), ("4",)
     )
     assert v14[-2:] == ["bootfile-size", "4"]
@@ -36,25 +36,27 @@ def test_bootfile_size_path_differs_by_version():
 
 
 def test_static_route_includes_next_hop():
-    path = DHCPMapper("1.5").catalog_set(
+    path = get_dhcp_mapper("1.5").catalog_set(
         "subnet",
         "static-route",
         ("LAN", "192.168.1.0/24"),
         ("10.0.0.0/24", "192.0.2.1"),
     )
     assert path[-4:] == ["static-route", "10.0.0.0/24", "next-hop", "192.0.2.1"]
-    deleted = DHCPMapper("1.5").catalog_delete(
+    deleted = get_dhcp_mapper("1.5").catalog_delete(
         "subnet", "static-route", ("LAN", "192.168.1.0/24"), ("10.0.0.0/24",)
     )
     assert deleted[-2:] == ["static-route", "10.0.0.0/24"]
 
 
 def test_client_class_rejected_on_14():
+    builder = DHCPBatchBuilder("1.4")
     with pytest.raises(ValueError, match="not supported"):
-        DHCPMapper("1.4").get_client_class("LAN")
+        builder.set_client_class("LAN")
     with pytest.raises(ValueError, match="not supported"):
-        DHCPMapper("1.4").get_client_class_path("LAN")
-    path = DHCPMapper("1.5").get_client_class_circuit_id("LAN", "ge-0")
+        builder.delete_client_class("LAN")
+    assert not hasattr(get_dhcp_mapper("1.4"), "get_client_class")
+    path = get_dhcp_mapper("1.5").get_client_class_circuit_id("LAN", "ge-0")
     assert path[-2:] == ["circuit-id", "ge-0"]
 
 
@@ -102,7 +104,7 @@ def test_parse_scope_reads_flag_and_route():
 
 
 def test_pipe_in_catalog_value_is_rejected_not_truncated():
-    mapper = DHCPMapper("1.5")
+    mapper = get_dhcp_mapper("1.5")
     with pytest.raises(ValueError, match="cannot contain"):
         mapper.catalog_set(
             "subnet", "bootfile-name", ("LAN", "192.168.1.0/24"), ("pxe|linux",)
@@ -114,7 +116,7 @@ def test_pipe_in_catalog_value_is_rejected_not_truncated():
 
 
 def test_pipe_in_client_class_id_is_rejected():
-    mapper = DHCPMapper("1.5")
+    mapper = get_dhcp_mapper("1.5")
     with pytest.raises(ValueError, match="cannot contain"):
         mapper.get_client_class_circuit_id("LAN", "ge-0|extra")
     with pytest.raises(ValueError, match="cannot contain"):
@@ -139,7 +141,7 @@ def test_split_packed_value_keeps_extra_pipes_on_the_last_arg():
     ],
 )
 def test_14_only_parameter_leaf_raises_on_15(scope, token, anchors, value):
-    mapper = DHCPMapper("1.5")
+    mapper = get_dhcp_mapper("1.5")
     with pytest.raises(ValueError, match="not supported"):
         mapper.catalog_set(scope, token, anchors, (value,))
     with pytest.raises(ValueError, match="not supported"):

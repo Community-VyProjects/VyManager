@@ -1,15 +1,15 @@
 """DHCP lease-clear capability comes from the mapper, not a version sniff in the UI."""
 
-from vyos_builders.dhcp.dhcp import DHCPBatchBuilder
-from vyos_mappers.dhcp.dhcp import DHCPMapper
+from vyos_builders.dhcp.dhcp_batch_builder import DHCPBatchBuilder
+from vyos_mappers.dhcp.dhcp_versions import get_dhcp_mapper
 
 
 def test_mapper_1_4_cannot_clear_inactive():
-    assert DHCPMapper("1.4").can_clear_inactive_leases() is False
+    assert get_dhcp_mapper("1.4").CLEARS_INACTIVE_LEASES is False
 
 
 def test_mapper_1_5_can_clear_inactive():
-    assert DHCPMapper("1.5").can_clear_inactive_leases() is True
+    assert get_dhcp_mapper("2026.09.23-0027-rolling").CLEARS_INACTIVE_LEASES is True
 
 
 def test_capabilities_1_4_hides_inactive_clear():

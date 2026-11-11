@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from vyos_builders.dhcp.dhcp import DHCPBatchBuilder
+from vyos_builders.dhcp.dhcp_batch_builder import DHCPBatchBuilder
 from vyos_builders.failover.failover_batch_builder import FailoverBatchBuilder
 from vyos_builders.static_routes.static_routes_batch_builder import StaticRoutesBatchBuilder
 from vyos_builders.vrf.vrf_batch_builder import VrfBatchBuilder

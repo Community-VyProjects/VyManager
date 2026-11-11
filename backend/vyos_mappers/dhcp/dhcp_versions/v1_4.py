@@ -1,97 +1,35 @@
-"""VyOS 1.4 DHCP Server mapper - version-specific differences."""
+"""VyOS 1.4 DHCP server mapper.
+
+On 1.4 the subnet and shared-network options sit directly under their node,
+the static-mapping hardware address is ``mac-address``, and these leaves exist
+only here: ``host-decl-name``, ``subnet enable-failover``, and the valueless
+``dynamic-dns-update`` leaf.
+"""
 from typing import List
 
+from ..dhcp import DHCPMapper
 
-class DHCPMapperV1_4:
-    """Version-specific mapper for VyOS 1.4 DHCP commands.
 
-    Key differences in 1.4:
-    - No subnet-id parameter (doesn't exist in 1.4)
-    - Direct commands without 'option' prefix for:
-      * default-router
-      * name-server
-      * domain-name
-      * domain-search
-    """
+class DHCPMapperV1_4(DHCPMapper):
+    """VyOS 1.4 DHCP server mapper."""
 
-    # ==================== Version-Specific Commands ====================
+    OPTION_PREFIX = ()
+    MAC_LEAF = "mac-address"
+    CATALOG_KEY = "1.4"
+    # 1.4 GraphQL ClearReleaseLeaseDhcp only releases active leases.
+    CLEARS_INACTIVE_LEASES = False
 
-    def get_subnet_default_router(
-        self, network_name: str, subnet: str, router: str
-    ) -> List[str]:
-        """Get command path for subnet default-router (1.4: no 'option' prefix)."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "default-router", router
-        ]
+    def get_host_decl_name(self) -> List[str]:
+        return ["service", "dhcp-server", "host-decl-name"]
 
-    def get_subnet_default_router_path(
-        self, network_name: str, subnet: str
-    ) -> List[str]:
-        """Get command path for subnet default-router deletion."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "default-router"
-        ]
+    def get_host_decl_name_path(self) -> List[str]:
+        return ["service", "dhcp-server", "host-decl-name"]
 
-    def get_subnet_name_server(
-        self, network_name: str, subnet: str, name_server: str
-    ) -> List[str]:
-        """Get command path for subnet name-server (1.4: no 'option' prefix)."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "name-server", name_server
-        ]
+    def get_subnet_enable_failover(self, network_name: str, subnet: str) -> List[str]:
+        return self.get_subnet(network_name, subnet) + ["enable-failover"]
 
-    def get_subnet_name_server_path(
-        self, network_name: str, subnet: str, name_server: str
-    ) -> List[str]:
-        """Get command path for specific name-server deletion."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "name-server", name_server
-        ]
+    def get_subnet_enable_failover_path(self, network_name: str, subnet: str) -> List[str]:
+        return self.get_subnet(network_name, subnet) + ["enable-failover"]
 
-    def get_subnet_domain_name(
-        self, network_name: str, subnet: str, domain_name: str
-    ) -> List[str]:
-        """Get command path for subnet domain-name (1.4: no 'option' prefix)."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "domain-name", domain_name
-        ]
-
-    def get_subnet_domain_name_path(
-        self, network_name: str, subnet: str
-    ) -> List[str]:
-        """Get command path for subnet domain-name deletion."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "domain-name"
-        ]
-
-    def get_static_mapping_mac_address(
-        self, network_name: str, subnet: str, mapping_name: str, mac_address: str
-    ) -> List[str]:
-        """Get command path for static mapping MAC address (1.4: uses 'mac-address')."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "static-mapping", mapping_name, "mac-address", mac_address
-        ]
-
-    def get_static_mapping_mac_address_path(
-        self, network_name: str, subnet: str, mapping_name: str
-    ) -> List[str]:
-        """Get command path for static mapping MAC address deletion (1.4: uses 'mac-address')."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "static-mapping", mapping_name, "mac-address"
-        ]
-
-    def has_subnet_id(self) -> bool:
-        """Returns False - subnet-id does not exist in VyOS 1.4."""
-        return False
-
-    def can_clear_inactive_leases(self) -> bool:
-        """1.4 GraphQL ClearReleaseLeaseDhcp only releases active leases."""
-        return False
+    def get_dynamic_dns_update(self) -> List[str]:
+        return ["service", "dhcp-server", "dynamic-dns-update"]
