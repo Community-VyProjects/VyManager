@@ -5,8 +5,17 @@ The dashboard pump and the remaining show parsers follow that split.
 """
 
 import ast
+import asyncio
 import json
+from contextlib import asynccontextmanager
 from pathlib import Path
+from types import SimpleNamespace
+from typing import cast
+
+from fastapi import HTTPException, Request
+
+import fastapi_permissions
+from rbac_permissions import FeatureGroup, PermissionLevel
 
 from interface_show import (
     InterfaceName,
@@ -140,3 +149,70 @@ def test_wireguard_summary_text_records_handshake_seconds():
     assert peers[pubkey]["endpoint"] == "192.0.2.1:51820"
     assert peers[pubkey]["latest_handshake_seconds"] == 90
     assert _parse_wg_handshake("(none)") is None
+
+
+def test_show_read_routes_check_a_permission():
+    """A device read in this router names the check. The shared catalog cannot use one feature."""
+    tree = ast.parse((ROOT / "routers/show.py").read_text())
+    handlers = {
+        node.name: node
+        for node in tree.body
+        if isinstance(node, ast.AsyncFunctionDef)
+    }
+
+    def calls(name):
+        found = []
+        for node in ast.walk(handlers[name]):
+            if isinstance(node, ast.Call):
+                func = getattr(node.func, "id", None)
+                if func and func.startswith("require_"):
+                    found.append((func, [getattr(arg, "attr", None) for arg in node.args]))
+        return found
+
+    assert ("require_read_permission", [None, "ETHERNET"]) in calls(
+        "get_available_ethernet_interfaces"
+    )
+    assert ("require_read_permission", [None, "INTERFACES"]) in calls("get_interface_counters")
+    assert ("require_read_permission", [None, "SYSTEM"]) in calls("get_system_updates")
+    assert ("require_any_read_permission", [None]) in calls("get_all_interfaces")
+
+
+def test_any_read_allows_one_feature_and_refuses_none(monkeypatch):
+    @asynccontextmanager
+    async def connection(request):
+        yield object()
+
+    async def not_admin(conn, user_id):
+        return False
+
+    grants = {feature: PermissionLevel.NONE for feature in FeatureGroup}
+
+    async def permissions(conn, user_id, instance_id, org_id=None):
+        return grants
+
+    monkeypatch.setattr(fastapi_permissions, "request_scoped_conn", connection)
+    monkeypatch.setattr(fastapi_permissions, "is_super_admin", not_admin)
+    monkeypatch.setattr(fastapi_permissions, "get_user_permissions", permissions)
+
+    request = cast(
+        Request,
+        SimpleNamespace(state=SimpleNamespace(user={"id": "u"}, instance={"id": "i"})),
+    )
+    grants[FeatureGroup.OSPF] = PermissionLevel.READ
+    asyncio.run(fastapi_permissions.require_any_read_permission(request))
+
+    grants[FeatureGroup.OSPF] = PermissionLevel.NONE
+    try:
+        asyncio.run(fastapi_permissions.require_any_read_permission(request))
+    except HTTPException as exc:
+        assert exc.status_code == 403
+    else:
+        raise AssertionError("a user with no feature read must be refused")
+
+    bare = cast(Request, SimpleNamespace(state=SimpleNamespace()))
+    try:
+        asyncio.run(fastapi_permissions.require_any_read_permission(bare))
+    except HTTPException as exc:
+        assert exc.status_code == 401
+    else:
+        raise AssertionError("a missing user must be refused")

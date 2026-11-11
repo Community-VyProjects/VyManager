@@ -19,7 +19,7 @@ import httpx
 
 from starlette.concurrency import run_in_threadpool
 from session_vyos_service import get_session_vyos_service
-from fastapi_permissions import has_permission, require_read_permission
+from fastapi_permissions import has_permission, require_any_read_permission, require_read_permission
 from org_scope import request_scoped_conn
 from rbac_permissions import FeatureGroup, PermissionLevel
 from stream_auth import fail_closed
@@ -206,16 +206,19 @@ async def get_interface_counters(request: Request):
     Returns:
         Structured interface counter data for all interfaces
     """
+    await require_read_permission(request, FeatureGroup.INTERFACES)
     try:
         service = get_session_vyos_service(request)
 
         # Execute 'show interface counters' command
-        response = service.device.show(path=["interfaces", "counters"])
+        response = await run_in_threadpool(
+            service.device.show, path=["interfaces", "counters"]
+        )
 
         if response.status != 200:
             raise HTTPException(
                 status_code=500,
-                detail=f"VyOS command failed: {response.error}"
+                detail="Unable to read interface counters",
             )
 
         # Parse the output
@@ -322,6 +325,7 @@ async def get_all_interfaces(request: Request):
     Returns:
         List of all interface names, including VLANs and sub-interfaces.
     """
+    await require_any_read_permission(request)
     try:
         service = get_session_vyos_service(request)
 
@@ -388,11 +392,14 @@ async def get_available_ethernet_interfaces(request: Request):
     Return physical ethernet interfaces that exist on the router but are not
     yet configured in VyOS. Used to populate the create-interface dropdown.
     """
+    await require_read_permission(request, FeatureGroup.ETHERNET)
     try:
         service = get_session_vyos_service(request)
 
         # Operational show to list all physical ethernet ports
-        response = service.device.show(path=["interfaces", "ethernet"])
+        response = await run_in_threadpool(
+            service.device.show, path=["interfaces", "ethernet"]
+        )
 
         all_eth: List[str] = []
         if response.status == 200:
@@ -407,7 +414,7 @@ async def get_available_ethernet_interfaces(request: Request):
         # Exclude interfaces that already have an address configured.
         # Interfaces in the config tree with no address (e.g. disabled/empty)
         # are still considered available.
-        full_config = service.get_full_config(refresh=False)
+        full_config = await run_in_threadpool(service.get_full_config, refresh=False)
         eth_config = full_config.get("interfaces", {}).get("ethernet", {})
         with_address = {
             name for name, cfg in eth_config.items()
@@ -442,7 +449,7 @@ async def get_system_updates(request: Request):
     await require_read_permission(request, FeatureGroup.SYSTEM)
     service = get_session_vyos_service(request)
 
-    response = service.device.show(path=["system", "updates"])
+    response = await run_in_threadpool(service.device.show, path=["system", "updates"])
     if response.status != 200:
         # A non-200 here usually means the command is unsupported on this version
         # or update-check is not configured — surface as "not configured", not 500.

@@ -9,6 +9,7 @@ import inspect
 import logging
 
 from fastapi import APIRouter, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
@@ -280,7 +281,7 @@ async def get_config(request: Request, refresh: bool = False):
 
     try:
         service = get_session_vyos_service(request)
-        full_config = service.get_full_config(refresh=refresh)
+        full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
 
         nat66_config = full_config.get("nat66", {})
         source_config = nat66_config.get("source", {}).get("rule", {})
@@ -361,17 +362,17 @@ async def batch_configure(http_request: Request, request: NAT66BatchRequest):
                     )
             except HTTPException:
                 raise
-            except TypeError as e:
-                logger.exception(f"Type error calling {op_name}")
+            except TypeError:
+                logger.exception("Type error calling %s", op_name)
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Invalid parameters for operation {op_name}: {str(e)}"
+                    detail=f"Invalid parameters for operation {op_name}",
                 )
 
         if batch.is_empty():
             return VyOSResponse(success=True, data={"message": "No operations to execute"})
 
-        response = service.execute_batch(batch)
+        response = await run_in_threadpool(service.execute_batch, batch)
 
         result_data = response.result
         if result_data == '' or result_data is None:
@@ -484,7 +485,7 @@ async def reorder_nat66_rules(http_request: Request, request: ReorderNAT66Reques
         if batch.is_empty():
             return VyOSResponse(success=False, error="No operations to execute")
 
-        response = service.execute_batch(batch)
+        response = await run_in_threadpool(service.execute_batch, batch)
 
         result_data = response.result
         if result_data == '' or result_data is None:

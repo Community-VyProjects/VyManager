@@ -8,6 +8,7 @@ Uses session-based architecture - VyOS instance comes from user's active session
 """
 
 from fastapi import APIRouter, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
@@ -110,7 +111,7 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
         service = get_session_vyos_service(request)
         version = service.get_version()
 
-        full_config = service.get_full_config(refresh=refresh)
+        full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
 
         mapper = IPSecMapper(version)
         config = mapper.parse_config(full_config)
@@ -251,7 +252,7 @@ async def ipsec_batch_configure(http_request: Request, request: IPSecBatchReques
                 data={"message": "No operations to execute"},
             )
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
