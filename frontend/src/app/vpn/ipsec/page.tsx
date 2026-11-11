@@ -33,6 +33,7 @@ import {
   Wifi,
   Database,
   Settings,
+  Server,
   Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -46,6 +47,9 @@ import {
   type RAConnection,
   type RAPool,
   type AuthPSK,
+  type AuthPPK,
+  type IPSecProfile,
+  type RARadiusServer,
   type IPSecStatus,
 } from "@/lib/api/ipsec";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -59,6 +63,8 @@ import {
   AuthPSKModal,
   DeleteConfirmModal,
   SettingsModal,
+  ProfileModal,
+  RadiusServerModal,
 } from "@/components/vpn/ipsec";
 
 function IPSecPageInner() {
@@ -88,6 +94,12 @@ function IPSecPageInner() {
   const [editingPool, setEditingPool] = useState<RAPool | null>(null);
   const [showPSKModal, setShowPSKModal] = useState(false);
   const [editingPSK, setEditingPSK] = useState<AuthPSK | null>(null);
+  const [showPPKModal, setShowPPKModal] = useState(false);
+  const [editingPPK, setEditingPPK] = useState<AuthPPK | null>(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [editingProfile, setEditingProfile] = useState<IPSecProfile | null>(null);
+  const [showRadiusModal, setShowRadiusModal] = useState(false);
+  const [editingRadius, setEditingRadius] = useState<RARadiusServer | null>(null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   // Delete modal
@@ -528,7 +540,7 @@ function IPSecPageInner() {
                             <TableCell>{conn.ike_group || "-"}</TableCell>
                             <TableCell>{conn.esp_group || "-"}</TableCell>
                             <TableCell>{(conn.pools || []).join(", ") || "-"}</TableCell>
-                            <TableCell><Badge variant="outline" className="text-xs">{conn.auth_server_mode || "psk"}</Badge></TableCell>
+                            <TableCell><Badge variant="outline" className="text-xs">{conn.auth_server_mode || "x509"}</Badge></TableCell>
                             {hasWrite && (
                               <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -720,6 +732,64 @@ function IPSecPageInner() {
                       </TableBody>
                     </Table>
                   )}
+                  {capabilities?.features.ipsec.ppk && (
+                    <div className="mt-8">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-semibold">{t("page.ppk.title")}</h3>
+                        {hasWrite && (
+                          <Button size="sm" onClick={() => { setEditingPPK(null); setShowPPKModal(true); }}>
+                            <Plus className="h-4 w-4 mr-1" /> {t("page.ppk.add")}
+                          </Button>
+                        )}
+                      </div>
+                      {(config?.authentication.ppk.length ?? 0) === 0 ? (
+                        <EmptyState icon={Key} label={t("page.ppk.empty")} />
+                      ) : (
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>{tc("name")}</TableHead>
+                              <TableHead>{t("page.psk.identities")}</TableHead>
+                              <TableHead>{t("page.psk.secret")}</TableHead>
+                              <TableHead>{t("page.psk.type")}</TableHead>
+                              {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {config?.authentication.ppk.map((ppk) => (
+                              <TableRow key={ppk.name} className="group">
+                                <TableCell className="font-medium">{ppk.name}</TableCell>
+                                <TableCell>
+                                  <div className="flex flex-wrap gap-1">
+                                    {(ppk.identities || []).map((id) => (
+                                      <Badge key={id} variant="outline" className="text-xs font-mono">{id}</Badge>
+                                    ))}
+                                  </div>
+                                </TableCell>
+                                <TableCell><span className="text-muted-foreground">***</span></TableCell>
+                                <TableCell>{ppk.secret_type || tc("shown.default")}</TableCell>
+                                {hasWrite && (
+                                  <TableCell className="text-right">
+                                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingPPK(ppk); setShowPPKModal(true); }}>
+                                        <Pencil className="h-4 w-4" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
+                                        type: t("s2sModal.ppk"), name: ppk.name,
+                                        onDelete: () => ipsecService.deleteAuthPPK(ppk.name),
+                                      })}>
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      )}
+                    </div>
+                  )}
                 </TabsContent>
 
                 {/* Pools Tab */}
@@ -750,13 +820,7 @@ function IPSecPageInner() {
                         {config?.remote_access.pools.map((pool) => (
                           <TableRow key={pool.name} className="group">
                             <TableCell className="font-medium">{pool.name}</TableCell>
-                            <TableCell>
-                              <div className="flex flex-wrap gap-1">
-                                {(pool.prefix || []).map((p, i) => (
-                                  <Badge key={i} variant="outline" className="text-xs font-mono">{p}</Badge>
-                                ))}
-                              </div>
-                            </TableCell>
+                            <TableCell className="font-mono text-xs">{pool.prefix || "-"}</TableCell>
                             <TableCell>{(pool.name_servers || []).join(", ") || "-"}</TableCell>
                             <TableCell>{(pool.exclude || []).join(", ") || "-"}</TableCell>
                             {capabilities?.features.pool_range.supported && (
@@ -827,6 +891,10 @@ function IPSecPageInner() {
                             {config?.disable_uniqreqids ? t("page.settings.yes") : t("page.settings.no")}
                           </Badge>
                         </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">{t("page.settings.optionsInterface")}</span>
+                          <span className="font-mono">{config?.options.interface || tc("shown.none")}</span>
+                        </div>
                       </div>
                     </Card>
                     <Card className="p-4 space-y-3">
@@ -873,24 +941,134 @@ function IPSecPageInner() {
                         <p className="text-sm text-muted-foreground">{t("page.settings.noInterfaces")}</p>
                       )}
                     </Card>
-                    {(config?.profiles.length ?? 0) > 0 && (
-                      <Card className="p-4 space-y-3">
-                        <h4 className="text-sm font-medium">{t("page.profiles")}</h4>
-                        <div className="space-y-2 text-sm">
-                          {config?.profiles.map((p) => (
-                            <div key={p.name} className="flex justify-between">
-                              <span className="font-medium">{p.name}</span>
-                              <div className="flex gap-2">
-                                {p.ike_group && <Badge variant="outline" className="text-xs">IKE: {p.ike_group}</Badge>}
-                                {p.esp_group && <Badge variant="outline" className="text-xs">ESP: {p.esp_group}</Badge>}
-                                {p.disabled && <Badge variant="secondary" className="text-xs bg-red-500/10 text-red-600">{tc("disabled")}</Badge>}
-                              </div>
-                            </div>
-                          ))}
+                    <Card className="p-4 space-y-3">
+                      <h4 className="text-sm font-medium">{t("page.tabs.remoteAccess")}</h4>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">{t("page.settings.dhcpInterface")}</span>
+                          <span className="font-mono">{config?.remote_access.dhcp.interface || tc("shown.none")}</span>
                         </div>
-                      </Card>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">{t("page.settings.dhcpServer")}</span>
+                          <span className="font-mono">{config?.remote_access.dhcp.server || tc("shown.none")}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">{t("page.settings.nasIdentifier")}</span>
+                          <span>{config?.remote_access.radius.nas_identifier || tc("shown.none")}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">{t("page.settings.radiusTimeout")}</span>
+                          <span>{config?.remote_access.radius.timeout || tc("shown.default")}</span>
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-8 mb-4">
+                    <h3 className="font-semibold">{t("page.radius.title")}</h3>
+                    {hasWrite && (
+                      <Button size="sm" onClick={() => { setEditingRadius(null); setShowRadiusModal(true); }}>
+                        <Plus className="h-4 w-4 mr-1" /> {t("page.radius.add")}
+                      </Button>
                     )}
                   </div>
+                  {(config?.remote_access.radius.servers?.length ?? 0) === 0 ? (
+                    <EmptyState icon={Server} label={t("page.radius.empty")} />
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{t("radiusModal.address")}</TableHead>
+                          <TableHead>{t("radiusModal.port")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
+                          {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {config?.remote_access.radius.servers?.map((server) => (
+                          <TableRow key={server.address} className="group">
+                            <TableCell className="font-mono">{server.address}</TableCell>
+                            <TableCell>{server.port || tc("shown.default")}</TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                <Badge variant={server.disabled ? "secondary" : "default"}>{server.disabled ? tc("disabled") : tc("enabled")}</Badge>
+                                {server.disable_accounting && <Badge variant="outline">{t("radiusModal.disableAccounting")}</Badge>}
+                              </div>
+                            </TableCell>
+                            {hasWrite && (
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingRadius(server); setShowRadiusModal(true); }}>
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
+                                    type: t("page.types.radiusServer"), name: server.address,
+                                    onDelete: () => ipsecService.deleteRARadiusServer(server.address),
+                                  })}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+
+                  <div className="flex items-center justify-between mt-8 mb-4">
+                    <h3 className="font-semibold">{t("page.profiles")}</h3>
+                    {hasWrite && (
+                      <Button size="sm" onClick={() => { setEditingProfile(null); setShowProfileModal(true); }}>
+                        <Plus className="h-4 w-4 mr-1" /> {t("page.profile.add")}
+                      </Button>
+                    )}
+                  </div>
+                  {(config?.profiles.length ?? 0) === 0 ? (
+                    <EmptyState icon={Settings} label={t("page.profile.empty")} />
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{tc("name")}</TableHead>
+                          <TableHead>{t("page.ikeGroup")}</TableHead>
+                          <TableHead>{t("page.espGroup")}</TableHead>
+                          <TableHead>{t("profileModal.bindTunnels")}</TableHead>
+                          {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {config?.profiles.map((profile) => (
+                          <TableRow key={profile.name} className="group">
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                {profile.name}
+                                {profile.disabled && <Badge variant="secondary" className="text-xs bg-red-500/10 text-red-600">{tc("disabled")}</Badge>}
+                              </div>
+                            </TableCell>
+                            <TableCell>{profile.ike_group || "-"}</TableCell>
+                            <TableCell>{profile.esp_group || "-"}</TableCell>
+                            <TableCell className="font-mono text-xs">{(profile.bind_tunnels || []).join(", ") || "-"}</TableCell>
+                            {hasWrite && (
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingProfile(profile); setShowProfileModal(true); }}>
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
+                                    type: t("page.types.profile"), name: profile.name,
+                                    onDelete: () => ipsecService.deleteProfile(profile.name),
+                                  })}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
                 </TabsContent>
               </div>
             </ScrollArea>
@@ -920,6 +1098,7 @@ function IPSecPageInner() {
         capabilities={capabilities}
         ikeGroups={config?.ike_groups || []}
         espGroups={config?.esp_groups || []}
+        ppkIds={(config?.authentication.ppk || []).flatMap((ppk) => ppk.identities || [])}
         existingPeer={editingS2S}
       />
       <RemoteAccessModal
@@ -930,6 +1109,7 @@ function IPSecPageInner() {
         ikeGroups={config?.ike_groups || []}
         espGroups={config?.esp_groups || []}
         pools={config?.remote_access.pools || []}
+        ppkIds={(config?.authentication.ppk || []).flatMap((ppk) => ppk.identities || [])}
         existingConnection={editingRA}
       />
       <PoolModal
@@ -944,6 +1124,30 @@ function IPSecPageInner() {
         onOpenChange={(open) => { setShowPSKModal(open); if (!open) setEditingPSK(null); }}
         onSuccess={onSuccess}
         existingPSK={editingPSK}
+        capabilities={capabilities}
+      />
+      <AuthPSKModal
+        open={showPPKModal}
+        onOpenChange={(open) => { setShowPPKModal(open); if (!open) setEditingPPK(null); }}
+        onSuccess={onSuccess}
+        existingPSK={editingPPK}
+        capabilities={capabilities}
+        kind="ppk"
+      />
+      <ProfileModal
+        open={showProfileModal}
+        onOpenChange={(open) => { setShowProfileModal(open); if (!open) setEditingProfile(null); }}
+        onSuccess={onSuccess}
+        capabilities={capabilities}
+        ikeGroups={config?.ike_groups || []}
+        espGroups={config?.esp_groups || []}
+        existingProfile={editingProfile}
+      />
+      <RadiusServerModal
+        open={showRadiusModal}
+        onOpenChange={(open) => { setShowRadiusModal(open); if (!open) setEditingRadius(null); }}
+        onSuccess={onSuccess}
+        existingServer={editingRadius}
       />
       {deleteTarget && (
         <DeleteConfirmModal
@@ -965,6 +1169,8 @@ function IPSecPageInner() {
         currentLog={config?.log || {}}
         currentInterfaces={config?.interfaces || []}
         disableUniqreqids={config?.disable_uniqreqids || false}
+        currentDhcp={config?.remote_access.dhcp || {}}
+        currentRadius={config?.remote_access.radius || {}}
       />
     </AppLayout>
   );

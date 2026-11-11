@@ -31,6 +31,7 @@ import {
   IPSecCapabilities,
 } from "@/lib/api/ipsec";
 import { showService, InterfaceName } from "@/lib/api/show";
+import { pkiService } from "@/lib/api/pki";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ApiError } from "@/lib/types/api";
 
@@ -42,6 +43,7 @@ interface SiteToSiteModalProps {
   ikeGroups: IKEGroup[];
   espGroups: ESPGroup[];
   existingPeer: SiteToSitePeer | null;
+  ppkIds: string[];
 }
 
 interface TunnelRow {
@@ -50,15 +52,21 @@ interface TunnelRow {
   local_prefix: string;
   remote_prefix: string;
   protocol: string;
+  disabled: boolean;
+  local_port: string;
+  remote_port: string;
+  priority: string;
 }
 
 export function SiteToSiteModal({
   open,
   onOpenChange,
   onSuccess,
+  capabilities,
   ikeGroups,
   espGroups,
   existingPeer,
+  ppkIds,
 }: SiteToSiteModalProps) {
   const t = useTranslations("ipsec");
   const tc = useTranslations("common");
@@ -73,17 +81,29 @@ export function SiteToSiteModal({
   const [connectionType, setConnectionType] = useState("initiate");
   const [dhcpInterface, setDhcpInterface] = useState("");
   const [forceUdp, setForceUdp] = useState(false);
+  const [disabled, setDisabled] = useState(false);
+  const [ikev2Reauth, setIkev2Reauth] = useState("");
+  const [replayWindow, setReplayWindow] = useState("");
+  const [virtualAddresses, setVirtualAddresses] = useState("");
+  const [unique, setUnique] = useState("");
+  const [childless, setChildless] = useState("");
 
   // Auth
   const [authMode, setAuthMode] = useState("pre-shared-secret");
   const [authLocalId, setAuthLocalId] = useState("");
   const [authRemoteId, setAuthRemoteId] = useState("");
-  const [authX509CaCert, setAuthX509CaCert] = useState("");
+  const [useX509Id, setUseX509Id] = useState(false);
+  const [caCerts, setCaCerts] = useState<string[]>([]);
   const [authX509Cert, setAuthX509Cert] = useState("");
   const [authX509Passphrase, setAuthX509Passphrase] = useState("");
   const [authRsaLocalKey, setAuthRsaLocalKey] = useState("");
   const [authRsaRemoteKey, setAuthRsaRemoteKey] = useState("");
   const [authRsaPassphrase, setAuthRsaPassphrase] = useState("");
+  const [ppkId, setPpkId] = useState("");
+  const [ppkRequired, setPpkRequired] = useState(false);
+  const [pkiCas, setPkiCas] = useState<string[]>([]);
+  const [pkiCerts, setPkiCerts] = useState<string[]>([]);
+  const [pkiKeys, setPkiKeys] = useState<string[]>([]);
 
   // Tunnels
   const [tunnels, setTunnels] = useState<TunnelRow[]>([]);
@@ -100,6 +120,11 @@ export function SiteToSiteModal({
 
   useEffect(() => {
     showService.getAllInterfaces().then((res) => setAllInterfaces(res.interfaces)).catch(() => {});
+    pkiService.getConfig().then((cfg) => {
+      setPkiCas((cfg.ca || []).map((item) => item.name));
+      setPkiCerts((cfg.certificates || []).map((item) => item.name));
+      setPkiKeys((cfg.key_pairs || []).map((item) => item.name));
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -111,14 +136,23 @@ export function SiteToSiteModal({
         setDefaultEspGroup(existingPeer.default_esp_group || "");
         setLocalAddress(existingPeer.local_address || "");
         setRemoteAddresses((existingPeer.remote_address || []).join(", "));
-        setConnectionType(existingPeer.connection_type || "initiate");
+        setConnectionType(existingPeer.connection_type || "");
         setDhcpInterface(existingPeer.dhcp_interface || "");
         setForceUdp(existingPeer.force_udp_encapsulation || false);
+        setDisabled(existingPeer.disabled || false);
+        setIkev2Reauth(existingPeer.ikev2_reauth || "");
+        setReplayWindow(existingPeer.replay_window || "");
+        setVirtualAddresses((existingPeer.virtual_address || []).join(", "));
+        setUnique(existingPeer.unique || "");
+        setChildless(existingPeer.childless || "");
         const auth = existingPeer.authentication;
         setAuthMode(auth?.mode || "pre-shared-secret");
         setAuthLocalId(auth?.local_id || "");
         setAuthRemoteId(auth?.remote_id || "");
-        setAuthX509CaCert(auth?.x509?.ca_certificate?.[0] || "");
+        setPpkId(auth?.ppk_id || "");
+        setPpkRequired(auth?.ppk_required || false);
+        setUseX509Id(auth?.use_x509_id || false);
+        setCaCerts(auth?.x509?.ca_certificate || []);
         setAuthX509Cert(auth?.x509?.certificate || "");
         setAuthX509Passphrase(auth?.x509?.passphrase || "");
         setAuthRsaLocalKey(auth?.rsa?.local_key || "");
@@ -131,6 +165,10 @@ export function SiteToSiteModal({
             local_prefix: (t.local_prefix || []).join(", "),
             remote_prefix: (t.remote_prefix || []).join(", "),
             protocol: t.protocol || "",
+            disabled: t.disabled || false,
+            local_port: t.local_port || "",
+            remote_port: t.remote_port || "",
+            priority: t.priority || "",
           }))
         );
         const vti = existingPeer.vti;
@@ -145,13 +183,22 @@ export function SiteToSiteModal({
         setDefaultEspGroup("");
         setLocalAddress("");
         setRemoteAddresses("");
-        setConnectionType("initiate");
+        setConnectionType("");
         setDhcpInterface("");
         setForceUdp(false);
+        setDisabled(false);
+        setIkev2Reauth("");
+        setReplayWindow("");
+        setVirtualAddresses("");
+        setUnique("");
+        setChildless("");
         setAuthMode("pre-shared-secret");
         setAuthLocalId("");
         setAuthRemoteId("");
-        setAuthX509CaCert("");
+        setPpkId("");
+        setPpkRequired(false);
+        setUseX509Id(false);
+        setCaCerts([]);
         setAuthX509Cert("");
         setAuthX509Passphrase("");
         setAuthRsaLocalKey("");
@@ -169,7 +216,7 @@ export function SiteToSiteModal({
 
   const addTunnel = () => {
     const nextNum = String(tunnels.length > 0 ? Math.max(...tunnels.map((t) => parseInt(t.number)), 0) + 1 : 0);
-    setTunnels([...tunnels, { number: nextNum, esp_group: "", local_prefix: "", remote_prefix: "", protocol: "" }]);
+    setTunnels([...tunnels, { number: nextNum, esp_group: "", local_prefix: "", remote_prefix: "", protocol: "", disabled: false, local_port: "", remote_port: "", priority: "" }]);
   };
 
   const removeTunnel = (num: string) => {
@@ -188,8 +235,6 @@ export function SiteToSiteModal({
     setError(null);
 
     try {
-      if (isEdit) await ipsecService.deleteS2SPeer(existingPeer!.name);
-
       const remoteAddrs = remoteAddresses.split(",").map((a) => a.trim()).filter(Boolean);
 
       const tunnelConfigs = tunnels.map((t) => {
@@ -201,10 +246,14 @@ export function SiteToSiteModal({
           local_prefix: localPrefixes.length > 0 ? localPrefixes : undefined,
           remote_prefix: remotePrefixes.length > 0 ? remotePrefixes : undefined,
           protocol: t.protocol || undefined,
+          disabled: t.disabled,
+          local_port: t.local_port || undefined,
+          remote_port: t.remote_port || undefined,
+          priority: t.priority || undefined,
         };
       });
 
-      const result = await ipsecService.createS2SPeer(name.trim(), {
+      const payload = {
         ike_group: ikeGroup || undefined,
         default_esp_group: defaultEspGroup || undefined,
         local_address: localAddress || undefined,
@@ -215,13 +264,22 @@ export function SiteToSiteModal({
         auth_mode: authMode || undefined,
         auth_local_id: authLocalId || undefined,
         auth_remote_id: authRemoteId || undefined,
-        auth_x509_ca_cert: authMode === "x509" ? (authX509CaCert || undefined) : undefined,
+        auth_ppk_id: capabilities?.features.site_to_site.ppk ? (ppkId || undefined) : undefined,
+        auth_ppk_required: capabilities?.features.site_to_site.ppk ? ppkRequired : undefined,
+        auth_x509_ca_certs: authMode === "x509" ? caCerts : undefined,
         auth_x509_cert: authMode === "x509" ? (authX509Cert || undefined) : undefined,
         auth_x509_passphrase: authMode === "x509" ? (authX509Passphrase || undefined) : undefined,
         auth_rsa_local_key: authMode === "rsa" ? (authRsaLocalKey || undefined) : undefined,
         auth_rsa_remote_key: authMode === "rsa" ? (authRsaRemoteKey || undefined) : undefined,
         auth_rsa_passphrase: authMode === "rsa" ? (authRsaPassphrase || undefined) : undefined,
-        force_udp_encapsulation: forceUdp || undefined,
+        force_udp_encapsulation: forceUdp,
+        disabled,
+        ikev2_reauth: ikev2Reauth || undefined,
+        replay_window: replayWindow || undefined,
+        virtual_addresses: virtualAddresses.split(",").map((a) => a.trim()).filter(Boolean),
+        use_x509_id: authMode === "x509" ? useX509Id : false,
+        unique: capabilities?.features.site_to_site.unique ? (unique || undefined) : undefined,
+        childless: capabilities?.features.site_to_site.childless ? (childless || undefined) : undefined,
         vti_bind: vtiBind || undefined,
         vti_esp_group: vtiBind ? (vtiEspGroup || undefined) : undefined,
         vti_ts_local_prefix: vtiBind
@@ -231,7 +289,10 @@ export function SiteToSiteModal({
           ? (vtiTsRemotePrefix.split(",").map((p) => p.trim()).filter(Boolean) || undefined)
           : undefined,
         tunnels: tunnelConfigs.length > 0 ? tunnelConfigs : undefined,
-      });
+      };
+      const result = isEdit && existingPeer
+        ? await ipsecService.updateS2SPeer(existingPeer.name, payload, existingPeer)
+        : await ipsecService.createS2SPeer(name.trim(), payload);
 
       if (!result.success) {
         setError(result.error || t("s2sModal.createFailed"));
@@ -247,6 +308,9 @@ export function SiteToSiteModal({
       setLoading(false);
     }
   };
+
+  const connectionTypes = capabilities?.features.site_to_site.connection_types || [];
+  const s2s = capabilities?.features.site_to_site;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -288,9 +352,10 @@ export function SiteToSiteModal({
               </div>
               <div className="space-y-2">
                 <Label>{t("s2sModal.defaultEspGroup")}</Label>
-                <Select value={defaultEspGroup} onValueChange={setDefaultEspGroup}>
+                <Select value={defaultEspGroup || "_none"} onValueChange={(v) => setDefaultEspGroup(v === "_none" ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder={t("modal.select")} /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="_none">{tc("none")}</SelectItem>
                     {espGroups.map((g) => <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -304,17 +369,16 @@ export function SiteToSiteModal({
               <div className="space-y-2">
                 <Label>{t("s2sModal.remoteAddresses")}</Label>
                 <Input value={remoteAddresses} onChange={(e) => setRemoteAddresses(e.target.value)} placeholder="203.0.113.1" />
-                <p className="text-xs text-muted-foreground">{t("s2sModal.commaSeparated")}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t("s2sModal.connectionType")}</Label>
-                <Select value={connectionType} onValueChange={setConnectionType}>
+                <Select value={connectionType || "_none"} onValueChange={(v) => setConnectionType(v === "_none" ? "" : v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="initiate">{t("s2sModal.initiate")}</SelectItem>
-                    <SelectItem value="respond">{t("s2sModal.respond")}</SelectItem>
+                    <SelectItem value="_none">{tc("default")}</SelectItem>
+                    {connectionTypes.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -333,6 +397,54 @@ export function SiteToSiteModal({
               <Checkbox id="forceUdp" checked={forceUdp} onCheckedChange={(c) => setForceUdp(c === true)} />
               <Label htmlFor="forceUdp" className="cursor-pointer text-sm">{t("s2sModal.forceUdp")}</Label>
             </div>
+            <div className="flex items-center gap-2">
+              <Checkbox id="peerDisable" checked={disabled} onCheckedChange={(c) => setDisabled(c === true)} />
+              <Label htmlFor="peerDisable" className="cursor-pointer text-sm">{tc("disabled")}</Label>
+            </div>
+            <div className="space-y-2">
+              <Label>{t("s2sModal.ikev2Reauth")}</Label>
+              <Select value={ikev2Reauth || "_none"} onValueChange={(v) => setIkev2Reauth(v === "_none" ? "" : v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">{tc("default")}</SelectItem>
+                  {(s2s?.ikev2_reauth_values || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{t("s2sModal.replayWindow")}</Label>
+                <Input value={replayWindow} onChange={(e) => setReplayWindow(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>{t("s2sModal.virtualAddress")}</Label>
+                <Input value={virtualAddresses} onChange={(e) => setVirtualAddresses(e.target.value)} />
+              </div>
+            </div>
+            {s2s?.unique && (
+              <div className="space-y-2">
+                <Label>{t("s2sModal.unique")}</Label>
+                <Select value={unique || "_none"} onValueChange={(v) => setUnique(v === "_none" ? "" : v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">{tc("default")}</SelectItem>
+                    {(s2s.unique_values || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {s2s?.childless && (
+              <div className="space-y-2">
+                <Label>{t("s2sModal.childless")}</Label>
+                <Select value={childless || "_none"} onValueChange={(v) => setChildless(v === "_none" ? "" : v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">{tc("default")}</SelectItem>
+                    {(s2s.childless_values || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="auth" className="space-y-4 mt-4">
@@ -341,9 +453,9 @@ export function SiteToSiteModal({
               <Select value={authMode} onValueChange={setAuthMode}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pre-shared-secret">{t("modal.preSharedSecret")}</SelectItem>
-                  <SelectItem value="rsa">RSA</SelectItem>
-                  <SelectItem value="x509">{t("s2sModal.x509Certificate")}</SelectItem>
+                  {(capabilities?.features.site_to_site.auth_modes || []).map((value) => (
+                    <SelectItem key={value} value={value}>{value}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -357,21 +469,57 @@ export function SiteToSiteModal({
                 <Input value={authRemoteId} onChange={(e) => setAuthRemoteId(e.target.value)} placeholder="@remote-id" />
               </div>
             </div>
+            {s2s?.ppk && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>{t("s2sModal.ppk")}</Label>
+                  <Select value={ppkId || "_none"} onValueChange={(v) => setPpkId(v === "_none" ? "" : v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">{tc("none")}</SelectItem>
+                      {Array.from(new Set([...ppkIds, ...(ppkId ? [ppkId] : [])])).map((id) => <SelectItem key={id} value={id}>{id}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2 pt-7">
+                  <Checkbox id="ppkRequired" checked={ppkRequired} onCheckedChange={(c) => setPpkRequired(c === true)} />
+                  <Label htmlFor="ppkRequired" className="cursor-pointer text-sm">{t("s2sModal.ppkRequired")}</Label>
+                </div>
+              </div>
+            )}
             {authMode === "x509" && (
               <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>{t("modal.caCertificate")}</Label>
-                    <Input value={authX509CaCert} onChange={(e) => setAuthX509CaCert(e.target.value)} placeholder="ca-cert-name" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{t("modal.certificate")}</Label>
-                    <Input value={authX509Cert} onChange={(e) => setAuthX509Cert(e.target.value)} placeholder="cert-name" />
+                <div className="flex items-center gap-2">
+                  <Checkbox id="useX509Id" checked={useX509Id} onCheckedChange={(c) => setUseX509Id(c === true)} />
+                  <Label htmlFor="useX509Id" className="cursor-pointer text-sm">{t("s2sModal.useX509Id")}</Label>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("modal.caCertificate")}</Label>
+                  <div className="grid grid-cols-2 gap-2 rounded-md border p-3">
+                    {pkiCas.map((name) => (
+                      <label key={name} className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={caCerts.includes(name)}
+                          onCheckedChange={(v) => setCaCerts(v ? [...caCerts, name] : caCerts.filter((item) => item !== name))}
+                        />
+                        <span>{name}</span>
+                      </label>
+                    ))}
                   </div>
                 </div>
                 <div className="space-y-2">
+                  <Label>{t("modal.certificate")}</Label>
+                  <Select value={authX509Cert || "_none"} onValueChange={(v) => setAuthX509Cert(v === "_none" ? "" : v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">{tc("none")}</SelectItem>
+                      {pkiCerts.map((name) => <SelectItem key={name} value={name}>{name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
                   <Label>{t("s2sModal.passphraseOptional")}</Label>
-                  <Input value={authX509Passphrase} onChange={(e) => setAuthX509Passphrase(e.target.value)} placeholder={t("s2sModal.privateKeyPassphrase")} />
+                  <Input type="password" value={authX509Passphrase} onChange={(e) => setAuthX509Passphrase(e.target.value)} />
                 </div>
               </>
             )}
@@ -380,18 +528,28 @@ export function SiteToSiteModal({
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>{t("s2sModal.localKey")}</Label>
-                    <Input value={authRsaLocalKey} onChange={(e) => setAuthRsaLocalKey(e.target.value)} placeholder={t("s2sModal.keyPairName")} />
-                    <p className="text-xs text-muted-foreground">{t("s2sModal.localKeyHelp")}</p>
+                    <Select value={authRsaLocalKey || "_none"} onValueChange={(v) => setAuthRsaLocalKey(v === "_none" ? "" : v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none">{tc("none")}</SelectItem>
+                        {pkiKeys.map((name) => <SelectItem key={name} value={name}>{name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label>{t("s2sModal.remoteKey")}</Label>
-                    <Input value={authRsaRemoteKey} onChange={(e) => setAuthRsaRemoteKey(e.target.value)} placeholder={t("s2sModal.keyPairName")} />
-                    <p className="text-xs text-muted-foreground">{t("s2sModal.remoteKeyHelp")}</p>
+                    <Select value={authRsaRemoteKey || "_none"} onValueChange={(v) => setAuthRsaRemoteKey(v === "_none" ? "" : v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none">{tc("none")}</SelectItem>
+                        {pkiKeys.map((name) => <SelectItem key={name} value={name}>{name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label>{t("s2sModal.passphraseOptional")}</Label>
-                  <Input value={authRsaPassphrase} onChange={(e) => setAuthRsaPassphrase(e.target.value)} placeholder={t("s2sModal.localPrivateKeyPassphrase")} />
+                  <Input type="password" value={authRsaPassphrase} onChange={(e) => setAuthRsaPassphrase(e.target.value)} />
                 </div>
               </>
             )}
@@ -420,9 +578,10 @@ export function SiteToSiteModal({
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">{t("page.espGroup")}</Label>
-                      <Select value={tun.esp_group} onValueChange={(v) => updateTunnel(tun.number, "esp_group", v)}>
+                      <Select value={tun.esp_group || "_none"} onValueChange={(v) => updateTunnel(tun.number, "esp_group", v === "_none" ? "" : v)}>
                         <SelectTrigger className="h-9"><SelectValue placeholder={t("modal.select")} /></SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="_none">{tc("none")}</SelectItem>
                           {espGroups.map((g) => <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
@@ -433,9 +592,7 @@ export function SiteToSiteModal({
                         <SelectTrigger className="h-9"><SelectValue placeholder={t("s2sModal.any")} /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="_none">{t("s2sModal.any")}</SelectItem>
-                          <SelectItem value="gre">GRE</SelectItem>
-                          <SelectItem value="ipip">IPIP</SelectItem>
-                          <SelectItem value="ip">IP</SelectItem>
+                          {(s2s?.tunnel_protocols || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
@@ -450,15 +607,30 @@ export function SiteToSiteModal({
                       <Input className="h-9" value={tun.remote_prefix} onChange={(e) => updateTunnel(tun.number, "remote_prefix", e.target.value)} placeholder="10.1.0.0/24" />
                     </div>
                   </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">{t("s2sModal.localPort")}</Label>
+                      <Input className="h-9" value={tun.local_port} onChange={(e) => updateTunnel(tun.number, "local_port", e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">{t("s2sModal.remotePort")}</Label>
+                      <Input className="h-9" value={tun.remote_port} onChange={(e) => updateTunnel(tun.number, "remote_port", e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">{t("s2sModal.priority")}</Label>
+                      <Input className="h-9" value={tun.priority} onChange={(e) => updateTunnel(tun.number, "priority", e.target.value)} />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox id={`tun-disable-${tun.number}`} checked={tun.disabled} onCheckedChange={(c) => setTunnels(tunnels.map((row) => row.number === tun.number ? { ...row, disabled: c === true } : row))} />
+                    <Label htmlFor={`tun-disable-${tun.number}`} className="cursor-pointer text-sm">{tc("disabled")}</Label>
+                  </div>
                 </div>
               ))
             )}
           </TabsContent>
 
           <TabsContent value="vti" className="space-y-4 mt-4">
-            <p className="text-xs text-muted-foreground">
-              {t("s2sModal.vtiHelp")}
-            </p>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t("s2sModal.boundInterface")}</Label>
@@ -485,12 +657,10 @@ export function SiteToSiteModal({
               <div className="space-y-2">
                 <Label>{t("s2sModal.tsLocalPrefix")}</Label>
                 <Input value={vtiTsLocalPrefix} onChange={(e) => setVtiTsLocalPrefix(e.target.value)} placeholder="0.0.0.0/0" disabled={!vtiBind} />
-                <p className="text-xs text-muted-foreground">{t("s2sModal.commaSeparated")}</p>
               </div>
               <div className="space-y-2">
                 <Label>{t("s2sModal.tsRemotePrefix")}</Label>
                 <Input value={vtiTsRemotePrefix} onChange={(e) => setVtiTsRemotePrefix(e.target.value)} placeholder="0.0.0.0/0" disabled={!vtiBind} />
-                <p className="text-xs text-muted-foreground">{t("s2sModal.commaSeparated")}</p>
               </div>
             </div>
           </TabsContent>

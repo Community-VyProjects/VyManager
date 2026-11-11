@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { AlertCircle, Loader2, Wifi, Eye, EyeOff, Plus, Trash2 } from "lucide-react";
 import {
   ipsecService,
@@ -31,6 +32,7 @@ import {
   IPSecCapabilities,
 } from "@/lib/api/ipsec";
 import { ApiError } from "@/lib/types/api";
+import { pkiService } from "@/lib/api/pki";
 
 interface RemoteAccessModalProps {
   open: boolean;
@@ -41,6 +43,7 @@ interface RemoteAccessModalProps {
   espGroups: ESPGroup[];
   pools: RAPool[];
   existingConnection: RAConnection | null;
+  ppkIds: string[];
 }
 
 interface LocalUserRow {
@@ -58,29 +61,56 @@ export function RemoteAccessModal({
   espGroups,
   pools,
   existingConnection,
+  ppkIds,
 }: RemoteAccessModalProps) {
   const t = useTranslations("ipsec");
   const tc = useTranslations("common");
   const isEdit = !!existingConnection;
+  const poolChoices = [
+    ...(capabilities?.features.remote_access.pool_values || []),
+    ...pools.map((pool) => pool.name).filter((name) => !(capabilities?.features.remote_access.pool_values || []).includes(name)),
+  ];
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [ikeGroup, setIkeGroup] = useState("");
   const [espGroup, setEspGroup] = useState("");
   const [localAddress, setLocalAddress] = useState("");
-  const [selectedPools, setSelectedPools] = useState("");
+  const [selectedPools, setSelectedPools] = useState<string[]>([]);
   const [authServerMode, setAuthServerMode] = useState("pre-shared-secret");
   const [authClientMode, setAuthClientMode] = useState("");
   const [authLocalId, setAuthLocalId] = useState("");
   const [authPsk, setAuthPsk] = useState("");
   const [showPsk, setShowPsk] = useState(false);
-  const [authX509CaCert, setAuthX509CaCert] = useState("");
+  const [caCerts, setCaCerts] = useState<string[]>([]);
   const [authX509Cert, setAuthX509Cert] = useState("");
+  const [pkiCas, setPkiCas] = useState<string[]>([]);
+  const [pkiCerts, setPkiCerts] = useState<string[]>([]);
   const [alwaysSendCert, setAlwaysSendCert] = useState(false);
   const [localUsers, setLocalUsers] = useState<LocalUserRow[]>([]);
+  const [disabled, setDisabled] = useState(false);
+  const [dhcpInterface, setDhcpInterface] = useState("");
+  const [replayWindow, setReplayWindow] = useState("");
+  const [timeoutValue, setTimeoutValue] = useState("");
+  const [unique, setUnique] = useState("");
+  const [localPrefix, setLocalPrefix] = useState("");
+  const [localPort, setLocalPort] = useState("");
+  const [bind, setBind] = useState("");
+  const [childless, setChildless] = useState("");
+  const [eapId, setEapId] = useState("");
+  const [x509Passphrase, setX509Passphrase] = useState("");
+  const [ppkId, setPpkId] = useState("");
+  const [ppkRequired, setPpkRequired] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    pkiService.getConfig().then((cfg) => {
+      setPkiCas((cfg.ca || []).map((item) => item.name));
+      setPkiCerts((cfg.certificates || []).map((item) => item.name));
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -90,12 +120,25 @@ export function RemoteAccessModal({
         setIkeGroup(existingConnection.ike_group || "");
         setEspGroup(existingConnection.esp_group || "");
         setLocalAddress(existingConnection.local_address || "");
-        setSelectedPools((existingConnection.pools || []).join(", "));
-        setAuthServerMode(existingConnection.auth_server_mode || "pre-shared-secret");
+        setSelectedPools(existingConnection.pools || []);
+        setAuthServerMode(existingConnection.auth_server_mode || "x509");
         setAuthClientMode(existingConnection.auth_client_mode || "");
+        setDisabled(existingConnection.disabled || false);
+        setDhcpInterface(existingConnection.dhcp_interface || "");
+        setReplayWindow(existingConnection.replay_window || "");
+        setTimeoutValue(existingConnection.timeout || "");
+        setUnique(existingConnection.unique || "");
+        setLocalPrefix((existingConnection.local_prefix || []).join(", "));
+        setLocalPort(existingConnection.local_port || "");
+        setBind(existingConnection.bind || "");
+        setChildless(existingConnection.childless || "");
+        setEapId(existingConnection.auth_eap_id || "");
+        setX509Passphrase(existingConnection.auth_x509_passphrase || "");
+        setPpkId(existingConnection.auth_ppk_id || "");
+        setPpkRequired(existingConnection.auth_ppk_required || false);
         setAuthLocalId(existingConnection.auth_local_id || "");
         setAuthPsk("");
-        setAuthX509CaCert(existingConnection.auth_x509_ca_cert || "");
+        setCaCerts(existingConnection.auth_x509_ca_cert || []);
         setAuthX509Cert(existingConnection.auth_x509_cert || "");
         setAlwaysSendCert(!!existingConnection.auth_always_send_cert);
         setLocalUsers(
@@ -111,15 +154,28 @@ export function RemoteAccessModal({
         setIkeGroup("");
         setEspGroup("");
         setLocalAddress("");
-        setSelectedPools("");
+        setSelectedPools([]);
         setAuthServerMode("pre-shared-secret");
         setAuthClientMode("");
         setAuthLocalId("");
         setAuthPsk("");
-        setAuthX509CaCert("");
+        setCaCerts([]);
         setAuthX509Cert("");
         setAlwaysSendCert(false);
         setLocalUsers([]);
+        setDisabled(false);
+        setDhcpInterface("");
+        setReplayWindow("");
+        setTimeoutValue("");
+        setUnique("");
+        setLocalPrefix("");
+        setLocalPort("");
+        setBind("");
+        setChildless("");
+        setEapId("");
+        setX509Passphrase("");
+        setPpkId("");
+        setPpkRequired(false);
       }
       setShowPsk(false);
       setError(null);
@@ -133,7 +189,6 @@ export function RemoteAccessModal({
     setError(null);
 
     try {
-      const poolList = selectedPools.split(",").map((p) => p.trim()).filter(Boolean);
       const isX509 = authServerMode === "x509";
       const cleanedUsers = localUsers
         .map((u) => ({ username: u.username.trim(), password: u.password, disabled: u.disabled }))
@@ -144,13 +199,26 @@ export function RemoteAccessModal({
         esp_group: espGroup || undefined,
         ike_group: ikeGroup || undefined,
         local_address: localAddress || undefined,
-        pools: poolList.length > 0 ? poolList : undefined,
+        pools: selectedPools.length > 0 ? selectedPools : undefined,
         auth_server_mode: authServerMode || undefined,
         auth_client_mode: authClientMode || undefined,
         auth_local_id: authLocalId || undefined,
         auth_psk: !isX509 ? authPsk || undefined : undefined,
-        auth_x509_ca_cert: isX509 ? authX509CaCert || undefined : undefined,
+        auth_x509_ca_certs: isX509 ? caCerts : undefined,
         auth_x509_cert: isX509 ? authX509Cert || undefined : undefined,
+        auth_x509_passphrase: isX509 ? x509Passphrase || undefined : undefined,
+        auth_eap_id: eapId || undefined,
+        auth_ppk_id: capabilities?.features.remote_access.ppk ? ppkId || undefined : undefined,
+        auth_ppk_required: capabilities?.features.remote_access.ppk ? ppkRequired : undefined,
+        disabled,
+        dhcp_interface: dhcpInterface || undefined,
+        replay_window: replayWindow || undefined,
+        timeout: timeoutValue || undefined,
+        unique: unique || undefined,
+        local_prefix: localPrefix.split(",").map((item) => item.trim()).filter(Boolean),
+        local_port: localPort || undefined,
+        bind: capabilities?.features.remote_access.bind ? bind || undefined : undefined,
+        childless: capabilities?.features.remote_access.childless ? childless || undefined : undefined,
         auth_always_send_cert: isX509 ? alwaysSendCert || undefined : undefined,
         local_users: cleanedUsers,
       };
@@ -219,33 +287,84 @@ export function RemoteAccessModal({
             </div>
             <div className="space-y-2">
               <Label>{t("page.pools")}</Label>
-              {pools.length > 0 ? (
+              {poolChoices.length > 0 ? (
                 <div className="space-y-2">
-                  {pools.map((pool) => {
-                    const poolList = selectedPools.split(",").map((p) => p.trim()).filter(Boolean);
-                    const isChecked = poolList.includes(pool.name);
-                    return (
-                      <div key={pool.name} className="flex items-center gap-2">
-                        <Checkbox
-                          id={`pool-${pool.name}`}
-                          checked={isChecked}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedPools([...poolList, pool.name].join(", "));
-                            } else {
-                              setSelectedPools(poolList.filter((p) => p !== pool.name).join(", "));
-                            }
-                          }}
-                        />
-                        <Label htmlFor={`pool-${pool.name}`} className="cursor-pointer text-sm">{pool.name}</Label>
-                      </div>
-                    );
-                  })}
+                  {poolChoices.map((name) => (
+                    <div key={name} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`pool-${name}`}
+                        checked={selectedPools.includes(name)}
+                        onCheckedChange={(checked) => {
+                          setSelectedPools(checked ? [...selectedPools, name] : selectedPools.filter((item) => item !== name));
+                        }}
+                      />
+                      <Label htmlFor={`pool-${name}`} className="cursor-pointer text-sm">{name}</Label>
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">{t("raModal.noPools")}</p>
               )}
             </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox id="ra-disable" checked={disabled} onCheckedChange={(c) => setDisabled(c === true)} />
+            <Label htmlFor="ra-disable" className="cursor-pointer text-sm">{tc("disabled")}</Label>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>{t("s2sModal.dhcpInterface")}</Label>
+              <InterfaceSelect value={dhcpInterface} onValueChange={setDhcpInterface} noneOption={{ label: tc("none"), value: "" }} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("s2sModal.unique")}</Label>
+              <Select value={unique || "_none"} onValueChange={(v) => setUnique(v === "_none" ? "" : v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">{tc("default")}</SelectItem>
+                  {(capabilities?.features.remote_access.unique_values || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>{t("s2sModal.replayWindow")}</Label>
+              <Input value={replayWindow} onChange={(e) => setReplayWindow(e.target.value)} placeholder="32" />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("page.settings.timeout")}</Label>
+              <Input value={timeoutValue} onChange={(e) => setTimeoutValue(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("s2sModal.localPrefix")}</Label>
+              <Input value={localPrefix} onChange={(e) => setLocalPrefix(e.target.value)} placeholder="0.0.0.0/0" />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("s2sModal.localPort")}</Label>
+              <Input value={localPort} onChange={(e) => setLocalPort(e.target.value)} />
+            </div>
+            {capabilities?.features.remote_access.bind && (
+              <div className="space-y-2">
+                <Label>{t("s2sModal.boundInterface")}</Label>
+                <InterfaceSelect
+                  value={bind}
+                  onValueChange={setBind}
+                  filter={(iface) => iface.name.startsWith("vti")}
+                  noneOption={{ label: tc("none"), value: "" }}
+                />
+              </div>
+            )}
+            {capabilities?.features.remote_access.childless && (
+              <div className="space-y-2">
+                <Label>{t("s2sModal.childless")}</Label>
+                <Select value={childless || "_none"} onValueChange={(v) => setChildless(v === "_none" ? "" : v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">{tc("default")}</SelectItem>
+                    {(capabilities?.features.remote_access.childless_values || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           <div className="border-t pt-4 space-y-4">
@@ -256,8 +375,9 @@ export function RemoteAccessModal({
                 <Select value={authServerMode} onValueChange={setAuthServerMode}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="pre-shared-secret">{t("modal.preSharedSecret")}</SelectItem>
-                    <SelectItem value="x509">X.509</SelectItem>
+                    {(capabilities?.features.remote_access.server_modes || []).map((value) => (
+                      <SelectItem key={value} value={value}>{value}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -267,10 +387,9 @@ export function RemoteAccessModal({
                   <SelectTrigger><SelectValue placeholder={tc("default")} /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="_none">{tc("default")}</SelectItem>
-                    <SelectItem value="eap-mschapv2">EAP-MSCHAPv2</SelectItem>
-                    <SelectItem value="eap-tls">EAP-TLS</SelectItem>
-                    <SelectItem value="eap-radius">EAP-RADIUS</SelectItem>
-                    <SelectItem value="x509">X.509</SelectItem>
+                    {(capabilities?.features.remote_access.client_modes || []).map((value) => (
+                      <SelectItem key={value} value={value}>{value}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -279,6 +398,28 @@ export function RemoteAccessModal({
               <Label>{t("modal.localId")}</Label>
               <Input value={authLocalId} onChange={(e) => setAuthLocalId(e.target.value)} placeholder="@vpn-server" />
             </div>
+            <div className="space-y-2">
+              <Label>{t("raModal.eapId")}</Label>
+              <Input value={eapId} onChange={(e) => setEapId(e.target.value)} placeholder={tc("shown.any")} />
+            </div>
+            {capabilities?.features.remote_access.ppk && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>{t("s2sModal.ppk")}</Label>
+                  <Select value={ppkId || "_none"} onValueChange={(v) => setPpkId(v === "_none" ? "" : v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">{tc("none")}</SelectItem>
+                      {Array.from(new Set([...ppkIds, ...(ppkId ? [ppkId] : [])])).map((id) => <SelectItem key={id} value={id}>{id}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2 pt-7">
+                  <Checkbox id="ra-ppk-required" checked={ppkRequired} onCheckedChange={(c) => setPpkRequired(c === true)} />
+                  <Label htmlFor="ra-ppk-required" className="cursor-pointer text-sm">{t("s2sModal.ppkRequired")}</Label>
+                </div>
+              </div>
+            )}
             {authServerMode === "pre-shared-secret" && (
               <div className="space-y-2">
                 <Label>{t("raModal.preSharedKey")}</Label>
@@ -298,29 +439,42 @@ export function RemoteAccessModal({
             )}
             {authServerMode === "x509" && (
               <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>{t("modal.caCertificate")}</Label>
-                    <Input value={authX509CaCert} onChange={(e) => setAuthX509CaCert(e.target.value)} placeholder="ca-cert" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{t("modal.certificate")}</Label>
-                    <Input value={authX509Cert} onChange={(e) => setAuthX509Cert(e.target.value)} placeholder="server-cert" />
+                <div className="space-y-2">
+                  <Label>{t("modal.caCertificate")}</Label>
+                  <div className="grid grid-cols-2 gap-2 rounded-md border p-3">
+                    {pkiCas.map((name) => (
+                      <label key={name} className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={caCerts.includes(name)}
+                          onCheckedChange={(v) => setCaCerts(v ? [...caCerts, name] : caCerts.filter((item) => item !== name))}
+                        />
+                        <span>{name}</span>
+                      </label>
+                    ))}
                   </div>
                 </div>
-                {(capabilities?.features.always_send_cert.supported ?? true) && (
-                  <div className="flex items-start gap-2">
+                <div className="space-y-2">
+                  <Label>{t("modal.certificate")}</Label>
+                  <Select value={authX509Cert || "_none"} onValueChange={(v) => setAuthX509Cert(v === "_none" ? "" : v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">{tc("none")}</SelectItem>
+                      {pkiCerts.map((name) => <SelectItem key={name} value={name}>{name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("s2sModal.passphraseOptional")}</Label>
+                  <Input type="password" value={x509Passphrase} onChange={(e) => setX509Passphrase(e.target.value)} />
+                </div>
+                {capabilities?.features.always_send_cert.supported && (
+                  <div className="flex items-center gap-2">
                     <Checkbox
                       id="always-send-cert"
                       checked={alwaysSendCert}
                       onCheckedChange={(checked) => setAlwaysSendCert(checked === true)}
                     />
-                    <div className="space-y-0.5">
-                      <Label htmlFor="always-send-cert" className="cursor-pointer text-sm">{t("raModal.alwaysSendCert")}</Label>
-                      <p className="text-xs text-muted-foreground">
-                        {t("raModal.alwaysSendCertHelp")}
-                      </p>
-                    </div>
+                    <Label htmlFor="always-send-cert" className="cursor-pointer text-sm">{t("raModal.alwaysSendCert")}</Label>
                   </div>
                 )}
               </>
@@ -363,6 +517,17 @@ export function RemoteAccessModal({
                         }}
                         placeholder={t("raModal.passwordPlaceholder")}
                       />
+                      <div className="flex items-center gap-1.5">
+                        <Checkbox
+                          checked={user.disabled}
+                          onCheckedChange={(checked) => {
+                            const next = [...localUsers];
+                            next[idx] = { ...next[idx], disabled: checked === true };
+                            setLocalUsers(next);
+                          }}
+                        />
+                        <Label className="text-xs">{tc("disabled")}</Label>
+                      </div>
                       <Button
                         type="button"
                         variant="ghost"

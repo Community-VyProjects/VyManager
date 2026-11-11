@@ -5,7 +5,8 @@
     "mode": "模式",
     "proposals": "提议",
     "encryption": "加密算法",
-    "hash": "哈希算法"
+    "hash": "哈希算法",
+    "esn": "ESN"
   },
   "psk": {
     "nameRequired": "PSK 名称为必填项",
@@ -20,7 +21,6 @@
     "newSecretPlaceholder": "输入新密钥或留空",
     "secretPlaceholder": "输入密钥",
     "identities": "身份标识",
-    "identitiesHelp": "每行一个身份标识（例如 @id、IP、%any）",
     "secretType": "密钥类型（可选）",
     "dhcpInterface": "DHCP 接口（可选）",
     "create": "创建 PSK"
@@ -30,8 +30,6 @@
     "titleEdit": "编辑 ESP 组",
     "titleCreate": "创建 ESP 组",
     "description": "配置封装安全载荷（ESP）组参数。",
-    "modeTunnel": "隧道",
-    "modeTransport": "传输",
     "lifeBytes": "生存字节数（可选）",
     "lifeBytesPlaceholder": "例如 1000000",
     "lifePackets": "生存数据包数（可选）",
@@ -46,14 +44,7 @@
     "titleCreate": "创建 IKE 组",
     "description": "配置 Internet 密钥交换（IKE）组参数和提议。",
     "keyExchange": "密钥交换",
-    "select": "请选择...",
-    "modeMain": "主模式",
-    "modeAggressive": "野蛮模式",
     "closeAction": "关闭动作",
-    "actionHold": "保持",
-    "actionClear": "清除",
-    "actionRestart": "重启",
-    "actionTrap": "捕获",
     "dpd": "死亡对端检测（DPD）",
     "dpdAction": "动作",
     "dpdInterval": "间隔（秒）",
@@ -61,7 +52,6 @@
     "disableMobike": "禁用 MOBIKE",
     "ikev2Reauth": "IKEv2 重新认证",
     "dhGroup": "DH 组",
-    "auto": "自动",
     "create": "创建 IKE 组"
   },
   "pool": {
@@ -70,11 +60,8 @@
     "titleEdit": "编辑地址池",
     "titleCreate": "创建地址池",
     "description": "为远程访问客户端配置 IP 地址池。",
-    "prefixes": "前缀",
-    "prefixesHelp": "以逗号分隔的 CIDR 地址块",
     "dnsServers": "DNS 服务器",
     "exclude": "排除",
-    "excludeHelp": "要从地址池中排除的地址",
     "rangeStart": "起始地址",
     "rangeStop": "结束地址",
     "create": "创建地址池"
@@ -88,8 +75,6 @@
     "virtualIp": "虚拟 IP",
     "disableUniqReqIds": "禁用唯一请求 ID",
     "interfaces": "接口",
-    "noInterfaces": "没有可用的接口",
-    "interfacesHelp": "选择要监听的接口",
     "logging": "日志",
     "logLevel": "日志级别",
     "subsystems": "子系统",
@@ -98,5 +83,12 @@
     "base": "基数",
     "timeout": "超时",
     "save": "保存设置"
+  },
+  "ppk": {
+    "titleEdit": "编辑后量子密钥",
+    "titleCreate": "创建后量子密钥",
+    "description": "为 IKEv2 配置后量子预共享密钥。",
+    "saveFailed": "保存 PPK 失败",
+    "create": "创建 PPK"
   }
 }

@@ -9,10 +9,13 @@ import inspect
 import logging
 
 from fastapi import APIRouter, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, cast
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.nat66 import NAT66BatchBuilder
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.nat66 import NAT66Mapper
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from batch_dispatch import resolve_batch_method
@@ -138,122 +141,6 @@ class ReorderNAT66Request(BaseModel):
     rules: List[ReorderRuleItem] = Field(..., description="List of rules with old and new numbers")
 
 
-# ==================== Helper Functions ====================
-
-def _parse_group(group_config: dict) -> Optional[NAT66RuleGroup]:
-    """Parse group config from VyOS JSON into NAT66RuleGroup."""
-    if not group_config:
-        return None
-    group = NAT66RuleGroup(
-        address_group=group_config.get("address-group"),
-        domain_group=group_config.get("domain-group"),
-        mac_group=group_config.get("mac-group"),
-        network_group=group_config.get("network-group"),
-        port_group=group_config.get("port-group"),
-    )
-    # Only return if at least one field is set
-    if any([group.address_group, group.domain_group, group.mac_group,
-            group.network_group, group.port_group]):
-        return group
-    return None
-
-
-def _parse_source_rules(rules_config: dict) -> List[NAT66SourceRule]:
-    """Parse source rules from VyOS config JSON."""
-    source_rules = []
-    for rule_num_str, rule_data in rules_config.items():
-        try:
-            rule_number = int(rule_num_str)
-        except (ValueError, TypeError):
-            continue
-
-        source_config = rule_data.get("source", {})
-        dest_config = rule_data.get("destination", {})
-        translation_config = rule_data.get("translation", {})
-
-        source = NAT66RuleSource(
-            prefix=source_config.get("prefix"),
-            port=source_config.get("port"),
-        ) if source_config else None
-
-        destination = NAT66RuleDestination(
-            prefix=dest_config.get("prefix"),
-            port=dest_config.get("port"),
-            group=_parse_group(dest_config.get("group", {})),
-        ) if dest_config else None
-
-        translation = NAT66RuleTranslation(
-            address=translation_config.get("address"),
-            port=translation_config.get("port"),
-        ) if translation_config else None
-
-        outbound_iface = rule_data.get("outbound-interface", {})
-
-        source_rules.append(NAT66SourceRule(
-            rule_number=rule_number,
-            description=rule_data.get("description"),
-            disable="disable" in rule_data,
-            exclude="exclude" in rule_data,
-            log="log" in rule_data,
-            protocol=rule_data.get("protocol"),
-            outbound_interface=outbound_iface.get("name") if isinstance(outbound_iface, dict) else None,
-            source=source,
-            destination=destination,
-            translation=translation,
-        ))
-
-    source_rules.sort(key=lambda r: r.rule_number)
-    return source_rules
-
-
-def _parse_destination_rules(rules_config: dict) -> List[NAT66DestinationRule]:
-    """Parse destination rules from VyOS config JSON."""
-    dest_rules = []
-    for rule_num_str, rule_data in rules_config.items():
-        try:
-            rule_number = int(rule_num_str)
-        except (ValueError, TypeError):
-            continue
-
-        source_config = rule_data.get("source", {})
-        dest_config = rule_data.get("destination", {})
-        translation_config = rule_data.get("translation", {})
-
-        source = NAT66RuleSource(
-            address=source_config.get("address"),
-            port=source_config.get("port"),
-        ) if source_config else None
-
-        destination = NAT66RuleDestination(
-            address=dest_config.get("address"),
-            port=dest_config.get("port"),
-            group=_parse_group(dest_config.get("group", {})),
-        ) if dest_config else None
-
-        translation = NAT66RuleTranslation(
-            address=translation_config.get("address"),
-            port=translation_config.get("port"),
-        ) if translation_config else None
-
-        inbound_iface = rule_data.get("inbound-interface", {})
-
-        dest_rules.append(NAT66DestinationRule(
-            rule_number=rule_number,
-            description=rule_data.get("description"),
-            disable="disable" in rule_data,
-            exclude="exclude" in rule_data,
-            log="log" in rule_data,
-            protocol=rule_data.get("protocol"),
-            inbound_interface=inbound_iface.get("name") if isinstance(inbound_iface, dict) else None,
-            source=source,
-            destination=destination,
-            translation=translation,
-        ))
-
-    dest_rules.sort(key=lambda r: r.rule_number)
-    return dest_rules
-
-
 # ==================== Endpoints ====================
 
 @router.get("/capabilities")
@@ -280,14 +167,13 @@ async def get_config(request: Request, refresh: bool = False):
 
     try:
         service = get_session_vyos_service(request)
-        full_config = service.get_full_config(refresh=refresh)
+        version = service.get_version()
+        full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
 
-        nat66_config = full_config.get("nat66", {})
-        source_config = nat66_config.get("source", {}).get("rule", {})
-        dest_config = nat66_config.get("destination", {}).get("rule", {})
-
-        source_rules = _parse_source_rules(source_config)
-        destination_rules = _parse_destination_rules(dest_config)
+        mapper = cast(NAT66Mapper, CommandMapperRegistry.get_mapper("nat66", version))
+        parsed = mapper.parse_config(full_config)
+        source_rules = [NAT66SourceRule(**rule) for rule in parsed["source_rules"]]
+        destination_rules = [NAT66DestinationRule(**rule) for rule in parsed["destination_rules"]]
 
         return NAT66ConfigResponse(
             source_rules=source_rules,
@@ -339,15 +225,13 @@ async def batch_configure(http_request: Request, request: NAT66BatchRequest):
             try:
                 if len(params) == 1:
                     method(rule_number)
-                elif len(params) == 2 and op_value is not None:
+                elif len(params) == 2 and op_value:
                     method(rule_number, op_value)
-                elif len(params) == 2 and op_value is None:
+                elif len(params) == 2:
                     raise HTTPException(status_code=400, detail=f"Operation {op_name} requires a value")
-                elif len(params) == 3 and op_value is not None:
-                    # For group operations: (rule_number, group_type, value)
-                    # The group_type is embedded in the op_name, and value has format "group_type:value"
+                elif len(params) == 3 and op_value:
                     parts = op_value.split(":", 1)
-                    if len(parts) == 2:
+                    if len(parts) == 2 and parts[0] and parts[1]:
                         method(rule_number, parts[0], parts[1])
                     else:
                         raise HTTPException(
@@ -361,17 +245,17 @@ async def batch_configure(http_request: Request, request: NAT66BatchRequest):
                     )
             except HTTPException:
                 raise
-            except TypeError as e:
-                logger.exception(f"Type error calling {op_name}")
+            except TypeError:
+                logger.exception("Type error calling %s", op_name)
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Invalid parameters for operation {op_name}: {str(e)}"
+                    detail=f"Invalid parameters for operation {op_name}",
                 )
 
         if batch.is_empty():
             return VyOSResponse(success=True, data={"message": "No operations to execute"})
 
-        response = service.execute_batch(batch)
+        response = await run_in_threadpool(service.execute_batch, batch)
 
         result_data = response.result
         if result_data == '' or result_data is None:
@@ -484,7 +368,7 @@ async def reorder_nat66_rules(http_request: Request, request: ReorderNAT66Reques
         if batch.is_empty():
             return VyOSResponse(success=False, error="No operations to execute")
 
-        response = service.execute_batch(batch)
+        response = await run_in_threadpool(service.execute_batch, batch)
 
         result_data = response.result
         if result_data == '' or result_data is None:

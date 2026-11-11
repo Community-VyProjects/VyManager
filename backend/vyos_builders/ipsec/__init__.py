@@ -1,5 +1,5 @@
 """IPSec VPN Batch Builder package."""
 
-from .ipsec import IPSecBatchBuilder
+from .ipsec_batch_builder import IPSecBatchBuilder
 
 __all__ = ["IPSecBatchBuilder"]

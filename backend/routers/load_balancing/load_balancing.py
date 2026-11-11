@@ -1,10 +1,12 @@
 import inspect
 from fastapi import APIRouter, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Optional, Any, Dict
 
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.load_balancing import LoadBalancingBatchBuilder
+from vyos_mappers import CommandMapperRegistry
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from batch_dispatch import resolve_batch_method
@@ -65,8 +67,7 @@ async def get_capabilities(request: Request):
 async def get_config(request: Request, refresh: bool = False):
     await require_read_permission(request, FeatureGroup.LOAD_BALANCING)
     service = get_session_vyos_service(request)
-    full_config = service.get_full_config(refresh=refresh)
-    from vyos_mappers import CommandMapperRegistry
+    full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
     mapper = CommandMapperRegistry.get_mapper("load_balancing", service.get_version())
     return mapper.parse_config(full_config)
 
@@ -91,20 +92,28 @@ async def batch_configure(http_request: Request, request: BatchRequest):
                 method()
             elif len(params) == 1:
                 method(effective_name)
-            elif len(params) == 2 and op.value is not None:
+            elif len(params) == 2 and op.value:
                 method(effective_name, op.value)
             elif len(params) == 2:
-                method(effective_name)
-
-        if batch.is_empty():
-            return VyOSResponse(success=True)
-
-        response = service.execute_batch(batch)
-        return VyOSResponse(
-            success=response.status == 200,
-            error=response.error if response.status != 200 else None,
-        )
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Operation {op.op} requires a value",
+                )
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Unsupported operation signature for {op.op}",
+                )
     except HTTPException:
         raise
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    if batch.is_empty():
+        return VyOSResponse(success=True)
+
+    response = await run_in_threadpool(service.execute_batch, batch)
+    return VyOSResponse(
+        success=response.status == 200,
+        error=response.error if response.status != 200 else None,
+    )

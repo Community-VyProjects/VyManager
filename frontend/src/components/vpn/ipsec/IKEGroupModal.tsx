@@ -24,6 +24,7 @@ import {
 import { AlertCircle, Loader2, Plus, Trash2, Shield } from "lucide-react";
 import { ipsecService, IKEGroup, IPSecCapabilities } from "@/lib/api/ipsec";
 import { ApiError } from "@/lib/types/api";
+import { cn } from "@/lib/utils";
 
 interface IKEGroupModalProps {
   open: boolean;
@@ -39,21 +40,22 @@ interface ProposalRow {
   hash: string;
   dh_group: string;
   prf: string;
+  esn: string;
 }
-
-const ENCRYPTION_OPTIONS = ["aes128", "aes256", "aes128gcm128", "aes256gcm128", "3des", "chacha20poly1305"];
-const HASH_OPTIONS = ["sha1", "sha256", "sha384", "sha512", "md5"];
-const DH_GROUPS = ["1", "2", "5", "14", "15", "16", "19", "20", "21", "24", "25", "26", "27", "28", "31"];
 
 export function IKEGroupModal({
   open,
   onOpenChange,
   onSuccess,
+  capabilities,
   existingGroup,
 }: IKEGroupModalProps) {
   const t = useTranslations("ipsecSettings");
   const tc = useTranslations("common");
   const isEdit = !!existingGroup;
+  const ike = capabilities?.features.ike_groups;
+  const esnValues = ike?.esn || [];
+  const pick = (value: string) => (value === "_none" ? "" : value);
 
   const [name, setName] = useState("");
   const [keyExchange, setKeyExchange] = useState("ikev2");
@@ -66,7 +68,7 @@ export function IKEGroupModal({
   const [disableMobike, setDisableMobike] = useState(false);
   const [ikev2Reauth, setIkev2Reauth] = useState(false);
   const [proposals, setProposals] = useState<ProposalRow[]>([
-    { id: "1", encryption: "aes256", hash: "sha256", dh_group: "14", prf: "" },
+    { id: "1", encryption: "aes256", hash: "sha256", dh_group: "14", prf: "", esn: "" },
   ]);
 
   const [loading, setLoading] = useState(false);
@@ -76,8 +78,8 @@ export function IKEGroupModal({
     if (open) {
       if (existingGroup) {
         setName(existingGroup.name);
-        setKeyExchange(existingGroup.key_exchange || "ikev2");
-        setLifetime(existingGroup.lifetime || "28800");
+        setKeyExchange(existingGroup.key_exchange || "");
+        setLifetime(existingGroup.lifetime || "");
         setMode(existingGroup.mode || "");
         setCloseAction(existingGroup.close_action || "");
         setDpdAction(existingGroup.dpd_action || "");
@@ -86,15 +88,14 @@ export function IKEGroupModal({
         setDisableMobike(existingGroup.disable_mobike || false);
         setIkev2Reauth(existingGroup.ikev2_reauth || false);
         setProposals(
-          existingGroup.proposals.length > 0
-            ? existingGroup.proposals.map((p) => ({
-                id: p.number,
-                encryption: p.encryption || "aes256",
-                hash: p.hash || "sha256",
-                dh_group: p.dh_group || "14",
-                prf: p.prf || "",
-              }))
-            : [{ id: "1", encryption: "aes256", hash: "sha256", dh_group: "14", prf: "" }]
+          (existingGroup.proposals || []).map((p) => ({
+            id: p.number,
+            encryption: p.encryption || "",
+            hash: p.hash || "",
+            dh_group: p.dh_group || "",
+            prf: p.prf || "",
+            esn: p.esn || "",
+          }))
         );
       } else {
         setName("");
@@ -107,21 +108,19 @@ export function IKEGroupModal({
         setDpdTimeout("");
         setDisableMobike(false);
         setIkev2Reauth(false);
-        setProposals([{ id: "1", encryption: "aes256", hash: "sha256", dh_group: "14", prf: "" }]);
+        setProposals([{ id: "1", encryption: "aes256", hash: "sha256", dh_group: "14", prf: "", esn: "" }]);
       }
       setError(null);
     }
   }, [open, existingGroup]);
 
   const addProposal = () => {
-    const nextNum = String(Math.max(...proposals.map((p) => parseInt(p.id)), 0) + 1);
-    setProposals([...proposals, { id: nextNum, encryption: "aes256", hash: "sha256", dh_group: "14", prf: "" }]);
+    const nextNum = String(Math.max(0, ...proposals.map((p) => parseInt(p.id) || 0)) + 1);
+    setProposals([...proposals, { id: nextNum, encryption: "", hash: "", dh_group: "", prf: "", esn: "" }]);
   };
 
   const removeProposal = (id: string) => {
-    if (proposals.length > 1) {
-      setProposals(proposals.filter((p) => p.id !== id));
-    }
+    setProposals(proposals.filter((p) => p.id !== id));
   };
 
   const updateProposal = (id: string, field: keyof ProposalRow, value: string) => {
@@ -138,11 +137,7 @@ export function IKEGroupModal({
     setError(null);
 
     try {
-      if (isEdit) {
-        await ipsecService.deleteIKEGroup(existingGroup!.name);
-      }
-
-      const result = await ipsecService.createIKEGroup(name.trim(), {
+      const payload = {
         key_exchange: keyExchange || undefined,
         lifetime: lifetime || undefined,
         mode: mode || undefined,
@@ -158,8 +153,12 @@ export function IKEGroupModal({
           hash: p.hash || undefined,
           dh_group: p.dh_group || undefined,
           prf: p.prf || undefined,
+          esn: p.esn || undefined,
         })),
-      });
+      };
+      const result = isEdit && existingGroup
+        ? await ipsecService.updateIKEGroup(name.trim(), payload, existingGroup)
+        : await ipsecService.createIKEGroup(name.trim(), payload);
 
       if (result.success) {
         onOpenChange(false);
@@ -203,11 +202,11 @@ export function IKEGroupModal({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{t("ike.keyExchange")}</Label>
-              <Select value={keyExchange} onValueChange={setKeyExchange}>
+              <Select value={keyExchange || "_none"} onValueChange={(v) => setKeyExchange(pick(v))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ikev1">IKEv1</SelectItem>
-                  <SelectItem value="ikev2">IKEv2</SelectItem>
+                  <SelectItem value="_none">{tc("default")}</SelectItem>
+                  {(ike?.key_exchange || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -222,24 +221,22 @@ export function IKEGroupModal({
             {keyExchange === "ikev1" && (
               <div className="space-y-2">
                 <Label>{t("shared.mode")}</Label>
-                <Select value={mode} onValueChange={setMode}>
-                  <SelectTrigger><SelectValue placeholder={t("ike.select")} /></SelectTrigger>
+                <Select value={mode || "_none"} onValueChange={(v) => setMode(pick(v))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="main">{t("ike.modeMain")}</SelectItem>
-                    <SelectItem value="aggressive">{t("ike.modeAggressive")}</SelectItem>
+                    <SelectItem value="_none">{tc("default")}</SelectItem>
+                    {(ike?.mode || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             )}
             <div className="space-y-2">
               <Label>{t("ike.closeAction")}</Label>
-              <Select value={closeAction} onValueChange={setCloseAction}>
-                <SelectTrigger><SelectValue placeholder={tc("default")} /></SelectTrigger>
+              <Select value={closeAction || "_none"} onValueChange={(v) => setCloseAction(pick(v))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">{tc("none")}</SelectItem>
-                  <SelectItem value="hold">{t("ike.actionHold")}</SelectItem>
-                  <SelectItem value="clear">{t("ike.actionClear")}</SelectItem>
-                  <SelectItem value="restart">{t("ike.actionRestart")}</SelectItem>
+                  <SelectItem value="_none">{tc("default")}</SelectItem>
+                  {(ike?.close_action || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -251,13 +248,11 @@ export function IKEGroupModal({
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">{t("ike.dpdAction")}</Label>
-                <Select value={dpdAction} onValueChange={setDpdAction}>
-                  <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
+                <Select value={dpdAction || "_none"} onValueChange={(v) => setDpdAction(pick(v))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="restart">{t("ike.actionRestart")}</SelectItem>
-                    <SelectItem value="clear">{t("ike.actionClear")}</SelectItem>
-                    <SelectItem value="hold">{t("ike.actionHold")}</SelectItem>
-                    <SelectItem value="trap">{t("ike.actionTrap")}</SelectItem>
+                    <SelectItem value="_none">{tc("default")}</SelectItem>
+                    {(ike?.dpd_action || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -293,52 +288,66 @@ export function IKEGroupModal({
               </Button>
             </div>
             {proposals.map((p) => (
-              <div key={p.id} className="grid grid-cols-[auto_1fr_1fr_1fr_1fr_auto] gap-2 items-end rounded-lg border p-3">
+              <div key={p.id} className={cn("grid gap-2 items-end rounded-lg border p-3", esnValues.length > 0 ? "grid-cols-[auto_1fr_1fr_1fr_1fr_1fr_auto]" : "grid-cols-[auto_1fr_1fr_1fr_1fr_auto]")}>
                 <div className="text-xs text-muted-foreground font-mono w-6 text-center pt-5">#{p.id}</div>
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">{t("shared.encryption")}</Label>
-                  <Select value={p.encryption} onValueChange={(v) => updateProposal(p.id, "encryption", v)}>
+                  <Select value={p.encryption || "_none"} onValueChange={(v) => updateProposal(p.id, "encryption", pick(v))}>
                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {ENCRYPTION_OPTIONS.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                      <SelectItem value="_none">{tc("default")}</SelectItem>
+                      {(ike?.encryption || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">{t("shared.hash")}</Label>
-                  <Select value={p.hash} onValueChange={(v) => updateProposal(p.id, "hash", v)}>
+                  <Select value={p.hash || "_none"} onValueChange={(v) => updateProposal(p.id, "hash", pick(v))}>
                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {HASH_OPTIONS.map((h) => <SelectItem key={h} value={h}>{h}</SelectItem>)}
+                      <SelectItem value="_none">{tc("default")}</SelectItem>
+                      {(ike?.hash || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">{t("ike.dhGroup")}</Label>
-                  <Select value={p.dh_group} onValueChange={(v) => updateProposal(p.id, "dh_group", v)}>
+                  <Select value={p.dh_group || "_none"} onValueChange={(v) => updateProposal(p.id, "dh_group", pick(v))}>
                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {DH_GROUPS.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                      <SelectItem value="_none">{tc("default")}</SelectItem>
+                      {(ike?.dh_group || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">PRF</Label>
-                  <Select value={p.prf || "_none"} onValueChange={(v) => updateProposal(p.id, "prf", v === "_none" ? "" : v)}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder={t("ike.auto")} /></SelectTrigger>
+                  <Select value={p.prf || "_none"} onValueChange={(v) => updateProposal(p.id, "prf", pick(v))}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="_none">{t("ike.auto")}</SelectItem>
-                      {HASH_OPTIONS.map((h) => <SelectItem key={h} value={h}>{h}</SelectItem>)}
+                      <SelectItem value="_none">{tc("default")}</SelectItem>
+                      {(ike?.prf || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
+                {esnValues.length > 0 && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">{t("shared.esn")}</Label>
+                    <Select value={p.esn || "_none"} onValueChange={(v) => updateProposal(p.id, "esn", pick(v))}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none">{tc("default")}</SelectItem>
+                        {esnValues.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
                   className="h-9 w-9 text-destructive hover:bg-destructive/10"
                   onClick={() => removeProposal(p.id)}
-                  disabled={proposals.length <= 1}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

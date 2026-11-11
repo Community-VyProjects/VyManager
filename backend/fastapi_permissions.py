@@ -125,6 +125,38 @@ async def require_read_permission(request: Request, feature: FeatureGroup) -> No
     await require_permission(request, feature, PermissionLevel.READ)
 
 
+async def require_any_read_permission(request: Request) -> None:
+    """Require READ on at least one feature of the active instance."""
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    instance = getattr(request.state, "instance", None)
+    async with request_scoped_conn(request) as conn:
+        if await is_super_admin(conn, user["id"]):
+            return
+        if not instance:
+            raise HTTPException(
+                status_code=404,
+                detail="No active VyOS instance. Please connect to an instance first.",
+            )
+        permissions = await get_user_permissions(
+            conn,
+            user["id"],
+            instance["id"],
+            org_id=org_id_from_state(request),
+        )
+
+    if not any(
+        level in (PermissionLevel.READ, PermissionLevel.WRITE)
+        for level in permissions.values()
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions. Read access required.",
+        )
+
+
 async def require_write_permission(request: Request, feature: FeatureGroup) -> None:
     """
     Require WRITE permission for a feature.

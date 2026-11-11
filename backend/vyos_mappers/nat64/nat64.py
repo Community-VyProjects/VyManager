@@ -1,8 +1,10 @@
 """NAT64 mapper - base path definitions for nat64 commands."""
-from typing import List
+from typing import Any, Dict, List
+
+from ..base import BaseFeatureMapper
 
 
-class NAT64Mapper:
+class NAT64Mapper(BaseFeatureMapper):
     """Base NAT64 mapper with path generation for all nat64 commands.
 
     Command tree:
@@ -18,9 +20,6 @@ class NAT64Mapper:
       nat64 source rule <num> translation pool <num> protocol tcp
       nat64 source rule <num> translation pool <num> protocol udp
     """
-
-    def __init__(self, version: str):
-        self.version = version
 
     # ==================== Rule-level paths ====================
 
@@ -107,3 +106,48 @@ class NAT64Mapper:
 
     def get_source_rule_translation_pool_protocol_icmp_path(self, rule_number: int, pool_number: int) -> List[str]:
         return ["nat64", "source", "rule", str(rule_number), "translation", "pool", str(pool_number), "protocol", "icmp"]
+
+    # ==================== Config Parsing ====================
+
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse nat64 source rules from the VyOS config tree."""
+        rules_config = full_config.get("nat64", {}).get("source", {}).get("rule", {})
+        source_rules = []
+        for rule_num_str, rule_data in rules_config.items():
+            try:
+                rule_number = int(rule_num_str)
+            except (ValueError, TypeError):
+                continue
+
+            translation_pools = []
+            for pool_num_str, pool_data in rule_data.get("translation", {}).get("pool", {}).items():
+                try:
+                    pool_number = int(pool_num_str)
+                except (ValueError, TypeError):
+                    continue
+                protocol_config = pool_data.get("protocol", {})
+                translation_pools.append({
+                    "pool_number": pool_number,
+                    "address": pool_data.get("address"),
+                    "description": pool_data.get("description"),
+                    "disable": "disable" in pool_data,
+                    "port": pool_data.get("port"),
+                    "protocol": {
+                        "tcp": "tcp" in protocol_config,
+                        "udp": "udp" in protocol_config,
+                        "icmp": "icmp" in protocol_config,
+                    } if protocol_config else None,
+                })
+            translation_pools.sort(key=lambda pool: pool["pool_number"])
+
+            source_rules.append({
+                "rule_number": rule_number,
+                "description": rule_data.get("description"),
+                "disable": "disable" in rule_data,
+                "match_mark": rule_data.get("match", {}).get("mark"),
+                "source_prefix": rule_data.get("source", {}).get("prefix"),
+                "translation_pools": translation_pools,
+            })
+
+        source_rules.sort(key=lambda rule: rule["rule_number"])
+        return {"source_rules": source_rules}

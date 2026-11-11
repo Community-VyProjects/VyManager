@@ -16,7 +16,6 @@
     "espGroup": "ESP Group",
     "espGroups": "ESP Groups",
     "pools": "Pools",
-    "profiles": "Profiles",
     "lifetime": "Lifetime",
     "proposals": "Proposals",
     "stats": {
@@ -32,7 +31,9 @@
     "types": {
       "s2sPeer": "Site-to-Site Peer",
       "connection": "Connection",
-      "pool": "Pool"
+      "pool": "Pool",
+      "radiusServer": "RADIUS Server",
+      "profile": "Profile"
     },
     "s2s": {
       "title": "Site-to-Site Peers",
@@ -105,7 +106,27 @@
       "base": "Base",
       "timeout": "Timeout",
       "interfaces": "Interfaces",
-      "noInterfaces": "No interfaces configured"
+      "noInterfaces": "No interfaces configured",
+      "optionsInterface": "Options Interface",
+      "dhcpInterface": "DHCP Interface",
+      "dhcpServer": "DHCP Server",
+      "nasIdentifier": "NAS Identifier",
+      "radiusTimeout": "RADIUS Timeout"
+    },
+    "profiles": "Profiles",
+    "ppk": {
+      "title": "Post-Quantum Keys",
+      "add": "Add PPK",
+      "empty": "No post-quantum keys configured"
+    },
+    "radius": {
+      "title": "RADIUS Servers",
+      "add": "Add Server",
+      "empty": "No RADIUS servers configured"
+    },
+    "profile": {
+      "add": "Add Profile",
+      "empty": "No profiles configured"
     }
   },
   "deleteModal": {
@@ -118,8 +139,7 @@
     "select": "Select...",
     "localId": "Local ID",
     "caCertificate": "CA Certificate",
-    "certificate": "Certificate",
-    "preSharedSecret": "Pre-Shared Secret"
+    "certificate": "Certificate"
   },
   "s2sModal": {
     "peerNameRequired": "Peer name is required",
@@ -136,23 +156,25 @@
     "defaultEspGroup": "Default ESP Group",
     "localAddressPlaceholder": "any or IP address",
     "remoteAddresses": "Remote Addresses",
-    "commaSeparated": "Comma-separated for multiple",
     "connectionType": "Connection Type",
-    "initiate": "Initiate",
-    "respond": "Respond",
+    "ikev2Reauth": "IKEv2 reauth",
+    "ppk": "PPK",
+    "ppkRequired": "Require PPK",
+    "replayWindow": "Replay window",
+    "virtualAddress": "Virtual address",
+    "useX509Id": "Use X.509 ID",
+    "unique": "Unique",
+    "childless": "Childless",
+    "localPort": "Local port",
+    "remotePort": "Remote port",
+    "priority": "Priority",
     "dhcpInterface": "DHCP Interface (optional)",
     "forceUdp": "Force UDP Encapsulation",
     "authMode": "Authentication Mode",
-    "x509Certificate": "X.509 Certificate",
     "remoteId": "Remote ID",
     "passphraseOptional": "Passphrase (optional)",
-    "privateKeyPassphrase": "Private key passphrase",
     "localKey": "Local Key",
     "remoteKey": "Remote Key",
-    "keyPairName": "PKI key-pair name",
-    "localKeyHelp": "Name of PKI key-pair with local private key",
-    "remoteKeyHelp": "Name of PKI key-pair with remote public key",
-    "localPrivateKeyPassphrase": "Local private key passphrase",
     "addTunnel": "Add Tunnel",
     "noTunnels": "No tunnels configured. Add a tunnel or use VTI binding (see the VTI tab) instead.",
     "tunnelN": "Tunnel {number}",
@@ -160,7 +182,6 @@
     "any": "Any",
     "localPrefix": "Local Prefix",
     "remotePrefix": "Remote Prefix",
-    "vtiHelp": "Bind a Virtual Tunnel Interface (VTI) to this peer for route-based VPN. The interface must already exist under Interfaces › VTI.",
     "boundInterface": "Bound Interface",
     "tsLocalPrefix": "Traffic Selector — Local Prefix",
     "tsRemotePrefix": "Traffic Selector — Remote Prefix",
@@ -180,12 +201,32 @@
     "preSharedKey": "Pre-Shared Key",
     "enterPsk": "Enter PSK",
     "alwaysSendCert": "Always send certificate",
-    "alwaysSendCertHelp": "Send the server certificate even when not requested. Required by some clients (e.g. Windows).",
     "localUsers": "Local Users",
     "addUser": "Add User",
     "noLocalUsers": "No local users configured",
     "usernamePlaceholder": "username",
     "passwordPlaceholder": "password",
-    "createConnection": "Create Connection"
+    "createConnection": "Create Connection",
+    "eapId": "EAP ID"
+  },
+  "profileModal": {
+    "nameRequired": "Profile name is required",
+    "saveFailed": "Failed to save profile",
+    "titleEdit": "Edit Profile",
+    "titleCreate": "Create Profile",
+    "description": "Configure an IPSec profile for DMVPN tunnels.",
+    "bindTunnels": "Bound Tunnels"
+  },
+  "radiusModal": {
+    "addressRequired": "Server address is required",
+    "keyRequired": "Shared key is required",
+    "saveFailed": "Failed to save RADIUS server",
+    "titleEdit": "Edit RADIUS Server",
+    "titleCreate": "Add RADIUS Server",
+    "description": "Configure a RADIUS server for remote-access authentication.",
+    "address": "Server Address",
+    "key": "Shared Key",
+    "port": "Port",
+    "disableAccounting": "Disable accounting"
   }
 }

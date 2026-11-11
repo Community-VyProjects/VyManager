@@ -8,10 +8,12 @@ Uses session-based architecture - VyOS instance comes from user's active session
 """
 
 from fastapi import APIRouter, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, cast
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.l2tp import L2TPBatchBuilder
+from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.l2tp import L2TPMapper
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -95,9 +97,9 @@ async def get_l2tp_config(request: Request, refresh: bool = False):
         service = get_session_vyos_service(request)
         version = service.get_version()
 
-        full_config = service.get_full_config(refresh=refresh)
+        full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
 
-        mapper = L2TPMapper(version)
+        mapper = cast(L2TPMapper, CommandMapperRegistry.get_mapper("l2tp", version))
         config = mapper.parse_config(full_config)
 
         # Convert local users dict to list for frontend
@@ -217,14 +219,30 @@ async def l2tp_batch_configure(http_request: Request, request: L2TPBatchRequest)
             args = []
             if len(params) >= 1:
                 args.append(request.item_name)
-            if len(params) >= 2 and operation.value is not None:
+            if len(params) >= 2:
+                if not operation.value:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} requires a value",
+                    )
                 if len(params) >= 3:
                     parts = operation.value.split("|", len(params) - 2)
+                    if len(parts) != len(params) - 1:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Operation {operation.op} requires a value",
+                        )
                     args.extend(parts)
                 else:
                     args.append(operation.value)
 
-            method(*args)
+            try:
+                method(*args)
+            except TypeError:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid parameters for operation {operation.op}",
+                )
 
         if builder.is_empty():
             return VyOSResponse(
@@ -232,7 +250,7 @@ async def l2tp_batch_configure(http_request: Request, request: L2TPBatchRequest)
                 data={"message": "No operations to execute"},
             )
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,

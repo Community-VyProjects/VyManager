@@ -8,11 +8,13 @@ Uses session-based architecture - VyOS instance comes from user's active session
 """
 
 from fastapi import APIRouter, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, cast
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.ipsec import IPSecBatchBuilder
 from vyos_mappers.ipsec import IPSecMapper
+from vyos_mappers import CommandMapperRegistry
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from ipsec_status import ipsec_gql_fields, build_ipsec_status
@@ -35,6 +37,7 @@ class IPSecBatchOperation(BaseModel):
     """Single operation in a batch request."""
     op: str = Field(..., description="Operation name (e.g., create_esp_group, set_s2s_peer_ike_group)")
     value: Optional[str] = Field(None, description="Operation value")
+    item_name: Optional[str] = Field(None, description="Per-operation name. Overrides the request item_name.")
 
 
 class IPSecBatchRequest(BaseModel):
@@ -70,8 +73,7 @@ async def get_ipsec_capabilities(request: Request):
     """
     Get IPSec capabilities based on device VyOS version.
 
-    Returns feature flags indicating which operations are supported,
-    including version-specific features like PPK and retransmission options.
+    Returns feature flags for the leaves this device supports.
     """
     await require_read_permission(request, FeatureGroup.IPSEC)
     try:
@@ -100,9 +102,9 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
     - IKE groups
     - ESP groups
     - Site-to-site peers with tunnels
-    - Remote access connections and pools
-    - Authentication (PSK, PPK)
+    - Remote access connections, pools, DHCP and RADIUS
     - Profiles
+    - Authentication (PSK and PPK)
     - Global options and logging
     """
     await require_read_permission(request, FeatureGroup.IPSEC)
@@ -110,9 +112,9 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
         service = get_session_vyos_service(request)
         version = service.get_version()
 
-        full_config = service.get_full_config(refresh=refresh)
+        full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
 
-        mapper = IPSecMapper(version)
+        mapper = cast(IPSecMapper, CommandMapperRegistry.get_mapper("ipsec", version))
         config = mapper.parse_config(full_config)
 
         # Convert to list format for frontend consumption
@@ -141,22 +143,43 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
             tunnels = []
             for tunnel_num, tunnel_data in data.get("tunnels", {}).items():
                 tunnels.append(tunnel_data)
-            site_to_site_peers.append({
+            auth = data.get("authentication")
+            peer = {
                 **data,
                 "tunnels": sorted(tunnels, key=lambda t: str(t.get("number", "0"))),
-            })
+            }
+            if isinstance(auth, dict):
+                masked_auth = dict(auth)
+                x509 = dict(masked_auth.get("x509") or {})
+                rsa = dict(masked_auth.get("rsa") or {})
+                if x509.get("passphrase"):
+                    x509["passphrase"] = "***"
+                if rsa.get("passphrase"):
+                    rsa["passphrase"] = "***"
+                masked_auth["x509"] = x509
+                masked_auth["rsa"] = rsa
+                peer["authentication"] = masked_auth
+            site_to_site_peers.append(peer)
 
         ra_connections = []
         for name, data in config.get("remote_access", {}).get("connections", {}).items():
-            ra_connections.append(data)
+            masked = {**data}
+            if masked.get("auth_psk"):
+                masked["auth_psk"] = "***"
+            if masked.get("auth_x509_passphrase"):
+                masked["auth_x509_passphrase"] = "***"
+            local_users = []
+            for user in masked.get("local_users") or []:
+                user = {**user}
+                if user.get("password"):
+                    user["password"] = "***"
+                local_users.append(user)
+            masked["local_users"] = local_users
+            ra_connections.append(masked)
 
         ra_pools = []
         for name, data in config.get("remote_access", {}).get("pools", {}).items():
             ra_pools.append(data)
-
-        profiles = []
-        for name, data in config.get("profiles", {}).items():
-            profiles.append(data)
 
         psk_entries = []
         for name, data in config.get("authentication", {}).get("psk", {}).items():
@@ -166,6 +189,28 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
                 masked["secret"] = "***"
             psk_entries.append(masked)
 
+        ppk_entries = []
+        for name, data in config.get("authentication", {}).get("ppk", {}).items():
+            masked = {**data}
+            if masked.get("secret"):
+                masked["secret"] = "***"
+            ppk_entries.append(masked)
+
+        profiles = []
+        for name, data in config.get("profiles", {}).items():
+            masked = {**data}
+            if masked.get("auth_psk"):
+                masked["auth_psk"] = "***"
+            profiles.append(masked)
+
+        radius = config.get("remote_access", {}).get("radius") or {}
+        radius_servers = []
+        for server in radius.get("servers") or []:
+            masked = {**server}
+            if masked.get("key"):
+                masked["key"] = "***"
+            radius_servers.append(masked)
+
         return {
             "ike_groups": ike_groups,
             "esp_groups": esp_groups,
@@ -173,12 +218,13 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
             "remote_access": {
                 "connections": ra_connections,
                 "pools": ra_pools,
-                "radius": config.get("remote_access", {}).get("radius", {}),
-                "dhcp": config.get("remote_access", {}).get("dhcp", {}),
+                "dhcp": config.get("remote_access", {}).get("dhcp") or {},
+                "radius": {**radius, "servers": radius_servers},
             },
             "profiles": profiles,
             "authentication": {
                 "psk": psk_entries,
+                "ppk": ppk_entries,
             },
             "options": config.get("options", {}),
             "log": config.get("log", {}),
@@ -232,18 +278,38 @@ async def ipsec_batch_configure(http_request: Request, request: IPSecBatchReques
             params = [p for p in sig.parameters.keys() if p != "self"]
 
             args = []
+            effective_name = operation.item_name or request.item_name
             if len(params) >= 1:
-                args.append(request.item_name)
-            if len(params) >= 2 and operation.value is not None:
-                # For methods with 3+ params, split value on '|' delimiter
-                # e.g. "1|aes256" -> ["1", "aes256"] for proposal num + encryption
+                args.append(effective_name)
+            if len(params) >= 2:
+                if not operation.value:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} requires a value",
+                    )
                 if len(params) >= 3:
                     parts = operation.value.split("|", len(params) - 2)
+                    if len(parts) != len(params) - 1:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Operation {operation.op} requires a value",
+                        )
                     args.extend(parts)
                 else:
                     args.append(operation.value)
 
-            method(*args)
+            try:
+                method(*args)
+            except TypeError:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid parameters for operation {operation.op}",
+                )
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Operation {operation.op} is not supported on this device",
+                )
 
         if builder.is_empty():
             return VyOSResponse(
@@ -251,7 +317,7 @@ async def ipsec_batch_configure(http_request: Request, request: IPSecBatchReques
                 data={"message": "No operations to execute"},
             )
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,

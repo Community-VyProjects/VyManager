@@ -22,12 +22,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, Settings } from "lucide-react";
+import { InterfaceMultiSelect } from "@/components/ui/interface-multi-select";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import {
   ipsecService,
   IPSecOptions,
   IPSecLog,
   IPSecCapabilities,
   BatchOperation,
+  RADhcp,
+  RARadius,
 } from "@/lib/api/ipsec";
 import { showService, InterfaceName } from "@/lib/api/show";
 import { ApiError } from "@/lib/types/api";
@@ -41,10 +45,9 @@ interface SettingsModalProps {
   currentLog: IPSecLog;
   currentInterfaces: string[];
   disableUniqreqids: boolean;
+  currentDhcp: RADhcp;
+  currentRadius: RARadius;
 }
-
-const LOG_LEVELS = ["0", "1", "2", "3", "4"];
-const LOG_SUBSYSTEMS = ["dmn", "mgr", "ike", "chd", "job", "cfg", "knl", "net", "asn", "enc", "lib", "esp", "tls"];
 
 export function SettingsModal({
   open,
@@ -55,8 +58,11 @@ export function SettingsModal({
   currentLog,
   currentInterfaces,
   disableUniqreqids: currentDisableUniqreqids,
+  currentDhcp,
+  currentRadius,
 }: SettingsModalProps) {
   const t = useTranslations("ipsecSettings");
+  const tp = useTranslations("ipsec");
   const tc = useTranslations("common");
   const [allInterfaces, setAllInterfaces] = useState<InterfaceName[]>([]);
 
@@ -65,7 +71,8 @@ export function SettingsModal({
   const [flexvpn, setFlexvpn] = useState(false);
   const [virtualIp, setVirtualIp] = useState(false);
   const [disableUniqreqids, setDisableUniqreqids] = useState(false);
-  const [interfaces, setInterfaces] = useState("");
+  const [interfaces, setInterfaces] = useState<string[]>([]);
+  const [optionsInterface, setOptionsInterface] = useState("");
 
   // Logging
   const [logLevel, setLogLevel] = useState("");
@@ -75,6 +82,12 @@ export function SettingsModal({
   const [retransmissionAttempts, setRetransmissionAttempts] = useState("");
   const [retransmissionBase, setRetransmissionBase] = useState("");
   const [retransmissionTimeout, setRetransmissionTimeout] = useState("");
+
+  // Remote access DHCP and RADIUS
+  const [dhcpInterface, setDhcpInterface] = useState("");
+  const [dhcpServer, setDhcpServer] = useState("");
+  const [nasIdentifier, setNasIdentifier] = useState("");
+  const [radiusTimeout, setRadiusTimeout] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -89,15 +102,20 @@ export function SettingsModal({
       setFlexvpn(currentOptions.flexvpn || false);
       setVirtualIp(currentOptions.virtual_ip || false);
       setDisableUniqreqids(currentDisableUniqreqids);
-      setInterfaces(currentInterfaces.join(", "));
+      setInterfaces(currentInterfaces);
+      setOptionsInterface(currentOptions.interface || "");
       setLogLevel(currentLog.level || "");
       setLogSubsystems(currentLog.subsystems || []);
       setRetransmissionAttempts(currentOptions.retransmission_attempts || "");
       setRetransmissionBase(currentOptions.retransmission_base || "");
       setRetransmissionTimeout(currentOptions.retransmission_timeout || "");
+      setDhcpInterface(currentDhcp.interface || "");
+      setDhcpServer(currentDhcp.server || "");
+      setNasIdentifier(currentRadius.nas_identifier || "");
+      setRadiusTimeout(currentRadius.timeout || "");
       setError(null);
     }
-  }, [open, currentOptions, currentLog, currentInterfaces, currentDisableUniqreqids]);
+  }, [open, currentOptions, currentLog, currentInterfaces, currentDisableUniqreqids, currentDhcp, currentRadius]);
 
   const toggleSubsystem = (sub: string) => {
     setLogSubsystems((prev) =>
@@ -110,117 +128,61 @@ export function SettingsModal({
     setError(null);
 
     try {
-      // Build operations for boolean toggles
-      // These use a dummy item_name since the builder methods take 0 params
-      const toggleOps: Array<{ itemName: string; ops: BatchOperation[] }> = [];
+      const ops: BatchOperation[] = [];
+      const changed = (next: boolean, prev: boolean, setOp: string, deleteOp: string) => {
+        if (next === prev) return;
+        ops.push({ op: next ? setOp : deleteOp });
+      };
+      changed(disableRouteAutoinstall, currentOptions.disable_route_autoinstall || false, "set_options_disable_route_autoinstall", "delete_options_disable_route_autoinstall");
+      changed(flexvpn, currentOptions.flexvpn || false, "set_options_flexvpn", "delete_options_flexvpn");
+      changed(virtualIp, currentOptions.virtual_ip || false, "set_options_virtual_ip", "delete_options_virtual_ip");
+      changed(disableUniqreqids, currentDisableUniqreqids, "set_disable_uniqreqids", "delete_disable_uniqreqids");
 
-      // Disable route autoinstall
-      if (disableRouteAutoinstall !== (currentOptions.disable_route_autoinstall || false)) {
-        toggleOps.push({
-          itemName: "_settings",
-          ops: [{ op: disableRouteAutoinstall ? "set_options_disable_route_autoinstall" : "delete_options_disable_route_autoinstall" }],
-        });
-      }
-
-      // FlexVPN
-      if (flexvpn !== (currentOptions.flexvpn || false)) {
-        toggleOps.push({
-          itemName: "_settings",
-          ops: [{ op: flexvpn ? "set_options_flexvpn" : "delete_options_flexvpn" }],
-        });
-      }
-
-      // Virtual IP
-      if (virtualIp !== (currentOptions.virtual_ip || false)) {
-        toggleOps.push({
-          itemName: "_settings",
-          ops: [{ op: virtualIp ? "set_options_virtual_ip" : "delete_options_virtual_ip" }],
-        });
-      }
-
-      // Disable unique req IDs
-      if (disableUniqreqids !== currentDisableUniqreqids) {
-        toggleOps.push({
-          itemName: "_settings",
-          ops: [{ op: disableUniqreqids ? "set_disable_uniqreqids" : "delete_disable_uniqreqids" }],
-        });
-      }
-
-      // Interfaces - delete old, set new
-      const newInterfaces = interfaces.split(",").map((i) => i.trim()).filter(Boolean);
       for (const oldIface of currentInterfaces) {
-        if (!newInterfaces.includes(oldIface)) {
-          toggleOps.push({
-            itemName: oldIface,
-            ops: [{ op: "delete_interface" }],
-          });
-        }
+        if (!interfaces.includes(oldIface)) ops.push({ op: "delete_interface", item_name: oldIface });
       }
-      for (const newIface of newInterfaces) {
-        if (!currentInterfaces.includes(newIface)) {
-          toggleOps.push({
-            itemName: newIface,
-            ops: [{ op: "set_interface" }],
-          });
-        }
+      for (const newIface of interfaces) {
+        if (!currentInterfaces.includes(newIface)) ops.push({ op: "set_interface", item_name: newIface });
       }
 
-      // Log level
       const currentLevel = currentLog.level || "";
-      if (logLevel !== currentLevel) {
-        if (currentLevel) {
-          toggleOps.push({ itemName: currentLevel, ops: [{ op: "delete_log_level" }] });
-        }
-        if (logLevel) {
-          toggleOps.push({ itemName: logLevel, ops: [{ op: "set_log_level" }] });
-        }
-      }
+      if (!logLevel && currentLevel) ops.push({ op: "delete_log_level" });
+      else if (logLevel && logLevel !== currentLevel) ops.push({ op: "set_log_level", item_name: logLevel });
 
-      // Log subsystems - delete removed, add new
       const currentSubs = currentLog.subsystems || [];
       for (const oldSub of currentSubs) {
-        if (!logSubsystems.includes(oldSub)) {
-          toggleOps.push({ itemName: oldSub, ops: [{ op: "delete_log_subsystem" }] });
-        }
+        if (!logSubsystems.includes(oldSub)) ops.push({ op: "delete_log_subsystem", item_name: oldSub });
       }
       for (const newSub of logSubsystems) {
-        if (!currentSubs.includes(newSub)) {
-          toggleOps.push({ itemName: newSub, ops: [{ op: "set_log_subsystem" }] });
-        }
+        if (!currentSubs.includes(newSub)) ops.push({ op: "set_log_subsystem", item_name: newSub });
       }
 
-      // Retransmission (1.5 only)
+      const leaf = (next: string, prev: string, setOp: string, deleteOp: string) => {
+        if (!next && prev) ops.push({ op: deleteOp });
+        else if (next && next !== prev) ops.push({ op: setOp, item_name: next });
+      };
+      leaf(optionsInterface, currentOptions.interface || "", "set_options_interface", "delete_options_interface");
+      leaf(dhcpInterface, currentDhcp.interface || "", "set_ra_dhcp_interface", "delete_ra_dhcp_interface");
+      leaf(dhcpServer.trim(), currentDhcp.server || "", "set_ra_dhcp_server", "delete_ra_dhcp_server");
+      leaf(nasIdentifier.trim(), currentRadius.nas_identifier || "", "set_ra_radius_nas_identifier", "delete_ra_radius_nas_identifier");
+      leaf(radiusTimeout.trim(), currentRadius.timeout || "", "set_ra_radius_timeout", "delete_ra_radius_timeout");
+
       if (capabilities?.features.retransmission_options.supported) {
-        const curAttempts = currentOptions.retransmission_attempts || "";
-        if (retransmissionAttempts !== curAttempts) {
-          if (curAttempts) toggleOps.push({ itemName: curAttempts, ops: [{ op: "delete_options_retransmission_attempts" }] });
-          if (retransmissionAttempts) toggleOps.push({ itemName: retransmissionAttempts, ops: [{ op: "set_options_retransmission_attempts" }] });
-        }
-        const curBase = currentOptions.retransmission_base || "";
-        if (retransmissionBase !== curBase) {
-          if (curBase) toggleOps.push({ itemName: curBase, ops: [{ op: "delete_options_retransmission_base" }] });
-          if (retransmissionBase) toggleOps.push({ itemName: retransmissionBase, ops: [{ op: "set_options_retransmission_base" }] });
-        }
-        const curTimeout = currentOptions.retransmission_timeout || "";
-        if (retransmissionTimeout !== curTimeout) {
-          if (curTimeout) toggleOps.push({ itemName: curTimeout, ops: [{ op: "delete_options_retransmission_timeout" }] });
-          if (retransmissionTimeout) toggleOps.push({ itemName: retransmissionTimeout, ops: [{ op: "set_options_retransmission_timeout" }] });
-        }
+        leaf(retransmissionAttempts, currentOptions.retransmission_attempts || "", "set_options_retransmission_attempts", "delete_options_retransmission_attempts");
+        leaf(retransmissionBase, currentOptions.retransmission_base || "", "set_options_retransmission_base", "delete_options_retransmission_base");
+        leaf(retransmissionTimeout, currentOptions.retransmission_timeout || "", "set_options_retransmission_timeout", "delete_options_retransmission_timeout");
       }
 
-      if (toggleOps.length === 0) {
+      if (ops.length === 0) {
         onOpenChange(false);
         return;
       }
 
-      // Execute all operations
-      for (const batch of toggleOps) {
-        const result = await ipsecService.executeBatch(batch.itemName, batch.ops);
-        if (!result.success) {
-          setError(result.error || t("settings.updateFailed"));
-          setLoading(false);
-          return;
-        }
+      const result = await ipsecService.executeBatch("_settings", ops);
+      if (!result.success) {
+        setError(result.error || t("settings.updateFailed"));
+        setLoading(false);
+        return;
       }
 
       onOpenChange(false);
@@ -272,33 +234,16 @@ export function SettingsModal({
           {/* Interfaces */}
           <div className="space-y-2">
             <Label>{t("settings.interfaces")}</Label>
-            {allInterfaces.length > 0 ? (
-              <div className="grid grid-cols-3 gap-2">
-                {allInterfaces.map((iface) => {
-                  const selected = interfaces.split(",").map((i) => i.trim()).filter(Boolean);
-                  const isChecked = selected.includes(iface.name);
-                  return (
-                    <div key={iface.name} className="flex items-center gap-1.5">
-                      <Checkbox
-                        id={`iface-${iface.name}`}
-                        checked={isChecked}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setInterfaces([...selected, iface.name].join(", "));
-                          } else {
-                            setInterfaces(selected.filter((i) => i !== iface.name).join(", "));
-                          }
-                        }}
-                      />
-                      <Label htmlFor={`iface-${iface.name}`} className="cursor-pointer text-xs font-mono">{iface.name}</Label>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">{t("settings.noInterfaces")}</p>
-            )}
-            <p className="text-xs text-muted-foreground">{t("settings.interfacesHelp")}</p>
+            <InterfaceMultiSelect values={interfaces} onChange={setInterfaces} interfaces={allInterfaces} />
+          </div>
+          <div className="space-y-2">
+            <Label>{tp("page.settings.optionsInterface")}</Label>
+            <InterfaceSelect
+              value={optionsInterface}
+              onValueChange={setOptionsInterface}
+              interfaces={allInterfaces}
+              noneOption={{ label: tc("none"), value: "" }}
+            />
           </div>
 
           {/* Logging */}
@@ -310,14 +255,14 @@ export function SettingsModal({
                 <SelectTrigger><SelectValue placeholder={tc("default")} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_default">{tc("default")}</SelectItem>
-                  {LOG_LEVELS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                  {(capabilities?.features.ipsec.log_levels || []).map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label className="text-xs text-muted-foreground">{t("settings.subsystems")}</Label>
               <div className="grid grid-cols-4 gap-2">
-                {LOG_SUBSYSTEMS.map((sub) => (
+                {(capabilities?.features.ipsec.log_subsystems || []).map((sub) => (
                   <div key={sub} className="flex items-center gap-1.5">
                     <Checkbox
                       id={`sub-${sub}`}
@@ -327,6 +272,34 @@ export function SettingsModal({
                     <Label htmlFor={`sub-${sub}`} className="cursor-pointer text-xs font-mono">{sub}</Label>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Remote access DHCP and RADIUS */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">{tp("page.tabs.remoteAccess")}</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">{tp("page.settings.dhcpInterface")}</Label>
+                <InterfaceSelect
+                  value={dhcpInterface}
+                  onValueChange={setDhcpInterface}
+                  interfaces={allInterfaces}
+                  noneOption={{ label: tc("none"), value: "" }}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">{tp("page.settings.dhcpServer")}</Label>
+                <Input value={dhcpServer} onChange={(e) => setDhcpServer(e.target.value)} placeholder="192.0.2.1" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">{tp("page.settings.nasIdentifier")}</Label>
+                <Input value={nasIdentifier} onChange={(e) => setNasIdentifier(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">{tp("page.settings.radiusTimeout")}</Label>
+                <Input value={radiusTimeout} onChange={(e) => setRadiusTimeout(e.target.value)} placeholder={tc("default")} />
               </div>
             </div>
           </div>

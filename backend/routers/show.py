@@ -19,7 +19,7 @@ import httpx
 
 from starlette.concurrency import run_in_threadpool
 from session_vyos_service import get_session_vyos_service
-from fastapi_permissions import has_permission, require_read_permission
+from fastapi_permissions import has_permission, require_any_read_permission, require_read_permission
 from org_scope import request_scoped_conn
 from rbac_permissions import FeatureGroup, PermissionLevel
 from stream_auth import fail_closed
@@ -206,16 +206,19 @@ async def get_interface_counters(request: Request):
     Returns:
         Structured interface counter data for all interfaces
     """
+    await require_read_permission(request, FeatureGroup.INTERFACES)
     try:
         service = get_session_vyos_service(request)
 
         # Execute 'show interface counters' command
-        response = service.device.show(path=["interfaces", "counters"])
+        response = await run_in_threadpool(
+            service.device.show, path=["interfaces", "counters"]
+        )
 
         if response.status != 200:
             raise HTTPException(
                 status_code=500,
-                detail=f"VyOS command failed: {response.error}"
+                detail="Unable to read interface counters",
             )
 
         # Parse the output
@@ -322,6 +325,7 @@ async def get_all_interfaces(request: Request):
     Returns:
         List of all interface names, including VLANs and sub-interfaces.
     """
+    await require_any_read_permission(request)
     try:
         service = get_session_vyos_service(request)
 
@@ -388,11 +392,14 @@ async def get_available_ethernet_interfaces(request: Request):
     Return physical ethernet interfaces that exist on the router but are not
     yet configured in VyOS. Used to populate the create-interface dropdown.
     """
+    await require_read_permission(request, FeatureGroup.ETHERNET)
     try:
         service = get_session_vyos_service(request)
 
         # Operational show to list all physical ethernet ports
-        response = service.device.show(path=["interfaces", "ethernet"])
+        response = await run_in_threadpool(
+            service.device.show, path=["interfaces", "ethernet"]
+        )
 
         all_eth: List[str] = []
         if response.status == 200:
@@ -407,7 +414,7 @@ async def get_available_ethernet_interfaces(request: Request):
         # Exclude interfaces that already have an address configured.
         # Interfaces in the config tree with no address (e.g. disabled/empty)
         # are still considered available.
-        full_config = service.get_full_config(refresh=False)
+        full_config = await run_in_threadpool(service.get_full_config, refresh=False)
         eth_config = full_config.get("interfaces", {}).get("ethernet", {})
         with_address = {
             name for name, cfg in eth_config.items()
@@ -442,7 +449,7 @@ async def get_system_updates(request: Request):
     await require_read_permission(request, FeatureGroup.SYSTEM)
     service = get_session_vyos_service(request)
 
-    response = service.device.show(path=["system", "updates"])
+    response = await run_in_threadpool(service.device.show, path=["system", "updates"])
     if response.status != 200:
         # A non-200 here usually means the command is unsupported on this version
         # or update-check is not configured — surface as "not configured", not 500.
@@ -500,11 +507,30 @@ async def dashboard_stream(
     include_bgp = await has_permission(request, FeatureGroup.BGP, PermissionLevel.READ)
     include_pppoe = await has_permission(request, FeatureGroup.PPPOE, PermissionLevel.READ)
     include_hardware = await has_permission(request, FeatureGroup.INTERFACES, PermissionLevel.READ)
+    include_interfaces = include_hardware
+    include_system = await has_permission(request, FeatureGroup.SYSTEM, PermissionLevel.READ)
+    include_qos = await has_permission(request, FeatureGroup.QOS, PermissionLevel.READ)
+    include_openvpn = await has_permission(request, FeatureGroup.OPENVPN, PermissionLevel.READ)
+    include_ipsec = await has_permission(request, FeatureGroup.IPSEC, PermissionLevel.READ)
     # Same gate as GET /vyos/ethernet/{interface}/transceiver, so the stream
     # cannot hand out DDM data the REST endpoint would refuse.
     include_transceiver = await has_permission(request, FeatureGroup.ETHERNET, PermissionLevel.READ)
     include_policies, include_zones, include_bridge = await firewall_statistics_access(request)
     include_firewall = include_policies or include_zones or include_bridge
+    stream_read = {
+        "interface-counters": include_interfaces,
+        "system-info": include_system,
+        "qos-stats": include_qos,
+        "openvpn-status": include_openvpn,
+        "ipsec-status": include_ipsec,
+        "wireguard-peers": include_wireguard,
+        "vrrp-status": include_vrrp,
+        "bgp-status": include_bgp,
+        "pppoe-sessions": include_pppoe,
+        "hardware-sensors": include_hardware,
+        "transceiver-health": include_transceiver,
+        FIREWALL_STATS_INTEREST: include_firewall,
+    }
     broadcaster = _get_broadcaster(service)
 
     instance_id: str = service.config.instance_id
@@ -537,21 +563,12 @@ async def dashboard_stream(
                         break
                     yield ": keep-alive\n\n"
                     continue
-                if event["type"] == "wireguard-peers" and not include_wireguard:
-                    continue
-                if event["type"] == "vrrp-status" and not include_vrrp:
-                    continue
-                if event["type"] == "bgp-status" and not include_bgp:
-                    continue
-                if event["type"] == "pppoe-sessions" and not include_pppoe:
-                    continue
-                if event["type"] == "hardware-sensors" and not include_hardware:
-                    continue
-                if event["type"] == "transceiver-health" and not include_transceiver:
+                kind = event["type"]
+                if kind == "error":
+                    kind = str((event.get("data") or {}).get("channel") or "")
+                if not stream_read.get(kind):
                     continue
                 if event["type"] == FIREWALL_STATS_INTEREST:
-                    if not include_firewall:
-                        continue
                     # Copy. The queued event is shared with every subscriber.
                     payload = firewall_hits_for_viewer(
                         event["data"],

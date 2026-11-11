@@ -1,27 +1,74 @@
-"""
-IPSec Mapper for VyOS 1.5
+"""VyOS 1.5 IPSec mapper.
 
-VyOS 1.5 adds support for:
-- authentication/ppk (Post-quantum Pre-shared Keys)
-- options/retransmission (attempts, base, timeout)
-- remote-access/connection/*/authentication/always-send-cert
-- remote-access/connection/*/authentication/ppk (id, required)
-- remote-access/connection/*/bind
-- remote-access/connection/*/childless
-- remote-access/pool/*/range (start, stop)
-- site-to-site/peer/*/authentication/ppk (id, required)
-- site-to-site/peer/*/childless
+Path methods for leaves that do not exist on 1.4 live here. The builder
+checks the allowlist before calling them.
 """
 
-from typing import List
+from typing import FrozenSet, List
 
+from ..ipsec import IPSecMapper
 
-class IPSecMapperV1_5:
-    """VyOS 1.5 specific IPSec paths."""
+class IPSecMapperV1_5(IPSecMapper):
+    """VyOS 1.5 IPSec mapper."""
 
-    # ========================================================================
-    # Authentication - PPK (Post-quantum Pre-shared Keys) - 1.5 only
-    # ========================================================================
+    def versioned_nodes(self) -> FrozenSet[str]:
+        return frozenset({
+            "retransmission",
+            "childless",
+            "pool_range",
+            "always_send_cert",
+            "s2s_unique",
+            "ppk",
+            "ra_bind",
+            "ra_childless",
+            "proposal_esn",
+        })
+
+    def connection_types(self) -> List[str]:
+        return ["initiate", "trap", "none"]
+
+    def secret_types(self) -> List[str]:
+        return ["base64", "hex", "plaintext"]
+
+    def childless_values(self) -> List[str]:
+        return ["allow", "prefer", "force", "never"]
+
+    def ike_dh_group_values(self) -> List[str]:
+        return ["1", "2", "5", *[str(n) for n in range(14, 36)]]
+
+    def esp_pfs_values(self) -> List[str]:
+        return [
+            "enable", "dh-group1", "dh-group2", "dh-group5",
+            *[f"dh-group{n}" for n in range(14, 36)],
+            "disable",
+        ]
+
+    def esn_values(self) -> List[str]:
+        return ["optional", "required", "disabled"]
+
+    def get_options_retransmission_attempts_path(self, attempts: str) -> List[str]:
+        return ["vpn", "ipsec", "options", "retransmission", "attempts", attempts]
+
+    def get_options_retransmission_base_path(self, base: str) -> List[str]:
+        return ["vpn", "ipsec", "options", "retransmission", "base", base]
+
+    def get_options_retransmission_timeout_path(self, timeout: str) -> List[str]:
+        return ["vpn", "ipsec", "options", "retransmission", "timeout", timeout]
+
+    def get_s2s_peer_childless_path(self, peer: str, value: str) -> List[str]:
+        return ["vpn", "ipsec", "site-to-site", "peer", peer, "childless", value]
+
+    def get_s2s_peer_unique_path(self, peer: str, value: str) -> List[str]:
+        return ["vpn", "ipsec", "site-to-site", "peer", peer, "unique", value]
+
+    def get_ra_connection_auth_always_send_cert_path(self, conn: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "connection", conn, "authentication", "always-send-cert"]
+
+    def get_ra_pool_range_start_path(self, pool: str, start: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "pool", pool, "range", "start", start]
+
+    def get_ra_pool_range_stop_path(self, pool: str, stop: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "pool", pool, "range", "stop", stop]
 
     def get_auth_ppk_path(self, name: str) -> List[str]:
         return ["vpn", "ipsec", "authentication", "ppk", name]
@@ -35,57 +82,26 @@ class IPSecMapperV1_5:
     def get_auth_ppk_secret_type_path(self, name: str, secret_type: str) -> List[str]:
         return ["vpn", "ipsec", "authentication", "ppk", name, "secret-type", secret_type]
 
-    # ========================================================================
-    # Options - Retransmission - 1.5 only
-    # ========================================================================
-
-    def get_options_retransmission_attempts_path(self, attempts: str) -> List[str]:
-        return ["vpn", "ipsec", "options", "retransmission", "attempts", attempts]
-
-    def get_options_retransmission_base_path(self, base: str) -> List[str]:
-        return ["vpn", "ipsec", "options", "retransmission", "base", base]
-
-    def get_options_retransmission_timeout_path(self, timeout: str) -> List[str]:
-        return ["vpn", "ipsec", "options", "retransmission", "timeout", timeout]
-
-    # ========================================================================
-    # Site-to-Site Peer - 1.5 only features
-    # ========================================================================
-
-    def get_s2s_peer_childless_path(self, peer: str) -> List[str]:
-        return ["vpn", "ipsec", "site-to-site", "peer", peer, "childless"]
-
-    def get_s2s_peer_auth_ppk_id_path(self, peer: str, ppk_id: str) -> List[str]:
-        return ["vpn", "ipsec", "site-to-site", "peer", peer, "authentication", "ppk", "id", ppk_id]
+    def get_s2s_peer_auth_ppk_id_path(self, peer: str, value: str) -> List[str]:
+        return ["vpn", "ipsec", "site-to-site", "peer", peer, "authentication", "ppk", "id", value]
 
     def get_s2s_peer_auth_ppk_required_path(self, peer: str) -> List[str]:
         return ["vpn", "ipsec", "site-to-site", "peer", peer, "authentication", "ppk", "required"]
 
-    # ========================================================================
-    # Remote Access Connection - 1.5 only features
-    # ========================================================================
-
-    def get_ra_connection_bind_path(self, conn: str, interface: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "connection", conn, "bind", interface]
-
-    def get_ra_connection_childless_path(self, conn: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "connection", conn, "childless"]
-
-    def get_ra_connection_auth_always_send_cert_path(self, conn: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "connection", conn, "authentication", "always-send-cert"]
-
-    def get_ra_connection_auth_ppk_id_path(self, conn: str, ppk_id: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "connection", conn, "authentication", "ppk", "id", ppk_id]
+    def get_ra_connection_auth_ppk_id_path(self, conn: str, value: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "connection", conn, "authentication", "ppk", "id", value]
 
     def get_ra_connection_auth_ppk_required_path(self, conn: str) -> List[str]:
         return ["vpn", "ipsec", "remote-access", "connection", conn, "authentication", "ppk", "required"]
 
-    # ========================================================================
-    # Remote Access Pool - Range - 1.5 only
-    # ========================================================================
+    def get_ra_connection_bind_path(self, conn: str, value: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "connection", conn, "bind", value]
 
-    def get_ra_pool_range_start_path(self, pool: str, start: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "pool", pool, "range", "start", start]
+    def get_ra_connection_childless_path(self, conn: str, value: str) -> List[str]:
+        return ["vpn", "ipsec", "remote-access", "connection", conn, "childless", value]
 
-    def get_ra_pool_range_stop_path(self, pool: str, stop: str) -> List[str]:
-        return ["vpn", "ipsec", "remote-access", "pool", pool, "range", "stop", stop]
+    def get_esp_group_proposal_esn_path(self, name: str, proposal: str, value: str) -> List[str]:
+        return ["vpn", "ipsec", "esp-group", name, "proposal", proposal, "esn", value]
+
+    def get_ike_group_proposal_esn_path(self, name: str, proposal: str, value: str) -> List[str]:
+        return ["vpn", "ipsec", "ike-group", name, "proposal", proposal, "esn", value]
