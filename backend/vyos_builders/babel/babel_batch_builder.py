@@ -7,6 +7,7 @@ Handles version-specific differences through the mapper layer.
 
 from typing import Dict, Any
 from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.babel.babel import BabelMapper
 from vyos_builders.base import BatchBuilder
 
 
@@ -18,104 +19,110 @@ class BabelBatchBuilder(BatchBuilder):
         self.mapper_key = "babel"
         self.mappers = {self.mapper_key: CommandMapperRegistry.get_mapper(self.mapper_key, version)}
 
+    def _mapper(self) -> BabelMapper:
+        mapper = self.mappers[self.mapper_key]
+        if not isinstance(mapper, BabelMapper):
+            raise TypeError("babel mapper is not BabelMapper")
+        return mapper
+
     # ========================================================================
     # Interface Operations
     # ========================================================================
 
     def set_interface(self, interface: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_path(interface)
+        path = self._mapper().get_interface_path(interface)
         return self.add_set(path)
 
     def delete_interface(self, interface: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_path(interface)
+        path = self._mapper().get_interface_path(interface)
         return self.add_delete(path)
 
     def set_interface_type(self, interface: str, iface_type: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_type(interface, iface_type)
+        path = self._mapper().get_interface_type(interface, iface_type)
         return self.add_set(path)
 
     def delete_interface_type(self, interface: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_path(interface) + ["type"]
+        path = self._mapper().get_interface_type_delete(interface)
         return self.add_delete(path)
 
     def set_interface_channel(self, interface: str, channel: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_channel(interface, channel)
+        path = self._mapper().get_interface_channel(interface, channel)
         return self.add_set(path)
 
     def delete_interface_channel(self, interface: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_path(interface) + ["channel"]
+        path = self._mapper().get_interface_channel_delete(interface)
         return self.add_delete(path)
 
     def set_interface_hello_interval(self, interface: str, interval: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_hello_interval(interface, interval)
+        path = self._mapper().get_interface_hello_interval(interface, interval)
         return self.add_set(path)
 
     def delete_interface_hello_interval(self, interface: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_path(interface) + ["hello-interval"]
+        path = self._mapper().get_interface_hello_interval_delete(interface)
         return self.add_delete(path)
 
     def set_interface_update_interval(self, interface: str, interval: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_update_interval(interface, interval)
+        path = self._mapper().get_interface_update_interval(interface, interval)
         return self.add_set(path)
 
     def delete_interface_update_interval(self, interface: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_path(interface) + ["update-interval"]
+        path = self._mapper().get_interface_update_interval_delete(interface)
         return self.add_delete(path)
 
     def set_interface_rxcost(self, interface: str, rxcost: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_rxcost(interface, rxcost)
+        path = self._mapper().get_interface_rxcost(interface, rxcost)
         return self.add_set(path)
 
     def delete_interface_rxcost(self, interface: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_path(interface) + ["rxcost"]
+        path = self._mapper().get_interface_rxcost_delete(interface)
         return self.add_delete(path)
 
     def set_interface_split_horizon(self, interface: str, mode: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_split_horizon(interface, mode)
+        path = self._mapper().get_interface_split_horizon(interface, mode)
         return self.add_set(path)
 
     def delete_interface_split_horizon(self, interface: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_path(interface) + ["split-horizon"]
+        path = self._mapper().get_interface_split_horizon_delete(interface)
         return self.add_delete(path)
 
     def set_interface_enable_timestamps(self, interface: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_enable_timestamps(interface)
+        path = self._mapper().get_interface_enable_timestamps(interface)
         return self.add_set(path)
 
     def delete_interface_enable_timestamps(self, interface: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_enable_timestamps(interface)
+        path = self._mapper().get_interface_enable_timestamps(interface)
         return self.add_delete(path)
 
     def set_interface_max_rtt_penalty(self, interface: str, penalty: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_max_rtt_penalty(interface, penalty)
+        path = self._mapper().get_interface_max_rtt_penalty(interface, penalty)
         return self.add_set(path)
 
     def delete_interface_max_rtt_penalty(self, interface: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_path(interface) + ["max-rtt-penalty"]
+        path = self._mapper().get_interface_max_rtt_penalty_delete(interface)
         return self.add_delete(path)
 
     def set_interface_rtt_decay(self, interface: str, decay: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_rtt_decay(interface, decay)
+        path = self._mapper().get_interface_rtt_decay(interface, decay)
         return self.add_set(path)
 
     def delete_interface_rtt_decay(self, interface: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_path(interface) + ["rtt-decay"]
+        path = self._mapper().get_interface_rtt_decay_delete(interface)
         return self.add_delete(path)
 
     def set_interface_rtt_min(self, interface: str, rtt_min: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_rtt_min(interface, rtt_min)
+        path = self._mapper().get_interface_rtt_min(interface, rtt_min)
         return self.add_set(path)
 
     def delete_interface_rtt_min(self, interface: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_path(interface) + ["rtt-min"]
+        path = self._mapper().get_interface_rtt_min_delete(interface)
         return self.add_delete(path)
 
     def set_interface_rtt_max(self, interface: str, rtt_max: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_rtt_max(interface, rtt_max)
+        path = self._mapper().get_interface_rtt_max(interface, rtt_max)
         return self.add_set(path)
 
     def delete_interface_rtt_max(self, interface: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_interface_path(interface) + ["rtt-max"]
+        path = self._mapper().get_interface_rtt_max_delete(interface)
         return self.add_delete(path)
 
     # ========================================================================
@@ -123,35 +130,35 @@ class BabelBatchBuilder(BatchBuilder):
     # ========================================================================
 
     def set_parameters_diversity(self) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_parameters_diversity()
+        path = self._mapper().get_parameters_diversity()
         return self.add_set(path)
 
     def delete_parameters_diversity(self) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_parameters_diversity()
+        path = self._mapper().get_parameters_diversity()
         return self.add_delete(path)
 
     def set_parameters_diversity_factor(self, factor: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_parameters_diversity_factor(factor)
+        path = self._mapper().get_parameters_diversity_factor(factor)
         return self.add_set(path)
 
     def delete_parameters_diversity_factor(self) -> "BabelBatchBuilder":
-        path = ["protocols", "babel", "parameters", "diversity-factor"]
+        path = self._mapper().get_parameters_diversity_factor_delete()
         return self.add_delete(path)
 
     def set_parameters_resend_delay(self, delay: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_parameters_resend_delay(delay)
+        path = self._mapper().get_parameters_resend_delay(delay)
         return self.add_set(path)
 
     def delete_parameters_resend_delay(self) -> "BabelBatchBuilder":
-        path = ["protocols", "babel", "parameters", "resend-delay"]
+        path = self._mapper().get_parameters_resend_delay_delete()
         return self.add_delete(path)
 
     def set_parameters_smoothing_half_life(self, half_life: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_parameters_smoothing_half_life(half_life)
+        path = self._mapper().get_parameters_smoothing_half_life(half_life)
         return self.add_set(path)
 
     def delete_parameters_smoothing_half_life(self) -> "BabelBatchBuilder":
-        path = ["protocols", "babel", "parameters", "smoothing-half-life"]
+        path = self._mapper().get_parameters_smoothing_half_life_delete()
         return self.add_delete(path)
 
     # ========================================================================
@@ -159,19 +166,19 @@ class BabelBatchBuilder(BatchBuilder):
     # ========================================================================
 
     def set_redistribute_ipv4(self, protocol: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_redistribute_ipv4(protocol)
+        path = self._mapper().get_redistribute_ipv4(protocol)
         return self.add_set(path)
 
     def delete_redistribute_ipv4(self, protocol: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_redistribute_ipv4_delete(protocol)
+        path = self._mapper().get_redistribute_ipv4_delete(protocol)
         return self.add_delete(path)
 
     def set_redistribute_ipv6(self, protocol: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_redistribute_ipv6(protocol)
+        path = self._mapper().get_redistribute_ipv6(protocol)
         return self.add_set(path)
 
     def delete_redistribute_ipv6(self, protocol: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_redistribute_ipv6_delete(protocol)
+        path = self._mapper().get_redistribute_ipv6_delete(protocol)
         return self.add_delete(path)
 
     # ========================================================================
@@ -179,67 +186,67 @@ class BabelBatchBuilder(BatchBuilder):
     # ========================================================================
 
     def set_distribute_list_ipv4_access_list_in(self, acl: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_distribute_list_ipv4_access_list_in(acl)
+        path = self._mapper().get_distribute_list_ipv4_access_list_in(acl)
         return self.add_set(path)
 
     def delete_distribute_list_ipv4_access_list_in(self) -> "BabelBatchBuilder":
-        path = ["protocols", "babel", "distribute-list", "ipv4", "access-list", "in"]
+        path = self._mapper().get_distribute_list_ipv4_access_list_in_delete()
         return self.add_delete(path)
 
     def set_distribute_list_ipv4_access_list_out(self, acl: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_distribute_list_ipv4_access_list_out(acl)
+        path = self._mapper().get_distribute_list_ipv4_access_list_out(acl)
         return self.add_set(path)
 
     def delete_distribute_list_ipv4_access_list_out(self) -> "BabelBatchBuilder":
-        path = ["protocols", "babel", "distribute-list", "ipv4", "access-list", "out"]
+        path = self._mapper().get_distribute_list_ipv4_access_list_out_delete()
         return self.add_delete(path)
 
     def set_distribute_list_ipv4_prefix_list_in(self, prefix_list: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_distribute_list_ipv4_prefix_list_in(prefix_list)
+        path = self._mapper().get_distribute_list_ipv4_prefix_list_in(prefix_list)
         return self.add_set(path)
 
     def delete_distribute_list_ipv4_prefix_list_in(self) -> "BabelBatchBuilder":
-        path = ["protocols", "babel", "distribute-list", "ipv4", "prefix-list", "in"]
+        path = self._mapper().get_distribute_list_ipv4_prefix_list_in_delete()
         return self.add_delete(path)
 
     def set_distribute_list_ipv4_prefix_list_out(self, prefix_list: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_distribute_list_ipv4_prefix_list_out(prefix_list)
+        path = self._mapper().get_distribute_list_ipv4_prefix_list_out(prefix_list)
         return self.add_set(path)
 
     def delete_distribute_list_ipv4_prefix_list_out(self) -> "BabelBatchBuilder":
-        path = ["protocols", "babel", "distribute-list", "ipv4", "prefix-list", "out"]
+        path = self._mapper().get_distribute_list_ipv4_prefix_list_out_delete()
         return self.add_delete(path)
 
     def set_distribute_list_ipv6_access_list_in(self, acl: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_distribute_list_ipv6_access_list_in(acl)
+        path = self._mapper().get_distribute_list_ipv6_access_list_in(acl)
         return self.add_set(path)
 
     def delete_distribute_list_ipv6_access_list_in(self) -> "BabelBatchBuilder":
-        path = ["protocols", "babel", "distribute-list", "ipv6", "access-list", "in"]
+        path = self._mapper().get_distribute_list_ipv6_access_list_in_delete()
         return self.add_delete(path)
 
     def set_distribute_list_ipv6_access_list_out(self, acl: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_distribute_list_ipv6_access_list_out(acl)
+        path = self._mapper().get_distribute_list_ipv6_access_list_out(acl)
         return self.add_set(path)
 
     def delete_distribute_list_ipv6_access_list_out(self) -> "BabelBatchBuilder":
-        path = ["protocols", "babel", "distribute-list", "ipv6", "access-list", "out"]
+        path = self._mapper().get_distribute_list_ipv6_access_list_out_delete()
         return self.add_delete(path)
 
     def set_distribute_list_ipv6_prefix_list_in(self, prefix_list: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_distribute_list_ipv6_prefix_list_in(prefix_list)
+        path = self._mapper().get_distribute_list_ipv6_prefix_list_in(prefix_list)
         return self.add_set(path)
 
     def delete_distribute_list_ipv6_prefix_list_in(self) -> "BabelBatchBuilder":
-        path = ["protocols", "babel", "distribute-list", "ipv6", "prefix-list", "in"]
+        path = self._mapper().get_distribute_list_ipv6_prefix_list_in_delete()
         return self.add_delete(path)
 
     def set_distribute_list_ipv6_prefix_list_out(self, prefix_list: str) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_distribute_list_ipv6_prefix_list_out(prefix_list)
+        path = self._mapper().get_distribute_list_ipv6_prefix_list_out(prefix_list)
         return self.add_set(path)
 
     def delete_distribute_list_ipv6_prefix_list_out(self) -> "BabelBatchBuilder":
-        path = ["protocols", "babel", "distribute-list", "ipv6", "prefix-list", "out"]
+        path = self._mapper().get_distribute_list_ipv6_prefix_list_out_delete()
         return self.add_delete(path)
 
     # ========================================================================
@@ -249,121 +256,105 @@ class BabelBatchBuilder(BatchBuilder):
     def set_distribute_list_ipv4_iface_access_list_in(
         self, interface: str, acl: str
     ) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_distribute_list_ipv4_iface_access_list_in(interface, acl)
+        path = self._mapper().get_distribute_list_ipv4_iface_access_list_in(interface, acl)
         return self.add_set(path)
 
     def delete_distribute_list_ipv4_iface_access_list_in(
         self, interface: str
     ) -> "BabelBatchBuilder":
-        path = [
-            "protocols", "babel", "distribute-list", "ipv4",
-            "interface", interface, "access-list", "in"
-        ]
+        path = self._mapper().get_distribute_list_ipv4_iface_access_list_in_delete(interface)
         return self.add_delete(path)
 
     def set_distribute_list_ipv4_iface_access_list_out(
         self, interface: str, acl: str
     ) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_distribute_list_ipv4_iface_access_list_out(interface, acl)
+        path = self._mapper().get_distribute_list_ipv4_iface_access_list_out(interface, acl)
         return self.add_set(path)
 
     def delete_distribute_list_ipv4_iface_access_list_out(
         self, interface: str
     ) -> "BabelBatchBuilder":
-        path = [
-            "protocols", "babel", "distribute-list", "ipv4",
-            "interface", interface, "access-list", "out"
-        ]
+        path = self._mapper().get_distribute_list_ipv4_iface_access_list_out_delete(interface)
         return self.add_delete(path)
 
     def set_distribute_list_ipv4_iface_prefix_list_in(
         self, interface: str, prefix_list: str
     ) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_distribute_list_ipv4_iface_prefix_list_in(interface, prefix_list)
+        path = self._mapper().get_distribute_list_ipv4_iface_prefix_list_in(interface, prefix_list)
         return self.add_set(path)
 
     def delete_distribute_list_ipv4_iface_prefix_list_in(
         self, interface: str
     ) -> "BabelBatchBuilder":
-        path = [
-            "protocols", "babel", "distribute-list", "ipv4",
-            "interface", interface, "prefix-list", "in"
-        ]
+        path = self._mapper().get_distribute_list_ipv4_iface_prefix_list_in_delete(interface)
         return self.add_delete(path)
 
     def set_distribute_list_ipv4_iface_prefix_list_out(
         self, interface: str, prefix_list: str
     ) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_distribute_list_ipv4_iface_prefix_list_out(interface, prefix_list)
+        path = self._mapper().get_distribute_list_ipv4_iface_prefix_list_out(interface, prefix_list)
         return self.add_set(path)
 
     def delete_distribute_list_ipv4_iface_prefix_list_out(
         self, interface: str
     ) -> "BabelBatchBuilder":
-        path = [
-            "protocols", "babel", "distribute-list", "ipv4",
-            "interface", interface, "prefix-list", "out"
-        ]
+        path = self._mapper().get_distribute_list_ipv4_iface_prefix_list_out_delete(interface)
         return self.add_delete(path)
 
     def set_distribute_list_ipv6_iface_access_list_in(
         self, interface: str, acl: str
     ) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_distribute_list_ipv6_iface_access_list_in(interface, acl)
+        path = self._mapper().get_distribute_list_ipv6_iface_access_list_in(interface, acl)
         return self.add_set(path)
 
     def delete_distribute_list_ipv6_iface_access_list_in(
         self, interface: str
     ) -> "BabelBatchBuilder":
-        path = [
-            "protocols", "babel", "distribute-list", "ipv6",
-            "interface", interface, "access-list", "in"
-        ]
+        path = self._mapper().get_distribute_list_ipv6_iface_access_list_in_delete(interface)
         return self.add_delete(path)
 
     def set_distribute_list_ipv6_iface_access_list_out(
         self, interface: str, acl: str
     ) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_distribute_list_ipv6_iface_access_list_out(interface, acl)
+        path = self._mapper().get_distribute_list_ipv6_iface_access_list_out(interface, acl)
         return self.add_set(path)
 
     def delete_distribute_list_ipv6_iface_access_list_out(
         self, interface: str
     ) -> "BabelBatchBuilder":
-        path = [
-            "protocols", "babel", "distribute-list", "ipv6",
-            "interface", interface, "access-list", "out"
-        ]
+        path = self._mapper().get_distribute_list_ipv6_iface_access_list_out_delete(interface)
         return self.add_delete(path)
 
     def set_distribute_list_ipv6_iface_prefix_list_in(
         self, interface: str, prefix_list: str
     ) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_distribute_list_ipv6_iface_prefix_list_in(interface, prefix_list)
+        path = self._mapper().get_distribute_list_ipv6_iface_prefix_list_in(interface, prefix_list)
         return self.add_set(path)
 
     def delete_distribute_list_ipv6_iface_prefix_list_in(
         self, interface: str
     ) -> "BabelBatchBuilder":
-        path = [
-            "protocols", "babel", "distribute-list", "ipv6",
-            "interface", interface, "prefix-list", "in"
-        ]
+        path = self._mapper().get_distribute_list_ipv6_iface_prefix_list_in_delete(interface)
         return self.add_delete(path)
 
     def set_distribute_list_ipv6_iface_prefix_list_out(
         self, interface: str, prefix_list: str
     ) -> "BabelBatchBuilder":
-        path = self.mappers[self.mapper_key].get_distribute_list_ipv6_iface_prefix_list_out(interface, prefix_list)
+        path = self._mapper().get_distribute_list_ipv6_iface_prefix_list_out(interface, prefix_list)
         return self.add_set(path)
 
     def delete_distribute_list_ipv6_iface_prefix_list_out(
         self, interface: str
     ) -> "BabelBatchBuilder":
-        path = [
-            "protocols", "babel", "distribute-list", "ipv6",
-            "interface", interface, "prefix-list", "out"
-        ]
+        path = self._mapper().get_distribute_list_ipv6_iface_prefix_list_out_delete(interface)
+        return self.add_delete(path)
+
+    def delete_distribute_list_ipv4_iface(self, interface: str) -> "BabelBatchBuilder":
+        path = self._mapper().get_distribute_list_ipv4_iface_delete(interface)
+        return self.add_delete(path)
+
+    def delete_distribute_list_ipv6_iface(self, interface: str) -> "BabelBatchBuilder":
+        path = self._mapper().get_distribute_list_ipv6_iface_delete(interface)
         return self.add_delete(path)
 
     # ========================================================================
@@ -371,9 +362,6 @@ class BabelBatchBuilder(BatchBuilder):
     # ========================================================================
 
     def get_capabilities(self) -> Dict[str, Any]:
-        is_1_5 = "1.5" in self.version or "latest" in self.version
-        is_1_4 = "1.4" in self.version
-
         return {
             "version": self.version,
             "features": {
@@ -394,16 +382,12 @@ class BabelBatchBuilder(BatchBuilder):
                     "description": "Distribute lists for route filtering",
                 },
                 "redistribute_nhrp": {
-                    "supported": "nhrp" in self.mappers[self.mapper_key].redistribute_ipv4_protocols(),
-                    "description": "Redistribute NHRP routes (VyOS 1.5+)",
+                    "supported": "nhrp" in self._mapper().redistribute_ipv4_protocols(),
+                    "description": "Redistribute NHRP routes",
                 },
             },
-            "version_info": {
-                "is_1_4": is_1_4,
-                "is_1_5": is_1_5,
-            },
             "redistribute_protocols": {
-                "ipv4": sorted(self.mappers[self.mapper_key].redistribute_ipv4_protocols()),
-                "ipv6": sorted(self.mappers[self.mapper_key].redistribute_ipv6_protocols()),
+                "ipv4": sorted(self._mapper().redistribute_ipv4_protocols()),
+                "ipv6": sorted(self._mapper().redistribute_ipv6_protocols()),
             },
         }

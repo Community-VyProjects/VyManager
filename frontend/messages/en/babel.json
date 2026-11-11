@@ -35,7 +35,6 @@
   "interfaces": {
     "description": "Configure Babel on network interfaces",
     "emptyTitle": "No Babel interfaces configured",
-    "emptyHint": "Add an interface to start using Babel routing",
     "helloInt": "Hello Int.",
     "updateInt": "Update Int.",
     "rxCost": "RX Cost",
@@ -46,12 +45,9 @@
     "diversityRouting": "Diversity Routing",
     "enableDiversity": "Enable diversity-aware routing",
     "diversityFactor": "Diversity Factor",
-    "diversityFactorHelp": "Multiplicative factor (1-256, default: 256)",
     "timing": "Timing",
     "resendDelay": "Resend Delay",
-    "resendDelayHelp": "Time before resending (20-655340 ms, default: 2000)",
-    "smoothingHalfLife": "Smoothing Half-life",
-    "smoothingHalfLifeHelp": "Smoothing half-life (0-65534 seconds, default: 4)"
+    "smoothingHalfLife": "Smoothing Half-life"
   },
   "redistribute": {
     "description": "Select which protocols to redistribute into Babel",
@@ -71,11 +67,23 @@
     "aclIn": "ACL In",
     "aclOut": "ACL Out",
     "prefixIn": "Prefix In",
-    "prefixOut": "Prefix Out"
+    "prefixOut": "Prefix Out",
+    "perInterfaceEmpty": "No per-interface filters"
+  },
+  "dlModal": {
+    "editTitle": "Edit Interface Filter",
+    "addTitle": "Add Interface Filter",
+    "addFilter": "Add Filter",
+    "selectList": "Select a list",
+    "ipv4": "IPv4",
+    "ipv6": "IPv6"
   },
   "delete": {
     "title": "Delete Babel Interface",
-    "description": "Are you sure you want to delete the Babel interface <mono>{name}</mono>? This action cannot be undone."
+    "description": "Are you sure you want to delete the Babel interface <mono>{name}</mono>? This action cannot be undone.",
+    "filterTitle": "Delete Interface Filter",
+    "filterDescription": "Are you sure you want to delete the filter on <mono>{name}</mono>? This action cannot be undone.",
+    "filterConfirm": "Delete Filter"
   },
   "interfaceModal": {
     "titleEdit": "Edit Babel Interface",

@@ -35,7 +35,6 @@
   "interfaces": {
     "description": "在网络接口上配置 Babel",
     "emptyTitle": "尚未配置 Babel 接口",
-    "emptyHint": "添加接口以开始使用 Babel 路由",
     "helloInt": "Hello 间隔",
     "updateInt": "更新间隔",
     "rxCost": "RX 开销",
@@ -46,12 +45,9 @@
     "diversityRouting": "多样性路由",
     "enableDiversity": "启用多样性感知路由",
     "diversityFactor": "多样性因子",
-    "diversityFactorHelp": "乘法因子（1-256，默认：256）",
     "timing": "计时",
     "resendDelay": "重发延迟",
-    "resendDelayHelp": "重发前的等待时间（20-655340 ms，默认：2000）",
-    "smoothingHalfLife": "平滑半衰期",
-    "smoothingHalfLifeHelp": "平滑半衰期（0-65534 秒，默认：4）"
+    "smoothingHalfLife": "平滑半衰期"
   },
   "redistribute": {
     "description": "选择要重分发到 Babel 的协议",
@@ -71,11 +67,23 @@
     "aclIn": "入站 ACL",
     "aclOut": "出站 ACL",
     "prefixIn": "入站前缀",
-    "prefixOut": "出站前缀"
+    "prefixOut": "出站前缀",
+    "perInterfaceEmpty": "没有按接口过滤器"
+  },
+  "dlModal": {
+    "editTitle": "编辑接口过滤器",
+    "addTitle": "添加接口过滤器",
+    "addFilter": "添加过滤器",
+    "selectList": "请选择一个列表",
+    "ipv4": "IPv4",
+    "ipv6": "IPv6"
   },
   "delete": {
     "title": "删除 Babel 接口",
-    "description": "确定要删除 Babel 接口 <mono>{name}</mono> 吗？此操作无法撤销。"
+    "description": "确定要删除 Babel 接口 <mono>{name}</mono> 吗？此操作无法撤销。",
+    "filterTitle": "删除接口过滤器",
+    "filterDescription": "确定要删除 <mono>{name}</mono> 上的过滤器吗？此操作无法撤销。",
+    "filterConfirm": "删除过滤器"
   },
   "interfaceModal": {
     "titleEdit": "编辑 Babel 接口",

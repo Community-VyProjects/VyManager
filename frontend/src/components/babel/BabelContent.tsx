@@ -40,13 +40,24 @@ import {
   BabelRedistribute,
   DistributeListFilter,
 } from "@/lib/api/babel";
+import { accessListService } from "@/lib/api/access-list";
+import { prefixListService } from "@/lib/api/prefix-list";
 import { BabelInterfaceModal } from "./BabelInterfaceModal";
 import { DeleteBabelInterfaceModal } from "./DeleteBabelInterfaceModal";
+import {
+  BabelDistributeListInterfaceModal,
+  type BabelDistributeListInterfaceDraft,
+} from "./BabelDistributeListInterfaceModal";
+import { BabelListSelect } from "./BabelListSelect";
+import { usePermissions } from "@/hooks/usePermissions";
+import { FeatureGroup } from "@/lib/api/user-management";
 import { useTranslations } from "next-intl";
 
 export function BabelContent() {
   const t = useTranslations("babel");
   const tc = useTranslations("common");
+  const { canWrite } = usePermissions();
+  const hasWritePermission = canWrite(FeatureGroup.BABEL);
   const [config, setConfig] = useState<BabelConfig | null>(null);
   const [capabilities, setCapabilities] = useState<BabelCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
@@ -73,17 +84,32 @@ export function BabelContent() {
   const [distListIpv4Draft, setDistListIpv4Draft] = useState<DistributeListFilter | null>(null);
   const [distListIpv6Draft, setDistListIpv6Draft] = useState<DistributeListFilter | null>(null);
   const [savingDistList, setSavingDistList] = useState(false);
+  const [accessListNames, setAccessListNames] = useState<{ ipv4: string[]; ipv6: string[] }>({ ipv4: [], ipv6: [] });
+  const [prefixListNames, setPrefixListNames] = useState<{ ipv4: string[]; ipv6: string[] }>({ ipv4: [], ipv6: [] });
+  const [dlIfaceModalOpen, setDlIfaceModalOpen] = useState(false);
+  const [editingDlIface, setEditingDlIface] = useState<BabelDistributeListInterfaceDraft | null>(null);
+  const [deletingDlIface, setDeletingDlIface] = useState<BabelDistributeListInterfaceDraft | null>(null);
 
   const loadData = useCallback(async (refresh = false) => {
     try {
       setLoading(true);
       setError(null);
-      const [configData, capData] = await Promise.all([
+      const [configData, capData, accessLists, prefixLists] = await Promise.all([
         babelService.getConfig(refresh),
         babelService.getCapabilities(),
+        accessListService.getConfig().then((c) => ({
+          ipv4: c.ipv4_lists.map((al) => al.number),
+          ipv6: c.ipv6_lists.map((al) => al.number),
+        })).catch(() => ({ ipv4: [] as string[], ipv6: [] as string[] })),
+        prefixListService.getConfig().then((c) => ({
+          ipv4: c.ipv4_lists.map((pl) => pl.name),
+          ipv6: c.ipv6_lists.map((pl) => pl.name),
+        })).catch(() => ({ ipv4: [] as string[], ipv6: [] as string[] })),
       ]);
       setConfig(configData);
       setCapabilities(capData);
+      setAccessListNames(accessLists);
+      setPrefixListNames(prefixLists);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("page.loadFailed"));
     } finally {
@@ -229,8 +255,10 @@ export function BabelContent() {
     if (!config || !distListIpv4Draft || !distListIpv6Draft) return;
     try {
       setSavingDistList(true);
-      await babelService.updateDistributeListGlobal("ipv4", config.distribute_list.ipv4, distListIpv4Draft);
-      await babelService.updateDistributeListGlobal("ipv6", config.distribute_list.ipv6, distListIpv6Draft);
+      await babelService.updateDistributeListGlobals(
+        { original: config.distribute_list.ipv4, updated: distListIpv4Draft },
+        { original: config.distribute_list.ipv6, updated: distListIpv6Draft },
+      );
       await loadData(true);
       setEditingDistList(false);
       setDistListIpv4Draft(null);
@@ -240,6 +268,54 @@ export function BabelContent() {
     } finally {
       setSavingDistList(false);
     }
+  };
+
+  const handleCreateDlIface = async (entry: BabelDistributeListInterfaceDraft) => {
+    await babelService.createDistributeListInterface(entry.addressFamily, entry);
+    await loadData(true);
+  };
+
+  const handleUpdateDlIface = async (entry: BabelDistributeListInterfaceDraft) => {
+    if (!editingDlIface) return;
+    await babelService.updateDistributeListInterface(
+      editingDlIface.addressFamily,
+      editingDlIface.interface,
+      editingDlIface,
+      entry,
+    );
+    setEditingDlIface(null);
+    await loadData(true);
+  };
+
+  const handleDeleteDlIface = async () => {
+    if (!deletingDlIface) return;
+    await babelService.deleteDistributeListInterface(deletingDlIface.addressFamily, deletingDlIface);
+    setDeletingDlIface(null);
+    await loadData(true);
+  };
+
+  const renderGlobalFilter = (
+    label: string,
+    field: keyof DistributeListFilter,
+    draft: DistributeListFilter | null,
+    saved: DistributeListFilter | undefined,
+    names: string[],
+    setDraft: (next: DistributeListFilter) => void,
+  ) => {
+    const value = (editingDistList ? draft?.[field] : saved?.[field]) ?? "";
+    return (
+      <div>
+        <Label className="text-sm">{label}</Label>
+        <BabelListSelect
+          value={value}
+          names={names}
+          disabled={!editingDistList || !draft}
+          onChange={(next) => {
+            if (draft) setDraft({ ...draft, [field]: next || null });
+          }}
+        />
+      </div>
+    );
   };
 
   // ==========================================================================
@@ -380,10 +456,12 @@ export function BabelContent() {
                 <p className="text-sm text-muted-foreground">
                   {t("interfaces.description")}
                 </p>
-                <Button size="sm" onClick={() => { setEditingInterface(null); setInterfaceModalOpen(true); }}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  {tc("addInterface")}
-                </Button>
+                {hasWritePermission && (
+                  <Button size="sm" onClick={() => { setEditingInterface(null); setInterfaceModalOpen(true); }}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    {tc("addInterface")}
+                  </Button>
+                )}
               </div>
 
               {interfaceCount === 0 ? (
@@ -391,13 +469,12 @@ export function BabelContent() {
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <Network className="h-12 w-12 text-muted-foreground/30 mb-4" />
                     <p className="text-sm text-muted-foreground mb-2">{t("interfaces.emptyTitle")}</p>
-                    <p className="text-xs text-muted-foreground mb-4">
-                      {t("interfaces.emptyHint")}
-                    </p>
-                    <Button size="sm" onClick={() => { setEditingInterface(null); setInterfaceModalOpen(true); }}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      {tc("addInterface")}
-                    </Button>
+                    {hasWritePermission && (
+                      <Button size="sm" onClick={() => { setEditingInterface(null); setInterfaceModalOpen(true); }}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        {tc("addInterface")}
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               ) : (
@@ -455,27 +532,29 @@ export function BabelContent() {
                               )}
                             </TableCell>
                             <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => {
-                                    setEditingInterface(iface);
-                                    setInterfaceModalOpen(true);
-                                  }}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
-                                  onClick={() => setDeletingInterface(iface.name)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
+                              {hasWritePermission && (
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => {
+                                      setEditingInterface(iface);
+                                      setInterfaceModalOpen(true);
+                                    }}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive hover:text-destructive"
+                                    onClick={() => setDeletingInterface(iface.name)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -494,21 +573,23 @@ export function BabelContent() {
                 <p className="text-sm text-muted-foreground">
                   {t("parameters.description")}
                 </p>
-                {!editingParams ? (
-                  <Button size="sm" variant="outline" onClick={startEditParams}>
-                    <Pencil className="h-4 w-4 mr-2" />
-                    {t("fields.editParameters")}
-                  </Button>
-                ) : (
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={cancelEditParams}>
-                      {tc("cancel")}
+                {hasWritePermission && (
+                  !editingParams ? (
+                    <Button size="sm" variant="outline" onClick={startEditParams}>
+                      <Pencil className="h-4 w-4 mr-2" />
+                      {t("fields.editParameters")}
                     </Button>
-                    <Button size="sm" onClick={saveParams} disabled={savingParams}>
-                      {savingParams ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                      {tc("save")}
-                    </Button>
-                  </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={cancelEditParams}>
+                        {tc("cancel")}
+                      </Button>
+                      <Button size="sm" onClick={saveParams} disabled={savingParams}>
+                        {savingParams ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                        {tc("save")}
+                      </Button>
+                    </div>
+                  )
                 )}
               </div>
 
@@ -530,7 +611,6 @@ export function BabelContent() {
                       </div>
                       <div>
                         <Label className="text-sm">{t("parameters.diversityFactor")}</Label>
-                        <p className="text-xs text-muted-foreground mb-1">{t("parameters.diversityFactorHelp")}</p>
                         <Input
                           type="number"
                           min={1}
@@ -556,7 +636,6 @@ export function BabelContent() {
                     <div className="space-y-4">
                       <div>
                         <Label className="text-sm">{t("parameters.resendDelay")}</Label>
-                        <p className="text-xs text-muted-foreground mb-1">{t("parameters.resendDelayHelp")}</p>
                         <Input
                           type="number"
                           min={20}
@@ -574,7 +653,6 @@ export function BabelContent() {
                       </div>
                       <div>
                         <Label className="text-sm">{t("parameters.smoothingHalfLife")}</Label>
-                        <p className="text-xs text-muted-foreground mb-1">{t("parameters.smoothingHalfLifeHelp")}</p>
                         <Input
                           type="number"
                           min={0}
@@ -604,21 +682,23 @@ export function BabelContent() {
                 <p className="text-sm text-muted-foreground">
                   {t("redistribute.description")}
                 </p>
-                {!editingRedist ? (
-                  <Button size="sm" variant="outline" onClick={startEditRedist}>
-                    <Pencil className="h-4 w-4 mr-2" />
-                    {tc("edit")}
-                  </Button>
-                ) : (
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={cancelEditRedist}>
-                      {tc("cancel")}
+                {hasWritePermission && (
+                  !editingRedist ? (
+                    <Button size="sm" variant="outline" onClick={startEditRedist}>
+                      <Pencil className="h-4 w-4 mr-2" />
+                      {tc("edit")}
                     </Button>
-                    <Button size="sm" onClick={saveRedist} disabled={savingRedist}>
-                      {savingRedist ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                      {tc("save")}
-                    </Button>
-                  </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={cancelEditRedist}>
+                        {tc("cancel")}
+                      </Button>
+                      <Button size="sm" onClick={saveRedist} disabled={savingRedist}>
+                        {savingRedist ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                        {tc("save")}
+                      </Button>
+                    </div>
+                  )
                 )}
               </div>
 
@@ -683,177 +763,69 @@ export function BabelContent() {
                 <p className="text-sm text-muted-foreground">
                   {t("distributeList.description")}
                 </p>
-                {!editingDistList ? (
-                  <Button size="sm" variant="outline" onClick={startEditDistList}>
-                    <Pencil className="h-4 w-4 mr-2" />
-                    {tc("edit")}
-                  </Button>
-                ) : (
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={cancelEditDistList}>
-                      {tc("cancel")}
+                {hasWritePermission && (
+                  !editingDistList ? (
+                    <Button size="sm" variant="outline" onClick={startEditDistList}>
+                      <Pencil className="h-4 w-4 mr-2" />
+                      {tc("edit")}
                     </Button>
-                    <Button size="sm" onClick={saveDistList} disabled={savingDistList}>
-                      {savingDistList ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                      {tc("save")}
-                    </Button>
-                  </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={cancelEditDistList}>
+                        {tc("cancel")}
+                      </Button>
+                      <Button size="sm" onClick={saveDistList} disabled={savingDistList}>
+                        {savingDistList ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                        {tc("save")}
+                      </Button>
+                    </div>
+                  )
                 )}
               </div>
 
               <div className="space-y-6">
-                {/* IPv4 Global */}
                 <Card>
                   <CardContent className="p-6">
                     <h3 className="font-semibold mb-4">{t("distributeList.ipv4Global")}</h3>
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm">{t("distributeList.accessListIn")}</Label>
-                        <Input
-                          placeholder={tc("notSet")}
-                          value={
-                            editingDistList
-                              ? (distListIpv4Draft?.access_list_in ?? "")
-                              : (config?.distribute_list.ipv4.access_list_in ?? "")
-                          }
-                          disabled={!editingDistList}
-                          onChange={(e) =>
-                            distListIpv4Draft &&
-                            setDistListIpv4Draft({ ...distListIpv4Draft, access_list_in: e.target.value || null })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm">{t("distributeList.accessListOut")}</Label>
-                        <Input
-                          placeholder={tc("notSet")}
-                          value={
-                            editingDistList
-                              ? (distListIpv4Draft?.access_list_out ?? "")
-                              : (config?.distribute_list.ipv4.access_list_out ?? "")
-                          }
-                          disabled={!editingDistList}
-                          onChange={(e) =>
-                            distListIpv4Draft &&
-                            setDistListIpv4Draft({ ...distListIpv4Draft, access_list_out: e.target.value || null })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm">{t("distributeList.prefixListIn")}</Label>
-                        <Input
-                          placeholder={tc("notSet")}
-                          value={
-                            editingDistList
-                              ? (distListIpv4Draft?.prefix_list_in ?? "")
-                              : (config?.distribute_list.ipv4.prefix_list_in ?? "")
-                          }
-                          disabled={!editingDistList}
-                          onChange={(e) =>
-                            distListIpv4Draft &&
-                            setDistListIpv4Draft({ ...distListIpv4Draft, prefix_list_in: e.target.value || null })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm">{t("distributeList.prefixListOut")}</Label>
-                        <Input
-                          placeholder={tc("notSet")}
-                          value={
-                            editingDistList
-                              ? (distListIpv4Draft?.prefix_list_out ?? "")
-                              : (config?.distribute_list.ipv4.prefix_list_out ?? "")
-                          }
-                          disabled={!editingDistList}
-                          onChange={(e) =>
-                            distListIpv4Draft &&
-                            setDistListIpv4Draft({ ...distListIpv4Draft, prefix_list_out: e.target.value || null })
-                          }
-                        />
-                      </div>
+                      {renderGlobalFilter(t("distributeList.accessListIn"), "access_list_in", distListIpv4Draft, config?.distribute_list.ipv4, accessListNames.ipv4, setDistListIpv4Draft)}
+                      {renderGlobalFilter(t("distributeList.accessListOut"), "access_list_out", distListIpv4Draft, config?.distribute_list.ipv4, accessListNames.ipv4, setDistListIpv4Draft)}
+                      {renderGlobalFilter(t("distributeList.prefixListIn"), "prefix_list_in", distListIpv4Draft, config?.distribute_list.ipv4, prefixListNames.ipv4, setDistListIpv4Draft)}
+                      {renderGlobalFilter(t("distributeList.prefixListOut"), "prefix_list_out", distListIpv4Draft, config?.distribute_list.ipv4, prefixListNames.ipv4, setDistListIpv4Draft)}
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* IPv6 Global */}
                 <Card>
                   <CardContent className="p-6">
                     <h3 className="font-semibold mb-4">{t("distributeList.ipv6Global")}</h3>
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm">{t("distributeList.accessListIn")}</Label>
-                        <Input
-                          placeholder={tc("notSet")}
-                          value={
-                            editingDistList
-                              ? (distListIpv6Draft?.access_list_in ?? "")
-                              : (config?.distribute_list.ipv6.access_list_in ?? "")
-                          }
-                          disabled={!editingDistList}
-                          onChange={(e) =>
-                            distListIpv6Draft &&
-                            setDistListIpv6Draft({ ...distListIpv6Draft, access_list_in: e.target.value || null })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm">{t("distributeList.accessListOut")}</Label>
-                        <Input
-                          placeholder={tc("notSet")}
-                          value={
-                            editingDistList
-                              ? (distListIpv6Draft?.access_list_out ?? "")
-                              : (config?.distribute_list.ipv6.access_list_out ?? "")
-                          }
-                          disabled={!editingDistList}
-                          onChange={(e) =>
-                            distListIpv6Draft &&
-                            setDistListIpv6Draft({ ...distListIpv6Draft, access_list_out: e.target.value || null })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm">{t("distributeList.prefixListIn")}</Label>
-                        <Input
-                          placeholder={tc("notSet")}
-                          value={
-                            editingDistList
-                              ? (distListIpv6Draft?.prefix_list_in ?? "")
-                              : (config?.distribute_list.ipv6.prefix_list_in ?? "")
-                          }
-                          disabled={!editingDistList}
-                          onChange={(e) =>
-                            distListIpv6Draft &&
-                            setDistListIpv6Draft({ ...distListIpv6Draft, prefix_list_in: e.target.value || null })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm">{t("distributeList.prefixListOut")}</Label>
-                        <Input
-                          placeholder={tc("notSet")}
-                          value={
-                            editingDistList
-                              ? (distListIpv6Draft?.prefix_list_out ?? "")
-                              : (config?.distribute_list.ipv6.prefix_list_out ?? "")
-                          }
-                          disabled={!editingDistList}
-                          onChange={(e) =>
-                            distListIpv6Draft &&
-                            setDistListIpv6Draft({ ...distListIpv6Draft, prefix_list_out: e.target.value || null })
-                          }
-                        />
-                      </div>
+                      {renderGlobalFilter(t("distributeList.accessListIn"), "access_list_in", distListIpv6Draft, config?.distribute_list.ipv6, accessListNames.ipv6, setDistListIpv6Draft)}
+                      {renderGlobalFilter(t("distributeList.accessListOut"), "access_list_out", distListIpv6Draft, config?.distribute_list.ipv6, accessListNames.ipv6, setDistListIpv6Draft)}
+                      {renderGlobalFilter(t("distributeList.prefixListIn"), "prefix_list_in", distListIpv6Draft, config?.distribute_list.ipv6, prefixListNames.ipv6, setDistListIpv6Draft)}
+                      {renderGlobalFilter(t("distributeList.prefixListOut"), "prefix_list_out", distListIpv6Draft, config?.distribute_list.ipv6, prefixListNames.ipv6, setDistListIpv6Draft)}
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* Per-interface filters (read-only display) */}
-                {((config?.distribute_list.ipv4_interfaces.length ?? 0) > 0 ||
-                  (config?.distribute_list.ipv6_interfaces.length ?? 0) > 0) && (
-                  <Card>
-                    <CardContent className="p-6">
-                      <h3 className="font-semibold mb-4">{t("distributeList.perInterface")}</h3>
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold">{t("distributeList.perInterface")}</h3>
+                    {hasWritePermission && (
+                      <Button size="sm" onClick={() => { setEditingDlIface(null); setDlIfaceModalOpen(true); }}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        {tc("add")}
+                      </Button>
+                    )}
+                  </div>
+                  {((config?.distribute_list.ipv4_interfaces.length ?? 0) + (config?.distribute_list.ipv6_interfaces.length ?? 0)) === 0 ? (
+                    <Card>
+                      <CardContent className="flex flex-col items-center justify-center py-8">
+                        <p className="text-sm text-muted-foreground">{t("distributeList.perInterfaceEmpty")}</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Card>
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -863,37 +835,54 @@ export function BabelContent() {
                             <TableHead>{t("distributeList.aclOut")}</TableHead>
                             <TableHead>{t("distributeList.prefixIn")}</TableHead>
                             <TableHead>{t("distributeList.prefixOut")}</TableHead>
+                            <TableHead className="text-right">{tc("actions")}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {config?.distribute_list.ipv4_interfaces.map((f) => (
-                            <TableRow key={`ipv4-${f.interface}`}>
-                              <TableCell><Badge variant="outline">IPv4</Badge></TableCell>
+                          {[
+                            ...(config?.distribute_list.ipv4_interfaces ?? []).map((f) => ({ ...f, addressFamily: "ipv4" as const })),
+                            ...(config?.distribute_list.ipv6_interfaces ?? []).map((f) => ({ ...f, addressFamily: "ipv6" as const })),
+                          ].map((f) => (
+                            <TableRow key={`${f.addressFamily}-${f.interface}`}>
+                              <TableCell><Badge variant="outline">{f.addressFamily === "ipv4" ? t("dlModal.ipv4") : t("dlModal.ipv6")}</Badge></TableCell>
                               <TableCell className="font-mono">{f.interface}</TableCell>
-                              <TableCell>{f.access_list_in ?? "-"}</TableCell>
-                              <TableCell>{f.access_list_out ?? "-"}</TableCell>
-                              <TableCell>{f.prefix_list_in ?? "-"}</TableCell>
-                              <TableCell>{f.prefix_list_out ?? "-"}</TableCell>
-                            </TableRow>
-                          ))}
-                          {config?.distribute_list.ipv6_interfaces.map((f) => (
-                            <TableRow key={`ipv6-${f.interface}`}>
-                              <TableCell><Badge variant="outline">IPv6</Badge></TableCell>
-                              <TableCell className="font-mono">{f.interface}</TableCell>
-                              <TableCell>{f.access_list_in ?? "-"}</TableCell>
-                              <TableCell>{f.access_list_out ?? "-"}</TableCell>
-                              <TableCell>{f.prefix_list_in ?? "-"}</TableCell>
-                              <TableCell>{f.prefix_list_out ?? "-"}</TableCell>
+                              <TableCell>{f.access_list_in ?? "—"}</TableCell>
+                              <TableCell>{f.access_list_out ?? "—"}</TableCell>
+                              <TableCell>{f.prefix_list_in ?? "—"}</TableCell>
+                              <TableCell>{f.prefix_list_out ?? "—"}</TableCell>
+                              <TableCell className="text-right">
+                                {hasWritePermission && (
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => { setEditingDlIface(f); setDlIfaceModalOpen(true); }}
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-destructive hover:text-destructive"
+                                      onClick={() => setDeletingDlIface(f)}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
                       </Table>
-                    </CardContent>
-                  </Card>
-                )}
+                    </Card>
+                  )}
+                </div>
               </div>
             </TabsContent>
           </Tabs>
+
         </div>
       </div>
 
@@ -914,6 +903,28 @@ export function BabelContent() {
         onOpenChange={(open) => { if (!open) setDeletingInterface(null); }}
         interfaceName={deletingInterface ?? ""}
         onConfirm={handleDeleteInterface}
+      />
+
+      <BabelDistributeListInterfaceModal
+        open={dlIfaceModalOpen}
+        onOpenChange={(open) => {
+          setDlIfaceModalOpen(open);
+          if (!open) setEditingDlIface(null);
+        }}
+        existingEntry={editingDlIface}
+        existingIpv4={config?.distribute_list.ipv4_interfaces.map((f) => f.interface) ?? []}
+        existingIpv6={config?.distribute_list.ipv6_interfaces.map((f) => f.interface) ?? []}
+        accessListNames={accessListNames}
+        prefixListNames={prefixListNames}
+        onSubmit={editingDlIface ? handleUpdateDlIface : handleCreateDlIface}
+      />
+
+      <DeleteBabelInterfaceModal
+        open={!!deletingDlIface}
+        onOpenChange={(open) => { if (!open) setDeletingDlIface(null); }}
+        interfaceName={deletingDlIface ? `${deletingDlIface.addressFamily === "ipv4" ? t("dlModal.ipv4") : t("dlModal.ipv6")} ${deletingDlIface.interface}` : ""}
+        onConfirm={handleDeleteDlIface}
+        variant="filter"
       />
     </>
   );

@@ -78,6 +78,36 @@ class BabelMapper(BaseFeatureMapper):
     def get_interface_rtt_max(self, interface: str, rtt_max: str) -> List[str]:
         return ["protocols", "babel", "interface", interface, "rtt-max", rtt_max]
 
+    def get_interface_type_delete(self, interface: str) -> List[str]:
+        return self.get_interface_path(interface) + ["type"]
+
+    def get_interface_channel_delete(self, interface: str) -> List[str]:
+        return self.get_interface_path(interface) + ["channel"]
+
+    def get_interface_hello_interval_delete(self, interface: str) -> List[str]:
+        return self.get_interface_path(interface) + ["hello-interval"]
+
+    def get_interface_update_interval_delete(self, interface: str) -> List[str]:
+        return self.get_interface_path(interface) + ["update-interval"]
+
+    def get_interface_rxcost_delete(self, interface: str) -> List[str]:
+        return self.get_interface_path(interface) + ["rxcost"]
+
+    def get_interface_split_horizon_delete(self, interface: str) -> List[str]:
+        return self.get_interface_path(interface) + ["split-horizon"]
+
+    def get_interface_max_rtt_penalty_delete(self, interface: str) -> List[str]:
+        return self.get_interface_path(interface) + ["max-rtt-penalty"]
+
+    def get_interface_rtt_decay_delete(self, interface: str) -> List[str]:
+        return self.get_interface_path(interface) + ["rtt-decay"]
+
+    def get_interface_rtt_min_delete(self, interface: str) -> List[str]:
+        return self.get_interface_path(interface) + ["rtt-min"]
+
+    def get_interface_rtt_max_delete(self, interface: str) -> List[str]:
+        return self.get_interface_path(interface) + ["rtt-max"]
+
     # ========================================================================
     # Parameters Paths
     # ========================================================================
@@ -93,6 +123,15 @@ class BabelMapper(BaseFeatureMapper):
 
     def get_parameters_smoothing_half_life(self, half_life: str) -> List[str]:
         return ["protocols", "babel", "parameters", "smoothing-half-life", half_life]
+
+    def get_parameters_diversity_factor_delete(self) -> List[str]:
+        return ["protocols", "babel", "parameters", "diversity-factor"]
+
+    def get_parameters_resend_delay_delete(self) -> List[str]:
+        return ["protocols", "babel", "parameters", "resend-delay"]
+
+    def get_parameters_smoothing_half_life_delete(self) -> List[str]:
+        return ["protocols", "babel", "parameters", "smoothing-half-life"]
 
     # ========================================================================
     # Redistribute Paths
@@ -139,6 +178,30 @@ class BabelMapper(BaseFeatureMapper):
 
     def get_distribute_list_ipv6_prefix_list_out(self, prefix_list: str) -> List[str]:
         return ["protocols", "babel", "distribute-list", "ipv6", "prefix-list", "out", prefix_list]
+
+    def get_distribute_list_ipv4_access_list_in_delete(self) -> List[str]:
+        return ["protocols", "babel", "distribute-list", "ipv4", "access-list", "in"]
+
+    def get_distribute_list_ipv4_access_list_out_delete(self) -> List[str]:
+        return ["protocols", "babel", "distribute-list", "ipv4", "access-list", "out"]
+
+    def get_distribute_list_ipv4_prefix_list_in_delete(self) -> List[str]:
+        return ["protocols", "babel", "distribute-list", "ipv4", "prefix-list", "in"]
+
+    def get_distribute_list_ipv4_prefix_list_out_delete(self) -> List[str]:
+        return ["protocols", "babel", "distribute-list", "ipv4", "prefix-list", "out"]
+
+    def get_distribute_list_ipv6_access_list_in_delete(self) -> List[str]:
+        return ["protocols", "babel", "distribute-list", "ipv6", "access-list", "in"]
+
+    def get_distribute_list_ipv6_access_list_out_delete(self) -> List[str]:
+        return ["protocols", "babel", "distribute-list", "ipv6", "access-list", "out"]
+
+    def get_distribute_list_ipv6_prefix_list_in_delete(self) -> List[str]:
+        return ["protocols", "babel", "distribute-list", "ipv6", "prefix-list", "in"]
+
+    def get_distribute_list_ipv6_prefix_list_out_delete(self) -> List[str]:
+        return ["protocols", "babel", "distribute-list", "ipv6", "prefix-list", "out"]
 
     # ========================================================================
     # Distribute-list Paths (per-interface)
@@ -207,6 +270,60 @@ class BabelMapper(BaseFeatureMapper):
             "protocols", "babel", "distribute-list", "ipv6",
             "interface", interface, "prefix-list", "out", prefix_list
         ]
+
+    def get_distribute_list_ipv4_iface_access_list_in_delete(self, interface: str) -> List[str]:
+        return [
+            "protocols", "babel", "distribute-list", "ipv4",
+            "interface", interface, "access-list", "in",
+        ]
+
+    def get_distribute_list_ipv4_iface_access_list_out_delete(self, interface: str) -> List[str]:
+        return [
+            "protocols", "babel", "distribute-list", "ipv4",
+            "interface", interface, "access-list", "out",
+        ]
+
+    def get_distribute_list_ipv4_iface_prefix_list_in_delete(self, interface: str) -> List[str]:
+        return [
+            "protocols", "babel", "distribute-list", "ipv4",
+            "interface", interface, "prefix-list", "in",
+        ]
+
+    def get_distribute_list_ipv4_iface_prefix_list_out_delete(self, interface: str) -> List[str]:
+        return [
+            "protocols", "babel", "distribute-list", "ipv4",
+            "interface", interface, "prefix-list", "out",
+        ]
+
+    def get_distribute_list_ipv4_iface_delete(self, interface: str) -> List[str]:
+        return ["protocols", "babel", "distribute-list", "ipv4", "interface", interface]
+
+    def get_distribute_list_ipv6_iface_access_list_in_delete(self, interface: str) -> List[str]:
+        return [
+            "protocols", "babel", "distribute-list", "ipv6",
+            "interface", interface, "access-list", "in",
+        ]
+
+    def get_distribute_list_ipv6_iface_access_list_out_delete(self, interface: str) -> List[str]:
+        return [
+            "protocols", "babel", "distribute-list", "ipv6",
+            "interface", interface, "access-list", "out",
+        ]
+
+    def get_distribute_list_ipv6_iface_prefix_list_in_delete(self, interface: str) -> List[str]:
+        return [
+            "protocols", "babel", "distribute-list", "ipv6",
+            "interface", interface, "prefix-list", "in",
+        ]
+
+    def get_distribute_list_ipv6_iface_prefix_list_out_delete(self, interface: str) -> List[str]:
+        return [
+            "protocols", "babel", "distribute-list", "ipv6",
+            "interface", interface, "prefix-list", "out",
+        ]
+
+    def get_distribute_list_ipv6_iface_delete(self, interface: str) -> List[str]:
+        return ["protocols", "babel", "distribute-list", "ipv6", "interface", interface]
 
     def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
         from .config_parse import parse_config as parse_babel_config
