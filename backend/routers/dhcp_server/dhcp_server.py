@@ -587,10 +587,11 @@ async def dhcp_batch_configure(http_request: Request, request: DHCPBatchRequest)
                 if "network_name" in params:
                     args.append(request.network_name)
 
+                remaining = [p for p in params if p not in ("network_name", "subnet")]
                 if "subnet" in params:
                     if request.subnet:
                         args.append(request.subnet)
-                    elif op_value:
+                    elif op_value and not remaining:
                         args.append(op_value)
                     else:
                         raise HTTPException(
@@ -598,7 +599,6 @@ async def dhcp_batch_configure(http_request: Request, request: DHCPBatchRequest)
                             detail=f"Operation {op_name} requires a subnet",
                         )
 
-                remaining = [p for p in params if p not in ("network_name", "subnet")]
                 if remaining:
                     if not op_value:
                         raise HTTPException(

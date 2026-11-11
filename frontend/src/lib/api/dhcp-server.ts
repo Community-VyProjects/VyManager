@@ -194,6 +194,30 @@ interface DHCPDdnsKeaCapability extends DHCPFieldCapability {
 /** Config responses replace a secret with this. It is never written back. */
 export const MASKED_SECRET = "***";
 
+export type DdnsProblem = "tsigKeyIncomplete" | "dnsServerAddress" | "unknownKey";
+
+/** A Kea dynamic-dns-update edit the lab commit would reject, or null. */
+export function ddnsProblem(original: DHCPDdnsConfig, updated: DHCPDdnsConfig): DdnsProblem | null {
+  if (!updated.present) return null;
+  const configured = new Set(original.tsig_keys.map((k) => k.name));
+  const names = new Set<string>();
+  for (const key of updated.tsig_keys) {
+    const name = key.name.trim();
+    if (!name) continue;
+    names.add(name);
+    if (!key.algorithm) return "tsigKeyIncomplete";
+    if (!configured.has(name) && !(key.secret ?? "").trim()) return "tsigKeyIncomplete";
+  }
+  for (const domain of [...updated.forward_domains, ...updated.reverse_domains]) {
+    if (!domain.name.trim()) continue;
+    if (domain.key_name && !names.has(domain.key_name)) return "unknownKey";
+    if (domain.dns_servers.some((s) => s.id.trim() && !(s.address ?? "").trim())) {
+      return "dnsServerAddress";
+    }
+  }
+  return null;
+}
+
 export interface DHCPCapabilitiesResponse {
   fields: {
     // Basic fields
@@ -1106,6 +1130,8 @@ export class DHCPService {
       if (!updated.present && original.present) {
         operations.push({ op: "delete_dynamic_dns_update" });
       } else if (updated.present) {
+        const problem = ddnsProblem(original, updated);
+        if (problem) throw new Error(problem);
         const nextSend = updated.send_updates ?? "";
         const prevSend = original.send_updates ?? "";
         if (nextSend !== prevSend) {

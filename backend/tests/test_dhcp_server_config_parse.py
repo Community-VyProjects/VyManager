@@ -172,6 +172,7 @@ def _run(monkeypatch, service, operations, **request):
         {"op": "set_ddns_tsig_key_secret", "value": "K1|"},
         {"op": "set_ddns_tsig_key"},
         {"op": "set_ddns_tsig_key", "value": ""},
+        {"op": "set_subnet_lease", "value": "86400"},
     ],
 )
 def test_batch_missing_value_is_400(monkeypatch, op):

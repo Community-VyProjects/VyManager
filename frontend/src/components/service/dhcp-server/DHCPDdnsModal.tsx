@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Plus, X } from "lucide-react";
 import {
+  ddnsProblem,
   dhcpService,
   type DHCPCapabilitiesResponse,
   type DHCPDdnsConfig,
@@ -74,7 +75,7 @@ export function DHCPDdnsModal({
   const toggleValues = keaCaps?.toggle_values || [];
   const replaceClientNameValues = keaCaps?.replace_client_name_values || [];
   const algorithms = keaCaps?.tsig_algorithms || [];
-  const keyNames = form.tsig_keys.map((k) => k.name.trim()).filter(Boolean);
+  const keyNames = Array.from(new Set(form.tsig_keys.map((k) => k.name.trim()).filter(Boolean)));
 
   useEffect(() => {
     if (!open) return;
@@ -153,6 +154,11 @@ export function DHCPDdnsModal({
   };
 
   const handleSubmit = async () => {
+    const problem = kea ? ddnsProblem(ddns, form) : null;
+    if (problem) {
+      setError(t(`ddns.errors.${problem}`));
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -214,13 +220,11 @@ export function DHCPDdnsModal({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__none__">{tc("none")}</SelectItem>
-              {Array.from(new Set([...keyNames, ...(domain.key_name ? [domain.key_name] : [])])).map(
-                (name) => (
-                  <SelectItem key={name} value={name}>
-                    {name}
-                  </SelectItem>
-                )
-              )}
+              {keyNames.map((name) => (
+                <SelectItem key={name} value={name}>
+                  {name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           {domain.dns_servers.map((server, sidx) => (

@@ -130,7 +130,12 @@
     "keyName": "密钥名称",
     "base64Secret": "base64 密钥",
     "forwardDomains": "正向域",
-    "reverseDomains": "反向域"
+    "reverseDomains": "反向域",
+    "errors": {
+      "tsigKeyIncomplete": "每个 TSIG 密钥都需要算法，新密钥还需要密钥值",
+      "dnsServerAddress": "每个 DNS 服务器都需要地址",
+      "unknownKey": "某个域使用了未配置的 TSIG 密钥"
+    }
   },
   "subnetForm": {
     "errors": {

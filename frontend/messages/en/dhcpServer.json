@@ -130,7 +130,12 @@
     "keyName": "key name",
     "base64Secret": "base64 secret",
     "forwardDomains": "Forward domains",
-    "reverseDomains": "Reverse domains"
+    "reverseDomains": "Reverse domains",
+    "errors": {
+      "tsigKeyIncomplete": "Each TSIG key needs an algorithm, and a new key needs a secret",
+      "dnsServerAddress": "Each DNS server needs an address",
+      "unknownKey": "A domain uses a TSIG key that is not configured"
+    }
   },
   "subnetForm": {
     "errors": {
