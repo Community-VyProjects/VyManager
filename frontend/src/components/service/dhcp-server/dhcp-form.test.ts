@@ -255,7 +255,7 @@ describe("range update", () => {
     assert.equal(service.createdRanges.length, 0);
   });
 
-  it("recreates the stored range id when start or stop change", async () => {
+  it("rewrites only the changed address and keeps the range", async () => {
     const service = new RecordingDhcpService();
     const draft = rangeDraftFrom("192.168.1.0/24", storedRange);
     draft.startIp = "192.168.1.110";
@@ -269,12 +269,7 @@ describe("range update", () => {
       {
         network: "LAN",
         subnet: "192.168.1.0/24",
-        operations: [
-          { op: "delete_subnet_range", value: "2" },
-          { op: "set_subnet_range", value: "2" },
-          { op: "set_subnet_range_start", value: "2|192.168.1.110" },
-          { op: "set_subnet_range_stop", value: "2|192.168.1.200" },
-        ],
+        operations: [{ op: "set_subnet_range_start", value: "2|192.168.1.110" }],
       },
     ]);
     assert.equal(service.deletedRanges.length, 0);
@@ -292,9 +287,8 @@ describe("range update", () => {
       draft,
       service,
     );
-    assert.equal(service.batches[0].operations[0].value, storedRange.range_id);
     assert.equal(service.batches[0].subnet, "192.168.1.0/24");
-    assert.equal(service.batches[0].operations[2].value, `${storedRange.range_id}|192.168.1.111`);
+    assert.equal(service.batches[0].operations[0].value, `${storedRange.range_id}|192.168.1.111`);
   });
 
   it("puts a catalog change in the same batch when start and stop are unchanged", async () => {
@@ -318,7 +312,7 @@ describe("range update", () => {
     ]);
   });
 
-  it("recreates the range and catalog leaves in one batch", async () => {
+  it("puts the address and catalog changes in one batch", async () => {
     const service = new RecordingDhcpService();
     const draft = rangeDraftFrom("192.168.1.0/24", storedRange);
     draft.startIp = "192.168.1.110";
@@ -332,10 +326,7 @@ describe("range update", () => {
     assert.equal(service.deletedRanges.length, 0);
     assert.equal(service.createdRanges.length, 0);
     assert.deepEqual(service.batches[0].operations.map((op) => op.op), [
-      "delete_subnet_range",
-      "set_subnet_range",
       "set_subnet_range_start",
-      "set_subnet_range_stop",
       "set_range_catalog",
     ]);
   });

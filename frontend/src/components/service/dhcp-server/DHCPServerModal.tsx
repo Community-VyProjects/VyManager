@@ -361,13 +361,13 @@ export function DHCPServerModal({
   };
 
   const addRange = () => {
-    const nextId = ranges.length.toString();
-    setRanges([...ranges, { range_id: nextId, start: "", stop: "" }]);
+    const used = new Set(ranges.map((r) => r.range_id));
+    let n = 0;
+    while (used.has(String(n))) n += 1;
+    setRanges([...ranges, { range_id: String(n), start: "", stop: "" }]);
   };
   const updateRange = (index: number, field: "start" | "stop", value: string) => {
-    const updated = [...ranges];
-    updated[index][field] = value;
-    setRanges(updated);
+    setRanges(ranges.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
   };
   const removeRange = (index: number) => {
     setRanges(ranges.filter((_, i) => i !== index));

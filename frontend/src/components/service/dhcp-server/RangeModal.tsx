@@ -119,19 +119,14 @@ export function RangeModal({
 
     try {
       if (write.kind === "update" && existing) {
-        const startChanged =
-          draft.startIp.trim() !== (existing.range.start || "") ||
-          draft.stopIp.trim() !== (existing.range.stop || "");
-        const follow = startChanged
-          ? catalogCreateOps("set_range_catalog", rangeLeaves, catalogDraft, existing.range.range_id)
-          : catalogOps(
-              "set_range_catalog",
-              "delete_range_catalog",
-              rangeLeaves,
-              catalogOriginal,
-              catalogDraft,
-              existing.range.range_id,
-            );
+        const follow = catalogOps(
+          "set_range_catalog",
+          "delete_range_catalog",
+          rangeLeaves,
+          catalogOriginal,
+          catalogDraft,
+          existing.range.range_id,
+        );
         const updated = await submitRangeUpdate(network.name, existing, draft, dhcpService, follow);
         const updateError = failedSaveMessage(updated, "Failed to save range");
         if (updateError) {

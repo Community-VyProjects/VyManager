@@ -200,6 +200,22 @@ function tsigSecretToWrite(key: DHCPDdnsTsigKey): string {
   return secret === MASKED_SECRET ? "" : secret;
 }
 
+/** Set the range start and stop that changed. A set replaces the value, so the range and its other children stay. */
+export function rangeAddressOps(
+  rangeId: string,
+  prev: { start: string; stop: string },
+  next: { start: string; stop: string },
+): DHCPBatchOperation[] {
+  const ops: DHCPBatchOperation[] = [];
+  if (next.start && next.start !== prev.start) {
+    ops.push({ op: "set_subnet_range_start", value: `${rangeId}|${next.start}` });
+  }
+  if (next.stop && next.stop !== prev.stop) {
+    ops.push({ op: "set_subnet_range_stop", value: `${rangeId}|${next.stop}` });
+  }
+  return ops;
+}
+
 export type DdnsProblem = "tsigKeyIncomplete" | "dnsServerAddress" | "unknownKey" | "duplicateName" | "missingName";
 
 /** A Kea dynamic-dns-update edit the lab commit would reject, or null. */
@@ -623,29 +639,24 @@ export class DHCPService {
       operations.push({ op: "set_subnet_lease", value: config.lease });
     }
 
-    // Update ranges (delete old ones, then set new ones)
+    // Update ranges. A kept range id only rewrites start and stop, so its
+    // client-class and options stay; a removed id deletes that range.
     if (config.ranges !== undefined) {
-      // Delete existing ranges
-      if (currentSubnet?.ranges) {
-        for (const range of currentSubnet.ranges) {
-          operations.push({ op: "delete_subnet_range", value: range.range_id });
-        }
+      const nextIds = new Set(config.ranges.map((r) => r.range_id));
+      const prevRanges = new Map((currentSubnet?.ranges ?? []).map((r) => [r.range_id, r]));
+      for (const id of prevRanges.keys()) {
+        if (!nextIds.has(id)) operations.push({ op: "delete_subnet_range", value: id });
       }
-      // Set new ranges
       for (const range of config.ranges) {
-        operations.push({ op: "set_subnet_range", value: range.range_id });
-        if (range.start) {
-          operations.push({
-            op: "set_subnet_range_start",
-            value: `${range.range_id}|${range.start}`,
-          });
-        }
-        if (range.stop) {
-          operations.push({
-            op: "set_subnet_range_stop",
-            value: `${range.range_id}|${range.stop}`,
-          });
-        }
+        const prev = prevRanges.get(range.range_id);
+        if (!prev) operations.push({ op: "set_subnet_range", value: range.range_id });
+        operations.push(
+          ...rangeAddressOps(
+            range.range_id,
+            { start: prev?.start ?? "", stop: prev?.stop ?? "" },
+            { start: range.start ?? "", stop: range.stop ?? "" },
+          ),
+        );
       }
     }
 

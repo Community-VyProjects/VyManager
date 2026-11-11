@@ -10,6 +10,7 @@
 import {
   dhcpService,
   DHCPService,
+  rangeAddressOps,
   type DHCPBatchOperation,
   type DHCPRange,
   type DHCPSharedNetwork,
@@ -161,10 +162,7 @@ export async function submitRangeUpdate(
     network_name: networkName,
     subnet: stored.subnet,
     operations: [
-      { op: "delete_subnet_range", value: stored.range.range_id },
-      { op: "set_subnet_range", value: stored.range.range_id },
-      { op: "set_subnet_range_start", value: `${stored.range.range_id}|${start}` },
-      { op: "set_subnet_range_stop", value: `${stored.range.range_id}|${stop}` },
+      ...rangeAddressOps(stored.range.range_id, { start: previousStart, stop: previousStop }, { start, stop }),
       ...extra,
     ],
   });
