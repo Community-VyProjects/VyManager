@@ -1,19 +1,9 @@
 {
   "types": {
-    "community": {
-      "title": "团体列表",
-      "name": "团体列表",
-      "modalName": "团体列表"
-    },
     "extCommunity": {
       "title": "扩展团体列表",
       "name": "扩展团体列表",
       "modalName": "扩展团体列表"
-    },
-    "largeCommunity": {
-      "title": "大型团体列表",
-      "name": "大型团体列表",
-      "modalName": "大型团体列表"
     }
   },
   "shared": {
@@ -33,7 +23,6 @@
     "addFirstRule": "添加第一条规则",
     "colRule": "规则编号",
     "colAction": "动作",
-    "colRegex": "正则表达式",
     "colPattern": "模式",
     "noneSelected": "未选择{listType}",
     "failedToSaveOrder": "保存规则顺序失败",
@@ -41,22 +30,11 @@
     "reorderedCount": "你已调整 {count} 条规则的顺序",
     "reorderHint": "点击“保存更改”应用新顺序，或点击“取消”放弃更改",
     "editRuleTitle": "编辑规则 #{number}",
-    "editingRuleIn": "正在编辑{listType}中的规则：{name}",
-    "addRuleTo": "向{listType}添加新规则：{name}（规则 #{number}）",
     "editingRuleInNamed": "正在编辑{listType}中的规则：<b>{name}</b>",
     "addRuleToNamed": "向{listType}添加新规则：<b>{name}</b>",
-    "actionRequired": "动作 *",
-    "regexPatternRequired": "正则表达式 *",
     "createRule": "创建规则",
     "failedToCreateRule": "创建规则失败",
     "failedToUpdateRule": "更新规则失败",
-    "createDescription": "创建一个带有初始规则的 BGP {listType}",
-    "listNameRequired": "{listType}名称 *",
-    "initialRule": "初始规则",
-    "initialRuleNumbered": "初始规则（规则 #{number}）",
-    "ruleNumberRequired": "规则编号 *",
-    "ruleDescription": "规则描述",
-    "ruleDescriptionPlaceholder": "可选规则描述",
     "validRuleNumber": "请输入有效的规则编号",
     "failedToCreateList": "创建{listType}失败",
     "editList": "编辑{listType}",
@@ -73,19 +51,8 @@
     "patternLabel": "模式：",
     "failedToDeleteRule": "删除规则失败"
   },
-  "community": {
-    "pageTitle": "BGP 团体",
-    "failedToLoad": "加载团体列表失败",
-    "errorLoading": "加载团体列表出错",
-    "noMatch": "没有匹配搜索的团体列表",
-    "noneConfigured": "未配置团体列表",
-    "createToStart": "创建一个团体列表以开始使用",
-    "selectFromSidebar": "从侧边栏选择一个团体列表以查看其规则",
-    "nameRequired": "团体列表名称为必填项",
-    "regexHelp": "用于匹配 BGP 团体的正则表达式（例如 \"64501 64502\"）"
-  },
   "extCommunity": {
-    "pageTitle": "BGP 扩展团体",
+    "pageTitle": "扩展团体列表",
     "failedToLoad": "加载扩展团体列表失败",
     "errorLoading": "加载扩展团体列表出错",
     "noMatch": "没有匹配搜索的扩展团体列表",
@@ -94,7 +61,7 @@
     "selectFromSidebar": "从侧边栏选择一个扩展团体列表以查看其规则",
     "nameRequired": "扩展团体列表名称为必填项",
     "createTitle": "创建扩展团体列表",
-    "createDescription": "创建一个带有初始规则的 BGP 扩展团体列表",
+    "createDescription": "创建一个带有初始规则的扩展团体列表",
     "listNameRequired": "列表名称 *",
     "namePlaceholder": "例如：DATACENTER_RT 或 VPN_SOO",
     "nameHelp": "用于标识此扩展团体列表的唯一名称",
@@ -128,21 +95,8 @@
     "configPreview": "配置预览",
     "enterPattern": "（请输入模式）"
   },
-  "largeCommunity": {
-    "pageTitle": "BGP 大型团体",
-    "failedToLoad": "加载大型团体列表失败",
-    "errorLoading": "加载大型团体列表出错",
-    "noMatch": "没有匹配搜索的大型团体列表",
-    "noneConfigured": "未配置大型团体列表",
-    "createToStart": "创建一个大型团体列表以开始使用",
-    "selectFromSidebar": "从侧边栏选择一个大型团体列表以查看其规则",
-    "nameRequired": "大型团体列表名称为必填项",
-    "regexHelp": "用于匹配大型团体的正则表达式（例如 \"64501 64502\"）",
-    "patternHelp": "大型团体模式（ASN:NN:NN 或 IP:NN:NN 格式）"
-  },
   "validation": {
     "regexRequired": "正则表达式为必填项",
-    "largeCommunityFormat": "大型团体格式必须为 ASN:NN:NN 或 IP:NN:NN（例如 4242420696:10[0-1]:.*）",
     "adminFieldRequired": "管理字段（AS 号）为必填项",
     "assignedNum1Required": "分配编号 1 为必填项",
     "assignedNum2Required": "分配编号 2 为必填项",

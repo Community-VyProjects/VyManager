@@ -75,7 +75,7 @@ function getRegexTypeInfo(regex: string | null | undefined): { type: string; lab
 
 // Sortable row component
 function ExtCommunityListRuleRow({ rule, onEdit, onDelete }: { rule: ExtCommunityListRule; onEdit: (rule: ExtCommunityListRule) => void; onDelete: (rule: ExtCommunityListRule) => void }) {
-  const t = useTranslations("bgpLists");
+  const t = useTranslations("extcommunityList");
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: rule.rule_number,
   });
@@ -134,8 +134,8 @@ function ExtCommunityListRuleRow({ rule, onEdit, onDelete }: { rule: ExtCommunit
   );
 }
 
-export default function BGPExtCommunityPage() {
-  const t = useTranslations("bgpLists");
+export default function ExtCommunityListPage() {
+  const t = useTranslations("extcommunityList");
   const tc = useTranslations("common");
   const [extcommunityLists, setExtCommunityLists] = useState<ExtCommunityList[]>([]);
   const [loading, setLoading] = useState(true);

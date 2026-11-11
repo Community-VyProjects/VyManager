@@ -52,7 +52,7 @@ export function nextRuleNumber(rules: { rule_number: number }[]): number {
   return Math.max(...rules.map((r) => r.rule_number)) + 1;
 }
 
-/** Validation errors are message keys under `bgpLists.validation`. */
+/** Validation errors are message keys under that screen's validation namespace. */
 export type RegexListRuleError = "regexRequired" | "largeCommunityFormat";
 
 export function validateRegexListRule(draft: RegexListRuleDraft): RegexListRuleError | null {
@@ -142,7 +142,7 @@ export function buildExtCommunityRegex(draft: ExtCommunityRuleDraft): string {
   return `${draft.matchType} ${draft.adminField.trim()}:${draft.assignedNum1.trim()}:${draft.assignedNum2.trim()}`;
 }
 
-/** Validation errors are message keys under `bgpLists.validation`. */
+/** Validation errors are message keys under that screen's validation namespace. */
 export type ExtCommunityRuleError =
   | "regexRequired"
   | "adminFieldRequired"

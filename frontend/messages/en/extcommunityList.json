@@ -1,19 +1,9 @@
 {
   "types": {
-    "community": {
-      "title": "Community List",
-      "name": "community list",
-      "modalName": "Community list"
-    },
     "extCommunity": {
       "title": "ExtCommunity List",
       "name": "extcommunity list",
       "modalName": "ExtCommunity list"
-    },
-    "largeCommunity": {
-      "title": "Large Community List",
-      "name": "large community list",
-      "modalName": "large community list"
     }
   },
   "shared": {
@@ -33,7 +23,6 @@
     "addFirstRule": "Add First Rule",
     "colRule": "Rule #",
     "colAction": "Action",
-    "colRegex": "Regex",
     "colPattern": "Pattern",
     "noneSelected": "No {listType} Selected",
     "failedToSaveOrder": "Failed to save rule order",
@@ -41,22 +30,11 @@
     "reorderedCount": "You have reordered {count, plural, one {# rule} other {# rules}}",
     "reorderHint": "Click \"Save Changes\" to apply the new order or \"Cancel\" to discard changes",
     "editRuleTitle": "Edit Rule #{number}",
-    "editingRuleIn": "Editing rule in {listType}: {name}",
-    "addRuleTo": "Add a new rule to {listType}: {name} (Rule #{number})",
     "editingRuleInNamed": "Editing rule in {listType}: <b>{name}</b>",
     "addRuleToNamed": "Add a new rule to {listType}: <b>{name}</b>",
-    "actionRequired": "Action *",
-    "regexPatternRequired": "Regex Pattern *",
     "createRule": "Create Rule",
     "failedToCreateRule": "Failed to create rule",
     "failedToUpdateRule": "Failed to update rule",
-    "createDescription": "Create a new BGP {listType} with an initial rule",
-    "listNameRequired": "{listType} Name *",
-    "initialRule": "Initial Rule",
-    "initialRuleNumbered": "Initial Rule (Rule #{number})",
-    "ruleNumberRequired": "Rule Number *",
-    "ruleDescription": "Rule Description",
-    "ruleDescriptionPlaceholder": "Optional rule description",
     "validRuleNumber": "Valid rule number is required",
     "failedToCreateList": "Failed to create {listType}",
     "editList": "Edit {listType}",
@@ -73,19 +51,8 @@
     "patternLabel": "Pattern:",
     "failedToDeleteRule": "Failed to delete rule"
   },
-  "community": {
-    "pageTitle": "BGP Community",
-    "failedToLoad": "Failed to load community lists",
-    "errorLoading": "Error Loading Community Lists",
-    "noMatch": "No community lists match your search",
-    "noneConfigured": "No community lists configured",
-    "createToStart": "Create a community list to get started",
-    "selectFromSidebar": "Select a community list from the sidebar to view its rules",
-    "nameRequired": "Community list name is required",
-    "regexHelp": "Regular expression to match BGP communities (e.g., \"64501 64502\")"
-  },
   "extCommunity": {
-    "pageTitle": "BGP Extended Community",
+    "pageTitle": "ExtCommunity List",
     "failedToLoad": "Failed to load extcommunity lists",
     "errorLoading": "Error Loading ExtCommunity Lists",
     "noMatch": "No extcommunity lists match your search",
@@ -94,7 +61,7 @@
     "selectFromSidebar": "Select a extcommunity list from the sidebar to view its rules",
     "nameRequired": "ExtCommunity list name is required",
     "createTitle": "Create Extended Community List",
-    "createDescription": "Create a new BGP Extended Community list with an initial rule",
+    "createDescription": "Create a new ExtCommunity list with an initial rule",
     "listNameRequired": "List Name *",
     "namePlaceholder": "e.g., DATACENTER_RT or VPN_SOO",
     "nameHelp": "A unique name to identify this extended community list",
@@ -128,21 +95,8 @@
     "configPreview": "Configuration Preview",
     "enterPattern": "(enter pattern)"
   },
-  "largeCommunity": {
-    "pageTitle": "BGP Large Community",
-    "failedToLoad": "Failed to load large community lists",
-    "errorLoading": "Error Loading Large Community Lists",
-    "noMatch": "No large community lists match your search",
-    "noneConfigured": "No large community lists configured",
-    "createToStart": "Create a large community list to get started",
-    "selectFromSidebar": "Select a large community list from the sidebar to view its rules",
-    "nameRequired": "Large community list name is required",
-    "regexHelp": "Regular expression to match large communities (e.g., \"64501 64502\")",
-    "patternHelp": "Large community pattern (ASN:NN:NN or IP:NN:NN format)"
-  },
   "validation": {
     "regexRequired": "Regex pattern is required",
-    "largeCommunityFormat": "Large community must be in format ASN:NN:NN or IP:NN:NN (e.g., 4242420696:10[0-1]:.*)",
     "adminFieldRequired": "Administrator field (AS Number) is required",
     "assignedNum1Required": "Assigned Number 1 is required",
     "assignedNum2Required": "Assigned Number 2 is required",

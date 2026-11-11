@@ -22,7 +22,7 @@ export function CreateLargeCommunityListModal({
   onOpenChange,
   onSuccess,
 }: CreateLargeCommunityListModalProps) {
-  const t = useTranslations("bgpLists");
+  const t = useTranslations("largeCommunityList");
   const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

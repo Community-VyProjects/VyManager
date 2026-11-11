@@ -22,7 +22,7 @@ export function EditCommunityListModal({
   onSuccess,
   communityList,
 }: EditCommunityListModalProps) {
-  const t = useTranslations("bgpLists");
+  const t = useTranslations("communityList");
   const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
