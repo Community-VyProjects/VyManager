@@ -151,7 +151,7 @@ export interface RAConnection {
 
 export interface RAPool {
   name: string;
-  prefix?: string[];
+  prefix?: string | null;
   name_servers?: string[];
   exclude?: string[];
   range_start?: string | null;
@@ -206,7 +206,7 @@ export interface IPSecConfigResponse {
 
 export interface IPSecCapabilities {
   features: {
-    ipsec: { supported: boolean; description: string; psk_secret_types: string[] };
+    ipsec: { supported: boolean; description: string; psk_secret_types: string[]; log_levels: string[]; log_subsystems: string[] };
     site_to_site: {
       supported: boolean;
       description: string;
@@ -217,8 +217,9 @@ export interface IPSecCapabilities {
       childless_values: string[];
       ikev2_reauth_values: string[];
       tunnel_protocols: string[];
+      auth_modes: string[];
     };
-    remote_access: { supported: boolean; description: string };
+    remote_access: { supported: boolean; description: string; server_modes: string[]; client_modes: string[] };
     ike_groups: {
       supported: boolean;
       description: string;
@@ -956,18 +957,14 @@ class IPSecService {
   // ==========================================================================
 
   async createRAPool(name: string, config: {
-    prefix?: string[];
+    prefix?: string;
     name_servers?: string[];
     exclude?: string[];
     range_start?: string;
     range_stop?: string;
   }): Promise<VyOSResponse> {
     const ops: BatchOperation[] = [{ op: "create_ra_pool" }];
-    if (config.prefix) {
-      for (const p of config.prefix) {
-        ops.push({ op: "set_ra_pool_prefix", value: p });
-      }
-    }
+    if (config.prefix) ops.push({ op: "set_ra_pool_prefix", value: config.prefix });
     if (config.name_servers) {
       for (const ns of config.name_servers) {
         ops.push({ op: "set_ra_pool_name_server", value: ns });
@@ -989,7 +986,7 @@ class IPSecService {
 
   async updateRAPool(
     name: string,
-    config: { prefix?: string[]; name_servers?: string[]; exclude?: string[]; range_start?: string; range_stop?: string },
+    config: { prefix?: string; name_servers?: string[]; exclude?: string[]; range_start?: string; range_stop?: string },
     existing: RAPool
   ): Promise<VyOSResponse> {
     const ops: BatchOperation[] = [{ op: "create_ra_pool" }];
@@ -1003,7 +1000,7 @@ class IPSecService {
       if (next && next !== prev) ops.push({ op: setOp, value: next });
       else if (!next && prev) ops.push({ op: deleteOp });
     };
-    multi("set_ra_pool_prefix", "delete_ra_pool_prefix", config.prefix, existing.prefix);
+    leaf("set_ra_pool_prefix", "delete_ra_pool_prefix", config.prefix, existing.prefix);
     multi("set_ra_pool_name_server", "delete_ra_pool_name_server", config.name_servers, existing.name_servers);
     multi("set_ra_pool_exclude", "delete_ra_pool_exclude", config.exclude, existing.exclude);
     leaf("set_ra_pool_range_start", "delete_ra_pool_range_start", config.range_start, existing.range_start);

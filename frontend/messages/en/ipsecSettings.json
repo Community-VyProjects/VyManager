@@ -60,7 +60,6 @@
     "titleEdit": "Edit Address Pool",
     "titleCreate": "Create Address Pool",
     "description": "Configure an IP address pool for remote access clients.",
-    "prefixes": "Prefixes",
     "dnsServers": "DNS Servers",
     "exclude": "Exclude",
     "rangeStart": "Range Start",

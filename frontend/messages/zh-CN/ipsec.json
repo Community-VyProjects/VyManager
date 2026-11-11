@@ -117,8 +117,7 @@
     "select": "请选择...",
     "localId": "本地 ID",
     "caCertificate": "CA 证书",
-    "certificate": "证书",
-    "preSharedSecret": "预共享密钥"
+    "certificate": "证书"
   },
   "s2sModal": {
     "peerNameRequired": "对端名称为必填项",
@@ -153,7 +152,6 @@
     "dhcpInterface": "DHCP 接口（可选）",
     "forceUdp": "强制 UDP 封装",
     "authMode": "认证方式",
-    "x509Certificate": "X.509 证书",
     "remoteId": "远端 ID",
     "passphraseOptional": "密码短语（可选）",
     "localKey": "本地密钥",

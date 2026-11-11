@@ -44,9 +44,6 @@ interface SettingsModalProps {
   disableUniqreqids: boolean;
 }
 
-const LOG_LEVELS = ["0", "1", "2"];
-const LOG_SUBSYSTEMS = ["any", "dmn", "mgr", "ike", "chd", "job", "cfg", "knl", "net", "asn", "enc", "tnc", "imc", "imv", "pts", "tls", "esp", "lib"];
-
 export function SettingsModal({
   open,
   onOpenChange,
@@ -223,14 +220,14 @@ export function SettingsModal({
                 <SelectTrigger><SelectValue placeholder={tc("default")} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_default">{tc("default")}</SelectItem>
-                  {LOG_LEVELS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                  {(capabilities?.features.ipsec.log_levels || []).map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label className="text-xs text-muted-foreground">{t("settings.subsystems")}</Label>
               <div className="grid grid-cols-4 gap-2">
-                {LOG_SUBSYSTEMS.map((sub) => (
+                {(capabilities?.features.ipsec.log_subsystems || []).map((sub) => (
                   <div key={sub} className="flex items-center gap-1.5">
                     <Checkbox
                       id={`sub-${sub}`}

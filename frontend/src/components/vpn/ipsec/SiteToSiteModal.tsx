@@ -451,9 +451,9 @@ export function SiteToSiteModal({
               <Select value={authMode} onValueChange={setAuthMode}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pre-shared-secret">{t("modal.preSharedSecret")}</SelectItem>
-                  <SelectItem value="rsa">RSA</SelectItem>
-                  <SelectItem value="x509">{t("s2sModal.x509Certificate")}</SelectItem>
+                  {(capabilities?.features.site_to_site.auth_modes || []).map((value) => (
+                    <SelectItem key={value} value={value}>{value}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

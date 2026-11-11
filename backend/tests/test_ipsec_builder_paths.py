@@ -185,7 +185,7 @@ COMMON_CASES = [
     ('delete_ike_group_proposal_encryption', ('G0', '1'), 'delete', ['vpn', 'ipsec', 'ike-group', 'G0', 'proposal', '1', 'encryption']),
     ('delete_ike_group_proposal_hash', ('G0', '1'), 'delete', ['vpn', 'ipsec', 'ike-group', 'G0', 'proposal', '1', 'hash']),
     ('delete_ike_group_proposal_prf', ('G0', '1'), 'delete', ['vpn', 'ipsec', 'ike-group', 'G0', 'proposal', '1', 'prf']),
-    ('delete_ra_pool_prefix', ('G0', '10.0.0.0/8'), 'delete', ['vpn', 'ipsec', 'remote-access', 'pool', 'G0', 'prefix', '10.0.0.0/8']),
+    ('delete_ra_pool_prefix', ('G0',), 'delete', ['vpn', 'ipsec', 'remote-access', 'pool', 'G0', 'prefix']),
     ('delete_ra_pool_name_server', ('G0', '1.1.1.1'), 'delete', ['vpn', 'ipsec', 'remote-access', 'pool', 'G0', 'name-server', '1.1.1.1']),
     ('delete_ra_pool_exclude', ('G0', '10.0.0.1'), 'delete', ['vpn', 'ipsec', 'remote-access', 'pool', 'G0', 'exclude', '10.0.0.1']),
 ]

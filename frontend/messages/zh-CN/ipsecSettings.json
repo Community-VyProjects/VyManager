@@ -60,7 +60,6 @@
     "titleEdit": "编辑地址池",
     "titleCreate": "创建地址池",
     "description": "为远程访问客户端配置 IP 地址池。",
-    "prefixes": "前缀",
     "dnsServers": "DNS 服务器",
     "exclude": "排除",
     "rangeStart": "起始地址",

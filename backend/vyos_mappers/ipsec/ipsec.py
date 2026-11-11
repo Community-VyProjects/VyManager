@@ -94,6 +94,24 @@ class IPSecMapper(BaseFeatureMapper):
             "disable",
         ]
 
+    def log_levels(self) -> List[str]:
+        return ["0", "1", "2"]
+
+    def log_subsystems(self) -> List[str]:
+        return [
+            "dmn", "mgr", "ike", "chd", "job", "cfg", "knl", "net", "asn", "enc",
+            "lib", "esp", "tls", "tnc", "imc", "imv", "pts", "any",
+        ]
+
+    def s2s_auth_modes(self) -> List[str]:
+        return ["pre-shared-secret", "rsa", "x509"]
+
+    def ra_server_modes(self) -> List[str]:
+        return ["pre-shared-secret", "x509"]
+
+    def ra_client_modes(self) -> List[str]:
+        return ["x509", "eap-tls", "eap-mschapv2", "eap-radius"]
+
     # ========================================================================
     # Base path
     # ========================================================================
@@ -653,7 +671,7 @@ class IPSecMapper(BaseFeatureMapper):
         rng = config.get("range", {})
         return {
             "name": name,
-            "prefix": self._normalize_to_list(config.get("prefix")),
+            "prefix": config.get("prefix") if isinstance(config.get("prefix"), str) else None,
             "name_servers": self._normalize_to_list(config.get("name-server")),
             "exclude": self._normalize_to_list(config.get("exclude")),
             "range_start": rng.get("start"),

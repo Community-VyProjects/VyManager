@@ -33,6 +33,7 @@ export function PoolModal({
   existingPool,
 }: PoolModalProps) {
   const t = useTranslations("ipsecSettings");
+  const tp = useTranslations("ipsec");
   const tc = useTranslations("common");
   const isEdit = !!existingPool;
 
@@ -50,7 +51,7 @@ export function PoolModal({
     if (open) {
       if (existingPool) {
         setName(existingPool.name);
-        setPrefix((existingPool.prefix || []).join(", "));
+        setPrefix(existingPool.prefix || "");
         setNameServers((existingPool.name_servers || []).join(", "));
         setExclude((existingPool.exclude || []).join(", "));
         setRangeStart(existingPool.range_start || "");
@@ -77,7 +78,7 @@ export function PoolModal({
 
     try {
       const payload = {
-        prefix: prefix ? splitValues(prefix) : undefined,
+        prefix: prefix || undefined,
         name_servers: nameServers ? splitValues(nameServers) : undefined,
         exclude: exclude ? splitValues(exclude) : undefined,
         range_start: rangeStart || undefined,
@@ -117,8 +118,8 @@ export function PoolModal({
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="ra-pool" disabled={isEdit} />
           </div>
           <div className="space-y-2">
-            <Label>{t("pool.prefixes")}</Label>
-            <Input value={prefix} onChange={(e) => setPrefix(e.target.value)} placeholder="10.10.0.0/24, 10.10.1.0/24" />
+            <Label>{tp("page.pool.prefix")}</Label>
+            <Input value={prefix} onChange={(e) => setPrefix(e.target.value)} placeholder="10.10.0.0/24" />
           </div>
           <div className="space-y-2">
             <Label>{t("pool.dnsServers")}</Label>

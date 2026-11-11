@@ -257,8 +257,9 @@ export function RemoteAccessModal({
                 <Select value={authServerMode} onValueChange={setAuthServerMode}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="pre-shared-secret">{t("modal.preSharedSecret")}</SelectItem>
-                    <SelectItem value="x509">X.509</SelectItem>
+                    {(capabilities?.features.remote_access.server_modes || []).map((value) => (
+                      <SelectItem key={value} value={value}>{value}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -268,10 +269,9 @@ export function RemoteAccessModal({
                   <SelectTrigger><SelectValue placeholder={tc("default")} /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="_none">{tc("default")}</SelectItem>
-                    <SelectItem value="eap-mschapv2">EAP-MSCHAPv2</SelectItem>
-                    <SelectItem value="eap-tls">EAP-TLS</SelectItem>
-                    <SelectItem value="eap-radius">EAP-RADIUS</SelectItem>
-                    <SelectItem value="x509">X.509</SelectItem>
+                    {(capabilities?.features.remote_access.client_modes || []).map((value) => (
+                      <SelectItem key={value} value={value}>{value}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

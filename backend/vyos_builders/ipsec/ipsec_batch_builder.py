@@ -669,8 +669,8 @@ class IPSecBatchBuilder(BatchBuilder):
     def set_ra_pool_prefix(self, pool: str, prefix: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_pool_prefix_path(pool, prefix))
 
-    def delete_ra_pool_prefix(self, pool: str, prefix: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ra_pool_prefix_path(pool, prefix))
+    def delete_ra_pool_prefix(self, pool: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_ra_pool_prefix_path(pool, ""))
 
     def set_ra_pool_name_server(self, pool: str, server: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_pool_name_server_path(pool, server))
@@ -718,6 +718,8 @@ class IPSecBatchBuilder(BatchBuilder):
                     "supported": True,
                     "description": "IPSec VPN tunnel support",
                     "psk_secret_types": mapper.secret_types(),
+                    "log_levels": mapper.log_levels(),
+                    "log_subsystems": mapper.log_subsystems(),
                 },
                 "site_to_site": {
                     "supported": True,
@@ -729,10 +731,13 @@ class IPSecBatchBuilder(BatchBuilder):
                     "childless_values": mapper.childless_values(),
                     "ikev2_reauth_values": mapper.ikev2_reauth_values(),
                     "tunnel_protocols": mapper.tunnel_protocols(),
+                    "auth_modes": mapper.s2s_auth_modes(),
                 },
                 "remote_access": {
                     "supported": True,
                     "description": "Remote access IPSec VPN",
+                    "server_modes": mapper.ra_server_modes(),
+                    "client_modes": mapper.ra_client_modes(),
                 },
                 "ike_groups": {
                     "supported": True,

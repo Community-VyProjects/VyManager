@@ -117,8 +117,7 @@
     "select": "Select...",
     "localId": "Local ID",
     "caCertificate": "CA Certificate",
-    "certificate": "Certificate",
-    "preSharedSecret": "Pre-Shared Secret"
+    "certificate": "Certificate"
   },
   "s2sModal": {
     "peerNameRequired": "Peer name is required",
@@ -153,7 +152,6 @@
     "dhcpInterface": "DHCP Interface (optional)",
     "forceUdp": "Force UDP Encapsulation",
     "authMode": "Authentication Mode",
-    "x509Certificate": "X.509 Certificate",
     "remoteId": "Remote ID",
     "passphraseOptional": "Passphrase (optional)",
     "localKey": "Local Key",

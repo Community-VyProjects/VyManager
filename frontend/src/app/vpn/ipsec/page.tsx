@@ -740,13 +740,7 @@ function IPSecPageInner() {
                         {config?.remote_access.pools.map((pool) => (
                           <TableRow key={pool.name} className="group">
                             <TableCell className="font-medium">{pool.name}</TableCell>
-                            <TableCell>
-                              <div className="flex flex-wrap gap-1">
-                                {(pool.prefix || []).map((p, i) => (
-                                  <Badge key={i} variant="outline" className="text-xs font-mono">{p}</Badge>
-                                ))}
-                              </div>
-                            </TableCell>
+                            <TableCell className="font-mono text-xs">{pool.prefix || "-"}</TableCell>
                             <TableCell>{(pool.name_servers || []).join(", ") || "-"}</TableCell>
                             <TableCell>{(pool.exclude || []).join(", ") || "-"}</TableCell>
                             {capabilities?.features.pool_range.supported && (
